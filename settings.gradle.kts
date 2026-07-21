@@ -17,7 +17,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Operit"
+rootProject.name = "Kiyori"
 include(":app")
 include(":dragonbones")
 include(":terminal")

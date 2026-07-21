@@ -52,11 +52,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.ai.assistance.operit"
+        applicationId = "com.kiyori"
         minSdk = 26
         targetSdk = 34
-        versionCode = 44
-        versionName = "1.12.0+4"
+        versionCode = 45
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -106,7 +106,7 @@ android {
                 signingConfig = releaseSigningConfig
             }
             matchingFallbacks += listOf("debug")
-            resValue("string", "app_name", "Operit Clone")
+            resValue("string", "app_name", "Kiyori")
         }
         create("nightly") {
             isMinifyEnabled = false
@@ -338,7 +338,7 @@ dependencies {
     implementation(libs.junrar)
 
     // Compose dependencies - use BOM for version consistency
-    implementation(platform(libs.compose.bom))
+    implementation(enforcedPlatform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
@@ -379,7 +379,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(enforcedPlatform(libs.compose.bom))
 
     // Apache POI - for Document processing (DOC, DOCX, etc.)
     implementation(libs.poi)
@@ -393,8 +393,24 @@ dependencies {
 
     // Color picker for theme customization
     implementation(libs.colorpicker)
-    implementation(libs.backdrop)
-    implementation(libs.liquid)
+    implementation(libs.backdrop) {
+        exclude(group = "org.jetbrains.compose.animation")
+        exclude(group = "org.jetbrains.compose.foundation")
+        exclude(group = "org.jetbrains.compose.material")
+        exclude(group = "org.jetbrains.compose.runtime")
+        exclude(group = "org.jetbrains.compose.ui")
+        exclude(group = "org.jetbrains.androidx.lifecycle")
+        exclude(group = "org.jetbrains.androidx.savedstate")
+    }
+    implementation(libs.liquid) {
+        exclude(group = "org.jetbrains.compose.animation")
+        exclude(group = "org.jetbrains.compose.foundation")
+        exclude(group = "org.jetbrains.compose.material")
+        exclude(group = "org.jetbrains.compose.runtime")
+        exclude(group = "org.jetbrains.compose.ui")
+        exclude(group = "org.jetbrains.androidx.lifecycle")
+        exclude(group = "org.jetbrains.androidx.savedstate")
+    }
     
     // NanoHTTPD for local web server
     implementation(libs.nanohttpd)
@@ -405,7 +421,7 @@ dependencies {
     // Android测试依赖
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(enforcedPlatform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
@@ -425,7 +441,15 @@ dependencies {
     // testImplementation(libs.kotlinx.coroutines.debug)
     // androidTestImplementation(libs.mockk)
     
-    implementation(libs.reorderable)
+    implementation(libs.reorderable) {
+        exclude(group = "org.jetbrains.compose.animation")
+        exclude(group = "org.jetbrains.compose.foundation")
+        exclude(group = "org.jetbrains.compose.material")
+        exclude(group = "org.jetbrains.compose.runtime")
+        exclude(group = "org.jetbrains.compose.ui")
+        exclude(group = "org.jetbrains.androidx.lifecycle")
+        exclude(group = "org.jetbrains.androidx.savedstate")
+    }
 
     // Swipe to reveal actions
     implementation(libs.swipe)

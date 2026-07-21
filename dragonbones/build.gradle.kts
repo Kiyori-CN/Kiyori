@@ -60,7 +60,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     
     // Compose 依赖
-    implementation(platform(libs.compose.bom))
+    implementation(enforcedPlatform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)

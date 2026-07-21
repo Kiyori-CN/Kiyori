@@ -10,7 +10,6 @@ import com.ai.assistance.operit.util.AppLogger
 import android.widget.Toast
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import com.ai.assistance.operit.core.tools.system.OperitTerminalManager
 import com.ai.assistance.operit.core.tools.system.RootAuthorizer
 import com.ai.assistance.operit.data.repository.UIHierarchyManager
 import kotlinx.coroutines.CoroutineScope

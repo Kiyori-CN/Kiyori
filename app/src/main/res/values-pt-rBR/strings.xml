@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<resources><string name="app_name">Operar IA</string>
+<resources><string name="app_name">Kiyori</string>
     <string name="accessibility_service_description">Ele é usado para obter a hierarquia da IU e fornecer recursos de análise de interface mais rápidos para o assistente de IA. Nenhuma informação pessoal será coletada ou armazenada.</string>
     <string name="model_selector_title">Selecione a configuração do modelo</string>
     <string name="model_selector_toggle">Mostrar seletor de modelo</string>
@@ -10,11 +10,6 @@
     <string name="nav_settings">configurar</string>
     <string name="nav_tool_permissions">Permissões de ferramentas</string>
     <string name="nav_about">sobre</string>
-    <string name="update_history">Histórico de atualizações</string>
-    <string name="update_load_failed">Falha no carregamento</string>
-    <string name="update_latest">atualizado</string>
-    <string name="update_view_release">Ver lançamentos</string>
-    <string name="update_download">download</string>
     <string name="action_retry">Tente novamente</string>
     <string name="common_collapse">fechar</string>
     <string name="common_expand_more">Expanda mais</string>
@@ -521,15 +516,14 @@
     <string name="install_termux_failed">A instalação do Termux falhou</string>
     <string name="open_termux">Abra o Termux</string>
     <string name="termux_setup_guide">Assistente de configuração Termux</string>
-    <string name="about_title">Sobre a Operit AI</string>
+    <string name="about_title">Sobre a Kiyori</string>
     <string name="about_version">Versão: %1$s</string>
-    <string name="about_description">Operit AI é um aplicativo assistente inteligente que pode ajudar os usuários a usar os dispositivos com mais eficiência, fornecendo análise de interface, diálogo de chat e outras funções.</string>
-    <string name="about_developer">Desenvolvedor: &lt;a href="https://github.com/AAswordman"&gt;AAswordman&lt;/a&gt;</string>
+    <string name="about_description">Kiyori é um aplicativo assistente inteligente que pode ajudar os usuários a usar os dispositivos com mais eficiência, fornecendo análise de interface, diálogo de chat e outras funções.</string>
+    <string name="about_developer">Desenvolvedor: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
     <string name="about_contact">Contate-nos: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/AAswordman/Operit"&gt;GitHub: https://github.com/AAswordman/Operit&lt;/a&gt;</string>
-    <string name="about_copyright">© 2025 - 2026 Operit. Todos os direitos reservados.</string>
+    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
+    <string name="about_copyright">© 2025 - 2026 Kiyori. Todos os direitos reservados.</string>
     <string name="star_on_github">Clique em uma estrela no GitHub</string>
-    <string name="update_log">Registro de alterações</string>
     <string name="app_logo_description">ícone do aplicativo</string>
     <string name="github_star_description">Estrela do GitHub</string>
     <string name="configure_ai">Configurar interface de IA</string>
@@ -542,7 +536,7 @@
     <string name="network_unavailable">Conexão de rede não disponível, verifique suas configurações de rede</string>
     <string name="network_status">Status da rede: %1$s</string>
     <string name="network_status_label">status da rede</string>
-    <string name="config_title">Assistente Operat AI</string>
+    <string name="config_title">Assistente Kiyori</string>
     <string name="config_description">Use uma chave de API da DeepSeek ou configure outro serviço de modelo</string>
     <string name="config_api_key_label">Chave de API</string>
     <string name="config_api_key_placeholder">Chave API DeepSeek</string>
@@ -593,7 +587,7 @@
     <string name="free_usage_first_tip">Esta é a primeira vez que você usa, você precisa esperar 1 dia antes de poder usá-lo novamente ~</string>
     <string name="free_usage_later_tip">Você tem que ter cuidado ao trocar a lã. Você precisa esperar mais %1$d dias antes de continuar cortando(๑•̀ㅂ•́)و✧</string>
     <string name="plugin_skip">pular sobre</string>
-    <string name="plugin_app_name">OPERAÇÃO</string>
+    <string name="plugin_app_name">Kiyori</string>
     <string name="plugin_status">Iniciado: %1$d / %2$d</string>
     <string name="plugin_loading_status_title">Status de carregamento do plug-in</string>
     <string name="plugin_loading_success">Carregando com sucesso</string>
@@ -964,13 +958,13 @@
     <string name="agreement_subtitle">Leia atentamente e concorde com os seguintes termos antes de usar.</string>
     <string name="agreement_version">Versão do acordo: %1$s</string>
     <string name="agreement_human_readable_title">Versão humana do acordo (versão não legal)</string>
-    <string name="agreement_human_readable_content">Limite do serviço: Operit não fornece serviços públicos de interação emocional antropomórfica. Operit é um cliente de código aberto que roda localmente no dispositivo do usuário. Não opera serviços de inferência de modelos, não hospeda sessões de chat ou dados de interação, e não distribui credenciais de modelo compartilhadas. Solicitações a modelos em nuvem são enviadas diretamente do seu dispositivo ao provedor de modelos que você configurar com suas próprias credenciais; os dados relacionados seguem as regras desse provedor. Modelos locais executam inferência no seu dispositivo.\n\nEste app pode chamar arquivos, terminais, automação, Root, ADB, extensões e recursos semelhantes. Verifique as operações antes de executá-las, faça backup de dados importantes e conceda permissões com cuidado. Perdas envolvendo dispositivos, dados, contas ou outros interesses causadas por ações do usuário, configuração do usuário, serviços de terceiros ou extensões de terceiros devem ser tratadas pelo operador real conforme a lei aplicável.\n\nPlugins, scripts, Skills, kits de ferramentas e outros conteúdos de terceiros no marketplace pertencem aos autores ou titulares de direitos indicados, junto com a responsabilidade relacionada. A listagem ou instalação pelo marketplace não significa que Operit garanta, endosse ou obtenha direitos sobre esse conteúdo. Confirme a licença e o status dos direitos antes de usar, modificar, publicar ou redistribuir.</string>
+    <string name="agreement_human_readable_content">Limite do serviço: Kiyori não fornece serviços públicos de interação emocional antropomórfica. Kiyori é um cliente de código aberto que roda localmente no dispositivo do usuário. Não opera serviços de inferência de modelos, não hospeda sessões de chat ou dados de interação, e não distribui credenciais de modelo compartilhadas. Solicitações a modelos em nuvem são enviadas diretamente do seu dispositivo ao provedor de modelos que você configurar com suas próprias credenciais; os dados relacionados seguem as regras desse provedor. Modelos locais executam inferência no seu dispositivo.\n\nEste app pode chamar arquivos, terminais, automação, Root, ADB, extensões e recursos semelhantes. Verifique as operações antes de executá-las, faça backup de dados importantes e conceda permissões com cuidado. Perdas envolvendo dispositivos, dados, contas ou outros interesses causadas por ações do usuário, configuração do usuário, serviços de terceiros ou extensões de terceiros devem ser tratadas pelo operador real conforme a lei aplicável.\n\nPlugins, scripts, Skills, kits de ferramentas e outros conteúdos de terceiros no marketplace pertencem aos autores ou titulares de direitos indicados, junto com a responsabilidade relacionada. A listagem ou instalação pelo marketplace não significa que Kiyori garanta, endosse ou obtenha direitos sobre esse conteúdo. Confirme a licença e o status dos direitos antes de usar, modificar, publicar ou redistribuir.</string>
     <string name="agreement_serious_title">Versão estrita do acordo legal</string>
     <string name="agreement_serious_content"><![CDATA[
-        <p><b>Contrato do Usuário e Política de Privacidade do Operit</b><br>Versão: 2026-07-15; data efetiva pretendida: 15 de julho de 2026.</p>
-        <p><b>1. Escopo e versão do contrato</b><br>Este contrato se aplica ao cliente Android lançado oficialmente pelo Operit e aos seus recursos online opcionais. Ao usar este app, você confirma que leu e aceitou a versão atual. O app registra, na inicialização, a versão do contrato que você aceitou; quando o contrato tiver atualização substancial, o app exigirá que você confirme a nova versão antes de continuar. O código aberto no repositório é licenciado sob a GNU Lesser General Public License version 3 (LGPLv3), conforme o arquivo <code>LICENSE</code> na raiz. Este contrato não exclui nem reduz direitos concedidos pela lei aplicável ou por licenças de código aberto.</p>
-        <p><b>2. Posicionamento do produto e serviços de terceiros</b><br>Operit é software cliente de código aberto. Não fornece inferência de grandes modelos de linguagem, API Keys compartilhadas, retransmissão de solicitações de chat ou hospedagem em nuvem de registros de chat. Modelos em nuvem, voz em nuvem, busca, geração de imagens, MCP e outros recursos de rede são escolhidos, configurados e ativados por você. Ao usar esses serviços, os dados são enviados diretamente ao provedor correspondente e regidos pelos termos de serviço e política de privacidade desse provedor. Você deve avaliar a segurança, legalidade e adequação de provedores, modelos, endpoints e extensões, e proteger suas credenciais.</p>
-        <p><b>3. Processamento de dados e privacidade</b><br>Registros de chat, cartões de personagem, memórias, configuração de modelos e API Keys normalmente ficam armazenados nos dados do app no seu dispositivo. Quando você exporta, faz backup, envia arquivos, usa recursos de rede de terceiros ou envia solicitações para um serviço HTTP externo, os dados relacionados serão copiados, transmitidos ou divulgados conforme suas ações. Marketplace, anúncios, verificações de atualização, login do GitHub e recursos de publicação podem acessar recursos do Operit, GitHub ou terceiros relacionados; esses recursos não retransmitem solicitações de modelos de chat. Gerencie seus dados e credenciais junto com as configurações de segurança do dispositivo, termos de terceiros e este contrato.</p>
+        <p><b>Contrato do Usuário e Política de Privacidade do Kiyori</b><br>Versão: 2026-07-15; data efetiva pretendida: 15 de julho de 2026.</p>
+        <p><b>1. Escopo e versão do contrato</b><br>Este contrato se aplica ao cliente Android lançado oficialmente pelo Kiyori e aos seus recursos online opcionais. Ao usar este app, você confirma que leu e aceitou a versão atual. O app registra, na inicialização, a versão do contrato que você aceitou; quando o contrato tiver atualização substancial, o app exigirá que você confirme a nova versão antes de continuar. O código aberto no repositório é licenciado sob a GNU Lesser General Public License version 3 (LGPLv3), conforme o arquivo <code>LICENSE</code> na raiz. Este contrato não exclui nem reduz direitos concedidos pela lei aplicável ou por licenças de código aberto.</p>
+        <p><b>2. Posicionamento do produto e serviços de terceiros</b><br>Kiyori é software cliente de código aberto. Não fornece inferência de grandes modelos de linguagem, API Keys compartilhadas, retransmissão de solicitações de chat ou hospedagem em nuvem de registros de chat. Modelos em nuvem, voz em nuvem, busca, geração de imagens, MCP e outros recursos de rede são escolhidos, configurados e ativados por você. Ao usar esses serviços, os dados são enviados diretamente ao provedor correspondente e regidos pelos termos de serviço e política de privacidade desse provedor. Você deve avaliar a segurança, legalidade e adequação de provedores, modelos, endpoints e extensões, e proteger suas credenciais.</p>
+        <p><b>3. Processamento de dados e privacidade</b><br>Registros de chat, cartões de personagem, memórias, configuração de modelos e API Keys normalmente ficam armazenados nos dados do app no seu dispositivo. Quando você exporta, faz backup, envia arquivos, usa recursos de rede de terceiros ou envia solicitações para um serviço HTTP externo, os dados relacionados serão copiados, transmitidos ou divulgados conforme suas ações. O Kiyori não recebe atualizações remotas do aplicativo nem anúncios. O login do GitHub, a publicação, o marketplace e os recursos de rede de terceiros ativados por você podem acessar o GitHub ou o provedor correspondente. Gerencie seus dados e credenciais junto com as configurações de segurança do dispositivo, termos de terceiros e este contrato.</p>
         <p><b>4. Implantação externa e responsabilidade do operador</b><br>Serviços HTTP externos, QQ Bot, resposta automática e recursos semelhantes são ativados por sua escolha. Se você os disponibilizar a outras pessoas ou ao público, você atua como implantador ou operador real e é responsável por controle de acesso, autorização de usuários, segurança de conteúdo, proteção de dados, proteção de menores, avisos necessários e outras obrigações aplicáveis. Se você fornecer continuamente ao público na China continental serviços de interação emocional que simulem traços de personalidade, padrões de pensamento ou estilos de comunicação de pessoas naturais, deve avaliar e cumprir as Medidas Provisórias para a Administração de Serviços de Interação Antropomórfica de Inteligência Artificial (《人工智能拟人化互动服务管理暂行办法》) e outras regras aplicáveis. Você não deve usar este app para fornecer a menores parentes virtuais, companheiros virtuais ou outros serviços de relacionamento íntimo virtual, induzir dependência emocional ou vício, realizar manipulação emocional ou infringir direitos e interesses legítimos de terceiros.</p>
         <p><b>5. Uso legal e responsabilidade pelo conteúdo</b><br>Você deve cumprir leis e regulamentos aplicáveis, regras de serviços de terceiros e regras de plataforma. Você não deve usar este app, extensões ou configuração para realizar atividades ilegais, infringir direitos de terceiros, acessar sistemas ou dados sem autorização, ou disseminar conteúdo ilegal ou prejudicial. Você é responsável pelo conteúdo e pela conduta que inserir, configurar, gerar, publicar, encaminhar ou operar. Saídas de IA podem conter erros, omissões ou vieses e não constituem aconselhamento médico, de crise de saúde mental, jurídico, financeiro ou outro aconselhamento profissional. Em situações urgentes de perigo, contate imediatamente serviços de emergência locais, instituições médicas ou pessoas de confiança.</p>
         <p><b>6. Software fornecido no estado em que se encontra</b><br>Na medida permitida pela lei aplicável, este software é fornecido "no estado em que se encontra" e "conforme disponível". Contribuidores não oferecem garantias expressas ou implícitas quanto à disponibilidade contínua, exatidão, segurança, comercialização, adequação a finalidade específica ou não violação do software ou de serviços de terceiros. Perdas causadas pelo uso deste software, serviços de terceiros, extensões, configuração do usuário ou modificações próprias devem ser tratadas conforme a lei aplicável e os contratos de serviço relevantes.</p>
@@ -1305,17 +1299,7 @@
     <string name="settings_functional_prompt_desc">Defina palavras de prompt dedicadas para diferentes funções (diálogo, voz)</string>
     <string name="settings_configure_functional_prompt">Palavra de prompt da função de configuração</string>
     <string name="settings_appearance_section">Configurações de aparência</string>
-    <string name="check_for_updates">Verifique se há atualizações</string>
-    <string name="checking_updates">Verificando...</string>
-    <string name="new_version_found">nova versão encontrada</string>
-    <string name="check_complete">Verificação concluída</string>
-    <string name="check_failed">Falha na verificação</string>
-    <string name="update_check">Verificação de atualização</string>
     <string name="unknown_value">desconhecido</string>
-    <string name="current_version">Versão atual: %1$s</string>
-    <string name="new_version">Versão atual: %1$s -&gt; Nova versão: %2$s</string>
-    <string name="update_content">Atualizações:</string>
-    <string name="already_latest_version">Atualmente a versão mais recente: %1$s</string>
     <string name="download">Vá para baixar</string>
     <string name="ok">Claro</string>
     <string name="dialog_title_prompt">dica</string>
@@ -1323,65 +1307,18 @@
     <string name="code_editor">editor de código</string>
     <string name="export_starting">Comece a exportar...</string>
     <string name="floating_window_permission_denied">A permissão da janela flutuante não foi obtida e o modo de janela flutuante foi desativado.</string>
-    <string name="select_download_source">Selecione a fonte de download</string>
-    <string name="select_download_source_desc">Escolha a fonte de download adequada ao seu ambiente de rede:</string>
-    <string name="select_update_method">Selecione o método de atualização</string>
-    <string name="select_update_method_desc">Selecione o método de atualização:</string>
-    <string name="update_via_browser">Atualizações do navegador</string>
-    <string name="update_via_browser_desc">Vá para o download do navegador (igual ao processo original)</string>
-    <string name="update_in_app">Atualizações no software</string>
-    <string name="update_in_app_desc">Baixe o APK dentro do aplicativo e inicie automaticamente a instalação após a conclusão.</string>
-    <string name="full_update">Atualização completa</string>
-    <string name="full_update_preparing">Preparando a atualização para %1$s, baixando o pacote de instalação</string>
-    <string name="full_update_downloading">Baixando pacote de instalação</string>
-    <string name="full_update_ready_to_install">Pronto para instalar</string>
-    <string name="full_update_failed">Falha na atualização completa: %1$s</string>
-    <string name="auto_select">seleção automática</string>
-    <string name="mirror_download">Download de espelho de %1$s</string>
     <string name="china_mirror">Espelhamento acelerado doméstico</string>
-    <string name="china_mirror_desc">Baixe através de servidores espelho domésticos, mais rápido</string>
     <string name="github_source">Link original do GitHub</string>
     <string name="github_source_desc">Baixe diretamente do servidor oficial do GitHub, a velocidade pode ser mais lenta</string>
     <string name="no_mirrors_found">Nenhuma fonte de espelho disponível encontrada</string>
-    <string name="beta_plan">Programa beta</string>
-    <string name="beta_plan_desc">Após a adesão, quando uma versão de teste atualizada estiver disponível, uma atualização de patch de cerca de 30 MB será baixada automaticamente em WiFi.</string>
     <string name="main_github_login_success">Login bem-sucedido. Bem-vindo %1$s!</string>
     <string name="main_github_get_user_failed">Falha ao obter informações do usuário: %1$s</string>
     <string name="main_github_login_failed">Falha no login: %1$s</string>
     <string name="main_github_login_error">Ocorreu um erro durante o login: %1$s</string>
-    <string name="main_update_available_toast">Nova versão %1$s encontrada, vá para a página "Sobre" para ver os detalhes</string>
     <string name="beta_plan_enabled">Já aderiu ao programa beta</string>
     <string name="beta_plan_disabled">Não está no programa beta</string>
     <string name="beta_plan_join">junte-se</string>
     <string name="beta_plan_leave">desistir</string>
-    <string name="patch_update">Atualização de patches</string>
-    <string name="patch_update_desc">Baixe o patch e instale-o após sintetizar o APK nativamente</string>
-    <string name="prepare_patch_update">Preparando para atualizações de patch...</string>
-    <string name="patch_update_failed">Falha na atualização do patch: %1$s</string>
-    <string name="patch_update_success">A atualização do patch está pronta</string>
-    <string name="patch_update_failed_simple">Falha na atualização do patch</string>
-    <string name="patch_update_prepare_downloading">Preparando a atualização para %1$s, baixando patches</string>
-    <string name="patch_update_prepare_testing_mirrors">Preparando a atualização para %1$s, espelhamento de velocidade em andamento</string>
-    <string name="patch_update_testing_mirrors">Espelho de teste de velocidade em andamento</string>
-    <string name="patch_update_selected_mirror">Imagem selecionada: %1$s</string>
-    <string name="patch_update_mirror_progress">Progresso do teste de velocidade: %1$d/%2$d</string>
-    <string name="patch_update_selected_short">Selecionado: %1$s</string>
-    <string name="patch_update_mirror_available">Disponível</string>
-    <string name="patch_update_mirror_unavailable">Não disponível</string>
-    <string name="patch_update_mirror_test_failed">O teste de velocidade falhou</string>
-    <string name="patch_update_launching_installer">Levantando e instalando...</string>
-    <string name="patch_update_stage_selecting_mirror">Selecionando imagem</string>
-    <string name="patch_update_stage_downloading_meta">Baixando metainformações do patch</string>
-    <string name="patch_update_label_meta">Meta informações do patch</string>
-    <string name="patch_update_stage_resolving_chain">Resolvendo link de patch</string>
-    <string name="patch_update_chain_progress">Progresso da verificação: %1$d/%2$d</string>
-    <string name="patch_update_stage_downloading_meta_step">Baixando metainformações do patch (%1$d/%2$d)</string>
-    <string name="patch_update_label_meta_step">Meta informações do patch %1$d/%2$d</string>
-    <string name="patch_update_stage_downloading_patch_step">Baixando pacote de patch (%1$d/%2$d)</string>
-    <string name="patch_update_label_patch_step">Pacote de patches %1$d/%2$d</string>
-    <string name="patch_update_stage_verifying_patch_step">Verificando pacote de patch (%1$d/%2$d)</string>
-    <string name="patch_update_stage_applying_patch_step">Mesclando patches (%1$d/%2$d)</string>
-    <string name="patch_update_stage_verifying_new_apk_step">Verificando novo APK (%1$d/%2$d)</string>
     <string name="patch_install_confirm_title">Instalar atualizações de patch</string>
     <string name="patch_install_confirm_message">Nova versão do patch detectada: %1$s\n\nDeseja instalá-lo agora?</string>
     <string name="developer">Desenvolvedor</string>
@@ -1460,7 +1397,7 @@
     <string name="permission_guide_intro_2_title">Uma caixa de ferramentas poderosa para geeks e desenvolvedores</string>
     <string name="permission_guide_intro_2_desc">Mais de 40 ferramentas profissionais integradas, abrangendo gerenciamento de arquivos, solicitações de rede, execução de scripts e controle de sistema. Combinado com um poderoso sistema de plug-ins, você pode automatizar tarefas e obter controle profundo sobre seu dispositivo.</string>
     <string name="permission_guide_intro_3_title">Liberte a sua criatividade e esteja pronto quando precisar</string>
-    <string name="permission_guide_intro_3_desc">Esteja você projetando páginas da web, processando arquivos de mídia ou despertando a IA a qualquer momento por meio de uma janela flutuante, o Operit oferece um ambiente criativo e de assistência poderoso, flexível e seguro. Seus dados são seus para controlar.</string>
+    <string name="permission_guide_intro_3_desc">Esteja você projetando páginas da web, processando arquivos de mídia ou despertando a IA a qualquer momento por meio de uma janela flutuante, o Kiyori oferece um ambiente criativo e de assistência poderoso, flexível e seguro. Seus dados são seus para controlar.</string>
     <string name="permission_guide_intro_page_indicator">Introdução à função %1$d/%2$d</string>
     <string name="debugger_accessibility_fallback_title">Programa de Aceleração de Acessibilidade (Alto Risco)</string>
     <string name="debugger_accessibility_fallback_description">O modo de depuração executa operações de UI por meio do Shell por padrão. A ativação de serviços de acessibilidade pode acelerar bastante a automação da IU, mas aumentará significativamente o risco de ser detectado por alguns aplicativos e resultar no banimento da conta. A menos que você esteja buscando a velocidade operacional máxima, não é recomendável ligá-lo.</string>
@@ -1821,7 +1758,7 @@
     <string name="tool_user_agreement">Contrato do usuário</string>
     <string name="tool_user_agreement_desc">Veja o contrato do usuário e a política de privacidade do aplicativo</string>
     <string name="tool_default_assistant_guide">Configurações padrão do assistente</string>
-    <string name="tool_default_assistant_guide_desc">Defina a suspensão de voz do Operit como assistente padrão do sistema</string>
+    <string name="tool_default_assistant_guide_desc">Defina a suspensão de voz do Kiyori como assistente padrão do sistema</string>
     <string name="tool_terminal">terminal de comando</string>
     <string name="tool_terminal_desc">Terminal de linha de comando poderoso para executar instruções do sistema</string>
     <string name="tool_terminal_auto_config">Configuração automática do terminal</string>
@@ -2492,17 +2429,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="perm_desc_read_sms">Permitir que o aplicativo leia mensagens de texto</string>
     <string name="perm_desc_receive_wap_push">Permite que o aplicativo receba mensagens push WAP</string>
     <string name="perm_desc_receive_mms">Permitir que o aplicativo receba mensagens MMS</string>
-    <string name="operit_terminal_wizard_title">Assistente de configuração do OperaTerminal</string>
-    <string name="operit_terminal_not_installed">OperitTerminal não está instalado</string>
-    <string name="operit_terminal_update_available">Uma atualização está disponível para o OperitTerminal</string>
-    <string name="operit_terminal_up_to_date">OperitTerminal é a versão mais recente</string>
-    <string name="operit_terminal_install_description">OperitTerminal é um poderoso aplicativo de terminal que fornece um ambiente Linux completo e funções de gerenciamento de pacotes. Precisamos instalar este aplicativo primeiro.</string>
-    <string name="operit_terminal_install_button">Instale o OperaTerminal</string>
-    <string name="operit_terminal_update_description">Foi descoberta uma nova versão do OperitTerminal, recomenda-se atualizar para melhor funcionalidade e compatibilidade.</string>
-    <string name="operit_terminal_release_notes">Descrição da atualização: %1$s</string>
-    <string name="operit_terminal_update_button">Atualizar o OperaTerminal</string>
-    <string name="operit_terminal_latest_description">Parabéns! Você instalou a versão mais recente do OperitTerminal e está pronto para começar a usar seus poderosos recursos de terminal.</string>
-    <string name="operit_terminal_open_button">Abra o OperatTerminal</string>
     <string name="functional_model_config_title">Definições de configuração do modelo funcional</string>
     <string name="functional_model_config_desc">Defina configurações de modelo separadas para funções diferentes para que cada função possa usar as configurações de API mais apropriadas.</string>
     <string name="manage_all_model_configs">Gerencie todas as configurações do modelo</string>
@@ -3852,14 +3778,14 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mcp_issue_body_title_install_info">## Informações de instalação</string>
     <string name="mcp_issue_body_repo_address">**Endereço do armazém:** %1$s</string>
     <string name="mcp_issue_body_title_install_method">### Método de instalação</string>
-    <string name="mcp_issue_body_install_step1">1. Clique em "Importar" na página de configuração do Operit MCP</string>
+    <string name="mcp_issue_body_install_step1">1. Clique em "Importar" na página de configuração do Kiyori MCP</string>
     <string name="mcp_issue_body_install_step2">2. Selecione "Importar do armazém"</string>
     <string name="mcp_issue_body_install_step3">3. Insira o endereço do armazém: `%1$s`</string>
     <string name="mcp_issue_body_install_step4">4. Defina o nome do plug-in e clique em Importar</string>
     <string name="mcp_issue_body_title_tech_info">## Informações Técnicas</string>
     <string name="mcp_issue_body_tech_platform">- **Plataforma de publicação:** Operit MCP Market</string>
     <string name="mcp_issue_body_tech_publish_time">- **Tempo de lançamento:** %1$s</string>
-    <string name="mcp_issue_body_footer_note">*Este Issue é gerado automaticamente pela Operit*</string>
+    <string name="mcp_issue_body_footer_note">*Este Issue é gerado automaticamente pela Kiyori*</string>
     <string name="mcp_publish_body_section_plugin_info">## 📋 Informações do plug-in</string>
     <string name="mcp_publish_body_label_description">**Descrição:** %1$s</string>
     <string name="mcp_publish_body_section_repo_info">## 🔗 Informações do armazém</string>
@@ -3867,12 +3793,12 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mcp_publish_body_section_quick_install">## ⚡ Instalação rápida</string>
     <string name="mcp_publish_body_section_install_method">## 📦 Método de instalação</string>
     <string name="mcp_publish_body_method_repo_import_title">### Método 1: Importar do armazém</string>
-    <string name="mcp_publish_body_method_repo_import_step1">1. Abra a página de configuração do Operit MCP</string>
+    <string name="mcp_publish_body_method_repo_import_step1">1. Abra a página de configuração do Kiyori MCP</string>
     <string name="mcp_publish_body_method_repo_import_step2">2. Clique em "Importar" → "Importar do armazém"</string>
     <string name="mcp_publish_body_method_repo_import_step3">3. Insira o endereço do armazém: `%1$s`</string>
     <string name="mcp_publish_body_method_repo_import_step4">4. Configure o nome do plug-in e importe-o</string>
     <string name="mcp_publish_body_method_config_import_title">### Método 2: importação de configuração</string>
-    <string name="mcp_publish_body_method_config_import_step1">1. Abra a página de configuração do Operit MCP</string>
+    <string name="mcp_publish_body_method_config_import_step1">1. Abra a página de configuração do Kiyori MCP</string>
     <string name="mcp_publish_body_method_config_import_step2">2. Clique em "Importar" → "Importar configuração"</string>
     <string name="mcp_publish_body_method_config_import_step3">3. Cole a seguinte configuração:</string>
     <string name="mcp_publish_body_section_tech_info">## 🛠️Informações Técnicas</string>
@@ -4008,7 +3934,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="emoji_preview">Pré-visualização da expressão</string>
     <string name="create_group">Criar grupo</string>
     <string name="custom">Personalizar</string>
-    <string name="voice_assistant_widget_description">Inicie rapidamente o assistente de voz Operit</string>
+    <string name="voice_assistant_widget_description">Inicie rapidamente o assistente de voz Kiyori</string>
     <string name="voice_assistant_widget_title">assistente de voz</string>
     <string name="screen_title_mnn_model_download">Download do modelo MNN</string>
     <string name="mnn_model_download">Baixe o modelo MNN</string>
@@ -4120,18 +4046,18 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="time_hours_ago">%1$d horas atrás</string>
     <string name="time_days_ago">%1$d dias atrás</string>
     <string name="default_assistant_guide_title">Defina seu assistente de voz padrão</string>
-    <string name="default_assistant_guide_subtitle">Deixe Operit ser seu assistente inteligente</string>
-    <string name="default_assistant_guide_intro">Depois de definir o Operit como o assistente padrão do sistema, você pode iniciar rapidamente o assistente de voz Operit pressionando longamente o botão Home ou usando a ativação por voz para uma experiência de interação de IA mais conveniente.</string>
+    <string name="default_assistant_guide_subtitle">Deixe Kiyori ser seu assistente inteligente</string>
+    <string name="default_assistant_guide_intro">Depois de definir o Kiyori como o assistente padrão do sistema, você pode iniciar rapidamente o assistente de voz Kiyori pressionando longamente o botão Home ou usando a ativação por voz para uma experiência de interação de IA mais conveniente.</string>
     <string name="default_assistant_guide_steps_title">Etapas de configuração</string>
     <string name="default_assistant_guide_step1_title">Definir como assistente padrão</string>
-    <string name="default_assistant_guide_step1_desc">Defina o Operit como o aplicativo de assistente digital padrão do seu sistema</string>
+    <string name="default_assistant_guide_step1_desc">Defina o Kiyori como o aplicativo de assistente digital padrão do seu sistema</string>
     <string name="default_assistant_guide_step1_detail1">• Abra Configurações do sistema → Aplicativos → Aplicativos padrão → Aplicativo Assistente Digital</string>
-    <string name="default_assistant_guide_step1_detail2">• Encontre e selecione "Operit AI" na lista de aplicativos assistentes</string>
+    <string name="default_assistant_guide_step1_detail2">• Encontre e selecione "Kiyori" na lista de aplicativos assistentes</string>
     <string name="default_assistant_guide_step1_detail_android12">Android 12+: Configurações → Aplicativos → Aplicativos padrão → Aplicativo Digital Assistant → Aplicativo Digital Assistant padrão</string>
     <string name="default_assistant_guide_open_settings">Abra as configurações do assistente</string>
     <string name="default_assistant_guide_open_gesture_settings">Abrir configurações de gestos</string>
     <string name="default_assistant_guide_step2_title">Configurar gestos de inicialização</string>
-    <string name="default_assistant_guide_step2_desc">Defina como ativar rapidamente o Operit Assistant</string>
+    <string name="default_assistant_guide_step2_desc">Defina como ativar rapidamente o Kiyori Assistant</string>
     <string name="default_assistant_guide_step2_detail1">• Pressionar longamente o botão Início: o método mais comum, disponível na maioria dos dispositivos</string>
     <string name="default_assistant_guide_step2_detail2">• Deslize de baixo para cima na tela: alguns dispositivos suportam gestos em tela cheia</string>
     <string name="default_assistant_guide_step2_detail_android12">Android 12+: Configurações → Aplicativos → Aplicativos padrão → Aplicativo Digital Assistant → Aplicativo Digital Assistant padrão</string>
@@ -4139,16 +4065,16 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="default_assistant_guide_step2_note">Nota: As configurações de gestos podem variar entre diferentes marcas de celulares, verifique as opções disponíveis nas configurações do sistema</string>
     <string name="default_assistant_guide_step4_title">Teste seu assistente de voz</string>
     <string name="default_assistant_guide_step4_desc">Depois que a configuração for concluída, teste se ele pode iniciar normalmente</string>
-    <string name="default_assistant_guide_step4_detail1">• Um toque longo no botão Home deve abrir o assistente de voz Operit</string>
-    <string name="default_assistant_guide_step4_detail2">• Se o dispositivo suportar ativação por voz, dizer "Ok Google" ou a palavra de ativação especificada pelo dispositivo também poderá acionar o Operit</string>
+    <string name="default_assistant_guide_step4_detail1">• Um toque longo no botão Home deve abrir o assistente de voz Kiyori</string>
+    <string name="default_assistant_guide_step4_detail2">• Se o dispositivo suportar ativação por voz, dizer "Ok Google" ou a palavra de ativação especificada pelo dispositivo também poderá acionar o Kiyori</string>
     <string name="default_assistant_guide_step3_title">Funcionalidade do assistente de teste</string>
-    <string name="default_assistant_guide_step3_desc">Depois de concluir a configuração, teste se o Operit pode ser despertado normalmente</string>
+    <string name="default_assistant_guide_step3_desc">Depois de concluir a configuração, teste se o Kiyori pode ser despertado normalmente</string>
     <string name="default_assistant_guide_step3_detail1">• Use um gesto que você definir (como um toque longo no botão Início) para invocar o Assistente</string>
-    <string name="default_assistant_guide_step3_detail2">• Se for bem-sucedido, você deverá ver a interface do assistente de voz do Operit</string>
+    <string name="default_assistant_guide_step3_detail2">• Se for bem-sucedido, você deverá ver a interface do assistente de voz do Kiyori</string>
     <string name="default_assistant_guide_step3_detail3">• Você pode tentar falar ou digitar para interagir com o assistente</string>
     <string name="default_assistant_guide_troubleshooting_title">Está com algum problema?</string>
-    <string name="default_assistant_guide_troubleshooting_content">Se você não encontrar o Operit na lista, verifique se:\n\n• O aplicativo está instalado corretamente e não foi desativado\n• As permissões necessárias (microfone, janela flutuante etc.) foram concedidas\n• Tente reiniciar o dispositivo e configurá-lo novamente\n\n Alguns sistemas de personalização podem restringir aplicativos de terceiros como assistente padrão. Nesse caso, você ainda pode usar o Operit por meio da função de janela flutuante dentro do aplicativo.</string>
-    <string name="voice_interaction_service_name">Assistente Operat AI</string>
+    <string name="default_assistant_guide_troubleshooting_content">Se você não encontrar o Kiyori na lista, verifique se:\n\n• O aplicativo está instalado corretamente e não foi desativado\n• As permissões necessárias (microfone, janela flutuante etc.) foram concedidas\n• Tente reiniciar o dispositivo e configurá-lo novamente\n\n Alguns sistemas de personalização podem restringir aplicativos de terceiros como assistente padrão. Nesse caso, você ainda pode usar o Kiyori por meio da função de janela flutuante dentro do aplicativo.</string>
+    <string name="voice_interaction_service_name">Assistente Kiyori</string>
     <string name="voice_interaction_service_summary">Serviço de assistente de voz inteligente</string>
     <string name="tool_permissions_title">Permissões de ferramentas</string>
     <string name="tool_permissions_description">Por padrão, todas as ferramentas exigem que você “pergunte”. Você pode adicionar exceções abaixo.</string>
@@ -5052,7 +4978,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="skill_publish_body_section_repo_info">## 🔗 Informações do armazém</string>
     <string name="skill_publish_body_label_repo_url">**Endereço do armazém:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 Método de instalação</string>
-    <string name="skill_publish_body_install_step1">1. Abra Operit → Gerenciamento de Pacotes → Habilidades</string>
+    <string name="skill_publish_body_install_step1">1. Abra Kiyori → Gerenciamento de Pacotes → Habilidades</string>
     <string name="skill_publish_body_install_step2">2. Clique em "Importar Habilidade" → "Importar do Armazém"</string>
     <string name="skill_publish_body_install_step3">3. Insira o endereço do armazém: `%1$s`</string>
     <string name="skill_publish_body_install_step4">4. Confirme a importação</string>
@@ -5960,8 +5886,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mcp_merge_config">Mesclar configuração</string>
     <string name="mcp_manage_env_variables">Gerenciar variáveis ​​de ambiente</string>
     <string name="mcp_error_no_zip_selected">Nenhum arquivo ZIP selecionado</string>
-    <string name="update_unknown_error">erro desconhecido</string>
-    <string name="update_version_title">Versão %1$s</string>
     <string name="avatar_reset">reiniciar</string>
     <string name="workflow_node_execution_exception">Exceção de execução do nó: %1$s</string>
     <string name="chat_cannot_create_new">Não foi possível criar uma nova conversa. Tente novamente</string>
@@ -5980,10 +5904,10 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="service_chat_complete_reminder_sound">Lembrete de conclusão de conversa (som de bipe)</string>
     <string name="service_chat_complete_reminder_vibration">Lembrete de conclusão de conversa (vibração)</string>
     <string name="service_chat_complete_reminder_sound_vibration">Lembrete de conclusão de conversa (bipe e vibração)</string>
-    <string name="service_keep_background">Mantenha o Operit rodando em segundo plano.</string>
+    <string name="service_keep_background">Mantenha o Kiyori rodando em segundo plano.</string>
     <string name="service_notify_when_complete">Lembrá-lo quando a conversa for concluída.</string>
-    <string name="service_running_wake_pause">Operit está em execução (pausa de ativação)</string>
-    <string name="service_running_wake_listening">Operit está rodando (acordando e ouvindo)</string>
+    <string name="service_running_wake_pause">Kiyori está em execução (pausa de ativação)</string>
+    <string name="service_running_wake_listening">Kiyori está rodando (acordando e ouvindo)</string>
     <string name="service_running_stats">Executar sessão %1$d · Invocar ferramenta %2$d</string>
     <string name="service_running_http_listening">Escuta HTTP externa na porta %1$d</string>
     <string name="service_running_with_http">%1$s · HTTP externo %2$d</string>
@@ -6024,7 +5948,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="html_export_updated">renovar</string>
     <string name="html_export_group">Grupo</string>
     <string name="html_export_message_count">Número de mensagens</string>
-    <string name="html_export_footer">Exportado do Operit AI Assistant</string>
+    <string name="html_export_footer">Exportado do Kiyori Assistant</string>
     <string name="mnn_no_cache_data">Nenhum dado em cache</string>
     <string name="mnn_response_empty">O corpo da resposta está vazio</string>
     <string name="mnn_fetch_repo_files_failed">Falha ao obter a lista de arquivos do warehouse: %1$s</string>
@@ -6145,8 +6069,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="graph_char_for_measurement">meio</string>
     <string name="date_format_pattern">dd/MM/yyyy</string>
     <string name="demo_complete_message">Ok, se você tiver alguma dúvida ou precisar de ajuda, você sempre pode entrar em contato comigo. \n\n\n&lt;status type="complete"&gt;&lt;/status&gt;</string>
-    <string name="update_check_failed">Falha na verificação de atualização: %1$s</string>
-    <string name="update_cannot_fetch_info">Não foi possível obter informações de atualização.</string>
     <string name="accessibility_tts_locale_not_supported">O idioma TTS do sistema não é suportado: %1$s</string>
     <string name="accessibility_tts_init_failed">Falha na inicialização do sistema TTS, código de status: %1$d</string>
     <string name="apk_key_not_found_in_keystore">A chave com o alias \'%1$s\' não foi encontrada no armazenamento de chaves</string>
@@ -6513,7 +6435,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="retry_market_registration">Tentar novamente o registro no mercado</string>
     <string name="update_to_market">Atualizar no mercado</string>
     <string name="create_operit_forge_title">Criar OperitForge?</string>
-    <string name="create_operit_forge_message">Esta é a sua primeira publicação direta. O Operit precisa criar o repositório público `OperitForge` na sua conta do GitHub.</string>
+    <string name="create_operit_forge_message">Esta é a sua primeira publicação direta. O Kiyori precisa criar o repositório público `OperitForge` na sua conta do GitHub.</string>
     <string name="confirm_create_public_forge_title">Confirmar criação do repositório público</string>
     <string name="confirm_create_public_forge_message">Confirme novamente: agora será criado o repositório público `OperitForge`. Publicações futuras reutilizarão este repositório.</string>
     <string name="create_and_publish">Criar e publicar</string>
@@ -6705,7 +6627,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="chat_message_timing_stats_compact">tempo: %1$s (primeiro %2$s geração %3$s)</string>
     <string name="software_identity_title">Identidade do software</string>
     <string name="software_identity_description">Altera a identidade do software exibida no topo da barra lateral.</string>
-    <string name="software_identity_option_operit">Operit AI</string>
+    <string name="software_identity_option_operit">Kiyori</string>
     <string name="software_identity_option_lingshu">Lingshu AI</string>
     <string name="hide_runtime_task_view">Ocultar visualização de tarefa em execução</string>
     <string name="hide_runtime_task_view_description">Quando a IA está processando mensagens ou executando ferramentas, oculta o cartão de tarefa do aplicativo da lista de tarefas recentes do sistema, evitando que seja fechado acidentalmente ao deslizar.</string>

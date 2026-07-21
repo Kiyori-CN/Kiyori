@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Operit AI</string>
+    <string name="app_name">Kiyori</string>
     <string name="accessibility_service_description">用于获取UI层次结构，为AI助手提供更快速的界面分析能力，不会收集或存储任何个人信息。</string>
     
     <!-- 模型选择器相关 -->
@@ -14,11 +14,6 @@
     <string name="nav_settings">设置</string>
     <string name="nav_tool_permissions">工具权限</string>
     <string name="nav_about">关于</string>
-    <string name="update_history">更新历史</string>
-    <string name="update_load_failed">加载失败</string>
-    <string name="update_latest">最新</string>
-    <string name="update_view_release">查看发布</string>
-    <string name="update_download">下载</string>
     <string name="action_retry">重试</string>
     <string name="common_collapse">收起</string>
     <string name="common_expand_more">展开更多</string>
@@ -577,17 +572,20 @@
     <string name="termux_setup_guide">Termux 设置向导</string>
     
     <!-- About Screen -->
-    <string name="about_title">关于 Operit AI</string>
+    <string name="about_title">关于 Kiyori</string>
     <string name="about_version">版本: %1$s</string>
-    <string name="about_description">Operit AI是一个智能助手应用，能够帮助用户更高效地使用设备，提供界面分析、聊天对话等功能。</string>
-    <string name="about_developer">开发者: &lt;a href="https://github.com/AAswordman"&gt;AAswordman&lt;/a&gt;</string>
-    <string name="about_contact">联系我们: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/AAswordman/Operit"&gt;GitHub: https://github.com/AAswordman/Operit&lt;/a&gt;</string>
-    <string name="about_copyright">© 2025 - 2026 Operit. 保留所有权利。</string>
+    <string name="about_description">Kiyori 是一款在 Android 设备本地运行的 AI 助手与浏览器项目，提供对话、工具调用、自动化和本地模型能力。</string>
+    <string name="about_developer">维护者: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
+    <string name="about_contact">问题反馈请使用项目仓库的 Issues</string>
+    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
+    <string name="about_copyright">© 2026 Kiyori-CN</string>
     <string name="star_on_github">在 GitHub 点个 Star</string>
-    <string name="update_log">更新日志</string>
     <string name="app_logo_description">应用图标</string>
     <string name="github_star_description">GitHub Star</string>
+    <string name="project_issues">问题反馈</string>
+    <string name="app_update_channel">应用更新</string>
+    <string name="app_update_channel_disabled">当前版本不接收远程更新或公告；新版本由 Kiyori 项目仓库单独发布。</string>
+    <string name="about_source_attribution">Kiyori 基于 Operit 开源代码继续开发。原作者、许可证及历史归属保留在仓库文档中。</string>
 
     <!-- AI Chat Screen -->
     <string name="configure_ai">配置 AI 接口</string>
@@ -602,7 +600,7 @@
     <string name="network_status_label">网络状态</string>
 
     <!-- Configuration Screen -->
-    <string name="config_title">Operit AI 助手</string>
+    <string name="config_title">Kiyori 助手</string>
     <string name="config_description">使用 DeepSeek API Key，或配置其他模型服务</string>
     <string name="config_api_key_label">API密钥</string>
     <string name="config_api_key_placeholder">DeepSeek API密钥</string>
@@ -661,7 +659,7 @@
     
     <!-- Plugin Loading Screen -->
     <string name="plugin_skip">跳过</string>
-    <string name="plugin_app_name">OPERIT</string>
+    <string name="plugin_app_name">Kiyori</string>
     <string name="plugin_status">已启动: %1$d / %2$d</string>
     <string name="plugin_loading_status_title">插件加载状态</string>
     <string name="plugin_loading_success">加载成功</string>
@@ -1009,6 +1007,7 @@
     <string name="quick_plugin_creator_pull_skill_update">拉取 Skill 更新</string>
     <string name="quick_plugin_creator_setup_success">包创作 Skill 安装或更新完成</string>
     <string name="quick_plugin_creator_setup_failed">包创作 Skill 安装或更新失败</string>
+    <string name="quick_plugin_creator_setup_unavailable">Kiyori 尚未提供可信的一键配置脚本，此入口已停用</string>
     <string name="quick_plugin_creator_step2_title">2. 输入需求开始创作</string>
     <string name="quick_plugin_creator_requirement_hint">例如：做一个可以批量整理下载目录图片并生成索引的工具</string>
     <string name="quick_plugin_creator_requirement_empty">请先输入插件需求</string>
@@ -1098,13 +1097,13 @@
     <string name="agreement_subtitle">请在使用前仔细阅读并同意以下条款。</string>
     <string name="agreement_version">协议版本：%1$s</string>
     <string name="agreement_human_readable_title">人话版协议（非法律版本）</string>
-    <string name="agreement_human_readable_content">服务边界说明：Operit 不提供面向公众的拟人化情感互动服务。Operit 是在用户设备本地运行的开源客户端，不运营模型推理服务、不托管聊天会话或交互数据，也不向用户分发共享模型凭据。云模型请求由用户使用自行配置的凭据从设备直接发送至所选模型服务商，相关数据适用该服务商的规则；本地模型在设备内推理。\n\n本应用可以调用文件、终端、自动化、Root、ADB 和扩展等能力。请在操作前核对内容、备份重要数据并谨慎授予权限；因用户操作、用户配置、第三方服务或第三方扩展造成的设备、数据、账号或其他损失，应由实际操作人依适用法律处理。\n\n插件市场中的第三方插件、脚本、Skill、工具包和其他内容，其著作权及相关责任归标注的作者或权利人所有。市场展示或安装不表示 Operit 对该内容作出保证、背书或取得其权利。使用、修改、发布或再分发前，请自行确认许可和权利状态。</string>
+    <string name="agreement_human_readable_content">服务边界说明：Kiyori 是在用户设备本地运行的开源客户端，不运营模型推理服务、不托管聊天会话或交互数据，也不向用户分发共享模型凭据。云模型请求由用户使用自行配置的凭据从设备直接发送至所选模型服务商，相关数据适用该服务商的规则；本地模型在设备内推理。\n\n本应用可以调用文件、终端、自动化、Root、ADB 和扩展等能力。请在操作前核对内容、备份重要数据并谨慎授予权限；因用户操作、用户配置、第三方服务或第三方扩展造成的设备、数据、账号或其他损失，应由实际操作人依适用法律处理。\n\n第三方插件、脚本、Skill、工具包和其他内容的著作权及相关责任归标注的作者或权利人所有。展示或安装不表示 Kiyori 对该内容作出保证、背书或取得其权利。使用、修改、发布或再分发前，请自行确认许可和权利状态。</string>
     <string name="agreement_serious_title">严谨版法律协议</string>
     <string name="agreement_serious_content"><![CDATA[
-        <p><b>Operit 用户协议与隐私政策</b><br>版本：2026-07-15；拟生效日期：2026 年 7 月 15 日。</p>
-        <p><b>1. 适用范围与协议版本</b><br>本协议适用于 Operit 官方发布的 Android 客户端及其可选在线功能。使用本应用即表示您已阅读并同意当前版本。本应用在启动时记录您确认的协议版本；协议发生实质更新时，应用将要求您重新确认后方可继续使用。仓库中的开源代码许可由根目录 <code>LICENSE</code> 所载 GNU 宽通用公共许可证第三版（LGPLv3）规定；本协议不排除或缩减适用法律及开源许可证赋予您的权利。</p>
-        <p><b>2. 产品定位与第三方服务</b><br>Operit 是开源客户端软件，不提供大语言模型推理、共享 API Key、聊天请求中转或聊天记录云端托管。云模型、云端语音、搜索、绘图、MCP 及其他网络功能由您自行选择、配置和启用。您使用该等服务时，数据将直接发送给相应服务商，并受其服务条款和隐私政策约束。您应自行判断服务商、模型、端点和扩展的安全性、合法性与适用性，并妥善保管相关凭据。</p>
-        <p><b>3. 数据处理与隐私</b><br>聊天记录、角色卡、记忆、模型配置和 API Key 通常存储在设备的应用数据中。您主动导出、备份、上传文件、使用第三方网络功能或向外部 HTTP 服务提交请求时，相关数据将依您的操作被复制、传输或披露。市场、公告、更新检查、GitHub 登录和发布功能会访问 Operit、GitHub 或相关第三方资源；这些功能不转发聊天模型请求。请结合设备安全设置、第三方服务条款及本协议管理您的数据和凭据。</p>
+        <p><b>Kiyori 用户协议与隐私政策</b><br>版本：2026-07-15；拟生效日期：2026 年 7 月 15 日。</p>
+        <p><b>1. 适用范围与协议版本</b><br>本协议适用于本仓库构建的 Kiyori Android 客户端及其可选在线功能。使用本应用即表示您已阅读并同意当前版本。本应用在启动时记录您确认的协议版本；协议发生实质更新时，应用将要求您重新确认后方可继续使用。仓库中的开源代码许可由根目录 <code>LICENSE</code> 所载 GNU 宽通用公共许可证第三版（LGPLv3）规定；本协议不排除或缩减适用法律及开源许可证赋予您的权利。</p>
+        <p><b>2. 产品定位与第三方服务</b><br>Kiyori 是开源客户端软件，不提供大语言模型推理、共享 API Key、聊天请求中转或聊天记录云端托管。云模型、云端语音、搜索、绘图、MCP 及其他网络功能由您自行选择、配置和启用。您使用该等服务时，数据将直接发送给相应服务商，并受其服务条款和隐私政策约束。您应自行判断服务商、模型、端点和扩展的安全性、合法性与适用性，并妥善保管相关凭据。</p>
+        <p><b>3. 数据处理与隐私</b><br>聊天记录、角色卡、记忆、模型配置和 API Key 通常存储在设备的应用数据中。您主动导出、备份、上传文件、使用第三方网络功能或向外部 HTTP 服务提交请求时，相关数据将依您的操作被复制、传输或披露。Kiyori 不接收远程应用更新或公告；GitHub 登录、发布、市场及您主动启用的第三方网络功能可能访问 GitHub 或相应服务商资源。请结合设备安全设置、第三方服务条款及本协议管理您的数据和凭据。</p>
         <p><b>4. 对外部署与运营责任</b><br>外部 HTTP 服务、QQ Bot、自动回复及类似能力由您选择启用。您将其开放给他人或公众使用时，应作为实际部署或运营者负责访问控制、用户授权、内容安全、数据保护、未成年人保护、必要的提示和其他适用义务。面向中国境内公众持续提供模拟自然人人格特征、思维模式或沟通风格的情感互动服务时，您应自行评估并遵守《人工智能拟人化互动服务管理暂行办法》及其他适用规定。您不得利用本应用提供虚拟亲属、虚拟伴侣等面向未成年人的虚拟亲密关系服务，不得诱导情感依赖或沉迷、实施情感操纵，或从事其他侵害他人合法权益的活动。</p>
         <p><b>5. 合法使用与内容责任</b><br>您应遵守适用法律法规、第三方服务规则及平台规则，不得利用本应用、扩展或配置实施违法活动、侵害他人权益、未经授权访问系统或数据，或传播违法有害内容。您对自行输入、配置、生成、发布、转发或运营的内容和行为负责。AI 输出可能存在错误、遗漏或偏差，不构成医疗、心理危机、法律、金融或其他专业建议；紧急危险情形请及时联系当地紧急服务、医疗机构或可信赖的人。</p>
         <p><b>6. 软件按现状提供</b><br>在适用法律允许的范围内，本软件按“现状”和“可用”状态提供。贡献者不对软件或第三方服务的持续可用性、准确性、安全性、适销性、特定用途适用性或不侵权作出明示或默示保证。因使用本软件、第三方服务、扩展、用户配置或自行修改造成的损失，应依适用法律和相应服务协议处理。</p>
@@ -1499,17 +1498,7 @@
     <string name="settings_appearance_section">外观设置</string>
     
     <!-- 关于屏幕 -->
-    <string name="check_for_updates">检查更新</string>
-    <string name="checking_updates">检查中...</string>
-    <string name="new_version_found">发现新版本</string>
-    <string name="check_complete">检查完成</string>
-    <string name="check_failed">检查失败</string>
-    <string name="update_check">更新检查</string>
     <string name="unknown_value">未知</string>
-    <string name="current_version">当前版本: %1$s</string>
-    <string name="new_version">当前版本: %1$s -> 新版本: %2$s</string>
-    <string name="update_content">更新内容:</string>
-    <string name="already_latest_version">当前已是最新版本: %1$s</string>
     <string name="download">去下载</string>
     <string name="ok">确定</string>
     <string name="dialog_title_prompt">提示</string>
@@ -1517,65 +1506,18 @@
     <string name="code_editor">代码编辑器</string>
     <string name="export_starting">开始导出...</string>
     <string name="floating_window_permission_denied">未获得悬浮窗权限，已关闭悬浮窗模式</string>
-    <string name="select_download_source">选择下载源</string>
-    <string name="select_download_source_desc">请选择适合您网络环境的下载源：</string>
-    <string name="select_update_method">选择更新方式</string>
-    <string name="select_update_method_desc">请选择更新方式：</string>
-    <string name="update_via_browser">浏览器更新</string>
-    <string name="update_via_browser_desc">跳转浏览器下载（与原流程一致）</string>
-    <string name="update_in_app">软件内更新</string>
-    <string name="update_in_app_desc">在应用内下载 APK，完成后自动拉起安装</string>
-    <string name="full_update">全量更新</string>
-    <string name="full_update_preparing">准备更新到 %1$s，正在下载安装包</string>
-    <string name="full_update_downloading">正在下载安装包</string>
-    <string name="full_update_ready_to_install">准备安装</string>
-    <string name="full_update_failed">全量更新失败: %1$s</string>
-    <string name="auto_select">自动选择</string>
-    <string name="mirror_download">%1$s 镜像下载</string>
     <string name="china_mirror">国内加速镜像</string>
-    <string name="china_mirror_desc">通过国内镜像服务器下载，速度更快</string>
     <string name="github_source">GitHub原始链接</string>
     <string name="github_source_desc">直接从GitHub官方服务器下载，速度可能较慢</string>
     <string name="no_mirrors_found">未找到可用的镜像源</string>
-    <string name="beta_plan">Beta 计划</string>
-    <string name="beta_plan_desc">加入后将会在有更新的测试版本的时候，wifi下自动下载30MB左右的补丁更新。</string>
     <string name="main_github_login_success">登录成功，欢迎 %1$s！</string>
     <string name="main_github_get_user_failed">获取用户信息失败: %1$s</string>
     <string name="main_github_login_failed">登录失败: %1$s</string>
     <string name="main_github_login_error">登录过程中发生错误: %1$s</string>
-    <string name="main_update_available_toast">发现新版本 %1$s，请前往「关于」页面查看详情</string>
     <string name="beta_plan_enabled">已加入 Beta 计划</string>
     <string name="beta_plan_disabled">未加入 Beta 计划</string>
     <string name="beta_plan_join">加入</string>
     <string name="beta_plan_leave">退出</string>
-    <string name="patch_update">补丁更新</string>
-    <string name="patch_update_desc">下载补丁并在本机合成 APK 后安装</string>
-    <string name="prepare_patch_update">准备补丁更新...</string>
-    <string name="patch_update_failed">补丁更新失败: %1$s</string>
-    <string name="patch_update_success">补丁更新已准备完成</string>
-    <string name="patch_update_failed_simple">补丁更新失败</string>
-    <string name="patch_update_prepare_downloading">准备更新到 %1$s，正在下载补丁</string>
-    <string name="patch_update_prepare_testing_mirrors">准备更新到 %1$s，正在测速镜像</string>
-    <string name="patch_update_testing_mirrors">正在测速镜像</string>
-    <string name="patch_update_selected_mirror">已选择镜像：%1$s</string>
-    <string name="patch_update_mirror_progress">测速进度：%1$d/%2$d</string>
-    <string name="patch_update_selected_short">已选择：%1$s</string>
-    <string name="patch_update_mirror_available">可用</string>
-    <string name="patch_update_mirror_unavailable">不可用</string>
-    <string name="patch_update_mirror_test_failed">测速失败</string>
-    <string name="patch_update_launching_installer">正在拉起安装...</string>
-    <string name="patch_update_stage_selecting_mirror">正在选择镜像</string>
-    <string name="patch_update_stage_downloading_meta">正在下载补丁元信息</string>
-    <string name="patch_update_label_meta">补丁元信息</string>
-    <string name="patch_update_stage_resolving_chain">正在解析补丁链路</string>
-    <string name="patch_update_chain_progress">扫描进度：%1$d/%2$d</string>
-    <string name="patch_update_stage_downloading_meta_step">正在下载补丁元信息 (%1$d/%2$d)</string>
-    <string name="patch_update_label_meta_step">补丁元信息 %1$d/%2$d</string>
-    <string name="patch_update_stage_downloading_patch_step">正在下载补丁包 (%1$d/%2$d)</string>
-    <string name="patch_update_label_patch_step">补丁包 %1$d/%2$d</string>
-    <string name="patch_update_stage_verifying_patch_step">正在校验补丁包 (%1$d/%2$d)</string>
-    <string name="patch_update_stage_applying_patch_step">正在合并补丁 (%1$d/%2$d)</string>
-    <string name="patch_update_stage_verifying_new_apk_step">正在校验新 APK (%1$d/%2$d)</string>
     <string name="patch_install_confirm_title">安装补丁更新</string>
     <string name="patch_install_confirm_message">检测到新补丁版本：%1$s\n\n是否现在安装？</string>
     <string name="developer">开发者</string>
@@ -1688,7 +1630,7 @@
     <string name="permission_guide_intro_2_title">为极客与开发者打造的强大工具箱</string>
     <string name="permission_guide_intro_2_desc">内置超过40种专业工具，涵盖文件管理、网络请求、脚本执行和系统控制。结合强大的插件系统，您可以自动化任务，深度掌控您的设备。</string>
     <string name="permission_guide_intro_3_title">释放创造力，随时待命</string>
-    <string name="permission_guide_intro_3_desc">无论是设计网页、处理媒体文件，还是通过悬浮窗随时唤醒AI，Operit都为您提供强大、灵活且安全的创作与辅助环境。您的数据，由您掌控。</string>
+    <string name="permission_guide_intro_3_desc">无论是设计网页、处理媒体文件，还是通过悬浮窗随时唤醒AI，Kiyori都为您提供强大、灵活且安全的创作与辅助环境。您的数据，由您掌控。</string>
     <string name="permission_guide_intro_page_indicator">功能介绍 %1$d/%2$d</string>
 
     <!-- 调试模式 -->
@@ -2084,7 +2026,7 @@
     <string name="tool_user_agreement">用户协议</string>
     <string name="tool_user_agreement_desc">查看应用的用户协议与隐私政策</string>
     <string name="tool_default_assistant_guide">默认助手设置</string>
-    <string name="tool_default_assistant_guide_desc">设置Operit语音悬浮为系统默认助手</string>
+    <string name="tool_default_assistant_guide_desc">设置Kiyori语音悬浮为系统默认助手</string>
     <string name="tool_terminal">命令终端</string>
     <string name="tool_terminal_desc">功能强大的命令行终端，执行系统指令</string>
     <string name="tool_terminal_auto_config">终端自动配置</string>
@@ -2884,17 +2826,6 @@
     <string name="perm_desc_receive_mms">允许应用接收彩信</string>
     
     <!-- OperitTerminal Wizard Card -->
-    <string name="operit_terminal_wizard_title">OperitTerminal 设置向导</string>
-    <string name="operit_terminal_not_installed">OperitTerminal 未安装</string>
-    <string name="operit_terminal_update_available">OperitTerminal 有更新可用</string>
-    <string name="operit_terminal_up_to_date">OperitTerminal 已是最新版本</string>
-    <string name="operit_terminal_install_description">OperitTerminal 是一个功能强大的终端应用，提供完整的 Linux 环境和包管理功能。我们需要先安装这个应用。</string>
-    <string name="operit_terminal_install_button">安装 OperitTerminal</string>
-    <string name="operit_terminal_update_description">发现 OperitTerminal 的新版本，建议更新以获得更好的功能和兼容性。</string>
-    <string name="operit_terminal_release_notes">更新说明：%1$s</string>
-    <string name="operit_terminal_update_button">更新 OperitTerminal</string>
-    <string name="operit_terminal_latest_description">恭喜！您已安装最新版本的 OperitTerminal，可以开始使用其强大的终端功能。</string>
-    <string name="operit_terminal_open_button">打开 OperitTerminal</string>
     
     <!-- Functional Config Screen -->
     <string name="functional_model_config_title">功能模型配置设置</string>
@@ -4607,7 +4538,7 @@
     <string name="retry_market_registration">重试市场登记</string>
     <string name="update_to_market">更新到市场</string>
     <string name="create_operit_forge_title">创建 OperitForge？</string>
-    <string name="create_operit_forge_message">这是你第一次直连发布。Operit 需要先在你的 GitHub 账号下创建公开仓库 `OperitForge`。</string>
+    <string name="create_operit_forge_message">这是你第一次直连发布。Kiyori 需要先在你的 GitHub 账号下创建公开仓库 `OperitForge`。</string>
     <string name="confirm_create_public_forge_title">确认创建公开仓库</string>
     <string name="confirm_create_public_forge_message">请再次确认，现在创建公开仓库 `OperitForge`。后续发布都会复用这个仓库。</string>
     <string name="create_and_publish">创建并发布</string>
@@ -4801,14 +4732,14 @@
     <string name="mcp_issue_body_title_install_info">## 安装信息</string>
     <string name="mcp_issue_body_repo_address">**仓库地址:** %1$s</string>
     <string name="mcp_issue_body_title_install_method">### 安装方式</string>
-    <string name="mcp_issue_body_install_step1">1. 在 Operit MCP 配置页面点击「导入」</string>
+    <string name="mcp_issue_body_install_step1">1. 在 Kiyori MCP 配置页面点击「导入」</string>
     <string name="mcp_issue_body_install_step2">2. 选择「从仓库导入」</string>
     <string name="mcp_issue_body_install_step3">3. 输入仓库地址: `%1$s`</string>
     <string name="mcp_issue_body_install_step4">4. 设置插件名称并点击导入</string>
     <string name="mcp_issue_body_title_tech_info">## 技术信息</string>
     <string name="mcp_issue_body_tech_platform">- **发布平台:** Operit MCP 市场</string>
     <string name="mcp_issue_body_tech_publish_time">- **发布时间:** %1$s</string>
-    <string name="mcp_issue_body_footer_note">*此Issue由 Operit 自动生成*</string>
+    <string name="mcp_issue_body_footer_note">*此Issue由 Kiyori 自动生成*</string>
 
     <string name="mcp_publish_body_section_plugin_info">## 📋 插件信息</string>
     <string name="mcp_publish_body_label_description">**描述:** %1$s</string>
@@ -4817,12 +4748,12 @@
     <string name="mcp_publish_body_section_quick_install">## ⚡ 快速安装</string>
     <string name="mcp_publish_body_section_install_method">## 📦 安装方式</string>
     <string name="mcp_publish_body_method_repo_import_title">### 方式一：从仓库导入</string>
-    <string name="mcp_publish_body_method_repo_import_step1">1. 打开 Operit MCP 配置页面</string>
+    <string name="mcp_publish_body_method_repo_import_step1">1. 打开 Kiyori MCP 配置页面</string>
     <string name="mcp_publish_body_method_repo_import_step2">2. 点击「导入」→「从仓库导入」</string>
     <string name="mcp_publish_body_method_repo_import_step3">3. 输入仓库地址：`%1$s`</string>
     <string name="mcp_publish_body_method_repo_import_step4">4. 配置插件名称并导入</string>
     <string name="mcp_publish_body_method_config_import_title">### 方式二：配置导入</string>
-    <string name="mcp_publish_body_method_config_import_step1">1. 打开 Operit MCP 配置页面</string>
+    <string name="mcp_publish_body_method_config_import_step1">1. 打开 Kiyori MCP 配置页面</string>
     <string name="mcp_publish_body_method_config_import_step2">2. 点击「导入」→「配置导入」</string>
     <string name="mcp_publish_body_method_config_import_step3">3. 粘贴以下配置：</string>
     <string name="mcp_publish_body_section_tech_info">## 🛠️ 技术信息</string>
@@ -4983,7 +4914,7 @@
     <string name="custom">自定义</string>
 
     <!-- Voice Assistant Widget -->
-    <string name="voice_assistant_widget_description">快速启动 Operit 语音助手</string>
+    <string name="voice_assistant_widget_description">快速启动 Kiyori 语音助手</string>
     <string name="voice_assistant_widget_title">语音助手</string>
     <string name="toolpkg_widget_host_label">自定义小部件</string>
     <string name="toolpkg_widget_host_description">添加后可绑定到某个插件注册的小组件页面</string>
@@ -5134,22 +5065,22 @@
 
     <!-- 默认助手设置引导 -->
     <string name="default_assistant_guide_title">设置默认语音助手</string>
-    <string name="default_assistant_guide_subtitle">让Operit成为您的智能助手</string>
-    <string name="default_assistant_guide_intro">将Operit设置为系统默认助手后，您可以通过长按Home键或使用语音唤醒快速启动Operit语音助手，获得更便捷的AI交互体验。</string>
+    <string name="default_assistant_guide_subtitle">让Kiyori成为您的智能助手</string>
+    <string name="default_assistant_guide_intro">将Kiyori设置为系统默认助手后，您可以通过长按Home键或使用语音唤醒快速启动Kiyori语音助手，获得更便捷的AI交互体验。</string>
     <string name="default_assistant_guide_steps_title">设置步骤</string>
     
     <!-- 步骤1: 设置为默认助理 -->
     <string name="default_assistant_guide_step1_title">设置为默认助理</string>
-    <string name="default_assistant_guide_step1_desc">将 Operit 设置为系统的默认数字助理应用</string>
+    <string name="default_assistant_guide_step1_desc">将 Kiyori 设置为系统的默认数字助理应用</string>
     <string name="default_assistant_guide_step1_detail1">• 打开系统设置 → 应用 → 默认应用 → 数字助理应用</string>
-    <string name="default_assistant_guide_step1_detail2">• 在助手应用列表中找到并选择"Operit AI"</string>
+    <string name="default_assistant_guide_step1_detail2">• 在助手应用列表中找到并选择"Kiyori"</string>
     <string name="default_assistant_guide_step1_detail_android12">Android 12+: 设置 → 应用 → 默认应用 → 数字助理应用 → 默认数字助理应用</string>
     <string name="default_assistant_guide_open_settings">打开助理设置</string>
     
     <!-- 步骤2: 配置启动手势 -->
     <string name="default_assistant_guide_open_gesture_settings">打开手势设置</string>
     <string name="default_assistant_guide_step2_title">配置启动手势</string>
-    <string name="default_assistant_guide_step2_desc">设置如何快速唤起 Operit 助手</string>
+    <string name="default_assistant_guide_step2_desc">设置如何快速唤起 Kiyori 助手</string>
     <string name="default_assistant_guide_step2_detail1">• 长按Home键：最常用的方式，在大部分设备上都可用</string>
     <string name="default_assistant_guide_step2_detail2">• 从屏幕底部向上滑动：部分支持全面屏手势的设备</string>
     <string name="default_assistant_guide_step2_detail_android12">Android 12+: 设置 → 应用 → 默认应用 → 数字助理应用 → 默认数字助理应用</string>
@@ -5159,22 +5090,22 @@
     <!-- 步骤4: 测试语音助手 -->
     <string name="default_assistant_guide_step4_title">测试语音助手</string>
     <string name="default_assistant_guide_step4_desc">设置完成后，测试是否能正常启动</string>
-    <string name="default_assistant_guide_step4_detail1">• 长按Home键（主屏幕按钮）应该会调起 Operit 语音助手</string>
-    <string name="default_assistant_guide_step4_detail2">• 如果设备支持语音唤醒，说"Hey Google"或设备指定的唤醒词也可能触发 Operit</string>
+    <string name="default_assistant_guide_step4_detail1">• 长按Home键（主屏幕按钮）应该会调起 Kiyori 语音助手</string>
+    <string name="default_assistant_guide_step4_detail2">• 如果设备支持语音唤醒，说"Hey Google"或设备指定的唤醒词也可能触发 Kiyori</string>
     
     <!-- 步骤3: 测试助手功能 -->
     <string name="default_assistant_guide_step3_title">测试助手功能</string>
-    <string name="default_assistant_guide_step3_desc">完成设置后，测试 Operit 是否能正常唤起</string>
+    <string name="default_assistant_guide_step3_desc">完成设置后，测试 Kiyori 是否能正常唤起</string>
     <string name="default_assistant_guide_step3_detail1">• 使用您设置的手势（如长按Home键）唤起助手</string>
-    <string name="default_assistant_guide_step3_detail2">• 如果成功，应该会看到 Operit 的语音助手界面</string>
+    <string name="default_assistant_guide_step3_detail2">• 如果成功，应该会看到 Kiyori 的语音助手界面</string>
     <string name="default_assistant_guide_step3_detail3">• 可以尝试说话或输入文字与助手交互</string>
     
     <!-- 疑难解答 -->
     <string name="default_assistant_guide_troubleshooting_title">遇到问题？</string>
-    <string name="default_assistant_guide_troubleshooting_content">如果在列表中找不到Operit，请确保：\n\n• 应用已正确安装且未被禁用\n• 已授予必要的权限（麦克风、悬浮窗等）\n• 尝试重启设备后再次设置\n\n部分定制系统可能限制第三方应用作为默认助手，如遇此情况，您仍可通过应用内的悬浮窗功能使用Operit。</string>
+    <string name="default_assistant_guide_troubleshooting_content">如果在列表中找不到Kiyori，请确保：\n\n• 应用已正确安装且未被禁用\n• 已授予必要的权限（麦克风、悬浮窗等）\n• 尝试重启设备后再次设置\n\n部分定制系统可能限制第三方应用作为默认助手，如遇此情况，您仍可通过应用内的悬浮窗功能使用Kiyori。</string>
     
     <!-- Voice Interaction Service -->
-    <string name="voice_interaction_service_name">Operit AI 助手</string>
+    <string name="voice_interaction_service_name">Kiyori 助手</string>
     <string name="voice_interaction_service_summary">智能语音助手服务</string>
 
     <!-- Tool Permission Settings -->
@@ -5466,7 +5397,7 @@
     <string name="start_with_new_chat_description">开启后，每次启动应用都会进入一个新的空白聊天界面，不再自动打开上一次聊天。</string>
     <string name="software_identity_title">软件标识</string>
     <string name="software_identity_description">更改侧边栏顶部显示的软件标识。</string>
-    <string name="software_identity_option_operit">Operit AI</string>
+    <string name="software_identity_option_operit">Kiyori</string>
     <string name="software_identity_option_lingshu">灵枢 AI</string>
     <string name="reset_all_display_settings">重置所有显示设置</string>
     <string name="ui_accessibility_mode">无障碍适配模式</string>
@@ -5780,7 +5711,7 @@
 
     <!-- Logcat -->
     <string name="logcat_no_logs_to_save">没有日志可保存</string>
-    <string name="logcat_header">=== Operit 日志 ===</string>
+    <string name="logcat_header">=== Kiyori 日志 ===</string>
     <string name="logcat_date">日期: %1$s</string>
     <string name="logcat_total_count">总条数: %1$d</string>
     <string name="logcat_save_failed">保存失败：%1$s</string>
@@ -6233,7 +6164,7 @@
     <string name="skill_publish_body_section_repo_info">## 🔗 仓库信息</string>
     <string name="skill_publish_body_label_repo_url">**仓库地址:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 安装方式</string>
-    <string name="skill_publish_body_install_step1">1. 打开 Operit → 包管理 → Skills</string>
+    <string name="skill_publish_body_install_step1">1. 打开 Kiyori → 包管理 → Skills</string>
     <string name="skill_publish_body_install_step2">2. 点击「导入 Skill」→ 「从仓库导入」</string>
     <string name="skill_publish_body_install_step3">3. 输入仓库地址：`%1$s`</string>
     <string name="skill_publish_body_install_step4">4. 确认导入</string>
@@ -7270,8 +7201,6 @@
     <string name="mcp_merge_config">合并配置</string>
     <string name="mcp_manage_env_variables">管理环境变量</string>
     <string name="mcp_error_no_zip_selected">未选择ZIP文件</string>
-    <string name="update_unknown_error">未知错误</string>
-    <string name="update_version_title">版本 %1$s</string>
     <string name="avatar_reset">重置</string>
 
     <!-- WorkflowExecutor (新增) -->
@@ -7295,15 +7224,15 @@
     <string name="chat_summarize_generation_failed">总结生成失败: %1$s</string>
 
     <!-- AIForegroundService (新增) -->
-    <string name="service_operit_running">Operit 正在运行</string>
+    <string name="service_operit_running">Kiyori 正在运行</string>
     <string name="service_chat_complete_reminder">对话完成提醒</string>
     <string name="service_chat_complete_reminder_sound">对话完成提醒（提示音）</string>
     <string name="service_chat_complete_reminder_vibration">对话完成提醒（震动）</string>
     <string name="service_chat_complete_reminder_sound_vibration">对话完成提醒（提示音和震动）</string>
-    <string name="service_keep_background">保持 Operit 在后台运行。</string>
+    <string name="service_keep_background">保持 Kiyori 在后台运行。</string>
     <string name="service_notify_when_complete">对话完成后提醒你。</string>
-    <string name="service_running_wake_pause">Operit 正在运行（唤醒暂停）</string>
-    <string name="service_running_wake_listening">Operit 正在运行（唤醒监听中）</string>
+    <string name="service_running_wake_pause">Kiyori 正在运行（唤醒暂停）</string>
+    <string name="service_running_wake_listening">Kiyori 正在运行（唤醒监听中）</string>
     <string name="service_running_stats">运行对话 %1$d · 调用工具 %2$d</string>
     <string name="service_running_http_listening">外部 HTTP 正在监听端口 %1$d</string>
     <string name="service_running_with_http">%1$s · 外部 HTTP %2$d</string>
@@ -7350,7 +7279,7 @@
     <string name="html_export_updated">更新</string>
     <string name="html_export_group">分组</string>
     <string name="html_export_message_count">消息数</string>
-    <string name="html_export_footer">导出自 Operit AI Assistant</string>
+    <string name="html_export_footer">导出自 Kiyori Assistant</string>
 
     <!-- MnnModelDownloadManager (新增) -->
     <string name="mnn_no_cache_data">无缓存数据</string>
@@ -7553,9 +7482,6 @@
     <!-- StreamMarkdownDemo -->
     <string name="demo_complete_message">好的，如果您有任何问题或需要帮助时，随时可以联系我。\n\n\n&lt;status type=&quot;complete&quot;&gt;&lt;/status&gt;</string>
 
-    <!-- UpdateManager -->
-    <string name="update_check_failed">更新检查失败: %1$s</string>
-    <string name="update_cannot_fetch_info">无法获取更新信息。</string>
 
     <!-- AccessibilityVoiceProvider -->
     <string name="accessibility_tts_locale_not_supported">系统TTS语言不支持: %1$s</string>

@@ -453,7 +453,7 @@
         <activity
             android:name=".integrations.tasker.WorkflowTaskerActivityConfig"
             android:exported="true"
-            android:label="Operit Workflow"
+            android:label="Kiyori Workflow"
             android:icon="@mipmap/ic_launcher_simple">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />

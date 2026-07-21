@@ -10,5 +10,5 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/voice_assistant_widget_description"
-    android:previewImage="@drawable/ic_voice_assistant_widget_preview" />
+    android:previewImage="@drawable/ic_kiyori_app_icon" />
 

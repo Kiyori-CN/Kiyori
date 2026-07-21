@@ -47,7 +47,7 @@ description: 用于 Operit Sandbox Package 开发。
 首次安装时，按下面顺序做：
 
 1. 先创建 `/sdcard/Download/Operit/skills/SandboxPackage_DEV/scripts/`
-2. 用 `download_file` 下载 `https://cdn.jsdelivr.net/gh/AAswordman/Operit@main/tools/sandboxpackage_dev_install_or_update.js`
+2. 用 `download_file` 下载 `https://raw.githubusercontent.com/Kiyori-CN/Kiyori/main/tools/sandboxpackage_dev_install_or_update.js`
 3. 保存为 `/sdcard/Download/Operit/skills/SandboxPackage_DEV/scripts/install_or_update.js`
 4. 调用 `operit_editor` 的 `debug_run_sandbox_script`
 5. 把 `source_path` 设为 `/sdcard/Download/Operit/skills/SandboxPackage_DEV/scripts/install_or_update.js`
@@ -64,7 +64,7 @@ description: 用于 Operit Sandbox Package 开发。
 - 下载并更新 `references/TOOLPKG_FORMAT_GUIDE.md`
 - 下载并更新 `types/` 下全部类型文件
 
-其中 `examples/packages/` 里的内容是 Operit 当前内置的包和脚本示范文件。
+其中 `examples/packages/` 里的内容是 Kiyori 当前内置的包和脚本示范文件。
 
 - 它们主要用于参考写法，不是让你直接在这里改线上生效
 - 当你要自定义自己的 Sandbox Package 时，可以把这些文件当作示例来对照结构、元数据、工具实现方式和返回格式
@@ -73,7 +73,7 @@ description: 用于 Operit Sandbox Package 开发。
 更新时按下面规则处理：
 
 1. 每次正式开始新的 Sandbox Package 开发任务前，必须优先重新下载一次安装脚本，再重新运行本地脚本
-   - 安装脚本下载地址：`https://cdn.jsdelivr.net/gh/AAswordman/Operit@main/tools/sandboxpackage_dev_install_or_update.js`
+   - 安装脚本下载地址：`https://raw.githubusercontent.com/Kiyori-CN/Kiyori/main/tools/sandboxpackage_dev_install_or_update.js`
    - 安装脚本保存位置：`/sdcard/Download/Operit/skills/SandboxPackage_DEV/scripts/install_or_update.js`
 2. 如果怀疑两份 guide 文档、types 或 `SKILL.md` 已经过旧，也重新运行这个脚本
 3. 如果本地 skill 目录缺文件、文件名不对、或者内容明显陈旧，不要手动零散修补，直接重跑安装脚本

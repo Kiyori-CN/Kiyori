@@ -23,16 +23,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.rememberNavController
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
-import com.ai.assistance.operit.data.announcement.RemoteAnnouncementDisplay
-import com.ai.assistance.operit.data.announcement.RemoteAnnouncementRepository
 import com.ai.assistance.operit.data.mcp.MCPRepository
-import com.ai.assistance.operit.data.security.PluginDenylistRepository
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
-import com.ai.assistance.operit.data.preferences.RemoteAnnouncementPreferences
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.common.NavItem
-import com.ai.assistance.operit.ui.features.announcement.RemoteAnnouncementDialog
 import com.ai.assistance.operit.ui.main.layout.PhoneLayout
 import com.ai.assistance.operit.ui.main.layout.TabletLayout
 import com.ai.assistance.operit.ui.main.navigation.AppNavigationModel
@@ -57,7 +52,6 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.features.update.screens.UpdateScreen
 import com.ai.assistance.operit.util.AppLogger
 
 // 为TopAppBar的actions提供CompositionLocal
@@ -102,9 +96,6 @@ fun OperitApp(
     val packageManager = remember {
         PackageManager.getInstance(context, AIToolHandler.getInstance(context))
     }
-    val remoteAnnouncementRepository = remember { RemoteAnnouncementRepository() }
-    val remoteAnnouncementPreferences = remember { RemoteAnnouncementPreferences(context) }
-    val pluginDenylistRepository = remember { PluginDenylistRepository(appContext) }
     var navigationRevision by remember { mutableStateOf(0) }
     val configuration = LocalConfiguration.current
     val navigationModel = remember(context, configuration, navigationRevision) { AppRouteCatalog.build(context) }
@@ -334,15 +325,6 @@ fun OperitApp(
     // - 600dp and above: tablet
     val useTabletLayout = screenWidthDp >= 600
 
-    var remoteAnnouncement by remember { mutableStateOf<RemoteAnnouncementDisplay?>(null) }
-
-    fun dismissRemoteAnnouncement() {
-        remoteAnnouncement?.let { announcement ->
-            remoteAnnouncementPreferences.setAcknowledgedVersion(announcement.version)
-        }
-        remoteAnnouncement = null
-    }
-
     val navItems = listOf(
         NavItem.AiChat,
         NavItem.AssistantConfig,
@@ -373,21 +355,6 @@ fun OperitApp(
             isNetworkAvailable = snapshot.isAvailable
             networkType = snapshot.type
             delay(10000) // Check every 10 seconds
-        }
-    }
-
-    LaunchedEffect(isNetworkAvailable) {
-        if (!isNetworkAvailable) return@LaunchedEffect
-
-        launch {
-            pluginDenylistRepository.refreshFromRemote()
-        }
-
-        if (remoteAnnouncement != null) return@LaunchedEffect
-
-        val announcement = remoteAnnouncementRepository.fetchDisplayableAnnouncement()
-        if (announcement != null && remoteAnnouncementPreferences.shouldShow(announcement.version)) {
-            remoteAnnouncement = announcement
         }
     }
 
@@ -537,14 +504,5 @@ fun OperitApp(
             }
         }
 
-        remoteAnnouncement?.let { announcement ->
-            RemoteAnnouncementDialog(
-                title = announcement.title,
-                body = announcement.body,
-                acknowledgeText = announcement.acknowledgeText,
-                countdownSeconds = announcement.countdownSec,
-                onAcknowledge = { dismissRemoteAnnouncement() }
-            )
-        }
     }
 }

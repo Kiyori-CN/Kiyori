@@ -93,8 +93,6 @@ private data class PackageManagerSnapshot(
 
 private suspend fun runQuickPluginCreatorSetupAndPublishResult(
     context: android.content.Context,
-    packageManager: PackageManager,
-    toolHandler: AIToolHandler,
     onRunningChange: (Boolean) -> Unit,
     onResult: (ToolResult?) -> Unit,
     onMessage: suspend (String) -> Unit
@@ -104,9 +102,7 @@ private suspend fun runQuickPluginCreatorSetupAndPublishResult(
     val result =
         withContext(Dispatchers.IO) {
             runQuickPluginCreatorSetup(
-                context = context,
-                packageManager = packageManager,
-                toolHandler = toolHandler
+                context = context
             )
         }
     onResult(result)
@@ -1103,8 +1099,6 @@ fun PackageManagerScreen(
                         scope.launch {
                             runQuickPluginCreatorSetupAndPublishResult(
                                 context = context,
-                                packageManager = packageManager,
-                                toolHandler = toolHandler,
                                 onRunningChange = { quickPluginSetupRunning = it },
                                 onResult = { quickPluginSetupResult = it },
                                 onMessage = { message ->
