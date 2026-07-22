@@ -1,7 +1,20 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.ui.unit.LayoutDirection
+import com.ai.assistance.operit.ui.main.navigation.AppRouterState
+import com.ai.assistance.operit.ui.main.navigation.NavigationEntryKind
+import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
+import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+import com.ai.assistance.operit.ui.main.navigation.RouteEntry
+import com.ai.assistance.operit.ui.main.navigation.RouteRuntime
+import com.ai.assistance.operit.ui.main.navigation.RouteSpec
+import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
+import com.ai.assistance.operit.ui.main.navigation.matchesNavigationRoot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -41,7 +54,7 @@ class KiyoriShellStateTest {
         val state =
             KiyoriShellState(
                 softwareHomePage = SoftwareHomePage.AI_HOME,
-                child = KiyoriShellChild.AI_CENTER,
+                child = KiyoriShellChild.FULL_SCREEN_WEB_SEARCH,
             )
 
         assertFalse(state.showsBottomBar)
@@ -51,6 +64,267 @@ class KiyoriShellStateTest {
                 result = KiyoriShellBackResult.CONSUMED,
             ),
             state.handleBack(),
+        )
+    }
+
+    @Test
+    fun `Back closes AI drawer before child and page navigation`() {
+        val state =
+            KiyoriShellState(
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+                child = KiyoriShellChild.FULL_SCREEN_WEB_SEARCH,
+                isAiDrawerOpen = true,
+            )
+
+        assertEquals(
+            KiyoriShellBackTransition(
+                state = state.closeAiDrawer(),
+                result = KiyoriShellBackResult.CONSUMED,
+            ),
+            state.handleBack(),
+        )
+    }
+
+    @Test
+    fun `AI drawer width follows window classes and separating fold`() {
+        assertEquals(300f, calculateKiyoriAiDrawerWidthDp(400f), 0f)
+        assertEquals(320f, calculateKiyoriAiDrawerWidthDp(600f), 0f)
+        assertEquals(320f, calculateKiyoriAiDrawerWidthDp(839f), 0f)
+        assertEquals(360f, calculateKiyoriAiDrawerWidthDp(840f), 0f)
+        assertEquals(
+            280f,
+            calculateKiyoriAiDrawerWidthDp(
+                windowWidthDp = 700f,
+                separatingFoldLeftDp = 280f,
+            ),
+            0f,
+        )
+    }
+
+    @Test
+    fun `AI drawer replaces another primary route`() {
+        assertEquals(
+            AiDrawerSelectionEffect.REPLACE_PRIMARY,
+            resolveAiDrawerSelection(
+                currentEntryId = "main.packages",
+                targetEntryId = "main.workflow",
+            ),
+        )
+    }
+
+    @Test
+    fun `restoring an AI primary stack keeps its child route`() {
+        val oldRoot = RouteEntry(instanceId = "old", routeId = "native.packages")
+        val targetRoot = RouteEntry(instanceId = "target", routeId = "native.workflow")
+        val targetChild = RouteEntry(instanceId = "child", routeId = "native.workflow_detail")
+        val routerState = AppRouterState(oldRoot)
+
+        routerState.restoreStack(listOf(targetRoot, targetChild))
+
+        assertEquals(listOf(targetRoot, targetChild), routerState.backStack)
+        assertEquals(targetChild, routerState.currentEntry)
+    }
+
+    @Test
+    fun `host navigation root matches route id without comparing internal args`() {
+        val entry =
+            NavigationEntrySpec(
+                entryId = "main.ai_chat",
+                routeId = "native.ai_chat",
+                surface = NavigationSurface.MAIN_SIDEBAR_AI,
+                title = "AI",
+                icon = Icons.Default.Home,
+            )
+
+        assertTrue(
+            entry.matchesNavigationRoot(
+                routeId = "native.ai_chat",
+                routeArgs = mapOf("_native_screen" to "AiChat"),
+            ),
+        )
+        assertFalse(entry.matchesNavigationRoot("native.settings", emptyMap()))
+    }
+
+    @Test
+    fun `plugin navigation root requires its registered args`() {
+        val entry =
+            NavigationEntrySpec(
+                entryId = "toolpkg:demo:dashboard",
+                routeId = "toolpkg.demo.dashboard",
+                surface = NavigationSurface.MAIN_SIDEBAR_PLUGINS,
+                title = "Dashboard",
+                icon = Icons.Default.Home,
+                routeArgs = mapOf("section" to "root"),
+                kind = NavigationEntryKind.PLUGIN,
+            )
+
+        assertTrue(
+            entry.matchesNavigationRoot(
+                routeId = "toolpkg.demo.dashboard",
+                routeArgs = mapOf("section" to "root"),
+            ),
+        )
+        assertFalse(entry.matchesNavigationRoot("toolpkg.demo.dashboard", emptyMap()))
+    }
+
+    @Test
+    fun `AI top bar mode follows explicit current route identity`() {
+        val root =
+            RouteEntry(
+                routeId = "native.ai_chat",
+                source = RouteEntrySource.SCRIPT,
+                navigationRootEntryId = "main.ai_chat",
+            )
+
+        assertEquals(AiTopBarMode.DRAWER, resolveAiTopBarMode(root))
+        assertEquals(
+            AiTopBarMode.BACK,
+            resolveAiTopBarMode(root.copy(source = RouteEntrySource.KIYORI_SETTINGS)),
+        )
+        assertEquals(
+            AiTopBarMode.BACK,
+            resolveAiTopBarMode(RouteEntry(routeId = "native.ai_detail")),
+        )
+    }
+
+    @Test
+    fun `AI settings source families separate Kiyori Settings from AI entries`() {
+        assertTrue(
+            hasSameAiSettingsSourceFamily(
+                RouteEntrySource.DEFAULT,
+                RouteEntrySource.AI_DRAWER,
+            ),
+        )
+        assertTrue(
+            hasSameAiSettingsSourceFamily(
+                RouteEntrySource.SCRIPT,
+                RouteEntrySource.AI_DRAWER,
+            ),
+        )
+        assertFalse(
+            hasSameAiSettingsSourceFamily(
+                RouteEntrySource.AI_DRAWER,
+                RouteEntrySource.KIYORI_SETTINGS,
+            ),
+        )
+    }
+
+    @Test
+    fun `cross source AI settings opens its stable root without child routes`() {
+        val targetRoot =
+            RouteEntry(
+                instanceId = "settings-root",
+                routeId = "native.settings",
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                navigationRootEntryId = "main.settings",
+            )
+        val savedStack =
+            listOf(
+                targetRoot.copy(source = RouteEntrySource.AI_DRAWER),
+                RouteEntry(instanceId = "child", routeId = "native.settings.detail"),
+            )
+
+        assertEquals(
+            listOf(targetRoot),
+            buildAiPrimaryStack(
+                targetRoot = targetRoot,
+                savedStack = savedStack,
+                restoreChildren = false,
+            ),
+        )
+        assertEquals(
+            listOf(targetRoot, savedStack.last()),
+            buildAiPrimaryStack(
+                targetRoot = targetRoot,
+                savedStack = savedStack,
+                restoreChildren = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `host AI primary roots keep a fixed instance and always preserve their stack`() {
+        val entry = testNavigationEntry(kind = NavigationEntryKind.HOST)
+        val routeSpec = testRouteSpec(keepAlive = false)
+
+        assertEquals(
+            entry.toAiPrimaryRouteEntry(RouteEntrySource.DEFAULT).instanceId,
+            entry.toAiPrimaryRouteEntry(RouteEntrySource.AI_DRAWER).instanceId,
+        )
+        assertTrue(entry.preservesAiPrimaryStack(routeSpec))
+    }
+
+    @Test
+    fun `plugin AI primary roots preserve their stack only when keepAlive is declared`() {
+        val entry = testNavigationEntry(kind = NavigationEntryKind.PLUGIN)
+
+        assertFalse(entry.preservesAiPrimaryStack(testRouteSpec(keepAlive = false)))
+        assertTrue(entry.preservesAiPrimaryStack(testRouteSpec(keepAlive = true)))
+    }
+
+    @Test
+    fun `non keepAlive plugin creates a new root and does not restore its old child stack`() {
+        val entry = testNavigationEntry(kind = NavigationEntryKind.PLUGIN)
+        val oldRoot = entry.toAiPrimaryRouteEntry(RouteEntrySource.AI_DRAWER)
+        val newRoot = entry.toAiPrimaryRouteEntry(RouteEntrySource.AI_DRAWER)
+        val oldChild = RouteEntry(instanceId = "old-child", routeId = "plugin.child")
+
+        assertNotEquals(oldRoot.instanceId, newRoot.instanceId)
+        assertEquals(
+            listOf(newRoot),
+            buildAiPrimaryStack(
+                targetRoot = newRoot,
+                savedStack = listOf(oldRoot, oldChild),
+                restoreChildren = entry.preservesAiPrimaryStack(testRouteSpec(keepAlive = false)),
+            ),
+        )
+    }
+
+    @Test
+    fun `selecting current AI drawer route only closes drawer`() {
+        assertEquals(
+            AiDrawerSelectionEffect.CLOSE_ONLY,
+            resolveAiDrawerSelection(
+                currentEntryId = "main.workflow",
+                targetEntryId = "main.workflow",
+            ),
+        )
+    }
+
+    private fun testNavigationEntry(kind: NavigationEntryKind): NavigationEntrySpec =
+        NavigationEntrySpec(
+            entryId = "toolpkg:demo:dashboard",
+            routeId = "toolpkg.demo.dashboard",
+            surface = NavigationSurface.MAIN_SIDEBAR_PLUGINS,
+            title = "Dashboard",
+            icon = Icons.Default.Home,
+            kind = kind,
+        )
+
+    private fun testRouteSpec(keepAlive: Boolean): RouteSpec =
+        RouteSpec(
+            routeId = "toolpkg.demo.dashboard",
+            runtime = RouteRuntime.TOOLPKG_COMPOSE_DSL,
+            keepAlive = keepAlive,
+        )
+
+    @Test
+    fun `AI settings returns to its navigation source`() {
+        val state =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SETTINGS_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            )
+
+        assertEquals(
+            KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+            state.returnFromAiSettings(AiSettingsEntrySource.AI_DRAWER),
+        )
+        assertEquals(
+            PrimaryDestination.SETTINGS_HOME,
+            state
+                .returnFromAiSettings(AiSettingsEntrySource.KIYORI_SETTINGS)
+                .primaryDestination,
         )
     }
 
@@ -109,5 +383,11 @@ class KiyoriShellStateTest {
         assertEquals(1080f, calculateKiyoriAiHostTranslation(-1f, 1080f), 0f)
         assertEquals(0f, calculateKiyoriAiHostTranslation(0f, 1080f), 0f)
         assertEquals(-540f, calculateKiyoriAiHostTranslation(0.5f, 1080f), 0f)
+    }
+
+    @Test
+    fun `AI host drag uses the same direction convention as horizontal pager`() {
+        assertTrue(shouldReverseKiyoriPagerDrag(LayoutDirection.Ltr))
+        assertFalse(shouldReverseKiyoriPagerDrag(LayoutDirection.Rtl))
     }
 }

@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.theme
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.net.Uri
 import android.os.Build
 import com.ai.assistance.operit.util.AppLogger
@@ -9,6 +8,9 @@ import com.ai.assistance.operit.R
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -37,13 +39,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
@@ -121,13 +122,6 @@ fun OperitTheme(content: @Composable () -> Unit) {
             preferencesManager.videoBackgroundMuted.collectAsState(initial = true)
     val videoBackgroundLoop by preferencesManager.videoBackgroundLoop.collectAsState(initial = true)
 
-    // 获取状态栏颜色设置
-    val useCustomStatusBarColor by
-            preferencesManager.useCustomStatusBarColor.collectAsState(initial = false)
-    val customStatusBarColorValue by
-            preferencesManager.customStatusBarColor.collectAsState(initial = null)
-    val statusBarTransparent by
-            preferencesManager.statusBarTransparent.collectAsState(initial = false)
     val statusBarHidden by
             preferencesManager.statusBarHidden.collectAsState(initial = false)
 
@@ -194,60 +188,45 @@ fun OperitTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
+            val activity = view.context as ComponentActivity
+            val window = activity.window
             val insetsController = window.decorView.let { decorView ->
                 androidx.core.view.WindowCompat.getInsetsController(window, decorView)
             }
-            
-            // 始终保持沉浸式模式，让Compose处理状态栏背景
-            WindowCompat.setDecorFitsSystemWindows(window, false)
 
-            // 隐藏或显示状态栏
+            val transparentBarColor = android.graphics.Color.TRANSPARENT
+            val statusBarUsesDarkIcons = isColorLight(colorScheme.background)
+            val statusBarStyle =
+                if (statusBarUsesDarkIcons) {
+                    SystemBarStyle.light(transparentBarColor, transparentBarColor)
+                } else {
+                    SystemBarStyle.dark(transparentBarColor)
+                }
+            val hasBackgroundMedia = useBackgroundImage && backgroundImageUri != null
+            val navigationBarColor =
+                if (hasBackgroundMedia) transparentBarColor else colorScheme.background.toArgb()
+            val navigationBarUsesDarkIcons =
+                if (hasBackgroundMedia) !darkTheme else !isColorLight(colorScheme.background)
+            val navigationBarStyle =
+                if (navigationBarUsesDarkIcons) {
+                    SystemBarStyle.light(navigationBarColor, navigationBarColor)
+                } else {
+                    SystemBarStyle.dark(navigationBarColor)
+                }
+
+            // 由 AndroidX 统一配置 edge-to-edge 与系统栏着色，避免直接调用废弃窗口 API。
+            activity.enableEdgeToEdge(statusBarStyle, navigationBarStyle)
+
             if (statusBarHidden) {
-                // 隐藏状态栏
                 insetsController?.hide(WindowInsetsCompat.Type.statusBars())
                 insetsController?.systemBarsBehavior = 
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
-                // 显示状态栏
                 insetsController?.show(WindowInsetsCompat.Type.statusBars())
-                
-                // 状态栏颜色和图标颜色控制
-                val statusBarColor = when {
-                    statusBarTransparent -> Color.Transparent.toArgb()
-                    useBackgroundImage && backgroundImageUri != null -> Color.Transparent.toArgb()  // 有背景时透明
-                    useCustomStatusBarColor && customStatusBarColorValue != null -> customStatusBarColorValue!!.toInt()
-                    else -> colorScheme.primary.toArgb()
-                }
-                window.statusBarColor = statusBarColor
-
-                // 根据状态栏背景色动态设置状态栏图标颜色
-                // isAppearanceLightStatusBars = true 表示图标为深色（适用于浅色背景）
-                // isAppearanceLightStatusBars = false 表示图标为浅色（适用于深色背景）
-                insetsController?.isAppearanceLightStatusBars = !isColorLight(Color(statusBarColor))
             }
-            
-            // 设置导航栏颜色（底部小白条所在的区域）
-            // 在有背景图片时，让导航栏透明
-            if (useBackgroundImage && backgroundImageUri != null) {
-                // 关键：禁用导航栏对比度强制模式（Android 10+）
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    window.isNavigationBarContrastEnforced = false
-                }
-                // 设置为完全透明
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
-                // 根据主题设置导航栏图标颜色
-                insetsController?.isAppearanceLightNavigationBars = !darkTheme
-            } else {
-                // 没有背景时使用软件背景色作为导航栏背景色
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    window.isNavigationBarContrastEnforced = true
-                }
-                window.navigationBarColor = colorScheme.background.toArgb()
-                // 根据导航栏背景色动态设置导航栏图标颜色
-                // isAppearanceLightNavigationBars = true 表示图标为深色（适用于浅色背景）
-                // isAppearanceLightNavigationBars = false 表示图标为浅色（适用于深色背景）
-                insetsController?.isAppearanceLightNavigationBars = !isColorLight(colorScheme.background)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = !hasBackgroundMedia
             }
         }
     }

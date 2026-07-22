@@ -1,5 +1,11 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import com.ai.assistance.operit.ui.main.navigation.NavigationEntryKind
+import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
+import com.ai.assistance.operit.ui.main.navigation.RouteEntry
+import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
+import com.ai.assistance.operit.ui.main.navigation.RouteSpec
+
 enum class PrimaryDestination {
     SOFTWARE_HOME,
     BROWSER_HOME,
@@ -22,17 +28,21 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
-    AI_CENTER,
 }
 
-enum class AiCenterDestination {
-    PACKAGES,
-    PERMISSIONS,
-    WORKFLOW,
-    ASSISTANT_CONFIG,
-    MEMORY,
-    TOOLBOX,
-    AI_SETTINGS,
+enum class AiDrawerSelectionEffect {
+    CLOSE_ONLY,
+    REPLACE_PRIMARY,
+}
+
+enum class AiSettingsEntrySource {
+    AI_DRAWER,
+    KIYORI_SETTINGS,
+}
+
+enum class AiTopBarMode {
+    DRAWER,
+    BACK,
 }
 
 enum class KiyoriShellBackResult {
@@ -49,10 +59,11 @@ data class KiyoriShellState(
     val primaryDestination: PrimaryDestination = PrimaryDestination.SOFTWARE_HOME,
     val softwareHomePage: SoftwareHomePage = SoftwareHomePage.HOME,
     val child: KiyoriShellChild? = null,
+    val isAiDrawerOpen: Boolean = false,
 ) {
     val showsBottomBar: Boolean
         get() =
-            child == null &&
+            child == null && !isAiDrawerOpen &&
                 (primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                     softwareHomePage == SoftwareHomePage.HOME)
 
@@ -66,6 +77,7 @@ data class KiyoriShellState(
                     softwareHomePage
                 },
             child = null,
+            isAiDrawerOpen = false,
         )
 
     fun showSoftwareHomePage(page: SoftwareHomePage): KiyoriShellState =
@@ -73,13 +85,31 @@ data class KiyoriShellState(
             primaryDestination = PrimaryDestination.SOFTWARE_HOME,
             softwareHomePage = page,
             child = null,
+            isAiDrawerOpen = false,
         )
 
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =
-        copy(child = destination)
+        copy(child = destination, isAiDrawerOpen = false)
+
+    fun openAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = true)
+
+    fun closeAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = false)
+
+    fun returnFromAiSettings(source: AiSettingsEntrySource): KiyoriShellState =
+        when (source) {
+            AiSettingsEntrySource.AI_DRAWER ->
+                showSoftwareHomePage(SoftwareHomePage.AI_HOME)
+            AiSettingsEntrySource.KIYORI_SETTINGS ->
+                selectPrimary(PrimaryDestination.SETTINGS_HOME)
+        }
 
     fun handleBack(): KiyoriShellBackTransition =
         when {
+            isAiDrawerOpen ->
+                KiyoriShellBackTransition(
+                    state = closeAiDrawer(),
+                    result = KiyoriShellBackResult.CONSUMED,
+                )
             child != null ->
                 KiyoriShellBackTransition(
                     state = copy(child = null),
@@ -106,4 +136,89 @@ data class KiyoriShellState(
                     result = KiyoriShellBackResult.REQUEST_EXIT,
                 )
         }
+}
+
+internal fun resolveAiDrawerSelection(
+    currentEntryId: String?,
+    targetEntryId: String,
+): AiDrawerSelectionEffect =
+    if (currentEntryId == targetEntryId) {
+        AiDrawerSelectionEffect.CLOSE_ONLY
+    } else {
+        AiDrawerSelectionEffect.REPLACE_PRIMARY
+    }
+
+internal fun resolveAiTopBarMode(routeEntry: RouteEntry): AiTopBarMode =
+    if (
+        routeEntry.navigationRootEntryId != null &&
+            routeEntry.source != RouteEntrySource.KIYORI_SETTINGS
+    ) {
+        AiTopBarMode.DRAWER
+    } else {
+        AiTopBarMode.BACK
+    }
+
+internal fun hasSameAiSettingsSourceFamily(
+    currentSource: RouteEntrySource,
+    targetSource: RouteEntrySource,
+): Boolean =
+    (currentSource == RouteEntrySource.KIYORI_SETTINGS) ==
+        (targetSource == RouteEntrySource.KIYORI_SETTINGS)
+
+private const val AI_NAVIGATION_ROOT_INSTANCE_PREFIX = "kiyori.ai.root:"
+
+internal fun NavigationEntrySpec.toAiPrimaryRouteEntry(source: RouteEntrySource): RouteEntry {
+    val routeEntry =
+        RouteEntry(
+            routeId = routeId,
+            args = routeArgs,
+            source = source,
+            navigationRootEntryId = entryId,
+        )
+    return when (kind) {
+        NavigationEntryKind.HOST ->
+            routeEntry.copy(instanceId = "$AI_NAVIGATION_ROOT_INSTANCE_PREFIX$entryId")
+        NavigationEntryKind.PLUGIN -> routeEntry
+    }
+}
+
+internal fun NavigationEntrySpec.preservesAiPrimaryStack(routeSpec: RouteSpec): Boolean {
+    require(routeSpec.routeId == routeId) {
+        "Route spec ${routeSpec.routeId} does not belong to navigation entry $entryId"
+    }
+    return kind == NavigationEntryKind.HOST || routeSpec.keepAlive
+}
+
+internal fun buildAiPrimaryStack(
+    targetRoot: RouteEntry,
+    savedStack: List<RouteEntry>?,
+    restoreChildren: Boolean,
+): List<RouteEntry> {
+    if (savedStack == null || !restoreChildren) {
+        return listOf(targetRoot)
+    }
+    return buildList {
+        add(targetRoot)
+        addAll(savedStack.drop(1))
+    }
+}
+
+internal fun calculateKiyoriAiDrawerWidthDp(
+    windowWidthDp: Float,
+    separatingFoldLeftDp: Float? = null,
+): Float {
+    require(windowWidthDp > 0f) { "windowWidthDp must be positive" }
+    val contractWidth =
+        when {
+            windowWidthDp < 600f -> windowWidthDp * 0.75f
+            windowWidthDp < 840f -> 320f
+            else -> 360f
+        }
+    val leftPhysicalRegionWidth =
+        separatingFoldLeftDp?.takeIf { foldLeft -> foldLeft > 0f }
+    return if (leftPhysicalRegionWidth == null) {
+        contractWidth
+    } else {
+        minOf(contractWidth, leftPhysicalRegionWidth)
+    }
 }

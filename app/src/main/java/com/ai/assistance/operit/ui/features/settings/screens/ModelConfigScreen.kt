@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -33,12 +33,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.llmprovider.AIService
 import com.ai.assistance.operit.api.chat.llmprovider.ApiKeyPoolAvailabilityTester
-import com.ai.assistance.operit.api.chat.llmprovider.ChatConfigReadiness
-import com.ai.assistance.operit.api.chat.llmprovider.ChatConfigReadinessIssue
 import com.ai.assistance.operit.api.chat.llmprovider.ModelConfigConnectionTester
 import com.ai.assistance.operit.api.chat.llmprovider.ModelConnectionTestType
 import com.ai.assistance.operit.data.model.FunctionType
@@ -55,9 +54,6 @@ import com.ai.assistance.operit.ui.features.settings.sections.SettingsInfoBanner
 import com.ai.assistance.operit.ui.features.settings.sections.SettingsSectionHeader
 import com.ai.assistance.operit.ui.features.settings.sections.SettingsSwitchRow
 import com.ai.assistance.operit.ui.features.settings.sections.SettingsTextField
-import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
-import com.ai.assistance.operit.ui.main.navigation.RegisterRouteBackGuard
-import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -74,11 +70,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private data class HeaderPreset(val nameResId: Int, val headers: Map<String, String>)
-
-enum class ModelConfigEntryMode {
-    STANDARD,
-    CHAT_ONBOARDING
-}
 
 private val headerPresets =
     listOf(
@@ -150,8 +141,7 @@ private fun serializeHeaderEntries(headers: List<Pair<String, String>>): String 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ModelConfigScreen(
-    navigateToMnnModelDownload: (() -> Unit)? = null,
-    entryMode: ModelConfigEntryMode = ModelConfigEntryMode.STANDARD
+    navigateToMnnModelDownload: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -171,8 +161,6 @@ fun ModelConfigScreen(
         remember(selectedConfigId) {
             ApiKeyPoolAvailabilityTester(selectedConfigId, configManager)
         }
-    var hasInitializedSelection by remember { mutableStateOf(false) }
-    var isCompletingOnboarding by remember { mutableStateOf(false) }
 
     // 配置名称映射
     val configNameMap = remember { mutableStateMapOf<String, String>() }
@@ -207,7 +195,6 @@ fun ModelConfigScreen(
             availableConfigIds.firstOrNull { it == chatConfigId }
                 ?: availableConfigIds.firstOrNull()
                 ?: ModelConfigManager.DEFAULT_CONFIG_ID
-        hasInitializedSelection = true
     }
 
     // 加载所有配置名称
@@ -234,105 +221,6 @@ fun ModelConfigScreen(
         scope.launch {
             kotlinx.coroutines.delay(3000)
             showSaveSuccessMessage = false
-        }
-    }
-
-    fun showOnboardingError(message: String) {
-        scope.launch {
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(message)
-        }
-    }
-
-    if (entryMode == ModelConfigEntryMode.CHAT_ONBOARDING) {
-        RegisterRouteBackGuard {
-            if (!hasInitializedSelection || isCompletingOnboarding) {
-                return@RegisterRouteBackGuard false
-            }
-
-            val targetConfigId = selectedConfigId
-            isCompletingOnboarding = true
-            try {
-                saveCoordinator.flushAll(showSuccess = false)
-                if (selectedConfigId != targetConfigId) {
-                    showOnboardingError(
-                        context.getString(R.string.onboarding_config_apply_failed)
-                    )
-                    return@RegisterRouteBackGuard false
-                }
-
-                val targetConfig = configManager.getModelConfig(targetConfigId)
-                if (targetConfig == null) {
-                    showOnboardingError(
-                        context.getString(R.string.onboarding_config_not_found)
-                    )
-                    return@RegisterRouteBackGuard false
-                }
-
-                val currentMapping =
-                    functionalConfigManager.getConfigMappingForFunction(FunctionType.CHAT)
-                val targetModelIndex =
-                    if (currentMapping.configId == targetConfigId) {
-                        currentMapping.modelIndex
-                    } else {
-                        0
-                    }
-                val registeredPluginProviderIds =
-                    ToolPkgAiProviderRegistry.list().mapTo(mutableSetOf()) { it.providerId }
-                val readiness =
-                    ChatConfigReadiness.evaluate(
-                        config = targetConfig,
-                        modelIndex = targetModelIndex,
-                        registeredPluginProviderIds = registeredPluginProviderIds
-                    )
-                if (!readiness.isReady) {
-                    val messageResId =
-                        when (readiness.issue) {
-                            ChatConfigReadinessIssue.PROVIDER_MISSING ->
-                                R.string.onboarding_config_provider_missing
-                            ChatConfigReadinessIssue.PROVIDER_UNAVAILABLE ->
-                                R.string.onboarding_config_provider_unavailable
-                            ChatConfigReadinessIssue.ENDPOINT_INVALID ->
-                                R.string.onboarding_config_endpoint_invalid
-                            ChatConfigReadinessIssue.MODEL_MISSING ->
-                                R.string.onboarding_config_model_missing
-                            ChatConfigReadinessIssue.API_KEY_MISSING ->
-                                R.string.onboarding_config_api_key_missing
-                            ChatConfigReadinessIssue.API_KEY_INVALID ->
-                                R.string.onboarding_config_api_key_invalid
-                            null -> R.string.onboarding_config_apply_failed
-                        }
-                    showOnboardingError(context.getString(messageResId))
-                    return@RegisterRouteBackGuard false
-                }
-
-                functionalConfigManager.setConfigForFunction(
-                    FunctionType.CHAT,
-                    targetConfigId,
-                    targetModelIndex
-                )
-                val savedMapping =
-                    functionalConfigManager.getConfigMappingForFunction(FunctionType.CHAT)
-                check(
-                    savedMapping.configId == targetConfigId &&
-                        savedMapping.modelIndex == targetModelIndex
-                )
-                EnhancedAIService.refreshServiceForFunction(
-                    context.applicationContext,
-                    FunctionType.CHAT
-                )
-                true
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                AppLogger.e("ModelConfigScreen", "首次引导配置保存或绑定失败", e)
-                showOnboardingError(
-                    context.getString(R.string.onboarding_config_apply_failed)
-                )
-                false
-            } finally {
-                isCompletingOnboarding = false
-            }
         }
     }
 
@@ -449,7 +337,7 @@ fun ModelConfigScreen(
                                 AnimatedContent(
                                     targetState = isDropdownExpanded,
                                     transitionSpec = {
-                                        fadeIn() + scaleIn() with fadeOut() + scaleOut()
+                                        (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut())
                                     }
                                 ) { expanded ->
                                     Icon(
@@ -974,19 +862,6 @@ fun ModelConfigScreen(
             )
         }
 
-        if (isCompletingOnboarding) {
-            Surface(
-                modifier = Modifier.matchParentSize().clickable(enabled = true) {},
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
         }
     }
 }
@@ -1057,7 +932,7 @@ private fun CustomHeadersSettingsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.List,
+                    imageVector = Icons.AutoMirrored.Filled.List,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -1108,7 +983,7 @@ private fun CustomHeadersSettingsSection(
                         ) {
                             OutlinedButton(onClick = { showHeaderPresetsMenu = true }) {
                                 Icon(
-                                    imageVector = Icons.Default.List,
+                                    imageVector = Icons.AutoMirrored.Filled.List,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )

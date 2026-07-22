@@ -1550,7 +1550,7 @@ class WebChatHttpBridge(
         } ?: 0
         val currentModelName = currentConfig?.let {
             getModelByIndex(it.modelName, currentModelIndex)
-        }?.takeIf { it.isNotBlank() } ?: appContext.getString(R.string.not_selected)
+        }?.takeIf { it.isNotBlank() } ?: appContext.getString(R.string.common_not_selected)
 
         return WebModelSelectorState(
             currentConfigId = currentConfigMapping.configId,

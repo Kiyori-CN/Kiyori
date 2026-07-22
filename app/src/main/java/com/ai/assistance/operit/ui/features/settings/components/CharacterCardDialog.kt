@@ -520,8 +520,8 @@ fun CharacterCardDialog(
                                 getModelByIndex(
                                     it.modelName,
                                     effectiveFixedModelIndex
-                                ).ifBlank { context.getString(R.string.not_selected) }
-                            } ?: context.getString(R.string.not_selected)
+                                ).ifBlank { context.getString(R.string.common_not_selected) }
+                            } ?: context.getString(R.string.common_not_selected)
                             listOf(
                                 context.getString(R.string.character_card_chat_model_fixed_config),
                                 selectedFixedConfig?.name,
@@ -623,13 +623,13 @@ fun CharacterCardDialog(
                                                 text = getModelByIndex(
                                                     selectedFixedConfig.modelName,
                                                     effectiveFixedModelIndex
-                                                ).ifBlank { stringResource(R.string.not_selected) },
+                                                ).ifBlank { stringResource(R.string.common_not_selected) },
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
                                             )
                                         } else {
                                             Text(
-                                                text = stringResource(R.string.not_selected),
+                                                text = stringResource(R.string.common_not_selected),
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
                                             )
@@ -748,7 +748,7 @@ fun CharacterCardDialog(
                                         )
 
                                         Text(
-                                            text = selectedFixedMemoryProfile?.id ?: stringResource(R.string.not_selected),
+                                            text = selectedFixedMemoryProfile?.id ?: stringResource(R.string.common_not_selected),
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
                                         )

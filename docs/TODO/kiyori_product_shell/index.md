@@ -10,19 +10,21 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 
 ## 当前进度
 
-- App Shell 首个切片已实现五个根目的地、三页首页 Pager、底栏可见性、全屏 AI Center 入口和 Shell Back 状态
+- App Shell 首个切片已实现五个根目的地、三页首页 Pager、底栏可见性和 Shell Back 状态；模态 AI 左抽屉已经取代全屏 AI Center
 - AI 对话宿主保持单实例挂载，Terminal 与对话历史入口继续留在 AI 首页
 - 旧顶层抽屉、平板旧侧栏、透视变换、边缘拖动、全局手势持有者及抽屉专属主题设置已删除
 - 浏览器、小程序、文件管理、设置仍是根页面骨架；真实领域内容、独立子栈与滚动状态尚未接入
 - 全屏网页搜索和负一屏已建立页面骨架，但搜索提交、浏览器窗口合同与真实数据仍未接入
-- AI Center 的自适应双栏、权限中心、AI 设置拆分、状态徽标和原版信息密度继续由后续切片完成
-- 2026-07-22 自动验证通过：Debug Kotlin 编译、Debug JVM 单元测试、47 项 CI Python 测试、正式开发准备门禁、Android lint、lint baseline 检查、`git diff --check` 和 `assembleDebug`
-- 最新 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `42D927B47F2656BFDB92CAE2C9FE97CFCD7F831E5931BD4C98434142E8F2C7DE`
+- 模态 AI 左抽屉的无手势容器、一级页面状态、AI 设置来源返回和原版信息密度已在本切片实现；权限总览继续由后续切片完成
+- 首页三页已共享 Pager 输入与 fling；抽屉面板从状态栏底部开始且保留全屏遮罩；ToolPkg 一级根开始严格服从自身 `keepAlive` 合同
+- 2026-07-23 累积自动验证通过：Debug Kotlin 编译、定向 Shell 测试 `23/23`、完整 Debug JVM 测试 `394/394`、47 项 CI Python 测试、正式开发准备门禁、Android lint、`git diff --check` 和 `assembleDebug`
+- 当前告警复采完成：Kotlin 告警从 453 降至 436，lint 从 59 warning 降至 52 warning；本轮新增和高风险候选已消失，CMake 仅保留第三方 OpenFST 与本机工具链告警
+- 最新 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于 `2026-07-23 03:31:37 +08:00`，大小 `416308263` 字节，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `38F1F9A37CD55902428E1E6D42989DCCCE0C232C0D88E72764B3603AFED1C494`
 - 自动编译和 JVM 状态测试不替代真机手势、Back、旋转、折叠屏及流式对话持续性验收
 
 ## 目标
 
-把当前由 Operit UI 拥有的应用壳迁移为 Kiyori 产品壳，建立软件首页三页空间、五个顶层入口、全屏 AI 中心、独立网页搜索和自适应布局，并为后续内容域接入 AI 准备能力与授权边界。
+把当前由 Operit UI 拥有的应用壳迁移为 Kiyori 产品壳，建立软件首页三页空间、五个顶层入口、模态 AI 左抽屉、独立网页搜索和自适应布局，并为后续内容域接入 AI 准备能力与授权边界。
 
 ## 已确认设计
 
@@ -33,24 +35,24 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - 启动进入软件首页
 - 软件首页左侧为负一屏，右侧为全屏 AI 首页
 - 负一屏和 AI 首页隐藏底部五入口
-- AI 首页三横线按钮打开全屏 AI 中心
-- AI 设置是 AI 中心子页，也从设置首页进入
-- 原版“权限”高频入口进入 Kiyori 权限中心；设置首页进入同一个目的地
+- AI 首页及 AI 一级页面的三横线按钮打开模态 AI 左抽屉，不提供边缘或拖动手势
+- AI 设置是抽屉一级目标，也从设置首页进入同一页面并保留不同 Back 来源
+- 抽屉“权限”高频入口进入 `Screen.ShizukuCommands`；设置首页的权限入口进入 Kiyori 权限中心
 - 权限中心区分设备能力与 AI 工具授权，使用各领域唯一 owner，不新建状态副本
 - 权限中心首页采用只读状态总览，点击分项进入唯一 owner 页面，不直接放置权限开关
-- AI 中心“权限”卡片保留原版短标签与视觉，徽标只显示设备能力待处理数量，无待处理项时显示“正常”
+- 抽屉“权限”卡片保留原版短标签与视觉，并继续进入 `Screen.ShizukuCommands`
 - 高影响操作确认与 AI 操作记录共同归入权限中心的“AI 安全”分组，完整页面实现前不显示入口
 - AI 操作采用 R0-R3 四级风险模型；`ALLOW` 只能直接放行 R0/R1，R2 默认单次确认，R3 每次确认且不能长期免确认
-- 对话历史、新建和删除对话保留在 AI 首页，不进入 AI 中心
-- 原左抽屉“AI 对话”入口删除，不进入 AI 中心
-- 进入 AI 中心时不对 AI 首页施加位移、缩放、倾斜、动态圆角或动态阴影
-- 帮助、关于、使用手册和应用语言不进入 AI 中心
+- 对话历史、新建和删除对话保留在 AI 首页，不进入抽屉
+- 抽屉保留“AI 对话”入口，用于返回现有 AI Home，不创建会话或清空草稿
+- 打开抽屉时不对底层页面施加位移、缩放、倾斜、动态圆角、阴影或透明度
+- 帮助、关于、使用手册和应用语言不进入抽屉
 - Terminal 第一阶段保留 AI 首页右上角入口，不新增第二入口
 - 软件首页搜索卡保留“搜索”和“AI”按钮
 - “搜索”进入只负责网页搜索的全屏页，“AI”进入 AI 首页
 - 历史、书签、文件和小程序在各自页面中搜索
 - 底部五入口只在五个根页面显示
-- AI 中心、AI 首页、负一屏、子页和沉浸页面使用已确认的 Back 规则
+- 模态抽屉、AI 一级页面、AI 首页、负一屏、子页和沉浸页面使用已确认的 Back 规则
 - 每个顶层入口保留自己的子栈和滚动状态
 - 负一屏首期包含收藏、书签、历史和下载
 - 手机、平板和折叠屏共享导航状态并使用自适应布局
@@ -62,7 +64,7 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - 不迁移兼容 namespace、协议、数据库、备份或插件标识
 - 不重写 Operit AI runtime
 - 不把旧 `kiyori-android` 作为源码依赖
-- 不在未达成共识前决定 AI 中心最终分组和搜索窗口策略
+- 不在未达成共识前决定权限总览最终分组和搜索窗口策略
 
 ## 工作分解
 
@@ -70,14 +72,14 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 kiyori_product_shell/
 ├── index.md
 ├── 1_app_shell_and_home_navigation.md
-├── 2_ai_center_and_settings_ownership.md
+├── 2_modal_ai_drawer_and_settings_ownership.md
 ├── 3_web_search_and_adaptive_layout.md
 ├── 4_capability_authorization_and_audit.md
 └── 5_browser_source_port.md
 ```
 
 1. [Kiyori App Shell 与首页导航](1_app_shell_and_home_navigation.md)
-2. [AI 中心与设置归属](2_ai_center_and_settings_ownership.md)
+2. [模态 AI 左抽屉与设置归属](2_modal_ai_drawer_and_settings_ownership.md)
 3. [网页搜索与自适应布局](3_web_search_and_adaptive_layout.md)
 4. [AI 能力授权与操作记录](4_capability_authorization_and_audit.md)
 5. [浏览器 source-port](5_browser_source_port.md)
@@ -97,7 +99,7 @@ kiyori_product_shell/
 - Kiyori App Shell 成为唯一顶层导航 owner
 - 手机端不存在从 AI 首页左边缘打开旧抽屉的路径
 - 软件首页三页、底栏显示规则和 AI 页面状态保持符合架构文档
-- AI 中心与设置首页进入同一个 AI 设置状态
+- 模态 AI 抽屉与设置首页进入同一个 AI 设置页面与持久状态，并按来源返回
 - 对话历史只由 AI 首页原有历史选择器维护
 - 全屏网页搜索不返回其他领域结果
 - 首页搜索卡的 AI 按钮只进入 AI 首页

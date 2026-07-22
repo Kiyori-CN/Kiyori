@@ -11,13 +11,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -43,7 +40,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,8 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.common.NavItem
-import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 
 private data class PrimaryDestinationVisual(
     val destination: PrimaryDestination,
@@ -260,9 +254,18 @@ internal fun KiyoriMinusOnePage() {
 @Composable
 internal fun KiyoriPrimaryRootPage(
     destination: PrimaryDestination,
+    onOpenAiSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val visual = primaryDestinationVisuals.single { item -> item.destination == destination }
+    if (destination == PrimaryDestination.SETTINGS_HOME) {
+        KiyoriSettingsHomePage(
+            title = stringResource(visual.labelResId),
+            onOpenAiSettings = onOpenAiSettings,
+            modifier = modifier,
+        )
+        return
+    }
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.background).padding(bottom = 72.dp),
         contentAlignment = Alignment.Center,
@@ -280,6 +283,51 @@ internal fun KiyoriPrimaryRootPage(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
+        }
+    }
+}
+
+@Composable
+private fun KiyoriSettingsHomePage(
+    title: String,
+    onOpenAiSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 20.dp, vertical = 24.dp)
+                .padding(bottom = 72.dp),
+    ) {
+        Spacer(modifier = Modifier.height(36.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Surface(
+            onClick = onOpenAiSettings,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.kiyori_shell_ai_settings),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
         }
     }
 }
@@ -324,185 +372,6 @@ internal fun KiyoriFullScreenWebSearchPage(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 placeholder = { Text(stringResource(R.string.kiyori_shell_search_hint)) },
                 shape = RoundedCornerShape(8.dp),
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun KiyoriAiCenterPage(
-    selectedRouteId: String,
-    pluginEntries: List<NavigationEntrySpec>,
-    onDestinationSelected: (AiCenterDestination) -> Unit,
-    onPluginEntrySelected: (NavigationEntrySpec) -> Unit,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val quickActions =
-        listOf(
-            Triple(AiCenterDestination.PACKAGES, NavItem.Packages, NavItem.Packages.icon),
-            Triple(AiCenterDestination.PERMISSIONS, NavItem.ShizukuCommands, NavItem.ShizukuCommands.icon),
-            Triple(AiCenterDestination.WORKFLOW, NavItem.Workflow, NavItem.Workflow.icon),
-        )
-    val capabilityEntries =
-        listOf(
-            Triple(AiCenterDestination.ASSISTANT_CONFIG, NavItem.AssistantConfig, NavItem.AssistantConfig.icon),
-            Triple(AiCenterDestination.MEMORY, NavItem.MemoryBase, NavItem.MemoryBase.icon),
-            Triple(AiCenterDestination.TOOLBOX, NavItem.Toolbox, NavItem.Toolbox.icon),
-        )
-
-    Scaffold(
-        modifier = modifier,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                windowInsets = WindowInsets.statusBars,
-                title = { Text(stringResource(R.string.kiyori_shell_ai_center)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.app_content_navigate_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-            )
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(innerPadding)
-                    .navigationBarsPadding(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    quickActions.forEach { (destination, navItem, icon) ->
-                        Surface(
-                            onClick = { onDestinationSelected(destination) },
-                            modifier = Modifier.weight(1f).height(88.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(12.dp),
-                                verticalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    text = stringResource(navItem.titleResId),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            item {
-                Text(
-                    text = stringResource(R.string.kiyori_shell_ai_capabilities),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-                )
-            }
-            items(capabilityEntries, key = { entry -> entry.first.name }) { (_, navItem, icon) ->
-                KiyoriAiCenterNavigationRow(
-                    icon = icon,
-                    label = stringResource(navItem.titleResId),
-                    onClick = {
-                        val destination =
-                            when (navItem) {
-                                NavItem.AssistantConfig -> AiCenterDestination.ASSISTANT_CONFIG
-                                NavItem.MemoryBase -> AiCenterDestination.MEMORY
-                                NavItem.Toolbox -> AiCenterDestination.TOOLBOX
-                                else -> error("Unexpected AI Center capability: $navItem")
-                            }
-                        onDestinationSelected(destination)
-                    },
-                )
-            }
-            item {
-                KiyoriAiCenterNavigationRow(
-                    icon = Icons.Default.Settings,
-                    label = stringResource(R.string.kiyori_shell_ai_settings),
-                    onClick = { onDestinationSelected(AiCenterDestination.AI_SETTINGS) },
-                )
-            }
-            if (pluginEntries.isNotEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.kiyori_shell_extensions),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-                    )
-                }
-                items(pluginEntries, key = { entry -> entry.entryId }) { entry ->
-                    KiyoriAiCenterNavigationRow(
-                        icon = entry.icon,
-                        label = entry.title,
-                        selected = selectedRouteId == entry.routeId,
-                        onClick = { onPluginEntrySelected(entry) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun KiyoriAiCenterNavigationRow(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    selected: Boolean = false,
-) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(52.dp),
-        shape = RoundedCornerShape(8.dp),
-        color =
-            if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

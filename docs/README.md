@@ -6,6 +6,7 @@
 当前产品架构决策：
 
 - [Kiyori 产品定位与 Operit AI 边界](doc-src/decisions/0001_kiyori_product_positioning.md)
-- [产品壳与 AI 中心导航](doc-src/decisions/0002_product_shell_and_ai_center_navigation.md)
+- [模态 AI 左抽屉导航](doc-src/decisions/0004_modal_ai_drawer_navigation.md)
+- [已取代：产品壳与 AI 中心导航](doc-src/decisions/0002_product_shell_and_ai_center_navigation.md)
 - [UI 设计来源层级](doc-src/decisions/0003_ui_design_source_hierarchy.md)
 - [产品壳实施计划](TODO/kiyori_product_shell/index.md)

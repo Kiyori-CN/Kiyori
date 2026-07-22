@@ -41,11 +41,6 @@ internal fun ThemeSettingsColorCustomizationSection(
     saveThemeSettingsWithCharacterCard: SaveThemeSettingsAction,
     statusBarHiddenInput: Boolean,
     onStatusBarHiddenInputChange: (Boolean) -> Unit,
-    statusBarTransparentInput: Boolean,
-    onStatusBarTransparentInputChange: (Boolean) -> Unit,
-    useCustomStatusBarColorInput: Boolean,
-    onUseCustomStatusBarColorInputChange: (Boolean) -> Unit,
-    customStatusBarColorInput: Int,
     toolbarTransparentInput: Boolean,
     onToolbarTransparentInputChange: (Boolean) -> Unit,
     useCustomAppBarColorInput: Boolean,
@@ -92,7 +87,7 @@ internal fun ThemeSettingsColorCustomizationSection(
     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), colors = cardColors) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = stringResource(id = R.string.theme_statusbar_color),
+                text = stringResource(id = R.string.theme_statusbar),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
@@ -124,101 +119,6 @@ internal fun ThemeSettingsColorCustomizationSection(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(id = R.string.theme_statusbar_transparent),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color =
-                            if (statusBarHiddenInput) {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                    )
-                    Text(
-                        text = stringResource(id = R.string.theme_statusbar_transparent_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color =
-                            if (statusBarHiddenInput) {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
-                }
-                Switch(
-                    checked = statusBarTransparentInput,
-                    enabled = !statusBarHiddenInput,
-                    onCheckedChange = {
-                        onStatusBarTransparentInputChange(it)
-                        saveThemeSettingsWithCharacterCard {
-                            preferencesManager.saveThemeSettings(statusBarTransparent = it)
-                        }
-                    },
-                )
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(id = R.string.theme_use_custom_statusbar_color),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color =
-                            if (statusBarTransparentInput || statusBarHiddenInput) {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                    )
-                    Text(
-                        text =
-                            stringResource(id = R.string.theme_use_custom_statusbar_color_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color =
-                            if (statusBarTransparentInput || statusBarHiddenInput) {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
-                }
-                Switch(
-                    checked = useCustomStatusBarColorInput,
-                    enabled = !statusBarTransparentInput && !statusBarHiddenInput,
-                    onCheckedChange = {
-                        onUseCustomStatusBarColorInputChange(it)
-                        saveThemeSettingsWithCharacterCard {
-                            preferencesManager.saveThemeSettings(useCustomStatusBarColor = it)
-                        }
-                    },
-                )
-            }
-
-            if (useCustomStatusBarColorInput) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                ColorSelectionItem(
-                    title = stringResource(id = R.string.theme_statusbar_color),
-                    color = Color(customStatusBarColorInput),
-                    enabled = !statusBarTransparentInput && !statusBarHiddenInput,
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        if (!statusBarTransparentInput && !statusBarHiddenInput) {
-                            onShowColorPicker("statusBar")
-                        }
-                    },
-                )
-            }
         }
     }
     }

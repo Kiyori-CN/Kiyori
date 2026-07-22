@@ -47,8 +47,8 @@ private data class HostNavigationEntryDefinition(
     val screen: Screen,
     val surface: NavigationSurface? = null,
     val launchNavItem: NavItem? = null,
-    @StringRes val titleResId: Int? = null,
-    @StringRes val descriptionResId: Int? = null,
+    @param:StringRes val titleResId: Int? = null,
+    @param:StringRes val descriptionResId: Int? = null,
     val icon: ImageVector? = null,
     val order: Int = 0
 )
@@ -347,9 +347,12 @@ object ScreenRouteRegistry {
                 order = 180
             ),
             hostEntryDefinition(
-                entryId = "hidden.toolbox",
+                entryId = "main.toolbox",
                 screen = Screen.Toolbox,
-                launchNavItem = NavItem.Toolbox
+                surface = NavigationSurface.MAIN_SIDEBAR_AI,
+                launchNavItem = NavItem.Toolbox,
+                icon = NavItem.Toolbox.icon,
+                order = 40
             ),
             hostEntryDefinition(
                 entryId = "hidden.tool_permissions",

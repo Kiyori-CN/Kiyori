@@ -56,7 +56,6 @@ import com.ai.assistance.operit.ui.features.settings.screens.GitHubAccountScreen
 import com.ai.assistance.operit.ui.features.settings.screens.LanguageSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.LayoutAdjustmentSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ModelConfigScreen
-import com.ai.assistance.operit.ui.features.settings.screens.ModelConfigEntryMode
 import com.ai.assistance.operit.ui.features.settings.screens.ModelPromptsSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.TagMarketScreen
 import com.ai.assistance.operit.ui.features.settings.screens.SettingsScreen
@@ -140,11 +139,9 @@ sealed class Screen(
                     viewModel = null,
                     isFloatingMode = false,
                     hasBackgroundImage = hasBackgroundImage,
-                    onNavigateToTokenConfig = { navigateTo(TokenConfig) },
                     onNavigateToSettings = { navigateTo(Settings) },
                     onNavigateToUserPreferences = { navigateTo(UserPreferencesSettings) },
                     onNavigateToModelConfig = { navigateTo(ModelConfig) },
-                    onNavigateToOnboardingModelConfig = { navigateTo(ModelConfigOnboarding) },
                     onNavigateToModelPrompts = { navigateTo(ModelPromptsSettings) },
                     onNavigateToPackageManager = { navigateTo(Packages) },
                     onLoading = onLoading,
@@ -787,24 +784,6 @@ sealed class Screen(
         }
     }
 
-    data object ModelConfigOnboarding :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_model_config) {
-        @Composable
-        override fun Content(
-                navController: NavController,
-                navigateTo: ScreenNavigationHandler,
-                onGoBack: () -> Unit,
-                hasBackgroundImage: Boolean,
-                onLoading: (Boolean) -> Unit,
-                onError: (String) -> Unit,
-                onGestureConsumed: (Boolean) -> Unit
-        ) {
-            ModelConfigScreen(
-                navigateToMnnModelDownload = { navigateTo(MnnModelDownload) },
-                entryMode = ModelConfigEntryMode.CHAT_ONBOARDING
-            )
-        }
-    }
     // 添加SpeechServicesSettings屏幕定义
     data object SpeechServicesSettings :
             Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_speech_services_settings) {

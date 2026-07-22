@@ -1069,7 +1069,6 @@ internal fun ThemeSettingsChatTab(
             currentColorPickerMode = currentColorPickerMode,
             primaryColorInput = MaterialTheme.colorScheme.primary.toArgb(),
             secondaryColorInput = MaterialTheme.colorScheme.secondary.toArgb(),
-            statusBarColorInput = MaterialTheme.colorScheme.surface.toArgb(),
             appBarColorInput = MaterialTheme.colorScheme.surface.toArgb(),
             historyIconColorInput = Color.Gray.toArgb(),
             pipIconColorInput = Color.Gray.toArgb(),
@@ -1079,7 +1078,7 @@ internal fun ThemeSettingsChatTab(
             bubbleUserTextColorInput = bubbleUserTextColorInput,
             bubbleAiTextColorInput = bubbleAiTextColorInput,
             recentColors = recentColors,
-            onColorSelected = { _, _, _, _, _, _, cursorUser, bubbleUser, bubbleAi, userText, aiText ->
+            onColorSelected = { _, _, _, _, _, cursorUser, bubbleUser, bubbleAi, userText, aiText ->
                 saveSelectedChatColor(
                     shared = shared,
                     currentColorPickerMode = currentColorPickerMode,

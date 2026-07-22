@@ -217,13 +217,13 @@ fun ClassicChatSettingsBar(
     val pluginToggleCount = generalInputMenuToggles.size + defaultInputMenuToggles.size
     val pluginEnabledCount = (generalInputMenuToggles + defaultInputMenuToggles).count { it.isChecked }
     val currentProfileName =
-        preferenceProfiles.find { it.id == effectiveCurrentProfileId }?.name ?: stringResource(R.string.not_selected)
+        preferenceProfiles.find { it.id == effectiveCurrentProfileId }?.name ?: stringResource(R.string.common_not_selected)
     val currentConfig = configSummaries.find { it.id == effectiveCurrentConfigMapping.configId }
     val currentModelName =
         currentConfig?.let { config ->
             val validIndex = getValidModelIndex(config.modelName, effectiveCurrentConfigMapping.modelIndex)
-            getModelByIndex(config.modelName, validIndex).ifEmpty { stringResource(R.string.not_selected) }
-        } ?: stringResource(R.string.not_selected)
+            getModelByIndex(config.modelName, validIndex).ifEmpty { stringResource(R.string.common_not_selected) }
+        } ?: stringResource(R.string.common_not_selected)
     val maxThinkingQualityLevel = ApiPreferences.MAX_THINKING_QUALITY_LEVEL
     val toolPermissionText =
         when (if (enableTools) permissionLevel else PermissionLevel.FORBID) {
@@ -1439,7 +1439,7 @@ private fun MemorySelectorItem(
 ) {
     val currentProfile = preferenceProfiles.find { it.id == currentProfileId }
 
-    val currentProfileName = currentProfile?.name ?: stringResource(R.string.not_selected)
+    val currentProfileName = currentProfile?.name ?: stringResource(R.string.common_not_selected)
     val expandStateDesc = if (expanded) stringResource(R.string.expanded) else stringResource(R.string.collapsed)
     val accessibilityDesc = "${stringResource(R.string.memory)}: $currentProfileName, $expandStateDesc"
     
@@ -1485,7 +1485,7 @@ private fun MemorySelectorItem(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = currentProfile?.name ?: stringResource(R.string.not_selected),
+                    text = currentProfile?.name ?: stringResource(R.string.common_not_selected),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 2,
@@ -1586,7 +1586,7 @@ private fun ModelSelectorItem(
     val currentModelName = currentConfig?.let { config ->
         val validIndex = getValidModelIndex(config.modelName, currentConfigMapping.modelIndex)
         getModelByIndex(config.modelName, validIndex)
-    } ?: stringResource(R.string.not_selected)
+    } ?: stringResource(R.string.common_not_selected)
     val effectiveExpanded = expanded
     val expandStateDesc =
             if (effectiveExpanded) stringResource(R.string.expanded) else stringResource(R.string.collapsed)
@@ -1640,7 +1640,7 @@ private fun ModelSelectorItem(
                     val validIndex = getValidModelIndex(config.modelName, currentConfigMapping.modelIndex)
                     val selectedModel = getModelByIndex(config.modelName, validIndex)
                     Text(
-                        text = selectedModel.ifEmpty { stringResource(R.string.not_selected) },
+                        text = selectedModel.ifEmpty { stringResource(R.string.common_not_selected) },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 2,
@@ -1651,7 +1651,7 @@ private fun ModelSelectorItem(
                             .clearAndSetSemantics {}
                     )
                 } ?: Text(
-                    text = stringResource(R.string.not_selected),
+                    text = stringResource(R.string.common_not_selected),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 2,

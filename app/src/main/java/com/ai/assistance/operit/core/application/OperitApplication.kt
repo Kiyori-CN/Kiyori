@@ -171,7 +171,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         AppLogger.d(TAG, "【启动计时】cleanOnExit 清理任务已提交（异步IO） - ${System.currentTimeMillis() - startTime}ms")
 
         val defaultProfileName = applicationContext.getString(R.string.default_profile)
-        initUserPreferencesManager(applicationContext, defaultProfileName)
+        initUserPreferencesManager(applicationContext, applicationScope, defaultProfileName)
         AppLogger.d(TAG, "【启动计时】用户偏好管理器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
 
         initAndroidPermissionPreferences(applicationContext)

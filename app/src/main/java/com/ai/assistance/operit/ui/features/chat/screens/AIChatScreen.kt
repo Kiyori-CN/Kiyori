@@ -92,7 +92,6 @@ import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextRange
@@ -120,11 +119,9 @@ fun AIChatScreen(
         onLoading: (Boolean) -> Unit = {},
         onError: (String) -> Unit = {},
         hasBackgroundImage: Boolean = false,
-        onNavigateToTokenConfig: () -> Unit = {},
         onNavigateToSettings: () -> Unit = {},
         onNavigateToUserPreferences: () -> Unit = {},
         onNavigateToModelConfig: () -> Unit = {},
-        onNavigateToOnboardingModelConfig: () -> Unit = {},
         onNavigateToModelPrompts: () -> Unit = {},
         onNavigateToPackageManager: () -> Unit = {},
         onGestureConsumed: (Boolean) -> Unit = {}
@@ -296,8 +293,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     val editingMessageContent = remember { mutableStateOf("") }
 
     // Collect state from ViewModel
-    val apiKey by actualViewModel.apiKey.collectAsState()
-    val activeChatConfigId by actualViewModel.activeChatConfigId.collectAsState()
     val modelName by actualViewModel.modelName.collectAsState()
     val chatHistory by actualViewModel.chatHistory.collectAsState()
     // 仅对当前会话显示处理中状态（影响“停止/发送”按钮）
@@ -370,7 +365,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     // 收集滚动事件
     val scrollToBottomEvent = actualViewModel.scrollToBottomEvent
     // 从ViewModel收集新的状态
-    val shouldShowConfigDialog by actualViewModel.shouldShowConfigDialog.collectAsState()
     val isWorkspaceOpen by actualViewModel.isWorkspaceOpen.collectAsState()
     val isWorkspacePreparing by actualViewModel.isWorkspacePreparing.collectAsState()
 
@@ -746,14 +740,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         }
     }
 
-    var isSavingInitialConfiguration by remember { mutableStateOf(false) }
-    var initialConfigurationSaveFailed by
-        rememberSaveable(activeChatConfigId) { mutableStateOf(false) }
-    val showConfig =
-        shouldShowConfigDialog ||
-            isSavingInitialConfiguration ||
-            initialConfigurationSaveFailed
-
     // 添加手势状态
     var chatScreenGestureConsumed by remember { mutableStateOf(false) }
     val onChatScreenGestureConsumedChange = remember {
@@ -917,42 +903,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                 containerColor = Color.Transparent,
                 snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { paddingValues ->
-            // 根据前面的逻辑条件决定是否显示配置界面
-            if (showConfig) {
-                ConfigurationScreen(
-                        apiKey = apiKey,
-                        isSaving = isSavingInitialConfiguration,
-                        onSaveApiKey = { normalizedApiKey ->
-                            if (!isSavingInitialConfiguration) {
-                                coroutineScope.launch {
-                                    isSavingInitialConfiguration = true
-                                    initialConfigurationSaveFailed = false
-                                    try {
-                                        actualViewModel.saveDeepSeekConfiguration(
-                                            activeChatConfigId,
-                                            normalizedApiKey
-                                        )
-                                    } catch (e: CancellationException) {
-                                        throw e
-                                    } catch (e: Exception) {
-                                        initialConfigurationSaveFailed = true
-                                        actualViewModel.showErrorMessage(
-                                            e.message ?: context.getString(R.string.save_failed)
-                                        )
-                                    } finally {
-                                        isSavingInitialConfiguration = false
-                                    }
-                                }
-                            }
-                        },
-                        onNavigateToTokenConfig = onNavigateToTokenConfig,
-                        onNavigateToModelConfig = {
-                            initialConfigurationSaveFailed = false
-                            onNavigateToOnboardingModelConfig()
-                        }
-                )
-            } else {
-                Box(
+            Box(
                     modifier =
                         Modifier
                             .fillMaxSize()
@@ -1232,7 +1183,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                     }
                 }
             }
-        }
 
         MentionSuggestionOverlay(
             actualViewModel = actualViewModel,

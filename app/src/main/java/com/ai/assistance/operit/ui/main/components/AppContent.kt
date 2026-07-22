@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.view.WindowManager
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Row
@@ -140,7 +142,7 @@ fun AppContent(
         onLoading: (Boolean) -> Unit = {},
         onError: (String) -> Unit = {},
         onGestureConsumed: (Boolean) -> Unit = {},
-        canGoBack: Boolean,
+        showNavigationMenu: Boolean,
         onGoBack: () -> Unit,
         isNavigatingBack: Boolean = false,
         actions: @Composable RowScope.() -> Unit = {},
@@ -213,9 +215,12 @@ fun AppContent(
     val screenCache = remember { mutableStateMapOf<String, @Composable () -> Unit>() }
     val screenKeepAliveCache = remember { mutableStateMapOf<String, Boolean>() }
     val screenStateHolder = rememberSaveableStateHolder()
+    // AI Home keeps one composition key so drawer navigation cannot recreate its runtime state.
     val currentScreenKey =
         remember(currentRouteEntry.instanceId, currentScreen) {
-            if (currentScreen.keepAlive) {
+            if (currentScreen is Screen.AiChat) {
+                "kiyori.ai_home"
+            } else if (currentScreen.keepAlive) {
                 currentScreen.stableScreenKey() ?: currentRouteEntry.instanceId
             } else {
                 currentRouteEntry.instanceId
@@ -296,20 +301,20 @@ fun AppContent(
                         // 导航按钮逻辑
                         IconButton(
                             onClick = {
-                                if (canGoBack) {
-                                    onGoBack()
-                                } else {
+                                if (showNavigationMenu) {
                                     onOpenNavigation()
+                                } else {
+                                    onGoBack()
                                 }
                             }
                         ) {
                             Icon(
-                                if (canGoBack) Icons.AutoMirrored.Filled.ArrowBack
-                                else Icons.Default.Menu,
+                                if (showNavigationMenu) Icons.Default.Menu
+                                else Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription =
                                 when {
-                                    canGoBack -> stringResource(R.string.app_content_navigate_back)
-                                    else -> stringResource(id = R.string.menu)
+                                    showNavigationMenu -> stringResource(id = R.string.menu)
+                                    else -> stringResource(R.string.app_content_navigate_back)
                                 },
                                 tint = appBarContentColor
                             )
@@ -385,10 +390,26 @@ fun AppContent(
                 } else {
                     // 主要内容 - 使用 Box 堆叠所有访问过的屏幕，保留状态
                     Box(modifier = Modifier.fillMaxSize()) {
+                        val shouldKeepCurrentScreenAlive =
+                            currentScreen.keepAlive ||
+                                currentScreen is Screen.AiChat ||
+                                (
+                                    currentRouteEntry.navigationRootEntryId != null &&
+                                        currentScreen !is Screen.ToolPkgComposeDsl &&
+                                        currentScreen !is Screen.ToolPkgPluginConfig
+                                    )
+                        // A stable root may first arrive through a shortcut; drawer ownership must upgrade it.
+                        if (
+                            shouldKeepCurrentScreenAlive &&
+                                screenKeepAliveCache[currentScreenKey] != true
+                        ) {
+                            screenKeepAliveCache[currentScreenKey] = true
+                        }
                         // 将当前屏幕的 Composable 缓存起来
                         if (!screenCache.containsKey(currentScreenKey)) {
                             val screenSnapshot = currentScreen
-                            screenKeepAliveCache[currentScreenKey] = screenSnapshot.keepAlive
+                            // Native AI roots stay composed; ToolPkg pages retain only their declared contract.
+                            screenKeepAliveCache[currentScreenKey] = shouldKeepCurrentScreenAlive
                             screenCache[currentScreenKey] = {
                                 when (screenSnapshot) {
                                     is Screen.ToolPkgComposeDsl ->
@@ -505,6 +526,8 @@ fun AppContent(
                             val screenContent = screenCache[screenKey] ?: return@forEach
                             val isCurrentScreen = screenKey == currentScreenKey
                             key(screenKey) {
+                                val hiddenScreenInteractionSource =
+                                    remember(screenKey) { MutableInteractionSource() }
                                 // 为每个屏幕维护一个独立的可见性状态
                                 var visibility by remember { mutableStateOf(ScreenVisibility.HIDDEN) }
 
@@ -600,6 +623,17 @@ fun AppContent(
                                                 scaleX = scale
                                                 scaleY = scale
                                             }
+                                            .then(
+                                                if (isCurrentScreen) {
+                                                    Modifier
+                                                } else {
+                                                    Modifier.clickable(
+                                                        interactionSource = hiddenScreenInteractionSource,
+                                                        indication = null,
+                                                        onClick = {},
+                                                    )
+                                                },
+                                            )
                                 ) {
                                     Box(modifier = Modifier.fillMaxSize()) {
                                         screenStateHolder.SaveableStateProvider(screenKey) {

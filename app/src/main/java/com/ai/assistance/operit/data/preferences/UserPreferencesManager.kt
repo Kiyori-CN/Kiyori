@@ -12,7 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.data.model.LegacyUserProfile
 import com.ai.assistance.operit.data.model.MemorySpace
 import com.ai.assistance.operit.data.model.CharacterCardMemoryProfileBindingMode
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -33,12 +33,16 @@ val preferencesManager: UserPreferencesManager
         "UserPreferencesManager not initialized. Call UserPreferencesManager.getInstance(context) first."
     )
 
-fun initUserPreferencesManager(context: Context, defaultProfileName: String = "Default") {
+fun initUserPreferencesManager(
+    context: Context,
+    applicationScope: CoroutineScope,
+    defaultProfileName: String = "Default"
+) {
     val manager = UserPreferencesManager.getInstance(context)
 
     // Migration must finish before the default memory space is created. Otherwise a fresh default
     // entry could hide the released profile metadata that still owns existing ObjectBox databases.
-    GlobalScope.launch {
+    applicationScope.launch {
         UserProfileDocumentRepository.getInstance(context).initialize()
         manager.ensureDefaultMemorySpace(defaultProfileName)
     }
@@ -107,10 +111,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
         private val USE_CUSTOM_APP_BAR_COLOR = booleanPreferencesKey("use_custom_app_bar_color")
         private val CUSTOM_APP_BAR_COLOR = intPreferencesKey("custom_app_bar_color")
 
-        // 状态栏颜色设置
-        private val USE_CUSTOM_STATUS_BAR_COLOR = booleanPreferencesKey("use_custom_status_bar_color")
-        private val CUSTOM_STATUS_BAR_COLOR = intPreferencesKey("custom_status_bar_color")
-        private val STATUS_BAR_TRANSPARENT = booleanPreferencesKey("status_bar_transparent")
         private val STATUS_BAR_HIDDEN = booleanPreferencesKey("status_bar_hidden")
         private val CHAT_HEADER_TRANSPARENT = booleanPreferencesKey("chat_header_transparent")
         private val CHAT_INPUT_TRANSPARENT = booleanPreferencesKey("chat_input_transparent")
@@ -586,21 +586,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
     val customAppBarColor: Flow<Int?> =
             context.userPreferencesDataStore.data.map { preferences ->
                 preferences[CUSTOM_APP_BAR_COLOR]
-            }
-
-    val useCustomStatusBarColor: Flow<Boolean> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[USE_CUSTOM_STATUS_BAR_COLOR] ?: false
-            }
-    
-    val customStatusBarColor: Flow<Int?> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[CUSTOM_STATUS_BAR_COLOR]
-            }
-
-    val statusBarTransparent: Flow<Boolean> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[STATUS_BAR_TRANSPARENT] ?: false
             }
 
     val statusBarHidden: Flow<Boolean> =
@@ -1258,9 +1243,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             toolbarTransparent: Boolean? = null,
             useCustomAppBarColor: Boolean? = null,
             customAppBarColor: Int? = null,
-            useCustomStatusBarColor: Boolean? = null,
-            customStatusBarColor: Int? = null,
-            statusBarTransparent: Boolean? = null,
             statusBarHidden: Boolean? = null,
             chatHeaderTransparent: Boolean? = null,
             chatInputTransparent: Boolean? = null,
@@ -1369,9 +1351,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             toolbarTransparent?.let { preferences[TOOLBAR_TRANSPARENT] = it }
             useCustomAppBarColor?.let { preferences[USE_CUSTOM_APP_BAR_COLOR] = it }
             customAppBarColor?.let { preferences[CUSTOM_APP_BAR_COLOR] = it }
-            useCustomStatusBarColor?.let { preferences[USE_CUSTOM_STATUS_BAR_COLOR] = it }
-            customStatusBarColor?.let { preferences[CUSTOM_STATUS_BAR_COLOR] = it }
-            statusBarTransparent?.let { preferences[STATUS_BAR_TRANSPARENT] = it }
             statusBarHidden?.let { preferences[STATUS_BAR_HIDDEN] = it }
             chatHeaderTransparent?.let { preferences[CHAT_HEADER_TRANSPARENT] = it }
             chatInputTransparent?.let { preferences[CHAT_INPUT_TRANSPARENT] = it }
@@ -1523,9 +1502,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             preferences.remove(VIDEO_BACKGROUND_MUTED)
             preferences.remove(VIDEO_BACKGROUND_LOOP)
             preferences.remove(TOOLBAR_TRANSPARENT)
-            preferences.remove(USE_CUSTOM_STATUS_BAR_COLOR)
-            preferences.remove(CUSTOM_STATUS_BAR_COLOR)
-            preferences.remove(STATUS_BAR_TRANSPARENT)
             preferences.remove(STATUS_BAR_HIDDEN)
             preferences.remove(CHAT_HEADER_TRANSPARENT)
             preferences.remove(CHAT_INPUT_TRANSPARENT)
@@ -1642,8 +1618,7 @@ class UserPreferencesManager private constructor(private val context: Context) {
         return listOf(
             USE_SYSTEM_THEME, USE_CUSTOM_COLORS, USE_BACKGROUND_IMAGE, VIDEO_BACKGROUND_MUTED,
             VIDEO_BACKGROUND_LOOP, TOOLBAR_TRANSPARENT,
-            USE_CUSTOM_APP_BAR_COLOR, USE_CUSTOM_STATUS_BAR_COLOR,
-            STATUS_BAR_TRANSPARENT, STATUS_BAR_HIDDEN, CHAT_HEADER_TRANSPARENT, CHAT_INPUT_TRANSPARENT, CHAT_INPUT_FLOATING,
+            USE_CUSTOM_APP_BAR_COLOR, STATUS_BAR_HIDDEN, CHAT_HEADER_TRANSPARENT, CHAT_INPUT_TRANSPARENT, CHAT_INPUT_FLOATING,
             CHAT_INPUT_LIQUID_GLASS,
             CHAT_INPUT_WATER_GLASS,
             FORCE_APP_BAR_CONTENT_COLOR_ENABLED, CHAT_HEADER_OVERLAY_MODE, USE_BACKGROUND_BLUR,
@@ -1662,7 +1637,7 @@ class UserPreferencesManager private constructor(private val context: Context) {
     private fun getAllIntThemeKeys(): List<Preferences.Key<Int>> {
         return listOf(
             CUSTOM_PRIMARY_COLOR, CUSTOM_SECONDARY_COLOR, CUSTOM_APP_BAR_COLOR,
-            CUSTOM_STATUS_BAR_COLOR, CHAT_HEADER_HISTORY_ICON_COLOR, CHAT_HEADER_PIP_ICON_COLOR,
+            CHAT_HEADER_HISTORY_ICON_COLOR, CHAT_HEADER_PIP_ICON_COLOR,
             CURSOR_USER_BUBBLE_COLOR, BUBBLE_USER_BUBBLE_COLOR, BUBBLE_AI_BUBBLE_COLOR,
             BUBBLE_USER_TEXT_COLOR, BUBBLE_AI_TEXT_COLOR
         )

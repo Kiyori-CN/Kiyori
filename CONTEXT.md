@@ -32,9 +32,12 @@ Current work status and implementation notes belong in `docs/TODO/`.
 | **Kiyori App Shell** | The Kiyori-owned root navigation, adaptive layout, window-inset, Back, and top-level state boundary. Operit AI is hosted inside this shell. |
 | **Software Home** | The default center page shown after launch and the first of five primary destinations. It owns the three-page horizontal home space. |
 | **Minus-One Page** | The page immediately left of Software Home. It is part of the home pager and hides the five-item bottom navigation. |
-| **AI Home** | The full-screen Operit AI conversation page immediately right of Software Home. It hides the five-item bottom navigation and has no edge-drawer gesture. |
-| **AI Center** | A Kiyori full-screen AI navigation destination opened from the hamburger button on AI Home. It replaces the inherited Operit drawer as a page, not as an overlay. |
-| **AI Settings** | The settings owned specifically by the AI subsystem. AI Center and Kiyori Settings both navigate to this single settings destination. |
+| **AI Home** | The full-screen Operit AI conversation page immediately right of Software Home. It hides the five-item bottom navigation, shares Software Home's pager state and fling physics, and has no edge-drawer gesture. |
+| **Modal AI Drawer** | The Kiyori-owned, button-triggered left overlay that exposes AI top-level navigation without moving or rebuilding the page below it. Its scrim covers the window while its panel begins below the status bar. It has no edge or drag gesture. |
+| **AI Top-Level Page** | AI Home, Packages, Permission Grant, Workflow, Assistant Configuration, Memory, Toolbox, a ToolPkg drawer destination, or AI Settings when entered from the Modal AI Drawer. Native roots retain independent state and child stacks; ToolPkg roots retain them only when their route declares `keepAlive=true`. |
+| **AI Settings** | The settings owned specifically by the AI subsystem. Modal AI Drawer and Kiyori Settings both navigate to this single settings destination while preserving their distinct Back origins. |
+| **AI Navigation Root** | An AI top-level route explicitly identified by its registered navigation-entry ID. Root ownership is stored on the route entry itself and is never inferred from route arguments, stack depth, or an instance-ID naming convention. |
+| **Kiyori Edge-to-Edge Shell** | The window contract in which Kiyori-owned page backgrounds and the Modal AI Drawer scrim paint behind a transparent status bar. Interactive page content applies system insets, while the drawer panel itself starts below the status bar. |
 | **Permission Center** | A Kiyori system-level read-only overview and navigation destination that separates device capabilities from AI tool authorization. Its overview contains no direct permission switches and does not own another copy of either domain's persisted state. |
 | **Device Capability Authorization** | Android and privileged-execution capabilities granted to Kiyori itself, including runtime permissions, file access, overlay, accessibility, battery exemption, Shizuku, Root, and debug capability. It is distinct from permission to invoke an AI tool. |
 | **AI Tool Authorization** | The Operit AI policy that decides whether a registered tool is allowed, requires confirmation, or is forbidden. `ToolPermissionSystem` remains its single persisted source of truth. |
@@ -47,20 +50,31 @@ Current work status and implementation notes belong in `docs/TODO/`.
 
 - App launch opens the center Software Home page.
 - The Software Home horizontal order is Minus-One Page, Software Home, then AI Home.
+- All three home pages use one `PagerState` and one fling behavior. Movement follows the pointer, and a new reverse drag can cancel an unfinished fling; Shell state changes only after the pager settles.
 - The five primary destinations are Software Home, Browser Home, Mini App Home, File Management Home, and Settings Home.
 - The five-item bottom navigation is visible only on those five root pages. It is hidden on Minus-One Page, AI Home, Full-Screen Web Search, child pages, and immersive content pages.
-- The hamburger button on AI Home opens AI Center. AI Settings is a child destination of AI Center and is also reachable from Settings Home.
-- The Permission quick action in AI Center and the permissions entry in Settings Home open the same Permission Center route. Permission Center separates device capabilities from AI tool authorization and uses each domain's single owner.
-- The AI Center Permission quick action keeps the short Permission label and Operit quick-card treatment. Its badge shows only the dependency-aware count of actionable device-capability issues, or Normal when that count is zero; AI tool policy is not aggregated into this badge.
-- Conversation history, new-chat, search, and delete actions remain in the original AI Home history selector. They are not duplicated in AI Center.
-- AI Center does not contain an AI Dialogue entry. Its page Back action and system Back return to the existing AI Home conversation.
+- AI Home and every explicitly identified AI Navigation Root show the hamburger button, including roots opened by shortcuts, widgets, raw routes, or router-gateway requests. AI deep pages show Back until navigation reaches an explicit root. Browser, Mini App, File Management, and Kiyori Settings pages do not expose the drawer button.
+- Host navigation roots match their registered route ID. ToolPkg plugin roots match both route ID and registered route arguments. Route arguments, stack depth, and instance-ID prefixes never establish root ownership.
+- The drawer contains Packages, Permission Grant, Workflow, AI Dialogue, Assistant Configuration, Memory, Toolbox, ToolPkg dynamic destinations, and AI Settings. AI Dialogue returns to the existing AI Home without creating a conversation or clearing its draft.
+- AI Home always renders the conversation surface and input controls, even when no usable model configuration or API key exists. Model configuration is opened as a separate settings route; missing credentials are reported when the user attempts model-dependent work, never by replacing or trapping the AI Home.
+- The Permission Grant quick action opens `Screen.ShizukuCommands`. The permissions entry in Settings Home opens Permission Center, while AI Tool Authorization continues to use `ToolPermissionSystem`; these three routes do not share or copy persisted state.
+- The Permission Grant quick action keeps the short Permission label and Operit quick-card treatment.
+- Conversation history, new-chat, search, and delete actions remain in the original AI Home history selector. They are not duplicated in the drawer.
 - The Terminal button remains in the upper-right AI Home toolbar during the product-shell migration. This plan does not add another Terminal entry.
-- Opening AI Center never translates, scales, tilts, rounds, shadows, or otherwise transforms AI Home. Drawer-coupled content perspective is not part of Kiyori navigation.
-- AI Center follows the shared Operit theme tokens. The removed top-level drawer's dedicated glass, background-color, and accent-color preferences are not AI Center settings and are not retained as inactive options.
-- Back from AI Center returns to AI Home. Back from AI Home or Minus-One Page returns to Software Home. Back at a child page returns to its owning root; Back at a non-Software root returns to Software Home. Back at the center Software Home requests exit confirmation.
+- Opening the Modal AI Drawer never translates, scales, tilts, rounds, shadows, fades, or otherwise transforms the page below it. The page continues rendering but cannot receive touch while the drawer is visible.
+- The Modal AI Drawer follows shared Operit theme tokens. Dedicated drawer glass, background-color, and accent-color preferences are not restored.
+- Back first closes an open drawer. Back from an AI Top-Level Page returns to AI Home, and Back from a deep AI page returns to its owning top-level page. Back from AI Home or Minus-One Page returns to Software Home; Back at a non-Software root returns to Software Home; Back at the center Software Home requests exit confirmation.
 - Each primary destination retains its own child stack and scroll state while the user switches roots.
-- Compact windows present AI Center as a full-screen page and push child destinations full-screen. Medium and expanded windows show the AI Center navigation list and child detail side by side inside the same route. Window-size and fold-posture changes preserve the current child route, form state, and scroll state; foldable layouts respect separating hinges and do not split interactive content across them.
+- Native AI roots use stable host instances. Every ToolPkg root entry creates a new route instance; only a ToolPkg route declaring `keepAlive=true` retains its composition key and saved child stack across drawer switches.
+- AI Settings retains one page composition, form state, scroll state, and persisted settings. Re-entry from the same source family may restore its child stack; crossing between the AI drawer family and Kiyori Settings always opens the AI Settings root so the visible Back contract matches the current source.
+- The Modal AI Drawer is `75%` of window width below `600dp`, `320dp` from `600dp` through `839dp`, and `360dp` from `840dp`. A separating hinge caps it to the left physical region. Window-size and fold-posture changes preserve the current route, form state, scroll state, and AI Home lifecycle.
 - Detailed ownership, gesture, adaptive-layout, and migration rules are defined in `docs/doc-src/architecture/kiyori_product_shell_and_navigation.md`.
+
+## System bar contract
+
+- The Kiyori App Shell uses one edge-to-edge status-bar policy for Software Home, Minus-One Page, AI Home, all five primary destinations, and AI pages. Page backgrounds paint to the physical top edge. The Modal AI Drawer's full-window scrim follows that policy, while the drawer panel is an explicit exception whose top edge starts at the status-bar bottom; panel content applies only horizontal and bottom safe insets.
+- The status bar is transparent whenever it is visible, and platform contrast scrims are disabled where the Android API supports that control. Status-bar icon brightness follows the actual foreground surface presented by the Kiyori Shell.
+- The inherited transparent-status-bar and custom-status-bar-color controls and persisted preferences do not exist in Kiyori. The user may still hide or show the status bar.
 
 ## Settings ownership
 

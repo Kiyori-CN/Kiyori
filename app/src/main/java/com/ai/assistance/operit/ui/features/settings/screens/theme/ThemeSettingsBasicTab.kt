@@ -177,7 +177,6 @@ private fun ThemeSettingsBasicColorPanel(
     val preferencesManager = shared.preferencesManager
     val defaultPrimaryColor = Color.Magenta.toArgb()
     val defaultSecondaryColor = Color.Blue.toArgb()
-    val defaultStatusBarColor = MaterialTheme.colorScheme.surface.toArgb()
     val defaultAppBarColor = MaterialTheme.colorScheme.surface.toArgb()
     val defaultHeaderIconColor = Color.Gray.toArgb()
 
@@ -185,9 +184,6 @@ private fun ThemeSettingsBasicColorPanel(
     val primaryColor by preferencesManager.customPrimaryColor.collectAsState(initial = null)
     val secondaryColor by preferencesManager.customSecondaryColor.collectAsState(initial = null)
     val statusBarHidden by preferencesManager.statusBarHidden.collectAsState(initial = false)
-    val statusBarTransparent by preferencesManager.statusBarTransparent.collectAsState(initial = false)
-    val useCustomStatusBarColor by preferencesManager.useCustomStatusBarColor.collectAsState(initial = false)
-    val customStatusBarColor by preferencesManager.customStatusBarColor.collectAsState(initial = null)
     val toolbarTransparent by preferencesManager.toolbarTransparent.collectAsState(initial = false)
     val useCustomAppBarColor by preferencesManager.useCustomAppBarColor.collectAsState(initial = false)
     val customAppBarColor by preferencesManager.customAppBarColor.collectAsState(initial = null)
@@ -211,9 +207,6 @@ private fun ThemeSettingsBasicColorPanel(
     var currentColorPickerMode by remember { mutableStateOf("primary") }
 
     var statusBarHiddenInput by remember { mutableStateOf(statusBarHidden) }
-    var statusBarTransparentInput by remember { mutableStateOf(statusBarTransparent) }
-    var useCustomStatusBarColorInput by remember { mutableStateOf(useCustomStatusBarColor) }
-    var customStatusBarColorInput by remember { mutableStateOf(customStatusBarColor ?: defaultStatusBarColor) }
     var toolbarTransparentInput by remember { mutableStateOf(toolbarTransparent) }
     var useCustomAppBarColorInput by remember { mutableStateOf(useCustomAppBarColor) }
     var customAppBarColorInput by remember { mutableStateOf(customAppBarColor ?: defaultAppBarColor) }
@@ -237,9 +230,6 @@ private fun ThemeSettingsBasicColorPanel(
         primaryColor,
         secondaryColor,
         statusBarHidden,
-        statusBarTransparent,
-        useCustomStatusBarColor,
-        customStatusBarColor,
         toolbarTransparent,
         useCustomAppBarColor,
         customAppBarColor,
@@ -259,9 +249,6 @@ private fun ThemeSettingsBasicColorPanel(
         primaryColorInput = primaryColor ?: defaultPrimaryColor
         secondaryColorInput = secondaryColor ?: defaultSecondaryColor
         statusBarHiddenInput = statusBarHidden
-        statusBarTransparentInput = statusBarTransparent
-        useCustomStatusBarColorInput = useCustomStatusBarColor
-        customStatusBarColorInput = customStatusBarColor ?: defaultStatusBarColor
         toolbarTransparentInput = toolbarTransparent
         useCustomAppBarColorInput = useCustomAppBarColor
         customAppBarColorInput = customAppBarColor ?: defaultAppBarColor
@@ -285,11 +272,6 @@ private fun ThemeSettingsBasicColorPanel(
         saveThemeSettingsWithCharacterCard = shared.saveThemeSettingsWithCharacterCard,
         statusBarHiddenInput = statusBarHiddenInput,
         onStatusBarHiddenInputChange = { statusBarHiddenInput = it },
-        statusBarTransparentInput = statusBarTransparentInput,
-        onStatusBarTransparentInputChange = { statusBarTransparentInput = it },
-        useCustomStatusBarColorInput = useCustomStatusBarColorInput,
-        onUseCustomStatusBarColorInputChange = { useCustomStatusBarColorInput = it },
-        customStatusBarColorInput = customStatusBarColorInput,
         toolbarTransparentInput = toolbarTransparentInput,
         onToolbarTransparentInputChange = { toolbarTransparentInput = it },
         useCustomAppBarColorInput = useCustomAppBarColorInput,
@@ -333,7 +315,6 @@ private fun ThemeSettingsBasicColorPanel(
             currentColorPickerMode = currentColorPickerMode,
             primaryColorInput = primaryColorInput,
             secondaryColorInput = secondaryColorInput,
-            statusBarColorInput = customStatusBarColorInput,
             appBarColorInput = customAppBarColorInput,
             historyIconColorInput = historyIconColorInput,
             pipIconColorInput = pipIconColorInput,
@@ -345,7 +326,6 @@ private fun ThemeSettingsBasicColorPanel(
             recentColors = recentColors,
             onColorSelected = { primary,
                 secondary,
-                statusBar,
                 appBar,
                 historyIcon,
                 pipIcon,
@@ -359,7 +339,6 @@ private fun ThemeSettingsBasicColorPanel(
                     currentColorPickerMode = currentColorPickerMode,
                     primaryColor = primary,
                     secondaryColor = secondary,
-                    statusBarColor = statusBar,
                     appBarColor = appBar,
                     historyIconColor = historyIcon,
                     pipIconColor = pipIcon,
@@ -375,20 +354,18 @@ private fun saveSelectedThemeColor(
     currentColorPickerMode: String,
     primaryColor: Int?,
     secondaryColor: Int?,
-    statusBarColor: Int?,
     appBarColor: Int?,
     historyIconColor: Int?,
     pipIconColor: Int?,
 ) {
     val selectedColor =
-        primaryColor ?: secondaryColor ?: statusBarColor ?: appBarColor
+        primaryColor ?: secondaryColor ?: appBarColor
             ?: historyIconColor ?: pipIconColor
     selectedColor?.let { shared.scope.launch { shared.preferencesManager.addRecentColor(it) } }
     shared.saveThemeSettingsWithCharacterCard {
         when (currentColorPickerMode) {
             "primary" -> primaryColor?.let { shared.preferencesManager.saveThemeSettings(customPrimaryColor = it) }
             "secondary" -> secondaryColor?.let { shared.preferencesManager.saveThemeSettings(customSecondaryColor = it) }
-            "statusBar" -> statusBarColor?.let { shared.preferencesManager.saveThemeSettings(customStatusBarColor = it) }
             "appBar" -> appBarColor?.let { shared.preferencesManager.saveThemeSettings(customAppBarColor = it) }
             "historyIcon" -> historyIconColor?.let {
                 shared.preferencesManager.saveThemeSettings(chatHeaderHistoryIconColor = it)

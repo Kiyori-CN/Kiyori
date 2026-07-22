@@ -100,7 +100,6 @@
     <!-- Color Picker -->
     <string name="colorpicker_select_primary">Select primary color</string>
     <string name="colorpicker_select_secondary">Select secondary color</string>
-    <string name="colorpicker_select_statusbar">Select status bar color</string>
     <string name="colorpicker_select_history_icon">Select history icon color</string>
     <string name="colorpicker_select_pip_icon">Select floating window icon color</string>
     <string name="colorpicker_select_cursor_user_bubble">Select command-style user bubble color</string>
@@ -606,27 +605,6 @@
     <string name="network_status">Network Status: %1$s</string>
     <string name="network_status_label">Network Status</string>
 
-    <!-- Configuration Screen -->
-    <string name="config_title">Kiyori Assistant</string>
-    <string name="config_description">Use a DeepSeek API Key or configure another model service</string>
-    <string name="config_api_key_label">API Key</string>
-    <string name="config_api_key_placeholder">DeepSeek API Key</string>
-    <string name="config_save_button">Confirm and Save</string>
-    <string name="config_get_token">Get DeepSeek API Key</string>
-    <string name="config_saving">Saving...</string>
-    <string name="config_api_key_invalid_format">The DeepSeek API Key format is incorrect. Use only ASCII letters, numbers, and symbols, without spaces or invisible characters.</string>
-    <string name="config_use_free">Fleece from contributors</string>
-    <string name="config_custom">Configure Another Model</string>
-    <string name="config_free_usage_exceeded">Free daily usage limit reached</string>
-    <string name="onboarding_config_not_found">The selected model configuration no longer exists. Select another one.</string>
-    <string name="onboarding_config_provider_missing">Select a model service provider</string>
-    <string name="onboarding_config_provider_unavailable">The selected model service provider is unavailable. Select another one.</string>
-    <string name="onboarding_config_endpoint_invalid">Enter a valid HTTP or HTTPS API endpoint</string>
-    <string name="onboarding_config_model_missing">Select or enter a model for chat</string>
-    <string name="onboarding_config_api_key_missing">This model service requires an API Key</string>
-    <string name="onboarding_config_api_key_invalid">The API Key or key pool format is incorrect. Check it and try again.</string>
-    <string name="onboarding_config_apply_failed">The model configuration could not be saved or applied. Try again.</string>
-    
     <!-- One-click configuration related -->
     <string name="one_click_config_title">One-Click Config</string>
     <string name="one_click_config_loading">Loading configuration...</string>
@@ -2156,13 +2134,9 @@
     <string name="theme_force_appbar_content_color">Force App Bar Content Color</string>
     <string name="theme_force_appbar_content_color_desc">When enabled, app bar title and icon colors will be fixed and not affected by background</string>
     <string name="theme_chat_header_icons_color_title">Chat Header Icons Color</string>
-    <string name="theme_statusbar_color">Status Bar Color</string>
-    <string name="theme_use_custom_statusbar_color">Custom Status Bar Color</string>
-    <string name="theme_use_custom_statusbar_color_desc">When enabled, you can customize the status bar color</string>
+    <string name="theme_statusbar">Status Bar</string>
     <string name="theme_statusbar_hidden">Hide Status Bar</string>
     <string name="theme_statusbar_hidden_desc">When enabled, the status bar will be completely hidden for more display space</string>
-    <string name="theme_statusbar_transparent">Transparent Status Bar</string>
-    <string name="theme_statusbar_transparent_desc">When enabled, the status bar will become transparent and blend with the background</string>
     <string name="theme_chat_history_selector_transparent">Transparent History Selector</string>
     <string name="theme_chat_history_selector_transparent_desc">When enabled, the chat history selector will become transparent</string>
     <string name="theme_chat_header_transparent">Transparent Chat Header</string>
@@ -3392,7 +3366,7 @@
     <string name="memory_details_title">Memory Details</string>
     <string name="memory_delete_confirmation">Are you sure you want to delete the selected %1$d memory nodes?</string>
     <string name="memory_delete_warning">This action cannot be undone. These memories and their related connections cannot be recovered after deletion.</string>
-    <string name="not_selected">Not selected</string>
+    <string name="common_not_selected">Not selected</string>
     <string name="manage_config">Manage Configuration</string>
     <string name="collapse_verb">Collapse</string>
     <string name="expand_verb">Expand</string>
@@ -7884,9 +7858,7 @@
     <string name="kiyori_shell_search_action">Search</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Web Search</string>
-    <string name="kiyori_shell_ai_center">AI Center</string>
-    <string name="kiyori_shell_ai_capabilities">AI Capabilities</string>
-    <string name="kiyori_shell_extensions">Tools &amp; Extensions</string>
+    <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">AI Settings</string>
     <string name="kiyori_shell_favorites">Favorites</string>
     <string name="kiyori_shell_bookmarks">Bookmarks</string>

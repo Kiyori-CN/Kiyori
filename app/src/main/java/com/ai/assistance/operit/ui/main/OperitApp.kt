@@ -36,21 +36,34 @@ import com.ai.assistance.operit.ui.main.navigation.AppRouterState
 import com.ai.assistance.operit.ui.main.navigation.LocalRouteBackGuardRegistry
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+import com.ai.assistance.operit.ui.main.navigation.RouteEntry
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.navigation.RouteBackGuardRegistry
+import com.ai.assistance.operit.ui.main.navigation.matchesNavigationRoot
 import com.ai.assistance.operit.ui.main.screens.Screen
-import com.ai.assistance.operit.ui.main.shell.AiCenterDestination
+import com.ai.assistance.operit.ui.main.shell.AiDrawerSelectionEffect
+import com.ai.assistance.operit.ui.main.shell.AiSettingsEntrySource
+import com.ai.assistance.operit.ui.main.shell.AiTopBarMode
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
 import com.ai.assistance.operit.ui.main.shell.PrimaryDestination
 import com.ai.assistance.operit.ui.main.shell.SoftwareHomePage
+import com.ai.assistance.operit.ui.main.shell.resolveAiDrawerSelection
+import com.ai.assistance.operit.ui.main.shell.resolveAiTopBarMode
+import com.ai.assistance.operit.ui.main.shell.hasSameAiSettingsSourceFamily
+import com.ai.assistance.operit.ui.main.shell.buildAiPrimaryStack
+import com.ai.assistance.operit.ui.main.shell.preservesAiPrimaryStack
+import com.ai.assistance.operit.ui.main.shell.toAiPrimaryRouteEntry
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.NetworkUtils
 import androidx.compose.foundation.layout.RowScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // 为TopAppBar的actions提供CompositionLocal
 // 它允许子组件（如AIChatScreen）向上提供它们的action Composable
@@ -63,6 +76,28 @@ val LocalAppNavigationModel = compositionLocalOf<AppNavigationModel?> { null }
 
 private const val TAG = "OperitApp"
 private const val EXIT_CONFIRM_WINDOW_MILLIS = 2_000L
+private data class NetworkStateSnapshot(
+    val isAvailable: Boolean,
+    val type: String,
+)
+
+private fun List<NavigationEntrySpec>.findAiNavigationRoot(
+    routeId: String,
+    routeArgs: Map<String, Any?>,
+): NavigationEntrySpec? =
+    firstOrNull { entry -> entry.matchesNavigationRoot(routeId, routeArgs) }
+
+private fun List<NavigationEntrySpec>.toExternalRouteEntry(
+    routeId: String,
+    routeArgs: Map<String, Any?>,
+    source: RouteEntrySource,
+): RouteEntry =
+    findAiNavigationRoot(routeId, routeArgs)?.toAiPrimaryRouteEntry(source)
+        ?: RouteEntry(
+            routeId = routeId,
+            args = routeArgs,
+            source = source,
+        )
 
 @Composable
 fun OperitApp(
@@ -95,31 +130,59 @@ fun OperitApp(
         mutableStateOf(SoftwareHomePage.HOME.name)
     }
     var shellChildName by rememberSaveable { mutableStateOf<String?>(null) }
+    var isAiDrawerOpen by rememberSaveable { mutableStateOf(false) }
     val shellState =
         KiyoriShellState(
             primaryDestination = PrimaryDestination.valueOf(primaryDestinationName),
             softwareHomePage = SoftwareHomePage.valueOf(softwareHomePageName),
             child = shellChildName?.let(KiyoriShellChild::valueOf),
+            isAiDrawerOpen = isAiDrawerOpen,
         )
     val updateShellState: (KiyoriShellState) -> Unit = { nextState ->
         primaryDestinationName = nextState.primaryDestination.name
         softwareHomePageName = nextState.softwareHomePage.name
         shellChildName = nextState.child?.name
+        isAiDrawerOpen = nextState.isAiDrawerOpen
     }
 
-    val routerState = remember {
-        AppRouterState(AppRouteCatalog.initialEntry(initialNavItem))
-    }
+    val aiDrawerEntries =
+        remember(navigationModel) {
+            navigationModel.navigationEntries.filter { entry ->
+                entry.surface == NavigationSurface.MAIN_SIDEBAR_AI ||
+                    entry.surface == NavigationSurface.MAIN_SIDEBAR_TOOLS ||
+                    entry.surface == NavigationSurface.MAIN_SIDEBAR_PLUGINS ||
+                    entry.entryId == "main.settings"
+            }
+        }
+    val aiChatDrawerEntry =
+        remember(aiDrawerEntries) {
+            aiDrawerEntries.single { entry -> entry.entryId == "main.ai_chat" }
+        }
+    val aiSettingsDrawerEntry =
+        remember(aiDrawerEntries) {
+            aiDrawerEntries.single { entry -> entry.entryId == "main.settings" }
+        }
+    val routerState =
+        remember {
+            val initialEntry = AppRouteCatalog.initialEntry(initialNavItem)
+            AppRouterState(
+                aiDrawerEntries.toExternalRouteEntry(
+                    routeId = initialEntry.routeId,
+                    routeArgs = initialEntry.args,
+                    source = RouteEntrySource.DEFAULT,
+                ),
+            )
+        }
+    val savedAiPrimaryStacks = remember { mutableMapOf<String, List<RouteEntry>>() }
     val routeBackGuardRegistry = remember { RouteBackGuardRegistry() }
     val currentRouteEntry = routerState.currentEntry
     val currentScreen = AppRouteCatalog.resolveScreen(navigationModel, currentRouteEntry) ?: Screen.AiChat
     val selectedItem = currentScreen.navItem
-    val pluginSidebarEntries =
-        remember(navigationModel) {
-            navigationModel.navigationEntries.filter {
-                it.surface == NavigationSurface.MAIN_SIDEBAR_PLUGINS
-            }
-        }
+    val currentAiPrimaryEntryId = routerState.backStack.first().navigationRootEntryId
+
+    LaunchedEffect(aiDrawerEntries) {
+        savedAiPrimaryStacks.keys.retainAll(aiDrawerEntries.mapTo(mutableSetOf()) { it.entryId })
+    }
 
     // 跟踪是否是返回操作
     var isNavigatingBack by remember { mutableStateOf(false) }
@@ -129,6 +192,13 @@ fun OperitApp(
     var topBarTitleContent by remember { mutableStateOf<TopBarTitleContent?>(null) }
     var lastHandledShortcutRequestId by remember { mutableStateOf(0L) }
     var lastHandledRouteRequestId by remember { mutableStateOf(0L) }
+    var isAiDrawerSelectionConsumed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(shellState.isAiDrawerOpen) {
+        if (shellState.isAiDrawerOpen) {
+            isAiDrawerSelectionConsumed = false
+        }
+    }
 
     LaunchedEffect(selectedItem) {
         selectedItem?.let { navItem ->
@@ -147,7 +217,13 @@ fun OperitApp(
 
         val targetEntry = AppRouteCatalog.initialEntry(requestNavItem)
         isNavigatingBack = false
-        routerState.resetTo(targetEntry)
+        routerState.resetTo(
+            aiDrawerEntries.toExternalRouteEntry(
+                routeId = targetEntry.routeId,
+                routeArgs = targetEntry.args,
+                source = RouteEntrySource.DEFAULT,
+            ),
+        )
         lastHandledShortcutRequestId = shortcutNavRequestId
         onShortcutNavHandled(shortcutNavRequestId)
     }
@@ -168,11 +244,11 @@ fun OperitApp(
         }
         isNavigatingBack = false
         routerState.resetTo(
-            com.ai.assistance.operit.ui.main.navigation.RouteEntry(
+            aiDrawerEntries.toExternalRouteEntry(
                 routeId = requestRouteId,
-                args = routeNavArgs,
-                source = RouteEntrySource.DEFAULT
-            )
+                routeArgs = routeNavArgs,
+                source = RouteEntrySource.DEFAULT,
+            ),
         )
         lastHandledRouteRequestId = routeNavRequestId
         onRouteNavHandled(routeNavRequestId)
@@ -209,13 +285,75 @@ fun OperitApp(
         )
     }
 
+    fun saveCurrentAiPrimaryStack() {
+        val entryId = routerState.backStack.first().navigationRootEntryId
+        if (entryId == null) {
+            return
+        }
+        val entry = aiDrawerEntries.firstOrNull { candidate -> candidate.entryId == entryId }
+        if (entry == null) {
+            savedAiPrimaryStacks.remove(entryId)
+            return
+        }
+        val routeSpec =
+            requireNotNull(navigationModel.routesById[entry.routeId]) {
+                "Missing route spec ${entry.routeId} for navigation entry ${entry.entryId}"
+            }
+        if (entry.preservesAiPrimaryStack(routeSpec)) {
+            savedAiPrimaryStacks[entryId] = routerState.backStack.toList()
+        } else {
+            savedAiPrimaryStacks.remove(entryId)
+        }
+    }
+
+    fun replaceAiPrimary(
+        entry: NavigationEntrySpec,
+        source: RouteEntrySource,
+    ) {
+        // Each drawer root owns its child stack; replacing roots must not flatten another section.
+        saveCurrentAiPrimaryStack()
+        val routeSpec =
+            requireNotNull(navigationModel.routesById[entry.routeId]) {
+                "Missing route spec ${entry.routeId} for navigation entry ${entry.entryId}"
+            }
+        val preservesStack = entry.preservesAiPrimaryStack(routeSpec)
+        val savedStack = if (preservesStack) savedAiPrimaryStacks[entry.entryId] else null
+        if (!preservesStack) {
+            savedAiPrimaryStacks.remove(entry.entryId)
+        }
+        val targetRoot = entry.toAiPrimaryRouteEntry(source)
+        val restoreChildren =
+            savedStack != null &&
+                (
+                    entry.entryId != aiSettingsDrawerEntry.entryId ||
+                        hasSameAiSettingsSourceFamily(savedStack.first().source, source)
+                    )
+        val targetStack = buildAiPrimaryStack(targetRoot, savedStack, restoreChildren)
+        isNavigatingBack = false
+        routerState.restoreStack(targetStack)
+    }
+
     fun performGoBack() {
         if (routerState.canPop) {
             isNavigatingBack = true
             routerState.pop()
         } else if (currentScreen !is Screen.AiChat) {
             isNavigatingBack = true
-            routerState.resetTo(AppRouteCatalog.toEntry(Screen.AiChat))
+            val rootSource = routerState.backStack.first().source
+            if (rootSource == RouteEntrySource.KIYORI_SETTINGS) {
+                saveCurrentAiPrimaryStack()
+                routerState.resetTo(
+                    aiChatDrawerEntry.toAiPrimaryRouteEntry(RouteEntrySource.DEFAULT),
+                )
+                updateShellState(
+                    shellState.returnFromAiSettings(AiSettingsEntrySource.KIYORI_SETTINGS),
+                )
+            } else {
+                replaceAiPrimary(aiChatDrawerEntry, RouteEntrySource.DEFAULT)
+                updateShellState(
+                    shellState.showSoftwareHomePage(SoftwareHomePage.AI_HOME),
+                )
+            }
         }
     }
 
@@ -252,44 +390,54 @@ fun OperitApp(
         }
     }
 
-    fun navigateToNavigationEntry(entry: NavigationEntrySpec) {
+    fun runToolPkgNavigationEntryAction(entry: NavigationEntrySpec) {
+        val action = entry.action
+        requireNotNull(action) { "Navigation entry ${entry.entryId} has no action" }
+        val ownerPackageName =
+            requireNotNull(entry.ownerPackageName) {
+                "Action navigation entry ${entry.entryId} has no owner package"
+            }
+        scope.launch(Dispatchers.IO) {
+            packageManager.runToolPkgNavigationEntryAction(
+                containerPackageName = ownerPackageName,
+                entryId = entry.entryId,
+                functionName = action.functionName,
+                inlineFunctionSource = action.functionSource,
+                eventPayload =
+                    mapOf(
+                        "entryId" to entry.entryId,
+                        "routeId" to entry.routeId,
+                        "surface" to entry.surface.name.lowercase(),
+                        "title" to entry.title,
+                        "description" to entry.description,
+                    ),
+            ).onFailure { error ->
+                AppLogger.e(
+                    TAG,
+                    "ToolPkg navigation action failed: entryId=${entry.entryId}, package=$ownerPackageName",
+                    error,
+                )
+            }
+        }
+    }
+
+    fun selectAiDrawerEntry(entry: NavigationEntrySpec) {
+        if (!shellState.isAiDrawerOpen || isAiDrawerSelectionConsumed) {
+            return
+        }
+        isAiDrawerSelectionConsumed = true
         val action = entry.action
         if (action != null) {
-            val ownerPackageName = entry.ownerPackageName ?: return
-            scope.launch(Dispatchers.IO) {
-                packageManager.runToolPkgNavigationEntryAction(
-                    containerPackageName = ownerPackageName,
-                    entryId = entry.entryId,
-                    functionName = action.functionName,
-                    inlineFunctionSource = action.functionSource,
-                    eventPayload =
-                        mapOf(
-                            "entryId" to entry.entryId,
-                            "routeId" to entry.routeId,
-                            "surface" to entry.surface.name.lowercase(),
-                            "title" to entry.title,
-                            "description" to entry.description
-                        )
-                ).onFailure { error ->
-                    AppLogger.e(
-                        TAG,
-                        "ToolPkg navigation action failed: entryId=${entry.entryId}, package=$ownerPackageName",
-                        error
-                    )
-                }
-            }
+            updateShellState(shellState.closeAiDrawer())
+            runToolPkgNavigationEntryAction(entry)
             return
         }
-        if (currentRouteEntry.routeId == entry.routeId && currentRouteEntry.args == entry.routeArgs) {
-            return
+        when (resolveAiDrawerSelection(currentAiPrimaryEntryId, entry.entryId)) {
+            AiDrawerSelectionEffect.CLOSE_ONLY -> Unit
+            AiDrawerSelectionEffect.REPLACE_PRIMARY ->
+                replaceAiPrimary(entry, RouteEntrySource.AI_DRAWER)
         }
-        isNavigatingBack = false
-        routerState.navigate(
-            routeId = entry.routeId,
-            args = entry.routeArgs,
-            source = RouteEntrySource.AI_CENTER,
-            routeSpec = navigationModel.routesById[entry.routeId],
-        )
+        updateShellState(shellState.closeAiDrawer())
     }
 
     // Function to navigate to TokenConfig, treated as sub-navigation.
@@ -297,14 +445,35 @@ fun OperitApp(
         navigateTo(Screen.TokenConfig)
     }
 
-    BackHandler(enabled = currentScreen !is Screen.AiChat, onBack = { requestGoBack() })
+    BackHandler(
+        enabled = currentScreen !is Screen.AiChat && !shellState.isAiDrawerOpen,
+        onBack = { requestGoBack() },
+    )
 
-    val canGoBack = routerState.canPop || currentScreen !is Screen.AiChat
+    val aiTopBarMode = resolveAiTopBarMode(currentRouteEntry)
+    val showNavigationMenu = aiTopBarMode == AiTopBarMode.DRAWER
 
     var isLoading by remember { mutableStateOf(false) }
     var isAiHomeGestureBlocked by remember { mutableStateOf(false) }
     val isWideLayout = configuration.screenWidthDp >= 600
     var lastExitAttemptAt by remember { mutableLongStateOf(0L) }
+    var isNetworkAvailable by remember { mutableStateOf(false) }
+    var networkType by remember { mutableStateOf(context.getString(R.string.not_connected)) }
+
+    LaunchedEffect(context.applicationContext) {
+        while (true) {
+            val snapshot =
+                withContext(Dispatchers.IO) {
+                    NetworkStateSnapshot(
+                        isAvailable = NetworkUtils.isNetworkAvailable(context.applicationContext),
+                        type = NetworkUtils.getNetworkType(context.applicationContext),
+                    )
+                }
+            isNetworkAvailable = snapshot.isAvailable
+            networkType = snapshot.type
+            delay(10_000)
+        }
+    }
 
     // Get FPS counter display setting
     val displayPreferencesManager = remember { DisplayPreferencesManager.getInstance(context) }
@@ -336,22 +505,32 @@ fun OperitApp(
                 packageManager.removeToolPkgRuntimeChangeListener(listener)
             }
         }
-        DisposableEffect(routerState, navigationModel) {
+        DisposableEffect(routerState, navigationModel, aiDrawerEntries) {
             AppRouterGateway.install(
                 handler = { routeId, args, source ->
                     val routeSpec = navigationModel.routesById[routeId] ?: return@install
                     isNavigatingBack = false
-                    routerState.navigate(routeId = routeId, args = args, source = source, routeSpec = routeSpec)
+                    val navigationRoot = aiDrawerEntries.findAiNavigationRoot(routeId, args)
+                    if (navigationRoot == null) {
+                        routerState.navigate(
+                            routeId = routeId,
+                            args = args,
+                            source = source,
+                            routeSpec = routeSpec,
+                        )
+                    } else {
+                        routerState.resetTo(navigationRoot.toAiPrimaryRouteEntry(source))
+                    }
                 },
                 reset = { routeId, args, source ->
                     navigationModel.routesById[routeId] ?: return@install
                     isNavigatingBack = false
                     routerState.resetTo(
-                        com.ai.assistance.operit.ui.main.navigation.RouteEntry(
+                        aiDrawerEntries.toExternalRouteEntry(
                             routeId = routeId,
-                            args = args,
-                            source = source
-                        )
+                            routeArgs = args,
+                            source = source,
+                        ),
                     )
                 }
             )
@@ -378,22 +557,20 @@ fun OperitApp(
                 onStateChange = updateShellState,
                 aiHostIsRoot = currentScreen is Screen.AiChat,
                 aiHomeGestureBlocked = isAiHomeGestureBlocked,
-                selectedAiRouteId = currentRouteEntry.routeId,
-                pluginEntries = pluginSidebarEntries,
-                onAiCenterDestinationSelected = { destination ->
-                    val screen =
-                        when (destination) {
-                            AiCenterDestination.PACKAGES -> Screen.Packages
-                            AiCenterDestination.PERMISSIONS -> Screen.ShizukuCommands
-                            AiCenterDestination.WORKFLOW -> Screen.Workflow
-                            AiCenterDestination.ASSISTANT_CONFIG -> Screen.AssistantConfig
-                            AiCenterDestination.MEMORY -> Screen.MemoryBase
-                            AiCenterDestination.TOOLBOX -> Screen.Toolbox
-                            AiCenterDestination.AI_SETTINGS -> Screen.Settings
-                        }
-                    navigateTo(screen, source = RouteEntrySource.AI_CENTER)
+                selectedAiEntryId = currentAiPrimaryEntryId,
+                aiDrawerEntries = aiDrawerEntries,
+                isNetworkAvailable = isNetworkAvailable,
+                networkType = networkType,
+                onAiDrawerEntrySelected = ::selectAiDrawerEntry,
+                onOpenAiSettingsFromKiyoriSettings = {
+                    replaceAiPrimary(
+                        aiSettingsDrawerEntry,
+                        RouteEntrySource.KIYORI_SETTINGS,
+                    )
+                    updateShellState(
+                        shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
+                    )
                 },
-                onPluginEntrySelected = ::navigateToNavigationEntry,
                 onRequestExit = {
                     val now = System.currentTimeMillis()
                     if (now - lastExitAttemptAt <= EXIT_CONFIRM_WINDOW_MILLIS) {
@@ -422,14 +599,14 @@ fun OperitApp(
                             updateShellState(
                                 shellState
                                     .showSoftwareHomePage(SoftwareHomePage.AI_HOME)
-                                    .openChild(KiyoriShellChild.AI_CENTER),
+                                    .openAiDrawer(),
                             )
                         },
                         navigateToTokenConfig = ::navigateToTokenConfig,
                         onGestureConsumed = { consumed ->
                             isAiHomeGestureBlocked = consumed
                         },
-                        canGoBack = canGoBack,
+                        showNavigationMenu = showNavigationMenu,
                         onGoBack = ::requestGoBack,
                         isNavigatingBack = isNavigatingBack,
                         actions = { topBarActions() },

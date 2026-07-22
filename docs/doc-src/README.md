@@ -28,5 +28,6 @@
 
 - [Kiyori 产品壳与导航架构](architecture/kiyori_product_shell_and_navigation.md)
 - [Kiyori 产品定位与 Operit AI 边界](decisions/0001_kiyori_product_positioning.md)
-- [产品壳与 AI 中心导航](decisions/0002_product_shell_and_ai_center_navigation.md)
+- [模态 AI 左抽屉导航](decisions/0004_modal_ai_drawer_navigation.md)
+- [已取代：产品壳与 AI 中心导航](decisions/0002_product_shell_and_ai_center_navigation.md)
 - [UI 设计来源层级](decisions/0003_ui_design_source_hierarchy.md)

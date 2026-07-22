@@ -35,7 +35,8 @@ data class NavigationEntryActionSpec(
 
 enum class RouteEntrySource {
     DEFAULT,
-    AI_CENTER,
+    AI_DRAWER,
+    KIYORI_SETTINGS,
     SCRIPT
 }
 
@@ -56,7 +57,8 @@ data class RouteEntry(
     val instanceId: String = UUID.randomUUID().toString(),
     val routeId: String,
     val args: Map<String, Any?> = emptyMap(),
-    val source: RouteEntrySource = RouteEntrySource.DEFAULT
+    val source: RouteEntrySource = RouteEntrySource.DEFAULT,
+    val navigationRootEntryId: String? = null,
 )
 
 @Immutable
@@ -73,6 +75,19 @@ data class NavigationEntrySpec(
     val kind: NavigationEntryKind = NavigationEntryKind.HOST,
     val ownerPackageName: String? = null
 )
+
+fun NavigationEntrySpec.matchesNavigationRoot(
+    routeId: String,
+    routeArgs: Map<String, Any?>,
+): Boolean {
+    if (this.routeId != routeId) {
+        return false
+    }
+    return when (kind) {
+        NavigationEntryKind.HOST -> true
+        NavigationEntryKind.PLUGIN -> this.routeArgs == routeArgs
+    }
+}
 
 @Immutable
 data class AppNavigationModel(
@@ -120,6 +135,13 @@ class AppRouterState(initialEntry: RouteEntry) {
         stack.clear()
         stack.add(entry)
         currentEntry = entry
+    }
+
+    fun restoreStack(entries: List<RouteEntry>) {
+        require(entries.isNotEmpty()) { "Cannot restore an empty route stack" }
+        stack.clear()
+        stack.addAll(entries)
+        currentEntry = stack.last()
     }
 
     fun pop(): RouteEntry? {

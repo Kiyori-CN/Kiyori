@@ -2,13 +2,14 @@ package com.ai.assistance.operit.ui.main.shell
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -20,11 +21,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import kotlin.math.abs
@@ -38,10 +38,12 @@ fun KiyoriAppShell(
     onStateChange: (KiyoriShellState) -> Unit,
     aiHostIsRoot: Boolean,
     aiHomeGestureBlocked: Boolean,
-    selectedAiRouteId: String,
-    pluginEntries: List<NavigationEntrySpec>,
-    onAiCenterDestinationSelected: (AiCenterDestination) -> Unit,
-    onPluginEntrySelected: (NavigationEntrySpec) -> Unit,
+    selectedAiEntryId: String?,
+    aiDrawerEntries: List<NavigationEntrySpec>,
+    isNetworkAvailable: Boolean,
+    networkType: String,
+    onAiDrawerEntrySelected: (NavigationEntrySpec) -> Unit,
+    onOpenAiSettingsFromKiyoriSettings: () -> Unit,
     onRequestExit: () -> Unit,
     aiHost: @Composable () -> Unit,
 ) {
@@ -52,6 +54,7 @@ fun KiyoriAppShell(
         )
     val latestState by rememberUpdatedState(state)
     val latestOnStateChange by rememberUpdatedState(onStateChange)
+    val pagerFlingBehavior = PagerDefaults.flingBehavior(state = pagerState)
 
     LaunchedEffect(state.primaryDestination, state.softwareHomePage) {
         if (
@@ -62,10 +65,17 @@ fun KiyoriAppShell(
         }
     }
 
-    LaunchedEffect(pagerState, state.primaryDestination, state.child, aiHostIsRoot) {
+    LaunchedEffect(
+        pagerState,
+        state.primaryDestination,
+        state.child,
+        state.isAiDrawerOpen,
+        aiHostIsRoot,
+    ) {
         if (
             state.primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                 state.child != null ||
+                state.isAiDrawerOpen ||
                 !aiHostIsRoot
         ) {
             return@LaunchedEffect
@@ -80,7 +90,7 @@ fun KiyoriAppShell(
             }
     }
 
-    BackHandler(enabled = aiHostIsRoot) {
+    BackHandler(enabled = aiHostIsRoot && !state.isAiDrawerOpen) {
         val transition = state.handleBack()
         when (transition.result) {
             KiyoriShellBackResult.CONSUMED -> onStateChange(transition.state)
@@ -92,6 +102,8 @@ fun KiyoriAppShell(
         modifier = Modifier.fillMaxSize().clipToBounds(),
     ) {
         val viewportWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
+        val pagerReverseDirection =
+            shouldReverseKiyoriPagerDrag(LocalLayoutDirection.current)
         val aiPageOffset by remember(pagerState) {
             derivedStateOf {
                 calculateKiyoriPagerPageOffset(
@@ -112,12 +124,14 @@ fun KiyoriAppShell(
         val pagerAcceptsInput =
             aiHostIsRoot &&
                 state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
-                state.child == null
+                state.child == null &&
+                !state.isAiDrawerOpen
 
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize().zIndex(1f),
             userScrollEnabled = pagerAcceptsInput,
+            flingBehavior = pagerFlingBehavior,
             beyondViewportPageCount = 1,
             key = { page -> page },
         ) { page ->
@@ -143,6 +157,7 @@ fun KiyoriAppShell(
         if (state.primaryDestination != PrimaryDestination.SOFTWARE_HOME) {
             KiyoriPrimaryRootPage(
                 destination = state.primaryDestination,
+                onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
                 modifier = Modifier.fillMaxSize().zIndex(4f),
             )
         }
@@ -162,18 +177,18 @@ fun KiyoriAppShell(
                 Modifier
                     .matchParentSize()
                     .offset { IntOffset(aiHostTranslationX.roundToInt(), 0) }
-                    .kiyoriAiHomeSwipeToCenter(
+                    // Sharing PagerState lets a reverse drag cancel an in-flight home-page fling.
+                    .scrollable(
+                        state = pagerState,
+                        orientation = Orientation.Horizontal,
+                        // HorizontalPager reverses LTR drag deltas before dispatching them to
+                        // PagerState. The AI host sits above the pager, so it must use the same
+                        // direction or a rightward drag is consumed against the last-page edge.
+                        reverseDirection = pagerReverseDirection,
                         enabled =
-                            aiHostIsRoot &&
-                                !aiHomeGestureBlocked &&
-                                state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
-                                state.softwareHomePage == SoftwareHomePage.AI_HOME &&
-                                state.child == null,
-                        onNavigate = {
-                            onStateChange(
-                                latestState.showSoftwareHomePage(SoftwareHomePage.HOME),
-                            )
-                        },
+                            pagerAcceptsInput &&
+                                !aiHomeGestureBlocked,
+                        flingBehavior = pagerFlingBehavior,
                     )
                     .zIndex(if (forceAiHostFullscreen) 20f else 2f),
         ) {
@@ -182,17 +197,6 @@ fun KiyoriAppShell(
 
         if (state.child == KiyoriShellChild.FULL_SCREEN_WEB_SEARCH && aiHostIsRoot) {
             KiyoriFullScreenWebSearchPage(
-                onBack = { onStateChange(state.copy(child = null)) },
-                modifier = Modifier.fillMaxSize().zIndex(12f),
-            )
-        }
-
-        if (state.child == KiyoriShellChild.AI_CENTER && aiHostIsRoot) {
-            KiyoriAiCenterPage(
-                selectedRouteId = selectedAiRouteId,
-                pluginEntries = pluginEntries,
-                onDestinationSelected = onAiCenterDestinationSelected,
-                onPluginEntrySelected = onPluginEntrySelected,
                 onBack = { onStateChange(state.copy(child = null)) },
                 modifier = Modifier.fillMaxSize().zIndex(12f),
             )
@@ -214,6 +218,17 @@ fun KiyoriAppShell(
                 modifier = Modifier.zIndex(10f),
             )
         }
+
+        KiyoriModalAiDrawer(
+            isOpen = state.isAiDrawerOpen,
+            selectedEntryId = selectedAiEntryId,
+            navigationEntries = aiDrawerEntries,
+            isNetworkAvailable = isNetworkAvailable,
+            networkType = networkType,
+            onDismiss = { onStateChange(state.closeAiDrawer()) },
+            onEntrySelected = onAiDrawerEntrySelected,
+            modifier = Modifier.fillMaxSize().zIndex(40f),
+        )
     }
 }
 
@@ -222,39 +237,8 @@ internal fun calculateKiyoriAiHostTranslation(
     viewportWidthPx: Float,
 ): Float = -pageOffset * viewportWidthPx
 
-private fun Modifier.kiyoriAiHomeSwipeToCenter(
-    enabled: Boolean,
-    onNavigate: () -> Unit,
-): Modifier {
-    if (!enabled) {
-        return this
-    }
-    return pointerInput(onNavigate) {
-        val horizontalThreshold = viewConfiguration.touchSlop * 3f
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false)
-            var totalX = 0f
-            var totalY = 0f
-            var navigated = false
-            do {
-                val event = awaitPointerEvent(PointerEventPass.Final)
-                val change = event.changes.firstOrNull() ?: break
-                val delta = change.positionChange()
-                totalX += delta.x
-                totalY += delta.y
-                if (
-                    !navigated &&
-                        !change.isConsumed &&
-                        totalX > horizontalThreshold &&
-                        totalX > abs(totalY) * 1.25f
-                ) {
-                    navigated = true
-                    onNavigate()
-                }
-            } while (event.changes.any { change -> change.pressed })
-        }
-    }
-}
+internal fun shouldReverseKiyoriPagerDrag(layoutDirection: LayoutDirection): Boolean =
+    layoutDirection == LayoutDirection.Ltr
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun calculateKiyoriPagerPageOffset(

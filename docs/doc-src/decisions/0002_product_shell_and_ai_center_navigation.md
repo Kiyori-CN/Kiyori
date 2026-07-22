@@ -1,9 +1,12 @@
 ---
-status: accepted
+status: superseded
 date: 2026-07-22
+superseded_by: 0004_modal_ai_drawer_navigation.md
 ---
 
 # 产品壳与 AI 中心导航
+
+> 本决策保留为历史记录。当前导航合同由 [模态 AI 左抽屉导航](0004_modal_ai_drawer_navigation.md) 取代；全屏 AI Center 不再是当前产品方案。
 
 ## 背景
 

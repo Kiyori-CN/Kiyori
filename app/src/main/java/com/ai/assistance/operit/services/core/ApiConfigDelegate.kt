@@ -4,7 +4,6 @@ import android.content.Context
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.data.model.ActivePrompt
-import com.ai.assistance.operit.data.model.ApiKeyFormatValidator
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.CharacterCardChatModelBindingMode
 import com.ai.assistance.operit.data.model.FunctionType
@@ -67,9 +66,6 @@ class ApiConfigDelegate(
             CoroutineScope(SupervisorJob(coroutineScope.coroutineContext[Job]) + Dispatchers.IO)
 
     // State flows
-    private val _isConfigured = MutableStateFlow(true) // 默认已配置
-    val isConfigured: StateFlow<Boolean> = _isConfigured.asStateFlow()
-
     private val _featureToggles = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val featureToggles: StateFlow<Map<String, Boolean>> = _featureToggles.asStateFlow()
 
@@ -156,9 +152,6 @@ class ApiConfigDelegate(
 
     private val _apiProviderType = MutableStateFlow(ApiProviderType.DEEPSEEK)
     val apiProviderType: StateFlow<ApiProviderType> = _apiProviderType.asStateFlow()
-
-    private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     private val _activeConfigId =
             MutableStateFlow(FunctionalConfigManager.DEFAULT_CONFIG_ID)
@@ -314,9 +307,6 @@ class ApiConfigDelegate(
                 functionalConfigManager.functionConfigMappingFlow.collect { mapping ->
                     val chatConfigId =
                             mapping[FunctionType.CHAT] ?: FunctionalConfigManager.DEFAULT_CONFIG_ID
-                    if (_activeConfigId.value != chatConfigId) {
-                        _isInitialized.value = false
-                    }
                     _activeConfigId.value = chatConfigId
                     _functionalConfigInitialized.value = true
 
@@ -324,7 +314,6 @@ class ApiConfigDelegate(
                         ?.takeIf { config -> config.id == chatConfigId }
                         ?.let { config ->
                             updateStateFromConfig(config)
-                            _isInitialized.value = true
                         }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -348,15 +337,12 @@ class ApiConfigDelegate(
                                 config.id == _activeConfigId.value
                         ) {
                             updateStateFromConfig(config)
-                            _isInitialized.value = true
                         }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 AppLogger.d(TAG, "模型配置收集监听已取消")
-                _isInitialized.value = true
             } catch (e: Exception) {
                 AppLogger.e(TAG, "收集模型配置时出错", e)
-                _isInitialized.value = true
             }
         }
 
@@ -553,43 +539,6 @@ class ApiConfigDelegate(
         }
     }
 
-    suspend fun saveDeepSeekConfiguration(expectedConfigId: String, apiKey: String) {
-        try {
-            val normalizedApiKey = ApiKeyFormatValidator.normalize(apiKey)
-            require(ApiKeyFormatValidator.isValid(normalizedApiKey)) {
-                "DeepSeek API Key format is invalid"
-            }
-            check(_activeConfigId.value == expectedConfigId) {
-                "Active chat configuration changed while saving"
-            }
-            val targetConfig = checkNotNull(modelConfigManager.getModelConfig(expectedConfigId)) {
-                "Active chat configuration no longer exists"
-            }
-            check(
-                ApiProviderType.fromProviderTypeId(targetConfig.apiProviderTypeId) ==
-                    ApiProviderType.DEEPSEEK
-            ) {
-                "Active chat configuration is not a DeepSeek configuration"
-            }
-            modelConfigManager.updateSingleApiKey(expectedConfigId, normalizedApiKey)
-            check(_activeConfigId.value == expectedConfigId) {
-                "Active chat configuration changed while saving"
-            }
-            val enhancedAiService =
-                withContext(Dispatchers.IO) {
-                    EnhancedAIService.refreshServiceForFunction(context, FunctionType.CHAT)
-                    EnhancedAIService.getInstance(context)
-                }
-            withContext(Dispatchers.Main) { onConfigChanged(enhancedAiService) }
-            _isConfigured.value = true
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "保存 DeepSeek 配置失败: ${e.message}", e)
-            throw e
-        }
-    }
-
     private suspend fun persistApiSettings(
         apiKey: String,
         apiEndpoint: String,
@@ -609,7 +558,6 @@ class ApiConfigDelegate(
         val enhancedAiService =
             withContext(Dispatchers.IO) { EnhancedAIService.getInstance(context) }
         withContext(Dispatchers.Main) { onConfigChanged(enhancedAiService) }
-        _isConfigured.value = true
     }
 
     fun toggleFeature(featureKey: String) {

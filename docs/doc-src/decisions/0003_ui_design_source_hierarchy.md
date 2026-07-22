@@ -34,5 +34,5 @@ Kiyori 同时拥有两类设计来源：当前 Operit AI 原版界面提供成�
 ## 相关资料
 
 - [Kiyori 产品壳与导航架构](../architecture/kiyori_product_shell_and_navigation.md)
-- [产品壳与 AI 中心导航](0002_product_shell_and_ai_center_navigation.md)
+- [模态 AI 左抽屉导航](0004_modal_ai_drawer_navigation.md)
 - [产品壳实施计划](../../TODO/kiyori_product_shell/index.md)

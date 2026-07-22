@@ -403,7 +403,7 @@ fun AgentChatInputSection(
         }
     val displayModelName =
         if (isModelSelectionLockedByCharacterCard) {
-            mappedModelName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.not_selected)
+            mappedModelName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.common_not_selected)
         } else {
             mappedModelName?.takeIf { it.isNotBlank() } ?: currentModelName
         }
@@ -2033,7 +2033,7 @@ private fun AgentModelSelectorItem(
         currentConfig?.let { config ->
             val validIndex = getValidModelIndex(config.modelName, currentConfigMapping.modelIndex)
             getModelByIndex(config.modelName, validIndex)
-        } ?: stringResource(R.string.not_selected)
+        } ?: stringResource(R.string.common_not_selected)
 
     Row(
         modifier =
@@ -2072,7 +2072,7 @@ private fun AgentModelSelectorItem(
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = currentModelName.ifEmpty { stringResource(R.string.not_selected) },
+            text = currentModelName.ifEmpty { stringResource(R.string.common_not_selected) },
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.primary,
             maxLines = 2,
@@ -2543,7 +2543,7 @@ private fun AgentMemorySelectorItem(
     onManualMemoryUpdateInfoClick: () -> Unit,
 ) {
     val currentProfileName =
-        preferenceProfiles.find { it.id == currentProfileId }?.name ?: stringResource(R.string.not_selected)
+        preferenceProfiles.find { it.id == currentProfileId }?.name ?: stringResource(R.string.common_not_selected)
 
     Row(
         modifier =

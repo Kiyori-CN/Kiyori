@@ -27,12 +27,12 @@ status: planned
 
 ## 自适应规则
 
-- Compact：底部导航、AI 中心全屏单栏
-- Medium：底部导航或 Navigation Rail，AI 中心双栏
-- Expanded：Navigation Rail 或宽屏顶层导航，AI 中心双栏并限制正文宽度
+- Compact：底部导航、模态 AI 抽屉为窗口宽度 `75%`
+- Medium：底部导航或 Navigation Rail、模态 AI 抽屉宽度 `320dp`
+- Expanded：Navigation Rail 或宽屏顶层导航、模态 AI 抽屉宽度 `360dp`
 - Foldable：根据 `FoldingFeature` 分隔区域布置双栏，交互控件不跨越铰链
 
-所有窗口类型共享当前顶层目的地、首页 Pager 页、AI Center 子路由和输入状态。
+所有窗口类型共享当前顶层目的地、首页 Pager 页、AI 一级路由栈和输入状态。分隔铰链限制抽屉不跨越左侧物理区域。
 
 ## 待决策
 

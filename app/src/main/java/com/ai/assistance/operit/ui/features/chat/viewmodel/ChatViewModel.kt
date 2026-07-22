@@ -22,8 +22,6 @@ import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.core.chat.AIMessageManager
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileOperationData
-import com.ai.assistance.operit.data.collects.ApiProviderConfigs
-import com.ai.assistance.operit.data.model.ApiKeyFormatValidator
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.AttachmentInfo
 import com.ai.assistance.operit.data.model.AITool
@@ -191,18 +189,12 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     // Use lazy initialization for exposed properties to avoid circular reference issues
     // API配置相关
-    val apiKey: StateFlow<String> by lazy { apiConfigDelegate.apiKey }
     val apiEndpoint: StateFlow<String> by lazy { apiConfigDelegate.apiEndpoint }
     val modelName: StateFlow<String> by lazy { apiConfigDelegate.modelName }
     val apiProviderType: StateFlow<ApiProviderType> by lazy { apiConfigDelegate.apiProviderType }
     val activeChatModelConfig by lazy { apiConfigDelegate.activeChatModelConfig }
     val activeChatConfigId by lazy { apiConfigDelegate.activeConfigId }
     val effectiveChatConfigTarget by lazy { apiConfigDelegate.effectiveChatConfigTarget }
-    val isConfigured: StateFlow<Boolean> by lazy { apiConfigDelegate.isConfigured }
-    val isApiConfigInitialized: StateFlow<Boolean> by lazy { apiConfigDelegate.isInitialized }
-
-    private val _shouldShowConfigDialog = MutableStateFlow(false)
-    val shouldShowConfigDialog: StateFlow<Boolean> = _shouldShowConfigDialog.asStateFlow()
 
     val featureToggles: StateFlow<Map<String, Boolean>> by lazy { apiConfigDelegate.featureToggles }
     val keepScreenOn: StateFlow<Boolean> by lazy { apiConfigDelegate.keepScreenOn }
@@ -419,30 +411,6 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         // 初始化语音服务
         initializeVoiceService()
 
-        // 配置提示只跟随当前活跃聊天配置，避免被其他未使用配置误伤。
-        viewModelScope.launch {
-            combine(
-                isApiConfigInitialized,
-                activeChatModelConfig,
-                activeChatConfigId,
-                effectiveChatConfigTarget
-            ) { initialized, config, activeConfigId, effectiveConfigTarget ->
-                initialized &&
-                    config != null &&
-                    config.id == activeConfigId &&
-                    effectiveConfigTarget.isResolved &&
-                    effectiveConfigTarget.configId == activeConfigId &&
-                    ApiProviderType.fromProviderTypeId(config.apiProviderTypeId) ==
-                        ApiProviderType.DEEPSEEK &&
-                    ApiProviderConfigs.requiresApiKey(
-                        ApiProviderType.DEEPSEEK,
-                        config.apiEndpoint
-                    ) &&
-                    !ApiKeyFormatValidator.hasUsableKey(config)
-            }.collect { shouldShow ->
-                _shouldShowConfigDialog.value = shouldShow
-            }
-        }
     }
 
     private fun initializeDelegates() {
@@ -503,8 +471,8 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     private fun checkIfShouldCreateNewChat() {
         viewModelScope.launch {
-            // 检查历史记录加载后是否需要创建新聊天
-            if (chatHistoryDelegate.checkIfShouldCreateNewChat() && isConfigured.value) {
+            // 模型配置只影响发送能力，不能阻止 AI 首页创建并展示空白会话。
+            if (chatHistoryDelegate.checkIfShouldCreateNewChat()) {
                 chatHistoryDelegate.createNewChat()
             }
         }
@@ -567,9 +535,6 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     fun updateApiProviderType(providerType: ApiProviderType) = apiConfigDelegate.updateApiProviderType(providerType)
     fun saveApiSettings() = apiConfigDelegate.saveApiSettings()
-    suspend fun saveDeepSeekConfiguration(configId: String, apiKey: String) {
-        apiConfigDelegate.saveDeepSeekConfiguration(configId, apiKey)
-    }
     fun useDefaultConfig() {
         if (apiConfigDelegate.useDefaultConfig()) {
             uiStateDelegate.showToast(context.getString(R.string.chat_use_default_config_continue))
