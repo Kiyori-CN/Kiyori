@@ -7861,6 +7861,19 @@
     <string name="ai_message_use_package_failed">use_package call failed: %1$s</string>
     <string name="ai_message_use_package_empty">use_package returned empty.</string>
     <string name="ai_message_package_warmup_item">%1$d. Package %2$s (hit %3$d times)</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">Compress and obfuscate the package</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">When enabled, executable scripts in the ToolPkg are minified through the JavaScript syntax tree. The resulting package remains a standard ZIP file and can be imported directly.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Compress and obfuscate the package: %1$s</string>
+    <string name="artifact_publish_asset_source_title">Release asset source</string>
+    <string name="artifact_publish_asset_source_upload">Upload the current local package</string>
+    <string name="artifact_publish_asset_source_github_release">Use a GitHub Release asset</string>
+    <string name="artifact_publish_asset_source_confirmation">Release asset source: %1$s</string>
+    <string name="artifact_publish_github_repository_url">Author GitHub repository URL</string>
+    <string name="artifact_publish_load_github_releases">Load releases</string>
+    <string name="artifact_publish_github_release">GitHub Release</string>
+    <string name="artifact_publish_github_release_asset">Release asset</string>
+    <string name="artifact_publish_stage_resolving_release_asset">Verifying GitHub Release asset</string>
+
     <string name="kiyori_shell_software_home">Software Home</string>
     <string name="kiyori_shell_browser_home">Browser</string>
     <string name="kiyori_shell_mini_app_home">Mini Apps</string>

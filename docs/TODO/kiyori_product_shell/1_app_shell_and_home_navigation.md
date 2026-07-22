@@ -73,8 +73,8 @@ status: in_progress
 
 ## 当前验收结论
 
-- 已通过：Shell 状态 JVM 测试、完整 Debug JVM 单元测试、Debug Kotlin 编译、47 项 CI Python 测试、正式开发准备门禁、lint baseline、`git diff --check`、旧顶层抽屉引用清理和 `assembleDebug`
-- 构建证据：`app-debug.apk`，`com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `0965F20AAF85DC3EDF86E9C7789A4ABCC5F9130CFF1D7D5AB73ADD4CABB441FC`
+- 已通过：Shell 状态 JVM 测试、完整 Debug JVM 单元测试、Debug Kotlin 编译、47 项 CI Python 测试、正式开发准备门禁、Android lint、lint baseline、`git diff --check`、旧顶层抽屉引用清理和 `assembleDebug`
+- 构建证据：`app-debug.apk`，`com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `42D927B47F2656BFDB92CAE2C9FE97CFCD7F831E5931BD4C98434142E8F2C7DE`
 - 部分完成：五个根页面与全屏搜索已建立宿主，但除软件首页与 AI 首页外仍是骨架
 - 未完成：每个根页面的独立子栈和滚动状态、真实搜索提交、负一屏数据、自适应 Rail/双栏
 - 待验证：真机左右滑动、聊天内部手势仲裁、Back、旋转、折叠姿态与流式对话持续性

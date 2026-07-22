@@ -6992,6 +6992,24 @@
     <string name="ai_message_use_package_failed">use_package 호출 실패: %1$s</string>
     <string name="ai_message_use_package_empty">use_package 반환 결과가 비어 있습니다.</string>
     <string name="ai_message_package_warmup_item">%1$d. 패키지 %2$s (%3$d회 적중)</string>
+    <string name="project_issues">문제 신고</string>
+    <string name="app_update_channel">앱 업데이트</string>
+    <string name="app_update_channel_disabled">이 버전은 원격 업데이트나 공지를 받지 않습니다. 새 버전은 Kiyori 저장소를 통해 별도로 배포됩니다.</string>
+    <string name="about_source_attribution">Kiyori는 Operit 오픈 소스 코드를 기반으로 개발을 이어갑니다. 원저자, 라이선스 및 프로젝트 이력은 저장소에 보존됩니다.</string>
+    <string name="quick_plugin_creator_setup_unavailable">Kiyori는 아직 신뢰할 수 있는 빠른 설정 스크립트를 제공하지 않으므로 이 작업은 비활성화되어 있습니다.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">패키지 압축 및 난독화</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">활성화하면 ToolPkg의 실행 스크립트가 JavaScript 구문 트리를 통해 축소됩니다. 결과 패키지는 표준 ZIP 파일로 유지되며 바로 가져올 수 있습니다.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">패키지 압축 및 난독화: %1$s</string>
+    <string name="artifact_publish_asset_source_title">게시 자산 원본</string>
+    <string name="artifact_publish_asset_source_upload">현재 로컬 패키지 업로드</string>
+    <string name="artifact_publish_asset_source_github_release">GitHub Release 자산 사용</string>
+    <string name="artifact_publish_asset_source_confirmation">게시 자산 원본: %1$s</string>
+    <string name="artifact_publish_github_repository_url">작성자 GitHub 저장소 URL</string>
+    <string name="artifact_publish_load_github_releases">Release 불러오기</string>
+    <string name="artifact_publish_github_release">GitHub Release</string>
+    <string name="artifact_publish_github_release_asset">Release 자산</string>
+    <string name="artifact_publish_stage_resolving_release_asset">GitHub Release 자산 확인 중</string>
+
     <string name="kiyori_shell_software_home">홈</string>
     <string name="kiyori_shell_browser_home">브라우저</string>
     <string name="kiyori_shell_mini_app_home">미니 앱</string>

@@ -7145,6 +7145,24 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="ai_message_use_package_failed">Panggilan use_package gagal: %1$s</string>
     <string name="ai_message_use_package_empty">use_package mengembalikan kosong.</string>
     <string name="ai_message_package_warmup_item">%1$d. Paket %2$s (terkena %3$d kali)</string>
+    <string name="project_issues">Laporkan masalah</string>
+    <string name="app_update_channel">Pembaruan aplikasi</string>
+    <string name="app_update_channel_disabled">Versi ini tidak menerima pembaruan atau pengumuman jarak jauh. Versi baru didistribusikan secara terpisah melalui repositori Kiyori.</string>
+    <string name="about_source_attribution">Kiyori melanjutkan pengembangan dari basis kode sumber terbuka Operit. Kepengarangan asli, lisensi, dan riwayat proyek tetap disimpan dalam repositori.</string>
+    <string name="quick_plugin_creator_setup_unavailable">Kiyori belum menyediakan skrip penyiapan cepat yang tepercaya, sehingga tindakan ini dinonaktifkan.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">Kompres dan samarkan paket</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">Jika diaktifkan, skrip yang dapat dijalankan di dalam ToolPkg akan diperkecil melalui pohon sintaks JavaScript. Paket hasilnya tetap berupa file ZIP standar dan dapat langsung diimpor.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Kompres dan samarkan paket: %1$s</string>
+    <string name="artifact_publish_asset_source_title">Sumber aset rilis</string>
+    <string name="artifact_publish_asset_source_upload">Unggah paket lokal saat ini</string>
+    <string name="artifact_publish_asset_source_github_release">Gunakan aset GitHub Release</string>
+    <string name="artifact_publish_asset_source_confirmation">Sumber aset rilis: %1$s</string>
+    <string name="artifact_publish_github_repository_url">URL repositori GitHub penulis</string>
+    <string name="artifact_publish_load_github_releases">Muat rilis</string>
+    <string name="artifact_publish_github_release">GitHub Release</string>
+    <string name="artifact_publish_github_release_asset">Aset rilis</string>
+    <string name="artifact_publish_stage_resolving_release_asset">Memverifikasi aset GitHub Release</string>
+
     <string name="kiyori_shell_software_home">Beranda</string>
     <string name="kiyori_shell_browser_home">Browser</string>
     <string name="kiyori_shell_mini_app_home">Mini App</string>

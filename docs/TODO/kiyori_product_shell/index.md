@@ -16,8 +16,8 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - 浏览器、小程序、文件管理、设置仍是根页面骨架；真实领域内容、独立子栈与滚动状态尚未接入
 - 全屏网页搜索和负一屏已建立页面骨架，但搜索提交、浏览器窗口合同与真实数据仍未接入
 - AI Center 的自适应双栏、权限中心、AI 设置拆分、状态徽标和原版信息密度继续由后续切片完成
-- 2026-07-22 自动验证通过：Debug Kotlin 编译、Debug JVM 单元测试、47 项 CI Python 测试、正式开发准备门禁、lint baseline 检查、`git diff --check` 和 `assembleDebug`
-- 最新 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `0965F20AAF85DC3EDF86E9C7789A4ABCC5F9130CFF1D7D5AB73ADD4CABB441FC`
+- 2026-07-22 自动验证通过：Debug Kotlin 编译、Debug JVM 单元测试、47 项 CI Python 测试、正式开发准备门禁、Android lint、lint baseline 检查、`git diff --check` 和 `assembleDebug`
+- 最新 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `42D927B47F2656BFDB92CAE2C9FE97CFCD7F831E5931BD4C98434142E8F2C7DE`
 - 自动编译和 JVM 状态测试不替代真机手势、Back、旋转、折叠屏及流式对话持续性验收
 
 ## 目标

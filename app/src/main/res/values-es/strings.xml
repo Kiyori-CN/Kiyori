@@ -7212,6 +7212,24 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="ai_message_use_package_failed">Error al llamar a use_package: %1$s</string>
     <string name="ai_message_use_package_empty">use_package devolvió un resultado vacío.</string>
     <string name="ai_message_package_warmup_item">%1$d. Kit %2$s (usado %3$d veces)</string>
+    <string name="project_issues">Informar de un problema</string>
+    <string name="app_update_channel">Actualizaciones de la aplicación</string>
+    <string name="app_update_channel_disabled">Esta versión no recibe actualizaciones ni avisos remotos. Las nuevas versiones se distribuyen por separado a través del repositorio de Kiyori.</string>
+    <string name="about_source_attribution">Kiyori continúa el desarrollo a partir del código abierto de Operit. La autoría original, las licencias y el historial del proyecto se conservan en el repositorio.</string>
+    <string name="quick_plugin_creator_setup_unavailable">Kiyori aún no ofrece un script de configuración rápida de confianza, por lo que esta acción está desactivada.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">Comprimir y ofuscar el paquete</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">Al activarlo, los scripts ejecutables del ToolPkg se comprimen mediante el árbol de sintaxis de JavaScript. El paquete resultante sigue siendo un archivo ZIP estándar y se puede importar directamente.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Comprimir y ofuscar el paquete: %1$s</string>
+    <string name="artifact_publish_asset_source_title">Origen del recurso de publicación</string>
+    <string name="artifact_publish_asset_source_upload">Subir el paquete local actual</string>
+    <string name="artifact_publish_asset_source_github_release">Usar un recurso de GitHub Release</string>
+    <string name="artifact_publish_asset_source_confirmation">Origen del recurso de publicación: %1$s</string>
+    <string name="artifact_publish_github_repository_url">URL del repositorio de GitHub del autor</string>
+    <string name="artifact_publish_load_github_releases">Cargar releases</string>
+    <string name="artifact_publish_github_release">GitHub Release</string>
+    <string name="artifact_publish_github_release_asset">Recurso de la release</string>
+    <string name="artifact_publish_stage_resolving_release_asset">Verificando el recurso de GitHub Release</string>
+
     <string name="kiyori_shell_software_home">Inicio</string>
     <string name="kiyori_shell_browser_home">Navegador</string>
     <string name="kiyori_shell_mini_app_home">Miniaplicaciones</string>
