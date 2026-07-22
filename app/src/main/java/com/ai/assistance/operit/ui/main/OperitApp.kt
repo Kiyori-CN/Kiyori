@@ -1,58 +1,56 @@
 package com.ai.assistance.operit.ui.main
 
+import android.app.Activity
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.rememberNavController
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.mcp.MCPRepository
-import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
-import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.common.NavItem
-import com.ai.assistance.operit.ui.main.layout.PhoneLayout
-import com.ai.assistance.operit.ui.main.layout.TabletLayout
+import com.ai.assistance.operit.ui.main.components.AppContent
 import com.ai.assistance.operit.ui.main.navigation.AppNavigationModel
 import com.ai.assistance.operit.ui.main.navigation.AppRouteCatalog
-import com.ai.assistance.operit.ui.main.screens.Screen
+import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
 import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
 import com.ai.assistance.operit.ui.main.navigation.AppRouterState
-import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
+import com.ai.assistance.operit.ui.main.navigation.LocalRouteBackGuardRegistry
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
-import com.ai.assistance.operit.ui.main.navigation.LocalRouteBackGuardRegistry
 import com.ai.assistance.operit.ui.main.navigation.RouteBackGuardRegistry
-import com.ai.assistance.operit.util.NetworkUtils
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
+import com.ai.assistance.operit.ui.main.screens.Screen
+import com.ai.assistance.operit.ui.main.shell.AiCenterDestination
+import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
+import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
+import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
+import com.ai.assistance.operit.ui.main.shell.PrimaryDestination
+import com.ai.assistance.operit.ui.main.shell.SoftwareHomePage
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
+import androidx.compose.foundation.layout.RowScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 // 为TopAppBar的actions提供CompositionLocal
 // 它允许子组件（如AIChatScreen）向上提供它们的action Composable
@@ -63,22 +61,12 @@ class TopBarTitleContent(val content: @Composable () -> Unit)
 val LocalTopBarTitleContent = compositionLocalOf<(TopBarTitleContent?) -> Unit> { {} }
 val LocalAppNavigationModel = compositionLocalOf<AppNavigationModel?> { null }
 
-enum class NavigationTransitionSource {
-    DEFAULT,
-    DRAWER
-}
-
 private const val TAG = "OperitApp"
-
-private data class NetworkStateSnapshot(
-    val isAvailable: Boolean,
-    val type: String
-)
+private const val EXIT_CONFIRM_WINDOW_MILLIS = 2_000L
 
 @Composable
 fun OperitApp(
     initialNavItem: NavItem = NavItem.AiChat,
-    toolHandler: AIToolHandler? = null,
     shortcutNavRequest: NavItem? = null,
     shortcutNavRequestId: Long = 0L,
     routeNavRequest: String? = null,
@@ -89,16 +77,35 @@ fun OperitApp(
     onRouteNavHandled: (Long) -> Unit = {}
 ) {
     val navController = rememberNavController()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val appContext = remember(context) { context.applicationContext }
+    val activity = remember(context) {
+        context as? Activity ?: error("OperitApp must be hosted by an Activity")
+    }
     val packageManager = remember {
         PackageManager.getInstance(context, AIToolHandler.getInstance(context))
     }
     var navigationRevision by remember { mutableStateOf(0) }
     val configuration = LocalConfiguration.current
     val navigationModel = remember(context, configuration, navigationRevision) { AppRouteCatalog.build(context) }
+    var primaryDestinationName by rememberSaveable {
+        mutableStateOf(PrimaryDestination.SOFTWARE_HOME.name)
+    }
+    var softwareHomePageName by rememberSaveable {
+        mutableStateOf(SoftwareHomePage.HOME.name)
+    }
+    var shellChildName by rememberSaveable { mutableStateOf<String?>(null) }
+    val shellState =
+        KiyoriShellState(
+            primaryDestination = PrimaryDestination.valueOf(primaryDestinationName),
+            softwareHomePage = SoftwareHomePage.valueOf(softwareHomePageName),
+            child = shellChildName?.let(KiyoriShellChild::valueOf),
+        )
+    val updateShellState: (KiyoriShellState) -> Unit = { nextState ->
+        primaryDestinationName = nextState.primaryDestination.name
+        softwareHomePageName = nextState.softwareHomePage.name
+        shellChildName = nextState.child?.name
+    }
 
     val routerState = remember {
         AppRouterState(AppRouteCatalog.initialEntry(initialNavItem))
@@ -116,9 +123,6 @@ fun OperitApp(
 
     // 跟踪是否是返回操作
     var isNavigatingBack by remember { mutableStateOf(false) }
-    var navigationTransitionSource by remember {
-        mutableStateOf(NavigationTransitionSource.DEFAULT)
-    }
 
     // 用于存储由子屏幕提供的TopAppBar Actions
     var topBarActions by remember { mutableStateOf<@Composable RowScope.() -> Unit>({}) }
@@ -143,7 +147,6 @@ fun OperitApp(
 
         val targetEntry = AppRouteCatalog.initialEntry(requestNavItem)
         isNavigatingBack = false
-        navigationTransitionSource = NavigationTransitionSource.DEFAULT
         routerState.resetTo(targetEntry)
         lastHandledShortcutRequestId = shortcutNavRequestId
         onShortcutNavHandled(shortcutNavRequestId)
@@ -164,7 +167,6 @@ fun OperitApp(
             return@LaunchedEffect
         }
         isNavigatingBack = false
-        navigationTransitionSource = NavigationTransitionSource.DEFAULT
         routerState.resetTo(
             com.ai.assistance.operit.ui.main.navigation.RouteEntry(
                 routeId = requestRouteId,
@@ -186,41 +188,33 @@ fun OperitApp(
     }
 
     // Navigation functions
-    fun navigateTo(newScreen: Screen, fromDrawer: Boolean = false) {
+    fun navigateTo(
+        newScreen: Screen,
+        source: RouteEntrySource = RouteEntrySource.DEFAULT,
+    ) {
         isNavigatingBack = false
-        navigationTransitionSource =
-            if (fromDrawer) NavigationTransitionSource.DRAWER
-            else NavigationTransitionSource.DEFAULT
         val nextEntry =
             AppRouteCatalog.toEntry(
                 screen = newScreen,
-                source =
-                    if (fromDrawer) RouteEntrySource.DRAWER
-                    else RouteEntrySource.DEFAULT
+                source = source,
             )
         if (currentRouteEntry.routeId == nextEntry.routeId && currentRouteEntry.args == nextEntry.args) {
             return
         }
-        if (fromDrawer) {
-            routerState.resetTo(nextEntry)
-        } else {
-            routerState.navigate(
-                routeId = nextEntry.routeId,
-                args = nextEntry.args,
-                source = nextEntry.source,
-                routeSpec = navigationModel.routesById[nextEntry.routeId]
-            )
-        }
+        routerState.navigate(
+            routeId = nextEntry.routeId,
+            args = nextEntry.args,
+            source = nextEntry.source,
+            routeSpec = navigationModel.routesById[nextEntry.routeId],
+        )
     }
 
     fun performGoBack() {
         if (routerState.canPop) {
             isNavigatingBack = true
-            navigationTransitionSource = NavigationTransitionSource.DEFAULT
             routerState.pop()
         } else if (currentScreen !is Screen.AiChat) {
             isNavigatingBack = true
-            navigationTransitionSource = NavigationTransitionSource.DEFAULT
             routerState.resetTo(AppRouteCatalog.toEntry(Screen.AiChat))
         }
     }
@@ -290,13 +284,11 @@ fun OperitApp(
             return
         }
         isNavigatingBack = false
-        navigationTransitionSource = NavigationTransitionSource.DRAWER
-        routerState.resetTo(
-            com.ai.assistance.operit.ui.main.navigation.RouteEntry(
-                routeId = entry.routeId,
-                args = entry.routeArgs,
-                source = RouteEntrySource.DRAWER
-            )
+        routerState.navigate(
+            routeId = entry.routeId,
+            args = entry.routeArgs,
+            source = RouteEntrySource.AI_CENTER,
+            routeSpec = navigationModel.routesById[entry.routeId],
         )
     }
 
@@ -307,56 +299,12 @@ fun OperitApp(
 
     BackHandler(enabled = currentScreen !is Screen.AiChat, onBack = { requestGoBack() })
 
-    val canGoBack = routerState.canPop
+    val canGoBack = routerState.canPop || currentScreen !is Screen.AiChat
 
     var isLoading by remember { mutableStateOf(false) }
-
-    // Tablet mode sidebar state
-    var isTabletSidebarExpanded by remember { mutableStateOf(false) }
-    var tabletSidebarWidth by remember { mutableStateOf(280.dp) } // 侧边栏默认宽度
-    val collapsedTabletSidebarWidth = 64.dp // 收起时的宽度
-
-    // Device screen size calculation
-    val screenWidthDp = configuration.screenWidthDp
-
-    // Determine if using tablet layout based on screen width
-    // Using Material Design 3 guidelines:
-    // - Less than 600dp: phone
-    // - 600dp and above: tablet
-    val useTabletLayout = screenWidthDp >= 600
-
-    val navItems = listOf(
-        NavItem.AiChat,
-        NavItem.AssistantConfig,
-        NavItem.Packages,
-        NavItem.MemoryBase,
-        NavItem.Toolbox,
-        NavItem.ShizukuCommands,
-        NavItem.Workflow,
-        NavItem.Settings,
-        NavItem.Help,
-        NavItem.About
-    )
-
-    // Network state monitoring
-    var isNetworkAvailable by remember { mutableStateOf(false) }
-    var networkType by remember { mutableStateOf(context.getString(R.string.not_connected)) }
-
-    // Periodically check network status
-    LaunchedEffect(Unit) {
-        while (true) {
-            val snapshot =
-                withContext(Dispatchers.IO) {
-                    NetworkStateSnapshot(
-                        isAvailable = NetworkUtils.isNetworkAvailable(appContext),
-                        type = NetworkUtils.getNetworkType(appContext)
-                    )
-                }
-            isNetworkAvailable = snapshot.isAvailable
-            networkType = snapshot.type
-            delay(10000) // Check every 10 seconds
-        }
-    }
+    var isAiHomeGestureBlocked by remember { mutableStateOf(false) }
+    val isWideLayout = configuration.screenWidthDp >= 600
+    var lastExitAttemptAt by remember { mutableLongStateOf(0L) }
 
     // Get FPS counter display setting
     val displayPreferencesManager = remember { DisplayPreferencesManager.getInstance(context) }
@@ -377,11 +325,8 @@ fun OperitApp(
         }
     }
 
-    // Calculate drawer width for phone mode
-    val drawerWidth = (screenWidthDp * 0.75).dp // Drawer width is 3/4 of screen width
-
     // Main app container
-    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         DisposableEffect(packageManager) {
             val listener = PackageManager.ToolPkgRuntimeChangeListener { _ ->
                 navigationRevision += 1
@@ -396,17 +341,11 @@ fun OperitApp(
                 handler = { routeId, args, source ->
                     val routeSpec = navigationModel.routesById[routeId] ?: return@install
                     isNavigatingBack = false
-                    navigationTransitionSource =
-                        if (source == RouteEntrySource.DRAWER) NavigationTransitionSource.DRAWER
-                        else NavigationTransitionSource.DEFAULT
                     routerState.navigate(routeId = routeId, args = args, source = source, routeSpec = routeSpec)
                 },
                 reset = { routeId, args, source ->
                     navigationModel.routesById[routeId] ?: return@install
                     isNavigatingBack = false
-                    navigationTransitionSource =
-                        if (source == RouteEntrySource.DRAWER) NavigationTransitionSource.DRAWER
-                        else NavigationTransitionSource.DEFAULT
                     routerState.resetTo(
                         com.ai.assistance.operit.ui.main.navigation.RouteEntry(
                             routeId = routeId,
@@ -434,74 +373,70 @@ fun OperitApp(
                 topBarTitleContent = titleContent
             }
         ) {
-            if (useTabletLayout) {
-                // Tablet layout
-                TabletLayout(
-                    currentRouteEntry = currentRouteEntry,
-                    currentScreen = currentScreen,
-                    selectedItem = selectedItem,
-                    isTabletSidebarExpanded = isTabletSidebarExpanded,
-                    isLoading = isLoading,
-                    navItems = navItems,
-                    pluginSidebarEntries = pluginSidebarEntries,
-                    selectedRouteId = currentRouteEntry.routeId,
-                    isNetworkAvailable = isNetworkAvailable,
-                    networkType = networkType,
-                    navController = navController,
-                    scope = scope,
-                    drawerState = drawerState,
-                    showFpsCounter = showFpsCounter,
-                    enableNavigationAnimation = enableNavigationAnimation,
-                    navigationTransitionSource = navigationTransitionSource,
-                    tabletSidebarWidth = tabletSidebarWidth,
-                    collapsedTabletSidebarWidth = collapsedTabletSidebarWidth,
-                    onScreenChange = { screen -> navigateTo(screen) },
-                    onDrawerItemSelected = { screen ->
-                        navigateTo(screen, fromDrawer = true)
-                    },
-                    onNavigationEntrySelected = ::navigateToNavigationEntry,
-                    onToggleSidebar = {
-                        isTabletSidebarExpanded = !isTabletSidebarExpanded
-                    },
-                    navigateToTokenConfig = ::navigateToTokenConfig,
-                    canGoBack = canGoBack,
-                    onGoBack = ::requestGoBack,
-                    isNavigatingBack = isNavigatingBack,
-                    topBarActions = { topBarActions() },
-                    topBarTitleContent = topBarTitleContent
-                )
-            } else {
-                // Phone layout
-                PhoneLayout(
-                    currentRouteEntry = currentRouteEntry,
-                    currentScreen = currentScreen,
-                    selectedItem = selectedItem,
-                    isLoading = isLoading,
-                    navItems = navItems,
-                    pluginSidebarEntries = pluginSidebarEntries,
-                    selectedRouteId = currentRouteEntry.routeId,
-                    isNetworkAvailable = isNetworkAvailable,
-                    networkType = networkType,
-                    drawerWidth = drawerWidth,
-                    navController = navController,
-                    scope = scope,
-                    drawerState = drawerState,
-                    showFpsCounter = showFpsCounter,
-                    enableNavigationAnimation = enableNavigationAnimation,
-                    navigationTransitionSource = navigationTransitionSource,
-                    onScreenChange = { screen -> navigateTo(screen) },
-                    onDrawerItemSelected = { screen ->
-                        navigateTo(screen, fromDrawer = true)
-                    },
-                    onNavigationEntrySelected = ::navigateToNavigationEntry,
-                    navigateToTokenConfig = ::navigateToTokenConfig,
-                    canGoBack = canGoBack,
-                    onGoBack = ::requestGoBack,
-                    isNavigatingBack = isNavigatingBack,
-                    topBarActions = { topBarActions() },
-                    topBarTitleContent = topBarTitleContent
-                )
-            }
+            KiyoriAppShell(
+                state = shellState,
+                onStateChange = updateShellState,
+                aiHostIsRoot = currentScreen is Screen.AiChat,
+                aiHomeGestureBlocked = isAiHomeGestureBlocked,
+                selectedAiRouteId = currentRouteEntry.routeId,
+                pluginEntries = pluginSidebarEntries,
+                onAiCenterDestinationSelected = { destination ->
+                    val screen =
+                        when (destination) {
+                            AiCenterDestination.PACKAGES -> Screen.Packages
+                            AiCenterDestination.PERMISSIONS -> Screen.ShizukuCommands
+                            AiCenterDestination.WORKFLOW -> Screen.Workflow
+                            AiCenterDestination.ASSISTANT_CONFIG -> Screen.AssistantConfig
+                            AiCenterDestination.MEMORY -> Screen.MemoryBase
+                            AiCenterDestination.TOOLBOX -> Screen.Toolbox
+                            AiCenterDestination.AI_SETTINGS -> Screen.Settings
+                        }
+                    navigateTo(screen, source = RouteEntrySource.AI_CENTER)
+                },
+                onPluginEntrySelected = ::navigateToNavigationEntry,
+                onRequestExit = {
+                    val now = System.currentTimeMillis()
+                    if (now - lastExitAttemptAt <= EXIT_CONFIRM_WINDOW_MILLIS) {
+                        activity.finishAffinity()
+                    } else {
+                        lastExitAttemptAt = now
+                        Toast.makeText(
+                            context,
+                            R.string.kiyori_shell_exit_hint,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
+                aiHost = {
+                    AppContent(
+                        currentRouteEntry = currentRouteEntry,
+                        currentScreen = currentScreen,
+                        selectedItem = selectedItem,
+                        isWideLayout = isWideLayout,
+                        isLoading = isLoading,
+                        navController = navController,
+                        showFpsCounter = showFpsCounter,
+                        enableNavigationAnimation = enableNavigationAnimation,
+                        onScreenChange = { screen -> navigateTo(screen) },
+                        onOpenNavigation = {
+                            updateShellState(
+                                shellState
+                                    .showSoftwareHomePage(SoftwareHomePage.AI_HOME)
+                                    .openChild(KiyoriShellChild.AI_CENTER),
+                            )
+                        },
+                        navigateToTokenConfig = ::navigateToTokenConfig,
+                        onGestureConsumed = { consumed ->
+                            isAiHomeGestureBlocked = consumed
+                        },
+                        canGoBack = canGoBack,
+                        onGoBack = ::requestGoBack,
+                        isNavigatingBack = isNavigatingBack,
+                        actions = { topBarActions() },
+                        titleContent = topBarTitleContent,
+                    )
+                },
+            )
         }
 
     }

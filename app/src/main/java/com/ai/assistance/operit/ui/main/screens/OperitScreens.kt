@@ -1482,9 +1482,3 @@ sealed class Screen(
     @Composable
     open fun getTitle(): String = titleRes?.let { stringResource(it) } ?: ""
 }
-
-// 全局的手势状态持有者，用于在不同组件间共享手势状态
-object GestureStateHolder {
-    // 聊天界面手势是否被消费的状态
-    var isChatScreenGestureConsumed: Boolean = false
-}

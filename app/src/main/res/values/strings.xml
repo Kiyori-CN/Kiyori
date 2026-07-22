@@ -85,8 +85,6 @@
     <string name="colorpicker_select_primary">选择主色</string>
     <string name="colorpicker_select_secondary">选择次色</string>
     <string name="colorpicker_select_statusbar">选择状态栏颜色</string>
-    <string name="colorpicker_select_navigation_drawer_background">选择侧滑菜单背景颜色</string>
-    <string name="colorpicker_select_navigation_drawer_accent">选择侧滑菜单强调色</string>
     <string name="colorpicker_select_history_icon">选择历史记录图标颜色</string>
     <string name="colorpicker_select_pip_icon">选择悬浮窗图标颜色</string>
     <string name="colorpicker_select_cursor_user_bubble">选择命令式用户消息框颜色</string>
@@ -764,17 +762,6 @@
     <string name="theme_appbar_color">顶栏颜色</string>
     <string name="theme_use_custom_appbar_color">自定义顶栏颜色</string>
     <string name="theme_use_custom_appbar_color_desc">开启后可以自定义顶栏的颜色</string>
-    <string name="theme_navigation_drawer_title">侧滑菜单设置</string>
-    <string name="theme_navigation_drawer_water_glass">水玻璃侧滑菜单</string>
-    <string name="theme_navigation_drawer_water_glass_desc">开启后左侧滑菜单会显示水玻璃效果</string>
-    <string name="theme_navigation_drawer_button_liquid_glass">侧边栏按钮磨砂玻璃背景</string>
-    <string name="theme_navigation_drawer_button_liquid_glass_desc">开启后每个侧边栏按钮都会显示磨砂玻璃背景</string>
-    <string name="theme_navigation_drawer_background_color">侧滑菜单背景颜色</string>
-    <string name="theme_navigation_drawer_accent_color">侧滑菜单强调色</string>
-    <string name="theme_use_custom_navigation_drawer_background_color">自定义侧滑菜单背景颜色</string>
-    <string name="theme_use_custom_navigation_drawer_background_color_desc">开启后可以自定义左侧滑菜单的背景颜色</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color">自定义侧滑菜单强调色</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color_desc">开启后可统一自定义品牌标识、小标题、网络状态和分隔线颜色</string>
     <string name="theme_statusbar_color">状态栏颜色</string>
     <string name="theme_use_custom_statusbar_color">自定义状态栏颜色</string>
     <string name="theme_use_custom_statusbar_color_desc">开启后可以自定义状态栏的颜色</string>
@@ -5392,13 +5379,9 @@
     <string name="keep_screen_on">屏幕常亮</string>
     <string name="keep_screen_on_description">保持屏幕常亮，防止在对话时自动锁屏</string>
     <string name="enable_navigation_animation">新版导航动画</string>
-    <string name="enable_navigation_animation_description">开启后，同时启用手机侧边栏与页面切换的增强动画效果。关闭后使用简洁的导航过渡。</string>
+    <string name="enable_navigation_animation_description">开启后使用增强的页面切换动画。关闭后使用简洁的导航过渡。</string>
     <string name="start_with_new_chat">启动时新建空白聊天</string>
     <string name="start_with_new_chat_description">开启后，每次启动应用都会进入一个新的空白聊天界面，不再自动打开上一次聊天。</string>
-    <string name="software_identity_title">软件标识</string>
-    <string name="software_identity_description">更改侧边栏顶部显示的软件标识。</string>
-    <string name="software_identity_option_operit">Kiyori</string>
-    <string name="software_identity_option_lingshu">灵枢 AI</string>
     <string name="reset_all_display_settings">重置所有显示设置</string>
     <string name="ui_accessibility_mode">无障碍适配模式</string>
     <string name="ui_accessibility_mode_description">为 TalkBack 等无障碍用户优化 UI 自动化行为，优先给出可朗读的操作步骤，谨慎执行自动点击。</string>
@@ -6390,8 +6373,6 @@
     <string name="theme_default_character_card">默认角色卡</string>
     <string name="theme_font_settings">字体设置</string>
     <string name="app_content_navigate_back">返回</string>
-    <string name="app_content_collapse_sidebar">收起侧边栏</string>
-    <string name="app_content_expand_sidebar">展开侧边栏</string>
     <string name="app_content_loading">正在加载...</string>
     <string name="theme_font_default">默认字体</string>
     <string name="theme_font_serif">衬线体 (Serif)</string>
@@ -7902,5 +7883,25 @@
     <string name="notification_kind_review_rejected">未通过审核</string>
     <string name="notification_kind_review_changes">需要修改</string>
     <string name="notification_kind_entry_curated">入选精选</string>
+
+    <string name="kiyori_shell_software_home">软件首页</string>
+    <string name="kiyori_shell_browser_home">浏览器首页</string>
+    <string name="kiyori_shell_mini_app_home">小程序首页</string>
+    <string name="kiyori_shell_file_management_home">文件管理首页</string>
+    <string name="kiyori_shell_settings_home">设置首页</string>
+    <string name="kiyori_shell_minus_one">负一屏</string>
+    <string name="kiyori_shell_search_hint">输入网址或搜索网页</string>
+    <string name="kiyori_shell_search_action">搜索</string>
+    <string name="kiyori_shell_ai_action">AI</string>
+    <string name="kiyori_shell_web_search">网页搜索</string>
+    <string name="kiyori_shell_ai_center">AI 中心</string>
+    <string name="kiyori_shell_ai_capabilities">AI 能力</string>
+    <string name="kiyori_shell_extensions">工具与扩展</string>
+    <string name="kiyori_shell_ai_settings">AI 设置</string>
+    <string name="kiyori_shell_favorites">收藏</string>
+    <string name="kiyori_shell_bookmarks">书签</string>
+    <string name="kiyori_shell_history">历史</string>
+    <string name="kiyori_shell_downloads">下载</string>
+    <string name="kiyori_shell_exit_hint">再按一次退出 Kiyori</string>
 
 </resources>

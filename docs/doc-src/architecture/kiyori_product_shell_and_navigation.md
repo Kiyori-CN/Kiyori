@@ -6,7 +6,16 @@ last_updated: 2026-07-22
 
 # Kiyori 产品壳与导航架构
 
-本文定义 Kiyori 的目标产品壳、首页层级、AI 中心、网页搜索、设置归属和自适应布局。当前应用仍由 Operit 导航壳承载，因此本文描述的是迁移目标，不是当前实现说明。
+本文定义 Kiyori 的目标产品壳、首页层级、AI 中心、网页搜索、设置归属和自适应布局。首个 App Shell 切片已经替换 Operit 顶层导航壳；本文同时记录已落地边界与后续目标，不能把页面骨架视为领域功能完成。
+
+## 当前实现状态
+
+- Kiyori App Shell 已成为唯一顶层导航 owner，并持有五个根目的地、三页首页 Pager、底栏可见性与 Shell Back 状态
+- AI 对话作为稳定宿主挂入右侧 AI 首页；全屏 AI Center 替代旧抽屉入口
+- 旧手机抽屉、平板侧栏、边缘拖动、主内容透视变换、全局手势状态和抽屉专属主题设置已删除
+- 全屏网页搜索、负一屏及浏览器/小程序/文件/设置根页面当前为接线骨架，真实数据和领域行为尚未完成
+- AI Center 当前只完成 Compact 单栏与现有 AI 页面路由；双栏详情、权限中心、AI 设置归属拆分和状态徽标尚未完成
+- 自动检查不能证明真机手势、Back、旋转、折叠屏或流式对话持续性，以上保持 `verification_pending`
 
 稳定术语以根目录 [CONTEXT.md](../../../CONTEXT.md) 为准。产品定位决策见 [Kiyori 产品定位与 Operit AI 边界](../decisions/0001_kiyori_product_positioning.md)，导航决策见 [产品壳与 AI 中心导航](../decisions/0002_product_shell_and_ai_center_navigation.md)，视觉规则见 [UI 设计来源层级](../decisions/0003_ui_design_source_hierarchy.md)。
 
@@ -85,7 +94,7 @@ AI 中心和设置首页进入的是同一个 AI 设置目的地。两个入口�
 
 ## 手势所有权
 
-当前 `PhoneLayout` 在根布局监听水平拖动并打开抽屉，这与软件首页 Pager 使用同一手势轴。目标设计采用以下规则：
+迁移前 `PhoneLayout` 在根布局监听水平拖动并打开抽屉，这与软件首页 Pager 使用同一手势轴。当前实现采用以下规则：
 
 - 删除手机端左边缘打开 Operit 抽屉的手势
 - AI 首页向左滑动只表达返回软件首页
@@ -260,7 +269,7 @@ AI 中心/
 ### 视觉与组件合同
 
 - 沿用 Operit 的主题 token、字体层级、图标、液态玻璃、选中态、状态徽标、分隔线和交互密度
-- 从 `DrawerContent` 提取无抽屉语义的导航组件，避免复制 `SidebarQuickActionCard`、`CompactNavigationDrawerItem` 和徽标逻辑
+- AI Center 组件使用无抽屉语义的命名与状态边界；后续恢复原版状态卡和徽标时，以历史 `SidebarQuickActionCard`、`CompactNavigationDrawerItem` 行为为对照，不恢复抽屉容器
 - 模块状态区显示“Operit AI”，顶栏显示“AI 中心”，不再由 `softwareIdentity` 决定 Kiyori 应用品牌
 - 保留包数量、权限状态、工作流数量和动态插件入口，不把可操作状态退化为静态按钮
 - Compact 使用原版纵向滚动层级；AI 设置固定在安全区上方，不随长列表消失
@@ -270,7 +279,8 @@ AI 中心/
 - 不保留抽屉遮罩、圆角抽屉外壳、75% 屏宽、开合动画、边缘拖动或抽屉关闭后导航等容器行为
 - 不保留原 `PhoneLayout` 对右侧主内容施加的水平与垂直位移、`0.92` 缩放、`-7°` Y 轴旋转、`24dp` 动态圆角和 `18dp` 动态阴影
 - AI 首页在进入和离开 AI 中心时保持原尺寸、原坐标和正面朝向；页面转场只作用于导航目的地，不通过变形底层页面表达层级
-- 实现迁移时删除对应的 `drawerProgress`、`contentTranslationX`、`contentTranslationY`、`contentScale`、`contentRotationY`、`contentCornerRadius` 和 `contentShadowElevation` 抽屉状态，不保留关闭状态下永远为零的旧分支
+- 对应的 `drawerProgress`、`contentTranslationX`、`contentTranslationY`、`contentScale`、`contentRotationY`、`contentCornerRadius` 和 `contentShadowElevation` 抽屉状态已经删除，不保留关闭状态下永远为零的旧分支
+- 抽屉专属水玻璃、按钮玻璃、背景色和强调色偏好已经删除；AI Center 直接使用共享 Operit 主题 token，不继承无效配置
 
 Terminal 不是这次抽屉迁移的对象。第一阶段保留 AI 首页右上角 Terminal 按钮，不在 AI 中心、文件管理首页或开发者设置新增入口。未来若增加入口，所有入口必须指向同一 Terminal 页面、会话与持久状态。
 

@@ -25,7 +25,6 @@ import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsColor
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsFontSection
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsThemeModeSection
 import com.ai.assistance.operit.util.AppLogger
-import com.ai.assistance.operit.ui.main.components.rememberNavigationDrawerAppearance
 import com.ai.assistance.operit.util.FileUtils
 import kotlinx.coroutines.launch
 
@@ -176,11 +175,8 @@ private fun ThemeSettingsBasicColorPanel(
     onShowSaveSuccessMessage: () -> Unit,
 ) {
     val preferencesManager = shared.preferencesManager
-    val navigationDrawerAppearance = rememberNavigationDrawerAppearance()
     val defaultPrimaryColor = Color.Magenta.toArgb()
     val defaultSecondaryColor = Color.Blue.toArgb()
-    val defaultNavigationDrawerBackgroundColor = MaterialTheme.colorScheme.surface.toArgb()
-    val defaultNavigationDrawerAccentColor = navigationDrawerAppearance.titleColor.toArgb()
     val defaultStatusBarColor = MaterialTheme.colorScheme.surface.toArgb()
     val defaultAppBarColor = MaterialTheme.colorScheme.surface.toArgb()
     val defaultHeaderIconColor = Color.Gray.toArgb()
@@ -195,12 +191,6 @@ private fun ThemeSettingsBasicColorPanel(
     val toolbarTransparent by preferencesManager.toolbarTransparent.collectAsState(initial = false)
     val useCustomAppBarColor by preferencesManager.useCustomAppBarColor.collectAsState(initial = false)
     val customAppBarColor by preferencesManager.customAppBarColor.collectAsState(initial = null)
-    val navigationDrawerWaterGlass by preferencesManager.navigationDrawerWaterGlass.collectAsState(initial = false)
-    val navigationDrawerButtonLiquidGlass by preferencesManager.navigationDrawerButtonLiquidGlass.collectAsState(initial = false)
-    val useCustomNavigationDrawerBackgroundColor by preferencesManager.useCustomNavigationDrawerBackgroundColor.collectAsState(initial = false)
-    val customNavigationDrawerBackgroundColor by preferencesManager.customNavigationDrawerBackgroundColor.collectAsState(initial = null)
-    val useCustomNavigationDrawerAccentColor by preferencesManager.useCustomNavigationDrawerAccentColor.collectAsState(initial = false)
-    val customNavigationDrawerAccentColor by preferencesManager.customNavigationDrawerAccentColor.collectAsState(initial = null)
     val chatHeaderTransparent by preferencesManager.chatHeaderTransparent.collectAsState(initial = false)
     val chatHeaderOverlayMode by preferencesManager.chatHeaderOverlayMode.collectAsState(initial = false)
     val chatInputTransparent by preferencesManager.chatInputTransparent.collectAsState(initial = false)
@@ -227,20 +217,6 @@ private fun ThemeSettingsBasicColorPanel(
     var toolbarTransparentInput by remember { mutableStateOf(toolbarTransparent) }
     var useCustomAppBarColorInput by remember { mutableStateOf(useCustomAppBarColor) }
     var customAppBarColorInput by remember { mutableStateOf(customAppBarColor ?: defaultAppBarColor) }
-    var navigationDrawerWaterGlassInput by remember { mutableStateOf(navigationDrawerWaterGlass) }
-    var navigationDrawerButtonLiquidGlassInput by remember { mutableStateOf(navigationDrawerButtonLiquidGlass) }
-    var useCustomNavigationDrawerBackgroundColorInput by remember {
-        mutableStateOf(useCustomNavigationDrawerBackgroundColor)
-    }
-    var navigationDrawerBackgroundColorInput by remember {
-        mutableStateOf(customNavigationDrawerBackgroundColor ?: defaultNavigationDrawerBackgroundColor)
-    }
-    var useCustomNavigationDrawerAccentColorInput by remember {
-        mutableStateOf(useCustomNavigationDrawerAccentColor)
-    }
-    var navigationDrawerAccentColorInput by remember {
-        mutableStateOf(customNavigationDrawerAccentColor ?: defaultNavigationDrawerAccentColor)
-    }
     var chatHeaderTransparentInput by remember { mutableStateOf(chatHeaderTransparent) }
     var chatHeaderOverlayModeInput by remember { mutableStateOf(chatHeaderOverlayMode) }
     var chatInputTransparentInput by remember { mutableStateOf(chatInputTransparent) }
@@ -267,12 +243,6 @@ private fun ThemeSettingsBasicColorPanel(
         toolbarTransparent,
         useCustomAppBarColor,
         customAppBarColor,
-        navigationDrawerWaterGlass,
-        navigationDrawerButtonLiquidGlass,
-        useCustomNavigationDrawerBackgroundColor,
-        customNavigationDrawerBackgroundColor,
-        useCustomNavigationDrawerAccentColor,
-        customNavigationDrawerAccentColor,
         chatHeaderTransparent,
         chatHeaderOverlayMode,
         chatInputTransparent,
@@ -295,13 +265,6 @@ private fun ThemeSettingsBasicColorPanel(
         toolbarTransparentInput = toolbarTransparent
         useCustomAppBarColorInput = useCustomAppBarColor
         customAppBarColorInput = customAppBarColor ?: defaultAppBarColor
-        navigationDrawerWaterGlassInput = navigationDrawerWaterGlass
-        navigationDrawerButtonLiquidGlassInput = navigationDrawerButtonLiquidGlass
-        useCustomNavigationDrawerBackgroundColorInput = useCustomNavigationDrawerBackgroundColor
-        navigationDrawerBackgroundColorInput =
-            customNavigationDrawerBackgroundColor ?: defaultNavigationDrawerBackgroundColor
-        useCustomNavigationDrawerAccentColorInput = useCustomNavigationDrawerAccentColor
-        navigationDrawerAccentColorInput = customNavigationDrawerAccentColor ?: defaultNavigationDrawerAccentColor
         chatHeaderTransparentInput = chatHeaderTransparent
         chatHeaderOverlayModeInput = chatHeaderOverlayMode
         chatInputTransparentInput = chatInputTransparent
@@ -332,16 +295,6 @@ private fun ThemeSettingsBasicColorPanel(
         useCustomAppBarColorInput = useCustomAppBarColorInput,
         onUseCustomAppBarColorInputChange = { useCustomAppBarColorInput = it },
         customAppBarColorInput = customAppBarColorInput,
-        navigationDrawerWaterGlassInput = navigationDrawerWaterGlassInput,
-        onNavigationDrawerWaterGlassInputChange = { navigationDrawerWaterGlassInput = it },
-        navigationDrawerButtonLiquidGlassInput = navigationDrawerButtonLiquidGlassInput,
-        onNavigationDrawerButtonLiquidGlassInputChange = { navigationDrawerButtonLiquidGlassInput = it },
-        useCustomNavigationDrawerBackgroundColorInput = useCustomNavigationDrawerBackgroundColorInput,
-        onUseCustomNavigationDrawerBackgroundColorInputChange = { useCustomNavigationDrawerBackgroundColorInput = it },
-        navigationDrawerBackgroundColorInput = navigationDrawerBackgroundColorInput,
-        useCustomNavigationDrawerAccentColorInput = useCustomNavigationDrawerAccentColorInput,
-        onUseCustomNavigationDrawerAccentColorInputChange = { useCustomNavigationDrawerAccentColorInput = it },
-        navigationDrawerAccentColorInput = navigationDrawerAccentColorInput,
         chatHeaderTransparentInput = chatHeaderTransparentInput,
         onChatHeaderTransparentInputChange = { chatHeaderTransparentInput = it },
         chatHeaderOverlayModeInput = chatHeaderOverlayModeInput,
@@ -382,8 +335,6 @@ private fun ThemeSettingsBasicColorPanel(
             secondaryColorInput = secondaryColorInput,
             statusBarColorInput = customStatusBarColorInput,
             appBarColorInput = customAppBarColorInput,
-            navigationDrawerBackgroundColorInput = navigationDrawerBackgroundColorInput,
-            navigationDrawerAccentColorInput = navigationDrawerAccentColorInput,
             historyIconColorInput = historyIconColorInput,
             pipIconColorInput = pipIconColorInput,
             cursorUserBubbleColorInput = MaterialTheme.colorScheme.primaryContainer.toArgb(),
@@ -396,8 +347,6 @@ private fun ThemeSettingsBasicColorPanel(
                 secondary,
                 statusBar,
                 appBar,
-                navigationDrawerBackground,
-                navigationDrawerAccent,
                 historyIcon,
                 pipIcon,
                 _,
@@ -412,8 +361,6 @@ private fun ThemeSettingsBasicColorPanel(
                     secondaryColor = secondary,
                     statusBarColor = statusBar,
                     appBarColor = appBar,
-                    navigationDrawerBackgroundColor = navigationDrawerBackground,
-                    navigationDrawerAccentColor = navigationDrawerAccent,
                     historyIconColor = historyIcon,
                     pipIconColor = pipIcon,
                 )
@@ -430,14 +377,11 @@ private fun saveSelectedThemeColor(
     secondaryColor: Int?,
     statusBarColor: Int?,
     appBarColor: Int?,
-    navigationDrawerBackgroundColor: Int?,
-    navigationDrawerAccentColor: Int?,
     historyIconColor: Int?,
     pipIconColor: Int?,
 ) {
     val selectedColor =
         primaryColor ?: secondaryColor ?: statusBarColor ?: appBarColor
-            ?: navigationDrawerBackgroundColor ?: navigationDrawerAccentColor
             ?: historyIconColor ?: pipIconColor
     selectedColor?.let { shared.scope.launch { shared.preferencesManager.addRecentColor(it) } }
     shared.saveThemeSettingsWithCharacterCard {
@@ -446,12 +390,6 @@ private fun saveSelectedThemeColor(
             "secondary" -> secondaryColor?.let { shared.preferencesManager.saveThemeSettings(customSecondaryColor = it) }
             "statusBar" -> statusBarColor?.let { shared.preferencesManager.saveThemeSettings(customStatusBarColor = it) }
             "appBar" -> appBarColor?.let { shared.preferencesManager.saveThemeSettings(customAppBarColor = it) }
-            "navigationDrawerBackground" -> navigationDrawerBackgroundColor?.let {
-                shared.preferencesManager.saveThemeSettings(customNavigationDrawerBackgroundColor = it)
-            }
-            "navigationDrawerAccent" -> navigationDrawerAccentColor?.let {
-                shared.preferencesManager.saveThemeSettings(customNavigationDrawerAccentColor = it)
-            }
             "historyIcon" -> historyIconColor?.let {
                 shared.preferencesManager.saveThemeSettings(chatHeaderHistoryIconColor = it)
             }

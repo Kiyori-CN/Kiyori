@@ -66,9 +66,6 @@ fun GlobalDisplaySettingsScreen(
 
     val hasBackgroundImage by userPreferences.useBackgroundImage.collectAsState(initial = false)
     val uiAccessibilityMode by userPreferences.uiAccessibilityMode.collectAsState(initial = false)
-    val softwareIdentity by userPreferences.softwareIdentity.collectAsState(
-        initial = UserPreferencesManager.SOFTWARE_IDENTITY_OPERIT
-    )
     val preferredPermissionLevel by androidPermissionPreferences.preferredPermissionLevelFlow.collectAsState(initial = null)
     val rootExecutionMode by androidPermissionPreferences.rootExecutionModeFlow.collectAsState(initial = RootCommandExecutionMode.AUTO)
     val customSuCommand by androidPermissionPreferences.customSuCommandFlow.collectAsState(initial = AndroidPermissionPreferences.DEFAULT_SU_COMMAND)
@@ -403,57 +400,6 @@ fun GlobalDisplaySettingsScreen(
                     )
                 }
             }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(componentBackgroundColor)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(id = R.string.software_identity_title),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(id = R.string.software_identity_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = softwareIdentity == UserPreferencesManager.SOFTWARE_IDENTITY_OPERIT,
-                        onClick = {
-                            if (softwareIdentity != UserPreferencesManager.SOFTWARE_IDENTITY_OPERIT) {
-                                scope.launch {
-                                    userPreferences.saveSoftwareIdentity(UserPreferencesManager.SOFTWARE_IDENTITY_OPERIT)
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(id = R.string.software_identity_option_operit)) }
-                    )
-                    FilterChip(
-                        selected = softwareIdentity == UserPreferencesManager.SOFTWARE_IDENTITY_LINGSHU,
-                        onClick = {
-                            if (softwareIdentity != UserPreferencesManager.SOFTWARE_IDENTITY_LINGSHU) {
-                                scope.launch {
-                                    userPreferences.saveSoftwareIdentity(UserPreferencesManager.SOFTWARE_IDENTITY_LINGSHU)
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(id = R.string.software_identity_option_lingshu)) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // ======= 自动化状态指示样式 =======
             SectionTitle(

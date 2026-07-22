@@ -35,7 +35,6 @@ import androidx.lifecycle.lifecycleScope
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.AIForegroundService
 import com.ai.assistance.operit.core.application.OperitApplication
-import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
@@ -77,7 +76,6 @@ class MainActivity : ComponentActivity() {
     private var lastOrientation: Int? = null
 
     // ======== 工具和管理器 ========
-    private lateinit var toolHandler: AIToolHandler
     private lateinit var agreementPreferences: AgreementPreferences
     private lateinit var anrMonitor: AnrMonitor
     private lateinit var mcpRepository: MCPRepository
@@ -541,9 +539,6 @@ class MainActivity : ComponentActivity() {
 
     // ======== 初始化组件 ========
     private fun initializeComponents() {
-        // 初始化工具处理器（工具注册已在Application中完成）
-        toolHandler = AIToolHandler.getInstance(this)
-
         // 初始化MCP仓库
         mcpRepository = MCPRepository(this)
 
@@ -690,7 +685,6 @@ class MainActivity : ComponentActivity() {
                                 // 主应用界面 (始终存在于底层)
                                 OperitApp(
                                         initialNavItem = initialNavItem,
-                                        toolHandler = toolHandler,
                                         shortcutNavRequest = shortcutNavItem,
                                         shortcutNavRequestId = shortcutNavRequestId,
                                         routeNavRequest = routeNavRequest,

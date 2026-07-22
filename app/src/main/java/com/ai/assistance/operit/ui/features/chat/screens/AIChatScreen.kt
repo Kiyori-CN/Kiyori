@@ -78,7 +78,6 @@ import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatViewModel
 import com.ai.assistance.operit.ui.main.LocalTopBarActions
 import com.ai.assistance.operit.ui.main.PendingChatDraftHandler
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
-import com.ai.assistance.operit.ui.main.screens.GestureStateHolder
 import com.ai.assistance.operit.ui.main.SharedFileHandler
 import java.io.File
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -766,7 +765,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     val onCurrentDragChange = remember { { it: Float -> currentDrag = it } }
     var verticalDrag by remember { mutableStateOf(0f) }
     val onVerticalDragChange = remember { { it: Float -> verticalDrag = it } }
-    val dragThreshold = 40f // 与PhoneLayout保持一致
+    val dragThreshold = 40f
     val onSwitchCharacter = remember(actualViewModel) {
         { target: CharacterSelectorTarget ->
             actualViewModel.switchActiveCharacterTarget(target)
@@ -787,11 +786,9 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
             hasEverShownWebView = true
         }
     }
-    // 当手势状态改变时，通知父组件
+    // 将聊天内部的横向手势状态保持在聊天边界内，避免首页 Pager 抢占交互。
     LaunchedEffect(chatScreenGestureConsumed, showWebView) {
         val finalGestureState = chatScreenGestureConsumed
-        // 同时更新全局状态持有者，确保PhoneLayout能够访问到状态
-        GestureStateHolder.isChatScreenGestureConsumed = finalGestureState
         onGestureConsumed(finalGestureState)
     }
 

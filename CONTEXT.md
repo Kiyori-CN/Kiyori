@@ -56,6 +56,7 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - AI Center does not contain an AI Dialogue entry. Its page Back action and system Back return to the existing AI Home conversation.
 - The Terminal button remains in the upper-right AI Home toolbar during the product-shell migration. This plan does not add another Terminal entry.
 - Opening AI Center never translates, scales, tilts, rounds, shadows, or otherwise transforms AI Home. Drawer-coupled content perspective is not part of Kiyori navigation.
+- AI Center follows the shared Operit theme tokens. The removed top-level drawer's dedicated glass, background-color, and accent-color preferences are not AI Center settings and are not retained as inactive options.
 - Back from AI Center returns to AI Home. Back from AI Home or Minus-One Page returns to Software Home. Back at a child page returns to its owning root; Back at a non-Software root returns to Software Home. Back at the center Software Home requests exit confirmation.
 - Each primary destination retains its own child stack and scroll state while the user switches roots.
 - Compact windows present AI Center as a full-screen page and push child destinations full-screen. Medium and expanded windows show the AI Center navigation list and child detail side by side inside the same route. Window-size and fold-posture changes preserve the current child route, form state, and scroll state; foldable layouts respect separating hinges and do not split interactive content across them.

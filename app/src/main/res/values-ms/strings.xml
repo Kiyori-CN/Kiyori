@@ -75,8 +75,6 @@
     <string name="colorpicker_select_primary">Pilih warna utama</string>
     <string name="colorpicker_select_secondary">Pilih warna sekunder</string>
     <string name="colorpicker_select_statusbar">Pilih warna bar status</string>
-    <string name="colorpicker_select_navigation_drawer_background">Pilih warna latar belakang menu gelongsor sisi</string>
-    <string name="colorpicker_select_navigation_drawer_accent">Pilih warna aksen menu gelongsor sisi</string>
     <string name="colorpicker_select_history_icon">Pilih warna ikon sejarah</string>
     <string name="colorpicker_select_pip_icon">Pilih warna ikon tetingkap terapung</string>
     <string name="colorpicker_select_cursor_user_bubble">Pilih warna gelembung mesej pengguna arahan</string>
@@ -948,17 +946,6 @@
     <string name="theme_appbar_color">Warna Bar Atas</string>
     <string name="theme_use_custom_appbar_color">Warna Bar Atas Tersuai</string>
     <string name="theme_use_custom_appbar_color_desc">Boleh menyesuaikan warna bar atas selepas dihidupkan</string>
-    <string name="theme_navigation_drawer_title">Tetapan Menu Gelongsor Sisi</string>
-    <string name="theme_navigation_drawer_water_glass">Menu Gelongsor Sisi Kaca Air</string>
-    <string name="theme_navigation_drawer_water_glass_desc">Menu gelongsor sisi kiri akan memaparkan kesan kaca air selepas dihidupkan</string>
-    <string name="theme_navigation_drawer_button_liquid_glass">Latar Belakang Kaca Kasar Butang Bar Sisi</string>
-    <string name="theme_navigation_drawer_button_liquid_glass_desc">Setiap butang bar sisi akan memaparkan latar belakang kaca kasar selepas dihidupkan</string>
-    <string name="theme_navigation_drawer_background_color">Warna Latar Belakang Menu Gelongsor Sisi</string>
-    <string name="theme_navigation_drawer_accent_color">Warna Aksen Menu Gelongsor Sisi</string>
-    <string name="theme_use_custom_navigation_drawer_background_color">Warna Latar Belakang Menu Gelongsor Sisi Tersuai</string>
-    <string name="theme_use_custom_navigation_drawer_background_color_desc">Boleh menyesuaikan warna latar belakang menu gelongsor sisi kiri selepas dihidupkan</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color">Warna Aksen Menu Gelongsor Sisi Tersuai</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color_desc">Boleh menyeragamkan warna penanda jenama, tajuk kecil, status rangkaian dan garisan pemisah selepas dihidupkan</string>
     <string name="theme_statusbar_color">Warna Bar Status</string>
     <string name="theme_use_custom_statusbar_color">Warna Bar Status Tersuai</string>
     <string name="theme_use_custom_statusbar_color_desc">Boleh menyesuaikan warna bar status selepas dihidupkan</string>
@@ -4586,7 +4573,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="keep_screen_on">Skrin sentiasa menyala</string>
     <string name="keep_screen_on_description">Pastikan skrin sentiasa menyala, elakkan kunci automatik semasa perbualan</string>
     <string name="enable_navigation_animation">Animasi navigasi versi baharu</string>
-    <string name="enable_navigation_animation_description">Apabila dihidupkan, dayakan kesan animasi dipertingkatkan untuk bar sisi telefon dan pertukaran halaman. Apabila dimatikan, gunakan peralihan navigasi yang ringkas.</string>
+    <string name="enable_navigation_animation_description">Apabila dihidupkan, gunakan animasi peralihan halaman yang dipertingkatkan. Matikan untuk menggunakan peralihan navigasi yang ringkas.</string>
     <string name="assigned_to_character_group">Telah dikategorikan ke dalam kumpulan perbualan watak "%1$s"</string>
     <string name="character_fallback">Wat</string>
     <string name="selected_chats_count">Telah memilih %1$d / %2$d item</string>
@@ -5394,8 +5381,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="theme_default_character_card">Kad watak lalai</string>
     <string name="theme_font_settings">Tetapan fon</string>
     <string name="app_content_navigate_back">Kembali</string>
-    <string name="app_content_collapse_sidebar">Tutup bar sisi</string>
-    <string name="app_content_expand_sidebar">Kembangkan bar sisi</string>
     <string name="app_content_loading">Memuatkan...</string>
     <string name="theme_font_default">Fon lalai</string>
     <string name="theme_font_serif">Fon serif (Serif)</string>
@@ -6790,10 +6775,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="show_message_timing_stats_description">Paparkan masa paket pertama dan penjanaan di bahagian bawah mesej AI</string>
     <string name="chat_message_token_stats_compact">token: %1$d ↑ %3$d (cache: %2$d) ↓ %4$d</string>
     <string name="chat_message_timing_stats_compact">masa: %1$s (pertama %2$s jana %3$s)</string>
-    <string name="software_identity_title">Identiti Perisian</string>
-    <string name="software_identity_description">Tukar identiti perisian yang dipaparkan di bahagian atas bar sisi.</string>
-    <string name="software_identity_option_operit">Kiyori</string>
-    <string name="software_identity_option_lingshu">Lingshu AI</string>
     <string name="chat_auto_update_memory_failed">Gagal mengemas kini memori secara automatik: %1$s</string>
 
     <string name="nav_group_plugins">Pemalam</string>
@@ -7161,4 +7142,23 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="ai_message_use_package_failed">Panggilan use_package gagal: %1$s</string>
     <string name="ai_message_use_package_empty">Pulangan use_package kosong.</string>
     <string name="ai_message_package_warmup_item">%1$d. Kit %2$s (dikenakan %3$d kali)</string>
+    <string name="kiyori_shell_software_home">Laman Utama</string>
+    <string name="kiyori_shell_browser_home">Pelayar</string>
+    <string name="kiyori_shell_mini_app_home">Aplikasi Mini</string>
+    <string name="kiyori_shell_file_management_home">Fail</string>
+    <string name="kiyori_shell_settings_home">Tetapan</string>
+    <string name="kiyori_shell_minus_one">Halaman Sisi</string>
+    <string name="kiyori_shell_search_hint">Masukkan URL atau cari di web</string>
+    <string name="kiyori_shell_search_action">Cari</string>
+    <string name="kiyori_shell_ai_action">AI</string>
+    <string name="kiyori_shell_web_search">Carian Web</string>
+    <string name="kiyori_shell_ai_center">Pusat AI</string>
+    <string name="kiyori_shell_ai_capabilities">Keupayaan AI</string>
+    <string name="kiyori_shell_extensions">Alat dan Sambungan</string>
+    <string name="kiyori_shell_ai_settings">Tetapan AI</string>
+    <string name="kiyori_shell_favorites">Kegemaran</string>
+    <string name="kiyori_shell_bookmarks">Penanda Buku</string>
+    <string name="kiyori_shell_history">Sejarah</string>
+    <string name="kiyori_shell_downloads">Muat Turun</string>
+    <string name="kiyori_shell_exit_hint">Tekan Kembali sekali lagi untuk keluar dari Kiyori</string>
 </resources>

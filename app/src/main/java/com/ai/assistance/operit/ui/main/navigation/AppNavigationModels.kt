@@ -35,7 +35,7 @@ data class NavigationEntryActionSpec(
 
 enum class RouteEntrySource {
     DEFAULT,
-    DRAWER,
+    AI_CENTER,
     SCRIPT
 }
 

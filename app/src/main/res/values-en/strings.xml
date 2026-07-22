@@ -3030,8 +3030,6 @@
     <string name="theme_default_character_card">Default character card</string>
     <string name="theme_font_settings">Font settings</string>
     <string name="app_content_navigate_back">Back</string>
-    <string name="app_content_collapse_sidebar">Collapse sidebar</string>
-    <string name="app_content_expand_sidebar">Expand sidebar</string>
     <string name="app_content_loading">Loading...</string>
     <string name="theme_font_default">Default Font</string>
     <string name="theme_font_serif">Serif</string>
@@ -5000,13 +4998,9 @@
     <string name="keep_screen_on">Keep Screen On</string>
     <string name="keep_screen_on_description">Keep screen awake to prevent auto-lock during conversations</string>
     <string name="enable_navigation_animation">New Navigation Animation</string>
-    <string name="enable_navigation_animation_description">Turns on the enhanced animation set for both the phone sidebar and page transitions. Turn it off to use simpler navigation motion.</string>
+    <string name="enable_navigation_animation_description">Turns on enhanced page-transition animations. Turn it off to use simpler navigation motion.</string>
     <string name="start_with_new_chat">Start with New Blank Chat</string>
     <string name="start_with_new_chat_description">When enabled, each app launch opens a new blank chat instead of reopening the previous conversation.</string>
-    <string name="software_identity_title">Software Identity</string>
-    <string name="software_identity_description">Change the software identity shown at the top of the sidebar.</string>
-    <string name="software_identity_option_operit">Kiyori</string>
-    <string name="software_identity_option_lingshu">Lingshu AI</string>
     <string name="reset_all_display_settings">Reset All Display Settings</string>
     
     <!-- Chat History Management -->
@@ -7501,19 +7495,6 @@
 
     <string name="sidebar_permission_short">Permissions</string>
     <string name="sidebar_status_normal">Normal</string>
-    <string name="colorpicker_select_navigation_drawer_background">Select Navigation Drawer Background Color</string>
-    <string name="colorpicker_select_navigation_drawer_accent">Select Navigation Drawer Accent Color</string>
-    <string name="theme_navigation_drawer_title">Navigation Drawer Settings</string>
-    <string name="theme_navigation_drawer_water_glass">Water Glass Navigation Drawer</string>
-    <string name="theme_navigation_drawer_water_glass_desc">When enabled, the left navigation drawer will display a water glass effect</string>
-    <string name="theme_navigation_drawer_button_liquid_glass">Sidebar Button Frosted Glass Background</string>
-    <string name="theme_navigation_drawer_button_liquid_glass_desc">When enabled, each sidebar button will display a frosted glass background</string>
-    <string name="theme_navigation_drawer_background_color">Navigation Drawer Background Color</string>
-    <string name="theme_navigation_drawer_accent_color">Navigation Drawer Accent Color</string>
-    <string name="theme_use_custom_navigation_drawer_background_color">Custom Navigation Drawer Background Color</string>
-    <string name="theme_use_custom_navigation_drawer_background_color_desc">When enabled, you can customize the background color of the left navigation drawer</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color">Custom Navigation Drawer Accent Color</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color_desc">When enabled, you can uniformly customize the brand logo, subtitle, network status, and divider line colors</string>
     <string name="chat_style_bubble_ai_bubble_liquid_glass">Bubble AI Message Frosted Glass Background</string>
     <string name="chat_style_bubble_ai_bubble_liquid_glass_desc">When enabled, the bubble AI message background will display an iOS-style frosted glass effect</string>
     <string name="chat_style_bubble_ai_bubble_water_glass">Bubble AI Message Water Glass Background</string>
@@ -7880,4 +7861,23 @@
     <string name="ai_message_use_package_failed">use_package call failed: %1$s</string>
     <string name="ai_message_use_package_empty">use_package returned empty.</string>
     <string name="ai_message_package_warmup_item">%1$d. Package %2$s (hit %3$d times)</string>
+    <string name="kiyori_shell_software_home">Software Home</string>
+    <string name="kiyori_shell_browser_home">Browser</string>
+    <string name="kiyori_shell_mini_app_home">Mini Apps</string>
+    <string name="kiyori_shell_file_management_home">Files</string>
+    <string name="kiyori_shell_settings_home">Settings</string>
+    <string name="kiyori_shell_minus_one">Minus-One Page</string>
+    <string name="kiyori_shell_search_hint">Enter a URL or search the web</string>
+    <string name="kiyori_shell_search_action">Search</string>
+    <string name="kiyori_shell_ai_action">AI</string>
+    <string name="kiyori_shell_web_search">Web Search</string>
+    <string name="kiyori_shell_ai_center">AI Center</string>
+    <string name="kiyori_shell_ai_capabilities">AI Capabilities</string>
+    <string name="kiyori_shell_extensions">Tools &amp; Extensions</string>
+    <string name="kiyori_shell_ai_settings">AI Settings</string>
+    <string name="kiyori_shell_favorites">Favorites</string>
+    <string name="kiyori_shell_bookmarks">Bookmarks</string>
+    <string name="kiyori_shell_history">History</string>
+    <string name="kiyori_shell_downloads">Downloads</string>
+    <string name="kiyori_shell_exit_hint">Press Back again to exit Kiyori</string>
 </resources>

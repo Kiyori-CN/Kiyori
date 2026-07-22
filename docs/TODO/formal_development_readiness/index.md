@@ -40,7 +40,7 @@ formal_development_readiness/
 
 - 品牌/兼容性：部分完成。用户可见的终端名称已改为 Kiyori，协议、存储、备份和市场生态标识保留
 - 自动门禁：2026-07-22 使用项目 `.venv` 执行正式准备检查和 `ci/test`，门禁通过，47 项 Python 测试通过
-- Debug 构建：2026-07-22 `assembleDebug` 通过，产物为 `app/build/outputs/apk/debug/app-debug.apk`，SHA-256 为 `AAD665C68F591713FB1BE0DD254A80F4839C879C4B977483B7503E3A3C58D559`
+- Debug 构建：2026-07-22 `assembleDebug` 通过，产物为 `app/build/outputs/apk/debug/app-debug.apk`，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 为 `0965F20AAF85DC3EDF86E9C7789A4ABCC5F9130CFF1D7D5AB73ADD4CABB441FC`
 - 新鲜克隆：候选提交形成后、推送前执行，确保验证的是本次准备基线而不是旧 `HEAD`
 - Android 身份迁移：已记录为新 application ID，旧 Operit 安装不能直接覆盖
 - 真机验收：待验证，不由静态检查或 Debug 构建代替

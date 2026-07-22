@@ -20,8 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,14 +48,11 @@ import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.repository.ChatHistoryManager
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.common.displays.FpsCounter
-import com.ai.assistance.operit.ui.main.NavigationTransitionSource
 import com.ai.assistance.operit.ui.main.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.navigation.RouteEntry
 import com.ai.assistance.operit.ui.main.navigation.LocalRouteInstanceId
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.common.composedsl.ToolPkgComposeDslToolScreen
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -133,17 +129,13 @@ fun AppContent(
         currentRouteEntry: RouteEntry,
         currentScreen: Screen,
         selectedItem: NavItem?,
-        useTabletLayout: Boolean,
-        isTabletSidebarExpanded: Boolean,
+        isWideLayout: Boolean,
         isLoading: Boolean,
         navController: NavController,
-        scope: CoroutineScope,
-        drawerState: androidx.compose.material3.DrawerState,
         showFpsCounter: Boolean,
         enableNavigationAnimation: Boolean,
-        navigationTransitionSource: NavigationTransitionSource,
         onScreenChange: (Screen) -> Unit,
-        onToggleSidebar: () -> Unit,
+        onOpenNavigation: () -> Unit,
         navigateToTokenConfig: () -> Unit,
         onLoading: (Boolean) -> Unit = {},
         onError: (String) -> Unit = {},
@@ -160,11 +152,8 @@ fun AppContent(
     val manifestSoftInputMode = remember(hostActivity) { hostActivity?.manifestSoftInputMode() }
     val density = LocalDensity.current
     val pageTransitionDurationMillis = if (enableNavigationAnimation) 280 else 400
-    val drawerRelayTransitionDurationMillis = 320
     val pageTransitionOffsetPx =
-        with(density) { if (useTabletLayout) 28.dp.toPx() else 20.dp.toPx() }
-    val drawerNavigationOffsetPx =
-        with(density) { if (useTabletLayout) 40.dp.toPx() else 30.dp.toPx() }
+        with(density) { if (isWideLayout) 28.dp.toPx() else 20.dp.toPx() }
     ImeWakeListeningEffect(context = context, density = density)
     val preferencesManager = UserPreferencesManager.getInstance(context)
     val useBackgroundImage =
@@ -310,29 +299,16 @@ fun AppContent(
                                 if (canGoBack) {
                                     onGoBack()
                                 } else {
-                                    // 平板模式下切换侧边栏展开/收起状态
-                                    if (useTabletLayout) {
-                                        onToggleSidebar()
-                                    } else {
-                                        // 手机模式下打开抽屉
-                                        scope.launch { drawerState.open() }
-                                    }
+                                    onOpenNavigation()
                                 }
                             }
                         ) {
                             Icon(
-                                if (canGoBack) Icons.Default.ArrowBack
-                                else if (useTabletLayout)
-                                // 平板模式下使用开关图标表示收起/展开
-                                    if (isTabletSidebarExpanded) Icons.Filled.ChevronLeft
-                                    else Icons.Default.Menu
+                                if (canGoBack) Icons.AutoMirrored.Filled.ArrowBack
                                 else Icons.Default.Menu,
                                 contentDescription =
                                 when {
                                     canGoBack -> stringResource(R.string.app_content_navigate_back)
-                                    useTabletLayout ->
-                                        if (isTabletSidebarExpanded) stringResource(R.string.app_content_collapse_sidebar)
-                                        else stringResource(R.string.app_content_expand_sidebar)
                                     else -> stringResource(id = R.string.menu)
                                 },
                                 tint = appBarContentColor
@@ -498,16 +474,7 @@ fun AppContent(
                             }
 
                             // 等待动画完成后停止过渡状态
-                            val transitionDurationMillis =
-                                if (!useTabletLayout &&
-                                    navigationTransitionSource == NavigationTransitionSource.DRAWER &&
-                                    !isNavigatingBack
-                                ) {
-                                    drawerRelayTransitionDurationMillis
-                                } else {
-                                    pageTransitionDurationMillis
-                                }
-                            kotlinx.coroutines.delay(transitionDurationMillis.toLong())
+                            kotlinx.coroutines.delay(pageTransitionDurationMillis.toLong())
 
                             isTransitioning = false
                             transitionFromKey = null
@@ -537,12 +504,6 @@ fun AppContent(
                         renderKeys.forEach { screenKey ->
                             val screenContent = screenCache[screenKey] ?: return@forEach
                             val isCurrentScreen = screenKey == currentScreenKey
-                            val isDrawerRelayTransition =
-                                !useTabletLayout &&
-                                    navigationTransitionSource == NavigationTransitionSource.DRAWER &&
-                                    !isNavigatingBack &&
-                                    allowCrossfadeForActiveTransition
-
                             key(screenKey) {
                                 // 为每个屏幕维护一个独立的可见性状态
                                 var visibility by remember { mutableStateOf(ScreenVisibility.HIDDEN) }
@@ -560,17 +521,9 @@ fun AppContent(
                                 val alpha by transition.animateFloat(
                                     transitionSpec = {
                                         tween(
-                                            durationMillis =
-                                                if (isDrawerRelayTransition) drawerRelayTransitionDurationMillis
-                                                else pageTransitionDurationMillis,
+                                            durationMillis = pageTransitionDurationMillis,
                                             easing =
-                                                if (isDrawerRelayTransition) {
-                                                    if (targetState == ScreenVisibility.VISIBLE) {
-                                                        LinearOutSlowInEasing
-                                                    } else {
-                                                        FastOutLinearInEasing
-                                                    }
-                                                } else if (enableNavigationAnimation) {
+                                                if (enableNavigationAnimation) {
                                                     if (targetState == ScreenVisibility.VISIBLE) {
                                                         LinearOutSlowInEasing
                                                     } else {
@@ -595,9 +548,7 @@ fun AppContent(
                                 val translationX by transition.animateFloat(
                                     transitionSpec = {
                                         tween(
-                                            durationMillis =
-                                                if (isDrawerRelayTransition) drawerRelayTransitionDurationMillis
-                                                else pageTransitionDurationMillis,
+                                            durationMillis = pageTransitionDurationMillis,
                                             easing = FastOutSlowInEasing
                                         )
                                     },
@@ -605,14 +556,6 @@ fun AppContent(
                                 ) { currentVisibility ->
                                     if (!allowCrossfadeForActiveTransition) {
                                         0f
-                                    } else if (isDrawerRelayTransition) {
-                                        if (currentVisibility == ScreenVisibility.VISIBLE) {
-                                            0f
-                                        } else if (isCurrentScreen) {
-                                            -drawerNavigationOffsetPx
-                                        } else {
-                                            drawerNavigationOffsetPx * 0.18f
-                                        }
                                     } else if (!enableNavigationAnimation) {
                                         0f
                                     } else if (currentVisibility == ScreenVisibility.VISIBLE) {
@@ -628,9 +571,7 @@ fun AppContent(
                                 val scale by transition.animateFloat(
                                     transitionSpec = {
                                         tween(
-                                            durationMillis =
-                                                if (isDrawerRelayTransition) drawerRelayTransitionDurationMillis
-                                                else pageTransitionDurationMillis,
+                                            durationMillis = pageTransitionDurationMillis,
                                             easing = FastOutSlowInEasing
                                         )
                                     },
@@ -638,14 +579,6 @@ fun AppContent(
                                 ) { currentVisibility ->
                                     if (!allowCrossfadeForActiveTransition) {
                                         1f
-                                    } else if (isDrawerRelayTransition) {
-                                        if (currentVisibility == ScreenVisibility.VISIBLE) {
-                                            1f
-                                        } else if (isCurrentScreen) {
-                                            0.975f
-                                        } else {
-                                            0.995f
-                                        }
                                     } else if (!enableNavigationAnimation) {
                                         1f
                                     } else if (currentVisibility == ScreenVisibility.VISIBLE) {

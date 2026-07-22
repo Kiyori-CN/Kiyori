@@ -72,7 +72,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.chat.components.MessageEditor
-import com.ai.assistance.operit.ui.main.screens.GestureStateHolder
 import kotlin.math.roundToInt
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -1129,7 +1128,6 @@ fun ChatHistorySelectorPanel(
                 autoSwitchChatOnCharacterSelect = autoSwitchChatOnCharacterSelect,
                 onAutoSwitchChatOnCharacterSelectChange = onAutoSwitchChatOnCharacterSelectChange,
                 onQuickScrollInteractionChange = { consumed ->
-                    GestureStateHolder.isChatScreenGestureConsumed = consumed
                     onChatScreenGestureConsumed(consumed)
                 },
                 activePrompt = activePrompt

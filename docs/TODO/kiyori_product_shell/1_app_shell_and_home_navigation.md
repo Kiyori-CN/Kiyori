@@ -1,16 +1,27 @@
 ---
-status: planned
+status: in_progress
 ---
 
 # Kiyori App Shell 与首页导航
 
-## 当前情况
+## 当前实现切片
+
+- `KiyoriShellState` 已建立五个根目的地、三个首页页面、子页面可见性与 Back 决策
+- Kiyori App Shell 已接管启动页面、首页 Pager、底部五入口和 AI Home 宿主位置
+- AI Center 已作为全屏页面入口替代旧抽屉，并把既有 AI 能力路由作为子页面打开
+- 手机抽屉手势、倾斜缩放变换、平板旧侧栏和跨页面手势全局状态已从主导航调用链删除
+- 浏览器、小程序、文件和设置当前只完成根页面骨架，领域内容与每个根页面的独立子栈仍待后续切片接入
+- 真机手势、Back、旋转、折叠屏与流式对话持续性保持 `verification_pending`
+
+## 迁移前基线
 
 - Launcher Activity 为 `ui/main/MainActivity.kt`
 - `MainActivity` 直接装配 `OperitApp`
 - `OperitApp` 同时拥有路由、手机抽屉、平板侧栏和 AI 页面
 - `PhoneLayout` 在根布局捕获水平拖动并控制 75% 宽抽屉
 - `Screen.AiChat` 已经可以作为独立 AI 对话内容渲染
+
+以上旧壳现状仅用于说明迁移来源；`PhoneLayout`、`TabletLayout`、`DrawerContent`、`NavigationComponents` 和抽屉专属外观实现已在当前切片删除。
 
 ## 目标结果
 
@@ -59,3 +70,11 @@ status: planned
 - 切换底部入口后，各根页面子栈和滚动状态未丢失
 - 屏幕旋转、窗口缩放和进程状态恢复不产生重复 AI 根页面
 - Back 与手势状态表测试通过，真机交互保持 `verification_pending` 直到设备验收
+
+## 当前验收结论
+
+- 已通过：Shell 状态 JVM 测试、完整 Debug JVM 单元测试、Debug Kotlin 编译、47 项 CI Python 测试、正式开发准备门禁、lint baseline、`git diff --check`、旧顶层抽屉引用清理和 `assembleDebug`
+- 构建证据：`app-debug.apk`，`com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `0965F20AAF85DC3EDF86E9C7789A4ABCC5F9130CFF1D7D5AB73ADD4CABB441FC`
+- 部分完成：五个根页面与全屏搜索已建立宿主，但除软件首页与 AI 首页外仍是骨架
+- 未完成：每个根页面的独立子栈和滚动状态、真实搜索提交、负一屏数据、自适应 Rail/双栏
+- 待验证：真机左右滑动、聊天内部手势仲裁、Back、旋转、折叠姿态与流式对话持续性

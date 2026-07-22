@@ -1,12 +1,21 @@
 ---
-status: planned
+status: in_progress
 ---
 
 # AI 中心与设置归属
 
-## 当前情况
+## 迁移前基线
 
 `DrawerContent` 与 `NavItem` 混合承载 AI、工具、系统和产品入口，包括助手配置、包管理、记忆、工具箱、Shizuku、工作流、设置、帮助、关于和 ToolPkg 插件入口。
+
+## 当前实现边界
+
+- AI 首页三横线按钮已经打开全屏 AI Center，不再打开覆盖式抽屉
+- 包管理、权限授予、工作流、助手配置、记忆库、工具箱和 ToolPkg 动态入口已可从 AI Center 进入现有页面
+- “AI 对话”、关于和使用手册未迁入 AI Center；Terminal 仍只在 AI 首页右上角
+- 旧 `DrawerContent`、手机/平板顶层抽屉容器、透视动画和抽屉专属主题设置已删除
+- 当前页面仍是 Compact 单栏首切片；模块状态、真实徽标、权限中心、AI 设置拆分和 Medium/Expanded 双栏尚未实现
+- 在权限中心落地前，现有“权限授予”页面仍是设备执行通道入口；这不代表它与 `ToolPermissionSystem` 合并
 
 ## 目标结果
 

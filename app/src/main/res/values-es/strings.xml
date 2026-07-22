@@ -1406,7 +1406,7 @@
     <string name="mcp_config_invalid_missing_server_entry">Inválido: falta mcpServers.%1$s</string>
     <string name="mcp_config_invalid_missing_command">Inválido: falta comando</string>
     <string name="enable_navigation_animation">Nueva animación de navegación</string>
-    <string name="enable_navigation_animation_description">Activa el conjunto mejorado de animaciones para la barra lateral del móvil y las transiciones de página. Desactívela para usar una navegación más simple.</string>
+    <string name="enable_navigation_animation_description">Activa las animaciones mejoradas de transición entre páginas. Desactívalas para usar una navegación más simple.</string>
 
     <string name="workflow_cron_preset_every_30_minutes">Cada 30 minutos</string>
     <string name="workflow_cron_preset_every_monday_midnight">Cada lunes a medianoche</string>
@@ -1628,8 +1628,6 @@
     <string name="colorpicker_select_primary">Seleccionar color primario</string>
     <string name="colorpicker_select_secondary">Seleccionar color secundario</string>
     <string name="colorpicker_select_statusbar">Seleccionar color de la barra de estado</string>
-    <string name="colorpicker_select_navigation_drawer_background">Seleccionar color de fondo del menú lateral</string>
-    <string name="colorpicker_select_navigation_drawer_accent">Seleccionar color de acento del menú lateral</string>
     <string name="colorpicker_select_history_icon">Seleccionar color del icono de historial</string>
     <string name="colorpicker_select_pip_icon">Seleccionar color del icono de ventana flotante</string>
     <string name="colorpicker_select_cursor_user_bubble">Seleccionar color del cuadro de mensaje de usuario imperativo</string>
@@ -2112,17 +2110,6 @@
     <string name="theme_appbar_color">Color de la barra superior</string>
     <string name="theme_use_custom_appbar_color">Color personalizado de la barra superior</string>
     <string name="theme_use_custom_appbar_color_desc">Al activarlo, puede personalizar el color de la barra superior</string>
-    <string name="theme_navigation_drawer_title">Configuración del menú deslizante</string>
-    <string name="theme_navigation_drawer_water_glass">Menú deslizante de vidrio líquido</string>
-    <string name="theme_navigation_drawer_water_glass_desc">Al activarlo, el menú deslizante izquierdo mostrará un efecto de vidrio líquido</string>
-    <string name="theme_navigation_drawer_button_liquid_glass">Fondo de vidrio esmerilado para botones del panel lateral</string>
-    <string name="theme_navigation_drawer_button_liquid_glass_desc">Al activarlo, cada botón del panel lateral mostrará un fondo de vidrio esmerilado</string>
-    <string name="theme_navigation_drawer_background_color">Color de fondo del menú deslizante</string>
-    <string name="theme_navigation_drawer_accent_color">Color de acento del menú deslizante</string>
-    <string name="theme_use_custom_navigation_drawer_background_color">Color de fondo personalizado del menú deslizante</string>
-    <string name="theme_use_custom_navigation_drawer_background_color_desc">Al activarlo, puede personalizar el color de fondo del menú deslizante izquierdo</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color">Color de acento personalizado del menú deslizante</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color_desc">Al activarlo, puede personalizar de forma unificada el color de la marca, subtítulos, estado de red y líneas divisorias</string>
     <string name="theme_statusbar_hidden">Ocultar barra de estado</string>
     <string name="theme_statusbar_hidden_desc">Al activarlo, la barra de estado se ocultará por completo, obteniendo más espacio de visualización</string>
     <string name="floating_chat_window_desc">Muestra una ventana flotante en la pantalla para acceder rápidamente a la función de chat</string>
@@ -4761,10 +4748,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="enable_reply_notification_vibration_description">Vibrar cuando se active la notificación de respuesta</string>
     <string name="keep_screen_on">Pantalla siempre encendida</string>
     <string name="keep_screen_on_description">Mantener la pantalla encendida para evitar que se bloquee automáticamente durante la conversación</string>
-    <string name="software_identity_title">Identidad del software</string>
-    <string name="software_identity_description">Cambiar la identidad del software que se muestra en la parte superior de la barra lateral.</string>
-    <string name="software_identity_option_operit">Kiyori</string>
-    <string name="software_identity_option_lingshu">Lingshu AI</string>
     <string name="reset_all_display_settings">Restablecer toda la configuración de pantalla</string>
     <string name="ui_accessibility_mode">Modo de accesibilidad</string>
     <string name="ui_accessibility_mode_description">Optimizar el comportamiento de automatización de la interfaz de usuario para usuarios de accesibilidad como TalkBack, priorizando pasos legibles y evitando clics automáticos.</string>
@@ -5459,8 +5442,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="theme_default_character_card">Tarjeta de personaje predeterminada</string>
     <string name="theme_font_settings">Configuración de fuente</string>
     <string name="app_content_navigate_back">Volver</string>
-    <string name="app_content_collapse_sidebar">Contraer barra lateral</string>
-    <string name="app_content_expand_sidebar">Expandir barra lateral</string>
     <string name="app_content_loading">Cargando...</string>
     <string name="theme_font_default">Fuente predeterminada</string>
     <string name="theme_font_serif">Serif</string>
@@ -7231,4 +7212,23 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="ai_message_use_package_failed">Error al llamar a use_package: %1$s</string>
     <string name="ai_message_use_package_empty">use_package devolvió un resultado vacío.</string>
     <string name="ai_message_package_warmup_item">%1$d. Kit %2$s (usado %3$d veces)</string>
+    <string name="kiyori_shell_software_home">Inicio</string>
+    <string name="kiyori_shell_browser_home">Navegador</string>
+    <string name="kiyori_shell_mini_app_home">Miniaplicaciones</string>
+    <string name="kiyori_shell_file_management_home">Archivos</string>
+    <string name="kiyori_shell_settings_home">Ajustes</string>
+    <string name="kiyori_shell_minus_one">Página lateral</string>
+    <string name="kiyori_shell_search_hint">Introduce una URL o busca en la web</string>
+    <string name="kiyori_shell_search_action">Buscar</string>
+    <string name="kiyori_shell_ai_action">IA</string>
+    <string name="kiyori_shell_web_search">Búsqueda web</string>
+    <string name="kiyori_shell_ai_center">Centro de IA</string>
+    <string name="kiyori_shell_ai_capabilities">Capacidades de IA</string>
+    <string name="kiyori_shell_extensions">Herramientas y extensiones</string>
+    <string name="kiyori_shell_ai_settings">Ajustes de IA</string>
+    <string name="kiyori_shell_favorites">Favoritos</string>
+    <string name="kiyori_shell_bookmarks">Marcadores</string>
+    <string name="kiyori_shell_history">Historial</string>
+    <string name="kiyori_shell_downloads">Descargas</string>
+    <string name="kiyori_shell_exit_hint">Pulsa Atrás de nuevo para salir de Kiyori</string>
 </resources>

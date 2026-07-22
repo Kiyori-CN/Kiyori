@@ -82,7 +82,6 @@
     <string name="error_occurred">Terjadi kesalahan: %1$s</string>
     <string name="avatar_config">Konfigurasi avatar virtual</string>
 
-    <string name="colorpicker_select_navigation_drawer_accent">Pilih warna aksen menu geser samping</string>
     <string name="colorpicker_select_history_icon">Pilih warna ikon riwayat</string>
     <string name="colorpicker_select_pip_icon">Pilih warna ikon jendela mengambang</string>
     <string name="colorpicker_select_cursor_user_bubble">Pilih warna balon pesan pengguna imperatif</string>
@@ -203,7 +202,6 @@
     <string name="colorpicker_select_primary">Pilih warna utama</string>
     <string name="colorpicker_select_secondary">Pilih warna sekunder</string>
     <string name="colorpicker_select_statusbar">Pilih warna bilah status</string>
-    <string name="colorpicker_select_navigation_drawer_background">Pilih warna latar menu geser samping</string>
 
     <string name="app_name">Kiyori</string>
     <string name="accessibility_service_description">Digunakan untuk mendapatkan hierarki UI, memberikan kemampuan analisis antarmuka yang lebih cepat untuk asisten AI, tidak akan mengumpulkan atau menyimpan informasi pribadi apa pun.</string>
@@ -880,17 +878,6 @@
 
     <string name="theme_use_custom_appbar_color">Warna Bar Atas Kustom</string>
     <string name="theme_use_custom_appbar_color_desc">Aktifkan untuk menyesuaikan warna bar atas</string>
-    <string name="theme_navigation_drawer_title">Pengaturan Menu Geser Samping</string>
-    <string name="theme_navigation_drawer_water_glass">Menu Geser Samping Kaca Air</string>
-    <string name="theme_navigation_drawer_water_glass_desc">Aktifkan untuk menampilkan efek kaca air di menu geser sisi kiri</string>
-    <string name="theme_navigation_drawer_button_liquid_glass">Latar Belakang Kaca Buram Tombol Bilah Samping</string>
-    <string name="theme_navigation_drawer_button_liquid_glass_desc">Aktifkan untuk menampilkan latar belakang kaca buram pada setiap tombol bilah samping</string>
-    <string name="theme_navigation_drawer_background_color">Warna Latar Belakang Menu Geser Samping</string>
-    <string name="theme_navigation_drawer_accent_color">Warna Aksen Menu Geser Samping</string>
-    <string name="theme_use_custom_navigation_drawer_background_color">Warna Latar Belakang Menu Geser Samping Kustom</string>
-    <string name="theme_use_custom_navigation_drawer_background_color_desc">Aktifkan untuk menyesuaikan warna latar belakang menu geser sisi kiri</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color">Warna Aksen Menu Geser Samping Kustom</string>
-    <string name="theme_use_custom_navigation_drawer_accent_color_desc">Aktifkan untuk menyesuaikan warna identitas merek, subjudul, status jaringan, dan garis pemisah secara seragam</string>
     <string name="theme_statusbar_color">Warna Bilah Status</string>
     <string name="theme_use_custom_statusbar_color">Warna Bilah Status Kustom</string>
     <string name="theme_use_custom_statusbar_color_desc">Aktifkan untuk menyesuaikan warna bilah status</string>
@@ -4587,7 +4574,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="keep_screen_on">Layar Selalu Menyala</string>
     <string name="keep_screen_on_description">Jaga layar tetap menyala untuk mencegah penguncian otomatis selama percakapan</string>
     <string name="enable_navigation_animation">Animasi Navigasi Baru</string>
-    <string name="enable_navigation_animation_description">Saat diaktifkan, mengaktifkan efek animasi yang ditingkatkan untuk sidebar ponsel dan peralihan halaman. Saat dinonaktifkan, menggunakan transisi navigasi yang sederhana.</string>
+    <string name="enable_navigation_animation_description">Saat diaktifkan, menggunakan animasi transisi halaman yang ditingkatkan. Nonaktifkan untuk menggunakan transisi navigasi yang lebih sederhana.</string>
     <string name="reset_all_display_settings">Atur Ulang Semua Pengaturan Tampilan</string>
     <string name="ui_accessibility_mode">Mode Adaptasi Aksesibilitas UI</string>
     <string name="ui_accessibility_mode_description">Mengoptimalkan perilaku otomatisasi UI untuk pengguna aksesibilitas seperti TalkBack, memprioritaskan langkah-langkah operasi yang dapat dibacakan, dan berhati-hati dalam mengeksekusi klik otomatis.</string>
@@ -5519,8 +5506,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="theme_default_character_card">Kartu karakter default</string>
     <string name="theme_font_settings">Pengaturan font</string>
     <string name="app_content_navigate_back">Kembali</string>
-    <string name="app_content_collapse_sidebar">Tutup bilah sisi</string>
-    <string name="app_content_expand_sidebar">Buka bilah sisi</string>
     <string name="app_content_loading">Sedang memuat...</string>
     <string name="theme_font_default">Font default</string>
     <string name="theme_font_serif">Serif</string>
@@ -6792,10 +6777,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="show_message_timing_stats_description">Tampilkan waktu paket pertama dan waktu generasi di bagian bawah pesan AI</string>
     <string name="chat_message_token_stats_compact">token: %1$d ↑ %3$d (cache: %2$d) ↓ %4$d</string>
     <string name="chat_message_timing_stats_compact">waktu: %1$s (pertama %2$s generasi %3$s)</string>
-    <string name="software_identity_title">Identitas Perangkat Lunak</string>
-    <string name="software_identity_description">Ubah identitas perangkat lunak yang ditampilkan di bagian atas sidebar.</string>
-    <string name="software_identity_option_operit">Kiyori</string>
-    <string name="software_identity_option_lingshu">Lingshu AI</string>
     <string name="chat_auto_update_memory_failed">Gagal memperbarui memori otomatis: %1$s</string>
 
     <string name="nav_group_plugins">Plugin</string>
@@ -7164,4 +7145,23 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="ai_message_use_package_failed">Panggilan use_package gagal: %1$s</string>
     <string name="ai_message_use_package_empty">use_package mengembalikan kosong.</string>
     <string name="ai_message_package_warmup_item">%1$d. Paket %2$s (terkena %3$d kali)</string>
+    <string name="kiyori_shell_software_home">Beranda</string>
+    <string name="kiyori_shell_browser_home">Browser</string>
+    <string name="kiyori_shell_mini_app_home">Mini App</string>
+    <string name="kiyori_shell_file_management_home">File</string>
+    <string name="kiyori_shell_settings_home">Setelan</string>
+    <string name="kiyori_shell_minus_one">Halaman Samping</string>
+    <string name="kiyori_shell_search_hint">Masukkan URL atau cari di web</string>
+    <string name="kiyori_shell_search_action">Cari</string>
+    <string name="kiyori_shell_ai_action">AI</string>
+    <string name="kiyori_shell_web_search">Pencarian Web</string>
+    <string name="kiyori_shell_ai_center">Pusat AI</string>
+    <string name="kiyori_shell_ai_capabilities">Kemampuan AI</string>
+    <string name="kiyori_shell_extensions">Alat dan Ekstensi</string>
+    <string name="kiyori_shell_ai_settings">Setelan AI</string>
+    <string name="kiyori_shell_favorites">Favorit</string>
+    <string name="kiyori_shell_bookmarks">Markah</string>
+    <string name="kiyori_shell_history">Riwayat</string>
+    <string name="kiyori_shell_downloads">Unduhan</string>
+    <string name="kiyori_shell_exit_hint">Tekan Kembali sekali lagi untuk keluar dari Kiyori</string>
 </resources>
