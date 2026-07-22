@@ -9,12 +9,12 @@ plugins {
 android {
     namespace = "com.dragonbones"
     compileSdk = 36
+    ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     defaultConfig {
         minSdk = 26
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
 
         externalNativeBuild {
             cmake {

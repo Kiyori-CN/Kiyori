@@ -114,14 +114,14 @@ yes | sdkmanager --licenses
 ```
 
 2. 安装平台工具、SDK 平台和构建工具:  
-Operit 项目依赖于 android-34 平台和 34.0.0 构建工具。  
+Kiyori 使用 compile SDK 36、target SDK 34、Build Tools 35.0.0 和 CMake 3.22.1。
 ```bash
-sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1"
 ```
 3. 安装项目指定的 NDK 版本:  
-本项目要求使用 NDK 25.1.8937393。  
+本项目要求使用 NDK 28.2.13676358。该版本属于 NDK r28，项目内编译的 native ELF 默认采用 16 KB segment 对齐。
 ```bash
-sdkmanager "ndk;25.1.8937393"
+sdkmanager "ndk;28.2.13676358"
 ```
 
 ## **附：性能优化 - 配置编译资源**
@@ -207,6 +207,16 @@ git submodule update --init --recursive terminal
 ./app/libs
 ```
 
+下载完成后使用固定 NDK 运行受控解包；该步骤会删除归档中的旧 GIF native 副本、移除 ffmpeg AAR 内重复的旧 arm64 C++ 运行库，并将 app 唯一的 arm64 C++ 运行库同步为 NDK `28.2.13676358` 的版本：
+
+```bash
+python3 ci/script/prepare_android_dependencies.py \
+  --profile full \
+  --archives ./manual-deps \
+  --repository . \
+  --android-ndk "$ANDROID_HOME/ndk/28.2.13676358"
+```
+
 3. **切换到你的工作分支 (如果需要):**
 ```bash
 git checkout docs/add-building-guide
@@ -263,7 +273,7 @@ app/build/outputs/apk/clone/app-clone.apk
 | :---- | :---- |
 | sdkmanager: command not found | 环境变量未正确设置或生效。请检查 **~/.bashrc** 文件内容，并执行 source ~/.bashrc。 |
 | Could not determine Java version... | **JAVA_HOME** 环境变量不正确，或安装了错误的 JDK 版本。请确保已安装 **JDK 21** 并指向正确的路径。 |
-| NDK not found. | 确保已在 **第四步** 中使用 sdkmanager 安装了项目所需的 **ndk;25.1.8937393** 版本。 |
+| NDK not found. | 确保已在 **第四步** 中使用 sdkmanager 安装了项目所需的 **ndk;28.2.13676358** 版本。 |
 | pnpm: command not found | 尚未安装 `pnpm`。请先执行 `sudo npm install -g pnpm`，再重新运行 `python3 ./tools/example_packages/sync_example_packages.py`。 |
 | Missing web-chat/dist. Run `npm --prefix web-chat run build` first. | 尚未构建 `web-chat` 或构建失败。请先执行 `npm --prefix web-chat install`，再在项目根目录执行 `npm run build:webchat`。 |
 | ERROR: prebuild step failed | `tools/example_packages/sync_example_packages.py` 在预构建 `examples/` 时失败。请先确认已在项目根目录执行 `npm install`，并检查 `pnpm -v`、`python3 --version` 是否可用。 |

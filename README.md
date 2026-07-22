@@ -77,8 +77,8 @@ Kiyori 新页面的视觉语言向 Operit 原版 UI 看齐，页面结构、浏�
 ### 环境要求
 
 - Windows、macOS 或 Linux
-- JDK 17
-- Android SDK，compile SDK 36
+- JDK 21（Gradle 运行时；Java/Kotlin 字节码目标仍为 JVM 17）
+- Android SDK Platform 36、target SDK 34、Build Tools 35.0.0、NDK 28.2.13676358、CMake 3.22.1
 - Git 与 Git submodule 支持
 
 ### 获取源码

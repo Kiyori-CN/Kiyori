@@ -24,6 +24,8 @@ MAX_ARCHIVE_MEMBERS = 100_000
 MAX_MEMBER_BYTES = 4 * 1024**3
 MAX_ARCHIVE_BYTES = 8 * 1024**3
 MAX_COMPRESSION_RATIO = 1_000
+STALE_JNILIB_NAMES = {"libpl_droidsonroids_gif.so"}
+FFMPEG_ARM64_LIBCXX = "jni/arm64-v8a/libc++_shared.so"
 
 
 def validate_member(info: zipfile.ZipInfo, allowed_root: str) -> None:
@@ -183,17 +185,77 @@ def verify_outputs(profile: str, repository: Path, extracted_files: set[Path]) -
                 raise ValueError(f"Android dependency output contains no usable files: {relative_path}")
 
 
+def synchronize_native_runtime(
+    repository: Path,
+    android_ndk: Path,
+    extracted_files: set[Path],
+) -> None:
+    """Replace stale manual native files with their declared build-time owners."""
+
+    jni_root = repository / "app" / "src" / "main" / "jniLibs"
+    for path in tuple(extracted_files):
+        if path.is_relative_to(jni_root) and path.name in STALE_JNILIB_NAMES:
+            path.unlink()
+            extracted_files.remove(path)
+
+    ffmpeg_aar = repository / "app" / "libs" / "ffmpeg-kit-local.aar"
+    if not ffmpeg_aar.is_file():
+        raise FileNotFoundError(f"ffmpeg-kit AAR is missing: {ffmpeg_aar}")
+    sanitized_aar = ffmpeg_aar.with_suffix(".aar.sanitized")
+    removed_entries = 0
+    with zipfile.ZipFile(ffmpeg_aar) as source, zipfile.ZipFile(sanitized_aar, "w") as target:
+        for info in source.infolist():
+            if info.filename == FFMPEG_ARM64_LIBCXX:
+                removed_entries += 1
+                continue
+            target.writestr(info, source.read(info))
+    if removed_entries != 1:
+        sanitized_aar.unlink()
+        raise ValueError(
+            f"ffmpeg-kit AAR must contain exactly one {FFMPEG_ARM64_LIBCXX}: {ffmpeg_aar}"
+        )
+    sanitized_aar.replace(ffmpeg_aar)
+
+    prebuilt_root = android_ndk / "toolchains" / "llvm" / "prebuilt"
+    host_toolchains = [path for path in prebuilt_root.iterdir() if path.is_dir()]
+    if len(host_toolchains) != 1:
+        raise ValueError(
+            f"Android NDK must contain exactly one host toolchain: {prebuilt_root}"
+        )
+
+    libcxx_source = (
+        host_toolchains[0]
+        / "sysroot"
+        / "usr"
+        / "lib"
+        / "aarch64-linux-android"
+        / "libc++_shared.so"
+    )
+    if not libcxx_source.is_file():
+        raise FileNotFoundError(f"NDK arm64 libc++ runtime is missing: {libcxx_source}")
+
+    libcxx_destination = jni_root / "arm64-v8a" / "libc++_shared.so"
+    libcxx_destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(libcxx_source, libcxx_destination)
+    extracted_files.add(libcxx_destination)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", choices=tuple(PROFILE_ARCHIVES), required=True)
     parser.add_argument("--archives", type=Path, required=True)
     parser.add_argument("--repository", type=Path, required=True)
+    parser.add_argument("--android-ndk", type=Path)
     args = parser.parse_args()
 
     repository = args.repository.resolve()
     extracted_files: set[Path] = set()
     for archive_name in PROFILE_ARCHIVES[args.profile]:
         extracted_files.update(extract_archive(args.archives / archive_name, repository))
+    if args.profile == "full":
+        if args.android_ndk is None:
+            parser.error("--android-ndk is required for the full profile")
+        synchronize_native_runtime(repository, args.android_ndk.resolve(), extracted_files)
     verify_outputs(args.profile, repository, extracted_files)
     print(f"Prepared Android {args.profile} dependencies from {args.archives}.")
     return 0

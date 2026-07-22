@@ -8,10 +8,10 @@ plugins {
 android {
     namespace = "com.ai.assistance.fbx"
     compileSdk = 36
+    ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     defaultConfig {
         minSdk = 26
-        targetSdk = 34
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")

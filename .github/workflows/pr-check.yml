@@ -17,7 +17,7 @@ env:
   JAVA_VERSION: '21'
   NODE_VERSION: '22'
   ANDROID_BUILD_TOOLS_VERSION: '35.0.0'
-  ANDROID_NDK_VERSION: '25.1.8937393'
+  ANDROID_NDK_VERSION: '28.2.13676358'
   ANDROID_CMAKE_VERSION: '3.22.1'
   MANUAL_DEPS_DIR: manual-deps
 
@@ -360,7 +360,8 @@ jobs:
           python3 ci/script/prepare_android_dependencies.py \
             --profile full \
             --archives "$MANUAL_DEPS_DIR" \
-            --repository "$GITHUB_WORKSPACE"
+            --repository "$GITHUB_WORKSPACE" \
+            --android-ndk "$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
 
       - name: Restore native ripgrep cache
         if: steps.plan.outputs.android_full == 'true'

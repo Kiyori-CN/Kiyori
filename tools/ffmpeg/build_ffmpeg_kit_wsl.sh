@@ -72,7 +72,7 @@ fi
 
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT_OVERRIDE:-/mnt/d/ProgramData/AndroidSDK}"
 export ANDROID_HOME="${ANDROID_HOME_OVERRIDE:-${ANDROID_SDK_ROOT}}"
-export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT_OVERRIDE:-$HOME/android-sdk/ndk/22.1.7171670}"
+export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT_OVERRIDE:-$HOME/android-sdk/ndk/28.2.13676358}"
 if [[ -n "${JAVA_HOME_OVERRIDE:-}" ]]; then
   export JAVA_HOME="${JAVA_HOME_OVERRIDE}"
 elif [[ -d "$HOME/.local/jbr-17" ]]; then

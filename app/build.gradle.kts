@@ -23,6 +23,7 @@ if (localPropertiesFile.exists()) {
 android {
     namespace = "com.ai.assistance.operit"
     compileSdk = 36
+    ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     signingConfigs {
         val releaseKeystorePath = localProperties.getProperty("RELEASE_STORE_FILE")
@@ -48,6 +49,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -324,7 +326,7 @@ dependencies {
     implementation(libs.mediapipe.tasks.text)
     
     // ONNX Runtime for Android - 支持更强大的多语言Embedding模型
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.27.0")
 
     // Room 数据库
     implementation(libs.room.runtime)

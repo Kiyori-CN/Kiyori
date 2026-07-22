@@ -13,6 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "ci" / "script"))
 
 from prepare_android_dependencies import (  # noqa: E402
     extract_archive,
+    synchronize_native_runtime,
     validate_member,
     verify_outputs,
 )
@@ -84,6 +85,48 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "did not provide"):
                 verify_outputs("jvm", repository, extracted)
+
+    def test_native_runtime_is_owned_by_declared_dependencies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repository = root / "repository"
+            ffmpeg_aar = repository / "app" / "libs" / "ffmpeg-kit-local.aar"
+            ffmpeg_aar.parent.mkdir(parents=True)
+            with zipfile.ZipFile(ffmpeg_aar, "w") as stream:
+                stream.writestr("classes.jar", b"classes")
+                stream.writestr("jni/arm64-v8a/libc++_shared.so", b"old-aar-libcxx")
+
+            jni_root = repository / "app" / "src" / "main" / "jniLibs"
+            stale_gif = jni_root / "arm64-v8a" / "libpl_droidsonroids_gif.so"
+            stale_gif.parent.mkdir(parents=True)
+            stale_gif.write_bytes(b"old-gif")
+
+            android_ndk = root / "android-ndk"
+            ndk_libcxx = (
+                android_ndk
+                / "toolchains"
+                / "llvm"
+                / "prebuilt"
+                / "linux-x86_64"
+                / "sysroot"
+                / "usr"
+                / "lib"
+                / "aarch64-linux-android"
+                / "libc++_shared.so"
+            )
+            ndk_libcxx.parent.mkdir(parents=True)
+            ndk_libcxx.write_bytes(b"ndk-libcxx")
+
+            extracted = {ffmpeg_aar, stale_gif}
+            synchronize_native_runtime(repository, android_ndk, extracted)
+
+            self.assertFalse(stale_gif.exists())
+            app_libcxx = jni_root / "arm64-v8a" / "libc++_shared.so"
+            self.assertEqual(app_libcxx.read_bytes(), b"ndk-libcxx")
+            self.assertIn(app_libcxx, extracted)
+            with zipfile.ZipFile(ffmpeg_aar) as stream:
+                self.assertEqual(stream.read("classes.jar"), b"classes")
+                self.assertNotIn("jni/arm64-v8a/libc++_shared.so", stream.namelist())
 
 
 if __name__ == "__main__":

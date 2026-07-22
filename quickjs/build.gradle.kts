@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.ai.assistance.quickjs"
     compileSdk = 36
+    ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     defaultConfig {
         minSdk = 26
@@ -35,6 +36,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
