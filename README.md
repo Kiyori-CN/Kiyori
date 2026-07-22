@@ -1,7 +1,7 @@
 <div align="center">
   <img src="app/src/main/assets/logo.svg" width="160" alt="Kiyori Logo">
   <h1>Kiyori</h1>
-  <p>Kiyori 品牌的 Android AI 浏览器与智能助手开发项目</p>
+  <p>由 Operit AI 驱动的 Android 全能型浏览器开发项目</p>
   <p>
     <a href="README(E).md">English</a> |
     <a href="https://github.com/Kiyori-CN/Kiyori">项目仓库</a> |
@@ -20,16 +20,47 @@
 
 Kiyori 不连接 Operit 的应用更新、补丁或远程公告服务。当前也不提供应用内自动更新或手动更新检查；项目状态、源码与后续发行信息仅以 [Kiyori 仓库](https://github.com/Kiyori-CN/Kiyori) 为准。
 
+正式开发前的工程门禁、分支规则、兼容性边界和真机验收队列见 [正式开发准备](docs/TODO/formal_development_readiness/index.md)。持续开发只使用 `main` 分支；`terminal` 子模块固定到 KiyoriTerminalCore 的提交。
+
 ## 项目简介
 
-Kiyori 是面向 Android 的 AI 浏览器与智能助手项目，当前代码基于 Operit 演进。应用保留设备端聊天、模型配置、工具调用、内置浏览器、工作流、记忆、终端、MCP、Skill、ToolPkg 和本地模型等能力，并逐步建立独立的 Kiyori 产品身份与发行边界。
+Kiyori 是由 Operit AI 驱动的 Android 全能型浏览器，当前代码基于 Operit 演进。浏览器是产品主体，Operit AI 作为内置 AI 子模块负责对话、理解和自动化；网页浏览、视频、音乐、小说阅读、下载、文件管理与广告拦截等能力将逐步形成独立页面，并通过受控接口开放给 AI。
+
+Kiyori 是独立产品，不是 Operit 的品牌替换。项目保留设备端聊天、模型配置、工具调用、工作流、记忆、终端、MCP、Skill、ToolPkg 和本地模型等现有能力，同时由 Kiyori 负责应用壳、全局导航、系统设置、产品发行和后续浏览器能力。
 
 云模型由用户自行选择服务商并配置 API Key、模型与端点，请求由设备直接发往所选服务商。Kiyori 不提供大语言模型推理或聊天请求中转。MNN 与 llama.cpp 等本地模型在模型文件准备完成后可在设备上运行。
+
+## 目标产品结构
+
+以下结构已经确定为正式开发目标，当前仍处于规划和迁移阶段，不表示这些页面已经全部实现：
+
+```text
+Kiyori App Shell
+├── 软件首页
+│   └── 负一屏 ← 软件首页 → AI 首页
+├── 浏览器首页
+├── 小程序首页
+├── 文件管理首页
+└── 设置首页
+```
+
+应用启动后进入软件首页。中间搜索卡保留独立的“搜索”和“AI”按钮：“搜索”打开只负责网页搜索的全屏搜索页，“AI”进入右侧 AI 首页；历史、书签、文件和小程序分别在自己的页面中提供搜索。底部五入口只在五个根页面显示，负一屏和保持全屏形态的 AI 首页隐藏底栏。AI 首页左上角三横线按钮打开全屏 AI 中心，AI 设置是 AI 中心的子页，也可从设置首页进入。
+
+对话历史、新建和删除对话继续由 AI 首页原有历史选择器负责，不复制到 AI 中心；Terminal 在本阶段继续保留 AI 首页右上角入口。负一屏首期参考旧 Kiyori 设计，至少提供收藏、书签、历史和下载。
+
+AI 中心保留原版“权限”高频入口，但该入口改为打开 Kiyori 权限中心。权限中心以只读总览区分设备能力与 AI 工具授权，点击分项进入各自唯一的设置页面，首页不直接放置权限开关；高影响操作策略与操作记录将在安全合同中继续设计。备份、聊天记录、Token 统计和修改其他应用权限的工具仍保留在各自原有领域。
+
+“权限”高频卡片继续使用 Operit 原版短标签和视觉。徽标只显示当前启用功能缺少的必要设备授权数量，无待处理项时显示“正常”；AI 工具授权策略不计入该徽标。
+
+高影响操作确认与 AI 操作记录共同归入权限中心的“AI 安全”分组。AI 操作按 R0 只读、R1 低影响、R2 高影响、R3 关键操作分级；工具被设为允许也不能绕过 R2 或 R3 的操作确认。对应策略页和记录页完整实现前不显示空入口。
+
+Kiyori 新页面的视觉语言向 Operit 原版 UI 看齐，页面结构、浏览器行为和其他 Kiyori 功能参考 [kiyori-android@24a2dfa9](https://github.com/Kiyori-CN/kiyori-android/tree/24a2dfa91f0a4166dc58e5c4732d11861173f766)。手机、平板与折叠屏共享同一导航状态；手机上的 AI 中心使用全屏页面，较宽窗口在同一路由内使用双栏布局，并避开折叠屏分隔铰链。详细设计见 [Kiyori 产品壳与导航架构](docs/doc-src/architecture/kiyori_product_shell_and_navigation.md)。
 
 ## 主要能力
 
 - AI 对话、角色卡、记忆、上下文与多会话管理
-- 内置浏览器、网页访问与自动化工具
+- 内置浏览器、网页访问、网页搜索与自动化工具
+- 规划中的独立视频、音乐、小说阅读、下载、文件管理和广告拦截页面
 - MCP、Skill、ToolPkg、工作流与工具调用
 - Ubuntu 终端、文件管理、SSH 与开发工具
 - MNN、llama.cpp 本地推理以及可配置的第三方模型服务
@@ -81,6 +112,8 @@ macOS 或 Linux：
 - 插件、ToolPkg、MCP 及部分既有文件路径
 
 这些名称不代表当前软件品牌。任何协议级重命名都需要独立的兼容迁移设计。
+
+由于当前 application ID 是新的 `com.kiyori`，历史 `com.ai.assistance.operit` 安装不能直接覆盖。需要先在旧应用中导出备份，再在 Kiyori 中导入；`Download/Operit` 路径和既有备份格式会继续保留。
 
 ## 上游与许可证
 

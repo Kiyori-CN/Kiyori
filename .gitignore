@@ -57,10 +57,13 @@ kls_database.db
 
 operit-pc-agent.zip
 .uv-caches
+__pycache__/
+*.py[cod]
 
 # generated toolpkg bundles
 *.toolpkg
 .venv
+/work/
 
 # generated React web-chat build outputs
 web-chat/dist/

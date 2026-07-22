@@ -5,6 +5,7 @@
 ## 目录结构
 
 - `architecture/`：整体架构、核心模块和运行流程设计
+- `decisions/`：已经接受且具有长期影响的架构与产品决策
 - `dev-core/`：核心开发资料，包括构建、贡献指南和底层接口说明
 - `feature-protocol/`：具体功能与协议流程，例如意图触发、工具调用和聊天导入
 - `package-dev/`：各功能包和业务模块的开发说明，同时用于给用户及其agent开发包
@@ -22,3 +23,10 @@
 - 严禁让发布版或 CDN 直接索引项目目录位置，这会严重限制日后结构改动，且降低稳健性
 
 建议参考[文档撰写指南](before_docing.md)
+
+## Kiyori 产品架构入口
+
+- [Kiyori 产品壳与导航架构](architecture/kiyori_product_shell_and_navigation.md)
+- [Kiyori 产品定位与 Operit AI 边界](decisions/0001_kiyori_product_positioning.md)
+- [产品壳与 AI 中心导航](decisions/0002_product_shell_and_ai_center_navigation.md)
+- [UI 设计来源层级](decisions/0003_ui_design_source_hierarchy.md)

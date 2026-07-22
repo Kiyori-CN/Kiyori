@@ -92,6 +92,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Check formal development readiness
+        run: python3 -B ci/script/check_formal_readiness.py --repository "$GITHUB_WORKSPACE"
+
+      - name: Check fresh clone reproducibility
+        run: python3 -B ci/script/check_fresh_clone.py --repository "$GITHUB_WORKSPACE"
+
       - name: Initialize terminal submodule
         shell: bash
         run: |
@@ -241,7 +247,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: operit-android-reports-${{ github.run_number }}
+          name: kiyori-android-reports-${{ github.run_number }}
           path: |
             app/build/reports/**
             build/reports/**
@@ -252,7 +258,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: operit-android-${{ github.run_number }}
+          name: kiyori-android-${{ github.run_number }}
           path: |
             app/build/outputs/apk/**/*.apk
             app/build/outputs/bundle/**/*.aab

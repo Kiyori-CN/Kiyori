@@ -1261,7 +1261,7 @@
     <string name="resume_reading">Sambung Bacaan</string>
     <string name="stop_reading">Hentikan Bacaan</string>
 
-    <string name="operit_terminal">Terminal Operit</string>
+    <string name="operit_terminal">Terminal Kiyori</string>
     <string name="permission_level_standard">Kebenaran Standard</string>
     <string name="permission_level_accessibility">Kebenaran Aksesibiliti</string>
     <string name="permission_level_admin">Kebenaran Pentadbir</string>
@@ -5662,7 +5662,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="demo_cmd_list_activities">Lihat Aktiviti yang aktif</string>
     <string name="demo_cmd_list_services">Senaraikan perkhidmatan sistem</string>
     <string name="demo_cmd_check_resolution">Semak resolusi skrin</string>
-    <string name="demo_cmd_echo_hello">Cetak Hello OperitTerminal</string>
+    <string name="demo_cmd_echo_hello">Cetak Hello KiyoriTerminal</string>
     <string name="demo_cmd_list_files">Senaraikan fail dan direktori</string>
     <string name="demo_cmd_show_user">Paparkan pengguna semasa</string>
     <string name="demo_cmd_update_package_manager">Kemas kini pengurus pakej (Ubuntu)</string>

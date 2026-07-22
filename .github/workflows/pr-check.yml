@@ -55,6 +55,16 @@ jobs:
             --github-output "$GITHUB_OUTPUT" \
             --step-summary "$GITHUB_STEP_SUMMARY"
 
+      - name: Check formal development readiness
+        id: readiness
+        continue-on-error: true
+        run: python3 -B ci/script/check_formal_readiness.py --repository "$GITHUB_WORKSPACE"
+
+      - name: Check fresh clone reproducibility
+        id: fresh_clone
+        continue-on-error: true
+        run: python3 -B ci/script/check_fresh_clone.py --repository "$GITHUB_WORKSPACE"
+
       - name: Check gate implementation
         id: gate-tests
         continue-on-error: true
@@ -143,6 +153,8 @@ jobs:
         if: always()
         env:
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          READINESS_OUTCOME: ${{ steps.readiness.outcome }}
+          FRESH_CLONE_OUTCOME: ${{ steps.fresh_clone.outcome }}
           GATE_TESTS_OUTCOME: ${{ steps.gate-tests.outcome }}
           HYGIENE_OUTCOME: ${{ steps.hygiene.outcome }}
           LINT_BASELINE_OUTCOME: ${{ steps.lint-baseline.outcome }}
@@ -176,6 +188,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           check_stage candidate true "$PLAN_OUTCOME"
+          check_stage readiness true "$READINESS_OUTCOME"
+          check_stage fresh-clone true "$FRESH_CLONE_OUTCOME"
           check_stage gate-tests true "$GATE_TESTS_OUTCOME"
           check_stage hygiene true "$HYGIENE_OUTCOME"
           check_stage lint-baseline true "$LINT_BASELINE_OUTCOME"

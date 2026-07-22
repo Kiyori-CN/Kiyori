@@ -1371,7 +1371,7 @@
     <string name="overlay_permission">Overlay Permission</string>
     <string name="battery_optimization">Battery Optimization Exemption</string>
     <string name="location_permission">Location Permission</string>
-    <string name="operit_terminal">Operit Terminal</string>
+    <string name="operit_terminal">Kiyori Terminal</string>
     
     <!-- Permission Level Descriptions -->
     <string name="permission_level_standard">Standard Permission</string>
@@ -6198,7 +6198,7 @@
     <string name="demo_cmd_list_activities">List active Activities</string>
     <string name="demo_cmd_list_services">List system services</string>
     <string name="demo_cmd_check_resolution">Check screen resolution</string>
-    <string name="demo_cmd_echo_hello">Print Hello OperitTerminal</string>
+    <string name="demo_cmd_echo_hello">Print Hello KiyoriTerminal</string>
     <string name="demo_cmd_list_files">List files and directories</string>
     <string name="demo_cmd_show_user">Show current user</string>
     <string name="demo_cmd_update_package_manager">Update package manager (Ubuntu)</string>

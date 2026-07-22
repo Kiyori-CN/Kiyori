@@ -1,7 +1,7 @@
 <div align="center">
   <img src="app/src/main/assets/logo.svg" width="160" alt="Kiyori Logo">
   <h1>Kiyori</h1>
-  <p>An Android AI browser and assistant project under the Kiyori brand</p>
+  <p>An all-purpose Android browser powered by Operit AI</p>
   <p>
     <a href="README.md">简体中文</a> |
     <a href="https://github.com/Kiyori-CN/Kiyori">Repository</a> |
@@ -20,16 +20,47 @@ The current version is the `0.1.0` development baseline with Android application
 
 Kiyori does not connect to Operit application-update, patch, or remote-announcement services. It currently provides neither automatic nor manual in-app update checks. Project status, source code, and future distribution information are published through the [Kiyori repository](https://github.com/Kiyori-CN/Kiyori).
 
+The [formal development readiness](docs/TODO/formal_development_readiness/index.md) checklist defines the main-only branch policy, compatibility boundaries, reproducible clone checks, CI gates, and device acceptance queue. Continuous development uses `main`; the `terminal` submodule is pinned to a KiyoriTerminalCore commit.
+
 ## Overview
 
-Kiyori is an Android AI browser and assistant project currently derived from Operit. It retains on-device chat, model configuration, tool calling, browser, workflow, memory, terminal, MCP, Skill, ToolPkg, and local-model capabilities while establishing an independent Kiyori product identity and distribution boundary.
+Kiyori is an all-purpose Android browser powered by Operit AI and currently derived from Operit. The browser is the product center; Operit AI is an embedded subsystem for conversation, reasoning, and automation. Web browsing, video, music, reading, downloads, file management, and ad blocking will become dedicated Kiyori pages exposed to AI through controlled capability contracts.
+
+Kiyori is an independent product, not an Operit brand replacement. It retains existing on-device chat, model configuration, tool calling, workflow, memory, terminal, MCP, Skill, ToolPkg, and local-model capabilities while Kiyori owns the application shell, global navigation, system settings, distribution, and future browser domains.
 
 Cloud models are selected and configured by the user with their own API key, model, and endpoint. Requests are sent directly from the device to the selected provider. Kiyori does not provide LLM inference or relay chat requests. Local engines such as MNN and llama.cpp can run on the device after their model files are prepared.
+
+## Target Product Structure
+
+The following structure is the accepted development target. It is still being planned and migrated and does not claim that every page is implemented:
+
+```text
+Kiyori App Shell
+├── Software Home
+│   └── Minus-One Page <- Software Home -> AI Home
+├── Browser Home
+├── Mini App Home
+├── File Management Home
+└── Settings Home
+```
+
+The app launches into Software Home. Its central search card keeps separate Search and AI buttons: Search opens a full-screen page dedicated to web search, while AI moves to AI Home. History, bookmarks, files, and mini apps provide search within their own pages. The five-item bottom navigation appears only on the five root pages. Minus-One Page and the full-screen AI Home hide it. The hamburger button on AI Home opens the full-screen AI Center. AI Settings is a child of AI Center and is also reachable from Settings Home.
+
+Conversation history, new-chat, and delete-chat actions remain in the existing AI Home history selector instead of being duplicated in AI Center. Terminal remains in the upper-right AI Home toolbar during this phase. The first Minus-One Page follows the legacy Kiyori design and includes Favorites, Bookmarks, History, and Downloads.
+
+AI Center keeps the original high-frequency Permission entry, but it now opens Kiyori Permission Center. Permission Center uses a read-only overview to separate device capabilities from AI tool authorization; each item opens its domain's single settings owner, and the overview contains no direct permission switches. High-impact-operation policy and operation records remain part of the security-contract design. Backups, conversation-data management, token statistics, and the Toolbox utility for changing other applications' permissions stay in their own domains.
+
+The Permission quick card keeps the original Operit short label and visual treatment. Its badge shows only the number of necessary device authorizations missing for enabled capabilities, or Normal when none require attention; AI tool policy is not included in this badge.
+
+High-impact-action confirmation and AI Operation Records share one AI Security group in Permission Center. AI operations use R0 Read-Only, R1 Low-Impact, R2 High-Impact, and R3 Critical levels; allowing a tool never bypasses R2 or R3 operation confirmation. Neither entry is shown until its complete policy or record page is implemented.
+
+New Kiyori pages follow the original Operit visual language, while page structure, browser behavior, and other Kiyori features reference [kiyori-android@24a2dfa9](https://github.com/Kiyori-CN/kiyori-android/tree/24a2dfa91f0a4166dc58e5c4732d11861173f766). Phones, tablets, and foldables share one navigation state. AI Center is full-screen on phones and uses a two-pane composition inside the same route on wider windows while respecting separating hinges. See the [Kiyori product shell and navigation architecture](docs/doc-src/architecture/kiyori_product_shell_and_navigation.md).
 
 ## Capabilities
 
 - AI chat, character cards, memory, context, and conversation management
-- Built-in browser, web access, and automation tools
+- Built-in browser, web access, web search, and automation tools
+- Planned dedicated video, music, reading, download, file-management, and ad-blocking pages
 - MCP, Skill, ToolPkg, workflows, and tool calling
 - Ubuntu terminal, file management, SSH, and development tools
 - MNN and llama.cpp local inference plus configurable third-party model providers
@@ -81,6 +112,8 @@ To avoid breaking existing data and ecosystem integrations, this branding migrat
 - plugin, ToolPkg, MCP, and selected legacy file-path identifiers
 
 These identifiers do not define the current product brand. Any protocol-level rename requires a separate compatibility migration design.
+
+Because `com.kiyori` is a new application identity, an existing `com.ai.assistance.operit` installation cannot be upgraded in place. Export a backup from the old app and import it into Kiyori; the `Download/Operit` paths and inherited backup formats remain supported for compatibility.
 
 ## Upstream and License
 

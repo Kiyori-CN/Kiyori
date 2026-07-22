@@ -5,7 +5,7 @@
 ## 目录总览
 
 ```text
-Operit-follow-up/
+Kiyori/
 ├── app/             主 Android 应用
 ├── ci/              CI 与本地自动化脚本
 ├── docs/            项目文档与文档资源
@@ -18,7 +18,7 @@ Operit-follow-up/
 ├── mnn/             MNN 本地推理 Android 模块
 ├── quickjs/         QuickJS JNI 模块
 ├── showerclient/    Shower 虚拟显示客户端库
-├── terminal/        OperitTerminalCore Git 子模块
+├── terminal/        KiyoriTerminalCore Git 子模块
 ├── tools/           开发、调试与构建辅助工具
 └── web-chat/        React + Vite Web Chat 前端
 ```
@@ -27,7 +27,7 @@ Operit-follow-up/
 
 ### [`app`](app/)
 
-这是 Operit 的主 Android 应用模块。应用界面、业务逻辑、Android 资源、工具系统、项目模板和 ObjectBox 模型都集中在这里，同时负责接入各个本地原生能力。最终 APK 的主要应用代码位于此目录。
+这是 Kiyori 的主 Android 应用模块。应用界面、业务逻辑、Android 资源、工具系统、项目模板和 ObjectBox 模型都集中在这里，同时负责接入各个本地原生能力。最终 APK 的主要应用代码位于此目录。
 
 ### [`ci`](ci/)
 

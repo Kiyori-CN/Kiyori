@@ -35,4 +35,10 @@ ts的报错catch后需要log出来
 
 代码的更改应维护相称的文档，注意docs\doc-src\before_docing.md
 debug的时候注释记录你的修改意图（为什么，不这么做后果是什么）
-完成初步计划后，使用docs\TODO\README.md来细化计划 
+完成初步计划后，使用docs\TODO\README.md来细化计划
+
+## 正式开发准备门禁
+
+- 开始持续开发前阅读 `docs/TODO/formal_development_readiness/index.md` 及其五份分项清单。
+- 本地准备检查使用 `python -B ci/script/check_formal_readiness.py --repository . --require-main`，新鲜克隆检查使用 `python -B ci/script/check_fresh_clone.py --repository .`。
+- CI 继续以 `main` 为唯一持续开发目标；禁止把 `work/` checkpoint、凭据或构建产物纳入提交。

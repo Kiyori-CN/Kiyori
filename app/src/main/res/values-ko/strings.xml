@@ -1211,7 +1211,7 @@
     <string name="overlay_permission">오버레이 권한</string>
     <string name="battery_optimization">배터리 최적화 면제</string>
     <string name="location_permission">위치 권한</string>
-    <string name="operit_terminal">Operit 터미널</string>
+    <string name="operit_terminal">Kiyori 터미널</string>
     <string name="permission_level_standard">표준 권한</string>
     <string name="permission_level_accessibility">접근성 권한</string>
     <string name="permission_level_admin">관리자 권한</string>
@@ -5858,7 +5858,7 @@
     <string name="demo_cmd_list_activities">활성 Activity 나열</string>
     <string name="demo_cmd_list_services">시스템 서비스 나열</string>
     <string name="demo_cmd_check_resolution">화면 해상도 확인</string>
-    <string name="demo_cmd_echo_hello">Hello OperitTerminal 인쇄</string>
+    <string name="demo_cmd_echo_hello">Hello KiyoriTerminal 인쇄</string>
     <string name="demo_cmd_list_files">파일 및 디렉터리 나열</string>
     <string name="demo_cmd_show_user">현재 사용자 표시</string>
     <string name="demo_cmd_update_package_manager">패키지 관리자 업데이트(Ubuntu)</string>

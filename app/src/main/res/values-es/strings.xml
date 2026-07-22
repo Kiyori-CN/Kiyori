@@ -1910,7 +1910,7 @@
     <string name="overlay_permission">Permiso de superposición</string>
     <string name="battery_optimization">Exención de optimización de batería</string>
     <string name="location_permission">Permiso de ubicación</string>
-    <string name="operit_terminal">Terminal Operit</string>
+    <string name="operit_terminal">Terminal Kiyori</string>
     <string name="permission_level_standard">Permiso estándar</string>
     <string name="permission_level_accessibility">Permiso de accesibilidad</string>
     <string name="permission_level_admin">Permiso de administrador</string>
@@ -5806,7 +5806,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="demo_cmd_list_activities">Ver actividades activas</string>
     <string name="demo_cmd_list_services">Listar servicios del sistema</string>
     <string name="demo_cmd_check_resolution">Ver resolución de pantalla</string>
-    <string name="demo_cmd_echo_hello">Imprimir Hello OperitTerminal</string>
+    <string name="demo_cmd_echo_hello">Imprimir Hello KiyoriTerminal</string>
     <string name="demo_cmd_list_files">Listar archivos y directorios</string>
     <string name="demo_cmd_show_user">Mostrar usuario actual</string>
     <string name="demo_cmd_update_package_manager">Actualizar gestor de paquetes (Ubuntu)</string>

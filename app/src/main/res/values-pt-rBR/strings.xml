@@ -1176,7 +1176,7 @@
     <string name="overlay_permission">Permissões de janela flutuante</string>
     <string name="battery_optimization">Isenção de otimização de bateria</string>
     <string name="location_permission">permissões de localização</string>
-    <string name="operit_terminal">Terminal operacional</string>
+    <string name="operit_terminal">Terminal Kiyori</string>
     <string name="permission_level_standard">Permissões padrão</string>
     <string name="permission_level_accessibility">Acessibilidade</string>
     <string name="permission_level_admin">Direitos de administrador</string>
@@ -5422,7 +5422,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="demo_cmd_list_activities">Ver atividades ativas</string>
     <string name="demo_cmd_list_services">Listar serviços do sistema</string>
     <string name="demo_cmd_check_resolution">Verifique a resolução da tela</string>
-    <string name="demo_cmd_echo_hello">PrintHello OperitTerminal</string>
+    <string name="demo_cmd_echo_hello">PrintHello KiyoriTerminal</string>
     <string name="demo_cmd_list_files">Listar arquivos e diretórios</string>
     <string name="demo_cmd_show_user">Mostrar usuário atual</string>
     <string name="demo_cmd_update_package_manager">Atualizar gerenciador de pacotes (Ubuntu)</string>

@@ -1347,7 +1347,7 @@
     <string name="overlay_permission">悬浮窗权限</string>
     <string name="battery_optimization">电池优化豁免</string>
     <string name="location_permission">位置权限</string>
-    <string name="operit_terminal">Operit终端</string>
+    <string name="operit_terminal">Kiyori终端</string>
     
     <!-- 权限级别描述 -->
     <string name="permission_level_standard">标准权限</string>
@@ -6673,7 +6673,7 @@
     <string name="demo_cmd_list_activities">查看活动的Activity</string>
     <string name="demo_cmd_list_services">列出系统服务</string>
     <string name="demo_cmd_check_resolution">查看屏幕分辨率</string>
-    <string name="demo_cmd_echo_hello">打印Hello OperitTerminal</string>
+    <string name="demo_cmd_echo_hello">打印Hello KiyoriTerminal</string>
     <string name="demo_cmd_list_files">列出文件和目录</string>
     <string name="demo_cmd_show_user">显示当前用户</string>
     <string name="demo_cmd_update_package_manager">更新包管理器 (Ubuntu)</string>

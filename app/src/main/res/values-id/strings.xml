@@ -1031,7 +1031,7 @@
     <string name="overlay_permission">Izin Overlay</string>
     <string name="battery_optimization">Pengecualian Optimasi Baterai</string>
     <string name="location_permission">Izin Lokasi</string>
-    <string name="operit_terminal">Terminal Operit</string>
+    <string name="operit_terminal">Terminal Kiyori</string>
     <string name="permission_level_standard">Izin Standar</string>
     <string name="permission_level_accessibility">Izin Aksesibilitas</string>
     <string name="permission_level_admin">Izin Administrator</string>
@@ -5706,7 +5706,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="demo_cmd_list_activities">Lihat Aktivitas yang Berjalan</string>
     <string name="demo_cmd_list_services">Daftar Layanan Sistem</string>
     <string name="demo_cmd_check_resolution">Lihat Resolusi Layar</string>
-    <string name="demo_cmd_echo_hello">Cetak Hello OperitTerminal</string>
+    <string name="demo_cmd_echo_hello">Cetak Hello KiyoriTerminal</string>
     <string name="demo_cmd_list_files">Daftar File dan Direktori</string>
     <string name="demo_cmd_show_user">Tampilkan Pengguna Saat Ini</string>
     <string name="demo_cmd_update_package_manager">Perbarui Manajer Paket (Ubuntu)</string>
