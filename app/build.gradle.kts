@@ -5,13 +5,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.legacy.kapt)
     alias(libs.plugins.kotlin.parcelize)
     id("io.objectbox")
-    id("kotlin-kapt")
 }
 
 val localProperties = Properties()
@@ -124,20 +122,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
-    applicationVariants.all {
-        if (buildType.name == "nightly") {
-            outputs.all {
-                val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-                output.outputFileName = "app-nightly.apk"
-            }
-        }
-        if (buildType.name == "clone") {
-            outputs.all {
-                val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-                output.outputFileName = "app-clone.apk"
-            }
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -147,6 +131,9 @@ android {
         compose = true
         aidl = true
         buildConfig = true
+        // The clone build type defines app_name through resValue; AGP 9 requires
+        // this generated-resource feature to be declared explicitly.
+        resValues = true
     }
     lint {
         baseline = file("lint-baseline.xml")
@@ -191,6 +178,25 @@ android {
 //    aaptOptions {
 //        noCompress += "tflite"
 //    }
+}
+
+androidComponents {
+    // AGP 9 removes applicationVariants and its internal output types. Keeping the
+    // filenames on the public Variant API prevents the nightly/clone artifact contract
+    // from depending on an implementation class that no longer exists.
+    onVariants { variant ->
+        val outputFileName =
+            when (variant.buildType) {
+                "nightly" -> "app-nightly.apk"
+                "clone" -> "app-clone.apk"
+                else -> null
+            }
+        if (outputFileName != null) {
+            variant.outputs.forEach { output ->
+                output.outputFileName.set(outputFileName)
+            }
+        }
+    }
 }
 
 kotlin {
@@ -304,6 +310,7 @@ dependencies {
     // Kotlin Serialization
     implementation(libs.kotlinx.serialization)
     implementation(libs.kotlin.reflect)
+    implementation(libs.kotlin.parcelize.runtime)
     
     // UUID dependencies
     implementation(libs.uuid)
@@ -321,8 +328,6 @@ dependencies {
     implementation(libs.hnswlib.core)
     implementation(libs.hnswlib.utils)
     
-    // 用于向量嵌入的TF Lite (如果需要自定义嵌入)
-    implementation(libs.tensorflow.lite)
     implementation(libs.mediapipe.tasks.text)
     
     // ONNX Runtime for Android - 支持更强大的多语言Embedding模型

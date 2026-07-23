@@ -114,9 +114,9 @@ yes | sdkmanager --licenses
 ```
 
 2. 安装平台工具、SDK 平台和构建工具:  
-Kiyori 使用 compile SDK 36、target SDK 34、Build Tools 35.0.0 和 CMake 3.22.1。
+Kiyori 使用 compile SDK 36、target SDK 34、Build Tools 36.0.0 和 CMake 3.22.1。
 ```bash
-sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0" "cmake;3.22.1"
+sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1"
 ```
 3. 安装项目指定的 NDK 版本:  
 本项目要求使用 NDK 28.2.13676358。该版本属于 NDK r28，项目内编译的 native ELF 默认采用 16 KB segment 对齐。

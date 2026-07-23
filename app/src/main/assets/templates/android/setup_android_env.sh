@@ -27,7 +27,7 @@ speed_to_int() {
   echo "$speed_int"
 }
 
-GRADLE_VERSION="9.1.0"
+GRADLE_VERSION="9.5.0"
 GRADLE_ROOT="${GRADLE_ROOT:-$HOME/gradle}"
 GRADLE_DIST="gradle-${GRADLE_VERSION}"
 GRADLE_ZIP="${GRADLE_ROOT}/${GRADLE_DIST}-bin.zip"
@@ -272,7 +272,7 @@ ensure_android_tools() {
   export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
   log "Installing Android SDK packages"
   yes | sdkmanager --licenses >/dev/null || true
-  sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+  sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 }
 
 ensure_gradle() {
@@ -506,7 +506,7 @@ export ANDROID_HOME=$ANDROID_HOME
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 export PATH=\$ANDROID_HOME/cmdline-tools/latest/bin:\$ANDROID_HOME/platform-tools:\$JAVA_HOME/bin:\$PATH
 export GRADLE_USER_HOME=$GRADLE_USER_HOME
-export GRADLE_HOME=${GRADLE_HOME:-$HOME/gradle/gradle-9.1.0}
+export GRADLE_HOME=${GRADLE_HOME:-$HOME/gradle/gradle-9.5.0}
 export PATH=\$GRADLE_HOME/bin:\$PATH
 # <<< operit android env <<<
 EOF
@@ -562,8 +562,8 @@ replace_aapt2() {
   cp "$bundled_aapt2" "$aapt2_path"
   chmod +x "$aapt2_path"
 
-  if [[ -d "$ANDROID_HOME/build-tools/35.0.0" ]]; then
-    cp "$aapt2_path" "$ANDROID_HOME/build-tools/35.0.0/aapt2"
+  if [[ -d "$ANDROID_HOME/build-tools/36.0.0" ]]; then
+    cp "$aapt2_path" "$ANDROID_HOME/build-tools/36.0.0/aapt2"
     log "Replaced SDK build-tools aapt2"
   fi
 

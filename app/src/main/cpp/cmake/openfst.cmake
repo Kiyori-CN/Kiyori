@@ -65,6 +65,8 @@ function(download_openfst)
     set(BUILD_SHARED_LIBS OFF)
   endif()
 
+  # OpenFST targets set visibility properties but its old CMake floor leaves CMP0063 undefined.
+  set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
   add_subdirectory(${openfst_SOURCE_DIR} ${openfst_BINARY_DIR} EXCLUDE_FROM_ALL)
 
   if(_build_shared_libs_bak)

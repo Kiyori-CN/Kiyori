@@ -76,7 +76,7 @@ Some markets, model providers, GitHub login, search, speech, image generation, a
 
 - Windows, macOS, or Linux
 - JDK 21 for running Gradle (Java/Kotlin bytecode remains targeted to JVM 17)
-- Android SDK Platform 36, target SDK 34, Build Tools 35.0.0, NDK 28.2.13676358, and CMake 3.22.1
+- Android SDK Platform 36, target SDK 34, Build Tools 36.0.0, NDK 28.2.13676358, and CMake 3.22.1
 - Git with submodule support
 
 ### Clone

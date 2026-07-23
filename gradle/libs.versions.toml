@@ -1,7 +1,6 @@
  [versions]
-agp = "8.13.2"
-kotlin = "2.2.0"
-kotlin-serialization = "2.2.0"
+agp = "9.3.0"
+kotlin = "2.3.21"
 coreKtx = "1.12.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -42,7 +41,6 @@ gson = "2.10.1"
 hjson = "3.0.0"
 jieba = "1.0.2"
 hnswlib = "0.0.46"
-tensorflow = "2.10.0"
 room = "2.8.4"
 commons-compress-v2 = "1.24.0"
 junrar = "7.5.5"
@@ -160,6 +158,7 @@ renderx = { group = "com.github.tech-pw", name = "RenderX", version.ref = "rende
 # Serialization
 kotlinx-serialization = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+kotlin-parcelize-runtime = { group = "org.jetbrains.kotlin", name = "kotlin-parcelize-runtime", version.ref = "kotlin" }
 uuid = { group = "com.benasher44", name = "uuid", version.ref = "uuid" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 hjson = { group = "org.hjson", name = "hjson", version.ref = "hjson" }
@@ -170,7 +169,6 @@ hnswlib-core = { group = "com.github.jelmerk", name = "hnswlib-core", version.re
 hnswlib-utils = { group = "com.github.jelmerk", name = "hnswlib-utils", version.ref = "hnswlib" }
 
 # Machine learning
-tensorflow-lite = { group = "org.tensorflow", name = "tensorflow-lite", version.ref = "tensorflow" }
 mediapipe-tasks-text = { group = "com.google.mediapipe", name = "tasks-text", version.ref = "mediapipe" }
 
 # Database
@@ -254,9 +252,8 @@ glance-material3 = { group = "androidx.glance", name = "glance-material3", versi
  [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin-serialization" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 objectbox = { id = "io.objectbox", version.ref = "objectbox" }
-kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+legacy-kapt = { id = "com.android.legacy-kapt", version.ref = "agp" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }

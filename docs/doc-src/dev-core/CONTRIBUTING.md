@@ -30,7 +30,7 @@
 - JDK 21
 - Node.js 22、npm 和 pnpm
 - Python 3
-- Android SDK Platform 36、target SDK 34、Build Tools 35.0.0
+- Android SDK Platform 36、target SDK 34、Build Tools 36.0.0
 - NDK 28.2.13676358 和 CMake 3.22.1
 
 Fork 并克隆仓库后，建议保留 `upstream` 远程：

@@ -175,7 +175,7 @@ chmod +x ./setup_android_env.sh
 ```
 
 脚本会自动完成：
-- 替换 `$ANDROID_SDK/build-tools/35.0.0/aapt2`
+- 替换 `$ANDROID_SDK/build-tools/36.0.0/aapt2`
 - 替换 `~/.gradle/caches/modules-2/files-2.1/com.android.tools.build/aapt2` 下的 jar 内二进制
 - 替换 `~/.gradle/caches/transforms-*` 中已经解压出来的 `aapt2`
 

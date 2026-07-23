@@ -4,32 +4,40 @@
 
 | 项目 | 版本 | 依据 |
 | --- | --- | --- |
-| Gradle | 8.13 | AGP 8.13.2 兼容矩阵 |
-| Android Gradle Plugin | 8.13.2 | 当前版本已满足 AGP 8.5.1+ |
+| Gradle | 9.5.0 | AGP 9.3.0 兼容矩阵 |
+| Android Gradle Plugin | 9.3.0 | 当前稳定工具链与 SDK XML v4 支持 |
+| Kotlin | 2.3.21 | Compose、Serialization、Parcelize 与运行时统一版本 |
 | JDK（运行 Gradle） | Temurin 21 | 当前 CI 与本机实际运行版本 |
 | JVM target | 17 | 保持现有 Java/Kotlin 字节码兼容边界 |
 | compile SDK | 36 | 当前应用配置 |
 | target SDK | 34 | 当前应用配置，非本轮产品策略变更 |
-| Build Tools | 35.0.0 | AGP 8.13 默认版本与 CI 固定版本 |
+| Build Tools | 36.0.0 | AGP 9.3 默认版本与 CI 固定版本 |
 | NDK | 28.2.13676358 | r28 默认启用 16 KB ELF 对齐 |
 | CMake | 3.22.1 | 现有 native 模块配置 |
 
 ## 实施
 
-- 根 `gradle.properties` 提供唯一 NDK 版本，所有 Android native 模块显式读取
-- CI 的 Android build 与 PR check 安装同一 NDK；不再使用 25.1.8937393
-- 本机 Command-line Tools 已从 20.0 升级到 22.0，`latest` 指向 22.0
-- README、BUILDING、CONTRIBUTING 与正式准备清单使用同一版本表述
-- 依赖准备脚本固定用 NDK 28 的 arm64 C++ runtime，移除外部归档与 ffmpeg AAR 的重复旧 runtime
-- `CXX5304` 已定位到 AGP SDK metadata 解析器：AGP 8.13.2 携带的 `sdklib 31.13.2` 只有 `sdk-common-01.xsd` 至 `sdk-common-03.xsd`，而 AGP 9.2 对应的 `sdklib 32.2.0` 已包含 `sdk-common-04.xsd`
-- 使用官方兼容组合 Gradle 9.5.0 与 AGP 9.3.0 做过不落盘配置探针；项目在应用 `org.jetbrains.kotlin.android 2.2.0` 时按官方预期因重复 `kotlin` extension 失败，证明 AGP 9 升级必须先完成内置 Kotlin 迁移
+- 根工程、Android library、`tools/shower` 与 Android 原生模板迁移到 AGP 9 内置 Kotlin，不再应用 `org.jetbrains.kotlin.android`
+- app 的 Kapt 使用 AGP 同版 `com.android.legacy-kapt`；未启用 built-in Kotlin 或新 DSL 的退出开关
+- Compose、Serialization、Parcelize 与相关 Kotlin runtime 统一为 2.3.21；Java/Kotlin 字节码目标仍为 JVM 17
+- 夜间版与克隆版 APK 文件名改用公开 Android Components Variant API，source set 改用 AGP 9 DSL
+- 根工程、`tools/shower`、Android 原生模板及 CI 固定 Gradle 9.5.0、AGP 9.3.0 与 Build Tools 36.0.0
+- 所有源码 native 模块继续显式使用 NDK 28.2.13676358；CMake 保持 3.22.1
+- AGP 9.3 的 SDK metadata 解析器已消除旧 AGP 读取 SDK XML v4 时的 `CXX5304`
+- 未修改市场下载、发布渠道或 lint baseline
+
+## 验证结果
+
+- `gradlew help --warning-mode all` 成功，无 Gradle 配置告警
+- `:app:compileDebugKotlin --rerun-tasks` 成功，共采集 610 条源码 warning：app 575、terminal 25、quickjs 6、dragonbones 2、mnn 2；产品壳提交没有直接新增 warning
+- `:app:lintDebug` 成功，0 error、46 warning、2 个 baseline hint；lint baseline 未修改
+- `:app:configureCMakeDebug[arm64-v8a]` 成功，`CXX5304` 与 OpenFST `CMP0063` policy warning 均已消失
+- `tools/shower` 与 Android 原生模板 Kotlin 编译成功且无 warning
+- `assembleDebug` 成功，当前 APK 的包名、版本、16 KB ZIP 对齐与 ELF 清单见下一步文档
 
 ## 暂缓
 
-- 暂不升级到 AGP 9.3.0、Gradle 9.5.0 和 Build Tools 36.0.0：根工程、app、八个 Android library、独立 shower 工具及 Flutter 模板仍应用 Kotlin Android plugin，app 同时使用 Kapt。按 [Android 官方内置 Kotlin 迁移说明](https://developer.android.com/build/migrate-to-built-in-kotlin)，这需要单独迁移插件与 Kapt 配置，不能靠 legacy opt-out 规避
-- 不为 `CXX5304` 单独升级 CMake：CMake 3.22.1 直接配置成功，告警发生在 CMake 启动前的 AGP SDK metadata 读取阶段
-
-## 当前工具链告警
-
-- `:app:configureCMakeDebug[arm64-v8a] --rerun-tasks` 成功，但输出两次 `CXX5304`：AGP 8.13.2 的 SDK parser 只理解 XML v3，而本机 SDK metadata 为 v4
-- 下一步是建立 AGP 9 内置 Kotlin/Kapt 迁移 TODO，并在配置、Kotlin 编译、CMake、Lint 和 Debug APK 全部通过后再切换工具链；不能把本告警错误归因于 CMake
+- Kotlin 2.4 不解决本轮剩余源码或 native 告警；后续如升级应单独评估当前稳定补丁版 2.4.10，不停在 2.4.0
+- compile SDK 37 与 Build Tools 37 涉及新的平台/API 策略，不因版本提示机械升级
+- Flutter 模板仍使用其已验证的 AGP 8.11.1 与 Kotlin 2.2.20；本机没有 Flutter SDK，不能把未验证迁移并入 Android 原生工具链收尾
+- CMake 3.22.1 已满足当前工程；除非 native 模块提出明确需求，不为追逐版本号单独升级

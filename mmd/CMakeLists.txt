@@ -28,6 +28,8 @@ operit_prepare_git_source(
     bullet3
     "https://github.com/bulletphysics/bullet3.git"
     "master"
+    # Pin the archive bytes so FetchContent can safely reuse a completed local download.
+    URL_HASH "SHA256=33A284EB5411C35F62F92CA2777021BDC91158C55C1E89CACD5BEEB2954E949B"
 )
 
 add_subdirectory("${OPERIT_BULLET3_SOURCE_DIR}" "${OPERIT_BULLET3_BINARY_DIR}" EXCLUDE_FROM_ALL)
