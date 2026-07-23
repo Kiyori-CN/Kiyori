@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,6 +76,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 
 private const val AI_DRAWER_ANIMATION_MILLIS = 280
+private val NETWORK_ONLINE_INDICATOR_COLOR = Color(0xFF4CAF50)
+private val NETWORK_OFFLINE_INDICATOR_COLOR = Color(0xFFEF5350)
 
 private data class AiDrawerPermissionStatus(
     val badgeTextResId: Int,
@@ -344,11 +347,13 @@ private fun KiyoriAiDrawerStatusHeader(
     isNetworkAvailable: Boolean,
     networkType: String,
 ) {
-    val statusColor =
+    // Keep the WiFi glyph and label on the drawer's theme accent; connectivity is shown by the dot.
+    val statusColor = MaterialTheme.colorScheme.primary
+    val availabilityIndicatorColor =
         if (isNetworkAvailable) {
-            MaterialTheme.colorScheme.tertiary
+            NETWORK_ONLINE_INDICATOR_COLOR
         } else {
-            MaterialTheme.colorScheme.error
+            NETWORK_OFFLINE_INDICATOR_COLOR
         }
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
@@ -369,7 +374,10 @@ private fun KiyoriAiDrawerStatusHeader(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Box(
-                    modifier = Modifier.size(6.dp).clip(CircleShape).background(statusColor),
+                    modifier =
+                        Modifier.size(6.dp)
+                            .clip(CircleShape)
+                            .background(availabilityIndicatorColor),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Icon(
