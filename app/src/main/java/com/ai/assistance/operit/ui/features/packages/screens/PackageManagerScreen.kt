@@ -65,6 +65,7 @@ import com.ai.assistance.operit.ui.features.packages.dialogs.ScriptExecutionDial
 import com.ai.assistance.operit.ui.features.packages.lists.PackagesList
 import com.ai.assistance.operit.ui.features.packages.market.BindMarketSearchToTopBar
 import com.ai.assistance.operit.ui.features.packages.market.PluginCreationIntent
+import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -121,7 +122,7 @@ private suspend fun runQuickPluginCreatorSetupAndPublishResult(
 fun PackageManagerScreen(
     onNavigateToMCPMarket: () -> Unit = {},
     onNavigateToSkillMarket: () -> Unit = {},
-    onNavigateToArtifactMarket: () -> Unit = {},
+    onNavigateToArtifactMarket: (PublishArtifactType) -> Unit = {},
     onStartPluginCreation: (PluginCreationIntent) -> Unit = {},
     onOpenToolPkgPluginConfig: (String, String, String, Boolean) -> Unit = { _, _, _, _ -> },
 ) {
@@ -399,7 +400,16 @@ fun PackageManagerScreen(
                                     )
 
                                 if (importSucceeded) {
-                                    snackbarHostState.showSnackbar(message = context.getString(R.string.external_package_imported))
+                                    snackbarHostState.showSnackbar(
+                                        message =
+                                            context.getString(
+                                                if (selectedTab == PackageTab.PLUGINS) {
+                                                    R.string.external_plugin_imported
+                                                } else {
+                                                    R.string.external_package_imported
+                                                }
+                                            )
+                                    )
                                 } else {
                                     importErrorMessage =
                                         buildString {
@@ -568,7 +578,15 @@ fun PackageManagerScreen(
                     }
 
                     FloatingActionButton(
-                        onClick = onNavigateToArtifactMarket,
+                        onClick = {
+                            onNavigateToArtifactMarket(
+                                if (selectedTab == PackageTab.PLUGINS) {
+                                    PublishArtifactType.PACKAGE
+                                } else {
+                                    PublishArtifactType.SCRIPT
+                                }
+                            )
+                        },
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier =
@@ -579,7 +597,14 @@ fun PackageManagerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Store,
-                            contentDescription = "Artifact Market"
+                            contentDescription =
+                                stringResource(
+                                    if (selectedTab == PackageTab.PLUGINS) {
+                                        R.string.screen_title_package_market
+                                    } else {
+                                        R.string.screen_title_script_market
+                                    }
+                                )
                         )
                     }
 
@@ -689,7 +714,7 @@ fun PackageManagerScreen(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            context.getString(R.string.packages),
+                            context.getString(R.string.script_packages),
                             style = MaterialTheme.typography.bodySmall,
                             softWrap = false,
                             color = if (selectedTab == PackageTab.PACKAGES)

@@ -156,8 +156,8 @@ object RoomDatabaseBackupManager {
         val safeKeepLatest = keepLatest.coerceIn(1, 100)
 
         val newDir = OperitBackupDirs.roomDbDir()
-        val legacyDir = OperitBackupDirs.operitRootDir()
-        val dirs = listOf(newDir, legacyDir)
+        val legacyLayoutDir = OperitBackupDirs.kiyoriRootDir()
+        val dirs = listOf(newDir, legacyLayoutDir)
 
         val candidates = dirs
             .flatMap { dir ->

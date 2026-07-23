@@ -9,9 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.CrashRecoveryState
+import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.ThrowableTextFormatter
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -257,11 +257,7 @@ private fun copyToClipboard(context: Context, text: String) {
 
 private fun exportToFile(context: Context, text: String) {
     try {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val errorDir = File(downloadsDir, "Operit/error")
-        if (!errorDir.exists()) {
-            errorDir.mkdirs()
-        }
+        val errorDir = OperitPaths.errorDir()
 
         val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
         val file = File(errorDir, "error-report-$timestamp.log")

@@ -13,14 +13,14 @@ from pathlib import Path, PurePosixPath
 MANIFEST_FILENAMES = ("manifest.hjson", "manifest.json")
 SYNCABLE_SUFFIXES = {".js", ".toolpkg"}
 SYNC_MODES = ("normal", "test")
-APP_PACKAGE = "com.ai.assistance.operit"
+APP_PACKAGE = "com.kiyori"
 ACTION_DEBUG_INSTALL_TOOLPKG = "com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG"
 ACTION_DEBUG_REFRESH_PACKAGES = "com.ai.assistance.operit.DEBUG_REFRESH_PACKAGES"
 RECEIVER_COMPONENT_TOOLPKG = (
-    "com.ai.assistance.operit/.core.tools.packTool.ToolPkgDebugInstallReceiver"
+    "com.kiyori/com.ai.assistance.operit.core.tools.packTool.ToolPkgDebugInstallReceiver"
 )
 RECEIVER_COMPONENT_REFRESH = (
-    "com.ai.assistance.operit/.core.tools.packTool.PackageDebugRefreshReceiver"
+    "com.kiyori/com.ai.assistance.operit.core.tools.packTool.PackageDebugRefreshReceiver"
 )
 REMOTE_PACKAGES_DIR = f"/sdcard/Android/data/{APP_PACKAGE}/files/packages"
 HOT_RELOAD_STATE_FILE = ".sync_example_packages_hot_reload_state.json"

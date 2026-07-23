@@ -48,7 +48,7 @@ The app launches into Software Home. Minus-One Page, Software Home, and AI Home 
 
 Software Home, Minus-One Page, all five bottom destinations, and AI pages share one edge-to-edge status-bar policy. Page backgrounds extend to the physical top edge while interactive content avoids the status bar and cutout. The drawer scrim still covers the full window, but the drawer panel begins below the status bar and does not apply that top inset twice. A visible status bar is always transparent; Appearance keeps Hide status bar but removes the transparent and custom-color controls.
 
-The drawer shows live network status plus Packages, Permission Grant, Workflow, AI Dialogue, Assistant Configuration, Memory, Toolbox, ToolPkg destinations, and AI Settings; a WiFi connection is labeled exactly "WiFi". Native AI roots retain independent state and child stacks, while a ToolPkg page retains state only when its route declares `keepAlive=true`. Conversation history, new-chat, and delete-chat actions remain in the existing AI Home history selector. Terminal remains only in the upper-right AI Home toolbar. The first Minus-One Page follows the legacy Kiyori design and includes Favorites, Bookmarks, History, and Downloads.
+The drawer shows live network status plus Packages, Permission Grant, Workflow, AI Dialogue, Assistant Configuration, Memory, Toolbox, ToolPkg destinations, and AI Settings; a WiFi connection is labeled exactly "WiFi". The Plugins tab manages ToolPkg containers bundled with the APK or installed from the market, while ordinary JS, TS, and HJSON tool projects live in the separate Script Packages tab. Plugins retain the Operit market `package/toolpkg_v2` protocol and may register drawer pages, input-menu actions, message processing, and configuration pages. Native AI roots retain independent state and child stacks, while a ToolPkg page retains state only when its route declares `keepAlive=true`. Conversation history, new-chat, and delete-chat actions remain in the existing AI Home history selector. Terminal remains only in the upper-right AI Home toolbar. The first Minus-One Page follows the legacy Kiyori design and includes Favorites, Bookmarks, History, and Downloads.
 
 The drawer keeps the original high-frequency Permission entry and continues to open `Screen.ShizukuCommands`. Permission Center is entered from Kiyori Settings, while AI Tool Authorization remains owned by `ToolPermissionSystem`; these routes do not copy or merge state. High-impact-operation policy and operation records remain part of the security-contract design. Backups, conversation-data management, token statistics, and the Toolbox utility for changing other applications' permissions stay in their own domains.
 
@@ -111,11 +111,13 @@ To avoid breaking existing data and ecosystem integrations, this branding migrat
 - source namespace `com.ai.assistance.operit`
 - the `operit://` OAuth callback and existing Intent actions
 - database, preferences, backup, workspace, and file-format identifiers
-- plugin, ToolPkg, MCP, and selected legacy file-path identifiers
+- plugin, ToolPkg, and MCP protocol identifiers and inherited backup formats
 
 These identifiers do not define the current product brand. Any protocol-level rename requires a separate compatibility migration design.
 
-Because `com.kiyori` is a new application identity, an existing `com.ai.assistance.operit` installation cannot be upgraded in place. Export a backup from the old app and import it into Kiyori; the `Download/Operit` paths and inherited backup formats remain supported for compatibility.
+Kiyori's product version and Operit ecosystem compatibility version are maintained independently. Marketplace `minAppVer` and `maxAppVer` checks use the inherited Operit runtime compatibility version instead of Kiyori's `0.x` product version. Publisher-declared version ranges remain enforced.
+
+Because `com.kiyori` is a new application identity, an existing `com.ai.assistance.operit` installation cannot be upgraded in place. Export a backup from the old app and explicitly import it into Kiyori. New Kiyori runtime data uses `Download/Kiyori`; the app does not automatically scan, merge, migrate, or delete `Download/Operit`. Inherited backup formats and plugin protocol identifiers remain supported for explicit import and ecosystem compatibility.
 
 ## Upstream and License
 

@@ -59,7 +59,7 @@
     <string name="danger_zone">Zona peligrosa</string>
     <string name="chat_statistics">Estadísticas del historial de chat</string>
     <string name="current_chats">Actualmente hay %1$d registros de chat</string>
-    <string name="backup_location">Los archivos de copia de seguridad se guardan en la carpeta "Descargas/Operit"</string>
+    <string name="backup_location">Los archivos de copia de seguridad se guardan en la carpeta "Descargas/Kiyori"</string>
     <string name="faq_backup">Preguntas frecuentes</string>
 
     <string name="lock_chat">Bloquear chat</string>
@@ -226,6 +226,7 @@
     <string name="package_import_success">Paquete importado con éxito</string>
     <string name="package_import_error">Error al importar el paquete</string>
     <string name="no_packages_available">No hay paquetes disponibles</string>
+    <string name="no_script_packages_available">No hay paquetes de scripts disponibles</string>
     <string name="no_packages_imported">Aún no se han importado paquetes</string>
     <string name="remove_package">Eliminar paquete</string>
     <string name="package_removed">Paquete eliminado</string>
@@ -240,7 +241,7 @@
     <string name="copy_path">Copiar ruta</string>
     <string name="path_copied_to_clipboard">Ruta copiada al portapapeles</string>
     <string name="open_file_manager">Abrir gestor de archivos</string>
-    <string name="navigate_to_external_files">Navegue a Android/data/com.ai.assistance.operit/files/packages</string>
+    <string name="navigate_to_external_files">Navegue a Android/data/com.kiyori/files/packages</string>
 
     <!-- OperScript Execution -->
     <string name="run_script">Ejecutar script</string>
@@ -2135,11 +2136,12 @@
     <string name="pkg_plugin_config_open_action">Abrir configuración</string>
     <string name="automation_json_only">Solo se admiten archivos JSON</string>
     <string name="no_filename">No se puede obtener el nombre del archivo</string>
-    <string name="external_package_imported">Paquete externo importado</string>
+    <string name="external_package_imported">Paquete de scripts externo importado</string>
+    <string name="external_plugin_imported">Complemento externo importado</string>
     <string name="current_tab_not_support_import">La pestaña actual no admite importación</string>
     <string name="import_failed">Error al importar: %1$s</string>
-    <string name="package_import_failed">Error al importar el paquete</string>
-    <string name="package_remove_failed">Error al eliminar el paquete</string>
+    <string name="package_import_failed">Error al importar el paquete de scripts</string>
+    <string name="package_remove_failed">Error al eliminar el paquete de scripts</string>
     <string name="script_params_config">Configuración de parámetros</string>
     <string name="script_code_placeholder">Escriba código JavaScript...</string>
     <string name="agreement_title">Acuerdo de usuario y política de privacidad</string>
@@ -3826,9 +3828,9 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="import_color_qr">Importar código QR de color</string>
     <string name="scan_color_qr">Escanear código QR de color</string>
     <string name="tavern_json">JSON de Tavern</string>
-    <string name="export_tavern_json_desc">Exportar como .json y guardar en Download/Operit/exports</string>
+    <string name="export_tavern_json_desc">Exportar como .json y guardar en Download/Kiyori/exports</string>
     <string name="tavern_png">PNG de Tavern</string>
-    <string name="export_tavern_png_desc">Exportar como imagen importable a Tavern y guardar en Download/Operit/exports</string>
+    <string name="export_tavern_png_desc">Exportar como imagen importable a Tavern y guardar en Download/Kiyori/exports</string>
     <string name="image_read_error">No se puede leer la imagen</string>
     <string name="image_parse_error">No se puede analizar la imagen</string>
     <string name="color_qr_not_recognized">No se puede reconocer el código QR de color</string>
@@ -3856,7 +3858,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="login_github_to_manage_mcp_plugins">Inicia sesión en GitHub para publicar y gestionar tus plugins MCP</string>
     <string name="login_github_for_skill_market">Inicia sesión en GitHub para una mejor experiencia en el mercado de Skills</string>
     <string name="login_github_to_manage_scripts">Inicia sesión en GitHub para publicar y gestionar tus scripts</string>
-    <string name="login_github_to_manage_packages">Inicia sesión en GitHub para publicar y gestionar tus paquetes</string>
+    <string name="login_github_to_manage_packages">Inicia sesión en GitHub para publicar y gestionar tus complementos</string>
     <string name="browse">Explorar</string>
     <string name="my_tab">Mis</string>
     <string name="market_tab_artifact">Paquetes sandbox</string>
@@ -3877,19 +3879,19 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="available_mcp_plugins">Plugins MCP disponibles</string>
     <string name="available_skills_market">Skills disponibles</string>
     <string name="available_scripts_market">Scripts disponibles</string>
-    <string name="available_packages_market">Paquetes disponibles</string>
+    <string name="available_packages_market">Complementos disponibles</string>
     <string name="no_matching_plugins_found">No se encontraron plugins coincidentes</string>
     <string name="no_matching_skills_found">No se encontraron Skills coincidentes</string>
     <string name="no_matching_scripts_found">No se encontraron scripts coincidentes</string>
-    <string name="no_matching_packages_found">No se encontraron paquetes coincidentes</string>
+    <string name="no_matching_packages_found">No se encontraron paquetes de scripts coincidentes</string>
     <string name="skill_market_search_placeholder">Buscar Skill o autor</string>
     <string name="script_market_search_placeholder">Buscar nombre, descripción, autor del script...</string>
-    <string name="package_market_search_placeholder">Buscar nombre, descripción, autor del paquete...</string>
+    <string name="package_market_search_placeholder">Buscar paquetes de scripts</string>
     <string name="skill_repo_url_not_found">No se encontró la URL del repositorio</string>
     <string name="skill_repo_url_not_found_cannot_install">No se encontró la URL del repositorio, no se puede instalar</string>
     <string name="no_available_mcp_plugins">No hay plugins MCP disponibles por ahora</string>
     <string name="no_scripts_available">No hay scripts disponibles por ahora</string>
-    <string name="no_market_packages_available">No hay paquetes disponibles por ahora</string>
+    <string name="no_market_packages_available">No hay complementos disponibles por ahora</string>
     <string name="refresh_or_try_later">Actualiza o inténtalo de nuevo más tarde</string>
     <string name="recommended_feature">Función recomendada</string>
     <string name="premium_mcp_plugins_coming_soon">Próximamente, plugins MCP premium seleccionados</string>
@@ -3900,11 +3902,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="publish_new_skill">Publicar nueva Skill</string>
 
     <string name="publish_new_script">Publicar nuevo script</string>
-    <string name="publish_new_package">Publicar nuevo paquete</string>
+    <string name="publish_new_package">Publicar nuevo complemento</string>
     <string name="manage_my_plugins">Gestionar mis plugins</string>
     <string name="manage_my_skills">Gestionar mis Skills</string>
     <string name="manage_my_scripts">Gestionar mis scripts</string>
-    <string name="manage_my_packages">Gestionar mis paquetes</string>
+    <string name="manage_my_packages">Gestionar mis complementos</string>
     <string name="logout">Cerrar sesión</string>
     <string name="author_avatar">Avatar del autor</string>
     <string name="sharer_avatar">Avatar del compartidor</string>
@@ -3947,15 +3949,15 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="need_login_github_manage_plugins">Necesita iniciar sesión en GitHub para gestionar sus plugins publicados</string>
     <string name="need_login_github_manage_skills">Necesita iniciar sesión en GitHub para gestionar sus Skills publicados</string>
     <string name="need_login_github_manage_scripts">Necesita iniciar sesión en GitHub para gestionar sus scripts publicados</string>
-    <string name="need_login_github_manage_packages">Necesita iniciar sesión en GitHub para gestionar sus paquetes publicados</string>
+    <string name="need_login_github_manage_packages">Necesita iniciar sesión en GitHub para gestionar sus complementos publicados</string>
     <string name="no_published_plugins_yet">Aún no ha publicado ningún plugin</string>
     <string name="click_button_publish_first_mcp_plugin">Haga clic en el botón de arriba para publicar su primer plugin MCP</string>
     <string name="no_published_skills_yet">Aún no ha publicado ningún Skill</string>
     <string name="click_button_publish_first_skill">Haga clic en el botón de arriba para publicar su primer Skill</string>
     <string name="no_published_scripts_yet">Aún no ha publicado ningún script</string>
     <string name="click_button_publish_first_script">Haga clic en el botón de arriba para publicar su primer script</string>
-    <string name="no_published_packages_yet">Aún no ha publicado ningún paquete</string>
-    <string name="click_button_publish_first_package">Haga clic en el botón de arriba para publicar su primer paquete</string>
+    <string name="no_published_packages_yet">Aún no ha publicado ningún complemento</string>
+    <string name="click_button_publish_first_package">Haga clic en el botón de arriba para publicar su primer complemento</string>
     <string name="confirm_delete_action">Confirmar eliminación</string>
     <string name="published">Publicado</string>
     <string name="removed">Eliminado</string>
@@ -3982,7 +3984,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
 
     <string name="after_logging_in_you_can_view_and_manage_your_mcp_plugins">Después de iniciar sesión, puedes ver y gestionar tus plugins MCP publicados</string>
     <string name="after_logging_in_you_can_view_and_manage_your_scripts">Después de iniciar sesión, puedes ver y gestionar tus scripts publicados</string>
-    <string name="after_logging_in_you_can_view_and_manage_your_packages">Después de iniciar sesión, puedes ver y gestionar tus paquetes de herramientas publicados</string>
+    <string name="after_logging_in_you_can_view_and_manage_your_packages">Después de iniciar sesión, puedes ver y gestionar tus complementos publicados</string>
     <string name="after_logging_in_you_can_view_and_manage_your_artifacts">Después de iniciar sesión, puedes ver y gestionar tus scripts y paquetes de herramientas publicados</string>
     <string name="login_github_to_manage_artifacts">Inicia sesión en GitHub para gestionar y publicar scripts/paquetes de herramientas</string>
     <string name="need_login_github_manage_artifacts">Necesitas iniciar sesión en GitHub para gestionar tus scripts y paquetes de herramientas publicados</string>
@@ -3996,16 +3998,16 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="no_published_artifacts_yet">Aún no has publicado ningún script o paquete de herramientas</string>
     <string name="click_button_publish_first_artifact">Haz clic en el botón de arriba para publicar tu primer script o paquete de herramientas</string>
     <string name="confirm_remove_artifact_from_market">¿Estás seguro de que deseas eliminar el elemento «%1$s» del mercado? Esta acción cerrará el Issue correspondiente, pero no eliminará tu repositorio de publicación.</string>
-    <string name="screen_title_artifact_market">Mercado de scripts y paquetes de herramientas</string>
+    <string name="screen_title_artifact_market">Mercado de scripts y complementos</string>
     <string name="screen_title_market">Mercado</string>
-    <string name="screen_title_artifact_manage">Gestionar scripts y paquetes de herramientas</string>
-    <string name="screen_title_artifact_publish">Publicar script o paquete de herramientas</string>
-    <string name="artifact_publish_info_description">El elemento se subirá primero a tu repositorio de publicación de OperitForge y luego se registrará automáticamente en el mercado de scripts o en el mercado de paquetes de herramientas según el tipo. Asegúrate de que el contenido, la versión y el rango de compatibilidad sean correctos.</string>
+    <string name="screen_title_artifact_manage">Gestionar scripts y complementos</string>
+    <string name="screen_title_artifact_publish">Publicar script o complemento</string>
+    <string name="artifact_publish_info_description">El elemento se subirá primero a tu repositorio de publicación de OperitForge y luego se registrará automáticamente en el mercado de scripts o en el mercado de complementos según el tipo. Asegúrate de que el contenido, la versión y el rango de compatibilidad sean correctos.</string>
     <string name="artifact_edit_info_description">Estás editando la información de un elemento ya publicado. La actualización sobrescribirá los metadatos del Issue correspondiente en el repositorio del mercado.</string>
     <string name="need_login_before_publish_artifact">Necesitas iniciar sesión en GitHub antes de publicar.</string>
     <string name="local_artifact_entry">Elemento local</string>
     <string name="publish_target_script_market">Se publicará automáticamente en el mercado de scripts</string>
-    <string name="publish_target_package_market">Se publicará automáticamente en el mercado de paquetes de herramientas</string>
+    <string name="publish_target_package_market">Se publicará automáticamente en el mercado de complementos</string>
     <string name="display_name_label">Nombre para mostrar</string>
     <string name="description_label">Descripción</string>
     <string name="version_label">Versión</string>
@@ -4025,7 +4027,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="confirm_create_public_forge_message">Confirma nuevamente: ahora se creará el repositorio público `OperitForge`. Las publicaciones futuras reutilizarán este repositorio.</string>
     <string name="create_and_publish">Crear y publicar</string>
     <string name="artifact_type_script">Script</string>
-    <string name="artifact_type_package">Paquete de herramientas</string>
+    <string name="artifact_type_package">Complemento</string>
     <string name="supported_app_versions">Versiones de software compatibles</string>
     <string name="supported_app_versions_short">Compatible con %1$s</string>
     <string name="unsupported_artifact_version_title">La versión actual del software puede no ser compatible</string>
@@ -4036,7 +4038,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="downloaded_already">Descargado</string>
     <string name="downloading">Descargando</string>
     <string name="download_script">Descargar script</string>
-    <string name="download_package">Descargar paquete de herramientas</string>
+    <string name="download_package">Descargar complemento</string>
     <string name="market_sort_updated">Actualizado recientemente</string>
     <string name="market_sort_downloads">Descargas</string>
     <string name="market_sort_likes">Me gusta</string>
@@ -4323,7 +4325,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="confirm_remove_plugin_from_market">¿Estás seguro de que deseas eliminar el plugin «%1$s» del mercado? Esta acción cerrará el Issue correspondiente, pero no eliminará tu repositorio de código.</string>
     <string name="confirm_remove_skill_from_market">¿Estás seguro de que deseas eliminar la Skill «%1$s» del mercado? Esta acción cerrará el Issue correspondiente, pero no eliminará tu repositorio de código.</string>
     <string name="confirm_remove_script_from_market">¿Estás seguro de que deseas eliminar el script «%1$s» del mercado? Esta acción cerrará el Issue correspondiente, pero no eliminará tu repositorio de publicación.</string>
-    <string name="confirm_remove_package_from_market">¿Estás seguro de que deseas eliminar el paquete «%1$s» del mercado? Esta acción cerrará el Issue correspondiente, pero no eliminará tu repositorio de publicación.</string>
+    <string name="confirm_remove_package_from_market">¿Estás seguro de que deseas eliminar el complemento «%1$s» del mercado? Esta acción cerrará el Issue correspondiente, pero no eliminará tu repositorio de publicación.</string>
     <string name="edit_plugin_info_description">Estás editando la información de un plugin ya publicado. Los cambios se actualizarán en el Issue correspondiente del repositorio del mercado.</string>
     <string name="publish_plugin_info_description">La información de tu plugin se publicará como un Issue de GitHub en el repositorio del mercado. Asegúrate de que la información proporcionada sea precisa y completa. El contenido del formulario se guardará automáticamente como borrador hasta que se publique con éxito.</string>
     <string name="plugin_name_required">Nombre del plugin *</string>
@@ -4339,18 +4341,18 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="skill_update_success_message">La información de tu Skill se ha actualizado con éxito.</string>
     <string name="script_publish_info_description">El script se cargará primero en tu repositorio de publicación de OperitForge y luego los metadatos se registrarán en OperitScriptMarket. Asegúrate de que el contenido, la versión y la descripción del script sean correctos.</string>
     <string name="script_edit_info_description">Estás editando la información de un script ya publicado. La actualización sobrescribirá los metadatos del Issue correspondiente en el repositorio del mercado.</string>
-    <string name="package_publish_info_description">El paquete se cargará primero en tu repositorio de publicación de OperitForge y luego los metadatos se registrarán en OperitPackageMarket. Asegúrate de que el contenido, la versión y la descripción del paquete sean correctos.</string>
-    <string name="package_edit_info_description">Estás editando la información de un paquete ya publicado. La actualización sobrescribirá los metadatos del Issue correspondiente en el repositorio del mercado.</string>
+    <string name="package_publish_info_description">El complemento se cargará primero en tu repositorio de publicación de OperitForge y luego los metadatos se registrarán en OperitPackageMarket. Asegúrate de que el contenido, la versión y la descripción del complemento sean correctos.</string>
+    <string name="package_edit_info_description">Estás editando la información de un complemento ya publicado. La actualización sobrescribirá los metadatos del Issue correspondiente en el repositorio del mercado.</string>
     <string name="script_publish_success_message">Tu script se ha publicado con éxito en el mercado.</string>
     <string name="script_update_success_message">La información de tu script se ha actualizado con éxito.</string>
-    <string name="package_publish_success_message">Tu paquete se ha publicado con éxito en el mercado.</string>
-    <string name="package_update_success_message">La información de tu paquete se ha actualizado con éxito.</string>
+    <string name="package_publish_success_message">Tu complemento se ha publicado con éxito en el mercado.</string>
+    <string name="package_update_success_message">La información de tu complemento se ha actualizado con éxito.</string>
     <string name="screen_title_script_market">Mercado de scripts</string>
     <string name="screen_title_script_manage">Gestionar scripts</string>
     <string name="screen_title_script_publish">Publicar script</string>
-    <string name="screen_title_package_market">Mercado de paquetes</string>
-    <string name="screen_title_package_manage">Gestionar paquetes</string>
-    <string name="screen_title_package_publish">Publicar paquete</string>
+    <string name="screen_title_package_market">Mercado de complementos</string>
+    <string name="screen_title_package_manage">Gestionar complementos</string>
+    <string name="screen_title_package_publish">Publicar complemento</string>
     <string name="install_command_example">Por ejemplo: pnpm install xxx@xxxx</string>
     <string name="install_command_optional_description">Si no se completa, el software identificará automáticamente la estructura del proyecto. Se recomienda dejarlo vacío.</string>
     <string name="install_config_example">{"mcpServers": {"example": {"command": "npx", "args": ["example@latest"]}}}</string>
@@ -4820,7 +4822,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="backup_room_db_restart_later">Más tarde</string>
     <string name="backup_room_db_last_success">Último respaldo exitoso: %1$s</string>
     <string name="backup_room_db_last_error">Último error: %1$s</string>
-    <string name="backup_files_location_hint">Sugerencia: los archivos de respaldo se guardan en la carpeta Download/Operit</string>
+    <string name="backup_files_location_hint">Sugerencia: los archivos de respaldo se guardan en la carpeta Download/Kiyori</string>
     <string name="backup_raw_snapshot_title">Respaldo de instantánea de archivos (experimental)</string>
     <string name="backup_raw_snapshot_subtitle">Respaldo y restauración comprimidos completos por archivo/directorio</string>
     <string name="backup_raw_snapshot_desc">Empaqueta los directorios files/shared_prefs/datastore/databases del directorio de datos internos de la aplicación (el entorno Linux de terminal es grande, no se respalda por defecto). La restauración sobrescribirá los datos actuales y requerirá reiniciar la aplicación para que surta efecto. Algunos datos cifrados pueden no funcionar después de cambiar de dispositivo o reinstalar.</string>
@@ -4875,7 +4877,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="backup_faq_why">¿Por qué hacer una copia de seguridad de los datos?</string>
     <string name="backup_faq_why_answer">Hacer una copia de seguridad del historial de chat evita que pierda contenido importante al desinstalar la aplicación o en caso de pérdida de datos. ¡Hacer copias de seguridad periódicas es un buen hábito!</string>
     <string name="backup_faq_where">¿Dónde se guardan los archivos exportados?</string>
-    <string name="backup_faq_where_answer">Los archivos de copia de seguridad exportados se guardan en la carpeta «Descargas/Operit» de su teléfono. El nombre del archivo incluye el tipo de datos exportados, la fecha y la hora.</string>
+    <string name="backup_faq_where_answer">Los archivos de copia de seguridad exportados se guardan en la carpeta «Descargas/Kiyori» de su teléfono. El nombre del archivo incluye el tipo de datos exportados, la fecha y la hora.</string>
     <string name="backup_faq_duplicate">¿Aparecerán datos duplicados después de la importación?</string>
     <string name="backup_faq_duplicate_answer">El sistema juzga según el ID del registro. Los registros con el mismo ID se actualizarán en lugar de importarse duplicados. Los registros con ID diferente se agregarán como nuevos registros.</string>
     <string name="backup_select_export_format">Seleccionar formato de exportación</string>
@@ -4904,7 +4906,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="backup_export_result_success">Exportación exitosa a: %1$s</string>
     <string name="backup_character_cards_title">Tarjetas de personaje</string>
     <string name="backup_character_cards_subtitle">Copia de seguridad y restauración de la configuración de tarjetas de personaje.</string>
-    <string name="backup_character_cards_current_count">Actualmente hay %1$d tarjetas de personaje. Los archivos exportados se guardarán en la carpeta «Descargas/Operit».</string>
+    <string name="backup_character_cards_current_count">Actualmente hay %1$d tarjetas de personaje. Los archivos exportados se guardarán en la carpeta «Descargas/Kiyori».</string>
     <string name="backup_character_card_count">Tarjetas de personaje</string>
     <string name="backup_character_card_files">Tarjetas de personaje</string>
     <string name="backup_character_cards_export_result_success">Exportación exitosa de %1$d tarjetas de personaje a:\n%2$s</string>
@@ -4995,7 +4997,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="logcat_cannot_open_output_stream">no se pudo abrir el flujo de salida</string>
     <string name="logcat_mediestore_save_failed">error al guardar en MediaStore: %1$s</string>
     <string name="logcat_cannot_create_download_dir">no se pudo crear el directorio de descargas</string>
-    <string name="logcat_cannot_create_operit_dir">no se pudo crear el directorio operit</string>
+    <string name="logcat_cannot_create_operit_dir">No se pudo crear el directorio Kiyori</string>
     <string name="logcat_file_create_failed">no se pudo crear el archivo o está vacío</string>
     <string name="logcat_filesystem_save_failed">error al guardar en el sistema de archivos: %1$s</string>
     <string name="backup_export_failed_create_file">error al exportar: no se pudo crear el archivo</string>
@@ -6824,6 +6826,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="conversation_language_chinese">Chino</string>
 
     <string name="nav_group_plugins">Complementos</string>
+    <string name="script_packages">Paquetes de scripts</string>
     <string name="tag_count_lock">Bloquear cantidad</string>
     <string name="tag_count_limit">Cantidad máxima seleccionable</string>
     <string name="tag_count_locked_status">Seleccionados %1$d / Límite %2$d</string>
@@ -6839,15 +6842,15 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="share_preview_include_background">Incluir fondo</string>
     <string name="share_preview_border_width">Borde: %1$.1f dp</string>
 
-    <string name="quick_plugin_creator_title">Crea tu plugin rápidamente</string>
-    <string name="quick_plugin_creator_desc">¿No encuentras el plugin que quieres en el mercado o integrado? ¡Crea el tuyo propio!</string>
+    <string name="quick_plugin_creator_title">Crea rápidamente tu paquete de scripts</string>
+    <string name="quick_plugin_creator_desc">¿No encuentras el paquete de scripts que quieres en el mercado o integrado? ¡Crea el tuyo propio!</string>
     <string name="quick_plugin_creator_step1_title">1. Actualiza o descarga el paquete para crear Skill</string>
     <string name="quick_plugin_creator_step1_desc">Al hacer clic en el botón, se descargará automáticamente `install_or_update.js` y se llamará a debug_run_sandbox_script de operit_editor para ejecutar la instalación o actualización.</string>
     <string name="quick_plugin_creator_run_setup">Descargar y ejecutar automáticamente</string>
     <string name="quick_plugin_creator_setup_success">Instalación o actualización del paquete de creación de Skill completada</string>
     <string name="quick_plugin_creator_step2_title">2. Ingresa los requisitos para comenzar a crear</string>
     <string name="quick_plugin_creator_requirement_hint">Por ejemplo: una herramienta que pueda organizar en lote las imágenes del directorio de descargas y generar un índice</string>
-    <string name="quick_plugin_creator_requirement_empty">Primero ingresa los requisitos del plugin</string>
+    <string name="quick_plugin_creator_requirement_empty">Primero ingresa los requisitos del paquete de scripts</string>
     <string name="mcp_plugin_comment_view_thread">Ver hilo</string>
     <string name="mcp_plugin_user_comments">Comentarios de usuarios</string>
     <string name="quick_plugin_creator_setup_failed">Error al instalar o actualizar el Skill de creación de paquetes</string>
@@ -7163,11 +7166,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="artifact_project_node_selection_hint">Haz clic para seleccionar un nodo; vuelve a hacer clic para deseleccionarlo.</string>
     <string name="plugin_creation_fresh_task_line">Activa el editor Operit y usa el kit de desarrollo sandbox para desarrollar un nuevo kit sandbox.</string>
     <string name="plugin_creation_fresh_package_rule_line">Primero determina el ID del nuevo kit sandbox; no lo renombres después.</string>
-    <string name="plugin_creation_fresh_dev_directory_line">El directorio de desarrollo se fija en Descargas/Operit/dev_package/el ID que determinaste. El desarrollo, la instalación y las pruebas se realizan solo aquí.</string>
+    <string name="plugin_creation_fresh_dev_directory_line">El directorio de desarrollo se fija en Descargas/Kiyori/dev_package/el ID que determinaste. El desarrollo, la instalación y las pruebas se realizan solo aquí.</string>
     <string name="plugin_creation_continue_task_line">Activa el editor Operit, busca la ubicación del kit sandbox %1$s y continúa desarrollando y probando sobre esta versión.</string>
     <string name="plugin_creation_merge_task_line">Activa el editor Operit, busca la ubicación del kit sandbox %1$s y realiza desarrollo de fusión y pruebas sobre esta versión.</string>
     <string name="plugin_creation_existing_package_rule_line">El ID actual del kit sandbox es %1$s. Tanto el ID del kit como el nombre del plugin deben mantenerse; no los renombres ni crees un nuevo kit.</string>
-    <string name="plugin_creation_existing_dev_directory_line">El directorio de desarrollo se fija en Descargas/Operit/dev_package/%1$s. El desarrollo, la instalación y las pruebas se realizan solo aquí.</string>
+    <string name="plugin_creation_existing_dev_directory_line">El directorio de desarrollo se fija en Descargas/Kiyori/dev_package/%1$s. El desarrollo, la instalación y las pruebas se realizan solo aquí.</string>
     <string name="plugin_creation_update_sandbox_package_dev">Primero actualiza SandboxPackage_DEV.</string>
     <string name="plugin_creation_copy_types_to_dev_dir">Copia los types de skills al directorio de desarrollo sobrescribiendo.</string>
     <string name="plugin_creation_use_terminal_ts_js_hint">Usa la terminal tanto como sea posible; prioriza escribir ts y js, luego compila al js final. Consulta los ejemplos para tsconfig.</string>
@@ -7193,9 +7196,9 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="app_update_channel_disabled">Esta versión no recibe actualizaciones ni avisos remotos. Las nuevas versiones se distribuyen por separado a través del repositorio de Kiyori.</string>
     <string name="about_source_attribution">Kiyori continúa el desarrollo a partir del código abierto de Operit. La autoría original, las licencias y el historial del proyecto se conservan en el repositorio.</string>
     <string name="quick_plugin_creator_setup_unavailable">Kiyori aún no ofrece un script de configuración rápida de confianza, por lo que esta acción está desactivada.</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_title">Comprimir y ofuscar el paquete</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_desc">Al activarlo, los scripts ejecutables del ToolPkg se comprimen mediante el árbol de sintaxis de JavaScript. El paquete resultante sigue siendo un archivo ZIP estándar y se puede importar directamente.</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Comprimir y ofuscar el paquete: %1$s</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">Comprimir y ofuscar el complemento</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">Al activarlo, los scripts ejecutables del complemento ToolPkg se comprimen mediante el árbol de sintaxis de JavaScript. El archivo del complemento sigue siendo un ZIP estándar y se puede importar directamente.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Comprimir y ofuscar el complemento: %1$s</string>
     <string name="artifact_publish_asset_source_title">Origen del recurso de publicación</string>
     <string name="artifact_publish_asset_source_upload">Subir el paquete local actual</string>
     <string name="artifact_publish_asset_source_github_release">Usar un recurso de GitHub Release</string>

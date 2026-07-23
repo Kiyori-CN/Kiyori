@@ -2,7 +2,6 @@ package com.ai.assistance.operit.api.chat.llmprovider
 
 import android.content.Context
 import android.net.Uri
-import android.os.Environment
 import android.util.Base64
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
@@ -18,6 +17,7 @@ import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.util.ChatUtils
 import com.ai.assistance.operit.util.HttpLogSanitizer
 import com.ai.assistance.operit.util.LocaleUtils
+import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.StreamingJsonXmlConverter
 import com.ai.assistance.operit.util.TokenCacheManager
 import com.ai.assistance.operit.util.exceptions.UserCancellationException
@@ -336,8 +336,7 @@ open class OpenAIProvider(
      }
 
     private fun getOutputImagesDir(): File {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        return File(downloadsDir, "Operit/output images")
+        return OperitPaths.outputImagesDir()
     }
 
     private fun fileExtensionForImageMime(mimeType: String): String {

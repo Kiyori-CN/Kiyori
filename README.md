@@ -48,7 +48,7 @@ Kiyori App Shell
 
 软件首页、负一屏、底部五入口对应页面和 AI 页面共用 edge-to-edge 状态栏：页面背景延伸到手机顶部，交互内容避开状态栏和挖孔。抽屉遮罩仍覆盖整个窗口，但抽屉面板从状态栏底部开始，面板内容不重复加入顶部 inset。状态栏显示时始终透明，外观设置只保留“隐藏状态栏”，不再提供透明开关或自定义状态栏颜色。
 
-抽屉提供动态网络状态、包管理、权限授予、工作流、AI 对话、助手配置、记忆库、工具箱、ToolPkg 动态插件和 AI 设置；WiFi 网络显示为“WiFi”。原生 AI 一级根保留独立状态与子栈，ToolPkg 页面只在其路由声明 `keepAlive=true` 时保留状态。对话历史、新建和删除对话继续由 AI 首页原有历史选择器负责，不复制到抽屉；Terminal 仍只保留在 AI 首页右上角。负一屏首期参考旧 Kiyori 设计，至少提供收藏、书签、历史和下载。
+抽屉提供动态网络状态、包管理、权限授予、工作流、AI 对话、助手配置、记忆库、工具箱、ToolPkg 动态插件和 AI 设置；WiFi 网络显示为“WiFi”。包管理中的“插件”标签管理 ToolPkg 容器，包括随 APK 预置和从市场安装的插件；普通 JS、TS 与 HJSON 工具项目位于独立的“脚本包”标签。插件继续使用 Operit 市场的 `package/toolpkg_v2` 协议，并可注册抽屉页面、输入框菜单、消息处理和配置页面。原生 AI 一级根保留独立状态与子栈，ToolPkg 页面只在其路由声明 `keepAlive=true` 时保留状态。对话历史、新建和删除对话继续由 AI 首页原有历史选择器负责，不复制到抽屉；Terminal 仍只保留在 AI 首页右上角。负一屏首期参考旧 Kiyori 设计，至少提供收藏、书签、历史和下载。
 
 抽屉保留原版“权限”高频入口，并继续进入 `Screen.ShizukuCommands`。Kiyori 设置中的权限入口进入权限中心，AI 设置中的 AI 工具授权继续由 `ToolPermissionSystem` 持有；三者不复制或混合状态。权限中心以只读总览区分设备能力与 AI 工具授权；高影响操作策略与操作记录将在安全合同中继续设计。备份、聊天记录、Token 统计和修改其他应用权限的工具仍保留在各自原有领域。
 
@@ -113,11 +113,13 @@ macOS 或 Linux：
 - 源码 namespace `com.ai.assistance.operit`
 - `operit://` OAuth 回调及既有 Intent action
 - 数据库、偏好、备份、工作区和文件格式标识
-- 插件、ToolPkg、MCP 及部分既有文件路径
+- 插件、ToolPkg、MCP 的协议标识与既有备份格式
 
 这些名称不代表当前软件品牌。任何协议级重命名都需要独立的兼容迁移设计。
 
-由于当前 application ID 是新的 `com.kiyori`，历史 `com.ai.assistance.operit` 安装不能直接覆盖。需要先在旧应用中导出备份，再在 Kiyori 中导入；`Download/Operit` 路径和既有备份格式会继续保留。
+Kiyori 的产品版本与 Operit 插件生态兼容版本分别维护。市场会按当前继承的 Operit 运行时兼容版本检查插件声明的 `minAppVer` 和 `maxAppVer`，不会使用 Kiyori 的 `0.x` 产品版本误判插件不兼容，也不会跳过发布者声明的版本范围。
+
+由于当前 application ID 是新的 `com.kiyori`，历史 `com.ai.assistance.operit` 安装不能直接覆盖。需要先在旧应用中导出备份，再在 Kiyori 中通过明确的备份或文件选择入口导入。Kiyori 新建的公共运行数据使用 `Download/Kiyori`；应用不会自动扫描、合并、迁移或删除 `Download/Operit`。既有备份格式和插件协议标识继续保留。
 
 ## 上游与许可证
 

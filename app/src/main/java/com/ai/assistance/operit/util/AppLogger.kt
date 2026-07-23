@@ -117,7 +117,7 @@ object AppLogger {
             } catch (_: Throwable) {
                 boundContext ?: return null
             }
-            val dir = File(OperitPaths.operitRootDir(), PACKAGE_LOG_DIR_NAME)
+            val dir = File(OperitPaths.kiyoriRootDir(), PACKAGE_LOG_DIR_NAME)
             if (!dir.exists()) {
                 dir.mkdirs()
             }

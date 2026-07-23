@@ -15,10 +15,10 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_PACKAGE = "com.ai.assistance.operit"
+APP_PACKAGE = "com.kiyori"
 ACTION_DEBUG_INSTALL_TOOLPKG = "com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG"
 RECEIVER_COMPONENT = (
-    "com.ai.assistance.operit/.core.tools.packTool.ToolPkgDebugInstallReceiver"
+    "com.kiyori/com.ai.assistance.operit.core.tools.packTool.ToolPkgDebugInstallReceiver"
 )
 REMOTE_PACKAGES_DIR = f"/sdcard/Android/data/{APP_PACKAGE}/files/packages"
 MANIFEST_FILENAMES = ("manifest.json", "manifest.hjson")

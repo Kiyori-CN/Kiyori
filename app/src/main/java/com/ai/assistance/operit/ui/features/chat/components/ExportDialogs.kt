@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.OperitPaths
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.canhub.cropper.CropImageContract
@@ -807,17 +808,8 @@ suspend fun exportAndroidApp(
 
             // 7. 设置签名信息并执行签名
             onProgress(0.8f, context.getString(R.string.export_signing_apk))
-            // 使用下载目录下的Operit/exports子目录
-            val outputDir =
-                    File(
-                            android.os.Environment.getExternalStoragePublicDirectory(
-                                    android.os.Environment.DIRECTORY_DOWNLOADS
-                            ),
-                            "Operit/exports"
-                    )
-            if (!outputDir.exists()) {
-                outputDir.mkdirs()
-            }
+            // 导出目录由 Kiyori 公共路径所有者统一管理，避免各导出器写入不同品牌目录。
+            val outputDir = OperitPaths.exportsDir()
 
             val outputName = "WebApp_${Date().time}.apk"
             val outputFile = File(outputDir, outputName)
@@ -867,17 +859,7 @@ suspend fun exportWindowsApp(
         withContext(Dispatchers.IO) {
             onProgress(0.1f, context.getString(R.string.export_prepare_windows_template))
 
-            // 创建输出目录 - 使用下载目录下的Operit/exports子目录
-            val outputDir =
-                    File(
-                            android.os.Environment.getExternalStoragePublicDirectory(
-                                    android.os.Environment.DIRECTORY_DOWNLOADS
-                            ),
-                            "Operit/exports"
-                    )
-            if (!outputDir.exists()) {
-                outputDir.mkdirs()
-            }
+            val outputDir = OperitPaths.exportsDir()
 
             // 创建临时工作目录
             val tempDir = File(context.cacheDir, "windows_export_temp")

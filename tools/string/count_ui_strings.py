@@ -222,10 +222,10 @@ def should_exclude_string(content: str, line: str, string_pos: Tuple[int, int]) 
 
     return False
 
-def count_chinese_strings_in_file(file_path: Path) -> Dict:
+def count_chinese_strings_in_file(file_path: Path, repo_root: Path) -> Dict:
     """统计单个文件中的中文字符串"""
     result = {
-        'file': str(file_path.relative_to('D:\\Code\\prog\\assistance')),
+        'file': str(file_path.relative_to(repo_root)),
         'total': 0,
         'excluded_comments': 0,
         'excluded_logs': 0,
@@ -278,7 +278,7 @@ def count_chinese_strings_in_file(file_path: Path) -> Dict:
 
     return result
 
-def analyze_directory(root_dir: Path) -> Dict:
+def analyze_directory(root_dir: Path, repo_root: Path) -> Dict:
     """分析整个目录"""
     print(f"[SCAN] Scanning directory: {root_dir}")
     print("="*80)
@@ -306,7 +306,7 @@ def analyze_directory(root_dir: Path) -> Dict:
     for kt_file in kt_files:
         if _should_skip_file(kt_file):
             continue
-        result = count_chinese_strings_in_file(kt_file)
+        result = count_chinese_strings_in_file(kt_file, repo_root)
         if result['total'] > 0:
             results.append(result)
             total_stats['total'] += result['total']
@@ -393,7 +393,7 @@ def main():
         print(f"[ERROR] Directory does not exist: {root_dir}")
         return
 
-    analysis = analyze_directory(root_dir)
+    analysis = analyze_directory(root_dir, repo_root)
     print_report(analysis)
 
 if __name__ == '__main__':

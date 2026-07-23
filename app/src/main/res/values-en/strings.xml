@@ -555,7 +555,7 @@
     <string name="danger_zone">Danger Zone</string>
     <string name="chat_statistics">Chat Statistics</string>
     <string name="current_chats">Currently %1$d chat records</string>
-    <string name="backup_location">Backup files are saved in the \"Download/Operit\" folder</string>
+    <string name="backup_location">Backup files are saved in the \"Download/Kiyori\" folder</string>
     <string name="faq_backup">FAQ</string>
     
     <!-- Terminal Screen -->
@@ -1038,6 +1038,7 @@
     <string name="package_import_success">Package imported successfully</string>
     <string name="package_import_error">Package import failed</string>
     <string name="no_packages_available">No packages available</string>
+    <string name="no_script_packages_available">No script packages available</string>
     <string name="no_packages_imported">No packages imported yet</string>
     <string name="remove_package">Remove Package</string>
     <string name="package_removed">Package removed</string>
@@ -1052,7 +1053,7 @@
     <string name="copy_path">Copy Path</string>
     <string name="path_copied_to_clipboard">Path copied to clipboard</string>
     <string name="open_file_manager">Open File Manager</string>
-    <string name="navigate_to_external_files">Please navigate to Android/data/com.ai.assistance.operit/files/packages directory</string>
+    <string name="navigate_to_external_files">Please navigate to the Android/data/com.kiyori/files/packages directory</string>
     <string name="package_js_only">Only JavaScript (.js) and ToolPkg (.toolpkg) files are supported</string>
     <string name="pkg_toolpkg_subpackages">ToolPkg Subpackages</string>
     <string name="pkg_toolpkg_version">Version: %1$s</string>
@@ -1065,11 +1066,12 @@
     <string name="pkg_plugin_config_open_action">Open Config</string>
     <string name="automation_json_only">Only JSON files supported</string>
     <string name="no_filename">Unable to get filename</string>
-    <string name="external_package_imported">External package imported</string>
+    <string name="external_package_imported">External script package imported</string>
+    <string name="external_plugin_imported">External plugin imported</string>
     <string name="current_tab_not_support_import">Current tab does not support import</string>
     <string name="import_failed">Import failed: %1$s</string>
-    <string name="package_import_failed">Package import failed</string>
-    <string name="package_remove_failed">Package removal failed</string>
+    <string name="package_import_failed">Script package import failed</string>
+    <string name="package_remove_failed">Script package removal failed</string>
     
     <!-- OperScript Execution -->
     <string name="run_script">Run Script</string>
@@ -4215,9 +4217,9 @@
     <string name="import_color_qr">Import Color QR</string>
     <string name="scan_color_qr">Scan Color QR</string>
     <string name="tavern_json">Tavern JSON</string>
-    <string name="export_tavern_json_desc">Export as .json and save to Download/Operit/exports</string>
+    <string name="export_tavern_json_desc">Export as .json and save to Download/Kiyori/exports</string>
     <string name="tavern_png">Tavern PNG</string>
-    <string name="export_tavern_png_desc">Export as image importable to Tavern and save to Download/Operit/exports</string>
+    <string name="export_tavern_png_desc">Export as image importable to Tavern and save to Download/Kiyori/exports</string>
     <string name="image_read_error">Cannot read image</string>
     <string name="image_parse_error">Cannot parse image</string>
     <string name="color_qr_not_recognized">Cannot recognize color QR code</string>
@@ -5051,7 +5053,7 @@
     <string name="backup_memory_files">Memory</string>
     <string name="backup_model_config_files">Model Config</string>
     <string name="backup_room_db_files">Database</string>
-    <string name="backup_files_location_hint">Tip: backup files are saved in Download/Operit folder</string>
+    <string name="backup_files_location_hint">Tip: backup files are saved in Download/Kiyori folder</string>
 
     <string name="backup_room_db_title">Database (Auto + Manual Backup)</string>
     <string name="backup_room_db_subtitle">Daily backup of Room SQLite database, keep up to %1$d backups (older ones will be deleted automatically)</string>
@@ -5143,7 +5145,7 @@
     <string name="backup_faq_why">Why backup data?</string>
     <string name="backup_faq_why_answer">Backing up chat history prevents important content loss when the app is uninstalled or data is lost. Regular backups are a good habit!</string>
     <string name="backup_faq_where">Where are exported files saved?</string>
-    <string name="backup_faq_where_answer">Exported backup files are saved in the \"Download/Operit\" folder on your phone, with filenames containing the data type, date and time.</string>
+    <string name="backup_faq_where_answer">Exported backup files are saved in the \"Download/Kiyori\" folder on your phone, with filenames containing the data type, date and time.</string>
     <string name="backup_faq_duplicate">Will importing create duplicate data?</string>
     <string name="backup_faq_duplicate_answer">The system uses record IDs to determine duplicates. Records with the same ID will be updated rather than duplicated. Records with different IDs will be added as new entries.</string>
     
@@ -5178,7 +5180,7 @@
 
     <string name="backup_character_cards_title">Character Cards</string>
     <string name="backup_character_cards_subtitle">Backup and restore character card settings</string>
-    <string name="backup_character_cards_current_count">Currently %1$d character card(s). Exported files will be saved in the "Download/Operit" folder.</string>
+    <string name="backup_character_cards_current_count">Currently %1$d character card(s). Exported files will be saved in the "Download/Kiyori" folder.</string>
     <string name="backup_character_card_count">Character Cards</string>
     <string name="backup_character_card_files">Character Cards</string>
 
@@ -5334,7 +5336,7 @@
     <string name="logcat_cannot_open_output_stream">Cannot open output stream</string>
     <string name="logcat_mediestore_save_failed">MediaStore save failed: %1$s</string>
     <string name="logcat_cannot_create_download_dir">Cannot create download directory</string>
-    <string name="logcat_cannot_create_operit_dir">Cannot create operit directory</string>
+    <string name="logcat_cannot_create_operit_dir">Cannot create Kiyori directory</string>
     <string name="logcat_file_create_failed">File creation failed or is empty</string>
     <string name="logcat_filesystem_save_failed">Filesystem save failed: %1$s</string>
 
@@ -7391,7 +7393,7 @@
     <string name="confirm_create_public_forge_message">Please confirm again: create the public repository `OperitForge` now. Future publishes will reuse this repository.</string>
     <string name="create_and_publish">Create and publish</string>
     <string name="artifact_type_script">Script</string>
-    <string name="artifact_type_package">Package</string>
+    <string name="artifact_type_package">Plugin</string>
     <string name="supported_app_versions">Supported app versions</string>
     <string name="supported_app_versions_short">Compatible with %1$s</string>
     <string name="unsupported_artifact_version_title">Current app version may be incompatible</string>
@@ -7402,7 +7404,7 @@
     <string name="downloaded_already">Downloaded</string>
     <string name="downloading">Downloading</string>
     <string name="download_script">Download script</string>
-    <string name="download_package">Download package</string>
+    <string name="download_package">Download plugin</string>
     <string name="market_sort_updated">Recently updated</string>
     <string name="market_sort_downloads">Downloads</string>
     <string name="market_sort_likes">Likes</string>
@@ -7451,21 +7453,21 @@
     <string name="artifact_publication_pending_review_waiting_schedule">Under review. Please wait for scheduled release.</string>
     <string name="artifact_publication_approved_waiting_schedule">Approved. Please wait for scheduled release.</string>
     <string name="confirm_remove_script_from_market">Are you sure you want to remove the script「%1$s」from the market? This will close the corresponding Issue but will not delete your publish repository.</string>
-    <string name="confirm_remove_package_from_market">Are you sure you want to remove the package「%1$s」from the market? This will close the corresponding Issue but will not delete your publish repository.</string>
+    <string name="confirm_remove_package_from_market">Are you sure you want to remove the plugin "%1$s" from the market? This will close the corresponding Issue but will not delete your publish repository.</string>
     <string name="script_publish_info_description">The script will first be uploaded to your own OperitForge publish repository, then the metadata will be registered to OperitScriptMarket. Please ensure the script content, version, and description are accurate.</string>
     <string name="script_edit_info_description">You are editing the information of a published script. After updating, the metadata of the corresponding Issue in the market repository will be overwritten.</string>
-    <string name="package_publish_info_description">The package will first be uploaded to your own OperitForge publish repository, then the metadata will be registered to OperitPackageMarket. Please ensure the package content, version, and description are accurate.</string>
-    <string name="package_edit_info_description">You are editing the information of a published package. After updating, the metadata of the corresponding Issue in the market repository will be overwritten.</string>
+    <string name="package_publish_info_description">The plugin will first be uploaded to your own OperitForge publish repository, then its metadata will be registered to OperitPackageMarket. Please ensure the plugin content, version, and description are accurate.</string>
+    <string name="package_edit_info_description">You are editing the information of a published plugin. After updating, the metadata of the corresponding Issue in the market repository will be overwritten.</string>
     <string name="script_publish_success_message">Your script has been successfully published to the market.</string>
     <string name="script_update_success_message">Your script information has been successfully updated.</string>
-    <string name="package_publish_success_message">Your package has been successfully published to the market.</string>
-    <string name="package_update_success_message">Your package information has been successfully updated.</string>
+    <string name="package_publish_success_message">Your plugin has been successfully published to the market.</string>
+    <string name="package_update_success_message">Your plugin information has been successfully updated.</string>
     <string name="screen_title_script_market">Script Market</string>
     <string name="screen_title_script_manage">Manage Scripts</string>
     <string name="screen_title_script_publish">Publish Script</string>
-    <string name="screen_title_package_market">Package Market</string>
-    <string name="screen_title_package_manage">Manage Packages</string>
-    <string name="screen_title_package_publish">Publish Package</string>
+    <string name="screen_title_package_market">Plugin Market</string>
+    <string name="screen_title_package_manage">Manage Plugins</string>
+    <string name="screen_title_package_publish">Publish Plugin</string>
 
     <string name="sidebar_permission_short">Permissions</string>
     <string name="sidebar_status_normal">Normal</string>
@@ -7476,8 +7478,8 @@
     <string name="chat_style_bubble_user_image_disabled_by_glass">User bubble frosted glass or water glass background is currently enabled, user bubble images will not take effect</string>
     <string name="chat_style_bubble_ai_image_disabled_by_glass">AI bubble frosted glass or water glass background is currently enabled, AI bubble images will not take effect</string>
     <string name="login_github_to_manage_scripts">Log in to GitHub to publish and manage your scripts</string>
-    <string name="login_github_to_manage_packages">Log in to GitHub to publish and manage your packages</string>
-    <string name="market_tab_artifact">Sandbox Packages</string>
+    <string name="login_github_to_manage_packages">Log in to GitHub to publish and manage your plugins</string>
+    <string name="market_tab_artifact">Scripts &amp; Plugins</string>
     <string name="market_tab_all">All</string>
     <string name="market_tab_categories">Categories</string>
     <string name="market_tab_mcp">MCP</string>
@@ -7485,7 +7487,7 @@
     <string name="market_tab_mine">Mine</string>
     <string name="market_category_type_all">All</string>
     <string name="market_category_type_script">Script</string>
-    <string name="market_category_type_package">Package</string>
+    <string name="market_category_type_package">Plugin</string>
     <string name="market_category_type_skill">Skill</string>
     <string name="market_category_type_mcp">MCP</string>
     <string name="market_category_search_research">Search &amp; Research</string>
@@ -7508,14 +7510,14 @@
     <string name="market_manage_resubmitted">Submitted relist request for "%1$s"</string>
     <string name="market_error_load_failed">Load failed</string>
     <string name="market_error_action_failed">Action failed</string>
-    <string name="market_manage_artifact">Manage Packages</string>
+    <string name="market_manage_artifact">Manage Scripts &amp; Plugins</string>
     <string name="market_manage_skill">Manage Skills</string>
     <string name="market_manage_mcp">Manage MCP</string>
     <string name="market_manage_owned_section">Owned by me</string>
     <string name="market_manage_contributed_section">Submitted for others</string>
     <string name="market_manage_relation_owner">Owner</string>
     <string name="market_manage_relation_contributor">Contributor</string>
-    <string name="market_publish_artifact">Publish Package</string>
+    <string name="market_publish_artifact">Publish Script or Plugin</string>
     <string name="market_publish_skill">Publish Skill</string>
     <string name="market_publish_mcp">Publish MCP</string>
     <string name="market_publish_new_version">Publish New Version</string>
@@ -7528,58 +7530,59 @@
     <string name="artifact_publish_encrypt_confirmation">Encrypted publish: %1$s</string>
     <string name="market_login_required_hint">Log in to GitHub to manage and publish market content</string>
     <string name="available_scripts_market">Available Scripts</string>
-    <string name="available_packages_market">Available Packages</string>
+    <string name="available_packages_market">Available Plugins</string>
     <string name="no_matching_scripts_found">No matching scripts found</string>
-    <string name="no_matching_packages_found">No matching packages found</string>
+    <string name="no_matching_packages_found">No matching script packages found</string>
     <string name="script_market_search_placeholder">Search script name, description, author...</string>
-    <string name="package_market_search_placeholder">Search package name, description, author...</string>
+    <string name="package_market_search_placeholder">Search script packages</string>
     <string name="no_scripts_available">No scripts available</string>
-    <string name="no_market_packages_available">No packages available</string>
+    <string name="no_market_packages_available">No plugins available</string>
     <string name="publish_new_script">Publish New Script</string>
-    <string name="publish_new_package">Publish New Package</string>
+    <string name="publish_new_package">Publish New Plugin</string>
     <string name="manage_my_scripts">Manage My Scripts</string>
-    <string name="manage_my_packages">Manage My Packages</string>
+    <string name="manage_my_packages">Manage My Plugins</string>
     <string name="need_login_github_manage_scripts">You need to log in to GitHub to manage your published scripts</string>
-    <string name="need_login_github_manage_packages">You need to log in to GitHub to manage your published packages</string>
+    <string name="need_login_github_manage_packages">You need to log in to GitHub to manage your published plugins</string>
     <string name="no_published_scripts_yet">No scripts published yet</string>
     <string name="click_button_publish_first_script">Click the button above to publish your first script</string>
-    <string name="no_published_packages_yet">No packages published yet</string>
-    <string name="click_button_publish_first_package">Click the button above to publish your first package</string>
+    <string name="no_published_packages_yet">No plugins published yet</string>
+    <string name="click_button_publish_first_package">Click the button above to publish your first plugin</string>
     <string name="after_logging_in_you_can_view_and_manage_your_scripts">After logging in, you can view and manage your published scripts</string>
-    <string name="after_logging_in_you_can_view_and_manage_your_packages">After logging in, you can view and manage your published packages</string>
-    <string name="after_logging_in_you_can_view_and_manage_your_artifacts">After logging in, you can view and manage your published scripts and packages</string>
-    <string name="login_github_to_manage_artifacts">Log in to GitHub to manage and publish scripts/packages</string>
-    <string name="need_login_github_manage_artifacts">You need to log in to GitHub to manage your published scripts and packages</string>
-    <string name="available_artifacts_market">Available Scripts and Packages</string>
+    <string name="after_logging_in_you_can_view_and_manage_your_packages">After logging in, you can view and manage your published plugins</string>
+    <string name="after_logging_in_you_can_view_and_manage_your_artifacts">After logging in, you can view and manage your published scripts and plugins</string>
+    <string name="login_github_to_manage_artifacts">Log in to GitHub to manage and publish scripts/plugins</string>
+    <string name="need_login_github_manage_artifacts">You need to log in to GitHub to manage your published scripts and plugins</string>
+    <string name="available_artifacts_market">Available Scripts and Plugins</string>
     <string name="artifact_market_search_placeholder">Search name or author</string>
     <string name="no_matching_artifacts_found">No matching entries found</string>
-    <string name="no_artifacts_available">No scripts or packages available</string>
+    <string name="no_artifacts_available">No scripts or plugins available</string>
     <string name="publish_new_artifact">Publish New Entry</string>
     <string name="manage_my_artifacts">Manage My Entries</string>
     <string name="loading_your_artifacts">Loading your published content...</string>
-    <string name="no_published_artifacts_yet">No scripts or packages published yet</string>
-    <string name="click_button_publish_first_artifact">Click the button above to publish your first script or package</string>
+    <string name="no_published_artifacts_yet">No scripts or plugins published yet</string>
+    <string name="click_button_publish_first_artifact">Click the button above to publish your first script or plugin</string>
     <string name="confirm_remove_artifact_from_market">Are you sure you want to remove the entry "%1$s" from the market? This will close the corresponding Issue but will not delete your publishing repository.</string>
-    <string name="screen_title_artifact_market">Script &amp; Package Market</string>
+    <string name="screen_title_artifact_market">Script &amp; Plugin Market</string>
     <string name="screen_title_market">Market</string>
-    <string name="screen_title_artifact_manage">Manage Scripts &amp; Packages</string>
-    <string name="screen_title_artifact_publish">Publish Script or Package</string>
-    <string name="artifact_publish_info_description">The entry will first be uploaded to your own OperitForge publishing repository, then automatically registered in the script market or package market based on its type. Please ensure the content, version, and compatibility range are accurate.</string>
+    <string name="screen_title_artifact_manage">Manage Scripts &amp; Plugins</string>
+    <string name="screen_title_artifact_publish">Publish Script or Plugin</string>
+    <string name="artifact_publish_info_description">The entry will first be uploaded to your own OperitForge publishing repository, then automatically registered in the script market or plugin market based on its type. Please ensure the content, version, and compatibility range are accurate.</string>
     <string name="artifact_edit_info_description">You are editing the information of a published entry. After updating, the metadata of the corresponding Issue in the market repository will be overwritten.</string>
     <string name="need_login_before_publish_artifact">You need to log in to GitHub before publishing.</string>
     <string name="local_artifact_entry">Local Entry</string>
     <string name="publish_target_script_market">Will be automatically published to the script market</string>
-    <string name="publish_target_package_market">Will be automatically published to the package market</string>
+    <string name="publish_target_package_market">Will be automatically published to the plugin market</string>
     <string name="display_name_label">Display Name</string>
 
     <string name="nav_group_plugins">Plugins</string>
+    <string name="script_packages">Script Packages</string>
     <string name="chat_delete_single_variant">Delete Single Message</string>
     <string name="chat_delete_single_variant_unavailable">No single message candidates available for deletion</string>
     <string name="chat_delete_single_variant_failed">Failed to delete single message: %1$s</string>
     <string name="chat_delete_message_confirm_message">Are you sure you want to delete this message? This action cannot be undone.</string>
 
-    <string name="quick_plugin_creator_title">Quickly Create Your Plugin</string>
-    <string name="quick_plugin_creator_desc">Cannot find the plugin you want in the built-in list or marketplace? Create your own.</string>
+    <string name="quick_plugin_creator_title">Quickly Create Your Script Package</string>
+    <string name="quick_plugin_creator_desc">Cannot find the script package you want in the built-in list or marketplace? Create your own.</string>
     <string name="quick_plugin_creator_step1_title">1. Update or download the package creation Skill</string>
     <string name="quick_plugin_creator_step1_desc">Click the button to automatically download install_or_update.js and run the operit_editor debug_run_sandbox_script for installation or update.</string>
     <string name="quick_plugin_creator_run_setup">Auto download and execute</string>
@@ -7587,7 +7590,7 @@
     <string name="quick_plugin_creator_setup_success">Package creation Skill installation or update completed</string>
     <string name="quick_plugin_creator_step2_title">2. Enter requirements to start creating</string>
     <string name="quick_plugin_creator_requirement_hint">For example: create a tool to batch organize images in the download directory and generate an index</string>
-    <string name="quick_plugin_creator_requirement_empty">Please enter the plugin requirements first</string>
+    <string name="quick_plugin_creator_requirement_empty">Please enter the script package requirements first</string>
     <string name="mcp_plugin_comment_view_thread">View thread</string>
     <string name="mcp_plugin_user_comments">User comments</string>
 
@@ -7810,11 +7813,11 @@
     <string name="artifact_project_node_selection_hint">Click to select a node, click again to deselect.</string>
     <string name="plugin_creation_fresh_task_line">Please activate the Operit Editor and use the sandbox package dev toolkit to develop a new sandbox package.</string>
     <string name="plugin_creation_fresh_package_rule_line">First determine the new sandbox package ID, do not rename it later.</string>
-    <string name="plugin_creation_fresh_dev_directory_line">The development directory is fixed to Downloads/Operit/dev_package/your_determined_id. Development, installation, and testing are all done here.</string>
+    <string name="plugin_creation_fresh_dev_directory_line">The development directory is fixed to Downloads/Kiyori/dev_package/your_determined_id. Development, installation, and testing are all done here.</string>
     <string name="plugin_creation_continue_task_line">Please activate the Operit Editor, locate the sandbox package %1$s, and continue development and testing based on this version.</string>
     <string name="plugin_creation_merge_task_line">Please activate the Operit Editor, locate the sandbox package %1$s, and perform merge development and testing based on this version.</string>
     <string name="plugin_creation_existing_package_rule_line">Current sandbox package ID is %1$s. The package ID and plugin name must be kept; do not rename or create a new package.</string>
-    <string name="plugin_creation_existing_dev_directory_line">The development directory is fixed to Downloads/Operit/dev_package/%1$s. Development, installation, and testing are all done here.</string>
+    <string name="plugin_creation_existing_dev_directory_line">The development directory is fixed to Downloads/Kiyori/dev_package/%1$s. Development, installation, and testing are all done here.</string>
     <string name="plugin_creation_update_sandbox_package_dev">First update SandboxPackage_DEV.</string>
     <string name="plugin_creation_copy_types_to_dev_dir">Copy the types from skills to the development directory, overwriting existing files.</string>
     <string name="plugin_creation_use_terminal_ts_js_hint">Use the terminal as much as possible, prioritize writing ts and js, then compile to final js. Refer to examples for tsconfig.</string>
@@ -7835,9 +7838,9 @@
     <string name="ai_message_use_package_failed">use_package call failed: %1$s</string>
     <string name="ai_message_use_package_empty">use_package returned empty.</string>
     <string name="ai_message_package_warmup_item">%1$d. Package %2$s (hit %3$d times)</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_title">Compress and obfuscate the package</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_desc">When enabled, executable scripts in the ToolPkg are minified through the JavaScript syntax tree. The resulting package remains a standard ZIP file and can be imported directly.</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Compress and obfuscate the package: %1$s</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">Compress and obfuscate the plugin</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">When enabled, executable scripts in the ToolPkg plugin are minified through the JavaScript syntax tree. The resulting plugin archive remains a standard ZIP file and can be imported directly.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Compress and obfuscate the plugin: %1$s</string>
     <string name="artifact_publish_asset_source_title">Release asset source</string>
     <string name="artifact_publish_asset_source_upload">Upload the current local package</string>
     <string name="artifact_publish_asset_source_github_release">Use a GitHub Release asset</string>

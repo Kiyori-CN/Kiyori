@@ -187,7 +187,17 @@ class MarketEntryInstallController(
         withContext(Dispatchers.IO) {
             writeMarketInstallMarker(artifactMarketMarkerRoot(packageManager, defaultVersion.runtimePackageId), entry)
         }
-        Toast.makeText(context, context.getString(R.string.external_package_imported), Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            context.getString(
+                if (entry.type.equals("package", ignoreCase = true)) {
+                    R.string.external_plugin_imported
+                } else {
+                    R.string.external_package_imported
+                }
+            ),
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     private suspend fun deleteInstalledMarkerRoot(entry: MarketV2Entry) {

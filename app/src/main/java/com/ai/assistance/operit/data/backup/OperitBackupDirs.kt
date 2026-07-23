@@ -5,12 +5,12 @@ import java.io.File
 
 object OperitBackupDirs {
 
-    fun operitRootDir(): File {
-        return OperitPaths.operitRootDir()
+    fun kiyoriRootDir(): File {
+        return OperitPaths.kiyoriRootDir()
     }
 
     fun backupRootDir(): File {
-        return ensureDir(File(operitRootDir(), "backup"))
+        return ensureDir(File(kiyoriRootDir(), "backup"))
     }
 
     fun rawSnapshotDir(): File {

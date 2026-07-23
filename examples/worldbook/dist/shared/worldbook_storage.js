@@ -5,31 +5,11 @@ exports.getWorldBookFile = getWorldBookFile;
 exports.ensureWorldBookStorage = ensureWorldBookStorage;
 exports.readWorldBookEntries = readWorldBookEntries;
 exports.writeWorldBookEntries = writeWorldBookEntries;
-const LEGACY_WORLD_BOOK_DIR = "/sdcard/Download/Operit/worldbook";
-const LEGACY_WORLD_BOOK_FILE = `${LEGACY_WORLD_BOOK_DIR}/entries.json`;
 function getWorldBookDir() {
     return ToolPkg.getConfigDir();
 }
 function getWorldBookFile() {
     return `${getWorldBookDir()}/entries.json`;
-}
-async function deleteLegacyWorldBookStorage() {
-    try {
-        const legacyFileExists = await Tools.Files.exists(LEGACY_WORLD_BOOK_FILE);
-        if (legacyFileExists?.exists) {
-            await Tools.Files.deleteFile(LEGACY_WORLD_BOOK_FILE);
-        }
-    }
-    catch (_error) {
-    }
-    try {
-        const legacyDirExists = await Tools.Files.exists(LEGACY_WORLD_BOOK_DIR);
-        if (legacyDirExists?.exists) {
-            await Tools.Files.deleteFile(LEGACY_WORLD_BOOK_DIR, true);
-        }
-    }
-    catch (_error) {
-    }
 }
 async function ensureWorldBookStorage() {
     const worldBookDir = getWorldBookDir();
@@ -37,17 +17,8 @@ async function ensureWorldBookStorage() {
     await Tools.Files.mkdir(worldBookDir, true);
     const currentFileExists = await Tools.Files.exists(worldBookFile);
     if (!currentFileExists?.exists) {
-        const legacyFileExists = await Tools.Files.exists(LEGACY_WORLD_BOOK_FILE);
-        if (legacyFileExists?.exists) {
-            const legacyFile = await Tools.Files.read(LEGACY_WORLD_BOOK_FILE);
-            const migratedContent = String(legacyFile?.content || "").trim() || "[]";
-            await Tools.Files.write(worldBookFile, migratedContent, false);
-        }
-        else {
-            await Tools.Files.write(worldBookFile, "[]", false);
-        }
+        await Tools.Files.write(worldBookFile, "[]", false);
     }
-    await deleteLegacyWorldBookStorage();
 }
 async function readWorldBookEntries() {
     await ensureWorldBookStorage();

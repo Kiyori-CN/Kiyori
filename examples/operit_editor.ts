@@ -28,7 +28,7 @@
 - 问题核心是“配置和部署链路”，而不是普通问答
 
 【MCP：安装与排查】
-1) 配置目录：/sdcard/Download/Operit/mcp_plugins/
+1) 配置目录：/sdcard/Download/Kiyori/mcp_plugins/
 - 主配置：mcp_config.json
 - 运行状态缓存：server_status.json（非实时快照，仅用于状态记录与工具缓存，不作为排查判定依据）
 2) 两侧路径要严格区分：
@@ -88,12 +88,12 @@
 - 检查终端依赖（node/pnpm/python/uv）与 MCP 服务状态；其中 Node 类 `npx` MCP 实际依赖 `pnpm`，若缺少 `pnpm` 将无法启动
 
 【Skill：安装与排查】
-1) 目录：/sdcard/Download/Operit/skills/
+1) 目录：/sdcard/Download/Kiyori/skills/
 2) 识别规则：每个 Skill 必须是一个文件夹，且包含 SKILL.md（skill.md 也可）。
 3) 添加方式（按这个做）：
 - 先从可信来源下载 Skill（zip 或仓库源码均可）
-- 把下载内容解压后，直接放到 /sdcard/Download/Operit/skills/
-- 最终目录结构必须是 /sdcard/Download/Operit/skills/<skill_name>/，且该目录内有 SKILL.md
+- 把下载内容解压后，直接放到 /sdcard/Download/Kiyori/skills/
+- 最终目录结构必须是 /sdcard/Download/Kiyori/skills/<skill_name>/，且该目录内有 SKILL.md
 4) 元数据解析：
 - 优先读取 frontmatter 中的 name/description
 - 若缺失，回退读取文件前40行里的 name:/description:
@@ -107,7 +107,7 @@
 
 【Sandbox Package：安装与排查】
 1) 沙盒包目录（外部）：
-- Android/data/com.ai.assistance.operit/files/packages
+- Android/data/com.kiyori/files/packages
 2) 内置包：
 - 内置包来自应用内置资源，不在上述外部目录；删除内置包文件不是常规操作，通常只做开关管理。
 3) 导入与删除：
@@ -117,7 +117,7 @@
 - 先调用 list_sandbox_packages 获取“内置+外部”包列表与当前 enabled 状态。
 - 再调用 set_sandbox_package_enabled(package_name, enabled) 执行启停。
 5) 制作包文档：
-- https://cdn.jsdelivr.net/gh/AAswordman/Operit@main/docs/SCRIPT_DEV_SKILL.md
+- https://raw.githubusercontent.com/Kiyori-CN/Kiyori/main/docs/SCRIPT_DEV_SKILL.md
 - 该地址可直接通过 HTTP GET 请求访问，用于拉取原始 Markdown 文档内容。
 6) 软件内调试烧录：
 - 普通 `.js` 沙盒包优先用 `debug_install_js_package`。
@@ -276,7 +276,7 @@
 - The core issue is configuration/deployment flow rather than normal Q&A
 
 [MCP: install and troubleshooting]
-1) Config directory: /sdcard/Download/Operit/mcp_plugins/
+1) Config directory: /sdcard/Download/Kiyori/mcp_plugins/
 - Main config: mcp_config.json
 - Runtime status cache: server_status.json (non-realtime snapshot for status/tool cache only; not a troubleshooting source of truth)
 2) Keep Android-side and Linux-side paths strictly separated:
@@ -336,12 +336,12 @@
 - Check terminal dependencies (node/pnpm/python/uv) and MCP service status; Node-style `npx` MCPs actually depend on `pnpm`, so missing `pnpm` will prevent startup
 
 [Skill: install and troubleshooting]
-1) Directory: /sdcard/Download/Operit/skills/
+1) Directory: /sdcard/Download/Kiyori/skills/
 2) Recognition rule: each Skill must be a folder containing SKILL.md (skill.md is also accepted).
 3) How to add a skill (use this workflow):
 - Download the skill from a trusted source (zip or repository source code).
-- Extract it, then place the folder directly under /sdcard/Download/Operit/skills/
-- Final structure must be /sdcard/Download/Operit/skills/<skill_name>/ and that folder must contain SKILL.md
+- Extract it, then place the folder directly under /sdcard/Download/Kiyori/skills/
+- Final structure must be /sdcard/Download/Kiyori/skills/<skill_name>/ and that folder must contain SKILL.md
 4) Metadata parsing:
 - Prefer frontmatter name/description
 - Fallback to name:/description: in the first 40 lines
@@ -355,7 +355,7 @@
 
 [Sandbox Package: install and troubleshooting]
 1) External sandbox packages directory:
-- Android/data/com.ai.assistance.operit/files/packages
+- Android/data/com.kiyori/files/packages
 2) Built-in packages:
 - Built-in packages come from app bundled assets, not from the external directory above; usually manage via enable/disable instead of file deletion.
 3) Import and delete:
@@ -365,7 +365,7 @@
 - Call list_sandbox_packages first to get built-in + external package list and current enabled state.
 - Then call set_sandbox_package_enabled(package_name, enabled) to apply changes.
 5) Package authoring guide:
-- https://cdn.jsdelivr.net/gh/AAswordman/Operit@main/docs/SCRIPT_DEV_SKILL.md
+- https://raw.githubusercontent.com/Kiyori-CN/Kiyori/main/docs/SCRIPT_DEV_SKILL.md
 - This URL can be accessed directly with an HTTP GET request to fetch the raw Markdown document.
 6) In-app debug install:
 - For plain `.js` sandbox packages, prefer `debug_install_js_package`.
@@ -2044,7 +2044,7 @@ async function how_make_skill() {
     const lang: "zh" | "en" | "both" = locale.startsWith("zh") ? "zh" : locale.startsWith("en") ? "en" : "both";
 
     const zh = `如何制作 skill（简版）
-1. 先创建目录：/sdcard/Download/Operit/skills/<skill_name>/
+1. 先创建目录：/sdcard/Download/Kiyori/skills/<skill_name>/
 2. 必备文件：SKILL.md
 3. 在 SKILL.md 顶部用 Markdown 元数据（frontmatter）写 name、description，例如：
 ---
@@ -2056,7 +2056,7 @@ description: 用一句话说明这个 skill 做什么
 6. 实践建议：优先下载现成 skill，直接解压过来，并确保目录下有 SKILL.md。`;
 
     const en = `How to make a skill (quick guide)
-1. Create a directory: /sdcard/Download/Operit/skills/<skill_name>/
+1. Create a directory: /sdcard/Download/Kiyori/skills/<skill_name>/
 2. Required file: SKILL.md
 3. At the top of SKILL.md, use Markdown metadata (frontmatter) for name and description, for example:
 ---
@@ -2120,16 +2120,16 @@ async function set_sandbox_package_enabled(params?: { package_name?: string; ena
   }
 }
 
-const SANDBOX_EXTERNAL_PACKAGES_DIR = "/sdcard/Android/data/com.ai.assistance.operit/files/packages";
+const SANDBOX_EXTERNAL_PACKAGES_DIR = "/sdcard/Android/data/com.kiyori/files/packages";
 const TOOLPKG_DEBUG_INSTALL_ACTION = "com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG";
 const TOOLPKG_DEBUG_INSTALL_COMPONENT =
-  "com.ai.assistance.operit/.core.tools.packTool.ToolPkgDebugInstallReceiver";
+  "com.kiyori/com.ai.assistance.operit.core.tools.packTool.ToolPkgDebugInstallReceiver";
 const SANDBOX_SCRIPT_EXECUTION_ACTION = "com.ai.assistance.operit.EXECUTE_JS";
 const SANDBOX_SCRIPT_EXECUTION_COMPONENT =
-  "com.ai.assistance.operit/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver";
+  "com.kiyori/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver";
 const SANDBOX_SCRIPT_EXECUTION_MODE_SCRIPT = "script";
 const SANDBOX_SCRIPT_EXECUTION_MODE_CODE = "code";
-const SANDBOX_JS_TEMP_DIR = "/sdcard/Android/data/com.ai.assistance.operit/js_temp";
+const SANDBOX_JS_TEMP_DIR = "/sdcard/Android/data/com.kiyori/js_temp";
 const DEFAULT_SANDBOX_REFRESH_TIMEOUT_MS = 1500;
 const DEFAULT_TOOLPKG_INSTALL_WAIT_MS = 1500;
 const DEFAULT_SANDBOX_SCRIPT_WAIT_MS = 15000;

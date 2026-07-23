@@ -96,6 +96,7 @@ import com.ai.assistance.operit.ui.features.github.GitHubLoginWebViewDialog
 import com.ai.assistance.operit.ui.features.packages.market.BindMarketSearchToTopBar
 import com.ai.assistance.operit.ui.features.packages.market.MarketBrowseSection
 import com.ai.assistance.operit.ui.features.packages.market.MarketStatsType
+import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.features.packages.market.UnifiedMarketBrowseConfig
 import com.ai.assistance.operit.ui.features.packages.market.UnifiedMarketCategoryConfig
 import com.ai.assistance.operit.ui.features.packages.market.toUnifiedMarketBrowseEntry
@@ -175,6 +176,7 @@ private data class MarketMineAuthState(
 @Composable
 fun UnifiedMarketScreen(
     initialTab: MarketHomeTab = MarketHomeTab.ALL,
+    initialArtifactType: PublishArtifactType? = null,
     onNavigateToArtifactPublish: () -> Unit = {},
     onNavigateToRepoPublish: (MarketStatsType) -> Unit = {},
     onNavigateToMarketManage: () -> Unit = {},
@@ -191,6 +193,7 @@ fun UnifiedMarketScreen(
             when (selectedTab) {
                 MarketHomeTab.ALL -> MarketTypedListPane(
                     stateKey = "market-all-types",
+                    initialArtifactType = initialArtifactType,
                     scopeFactory = { selectedType ->
                         if (selectedType == MarketCategoryTypeFilter.ALL) {
                             UnifiedMarketBrowseScope.All
@@ -490,12 +493,21 @@ private fun MarketCategoryDetailPane(
 @Composable
 private fun MarketTypedListPane(
     stateKey: String,
+    initialArtifactType: PublishArtifactType? = null,
     scopeFactory: (MarketCategoryTypeFilter) -> UnifiedMarketBrowseScope,
     config: com.ai.assistance.operit.ui.features.packages.market.MarketBrowseSectionConfig,
     viewModelKeyFactory: (MarketCategoryTypeFilter) -> String,
     onOpenEntry: (MarketV2Entry) -> Unit
 ) {
-    var selectedType by rememberSaveable(stateKey) { mutableStateOf(MarketCategoryTypeFilter.ALL) }
+    val initialTypeFilter =
+        when (initialArtifactType) {
+            PublishArtifactType.SCRIPT -> MarketCategoryTypeFilter.SCRIPT
+            PublishArtifactType.PACKAGE -> MarketCategoryTypeFilter.PACKAGE
+            null -> MarketCategoryTypeFilter.ALL
+        }
+    var selectedType by rememberSaveable(stateKey, initialArtifactType) {
+        mutableStateOf(initialTypeFilter)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(

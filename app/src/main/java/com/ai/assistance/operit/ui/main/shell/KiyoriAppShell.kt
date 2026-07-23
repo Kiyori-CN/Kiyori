@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.shell
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,6 +56,15 @@ fun KiyoriAppShell(
     val latestState by rememberUpdatedState(state)
     val latestOnStateChange by rememberUpdatedState(onStateChange)
     val pagerFlingBehavior = PagerDefaults.flingBehavior(state = pagerState)
+    val aiHostPagerGestureState =
+        remember(pagerState) {
+            object : ScrollableState by pagerState {
+                // A tap must reach AI Home while the previous fling is settling. Reporting the
+                // pager animation here makes scrollable intercept immediately before touch slop.
+                override val isScrollInProgress: Boolean
+                    get() = false
+            }
+        }
 
     LaunchedEffect(state.primaryDestination, state.softwareHomePage) {
         if (
@@ -179,7 +189,7 @@ fun KiyoriAppShell(
                     .offset { IntOffset(aiHostTranslationX.roundToInt(), 0) }
                     // Sharing PagerState lets a reverse drag cancel an in-flight home-page fling.
                     .scrollable(
-                        state = pagerState,
+                        state = aiHostPagerGestureState,
                         orientation = Orientation.Horizontal,
                         // HorizontalPager reverses LTR drag deltas before dispatching them to
                         // PagerState. The AI host sits above the pager, so it must use the same

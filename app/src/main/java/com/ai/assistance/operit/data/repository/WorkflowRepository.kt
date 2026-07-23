@@ -1,9 +1,9 @@
 package com.ai.assistance.operit.data.repository
 
 import android.content.Context
-import android.os.Environment
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.core.workflow.NodeExecutionState
 import com.ai.assistance.operit.core.workflow.WorkflowExecutor
 import com.ai.assistance.operit.core.workflow.WorkflowScheduler
@@ -49,7 +49,6 @@ class WorkflowRepository(private val context: Context) {
     
     companion object {
         private const val TAG = "WorkflowRepository"
-        private const val WORKFLOW_DIR = "Operit/workflow"
         private const val EXECUTION_LOG_SUB_DIR = "_execution_logs"
         private const val MAX_EXECUTION_LOG_FILES_PER_WORKFLOW = 30
 
@@ -120,12 +119,7 @@ class WorkflowRepository(private val context: Context) {
      * 获取工作流存储目录
      */
     private fun getWorkflowDirectory(): File {
-        val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val workflowDir = File(downloadDir, WORKFLOW_DIR)
-        if (!workflowDir.exists()) {
-            workflowDir.mkdirs()
-        }
-        return workflowDir
+        return OperitPaths.workflowDir()
     }
     
     /**

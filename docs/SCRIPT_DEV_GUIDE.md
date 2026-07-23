@@ -12,7 +12,7 @@
 
 ### 应用内 AI 协作开发
 
-这是普通 Sandbox Package 作者的默认流程。先更新并运行 `SandboxPackage_DEV` 安装脚本，再在 `/sdcard/Download/Operit/dev_package/{packageId}/` 中开发。宿主类型放在同级的 `/sdcard/Download/Operit/dev_package/types/`，具体步骤以安装后的 `SKILL.md` 为准。
+这是普通 Sandbox Package 作者的默认流程。先更新并运行 `SandboxPackage_DEV` 安装脚本，再在 `/sdcard/Download/Kiyori/dev_package/{packageId}/` 中开发。宿主类型放在同级的 `/sdcard/Download/Kiyori/dev_package/types/`，具体步骤以安装后的 `SKILL.md` 为准。
 
 ### 独立插件作者
 
@@ -852,7 +852,7 @@ TypeScript 脚本 (`.ts`) 需要被编译成 JavaScript (`.js`)才能被执行�
 
 - **Android SDK (ADB)**: 确保你已经安装了 Android SDK，并且 `adb` 命令在你的系统路径中可用。
 - **安卓设备**: 连接一台开启了“USB调试”功能的安卓设备，并已授权电脑进行调试。
-- **Operit 应用程序**: 确保 `com.ai.assistance.operit` 应用程序已经安装并在目标设备上运行。脚本的执行依赖于应用内的 `ScriptExecutionReceiver` 来接收和处理来自 ADB 的命令。
+- **Kiyori 应用程序**: 确保 `com.kiyori` 应用程序已经安装并在目标设备上运行。脚本的执行依赖于应用内的 `ScriptExecutionReceiver` 来接收和处理来自 ADB 的命令。
 
 ### 9.2. 执行脚本函数
 

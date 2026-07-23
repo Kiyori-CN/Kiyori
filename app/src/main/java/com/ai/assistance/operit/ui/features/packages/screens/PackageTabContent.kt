@@ -117,7 +117,7 @@ fun PackageTabContent(
                                         if (isSearchActive) {
                                             R.string.no_matching_packages_found
                                         } else {
-                                            R.string.no_packages_available
+                                            R.string.no_script_packages_available
                                         }
                                     )
                             )

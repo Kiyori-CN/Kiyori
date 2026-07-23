@@ -1,10 +1,10 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import android.content.Context
-import android.os.Environment
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelOption
 import java.io.File
@@ -576,13 +576,10 @@ object ModelListFetcher {
      * 获取本地MNN模型列表
      * 从固定目录读取已下载的MNN模型文件夹
      */
-    suspend fun getMnnLocalModels(context: Context): Result<List<ModelOption>> {
+    suspend fun getMnnLocalModels(_context: Context): Result<List<ModelOption>> {
         return withContext(Dispatchers.IO) {
             try {
-                val modelsDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    "Operit/models/mnn"
-                )
+                val modelsDir = OperitPaths.mnnModelsDir()
                 
                 AppLogger.d(TAG, "读取MNN模型目录: ${modelsDir.absolutePath}")
                 
@@ -624,13 +621,10 @@ object ModelListFetcher {
         }
     }
 
-    suspend fun getLlamaLocalModels(context: Context): Result<List<ModelOption>> {
+    suspend fun getLlamaLocalModels(_context: Context): Result<List<ModelOption>> {
         return withContext(Dispatchers.IO) {
             try {
-                val modelsDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    "Operit/models/llama"
-                )
+                val modelsDir = OperitPaths.llamaModelsDir()
 
                 AppLogger.d(TAG, "读取llama.cpp模型目录: ${modelsDir.absolutePath}")
 

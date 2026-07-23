@@ -470,7 +470,7 @@ class JsEngine(private val context: Context) {
     private fun runtimeBootstrapModules(): List<JsBootstrapModule> {
         return buildRuntimeBootstrapModules(
             context = context,
-            operitDownloadDir = OperitPaths.operitRootPathSdcard(),
+            operitDownloadDir = OperitPaths.kiyoriRootPathSdcard(),
             operitCleanOnExitDir = OperitPaths.cleanOnExitPathSdcard()
         )
     }

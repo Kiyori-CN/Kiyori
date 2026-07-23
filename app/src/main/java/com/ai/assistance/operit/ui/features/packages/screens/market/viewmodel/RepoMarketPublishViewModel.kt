@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ai.assistance.operit.BuildConfig
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.api.GitHubApiService
 import com.ai.assistance.operit.data.api.MarketStatsApiService
@@ -286,7 +287,7 @@ class RepoMarketPublishViewModel(
             version = MarketV2PublishVersion(
                 version = version.ifBlank { "1.0.0" },
                 formatVer = "${type.wireValue}_v2",
-                minAppVer = CURRENT_APP_VERSION
+                minAppVer = BuildConfig.OPERIT_MARKET_COMPAT_VERSION
             ),
             source = MarketV2PublishSource(
                 kind = "github_repo",
@@ -464,6 +465,5 @@ class RepoMarketPublishViewModel(
 
     companion object {
         private const val TAG = "RepoMarketPublishViewModel"
-        private const val CURRENT_APP_VERSION = "1.11.0+5"
     }
 }

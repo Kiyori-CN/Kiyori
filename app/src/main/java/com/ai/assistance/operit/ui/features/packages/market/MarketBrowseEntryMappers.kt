@@ -37,7 +37,7 @@ fun MarketV2Entry.toUnifiedMarketBrowseEntry(
 ): MarketBrowseEntry {
     val installState = installStates[id]
     val localState = localInstallStates[id]
-    val isCurrentAppVersionUnsupported = isUnsupportedByCurrentAppVersion()
+    val isCurrentMarketCompatibilityUnsupported = isUnsupportedByCurrentMarketCompatibility()
     return MarketBrowseEntry(
         model =
             MarketBrowseCardModel(
@@ -51,7 +51,7 @@ fun MarketV2Entry.toUnifiedMarketBrowseEntry(
                 actionState =
                     if (installState != null) {
                         MarketBrowseActionState.Installing(installState.progress)
-                    } else if (isCurrentAppVersionUnsupported) {
+                    } else if (isCurrentMarketCompatibilityUnsupported) {
                         MarketBrowseActionState.Unavailable(MarketUnavailableKind.Warning)
                     } else {
                         localState.toBrowseActionState()

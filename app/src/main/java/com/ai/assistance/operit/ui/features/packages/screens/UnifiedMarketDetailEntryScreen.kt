@@ -5,12 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Warning
@@ -83,7 +83,7 @@ import com.ai.assistance.operit.ui.features.packages.market.UnifiedMarketDetailS
 import com.ai.assistance.operit.ui.features.packages.market.canInstallFromUnifiedMarket
 import com.ai.assistance.operit.ui.features.packages.market.formatMarketDetailCompactDate
 import com.ai.assistance.operit.ui.features.packages.market.formatMarketDetailDate
-import com.ai.assistance.operit.ui.features.packages.market.isUnsupportedByCurrentAppVersion
+import com.ai.assistance.operit.ui.features.packages.market.isUnsupportedByCurrentMarketCompatibility
 import com.ai.assistance.operit.ui.features.packages.market.labelResId
 import com.ai.assistance.operit.ui.features.packages.market.marketDetailInitial
 import com.ai.assistance.operit.ui.features.packages.market.resolveMarketReviewSnapshot
@@ -125,7 +125,7 @@ fun UnifiedMarketDetailEntryScreen(
     val currentReactions = reactionsMap[entryId].orEmpty()
     val installProgress = installStates[entryId]
     val localInstallState = localInstallStates[entryId]
-    val isCurrentAppVersionUnsupported = entry.isUnsupportedByCurrentAppVersion()
+    val isCurrentMarketCompatibilityUnsupported = entry.isUnsupportedByCurrentMarketCompatibility()
     val likes =
         if (currentReactions.isNotEmpty()) {
             currentReactions.sumOf { if (it.reaction.ifBlank { it.content } == "+1") it.total.coerceAtLeast(1) else 0 }
@@ -230,27 +230,27 @@ fun UnifiedMarketDetailEntryScreen(
                 onClick = { viewModel.installEntry(entry) },
                 enabled =
                     entry.canInstallFromUnifiedMarket() &&
-                        !isCurrentAppVersionUnsupported &&
+                        !isCurrentMarketCompatibilityUnsupported &&
                         installProgress == null &&
                         localInstallState?.kind != MarketLocalInstallStateKind.INSTALLED,
                 isLoading = installProgress != null,
                 loadingLabel = installProgress?.detailLabel(),
                 icon =
-                    if (isCurrentAppVersionUnsupported) {
+                    if (isCurrentMarketCompatibilityUnsupported) {
                         Icons.Default.Warning
                     } else if (localInstallState.shouldShowSwitchAction()) {
                         Icons.Default.Update
                     } else {
                         Icons.Default.Check
                     },
-                isWarning = isCurrentAppVersionUnsupported
+                isWarning = isCurrentMarketCompatibilityUnsupported
             ),
         secondaryAction =
             sourceUrl.takeIf { it.isNotBlank() }?.let { repositoryUrl ->
                 UnifiedMarketDetailAction(
                     label = stringResource(R.string.mcp_plugin_repository),
                     onClick = { openExternalUrl(context, repositoryUrl) },
-                    icon = Icons.Default.OpenInNew
+                    icon = Icons.AutoMirrored.Filled.OpenInNew
                 )
             },
         banner =

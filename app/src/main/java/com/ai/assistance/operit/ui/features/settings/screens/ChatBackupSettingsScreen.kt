@@ -267,7 +267,7 @@ fun ChatBackupSettingsScreen() {
         scope.launch {
             isScanning = true
             try {
-                val legacyDir = OperitBackupDirs.operitRootDir()
+                val legacyDir = OperitBackupDirs.kiyoriRootDir()
                 val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
 
                 fun mergedFiles(newDir: File): List<File> {
@@ -493,7 +493,7 @@ fun ChatBackupSettingsScreen() {
                     scope.launch {
                         isScanning = true
                         try {
-                            val legacyDir = OperitBackupDirs.operitRootDir()
+                            val legacyDir = OperitBackupDirs.kiyoriRootDir()
                             val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
 
                             fun mergedFiles(newDir: File): List<File> {
@@ -747,7 +747,7 @@ fun ChatBackupSettingsScreen() {
                                         RoomDatabaseBackupManager.pruneExcessBackups(context)
                                         isScanning = true
                                         try {
-                                            val legacyDir = OperitBackupDirs.operitRootDir()
+                                            val legacyDir = OperitBackupDirs.kiyoriRootDir()
                                             val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
                                             val newFiles = OperitBackupDirs.roomDbDir().listFiles()?.toList() ?: emptyList()
                                             val roomDbFiles = (newFiles + legacyFiles)
@@ -801,7 +801,7 @@ fun ChatBackupSettingsScreen() {
 
                                         isScanning = true
                                         try {
-                                            val legacyDir = OperitBackupDirs.operitRootDir()
+                                            val legacyDir = OperitBackupDirs.kiyoriRootDir()
                                             val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
                                             val newFiles = OperitBackupDirs.roomDbDir().listFiles()?.toList() ?: emptyList()
                                             val roomDbFiles = (newFiles + legacyFiles)

@@ -452,7 +452,7 @@ fun validateSupportedAppVersions(
     require(normalizedMin != null) {
         "Minimum supported app version is required"
     }
-    if (normalizedMin != null && normalizedMax != null) {
+    if (normalizedMax != null) {
         require(compareAppVersions(normalizedMin, normalizedMax) <= 0) {
             "Minimum supported app version cannot be greater than maximum supported app version"
         }
@@ -495,10 +495,10 @@ fun isAppVersionSupported(
     return true
 }
 
-fun MarketV2Entry.isUnsupportedByCurrentAppVersion(): Boolean {
+fun MarketV2Entry.isUnsupportedByCurrentMarketCompatibility(): Boolean {
     return latestVersion?.let { version ->
         !isAppVersionSupported(
-            appVersion = BuildConfig.VERSION_NAME,
+            appVersion = BuildConfig.OPERIT_MARKET_COMPAT_VERSION,
             minSupportedAppVersion = version.minAppVer,
             maxSupportedAppVersion = version.maxAppVer
         )

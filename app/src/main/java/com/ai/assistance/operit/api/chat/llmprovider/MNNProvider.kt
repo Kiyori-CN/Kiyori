@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import android.content.Context
-import android.os.Environment
 import android.util.Base64
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
@@ -10,6 +9,7 @@ import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.util.FFmpegUtil
 import com.ai.assistance.operit.util.ImagePoolManager
 import com.ai.assistance.operit.util.MediaPoolManager
+import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.mnn.MNNLlmSession
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelOption
@@ -49,11 +49,7 @@ class MNNProvider(
          * 根据模型名称获取模型目录路径
          */
         fun getModelDir(_context: Context, modelName: String): String {
-            val modelsDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "Operit/models/mnn"
-            )
-            return File(modelsDir, modelName).absolutePath
+            return File(OperitPaths.mnnModelsDir(), modelName).absolutePath
         }
     }
 

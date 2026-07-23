@@ -10,6 +10,8 @@
 
 `android-build.yml` 在构建前执行同一正式开发门禁。Debug 构建用于持续验证；release bundle、签名和商店上传仍需单独授权。
 
+生产 ToolPkg 不再由 workflow 同步到 `app/src/main/assets/packages/`。Android 构建和完整 Android PR 检查统一由 Gradle 从生产白名单生成资产；测试专用 ToolPkg 仍可由测试同步流程准备，不能混入生产源码 assets。
+
 ## 当前远端状态
 
 2026-07-23 核对 `Kiyori-CN/Kiyori` 时，三个 workflow 文件均为 active，但仓库级 GitHub Actions 权限为 `enabled=false`。`main` 的推送事件已经到达 GitHub，Actions run 与 commit check 仍为 0；这属于远端仓库设置问题，不是 workflow 的 branch 或 path 条件未命中。
@@ -24,7 +26,7 @@
 
 ## 运行产物边界
 
-`build/`、`app/build/`、`.gradle/`、`node_modules/`、`.venv/`、`local.properties`、生成的 APK/AAB 和工作区 checkpoint 不得被提交。已审阅并随应用分发的 bundled APK 资源属于运行时输入，不是构建输出。检查脚本针对 Git 索引，不会删除本地文件。
+`build/`、`app/build/`、`.gradle/`、`node_modules/`、`.venv/`、`local.properties`、生成的 `.toolpkg`、APK/AAB 和工作区 checkpoint 不得被提交。已审阅并随应用分发的 bundled APK 资源属于运行时输入，不是构建输出。检查脚本针对 Git 索引，不会删除本地文件。
 
 ## 失败处理
 

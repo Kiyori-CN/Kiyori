@@ -1,6 +1,21 @@
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.nio.file.Files
 import java.util.Properties
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -11,6 +26,127 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     id("io.objectbox")
 }
+
+@CacheableTask
+abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val whitelistFile: RegularFileProperty
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val examplesDirectory: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val examplesRoot = examplesDirectory.get().asFile.canonicalFile
+        val outputRoot = outputDirectory.get().asFile
+        val outputPackages = outputRoot.resolve("packages")
+        check(!outputRoot.exists() || outputRoot.deleteRecursively()) {
+            "Unable to clear generated ToolPkg assets directory: $outputRoot"
+        }
+        check(outputPackages.mkdirs() || outputPackages.isDirectory) {
+            "Unable to create generated ToolPkg assets directory: $outputPackages"
+        }
+
+        val items =
+            whitelistFile.get().asFile.readLines(Charsets.UTF_8)
+                .map(String::trim)
+                .filter { it.isNotEmpty() && !it.startsWith("#") }
+
+        val outputNames = mutableSetOf<String>()
+        items.forEach { item ->
+            val normalized = item.replace('\\', '/').trim('/')
+            check(normalized.isNotEmpty() && !normalized.startsWith("/") && ".." !in normalized.split('/')) {
+                "Bundled package path escapes examples/: $item"
+            }
+            val stem =
+                when {
+                    normalized.endsWith(".toolpkg", ignoreCase = true) -> normalized.dropLast(8)
+                    normalized.endsWith(".js", ignoreCase = true) -> normalized.dropLast(3)
+                    else -> normalized
+                }.trimEnd('/')
+            var unresolvedPackageRoot = examplesRoot
+            stem.split('/').forEach { segment ->
+                unresolvedPackageRoot = unresolvedPackageRoot.resolve(segment)
+                check(!Files.isSymbolicLink(unresolvedPackageRoot.toPath())) {
+                    "Bundled ToolPkg source path contains a symbolic link: $unresolvedPackageRoot"
+                }
+            }
+            val packageRoot = unresolvedPackageRoot.canonicalFile
+            check(packageRoot.toPath().startsWith(examplesRoot.toPath())) {
+                "Bundled ToolPkg path escapes examples/: $item"
+            }
+
+            val manifest =
+                listOf(packageRoot.resolve("manifest.hjson"), packageRoot.resolve("manifest.json"))
+                    .firstOrNull(File::isFile)
+            if (manifest == null) {
+                check(normalized.endsWith(".js", ignoreCase = true)) {
+                    "Bundled ToolPkg has no manifest: $item"
+                }
+                return@forEach
+            }
+
+            check(packageRoot.isDirectory) {
+                "Bundled ToolPkg source is not a regular directory: $packageRoot"
+            }
+            check(
+                packageRoot.resolve("dist/main.js").isFile ||
+                    packageRoot.resolve("main.js").isFile
+            ) {
+                "Bundled ToolPkg has no built main runtime: $packageRoot"
+            }
+
+            val files = mutableListOf<File>()
+            fun collect(path: File) {
+                check(!Files.isSymbolicLink(path.toPath())) {
+                    "Bundled ToolPkg cannot contain symbolic links: $path"
+                }
+                if (path.isDirectory) {
+                    path.listFiles().orEmpty().sortedBy(File::getName).forEach(::collect)
+                } else if (path.isFile) {
+                    files += path
+                }
+            }
+
+            collect(manifest)
+            listOf("dist", "resources", "modules", "assets")
+                .map(packageRoot::resolve)
+                .filter(File::exists)
+                .forEach(::collect)
+            packageRoot.resolve("main.js").takeIf(File::isFile)?.let(::collect)
+
+            val outputFile = outputPackages.resolve("${packageRoot.name}.toolpkg")
+            check(outputNames.add(outputFile.name)) {
+                "Bundled ToolPkg output name is duplicated: ${outputFile.name}"
+            }
+            ZipOutputStream(BufferedOutputStream(FileOutputStream(outputFile))).use { archive ->
+                files
+                    .distinctBy { it.canonicalPath }
+                    .sortedBy { it.relativeTo(packageRoot).invariantSeparatorsPath }
+                    .forEach { source ->
+                        val entry = ZipEntry(source.relativeTo(packageRoot).invariantSeparatorsPath)
+                        entry.time = 0L
+                        archive.putNextEntry(entry)
+                        source.inputStream().use { input -> input.copyTo(archive) }
+                        archive.closeEntry()
+                    }
+            }
+        }
+    }
+}
+
+val generateBundledToolPkgAssets =
+    tasks.register<GenerateBundledToolPkgAssetsTask>("generateBundledToolPkgAssets") {
+        description = "Generates the production ToolPkg assets bundled with every Android variant."
+        whitelistFile.set(rootProject.layout.projectDirectory.file("tools/example_packages/packages_whitelist.txt"))
+        examplesDirectory.set(rootProject.layout.projectDirectory.dir("examples"))
+        outputDirectory.set(layout.buildDirectory.dir("generated/bundledToolPkgAssets"))
+    }
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -57,6 +193,9 @@ android {
         targetSdk = 34
         versionCode = 45
         versionName = "0.1.0"
+
+        // Marketplace ranges describe the inherited Operit runtime contract, not Kiyori's product version.
+        buildConfigField("String", "OPERIT_MARKET_COMPAT_VERSION", "\"1.12.0+4\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -185,6 +324,13 @@ androidComponents {
     // filenames on the public Variant API prevents the nightly/clone artifact contract
     // from depending on an implementation class that no longer exists.
     onVariants { variant ->
+        val assets =
+            requireNotNull(variant.sources.assets) {
+                "Android variant ${variant.name} does not expose an assets source directory."
+            }
+        assets.addGeneratedSourceDirectory(generateBundledToolPkgAssets) {
+            it.outputDirectory
+        }
         val outputFileName =
             when (variant.buildType) {
                 "nightly" -> "app-nightly.apk"

@@ -678,6 +678,5 @@ class ArtifactMarketViewModel(
 
     companion object {
         private const val TAG = "ArtifactMarketViewModel"
-        private const val CURRENT_APP_VERSION = "1.11.0+5"
     }
 }

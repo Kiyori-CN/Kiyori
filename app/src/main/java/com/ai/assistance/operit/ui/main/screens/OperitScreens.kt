@@ -46,6 +46,7 @@ import com.ai.assistance.operit.ui.features.packages.screens.toArtifactPublishCl
 import com.ai.assistance.operit.ui.features.packages.market.ArtifactPublishClusterContext
 import com.ai.assistance.operit.ui.features.packages.market.MarketStatsType
 import com.ai.assistance.operit.ui.features.packages.market.PluginCreationIntent
+import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
 import com.ai.assistance.operit.ui.features.settings.screens.ChatBackupSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ChatHistorySettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ContextSummarySettingsScreen
@@ -181,7 +182,9 @@ sealed class Screen(
             PackageManagerScreen(
                 onNavigateToMCPMarket = { navigateTo(Market(MarketHomeTab.ALL)) },
                 onNavigateToSkillMarket = { navigateTo(Market(MarketHomeTab.ALL)) },
-                onNavigateToArtifactMarket = { navigateTo(Market(MarketHomeTab.ALL)) },
+                onNavigateToArtifactMarket = { type ->
+                    navigateTo(Market(initialTab = MarketHomeTab.ALL, initialArtifactType = type))
+                },
                 onStartPluginCreation = { intent ->
                     PendingChatDraftHandler.setPendingDraft(intent.toPrompt(context))
                     navigateTo(AiChat)
@@ -200,7 +203,10 @@ sealed class Screen(
         }
     }
 
-    data class Market(val initialTab: MarketHomeTab = MarketHomeTab.ALL) :
+    data class Market(
+        val initialTab: MarketHomeTab = MarketHomeTab.ALL,
+        val initialArtifactType: PublishArtifactType? = null
+    ) :
             Screen(navItem = NavItem.Packages, titleRes = R.string.screen_title_market) {
         @Composable
         override fun Content(
@@ -214,6 +220,7 @@ sealed class Screen(
         ) {
             UnifiedMarketScreen(
                 initialTab = initialTab,
+                initialArtifactType = initialArtifactType,
                 onNavigateToArtifactPublish = { navigateTo(ArtifactPublish) },
                 onNavigateToRepoPublish = { type -> navigateTo(RepoPublish(type)) },
                 onNavigateToMarketManage = { navigateTo(MarketManage) },

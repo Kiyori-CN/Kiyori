@@ -195,7 +195,8 @@ jobs:
         run: |
           npm run build:examples:github
           git diff --exit-code -- examples/github.js
-          python3 tools/example_packages/sync_example_packages.py --no-hot-reload
+
+      # Gradle packages the production ToolPkg whitelist into generated assets for every variant.
 
       - name: Configure Android build
         env:

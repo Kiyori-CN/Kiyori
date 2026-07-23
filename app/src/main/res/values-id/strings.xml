@@ -533,7 +533,7 @@
     <string name="danger_zone">Zona Berbahaya</string>
     <string name="chat_statistics">Statistik Riwayat Obrolan</string>
     <string name="current_chats">Saat ini ada %1$d riwayat obrolan</string>
-    <string name="backup_location">File cadangan disimpan di folder "Download/Operit/backup"</string>
+    <string name="backup_location">File cadangan disimpan di folder "Download/Kiyori/backup"</string>
     <string name="faq_backup">Pertanyaan Umum</string>
     <string name="history_filter_role_card">Kategorikan Berdasarkan Kartu Karakter</string>
     <string name="history_filter_role_card_desc">Klasifikasi tiga tingkat: Kartu Karakter - Folder - Percakapan</string>
@@ -819,6 +819,7 @@
     <string name="package_import_success">Paket berhasil diimpor</string>
     <string name="package_import_error">Gagal mengimpor paket</string>
     <string name="no_packages_available">Tidak ada paket yang tersedia</string>
+    <string name="no_script_packages_available">Tidak ada paket skrip yang tersedia</string>
     <string name="no_packages_imported">Belum ada paket yang diimpor</string>
     <string name="remove_package">Hapus Paket</string>
     <string name="package_removed">Paket telah dihapus</string>
@@ -833,7 +834,7 @@
     <string name="copy_path">Salin Jalur</string>
     <string name="path_copied_to_clipboard">Jalur telah disalin ke papan klip</string>
     <string name="open_file_manager">Buka Pengelola File</string>
-    <string name="navigate_to_external_files">Silakan navigasi ke direktori Android/data/com.ai.assistance.operit/files/packages</string>
+    <string name="navigate_to_external_files">Silakan navigasi ke direktori Android/data/com.kiyori/files/packages</string>
     <string name="package_js_only">Hanya mendukung file JavaScript (.js) dan ToolPkg (.toolpkg)</string>
     <string name="pkg_toolpkg_subpackages">Subpaket ToolPkg</string>
     <string name="pkg_toolpkg_version">Versi: %1$s</string>
@@ -846,11 +847,12 @@
     <string name="pkg_plugin_config_open_action">Buka Konfigurasi</string>
     <string name="automation_json_only">Hanya mendukung file JSON</string>
     <string name="no_filename">Tidak dapat mendapatkan nama file</string>
-    <string name="external_package_imported">Paket eksternal telah diimpor</string>
+    <string name="external_package_imported">Paket skrip eksternal telah diimpor</string>
+    <string name="external_plugin_imported">Plugin eksternal telah diimpor</string>
     <string name="current_tab_not_support_import">Tab saat ini tidak mendukung impor</string>
     <string name="import_failed">Gagal mengimpor: %1$s</string>
-    <string name="package_import_failed">Gagal mengimpor paket</string>
-    <string name="package_remove_failed">Gagal menghapus paket</string>
+    <string name="package_import_failed">Gagal mengimpor paket skrip</string>
+    <string name="package_remove_failed">Gagal menghapus paket skrip</string>
     <string name="run_script">Jalankan Skrip</string>
     <string name="edit_script">Edit Skrip</string>
     <string name="execute_script">Eksekusi Skrip</string>
@@ -3514,9 +3516,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="import_color_qr">Impor kode multi-dimensi</string>
     <string name="scan_color_qr">Pindai kode multi-dimensi</string>
     <string name="tavern_json">JSON Tavern</string>
-    <string name="export_tavern_json_desc">Ekspor sebagai .json dan simpan ke Download/Operit/exports</string>
+    <string name="export_tavern_json_desc">Ekspor sebagai .json dan simpan ke Download/Kiyori/exports</string>
     <string name="tavern_png">PNG Tavern</string>
-    <string name="export_tavern_png_desc">Ekspor sebagai gambar yang dapat diimpor ke Tavern, dan simpan ke Download/Operit/exports</string>
+    <string name="export_tavern_png_desc">Ekspor sebagai gambar yang dapat diimpor ke Tavern, dan simpan ke Download/Kiyori/exports</string>
     <string name="image_read_error">Tidak dapat membaca gambar</string>
     <string name="image_parse_error">Tidak dapat mengurai gambar</string>
     <string name="color_qr_not_recognized">Tidak dapat mengenali kode multi-dimensi berwarna</string>
@@ -3576,11 +3578,11 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="theme_on_color_dark">Gelap</string>
 
     <string name="publish_new_script">Publikasikan skrip baru</string>
-    <string name="publish_new_package">Publikasikan paket alat baru</string>
+    <string name="publish_new_package">Publikasikan plugin baru</string>
     <string name="manage_my_plugins">Kelola plugin saya</string>
     <string name="manage_my_skills">Kelola Skill saya</string>
     <string name="manage_my_scripts">Kelola skrip saya</string>
-    <string name="manage_my_packages">Kelola paket alat saya</string>
+    <string name="manage_my_packages">Kelola plugin saya</string>
     <string name="logout">Keluar</string>
     <string name="author_avatar">Avatar penulis</string>
     <string name="sharer_avatar">Avatar pembagi</string>
@@ -3624,15 +3626,15 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="need_login_github_manage_plugins">Perlu masuk ke GitHub untuk mengelola plugin yang Anda terbitkan</string>
     <string name="need_login_github_manage_skills">Perlu masuk ke GitHub untuk mengelola Skill yang Anda terbitkan</string>
     <string name="need_login_github_manage_scripts">Perlu masuk ke GitHub untuk mengelola skrip yang Anda terbitkan</string>
-    <string name="need_login_github_manage_packages">Perlu masuk ke GitHub untuk mengelola paket alat yang Anda terbitkan</string>
+    <string name="need_login_github_manage_packages">Perlu masuk ke GitHub untuk mengelola plugin yang Anda terbitkan</string>
     <string name="no_published_plugins_yet">Belum ada plugin yang diterbitkan</string>
     <string name="click_button_publish_first_mcp_plugin">Klik tombol di atas untuk menerbitkan plugin MCP pertama Anda</string>
     <string name="no_published_skills_yet">Belum ada Skill yang diterbitkan</string>
     <string name="click_button_publish_first_skill">Klik tombol di atas untuk menerbitkan Skill pertama Anda</string>
     <string name="no_published_scripts_yet">Belum ada skrip yang diterbitkan</string>
     <string name="click_button_publish_first_script">Klik tombol di atas untuk menerbitkan skrip pertama Anda</string>
-    <string name="no_published_packages_yet">Belum ada paket alat yang diterbitkan</string>
-    <string name="click_button_publish_first_package">Klik tombol di atas untuk menerbitkan paket alat pertama Anda</string>
+    <string name="no_published_packages_yet">Belum ada plugin yang diterbitkan</string>
+    <string name="click_button_publish_first_package">Klik tombol di atas untuk menerbitkan plugin pertama Anda</string>
     <string name="confirm_delete_action">Konfirmasi penghapusan</string>
     <string name="published">Telah diterbitkan</string>
     <string name="removed">Telah dihapus</string>
@@ -3660,7 +3662,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="confirm_create_public_forge_message">Harap konfirmasi kembali, sekarang akan membuat repositori publik `OperitForge`. Semua rilis selanjutnya akan menggunakan repositori ini.</string>
     <string name="create_and_publish">Buat dan Publikasikan</string>
     <string name="artifact_type_script">Skrip</string>
-    <string name="artifact_type_package">Paket Alat</string>
+    <string name="artifact_type_package">Plugin</string>
     <string name="supported_app_versions">Versi Perangkat Lunak yang Didukung</string>
     <string name="supported_app_versions_short">Kompatibel dengan %1$s</string>
     <string name="unsupported_artifact_version_title">Versi perangkat lunak saat ini mungkin tidak kompatibel</string>
@@ -3671,7 +3673,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="downloaded_already">Telah Diunduh</string>
     <string name="downloading">Mengunduh</string>
     <string name="download_script">Unduh Skrip</string>
-    <string name="download_package">Unduh Paket Alat</string>
+    <string name="download_package">Unduh Plugin</string>
     <string name="open_asset">Buka Aset</string>
     <string name="metadata_title">Metadata</string>
     <string name="type_label">Jenis</string>
@@ -3750,7 +3752,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="login_github_to_manage_mcp_plugins">Login ke GitHub untuk mempublikasikan dan mengelola plugin MCP Anda</string>
     <string name="login_github_for_skill_market">Login ke GitHub untuk pengalaman Pasar Skill yang lebih baik</string>
     <string name="login_github_to_manage_scripts">Login ke GitHub untuk mempublikasikan dan mengelola skrip Anda</string>
-    <string name="login_github_to_manage_packages">Login ke GitHub untuk mempublikasikan dan mengelola paket alat Anda</string>
+    <string name="login_github_to_manage_packages">Login ke GitHub untuk mempublikasikan dan mengelola plugin Anda</string>
     <string name="browse">Jelajahi</string>
     <string name="my_tab">Saya</string>
     <string name="user_avatar">Avatar pengguna</string>
@@ -3758,19 +3760,19 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="available_mcp_plugins">Plugin MCP yang tersedia</string>
     <string name="available_skills_market">Skill yang tersedia</string>
     <string name="available_scripts_market">Skrip yang tersedia</string>
-    <string name="available_packages_market">Paket alat yang tersedia</string>
+    <string name="available_packages_market">Plugin yang tersedia</string>
     <string name="no_matching_plugins_found">Tidak ditemukan plugin yang cocok</string>
     <string name="no_matching_skills_found">Tidak ditemukan Skill yang cocok</string>
     <string name="no_matching_scripts_found">Tidak ditemukan skrip yang cocok</string>
-    <string name="no_matching_packages_found">Tidak ditemukan paket alat yang cocok</string>
+    <string name="no_matching_packages_found">Tidak ditemukan paket skrip yang cocok</string>
     <string name="skill_market_search_placeholder">Cari nama Skill, deskripsi, penulis...</string>
     <string name="script_market_search_placeholder">Cari nama skrip, deskripsi, penulis...</string>
-    <string name="package_market_search_placeholder">Cari nama paket alat, deskripsi, penulis...</string>
+    <string name="package_market_search_placeholder">Cari paket skrip</string>
     <string name="skill_repo_url_not_found">URL repositori tidak ditemukan</string>
     <string name="skill_repo_url_not_found_cannot_install">URL repositori tidak ditemukan, tidak dapat menginstal</string>
     <string name="no_available_mcp_plugins">Belum ada plugin MCP yang tersedia</string>
     <string name="no_scripts_available">Belum ada skrip yang tersedia</string>
-    <string name="no_market_packages_available">Belum ada paket alat yang tersedia</string>
+    <string name="no_market_packages_available">Belum ada plugin yang tersedia</string>
     <string name="refresh_or_try_later">Segarkan atau coba lagi nanti</string>
     <string name="recommended_feature">Fitur rekomendasi</string>
     <string name="premium_mcp_plugins_coming_soon">Plugin MCP premium pilihan akan segera hadir</string>
@@ -3823,7 +3825,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="after_logging_in_you_can_view_and_manage_your_mcp_plugins">Setelah login, Anda dapat melihat dan mengelola plugin MCP yang Anda terbitkan</string>
     <string name="after_logging_in_you_can_view_and_manage_your_scripts">Setelah login, Anda dapat melihat dan mengelola skrip yang Anda terbitkan</string>
-    <string name="after_logging_in_you_can_view_and_manage_your_packages">Setelah login, Anda dapat melihat dan mengelola paket alat yang Anda terbitkan</string>
+    <string name="after_logging_in_you_can_view_and_manage_your_packages">Setelah login, Anda dapat melihat dan mengelola plugin yang Anda terbitkan</string>
     <string name="after_logging_in_you_can_view_and_manage_your_artifacts">Setelah login, Anda dapat melihat dan mengelola skrip dan paket alat yang Anda terbitkan</string>
     <string name="login_github_to_manage_artifacts">Setelah login ke GitHub, Anda dapat mengelola dan menerbitkan skrip/paket alat</string>
     <string name="need_login_github_manage_artifacts">Perlu login ke GitHub untuk mengelola skrip dan paket alat yang Anda terbitkan</string>
@@ -3837,15 +3839,15 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="no_published_artifacts_yet">Belum menerbitkan skrip atau paket alat apa pun</string>
     <string name="click_button_publish_first_artifact">Klik tombol di atas untuk menerbitkan skrip atau paket alat pertama Anda</string>
     <string name="confirm_remove_artifact_from_market">Yakin ingin menghapus entri "%1$s" dari pasar? Tindakan ini akan menutup Issue terkait, tetapi tidak menghapus repositori terbitan Anda.</string>
-    <string name="screen_title_artifact_market">Pasar Skrip dan Paket Alat</string>
-    <string name="screen_title_artifact_manage">Kelola Skrip dan Paket Alat</string>
-    <string name="screen_title_artifact_publish">Terbitkan Skrip atau Paket Alat</string>
-    <string name="artifact_publish_info_description">Entri akan diunggah ke repositori terbitan OperitForge Anda sendiri, lalu didaftarkan otomatis ke pasar skrip atau pasar paket alat sesuai jenisnya. Pastikan konten, versi, dan rentang kompatibilitas sudah akurat.</string>
+    <string name="screen_title_artifact_market">Pasar Skrip dan Plugin</string>
+    <string name="screen_title_artifact_manage">Kelola Skrip dan Plugin</string>
+    <string name="screen_title_artifact_publish">Terbitkan Skrip atau Plugin</string>
+    <string name="artifact_publish_info_description">Entri akan diunggah ke repositori terbitan OperitForge Anda sendiri, lalu didaftarkan otomatis ke pasar skrip atau pasar plugin sesuai jenisnya. Pastikan konten, versi, dan rentang kompatibilitas sudah akurat.</string>
     <string name="artifact_edit_info_description">Anda sedang mengedit informasi entri yang sudah diterbitkan. Pembaruan akan menimpa metadata Issue terkait di repositori pasar.</string>
     <string name="need_login_before_publish_artifact">Perlu login ke GitHub sebelum menerbitkan.</string>
     <string name="local_artifact_entry">Entri lokal</string>
     <string name="publish_target_script_market">Akan otomatis diterbitkan ke pasar skrip</string>
-    <string name="publish_target_package_market">Akan otomatis diterbitkan ke pasar paket alat</string>
+    <string name="publish_target_package_market">Akan otomatis diterbitkan ke pasar plugin</string>
     <string name="display_name_label">Nama tampilan</string>
     <string name="description_label">Deskripsi</string>
     <string name="version_label">Versi</string>
@@ -3904,7 +3906,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mcp_issue_body_install_step1">1. Klik "Impor" di halaman konfigurasi Kiyori MCP</string>
     <string name="mcp_issue_body_install_step2">2. Pilih "Impor dari Repositori"</string>
 
-    <string name="confirm_remove_package_from_market">Apakah Anda yakin ingin menghapus paket alat "%1$s" dari pasar? Tindakan ini akan menutup Issue terkait, tetapi tidak akan menghapus repositori rilis Anda.</string>
+    <string name="confirm_remove_package_from_market">Apakah Anda yakin ingin menghapus plugin "%1$s" dari pasar? Tindakan ini akan menutup Issue terkait, tetapi tidak akan menghapus repositori rilis Anda.</string>
     <string name="edit_plugin_info_description">Anda sedang mengedit informasi plugin yang telah dirilis. Informasi yang diubah akan diperbarui di Issue terkait di repositori pasar.</string>
     <string name="publish_plugin_info_description">Informasi plugin Anda akan dipublikasikan sebagai GitHub Issue ke repositori pasar. Pastikan informasi yang diberikan akurat dan lengkap. Konten formulir akan otomatis disimpan sebagai draf, dan akan dikosongkan hanya setelah berhasil dipublikasikan.</string>
     <string name="plugin_name_required">Nama plugin *</string>
@@ -3920,18 +3922,18 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="skill_update_success_message">Informasi Skill Anda telah berhasil diperbarui.</string>
     <string name="script_publish_info_description">Skrip akan diunggah terlebih dahulu ke repositori rilis OperitForge Anda sendiri, kemudian metadata akan didaftarkan ke OperitScriptMarket. Pastikan konten, versi, dan deskripsi skrip akurat.</string>
     <string name="script_edit_info_description">Anda sedang mengedit informasi skrip yang telah dirilis. Pembaruan akan menimpa metadata di Issue terkait di repositori pasar.</string>
-    <string name="package_publish_info_description">Paket alat akan diunggah terlebih dahulu ke repositori rilis OperitForge Anda sendiri, kemudian metadata akan didaftarkan ke OperitPackageMarket. Pastikan konten, versi, dan deskripsi paket alat akurat.</string>
-    <string name="package_edit_info_description">Anda sedang mengedit informasi paket alat yang telah dirilis. Pembaruan akan menimpa metadata di Issue terkait di repositori pasar.</string>
+    <string name="package_publish_info_description">Plugin akan diunggah terlebih dahulu ke repositori rilis OperitForge Anda sendiri, kemudian metadata akan didaftarkan ke OperitPackageMarket. Pastikan konten, versi, dan deskripsi plugin akurat.</string>
+    <string name="package_edit_info_description">Anda sedang mengedit informasi plugin yang telah dirilis. Pembaruan akan menimpa metadata di Issue terkait di repositori pasar.</string>
     <string name="script_publish_success_message">Skrip Anda telah berhasil dipublikasikan ke pasar.</string>
     <string name="script_update_success_message">Informasi skrip Anda telah berhasil diperbarui.</string>
-    <string name="package_publish_success_message">Paket alat Anda telah berhasil dipublikasikan ke pasar.</string>
-    <string name="package_update_success_message">Informasi paket alat Anda telah berhasil diperbarui.</string>
+    <string name="package_publish_success_message">Plugin Anda telah berhasil dipublikasikan ke pasar.</string>
+    <string name="package_update_success_message">Informasi plugin Anda telah berhasil diperbarui.</string>
     <string name="screen_title_script_market">Pasar Skrip</string>
     <string name="screen_title_script_manage">Kelola Skrip</string>
     <string name="screen_title_script_publish">Publikasi Skrip</string>
-    <string name="screen_title_package_market">Pasar Paket Alat</string>
-    <string name="screen_title_package_manage">Kelola Paket Alat</string>
-    <string name="screen_title_package_publish">Publikasi Paket Alat</string>
+    <string name="screen_title_package_market">Pasar Plugin</string>
+    <string name="screen_title_package_manage">Kelola Plugin</string>
+    <string name="screen_title_package_publish">Publikasi Plugin</string>
     <string name="install_command_example">Contoh: pnpm install xxx@xxxx</string>
     <string name="install_command_optional_description">Jika tidak diisi, perangkat lunak akan otomatis mengenali struktur proyek. Disarankan dikosongkan.</string>
     <string name="install_config_example">{"mcpServers": {"example": {"command": "npx", "args": ["example@latest"]}}}</string>
@@ -4766,7 +4768,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_faq_why">Mengapa perlu mencadangkan data?</string>
     <string name="backup_faq_why_answer">Mencadangkan riwayat percakapan dapat mencegah hilangnya konten penting Anda saat aplikasi dihapus atau data hilang. Mencadangkan secara berkala adalah kebiasaan yang baik!</string>
     <string name="backup_faq_where">Di mana file ekspor disimpan?</string>
-    <string name="backup_faq_where_answer">File cadangan yang diekspor akan disimpan di folder "Unduhan/Operit" di ponsel Anda. Nama file mencakup jenis data yang diekspor, tanggal, dan waktu.</string>
+    <string name="backup_faq_where_answer">File cadangan yang diekspor akan disimpan di folder "Unduhan/Kiyori" di ponsel Anda. Nama file mencakup jenis data yang diekspor, tanggal, dan waktu.</string>
     <string name="backup_faq_duplicate">Apakah akan ada data duplikat setelah diimpor?</string>
     <string name="backup_faq_duplicate_answer">Sistem akan menilai berdasarkan ID catatan. Catatan dengan ID yang sama akan diperbarui, bukan diimpor ulang. Catatan dengan ID berbeda akan ditambahkan sebagai catatan baru.</string>
     <string name="backup_select_export_format">Pilih format ekspor</string>
@@ -4795,7 +4797,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_export_result_success">Berhasil mengekspor ke: %1$s</string>
     <string name="backup_character_cards_title">Kartu Karakter</string>
     <string name="backup_character_cards_subtitle">Cadangkan dan pulihkan konfigurasi kartu karakter</string>
-    <string name="backup_character_cards_current_count">Saat ini ada %1$d kartu karakter. File yang diekspor akan disimpan di folder "Unduhan/Operit".</string>
+    <string name="backup_character_cards_current_count">Saat ini ada %1$d kartu karakter. File yang diekspor akan disimpan di folder "Unduhan/Kiyori".</string>
     <string name="backup_character_card_count">Kartu Karakter</string>
     <string name="backup_character_card_files">Kartu Karakter</string>
     <string name="backup_character_cards_export_result_success">Berhasil mengekspor %1$d kartu karakter ke:\n%2$s</string>
@@ -4833,7 +4835,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_room_db_restart_later">Nanti</string>
     <string name="backup_room_db_last_success">Cadangan berhasil terakhir: %1$s</string>
     <string name="backup_room_db_last_error">Kesalahan terakhir: %1$s</string>
-    <string name="backup_files_location_hint">Petunjuk: File cadangan disimpan di folder Download/Operit</string>
+    <string name="backup_files_location_hint">Petunjuk: File cadangan disimpan di folder Download/Kiyori</string>
     <string name="backup_raw_snapshot_title">Cadangan Snapshot File (Eksperimental)</string>
     <string name="backup_raw_snapshot_subtitle">Cadangan dan pemulihan kompresi keseluruhan berbasis file/direktori</string>
     <string name="backup_raw_snapshot_desc">Akan mengemas direktori data internal aplikasi seperti files/shared_prefs/datastore/databases (lingkungan terminal Linux volumenya sangat besar, tidak dicadangkan secara default). Pemulihan akan menimpa data saat ini dan memerlukan restart aplikasi untuk berlaku. Beberapa data terenkripsi mungkin tidak dapat digunakan setelah pindah perangkat/instal ulang.</string>
@@ -4847,7 +4849,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="logcat_mediestore_save_failed">MediaStore gagal menyimpan: %1$s</string>
     <string name="logcat_cannot_create_download_dir">Tidak dapat membuat direktori unduhan</string>
-    <string name="logcat_cannot_create_operit_dir">Tidak dapat membuat direktori operit</string>
+    <string name="logcat_cannot_create_operit_dir">Tidak dapat membuat direktori Kiyori</string>
     <string name="logcat_file_create_failed">Gagal membuat file atau file kosong</string>
     <string name="logcat_filesystem_save_failed">Sistem file gagal menyimpan: %1$s</string>
     <string name="backup_export_failed_create_file">Ekspor gagal: Tidak dapat membuat file</string>
@@ -6756,6 +6758,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="chat_auto_update_memory_failed">Gagal memperbarui memori otomatis: %1$s</string>
 
     <string name="nav_group_plugins">Plugin</string>
+    <string name="script_packages">Paket Skrip</string>
     <string name="tag_count_lock">Jumlah terkunci</string>
     <string name="tag_count_limit">Jumlah maksimal yang dapat dipilih</string>
     <string name="tag_count_locked_status">Telah dipilih %1$d / batas %2$d</string>
@@ -6772,15 +6775,15 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="share_preview_include_background">Sertakan latar belakang</string>
     <string name="share_preview_border_width">Bingkai: %1$.1f dp</string>
 
-    <string name="quick_plugin_creator_title">Buat Plugin Anda dengan Cepat</string>
-    <string name="quick_plugin_creator_desc">Tidak menemukan plugin yang diinginkan di bawaan atau pasar? Buat sendiri yang Anda inginkan!</string>
+    <string name="quick_plugin_creator_title">Buat Paket Skrip Anda dengan Cepat</string>
+    <string name="quick_plugin_creator_desc">Tidak menemukan paket skrip yang diinginkan di bawaan atau pasar? Buat sendiri yang Anda inginkan!</string>
     <string name="quick_plugin_creator_step1_title">1. Perbarui atau unduh paket untuk membuat Skill</string>
     <string name="quick_plugin_creator_step1_desc">Setelah menekan tombol, `install_or_update.js` akan diunduh secara otomatis, dan debug_run_sandbox_script dari operit_editor akan dipanggil untuk menjalankan instalasi atau pembaruan.</string>
     <string name="quick_plugin_creator_run_setup">Unduh dan jalankan secara otomatis</string>
     <string name="quick_plugin_creator_setup_success">Instalasi atau pembaruan Skill pembuatan paket selesai</string>
     <string name="quick_plugin_creator_step2_title">2. Masukkan kebutuhan untuk mulai membuat</string>
     <string name="quick_plugin_creator_requirement_hint">Contoh: buat alat yang dapat mengatur gambar di direktori unduhan secara massal dan menghasilkan indeks</string>
-    <string name="quick_plugin_creator_requirement_empty">Silakan masukkan kebutuhan plugin terlebih dahulu</string>
+    <string name="quick_plugin_creator_requirement_empty">Silakan masukkan kebutuhan paket skrip terlebih dahulu</string>
     <string name="mcp_plugin_comment_view_thread">Lihat lantai</string>
     <string name="mcp_plugin_user_comments">Komentar pengguna</string>
     <string name="quick_plugin_creator_setup_failed">Pembuatan Skill plugin gagal dipasang atau diperbarui</string>
@@ -7096,11 +7099,11 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="artifact_project_node_selection_hint">Klik node untuk memilih, klik lagi untuk membatalkan.</string>
     <string name="plugin_creation_fresh_task_line">Silakan aktifkan operit editor, dan gunakan paket sandbox untuk mengembangkan paket sandbox baru dengan dev toolkit.</string>
     <string name="plugin_creation_fresh_package_rule_line">Tentukan id paket sandbox baru terlebih dahulu, jangan ganti nama nanti.</string>
-    <string name="plugin_creation_fresh_dev_directory_line">Direktori pengembangan tetap di Unduhan ponsel/Operit/dev_package/id yang Anda tentukan. Pengembangan, instalasi, dan pengujian hanya dilakukan di sini.</string>
+    <string name="plugin_creation_fresh_dev_directory_line">Direktori pengembangan tetap di Unduhan ponsel/Kiyori/dev_package/id yang Anda tentukan. Pengembangan, instalasi, dan pengujian hanya dilakukan di sini.</string>
     <string name="plugin_creation_continue_task_line">Silakan aktifkan operit editor, cari lokasi paket sandbox %1$s, lanjutkan pengembangan dan pengujian berdasarkan versi ini.</string>
     <string name="plugin_creation_merge_task_line">Silakan aktifkan operit editor, cari lokasi paket sandbox %1$s, lakukan pengembangan gabungan dan pengujian berdasarkan versi ini.</string>
     <string name="plugin_creation_existing_package_rule_line">Id paket sandbox saat ini adalah %1$s. Id paket dan nama plugin harus tetap digunakan, jangan ganti nama atau buat paket baru.</string>
-    <string name="plugin_creation_existing_dev_directory_line">Direktori pengembangan tetap di Unduhan ponsel/Operit/dev_package/%1$s. Pengembangan, instalasi, dan pengujian hanya dilakukan di sini.</string>
+    <string name="plugin_creation_existing_dev_directory_line">Direktori pengembangan tetap di Unduhan ponsel/Kiyori/dev_package/%1$s. Pengembangan, instalasi, dan pengujian hanya dilakukan di sini.</string>
     <string name="plugin_creation_update_sandbox_package_dev">Perbarui SandboxPackage_DEV terlebih dahulu.</string>
     <string name="plugin_creation_copy_types_to_dev_dir">Salin types dari skills ke direktori pengembangan dengan menimpa.</string>
     <string name="plugin_creation_use_terminal_ts_js_hint">Gunakan terminal sebisa mungkin, prioritaskan menulis ts dan js, lalu kompilasi ke js akhir. tsconfig lihat contoh.</string>
@@ -7126,9 +7129,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="app_update_channel_disabled">Versi ini tidak menerima pembaruan atau pengumuman jarak jauh. Versi baru didistribusikan secara terpisah melalui repositori Kiyori.</string>
     <string name="about_source_attribution">Kiyori melanjutkan pengembangan dari basis kode sumber terbuka Operit. Kepengarangan asli, lisensi, dan riwayat proyek tetap disimpan dalam repositori.</string>
     <string name="quick_plugin_creator_setup_unavailable">Kiyori belum menyediakan skrip penyiapan cepat yang tepercaya, sehingga tindakan ini dinonaktifkan.</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_title">Kompres dan samarkan paket</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_desc">Jika diaktifkan, skrip yang dapat dijalankan di dalam ToolPkg akan diperkecil melalui pohon sintaks JavaScript. Paket hasilnya tetap berupa file ZIP standar dan dapat langsung diimpor.</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Kompres dan samarkan paket: %1$s</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">Kompres dan samarkan plugin</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">Jika diaktifkan, skrip yang dapat dijalankan di dalam plugin ToolPkg akan diperkecil melalui pohon sintaks JavaScript. Arsip plugin tetap berupa file ZIP standar dan dapat langsung diimpor.</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Kompres dan samarkan plugin: %1$s</string>
     <string name="artifact_publish_asset_source_title">Sumber aset rilis</string>
     <string name="artifact_publish_asset_source_upload">Unggah paket lokal saat ini</string>
     <string name="artifact_publish_asset_source_github_release">Gunakan aset GitHub Release</string>

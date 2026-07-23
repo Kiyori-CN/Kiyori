@@ -276,7 +276,7 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
                 try {
                     val fileExtension = fileName.substringAfterLast('.', "jpg")
 
-                    // 使用外部存储Download/Operit/cleanOnExit目录，而不是缓存目录
+                    // 使用 Kiyori 公共临时目录，确保文件工具可以读取附件。
                     val externalDir = OperitPaths.cleanOnExitDir()
 
                     // 确保目录存在

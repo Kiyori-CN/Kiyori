@@ -102,7 +102,7 @@ setlocal EnableExtensions DisableDelayedExpansion
 REM Resolve suite name
 for %%D in ("%SUITE_DIR%") do set "SUITE_NAME=%%~nxD"
 
-set "TARGET_BASE=/sdcard/Android/data/com.ai.assistance.operit/js_temp"
+set "TARGET_BASE=/sdcard/Android/data/com.kiyori/js_temp"
 set "TARGET_SUITES_DIR=%TARGET_BASE%/suites"
 set "TARGET_RESULT_FILE=%TARGET_BASE%/%SUITE_NAME%_%FUNCTION_NAME%_%RANDOM%.json"
 set "BUNDLED_FILE="
@@ -215,9 +215,9 @@ adb -s "%DEVICE_SERIAL%" shell rm -f "%TARGET_RESULT_FILE%"
 
 echo Executing [%FUNCTION_NAME%] from [%TARGET_ENTRY_FILE%] ...
 if "%HAS_ENV_FILE%"=="true" (
-    adb -s "%DEVICE_SERIAL%" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.ai.assistance.operit/.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '%TARGET_ENTRY_FILE%' --es function_name '%FUNCTION_NAME%' --es params_file_path '%TARGET_PARAMS_FILE%' --es env_file_path '%TARGET_ENV_FILE%' --es result_file_path '%TARGET_RESULT_FILE%' --ez temp_params_file true --ez temp_env_file true"
+    adb -s "%DEVICE_SERIAL%" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.kiyori/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '%TARGET_ENTRY_FILE%' --es function_name '%FUNCTION_NAME%' --es params_file_path '%TARGET_PARAMS_FILE%' --es env_file_path '%TARGET_ENV_FILE%' --es result_file_path '%TARGET_RESULT_FILE%' --ez temp_params_file true --ez temp_env_file true"
 ) else (
-    adb -s "%DEVICE_SERIAL%" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.ai.assistance.operit/.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '%TARGET_ENTRY_FILE%' --es function_name '%FUNCTION_NAME%' --es params_file_path '%TARGET_PARAMS_FILE%' --es result_file_path '%TARGET_RESULT_FILE%' --ez temp_params_file true"
+    adb -s "%DEVICE_SERIAL%" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.kiyori/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '%TARGET_ENTRY_FILE%' --es function_name '%FUNCTION_NAME%' --es params_file_path '%TARGET_PARAMS_FILE%' --es result_file_path '%TARGET_RESULT_FILE%' --ez temp_params_file true"
 )
 if errorlevel 1 (
     if "%PARAMS_LOCAL_TEMP%"=="true" (

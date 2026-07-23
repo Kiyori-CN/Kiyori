@@ -6,16 +6,23 @@ import java.io.File
 
 object OperitPaths {
 
-    private const val OPERIT_DIR_NAME = "Operit"
+    private const val KIYORI_DIR_NAME = "Kiyori"
     private const val CLEAN_ON_EXIT_DIR_NAME = "cleanOnExit"
     private const val PLUGINS_DIR_NAME = "plugins"
     private const val MCP_PLUGINS_DIR_NAME = "mcp_plugins"
     private const val BRIDGE_DIR_NAME = "bridge"
     private const val EXPORTS_DIR_NAME = "exports"
     private const val WORKSPACE_DIR_NAME = "workspace"
+    private const val WORKFLOW_DIR_NAME = "workflow"
+    private const val MODELS_DIR_NAME = "models"
+    private const val MNN_MODELS_DIR_NAME = "mnn"
+    private const val LLAMA_MODELS_DIR_NAME = "llama"
+    private const val OUTPUT_IMAGES_DIR_NAME = "output images"
+    private const val ERROR_DIR_NAME = "error"
     private const val TEST_DIR_NAME = "test"
     private const val WEBSESSION_DIR_NAME = "websession"
     private const val USERSCRIPTS_DIR_NAME = "userscripts"
+    private const val SKILLS_DIR_NAME = "skills"
 
     const val SHERPA_NCNN_MODELS_DIR_NAME = ".sherpa_ncnn_models"
     const val VECTOR_INDEX_DIR_NAME = ".vector_index"
@@ -28,16 +35,16 @@ object OperitPaths {
         return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
     }
 
-    fun operitRootDir(): File {
-        return ensureDir(File(downloadsDir(), OPERIT_DIR_NAME))
+    fun kiyoriRootDir(): File {
+        return ensureDir(File(downloadsDir(), KIYORI_DIR_NAME))
     }
 
     fun cleanOnExitDir(): File {
-        return ensureDir(File(operitRootDir(), CLEAN_ON_EXIT_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), CLEAN_ON_EXIT_DIR_NAME))
     }
 
     fun pluginsDir(): File {
-        return ensureDir(File(operitRootDir(), PLUGINS_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), PLUGINS_DIR_NAME))
     }
 
     fun pluginConfigDir(pluginId: String): File {
@@ -57,31 +64,55 @@ object OperitPaths {
     }
 
     fun cleanOnExitInternalDir(context: Context): File {
-        return ensureDir(File(ensureDir(File(context.cacheDir, OPERIT_DIR_NAME)), CLEAN_ON_EXIT_DIR_NAME))
+        return ensureDir(File(ensureDir(File(context.cacheDir, KIYORI_DIR_NAME)), CLEAN_ON_EXIT_DIR_NAME))
     }
 
     fun mcpPluginsDir(): File {
-        return ensureDir(File(operitRootDir(), MCP_PLUGINS_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), MCP_PLUGINS_DIR_NAME))
     }
 
     fun bridgeDir(): File {
-        return ensureDir(File(operitRootDir(), BRIDGE_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), BRIDGE_DIR_NAME))
     }
 
     fun exportsDir(): File {
-        return ensureDir(File(operitRootDir(), EXPORTS_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), EXPORTS_DIR_NAME))
     }
 
     fun workspaceDir(): File {
-        return ensureDir(File(operitRootDir(), WORKSPACE_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), WORKSPACE_DIR_NAME))
+    }
+
+    fun workflowDir(): File {
+        return ensureDir(File(kiyoriRootDir(), WORKFLOW_DIR_NAME))
+    }
+
+    fun mnnModelsDir(): File {
+        return ensureDir(File(File(kiyoriRootDir(), MODELS_DIR_NAME), MNN_MODELS_DIR_NAME))
+    }
+
+    fun llamaModelsDir(): File {
+        return ensureDir(File(File(kiyoriRootDir(), MODELS_DIR_NAME), LLAMA_MODELS_DIR_NAME))
+    }
+
+    fun outputImagesDir(): File {
+        return ensureDir(File(kiyoriRootDir(), OUTPUT_IMAGES_DIR_NAME))
+    }
+
+    fun errorDir(): File {
+        return ensureDir(File(kiyoriRootDir(), ERROR_DIR_NAME))
     }
 
     fun testDir(): File {
-        return ensureDir(File(operitRootDir(), TEST_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), TEST_DIR_NAME))
     }
 
     fun webSessionDir(): File {
-        return ensureDir(File(operitRootDir(), WEBSESSION_DIR_NAME))
+        return ensureDir(File(kiyoriRootDir(), WEBSESSION_DIR_NAME))
+    }
+
+    fun skillsDir(): File {
+        return ensureDir(File(kiyoriRootDir(), SKILLS_DIR_NAME))
     }
 
     fun webSessionUserscriptsDir(): File {
@@ -118,36 +149,36 @@ object OperitPaths {
         )
     }
 
-    fun operitRootPathSdcard(): String {
-        return "/sdcard/Download/$OPERIT_DIR_NAME"
+    fun kiyoriRootPathSdcard(): String {
+        return "/sdcard/Download/$KIYORI_DIR_NAME"
     }
 
     fun cleanOnExitPathSdcard(): String {
-        return "${operitRootPathSdcard()}/$CLEAN_ON_EXIT_DIR_NAME"
+        return "${kiyoriRootPathSdcard()}/$CLEAN_ON_EXIT_DIR_NAME"
     }
 
     fun pluginsPathSdcard(): String {
-        return "${operitRootPathSdcard()}/$PLUGINS_DIR_NAME"
+        return "${kiyoriRootPathSdcard()}/$PLUGINS_DIR_NAME"
     }
 
     fun bridgePathSdcard(): String {
-        return "${operitRootPathSdcard()}/$BRIDGE_DIR_NAME"
+        return "${kiyoriRootPathSdcard()}/$BRIDGE_DIR_NAME"
     }
 
     fun exportsPathSdcard(): String {
-        return "${operitRootPathSdcard()}/$EXPORTS_DIR_NAME"
+        return "${kiyoriRootPathSdcard()}/$EXPORTS_DIR_NAME"
     }
 
     fun workspacePathSdcard(chatId: String): String {
-        return "${operitRootPathSdcard()}/$WORKSPACE_DIR_NAME/$chatId"
+        return "${kiyoriRootPathSdcard()}/$WORKSPACE_DIR_NAME/$chatId"
     }
 
     fun testPathSdcard(): String {
-        return "${operitRootPathSdcard()}/$TEST_DIR_NAME"
+        return "${kiyoriRootPathSdcard()}/$TEST_DIR_NAME"
     }
 
     fun webSessionUserscriptsPathSdcard(): String {
-        return "${operitRootPathSdcard()}/$WEBSESSION_DIR_NAME/$USERSCRIPTS_DIR_NAME"
+        return "${kiyoriRootPathSdcard()}/$WEBSESSION_DIR_NAME/$USERSCRIPTS_DIR_NAME"
     }
 
     private fun ensureDir(dir: File): File {

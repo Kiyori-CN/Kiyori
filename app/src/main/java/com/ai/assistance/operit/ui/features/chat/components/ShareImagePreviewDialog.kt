@@ -206,12 +206,12 @@ fun ShareImagePreviewDialog(
 suspend fun saveShareImageToGallery(context: android.content.Context, uri: Uri): Boolean =
     withContext(Dispatchers.IO) {
         try {
-            val fileName = "operit_share_${System.currentTimeMillis()}.png"
+            val fileName = "kiyori_share_${System.currentTimeMillis()}.png"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val contentValues = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Operit")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Kiyori")
                 }
                 val targetUri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                     ?: return@withContext false
@@ -223,7 +223,7 @@ suspend fun saveShareImageToGallery(context: android.content.Context, uri: Uri):
                 true
             } else {
                 val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                val outputDir = File(picturesDir, "Operit").apply { mkdirs() }
+                val outputDir = File(picturesDir, "Kiyori").apply { mkdirs() }
                 val outputFile = File(outputDir, fileName)
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     outputFile.outputStream().use { output -> input.copyTo(output) }

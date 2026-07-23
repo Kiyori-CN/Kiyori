@@ -46,6 +46,12 @@ Kiyori 不建立与 AI 页面割裂的第二套视觉系统。来源层级固定
 - 本阶段不决定视频、音乐、小说和广告拦截器的具体页面细节
 - 本阶段不保留全屏 AI Center、边缘手势抽屉或永久侧栏等并行入口
 
+## 扩展与存储边界
+
+- 普通 JS、TS 与 HJSON 项目是脚本包；ToolPkg 容器是插件，可注册工具子包、输入框菜单、消息处理、XML 渲染、抽屉页面和配置页面。
+- Operit 市场的 `type="package"` 与 `toolpkg_v2` 是兼容协议值，Kiyori 显示层将其称为插件；协议值、下载地址、ToolPkg ID 与 `com.operit.*` namespace 不改写。
+- Kiyori 新建公共数据使用 `Download/Kiyori`。插件配置、MCP、Skill、工作区、导出、备份和临时文件从同一路径所有者派生，不自动读取或删除 `Download/Operit`。
+
 ## 导航层级
 
 ```text

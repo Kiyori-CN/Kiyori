@@ -7,6 +7,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.io.FileWriter
 import java.io.Writer
@@ -42,7 +43,7 @@ object LogcatExportHelper {
             }
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "operit_log_$timestamp.txt"
+            val fileName = "kiyori_log_$timestamp.txt"
             val filePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 saveUsingMediaStore(context, fileName, logFile, logLineCount)
             } else {
@@ -109,7 +110,7 @@ object LogcatExportHelper {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/operit")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/Kiyori")
             }
             val uri = context.contentResolver.insert(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
@@ -122,9 +123,7 @@ object LogcatExportHelper {
                 }
             } ?: throw Exception(context.getString(R.string.logcat_cannot_open_output_stream))
 
-            val downloadsDir =
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            return "${downloadsDir.absolutePath}/operit/$fileName"
+            return File(OperitPaths.kiyoriRootDir(), fileName).absolutePath
         } catch (e: Exception) {
             throw Exception(context.getString(R.string.logcat_mediestore_save_failed, e.message ?: ""))
         }
@@ -137,16 +136,11 @@ object LogcatExportHelper {
         logLineCount: Long
     ): String {
         try {
-            val downloadsDir =
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (downloadsDir == null || !downloadsDir.exists() && !downloadsDir.mkdirs()) {
-                throw Exception(context.getString(R.string.logcat_cannot_create_download_dir))
-            }
-            val operitDir = File(downloadsDir, "operit")
-            if (!operitDir.exists() && !operitDir.mkdirs()) {
+            val kiyoriDir = OperitPaths.kiyoriRootDir()
+            if (!kiyoriDir.exists() && !kiyoriDir.mkdirs()) {
                 throw Exception(context.getString(R.string.logcat_cannot_create_operit_dir))
             }
-            val file = File(operitDir, fileName)
+            val file = File(kiyoriDir, fileName)
             FileWriter(file).use { writer ->
                 writeLogContent(context, writer, logFile, logLineCount)
             }

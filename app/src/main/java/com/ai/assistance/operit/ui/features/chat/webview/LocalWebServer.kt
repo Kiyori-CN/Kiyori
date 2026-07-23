@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.chat.webview
 
 import android.content.Context
-import android.os.Environment
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
@@ -14,6 +13,7 @@ import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.workspaceMimeTypeForPath
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.OperitPaths
 import fi.iki.elonen.NanoHTTPD
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -81,10 +81,7 @@ private constructor(
             return instances.getOrPut(type) {
                 val server: LocalWebServer = when (type) {
                     ServerType.WORKSPACE -> {
-                        val workspaceRoot = File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                            "Operit/workspace"
-                        )
+                        val workspaceRoot = OperitPaths.workspaceDir()
                         LocalWebServer(
                             context.applicationContext,
                             WORKSPACE_PORT,

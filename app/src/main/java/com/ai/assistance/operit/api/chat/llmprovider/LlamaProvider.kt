@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import android.content.Context
-import android.os.Environment
 import com.ai.assistance.llama.LlamaSession
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
@@ -12,6 +11,7 @@ import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatUtils
+import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.stream.Stream
 import com.ai.assistance.operit.util.stream.stream
 import kotlinx.coroutines.Dispatchers
@@ -31,10 +31,7 @@ class LlamaProvider(
         private const val TAG = "LlamaProvider"
 
         fun getModelsDir(): File {
-            return File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "Operit/models/llama"
-            )
+            return OperitPaths.llamaModelsDir()
         }
 
         fun getModelFile(_context: Context, modelName: String): File {

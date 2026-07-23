@@ -78,7 +78,7 @@ else
 fi
 
 SUITE_NAME="$(basename "$SUITE_DIR")"
-TARGET_BASE="/sdcard/Android/data/com.ai.assistance.operit/js_temp"
+TARGET_BASE="/sdcard/Android/data/com.kiyori/js_temp"
 TARGET_SUITES_DIR="$TARGET_BASE/suites"
 TARGET_RESULT_FILE="$TARGET_BASE/${SUITE_NAME}_${FUNCTION_NAME}_$RANDOM.json"
 BUNDLED_FILE="$(mktemp "${TMPDIR:-/tmp}/operit_js_bundle.XXXXXX.js")"
@@ -137,9 +137,9 @@ adb -s "$DEVICE_SERIAL" shell rm -f "$TARGET_RESULT_FILE"
 
 echo "Executing [$FUNCTION_NAME] from [$TARGET_ENTRY_FILE] ..."
 if [ "$HAS_ENV_FILE" = "true" ]; then
-  adb -s "$DEVICE_SERIAL" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.ai.assistance.operit/.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '$TARGET_ENTRY_FILE' --es function_name '$FUNCTION_NAME' --es params_file_path '$TARGET_PARAMS_FILE' --es env_file_path '$TARGET_ENV_FILE' --es result_file_path '$TARGET_RESULT_FILE' --ez temp_params_file true --ez temp_env_file true"
+  adb -s "$DEVICE_SERIAL" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.kiyori/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '$TARGET_ENTRY_FILE' --es function_name '$FUNCTION_NAME' --es params_file_path '$TARGET_PARAMS_FILE' --es env_file_path '$TARGET_ENV_FILE' --es result_file_path '$TARGET_RESULT_FILE' --ez temp_params_file true --ez temp_env_file true"
 else
-  adb -s "$DEVICE_SERIAL" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.ai.assistance.operit/.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '$TARGET_ENTRY_FILE' --es function_name '$FUNCTION_NAME' --es params_file_path '$TARGET_PARAMS_FILE' --es result_file_path '$TARGET_RESULT_FILE' --ez temp_params_file true"
+  adb -s "$DEVICE_SERIAL" shell "am broadcast -a com.ai.assistance.operit.EXECUTE_JS -n com.kiyori/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver --include-stopped-packages --es file_path '$TARGET_ENTRY_FILE' --es function_name '$FUNCTION_NAME' --es params_file_path '$TARGET_PARAMS_FILE' --es result_file_path '$TARGET_RESULT_FILE' --ez temp_params_file true"
 fi
 
 echo "Waiting up to ${RESULT_WAIT_SECONDS}s for structured result..."

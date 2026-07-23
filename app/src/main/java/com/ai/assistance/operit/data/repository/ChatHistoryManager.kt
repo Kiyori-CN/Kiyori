@@ -1819,14 +1819,14 @@ class ChatHistoryManager private constructor(private val context: Context) {
     }
 
     /**
-     * 导出所有聊天记录到「下载/Operit」目录（默认 JSON 格式）
+     * 导出所有聊天记录到「下载/Kiyori」目录（默认 JSON 格式）
      * @return 生成的文件绝对路径，失败时返回null
      */
     suspend fun exportChatHistoriesToDownloads(): String? =
         exportChatHistoriesToDownloads(ExportFormat.JSON)
 
     /**
-     * 导出所有聊天记录到「下载/Operit」目录（支持多种格式）
+     * 导出所有聊天记录到「下载/Kiyori」目录（支持多种格式）
      * @param format 导出格式
      * @return 生成的文件绝对路径，失败时返回null
      */

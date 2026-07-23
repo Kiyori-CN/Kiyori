@@ -113,6 +113,7 @@
     <string name="nav_group_ai_features">AI 功能</string>
     <string name="nav_group_tools">工具</string>
     <string name="nav_group_plugins">插件</string>
+    <string name="script_packages">脚本包</string>
     <string name="nav_group_system">系统</string>
     <string name="menu">菜单</string>
     <string name="token_config">获取密钥</string>
@@ -539,7 +540,7 @@
     <string name="danger_zone">危险区域</string>
     <string name="chat_statistics">聊天记录统计</string>
     <string name="current_chats">当前共有 %1$d 条聊天记录</string>
-    <string name="backup_location">备份文件保存在「下载/Operit/backup」文件夹中</string>
+    <string name="backup_location">备份文件保存在「下载/Kiyori/backup」文件夹中</string>
     <string name="faq_backup">常见问题</string>
     <string name="history_filter_role_card">按角色卡分类</string>
     <string name="history_filter_role_card_desc">角色卡-文件夹-对话三级分类</string>
@@ -960,8 +961,8 @@
     <!-- Package Manager Screen -->
     <string name="packages">包管理</string>
     <string name="skills">技能</string>
-    <string name="quick_plugin_creator_title">快速创作你的插件</string>
-    <string name="quick_plugin_creator_desc">内置和市场都找不到想要的插件？创作你自己想要的！</string>
+    <string name="quick_plugin_creator_title">快速创作你的脚本包</string>
+    <string name="quick_plugin_creator_desc">内置和市场都找不到想要的脚本包？创作你自己想要的！</string>
     <string name="quick_plugin_creator_step1_title">1. 更新或者下载包创作 Skill</string>
     <string name="quick_plugin_creator_step1_desc">点击按钮后会自动下载 `install_or_update.js`，并调用 operit_editor 的 debug_run_sandbox_script 执行安装或更新。</string>
     <string name="quick_plugin_creator_run_setup">自动下载并执行</string>
@@ -971,7 +972,7 @@
     <string name="quick_plugin_creator_setup_unavailable">Kiyori 尚未提供可信的一键配置脚本，此入口已停用</string>
     <string name="quick_plugin_creator_step2_title">2. 输入需求开始创作</string>
     <string name="quick_plugin_creator_requirement_hint">例如：做一个可以批量整理下载目录图片并生成索引的工具</string>
-    <string name="quick_plugin_creator_requirement_empty">请先输入插件需求</string>
+    <string name="quick_plugin_creator_requirement_empty">请先输入脚本包需求</string>
     <string name="show_to_ai_short">AI</string>
     <string name="package_manager">包管理器</string>
     <string name="available_packages">可用包</string>
@@ -982,6 +983,7 @@
     <string name="package_import_success">成功导入包</string>
     <string name="package_import_error">导入包失败</string>
     <string name="no_packages_available">没有可用的包</string>
+    <string name="no_script_packages_available">暂无可用的脚本包</string>
     <string name="no_plugins_available">暂无可用插件</string>
     <string name="no_packages_imported">尚未导入任何包</string>
     <string name="remove_package">移除包</string>
@@ -998,7 +1000,7 @@
     <string name="copy_path">复制路径</string>
     <string name="path_copied_to_clipboard">路径已复制到剪贴板</string>
     <string name="open_file_manager">打开文件管理器</string>
-    <string name="navigate_to_external_files">请导航到Android/data/com.ai.assistance.operit/files/packages目录</string>
+    <string name="navigate_to_external_files">请导航到 Android/data/com.kiyori/files/packages 目录</string>
     <string name="package_js_only">仅支持 JavaScript(.js) 和 ToolPkg(.toolpkg) 文件</string>
     <string name="package_script_only">仅支持 HJSON(.hjson)、JavaScript(.js) 和 TypeScript(.ts) 文件</string>
     <string name="plugin_toolpkg_only">仅支持 ToolPkg(.toolpkg) 文件</string>
@@ -1020,11 +1022,12 @@
     <string name="pkg_plugin_config_open_action">打开配置</string>
     <string name="automation_json_only">仅支持JSON文件</string>
     <string name="no_filename">无法获取文件名</string>
-    <string name="external_package_imported">外部包已导入</string>
+    <string name="external_package_imported">外部脚本包已导入</string>
+    <string name="external_plugin_imported">外部插件已导入</string>
     <string name="current_tab_not_support_import">当前标签页不支持导入</string>
     <string name="import_failed">导入失败: %1$s</string>
-    <string name="package_import_failed">包导入失败</string>
-    <string name="package_remove_failed">包移除失败</string>
+    <string name="package_import_failed">脚本包导入失败</string>
+    <string name="package_remove_failed">脚本包移除失败</string>
     
     <!-- OperScript Execution -->
     <string name="run_script">运行脚本</string>
@@ -4104,9 +4107,9 @@
     <string name="import_color_qr">导入多维码</string>
     <string name="scan_color_qr">扫描多维码</string>
     <string name="tavern_json">酒馆 JSON</string>
-    <string name="export_tavern_json_desc">导出为 .json 并保存到 Download/Operit/exports</string>
+    <string name="export_tavern_json_desc">导出为 .json 并保存到 Download/Kiyori/exports</string>
     <string name="tavern_png">酒馆 PNG</string>
-    <string name="export_tavern_png_desc">导出为可导入酒馆的图片，并保存到 Download/Operit/exports</string>
+    <string name="export_tavern_png_desc">导出为可导入酒馆的图片，并保存到 Download/Kiyori/exports</string>
     <string name="image_read_error">无法读取图片</string>
     <string name="image_parse_error">无法解析图片</string>
     <string name="color_qr_not_recognized">无法识别彩色多维码</string>
@@ -4142,10 +4145,10 @@
     <string name="login_github_to_manage_mcp_plugins">登录 GitHub 以发布和管理您的 MCP 插件</string>
     <string name="login_github_for_skill_market">登录 GitHub 以获得更好的 Skill 市场体验</string>
     <string name="login_github_to_manage_scripts">登录 GitHub 以发布和管理您的脚本</string>
-    <string name="login_github_to_manage_packages">登录 GitHub 以发布和管理您的工具包</string>
+    <string name="login_github_to_manage_packages">登录 GitHub 以发布和管理您的插件</string>
     <string name="browse">浏览</string>
     <string name="my_tab">我的</string>
-    <string name="market_tab_artifact">沙盒包</string>
+    <string name="market_tab_artifact">脚本与插件</string>
     <string name="market_tab_all">全部</string>
     <string name="market_tab_categories">分类</string>
     <string name="market_tab_mcp">MCP</string>
@@ -4153,7 +4156,7 @@
     <string name="market_tab_mine">我的</string>
     <string name="market_category_type_all">全部</string>
     <string name="market_category_type_script">脚本</string>
-    <string name="market_category_type_package">工具包</string>
+    <string name="market_category_type_package">插件</string>
     <string name="market_category_type_skill">Skill</string>
     <string name="market_category_type_mcp">MCP</string>
     <string name="market_category_search_research">搜索与研究</string>
@@ -4189,14 +4192,14 @@
     <string name="market_manage_resubmit_confirm_action">确认提交</string>
     <string name="market_error_load_failed">加载失败</string>
     <string name="market_error_action_failed">操作失败</string>
-    <string name="market_manage_artifact">管理包</string>
+    <string name="market_manage_artifact">管理脚本与插件</string>
     <string name="market_manage_skill">管理 Skill</string>
     <string name="market_manage_mcp">管理 MCP</string>
     <string name="market_manage_owned_section">我拥有的</string>
     <string name="market_manage_contributed_section">我参与提交的</string>
     <string name="market_manage_relation_owner">拥有者</string>
     <string name="market_manage_relation_contributor">协作者</string>
-    <string name="market_publish_artifact">发布包</string>
+    <string name="market_publish_artifact">发布脚本或插件</string>
     <string name="market_publish_skill">发布 Skill</string>
     <string name="market_publish_mcp">发布 MCP</string>
     <string name="market_publish_new_version">发布新版本</string>
@@ -4207,9 +4210,9 @@
     <string name="artifact_publish_encrypt_title">压缩并混淆发布</string>
     <string name="artifact_publish_encrypt_desc">开启后，脚本将进行 JS 语法树压缩。产物保持可直接导入和运行。</string>
     <string name="artifact_publish_encrypt_confirmation">压缩并混淆发布: %1$s</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_title">压缩并混淆发布</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_desc">开启后，ToolPkg 内的可执行脚本将进行 JS 语法树压缩。压缩后的包仍是普通 ZIP，可直接导入。</string>
-    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">压缩并混淆发布: %1$s</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_title">压缩并混淆插件</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_desc">开启后，ToolPkg 插件内的可执行脚本将进行 JS 语法树压缩。生成的插件归档仍是普通 ZIP，可直接导入。</string>
+    <string name="artifact_publish_encrypt_market_toolpkg_confirmation">压缩并混淆插件：%1$s</string>
     <string name="artifact_publish_asset_source_title">发布资源来源</string>
     <string name="artifact_publish_asset_source_upload">上传当前本地包</string>
     <string name="artifact_publish_asset_source_github_release">引用 GitHub Release 资产</string>
@@ -4224,21 +4227,21 @@
     <string name="available_mcp_plugins">可用的 MCP 插件</string>
     <string name="available_skills_market">可用的 Skill</string>
     <string name="available_scripts_market">可用的脚本</string>
-    <string name="available_packages_market">可用的工具包</string>
+    <string name="available_packages_market">可用的插件</string>
     <string name="no_matching_plugins_found">未找到匹配的插件</string>
     <string name="no_matching_skills_found">未找到匹配的 Skill</string>
     <string name="no_matching_scripts_found">未找到匹配的脚本</string>
-    <string name="no_matching_packages_found">未找到匹配的工具包</string>
+    <string name="no_matching_packages_found">未找到匹配的脚本包</string>
     <string name="skill_market_search_placeholder">搜索技能</string>
     <string name="script_market_search_placeholder">搜索脚本名称、描述、作者...</string>
     <string name="plugin_market_search_placeholder">搜索插件</string>
-    <string name="package_market_search_placeholder">搜索包</string>
+    <string name="package_market_search_placeholder">搜索脚本包</string>
     <string name="mcp_market_search_placeholder">搜索 MCP</string>
     <string name="skill_repo_url_not_found">未找到仓库地址</string>
     <string name="skill_repo_url_not_found_cannot_install">未找到仓库地址，无法安装</string>
     <string name="no_available_mcp_plugins">暂无可用的 MCP 插件</string>
     <string name="no_scripts_available">暂无可用的脚本</string>
-    <string name="no_market_packages_available">暂无可用的工具包</string>
+    <string name="no_market_packages_available">暂无可用的插件</string>
     <string name="refresh_or_try_later">刷新或稍后再试</string>
     <string name="recommended_feature">推荐功能</string>
     <string name="premium_mcp_plugins_coming_soon">即将推出精选的优质 MCP 插件</string>
@@ -4248,11 +4251,11 @@
     <string name="publish_new_plugin">发布新插件</string>
     <string name="publish_new_skill">发布新 Skill</string>
     <string name="publish_new_script">发布新脚本</string>
-    <string name="publish_new_package">发布新工具包</string>
+    <string name="publish_new_package">发布新插件</string>
     <string name="manage_my_plugins">管理我的插件</string>
     <string name="manage_my_skills">管理我的 Skill</string>
     <string name="manage_my_scripts">管理我的脚本</string>
-    <string name="manage_my_packages">管理我的工具包</string>
+    <string name="manage_my_packages">管理我的插件</string>
     <string name="logout">退出登录</string>
     <string name="author_avatar">作者头像</string>
     <string name="sharer_avatar">分享者头像</string>
@@ -4307,15 +4310,15 @@
     <string name="need_login_github_manage_plugins">需要登录 GitHub 才能管理您发布的插件</string>
     <string name="need_login_github_manage_skills">需要登录 GitHub 才能管理您发布的 Skill</string>
     <string name="need_login_github_manage_scripts">需要登录 GitHub 才能管理您发布的脚本</string>
-    <string name="need_login_github_manage_packages">需要登录 GitHub 才能管理您发布的工具包</string>
+    <string name="need_login_github_manage_packages">需要登录 GitHub 才能管理您发布的插件</string>
     <string name="no_published_plugins_yet">还没有发布任何插件</string>
     <string name="click_button_publish_first_mcp_plugin">点击上方按钮发布您的第一个 MCP 插件</string>
     <string name="no_published_skills_yet">还没有发布任何 Skill</string>
     <string name="click_button_publish_first_skill">点击上方按钮发布您的第一个 Skill</string>
     <string name="no_published_scripts_yet">还没有发布任何脚本</string>
     <string name="click_button_publish_first_script">点击上方按钮发布您的第一个脚本</string>
-    <string name="no_published_packages_yet">还没有发布任何工具包</string>
-    <string name="click_button_publish_first_package">点击上方按钮发布您的第一个工具包</string>
+    <string name="no_published_packages_yet">还没有发布任何插件</string>
+    <string name="click_button_publish_first_package">点击上方按钮发布您的第一个插件</string>
     <string name="confirm_delete_action">确定删除</string>
     <string name="published">已发布</string>
     <string name="removed">已移除</string>
@@ -4360,25 +4363,25 @@
     <string name="recommended_features">推荐功能</string>
     <string name="after_logging_in_you_can_view_and_manage_your_mcp_plugins">登录后可以查看和管理您发布的 MCP 插件</string>
     <string name="after_logging_in_you_can_view_and_manage_your_scripts">登录后可以查看和管理您发布的脚本</string>
-    <string name="after_logging_in_you_can_view_and_manage_your_packages">登录后可以查看和管理您发布的工具包</string>
-    <string name="after_logging_in_you_can_view_and_manage_your_artifacts">登录后可以查看和管理您发布的脚本和工具包</string>
-    <string name="login_github_to_manage_artifacts">登录 GitHub 后即可管理和发布脚本/工具包</string>
-    <string name="need_login_github_manage_artifacts">需要登录 GitHub 才能管理您发布的脚本和工具包</string>
-    <string name="available_artifacts_market">可用的脚本和工具包</string>
+    <string name="after_logging_in_you_can_view_and_manage_your_packages">登录后可以查看和管理您发布的插件</string>
+    <string name="after_logging_in_you_can_view_and_manage_your_artifacts">登录后可以查看和管理您发布的脚本和插件</string>
+    <string name="login_github_to_manage_artifacts">登录 GitHub 后即可管理和发布脚本/插件</string>
+    <string name="need_login_github_manage_artifacts">需要登录 GitHub 才能管理您发布的脚本和插件</string>
+    <string name="available_artifacts_market">可用的脚本和插件</string>
     <string name="artifact_market_search_placeholder">搜索名称或作者</string>
     <string name="no_matching_artifacts_found">未找到匹配的条目</string>
-    <string name="no_artifacts_available">暂无可用的脚本或工具包</string>
+    <string name="no_artifacts_available">暂无可用的脚本或插件</string>
     <string name="publish_new_artifact">发布新条目</string>
     <string name="manage_my_artifacts">管理我的条目</string>
     <string name="loading_your_artifacts">正在加载您的发布内容...</string>
-    <string name="no_published_artifacts_yet">还没有发布任何脚本或工具包</string>
-    <string name="click_button_publish_first_artifact">点击上方按钮发布您的第一个脚本或工具包</string>
+    <string name="no_published_artifacts_yet">还没有发布任何脚本或插件</string>
+    <string name="click_button_publish_first_artifact">点击上方按钮发布您的第一个脚本或插件</string>
     <string name="confirm_remove_artifact_from_market">确定要从市场移除条目「%1$s」吗？此操作会关闭对应的 Issue，但不会删除您的发布仓库。</string>
-    <string name="screen_title_artifact_market">脚本与工具包市场</string>
+    <string name="screen_title_artifact_market">脚本与插件市场</string>
     <string name="screen_title_market">市场</string>
-    <string name="screen_title_artifact_manage">管理脚本与工具包</string>
-    <string name="screen_title_artifact_publish">发布脚本或工具包</string>
-    <string name="artifact_publish_info_description">条目会先上传到您自己的 OperitForge 发布仓库，再根据类型自动登记到脚本市场或工具包市场。请确认内容、版本和兼容范围准确无误。</string>
+    <string name="screen_title_artifact_manage">管理脚本与插件</string>
+    <string name="screen_title_artifact_publish">发布脚本或插件</string>
+    <string name="artifact_publish_info_description">条目会先上传到您自己的 OperitForge 发布仓库，再根据类型自动登记到脚本市场或插件市场。请确认内容、版本和兼容范围准确无误。</string>
     <string name="change">更改</string>
     <string name="comma_separator">，</string>
     <string name="github_search_failed">GitHub 搜索失败</string>
@@ -4468,11 +4471,11 @@
     <string name="artifact_project_node_selection_hint">点击节点选中，再次点击可取消。</string>
     <string name="plugin_creation_fresh_task_line">请你激活operit editor，并使用沙盒包开发 dev 工具包开发新的沙盒包。</string>
     <string name="plugin_creation_fresh_package_rule_line">先确定新的沙盒包 id，后续不要改名。</string>
-    <string name="plugin_creation_fresh_dev_directory_line">开发目录固定为 手机下载/Operit/dev_package/你确定的id。开发、安装和测试都只在这里完成。</string>
+    <string name="plugin_creation_fresh_dev_directory_line">开发目录固定为 手机下载/Kiyori/dev_package/你确定的id。开发、安装和测试都只在这里完成。</string>
     <string name="plugin_creation_continue_task_line">请你激活operit editor，查找沙盒包 %1$s 的位置，在此版本基础上继续开发并测试。</string>
     <string name="plugin_creation_merge_task_line">请你激活operit editor，查找沙盒包 %1$s 的位置，在此版本基础上做合并开发并测试。</string>
     <string name="plugin_creation_existing_package_rule_line">当前沙盒包 id 是 %1$s。包 id 和插件名字都必须沿用，不要改名，也不要新起包。</string>
-    <string name="plugin_creation_existing_dev_directory_line">开发目录固定为 手机下载/Operit/dev_package/%1$s。开发、安装和测试都只在这里完成。</string>
+    <string name="plugin_creation_existing_dev_directory_line">开发目录固定为 手机下载/Kiyori/dev_package/%1$s。开发、安装和测试都只在这里完成。</string>
     <string name="plugin_creation_update_sandbox_package_dev">先更新 SandboxPackage_DEV。</string>
     <string name="plugin_creation_copy_types_to_dev_dir">把 skills 里的 types 覆盖复制到开发目录。</string>
     <string name="plugin_creation_use_terminal_ts_js_hint">尽量用终端，优先写 ts 和 js，再编译出最终 js。tsconfig 参考 examples。</string>
@@ -4482,7 +4485,7 @@
     <string name="need_login_before_publish_artifact">发布前需要先登录 GitHub。</string>
     <string name="local_artifact_entry">本地条目</string>
     <string name="publish_target_script_market">将自动发布到脚本市场</string>
-    <string name="publish_target_package_market">将自动发布到工具包市场</string>
+    <string name="publish_target_package_market">将自动发布到插件市场</string>
     <string name="display_name_label">显示名称</string>
     <string name="description_label">描述</string>
     <string name="version_label">版本</string>
@@ -4504,7 +4507,7 @@
     <string name="confirm_create_public_forge_message">请再次确认，现在创建公开仓库 `OperitForge`。后续发布都会复用这个仓库。</string>
     <string name="create_and_publish">创建并发布</string>
     <string name="artifact_type_script">脚本</string>
-    <string name="artifact_type_package">工具包</string>
+    <string name="artifact_type_package">插件</string>
     <string name="supported_app_versions">支持的软件版本</string>
     <string name="supported_app_versions_short">适配 %1$s</string>
     <string name="unsupported_artifact_version_title">当前软件版本可能不兼容</string>
@@ -4515,7 +4518,7 @@
     <string name="downloaded_already">已下载</string>
     <string name="downloading">下载中</string>
     <string name="download_script">下载脚本</string>
-    <string name="download_package">下载工具包</string>
+    <string name="download_package">下载插件</string>
     <string name="market_sort_updated">最近更新</string>
     <string name="market_sort_downloads">下载量</string>
     <string name="market_sort_likes">点赞量</string>
@@ -4590,7 +4593,7 @@
     <string name="confirm_remove_plugin_from_market">确定要从市场移除插件「%1$s」吗？此操作会关闭对应的 Issue，但不会删除您的代码仓库。</string>
     <string name="confirm_remove_skill_from_market">确定要从市场移除 Skill「%1$s」吗？此操作会关闭对应的 Issue，但不会删除您的代码仓库。</string>
     <string name="confirm_remove_script_from_market">确定要从市场移除脚本「%1$s」吗？此操作会关闭对应的 Issue，但不会删除您的发布仓库。</string>
-    <string name="confirm_remove_package_from_market">确定要从市场移除工具包「%1$s」吗？此操作会关闭对应的 Issue，但不会删除您的发布仓库。</string>
+    <string name="confirm_remove_package_from_market">确定要从市场移除插件「%1$s」吗？此操作会关闭对应的 Issue，但不会删除您的发布仓库。</string>
 
     <!-- MCPPublishScreen 额外字符串 -->
     <string name="edit_plugin_info_description">您正在编辑已发布的插件信息。修改后的信息将更新到市场仓库的对应 Issue 中。</string>
@@ -4614,18 +4617,18 @@
     <string name="skill_publish_name_taken_message">Skill 市场里已经有同名插件「%1$s」，请换一个名称。</string>
     <string name="script_publish_info_description">脚本会先上传到您自己的 OperitForge 发布仓库，再将元数据登记到 OperitScriptMarket。请确认脚本内容、版本和描述准确无误。</string>
     <string name="script_edit_info_description">您正在编辑已发布脚本的信息。更新后会覆盖市场仓库中对应 Issue 的元数据。</string>
-    <string name="package_publish_info_description">工具包会先上传到您自己的 OperitForge 发布仓库，再将元数据登记到 OperitPackageMarket。请确认工具包内容、版本和描述准确无误。</string>
-    <string name="package_edit_info_description">您正在编辑已发布工具包的信息。更新后会覆盖市场仓库中对应 Issue 的元数据。</string>
+    <string name="package_publish_info_description">插件会先上传到您自己的 OperitForge 发布仓库，再将元数据登记到 OperitPackageMarket。请确认插件内容、版本和描述准确无误。</string>
+    <string name="package_edit_info_description">您正在编辑已发布插件的信息。更新后会覆盖市场仓库中对应 Issue 的元数据。</string>
     <string name="script_publish_success_message">您的脚本已成功发布到市场。</string>
     <string name="script_update_success_message">您的脚本信息已成功更新。</string>
-    <string name="package_publish_success_message">您的工具包已成功发布到市场。</string>
-    <string name="package_update_success_message">您的工具包信息已成功更新。</string>
+    <string name="package_publish_success_message">您的插件已成功发布到市场。</string>
+    <string name="package_update_success_message">您的插件信息已成功更新。</string>
     <string name="screen_title_script_market">脚本市场</string>
     <string name="screen_title_script_manage">管理脚本</string>
     <string name="screen_title_script_publish">发布脚本</string>
-    <string name="screen_title_package_market">工具包市场</string>
-    <string name="screen_title_package_manage">管理工具包</string>
-    <string name="screen_title_package_publish">发布工具包</string>
+    <string name="screen_title_package_market">插件市场</string>
+    <string name="screen_title_package_manage">管理插件</string>
+    <string name="screen_title_package_publish">发布插件</string>
     
     <string name="install_command_example">例如：pnpm install xxx@xxxx</string>
     <string name="install_command_optional_description">如果无填写则使用软件自动识别项目结构。建议为空。</string>
@@ -5477,7 +5480,7 @@
     <string name="backup_room_db_restart_later">稍后</string>
     <string name="backup_room_db_last_success">上次成功备份：%1$s</string>
     <string name="backup_room_db_last_error">上次错误：%1$s</string>
-    <string name="backup_files_location_hint">提示：备份文件保存在 Download/Operit 文件夹</string>
+    <string name="backup_files_location_hint">提示：备份文件保存在 Download/Kiyori 文件夹</string>
 
     <string name="backup_raw_snapshot_title">文件快照备份（实验）</string>
     <string name="backup_raw_snapshot_subtitle">以文件/目录为单位的整体压缩备份与恢复</string>
@@ -5539,7 +5542,7 @@
     <string name="backup_faq_why">为什么要备份数据？</string>
     <string name="backup_faq_why_answer">备份聊天记录可以防止应用卸载或数据丢失时，您的重要内容丢失。定期备份是个好习惯！</string>
     <string name="backup_faq_where">导出的文件保存在哪里？</string>
-    <string name="backup_faq_where_answer">导出的备份文件会保存在您手机的「下载/Operit」文件夹中，文件名包含导出的数据类型、日期和时间。</string>
+    <string name="backup_faq_where_answer">导出的备份文件会保存在您手机的「下载/Kiyori」文件夹中，文件名包含导出的数据类型、日期和时间。</string>
     <string name="backup_faq_duplicate">导入后会出现重复的数据吗？</string>
     <string name="backup_faq_duplicate_answer">系统会根据记录ID判断，相同ID的记录会被更新而不是重复导入。不同ID的记录会作为新记录添加。</string>
     
@@ -5574,7 +5577,7 @@
 
     <string name="backup_character_cards_title">角色卡</string>
     <string name="backup_character_cards_subtitle">备份与恢复角色卡配置</string>
-    <string name="backup_character_cards_current_count">当前共有 %1$d 个角色卡。导出的文件会保存在「下载/Operit」文件夹中。</string>
+    <string name="backup_character_cards_current_count">当前共有 %1$d 个角色卡。导出的文件会保存在「下载/Kiyori」文件夹中。</string>
     <string name="backup_character_card_count">角色卡</string>
     <string name="backup_character_card_files">角色卡</string>
 
@@ -5678,7 +5681,7 @@
     <string name="logcat_cannot_open_output_stream">无法打开输出流</string>
     <string name="logcat_mediestore_save_failed">MediaStore保存失败：%1$s</string>
     <string name="logcat_cannot_create_download_dir">无法创建下载目录</string>
-    <string name="logcat_cannot_create_operit_dir">无法创建operit目录</string>
+    <string name="logcat_cannot_create_operit_dir">无法创建 Kiyori 目录</string>
     <string name="logcat_file_create_failed">文件创建失败或为空</string>
     <string name="logcat_filesystem_save_failed">文件系统保存失败：%1$s</string>
 

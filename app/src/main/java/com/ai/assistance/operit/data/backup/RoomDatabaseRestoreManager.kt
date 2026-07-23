@@ -24,9 +24,9 @@ object RoomDatabaseRestoreManager {
 
     fun listRecentAutoBackups(context: Context, limit: Int = 3): List<File> {
         val newDir = OperitBackupDirs.roomDbDir()
-        val legacyDir = OperitBackupDirs.operitRootDir()
+        val legacyLayoutDir = OperitBackupDirs.kiyoriRootDir()
 
-        val backups = sequenceOf(newDir, legacyDir)
+        val backups = sequenceOf(newDir, legacyLayoutDir)
             .flatMap { dir ->
                 (dir.listFiles { f ->
                     f.isFile && f.name.startsWith(AUTO_BACKUP_FILE_PREFIX) && f.name.endsWith(".zip")
@@ -40,9 +40,9 @@ object RoomDatabaseRestoreManager {
 
     fun listRecentBackups(context: Context, limit: Int = 3): List<File> {
         val newDir = OperitBackupDirs.roomDbDir()
-        val legacyDir = OperitBackupDirs.operitRootDir()
+        val legacyLayoutDir = OperitBackupDirs.kiyoriRootDir()
 
-        val backups = sequenceOf(newDir, legacyDir)
+        val backups = sequenceOf(newDir, legacyLayoutDir)
             .flatMap { dir ->
                 (dir.listFiles { f ->
                     f.isFile && isRoomDatabaseBackupFile(f.name)

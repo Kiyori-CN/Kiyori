@@ -112,10 +112,13 @@ The following names are implementation or interoperability identifiers, not the 
 
 Changing one of these identifiers requires a separate compatibility design and migration plan.
 
+Kiyori's user-visible `versionName` and the **Operit Market Compatibility Version** are independent version axes. `versionName` identifies the Kiyori product release. `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` is a non-user-facing semantic version that identifies the inherited Operit script and ToolPkg runtime contract used for market `minAppVer` and `maxAppVer` checks. Its current value is `1.12.0+4`, matching the Operit source compatibility baseline; it changes only when Kiyori adopts a different market runtime contract.
+
 ## Development identity and migration
 
 - The continuous-development branch is `main`; parent and `terminal` remotes publish Kiyori changes only to their respective `main` branches.
 - The `terminal` directory is the `KiyoriTerminalCore` submodule and is pinned by a parent gitlink.
 - `com.kiyori` is a new Android application identity. It cannot in-place upgrade `com.ai.assistance.operit`; users must export and import supported backups.
-- `Download/Operit` paths and inherited backup/protocol identifiers remain data-compatibility boundaries even when visible text says Kiyori.
+- Kiyori creates public runtime data under `Download/Kiyori`. An old Operit backup may be selected through an explicit import flow, but Kiyori does not automatically scan, merge, migrate, or delete `Download/Operit`.
+- Inherited backup formats, market wire types, plugin IDs, ToolPkg IDs, MCP IDs, namespaces, and protocol identifiers remain interoperability boundaries even when visible text says Kiyori.
 - Root JavaScript metadata is private development tooling (`kiyori-tooling`), not a runtime package or public npm contract.
