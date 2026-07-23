@@ -14,7 +14,7 @@ The visible application identity, project links, launcher assets, update client,
 
 ## Goal
 
-Ship a development baseline named **Kiyori**, branded as **Kiyori**, using the Kiyori v3 launcher artwork and the Kiyori repository URL.
+Ship a development baseline named **Kiyori**, branded as **Kiyori**, using the Kiyori launcher artwork and the Kiyori repository URL.
 The build must not contact Operit for application updates or remote announcements.
 
 ## Scope
@@ -23,7 +23,7 @@ The build must not contact Operit for application updates or remote announcement
 - Replace user-visible Operit product branding in the application shell, About page, share-image branding, service labels, and supported locale resources.
 - Replace project, help, release, and issue links with `https://github.com/Kiyori-CN/Kiyori`.
 - Remove startup update checks, About-page update actions, patch/full update download UI, remote announcement polling, and the remote announcement dialog.
-- Synchronize the Kiyori v3 launcher, adaptive, round, in-app, and README assets from `D:/10_Project/kiyori-android`.
+- Synchronize the Kiyori launcher, adaptive, round, in-app, and README assets from `D:/10_Project/kiyori-android`.
 - Update the Chinese and English README files and root project context.
 
 ## Non-goals

@@ -11,7 +11,7 @@ function registerToolPkg() {
             zh: "打开 Bing",
             en: "Open Bing",
         },
-        icon: "Language",
+        icon: Icons.Language,
         order: 100,
         action: openBingFromSidebar,
     });

@@ -14,9 +14,7 @@
     <string name="nav_settings">设置</string>
     <string name="nav_tool_permissions">工具权限</string>
     <string name="nav_about">关于</string>
-    <string name="action_retry">重试</string>
     <string name="common_collapse">收起</string>
-    <string name="common_expand_more">展开更多</string>
     <string name="nav_packages">包管理</string>
     <string name="nav_memory_base">记忆库</string>
     <string name="nav_assistant_config">助手配置</string>
@@ -573,11 +571,7 @@
     <string name="about_title">关于 Kiyori</string>
     <string name="about_version">版本: %1$s</string>
     <string name="about_description">Kiyori 是一款在 Android 设备本地运行的 AI 助手与浏览器项目，提供对话、工具调用、自动化和本地模型能力。</string>
-    <string name="about_developer">维护者: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
-    <string name="about_contact">问题反馈请使用项目仓库的 Issues</string>
-    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
     <string name="about_copyright">© 2026 Kiyori-CN</string>
-    <string name="star_on_github">在 GitHub 点个 Star</string>
     <string name="app_logo_description">应用图标</string>
     <string name="github_star_description">GitHub Star</string>
     <string name="project_issues">问题反馈</string>
@@ -959,7 +953,6 @@
     <string name="tag_count_locked_status">已选择 %1$d / 上限 %2$d</string>
     
     <!-- Package Manager Screen -->
-    <string name="packages">包管理</string>
     <string name="skills">技能</string>
     <string name="quick_plugin_creator_title">快速创作你的脚本包</string>
     <string name="quick_plugin_creator_desc">内置和市场都找不到想要的脚本包？创作你自己想要的！</string>
@@ -967,7 +960,6 @@
     <string name="quick_plugin_creator_step1_desc">点击按钮后会自动下载 `install_or_update.js`，并调用 operit_editor 的 debug_run_sandbox_script 执行安装或更新。</string>
     <string name="quick_plugin_creator_run_setup">自动下载并执行</string>
     <string name="quick_plugin_creator_pull_skill_update">拉取 Skill 更新</string>
-    <string name="quick_plugin_creator_setup_success">包创作 Skill 安装或更新完成</string>
     <string name="quick_plugin_creator_setup_failed">包创作 Skill 安装或更新失败</string>
     <string name="quick_plugin_creator_setup_unavailable">Kiyori 尚未提供可信的一键配置脚本，此入口已停用</string>
     <string name="quick_plugin_creator_step2_title">2. 输入需求开始创作</string>
@@ -1462,8 +1454,6 @@
     <string name="settings_appearance_section">外观设置</string>
     
     <!-- 关于屏幕 -->
-    <string name="unknown_value">未知</string>
-    <string name="download">去下载</string>
     <string name="ok">确定</string>
     <string name="dialog_title_prompt">提示</string>
     <string name="ai_computer">AI电脑</string>
@@ -1471,8 +1461,6 @@
     <string name="export_starting">开始导出...</string>
     <string name="floating_window_permission_denied">未获得悬浮窗权限，已关闭悬浮窗模式</string>
     <string name="china_mirror">国内加速镜像</string>
-    <string name="github_source">GitHub原始链接</string>
-    <string name="github_source_desc">直接从GitHub官方服务器下载，速度可能较慢</string>
     <string name="no_mirrors_found">未找到可用的镜像源</string>
     <string name="main_github_login_success">登录成功，欢迎 %1$s！</string>
     <string name="main_github_get_user_failed">获取用户信息失败: %1$s</string>
@@ -1484,8 +1472,6 @@
     <string name="beta_plan_leave">退出</string>
     <string name="patch_install_confirm_title">安装补丁更新</string>
     <string name="patch_install_confirm_message">检测到新补丁版本：%1$s\n\n是否现在安装？</string>
-    <string name="developer">开发者</string>
-    <string name="contact">联系方式</string>
     <string name="project_url">项目地址</string>
     <string name="open_source_licenses">开源许可声明</string>
     <string name="license_format">许可: %1$s</string>
@@ -5680,7 +5666,6 @@
     <string name="logcat_cannot_create_file">保存失败：无法创建文件，可能是存储权限问题</string>
     <string name="logcat_cannot_open_output_stream">无法打开输出流</string>
     <string name="logcat_mediestore_save_failed">MediaStore保存失败：%1$s</string>
-    <string name="logcat_cannot_create_download_dir">无法创建下载目录</string>
     <string name="logcat_cannot_create_operit_dir">无法创建 Kiyori 目录</string>
     <string name="logcat_file_create_failed">文件创建失败或为空</string>
     <string name="logcat_filesystem_save_failed">文件系统保存失败：%1$s</string>

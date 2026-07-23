@@ -148,8 +148,10 @@ class FFmpegBuildScriptTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("/mnt/d/Code/prog/assistance", script)
-        self.assertIn("wslpath -a $targetAar", script)
+        self.assertIn("wslpath -a $stagedAar", script)
         self.assertIn("$targetWslPath", script)
+        self.assertIn("validate_ffmpeg_aar.py", script)
+        self.assertLess(script.index("--aar $stagedAar"), script.index("Move-Item"))
 
 
 if __name__ == "__main__":

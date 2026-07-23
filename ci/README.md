@@ -48,6 +48,8 @@ python3 -B ci/script/normalize_lint_baseline.py --check
 
 根项目、`web-chat` 和独立的 `examples/toolpkg_wasm_demo` 分别提交 `package-lock.json`，CI 使用 `npm ci` 安装确定的依赖树。
 
+`tools/example_packages/sync_example_packages.py` 从 Python 子进程调用 pnpm。Windows 使用 `pnpm.cmd`，其他平台使用 `pnpm`，避免 PATH 中无扩展名 shim 阻止 Windows Python 启动预构建命令。
+
 PR workflow 只有 `contents: read` 权限，不读取仓库 secret，也不上传 APK/AAB。`Android Build` 是独立的可信 main/手工构建 workflow。
 
 ## Diagnostics
@@ -64,6 +66,14 @@ JVM lane 只下载 `libs.zip`，完整 Android lane 下载四个固定归档。`
 
 Android lint 使用 `app/lint-baseline.xml` 记录启用 PR 检查前已有的问题。新增 error 仍会使 `:app:lintDebug` 失败；新增 warning 按 Android lint 默认策略报告。
 
-初始 baseline 使用 AGP 8.13.2 并启用依赖检查，从上游提交 `1fe3b5eddb1f5c6ed795465f80716dda8c36cc65` 生成，对应 [GitHub Actions 运行](https://github.com/luojiaping/Operit/actions/runs/29661867372)。归一化路径后的 SHA-256 为 `396e0383a86d7a46b2421d020c5c80efc82faf51ce926fb2864d0593c008d535`。
+初始 baseline 使用 AGP 8.13.2 并启用依赖检查，从上游提交 `1fe3b5eddb1f5c6ed795465f80716dda8c36cc65` 生成，对应 [GitHub Actions 运行](https://github.com/luojiaping/Operit/actions/runs/29661867372)。2026-07-24 在 AGP 9.3.1 下生成临时完整 baseline，与已审阅 baseline 求交集：原样保留 `5843` 条仍存在的记录，删除 `200` 条失效记录，不吸收 `30` 条当时可见问题。当前归一化 SHA-256 为 `240ba1c6941485004d362ed8b74a464773b23b0fe62815e469488f3d3c64efa7`。
 
-baseline 只能通过 `:app:updateLintBaseline` 显式更新。生成后运行 `python3 ci/script/normalize_lint_baseline.py` 清理环境相关路径，再记录生成基准、依赖环境与新校验和，并同步脚本中的 `EXPECTED_SHA256`。
+baseline 维护必须把完整结果写入 `app/build/`，再用结构化 XML 交集脚本只删除失效记录：
+
+```powershell
+.\gradlew.bat ":app:updateLintBaseline" "-Pkiyori.lintBaseline=build/lint-baseline-current.xml" --no-daemon --console=plain
+.\.venv\Scripts\python.exe -B ci\script\normalize_lint_baseline.py --prune-against app\build\lint-baseline-current.xml app\lint-baseline.xml
+.\.venv\Scripts\python.exe -B ci\script\normalize_lint_baseline.py --check --prune-against app\build\lint-baseline-current.xml
+```
+
+交集脚本以问题 ID、message 和 location file 计数匹配，原样保留已审阅 XML 块。当前新问题只计数报告，不会进入 baseline。更新后必须记录生成基准、依赖环境与新校验和，并同步脚本中的 `EXPECTED_SHA256`。

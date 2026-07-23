@@ -54,7 +54,7 @@ on:
       - terminal/**
       - terminal
       - tools/native_ripgrep/**
-      - tools/packages_whitelist.txt
+      - tools/example_packages/packages_whitelist.txt
       - tools/example_packages/sync_example_packages.py
       - web-chat/**
 

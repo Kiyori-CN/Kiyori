@@ -275,7 +275,8 @@ android {
         resValues = true
     }
     lint {
-        baseline = file("lint-baseline.xml")
+        val configuredBaseline = providers.gradleProperty("kiyori.lintBaseline").orNull
+        baseline = file(configuredBaseline ?: "lint-baseline.xml")
         checkDependencies = true
     }
 

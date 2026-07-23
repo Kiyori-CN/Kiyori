@@ -94,6 +94,13 @@ class ScopeClassificationTest(unittest.TestCase):
         self.assertTrue(plan.android_jvm)
         self.assertTrue(plan.android_instrumentation)
 
+    def test_production_toolpkg_whitelist_uses_toolpkg_and_full_android_lanes(self) -> None:
+        plan = classify_paths(["tools/example_packages/packages_whitelist.txt"])
+
+        self.assertTrue(plan.toolpkg)
+        self.assertTrue(plan.android_full)
+        self.assertFalse(plan.android_jvm)
+
 
 class CandidateContractTest(unittest.TestCase):
     def test_stale_branch_uses_candidate_first_parent_diff(self) -> None:

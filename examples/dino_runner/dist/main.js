@@ -27,7 +27,7 @@ function registerToolPkg() {
             zh: "小恐龙快跑",
             en: "Dino Runner",
         },
-        icon: "SportsEsports",
+        icon: Icons.SportsEsports,
         order: 145,
     });
     return true;

@@ -1043,50 +1043,6 @@
     </issue>
 
     <issue
-        id="OldTargetApi"
-        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
-        errorLine1="        targetSdk = 34"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="14"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="OldTargetApi"
-        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
-        errorLine1="        targetSdk = 34"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="14"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="OldTargetApi"
-        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
-        errorLine1="        targetSdk = 34"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="16"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="OldTargetApi"
-        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
-        errorLine1="        targetSdk = 34"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="57"
-            column="9"/>
-    </issue>
-
-    <issue
         id="RequiresFeature"
         message="`remove` should only be called if the feature `DOCUMENT_START_SCRIPT` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
         errorLine1="                runCatching { handler.remove() }"
@@ -1626,28 +1582,6 @@
     </issue>
 
     <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.application than 8.13.2 is available: 9.3.0"
-        errorLine1="agp = &quot;8.13.2&quot;"
-        errorLine2="      ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.library than 8.13.2 is available: 9.3.0"
-        errorLine1="agp = &quot;8.13.2&quot;"
-        errorLine2="      ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
         id="GradleDependency"
         message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
         errorLine1="    implementation(&quot;androidx.core:core-ktx:1.12.0&quot;)"
@@ -1748,17 +1682,6 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.compose:compose-bom than 2026.02.01 is available: 2026.06.01"
-        errorLine1="compose-bom = &quot;2026.02.01&quot;"
-        errorLine2="              ~~~~~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="11"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
         message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0"
         errorLine1="activity-compose = &quot;1.8.2&quot;"
         errorLine2="                   ~~~~~~~">
@@ -1792,34 +1715,12 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-graphics-android than 1.10.4 is available: 1.11.4"
-        errorLine1="uiGraphicsAndroid = &quot;1.10.4&quot;"
-        errorLine2="                    ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="14"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
         message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
         errorLine1="coreKtxVersion = &quot;1.12.0&quot;"
         errorLine2="                 ~~~~~~~~">
         <location
             file="../gradle/libs.versions.toml"
             line="15"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.runtime:runtime-android than 1.10.4 is available: 1.11.4"
-        errorLine1="runtimeAndroid = &quot;1.10.4&quot;"
-        errorLine2="                 ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="16"
             column="18"/>
     </issue>
 
@@ -1832,83 +1733,6 @@
             file="../gradle/libs.versions.toml"
             line="17"
             column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.mlkit:text-recognition than 16.0.0 is available: 16.0.1"
-        errorLine1="mlkit-text = &quot;16.0.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="18"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.mlkit:text-recognition-chinese than 16.0.0 is available: 16.0.1"
-        errorLine1="mlkit-text = &quot;16.0.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="18"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.mlkit:text-recognition-devanagari than 16.0.0 is available: 16.0.1"
-        errorLine1="mlkit-text = &quot;16.0.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="18"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.mlkit:text-recognition-japanese than 16.0.0 is available: 16.0.1"
-        errorLine1="mlkit-text = &quot;16.0.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="18"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.mlkit:text-recognition-korean than 16.0.0 is available: 16.0.1"
-        errorLine1="mlkit-text = &quot;16.0.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="18"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.android.tools.build:apksig than 8.1.0 is available: 9.3.0"
-        errorLine1="apksig = &quot;8.1.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="21"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.material3:material3-window-size-class than 1.2.0 is available: 1.4.0"
-        errorLine1="material3-window = &quot;1.2.0&quot;"
-        errorLine2="                   ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="33"
-            column="20"/>
     </issue>
 
     <issue
@@ -1990,17 +1814,6 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of com.google.mediapipe:tasks-text than 0.10.11 is available: 0.20230731"
-        errorLine1="mediapipe = &quot;0.10.11&quot;"
-        errorLine2="            ~~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="73"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
         message="A newer version of androidx.work:work-runtime-ktx than 2.9.0 is available: 2.11.2"
         errorLine1="work = &quot;2.9.0&quot;"
         errorLine2="       ~~~~~~~">
@@ -2008,39 +1821,6 @@
             file="../gradle/libs.versions.toml"
             line="74"
             column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-text-android than 1.10.4 is available: 1.11.4"
-        errorLine1="uiTextAndroid = &quot;1.10.4&quot;"
-        errorLine2="                ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="75"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.animation:animation-android than 1.10.4 is available: 1.11.4"
-        errorLine1="animationAndroid = &quot;1.10.4&quot;"
-        errorLine2="                   ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="76"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-android than 1.10.4 is available: 1.11.4"
-        errorLine1="uiAndroid = &quot;1.10.4&quot;"
-        errorLine2="            ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="77"
-            column="13"/>
     </issue>
 
     <issue
@@ -2077,28 +1857,6 @@
     </issue>
 
     <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui than 1.10.4 is available: 1.11.4"
-        errorLine1=" ui = &quot;1.10.4&quot;"
-        errorLine2="      ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="80"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.animation:animation than 1.10.4 is available: 1.11.4"
-        errorLine1=" animation = &quot;1.10.4&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="81"
-            column="14"/>
-    </issue>
-
-    <issue
         id="NewerVersionAvailable"
         message="A newer version of org.apache.ftpserver:ftplet-api than 1.2.0 is available: 1.2.1"
         errorLine1="    implementation(&quot;org.apache.ftpserver:ftplet-api:1.2.0&quot;)"
@@ -2117,50 +1875,6 @@
         <location
             file="build.gradle.kts"
             line="118"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of com.google.android.filament:filament-android than 1.69.2 is available: 1.73.0"
-        errorLine1="    implementation(&quot;com.google.android.filament:filament-android:1.69.2&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="212"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of com.google.android.filament:gltfio-android than 1.69.2 is available: 1.73.0"
-        errorLine1="    implementation(&quot;com.google.android.filament:gltfio-android:1.69.2&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="213"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of com.google.android.filament:filament-utils-android than 1.69.2 is available: 1.73.0"
-        errorLine1="    implementation(&quot;com.google.android.filament:filament-utils-android:1.69.2&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="214"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of com.microsoft.onnxruntime:onnxruntime-android than 1.17.1 is available: 1.27.0"
-        errorLine1="    implementation(&quot;com.microsoft.onnxruntime:onnxruntime-android:1.17.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="327"
             column="20"/>
     </issue>
 
@@ -2243,61 +1957,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of org.jetbrains.kotlin.android than 2.2.0 is available: 2.4.10"
-        errorLine1="kotlin = &quot;2.2.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="3"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.jetbrains.kotlin.kapt than 2.2.0 is available: 2.4.10"
-        errorLine1="kotlin = &quot;2.2.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="3"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.jetbrains.kotlin.plugin.compose than 2.2.0 is available: 2.4.10"
-        errorLine1="kotlin = &quot;2.2.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="3"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.jetbrains.kotlin.plugin.parcelize than 2.2.0 is available: 2.4.10"
-        errorLine1="kotlin = &quot;2.2.0&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="3"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.jetbrains.kotlin.plugin.serialization than 2.2.0 is available: 2.4.10"
-        errorLine1="kotlin-serialization = &quot;2.2.0&quot;"
-        errorLine2="                       ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="4"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of com.google.zxing:core than 3.5.3 is available: 3.5.4"
         errorLine1="zxing = &quot;3.5.3&quot;"
         errorLine2="        ~~~~~~~">
@@ -2349,17 +2008,6 @@
             file="../gradle/libs.versions.toml"
             line="27"
             column="9"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of pl.droidsonroids.gif:android-gif-drawable than 1.2.28 is available: 1.2.32"
-        errorLine1="android-gif = &quot;1.2.28&quot;"
-        errorLine2="              ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="30"
-            column="15"/>
     </issue>
 
     <issue
@@ -2485,17 +2133,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of org.tensorflow:tensorflow-lite than 2.10.0 is available: 2.17.0"
-        errorLine1="tensorflow = &quot;2.10.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="48"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of org.apache.commons:commons-compress than 1.24.0 is available: 1.28.0"
         errorLine1="commons-compress-v2 = &quot;1.24.0&quot;"
         errorLine2="                      ~~~~~~~~">
@@ -2503,17 +2140,6 @@
             file="../gradle/libs.versions.toml"
             line="50"
             column="23"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of com.github.junrar:junrar than 7.5.5 is available: 7.6.0"
-        errorLine1="junrar = &quot;7.5.5&quot;"
-        errorLine2="         ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="51"
-            column="10"/>
     </issue>
 
     <issue
@@ -2756,17 +2382,6 @@
             file="../gradle/libs.versions.toml"
             line="72"
             column="13"/>
-    </issue>
-
-    <issue
-        id="RestrictedApi"
-        message="ListenableFutureKt.await can only be called from within the same library group (referenced groupId=`androidx.work` from groupId=`Operit`)"
-        errorLine1="            val workInfos = workManager.getWorkInfosForUniqueWork(getWorkName(workflowId)).await()"
-        errorLine2="                                                                                           ~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/workflow/WorkflowScheduler.kt"
-            line="279"
-            column="92"/>
     </issue>
 
     <issue
@@ -4079,28 +3694,6 @@
     </issue>
 
     <issue
-        id="ConfigurationScreenWidthHeight"
-        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
-        errorLine1="                                                androidx.compose.ui.platform.LocalConfiguration"
-        errorLine2="                                                ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/layout/TabletLayout.kt"
-            line="104"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="ConfigurationScreenWidthHeight"
-        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
-        errorLine1="                                                androidx.compose.ui.platform.LocalConfiguration"
-        errorLine2="                                                ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/layout/TabletLayout.kt"
-            line="109"
-            column="49"/>
-    </issue>
-
-    <issue
         id="LocalContextConfigurationRead"
         message="Reading Configuration using LocalContext.current.resources.configuration"
         errorLine1="                context.resources.configuration.locales.get(0)"
@@ -4224,17 +3817,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                    context.getString(R.string.chat_please_create_new_chat),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt"
-            line="1810"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="            packageInfo.versionName ?: context.getString(R.string.about_version_unknown)"
         errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -4252,215 +3834,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
             line="507"
             column="13"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                message = context.getString(R.string.patch_update_prepare_downloading, patchVersion),"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="549"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.full_update_ready_to_install)"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="576"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.full_update_ready_to_install)"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="579"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.patch_update_failed_simple),"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="594"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            errorMessage = e.message ?: context.getString(R.string.unknown_error)"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="595"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                message = context.getString(R.string.patch_update_prepare_testing_mirrors, patchVersion),"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="611"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.full_update_ready_to_install)"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="637"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.full_update_ready_to_install)"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="640"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.patch_update_failed_simple),"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="655"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            errorMessage = e.message ?: context.getString(R.string.unknown_error)"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="656"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                message = context.getString(R.string.full_update_preparing, targetVersion)"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="672"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            downloadMessage = context.getString(R.string.full_update_downloading),"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="682"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            readyMessage = context.getString(R.string.full_update_ready_to_install)"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="683"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    val errorText = e.message ?: context.getString(R.string.unknown_error)"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="702"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            message = context.getString(R.string.full_update_failed, errorText),"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="706"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    is UpdateStatus.Available -> context.getString(R.string.new_version, appVersion, status.newVersion)"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="892"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    is UpdateStatus.PatchAvailable -> context.getString(R.string.new_version, appVersion, status.newVersion)"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="893"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    is UpdateStatus.UpToDate -> context.getString(R.string.already_latest_version, appVersion)"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="894"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    is UpdateStatus.Checking -> context.getString(R.string.checking_updates)"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="896"
-            column="49"/>
     </issue>
 
     <issue
@@ -9317,28 +8690,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(R.string.software_identity_option_lingshu)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/components/DrawerContent.kt"
-            line="147"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(R.string.software_identity_option_operit)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/components/DrawerContent.kt"
-            line="149"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                        context.getString(R.string.select_export_platform),"
         errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -14025,28 +13376,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.reset_confirm), color = SettingsTheme.onSurfaceColor)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1139"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.dialog_cancel), color = SettingsTheme.onSurfaceVariant)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1150"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_nodejs_name),"
         errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -17290,83 +16619,6 @@
     </issue>
 
     <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>Tidak dipilih&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="2765"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>Não selecionado&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="2881"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>선택되지 않음&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="3003"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>Tidak dipilih&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="3015"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>未选择&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3337"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>Not selected&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="3422"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="Overriding `@string/not_selected` which is marked as private in androidx.compose.ui:ui-android:1.10.4. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;not_selected&quot;>No seleccionado&lt;/string>"
-        errorLine2="                  ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="3551"
-            column="19"/>
-    </issue>
-
-    <issue
         id="UnusedBoxWithConstraintsScope"
         message="BoxWithConstraints scope is not used"
         errorLine1="        content = {"
@@ -17386,175 +16638,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/part/XmlCanvasBlockComponents.kt"
             line="274"
             column="45"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libonnxruntime.so` (from `com.microsoft.onnxruntime:onnxruntime-android:1.17.1`) is not 16 KB aligned"
-        errorLine1="    implementation(&quot;com.microsoft.onnxruntime:onnxruntime-android:1.17.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="327"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libavcodec.so` (from `__local_aars__:/home/runner/work/Operit/Operit/app/libs/ffmpeg-kit-local.aar:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/6f87da8e9c1815a11c34b395b94d8c85/transformed/ffmpeg-kit-local/jni/arm64-v8a/libavcodec.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libavcodec.so` (from `__local_aars__:/home/runner/work/Operit/Operit/app/libs/ffmpeg-kit-local.aar:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/6f87da8e9c1815a11c34b395b94d8c85/transformed/ffmpeg-kit-local/jni/arm64-v8a/libavcodec.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libavcodec.so` (from `__local_aars__:/home/runner/work/Operit/Operit/app/libs/ffmpeg-kit-local.aar:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/6f87da8e9c1815a11c34b395b94d8c85/transformed/ffmpeg-kit-local/jni/arm64-v8a/libavcodec.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libmediapipe_tasks_text_jni.so` (from `com.google.mediapipe:tasks-text:0.10.11`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/9972030c1a506884e91f678935d8710a/transformed/tasks-text-0.10.11/jni/arm64-v8a/libmediapipe_tasks_text_jni.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libmediapipe_tasks_text_jni.so` (from `com.google.mediapipe:tasks-text:0.10.11`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/9972030c1a506884e91f678935d8710a/transformed/tasks-text-0.10.11/jni/arm64-v8a/libmediapipe_tasks_text_jni.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libmediapipe_tasks_text_jni.so` (from `com.google.mediapipe:tasks-text:0.10.11`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/9972030c1a506884e91f678935d8710a/transformed/tasks-text-0.10.11/jni/arm64-v8a/libmediapipe_tasks_text_jni.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libmlkit_google_ocr_pipeline.so` (from `com.google.mlkit:text-recognition-bundled-common:16.0.0`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/9eea6354d9e32caee77d7127e81fe52b/transformed/text-recognition-bundled-common-16.0.0/jni/arm64-v8a/libmlkit_google_ocr_pipeline.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libmlkit_google_ocr_pipeline.so` (from `com.google.mlkit:text-recognition-bundled-common:16.0.0`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/9eea6354d9e32caee77d7127e81fe52b/transformed/text-recognition-bundled-common-16.0.0/jni/arm64-v8a/libmlkit_google_ocr_pipeline.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libmlkit_google_ocr_pipeline.so` (from `com.google.mlkit:text-recognition-bundled-common:16.0.0`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/9eea6354d9e32caee77d7127e81fe52b/transformed/text-recognition-bundled-common-16.0.0/jni/arm64-v8a/libmlkit_google_ocr_pipeline.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libonnxruntime.so` (from `com.microsoft.onnxruntime:onnxruntime-android:1.17.1`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/541de853ad368452411d33aae727f175/transformed/onnxruntime-android-1.17.1/jni/arm64-v8a/libonnxruntime.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libonnxruntime.so` (from `com.microsoft.onnxruntime:onnxruntime-android:1.17.1`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/541de853ad368452411d33aae727f175/transformed/onnxruntime-android-1.17.1/jni/arm64-v8a/libonnxruntime.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpl_droidsonroids_gif.so` (from `pl.droidsonroids.gif:android-gif-drawable:1.2.28`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/bafa3507d10e7f76afedd7eae9dfbfc1/transformed/android-gif-drawable-1.2.28/jni/arm64-v8a/libpl_droidsonroids_gif.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpl_droidsonroids_gif.so` (from `pl.droidsonroids.gif:android-gif-drawable:1.2.28`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/bafa3507d10e7f76afedd7eae9dfbfc1/transformed/android-gif-drawable-1.2.28/jni/arm64-v8a/libpl_droidsonroids_gif.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpty.so` (from `Operit:terminal:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/ba772282281913d65d1911bdca81d288/transformed/out/jni/arm64-v8a/libpty.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpty.so` (from `Operit:terminal:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/ba772282281913d65d1911bdca81d288/transformed/out/jni/arm64-v8a/libpty.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpty.so` (from `Operit:terminal:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/ba772282281913d65d1911bdca81d288/transformed/out/jni/arm64-v8a/libpty.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpty.so` (from `Operit:terminal:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/ba772282281913d65d1911bdca81d288/transformed/out/jni/arm64-v8a/libpty.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpty.so` (from `Operit:terminal:unspecified`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/ba772282281913d65d1911bdca81d288/transformed/out/jni/arm64-v8a/libpty.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `arm64-v8a/libpl_droidsonroids_gif.so` (from `pl.droidsonroids.gif:android-gif-drawable:1.2.28`) is not 16 KB aligned"
-        errorLine1="android-gif = { group = &quot;pl.droidsonroids.gif&quot;, name = &quot;android-gif-drawable&quot;, version.ref = &quot;android-gif&quot; }"
-        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="138"
-            column="16"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `x86_64/libtensorflowlite_jni.so` (from `org.tensorflow:tensorflow-lite:2.10.0`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/d2fff2b97f07af25b20f9c542efa36f3/transformed/tensorflow-lite-2.10.0/jni/x86_64/libtensorflowlite_jni.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `x86_64/libtensorflowlite_jni.so` (from `org.tensorflow:tensorflow-lite:2.10.0`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/d2fff2b97f07af25b20f9c542efa36f3/transformed/tensorflow-lite-2.10.0/jni/x86_64/libtensorflowlite_jni.so"/>
-    </issue>
-
-    <issue
-        id="Aligned16KB"
-        message="The native library `x86_64/libtensorflowlite_jni.so` (from `org.tensorflow:tensorflow-lite:2.10.0`) is not 16 KB aligned">
-        <location
-            file="../../../../.gradle/caches/8.13/transforms/d2fff2b97f07af25b20f9c542efa36f3/transformed/tensorflow-lite-2.10.0/jni/x86_64/libtensorflowlite_jni.so"/>
     </issue>
 
     <issue
@@ -20619,22 +19702,6 @@
     </issue>
 
     <issue
-        id="StringFormatCount"
-        message="Inconsistent number of arguments in formatting string `autoglm_status_success`; found both 2 here and 0 in values/strings.xml"
-        errorLine1="    &lt;string name=&quot;autoglm_status_success&quot;>AutoGLM one-click configuration completed:\nModel: %1$s\nAPI Key: %2$s\nToolkit: AutoGLM\n\nYou can now use AutoGLM mode in the chat interface.&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="5561"
-            column="5"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2202"
-            column="5"
-            message="Conflicting number of arguments (0) here"/>
-    </issue>
-
-    <issue
         id="ChromeOsAbiSupport"
         message="Missing x86_64 ABI support for ChromeOS"
         errorLine1="            abiFilters += listOf(&quot;arm64-v8a&quot;)"
@@ -20786,69 +19853,6 @@
             file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/UnsafeModelSsl.kt"
             line="23"
             column="30"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk15to18/1.72/32faf4d74dbc333fb3a7a6c80c30417cf888fc7a/bcpkix-jdk15to18-1.72.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk15to18/1.72/32faf4d74dbc333fb3a7a6c80c30417cf888fc7a/bcpkix-jdk15to18-1.72.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkServerTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.bouncycastle/bcpkix-jdk15to18/1.72/32faf4d74dbc333fb3a7a6c80c30417cf888fc7a/bcpkix-jdk15to18-1.72.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.apache.mina/mina-core/2.1.6/ba4b9e10f13958ae1222b0e8ebfbbc5117408668/mina-core-2.1.6.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.apache.mina/mina-core/2.1.6/ba4b9e10f13958ae1222b0e8ebfbbc5117408668/mina-core-2.1.6.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkServerTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.apache.mina/mina-core/2.1.6/ba4b9e10f13958ae1222b0e8ebfbbc5117408668/mina-core-2.1.6.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkServerTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.apache.mina/mina-core/2.1.6/ba4b9e10f13958ae1222b0e8ebfbbc5117408668/mina-core-2.1.6.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.apache.poi/poi-ooxml/5.2.3/2efd11c940adb18c03eb9ce7ad88fc40ee6a196/poi-ooxml-5.2.3.jar"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkServerTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
-        <location
-            file="../../../../.gradle/caches/modules-2/files-2.1/org.apache.poi/poi-ooxml/5.2.3/2efd11c940adb18c03eb9ce7ad88fc40ee6a196/poi-ooxml-5.2.3.jar"/>
     </issue>
 
     <issue
@@ -21251,28 +20255,6 @@
         <location
             file="src/main/java/com/ai/assistance/operit/api/chat/AIForegroundService.kt"
             line="2005"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="126"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="126"
             column="21"/>
     </issue>
 
@@ -21780,28 +20762,6 @@
             file="src/main/java/com/ai/assistance/operit/services/assistant/OperitVoiceInteractionSessionService.kt"
             line="72"
             column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="        val apkUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/updates/PatchUpdateInstaller.kt"
-            line="104"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/updates/PatchUpdateInstaller.kt"
-            line="117"
-            column="17"/>
     </issue>
 
     <issue
@@ -23067,28 +22027,6 @@
 
     <issue
         id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `UpdateManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile private var INSTANCE: UpdateManager? = null"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/updates/UpdateManager.kt"
-            line="49"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
-        message="This field leaks a context object"
-        errorLine1="class UpdateViewModel(private val context: Context) : ViewModel() {"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/update/screens/UpdateViewModel.kt"
-            line="20"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
         message="Do not place Android context classes in static fields (static reference to `UserProfileDocumentRepository` which has field `context` pointing to `Context`); this is a memory leak"
         errorLine1="        @Volatile"
         errorLine2="        ^">
@@ -24057,39 +22995,6 @@
 
     <issue
         id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="        var currentDrag by remember { mutableStateOf(0f) }"
-        errorLine2="                                      ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/layout/PhoneLayout.kt"
-            line="140"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="        var verticalDrag by remember { mutableStateOf(0f) }"
-        errorLine2="                                       ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/layout/PhoneLayout.kt"
-            line="141"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var remainingSeconds by remember(countdownSeconds) { mutableStateOf(countdownSeconds.coerceAtLeast(0)) }"
-        errorLine2="                                                         ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/announcement/RemoteAnnouncementDialog.kt"
-            line="29"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
         message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
         errorLine1="private val SettingsScreenScrollPosition = mutableStateOf(0)"
         errorLine2="                                           ~~~~~~~~~~~~~~">
@@ -24449,39 +23354,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
             line="252"
             column="45"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var pipIconColorInput by remember { mutableStateOf(pipIconColor ?: defaultHeaderIconColor) }"
-        errorLine2="                                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="253"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var primaryColorInput by remember { mutableStateOf(primaryColor ?: defaultPrimaryColor) }"
-        errorLine2="                                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="255"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var secondaryColorInput by remember { mutableStateOf(secondaryColor ?: defaultSecondaryColor) }"
-        errorLine2="                                          ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="256"
-            column="43"/>
     </issue>
 
     <issue
@@ -24867,39 +23739,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
             line="115"
             column="45"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var pipIconColorInput by remember { mutableStateOf(pipIconColor ?: defaultHeaderIconColor) }"
-        errorLine2="                                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
-            line="116"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var primaryColorInput by remember { mutableStateOf(primaryColor ?: defaultPrimaryColor) }"
-        errorLine2="                                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
-            line="118"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var secondaryColorInput by remember { mutableStateOf(secondaryColor ?: defaultSecondaryColor) }"
-        errorLine2="                                          ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
-            line="119"
-            column="43"/>
     </issue>
 
     <issue
@@ -25773,17 +24612,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.about_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;about_description&quot;>Operit AI是一个智能助手应用，能够帮助用户更高效地使用设备，提供界面分析、聊天对话等功能。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="582"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.github_star_description` appears to be unused"
         errorLine1="    &lt;string name=&quot;github_star_description&quot;>GitHub Star&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -25878,28 +24706,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="601"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.config_use_free` appears to be unused"
-        errorLine1="    &lt;string name=&quot;config_use_free&quot;>薅贡献者的&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="613"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.config_free_usage_exceeded` appears to be unused"
-        errorLine1="    &lt;string name=&quot;config_free_usage_exceeded&quot;>今日免费次数已用完&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="615"
             column="13"/>
     </issue>
 
@@ -29513,17 +28319,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.current_version` appears to be unused"
-        errorLine1="    &lt;string name=&quot;current_version&quot;>当前版本: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1508"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.code_editor` appears to be unused"
         errorLine1="    &lt;string name=&quot;code_editor&quot;>代码编辑器&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~">
@@ -29607,39 +28402,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="1549"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.prepare_patch_update` appears to be unused"
-        errorLine1="    &lt;string name=&quot;prepare_patch_update&quot;>准备补丁更新...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1552"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.patch_update_failed` appears to be unused"
-        errorLine1="    &lt;string name=&quot;patch_update_failed&quot;>补丁更新失败: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1553"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.patch_update_success` appears to be unused"
-        errorLine1="    &lt;string name=&quot;patch_update_success&quot;>补丁更新已准备完成&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1554"
             column="13"/>
     </issue>
 
@@ -33831,127 +32593,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="2800"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_wizard_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_wizard_title&quot;>OperitTerminal 设置向导&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2883"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_not_installed` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_not_installed&quot;>OperitTerminal 未安装&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2884"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_update_available` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_update_available&quot;>OperitTerminal 有更新可用&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2885"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_up_to_date` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_up_to_date&quot;>OperitTerminal 已是最新版本&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2886"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_install_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_install_description&quot;>OperitTerminal 是一个功能强大的终端应用，提供完整的 Linux 环境和包管理功能。我们需要先安装这个应用。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2887"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_install_button` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_install_button&quot;>安装 OperitTerminal&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2888"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_update_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_update_description&quot;>发现 OperitTerminal 的新版本，建议更新以获得更好的功能和兼容性。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2889"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_release_notes` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_release_notes&quot;>更新说明：%1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2890"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_update_button` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_update_button&quot;>更新 OperitTerminal&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2891"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_latest_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_latest_description&quot;>恭喜！您已安装最新版本的 OperitTerminal，可以开始使用其强大的终端功能。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2892"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.operit_terminal_open_button` appears to be unused"
-        errorLine1="    &lt;string name=&quot;operit_terminal_open_button&quot;>打开 OperitTerminal&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2893"
             column="13"/>
     </issue>
 
@@ -39336,17 +37977,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.screen_title_script_market` appears to be unused"
-        errorLine1="    &lt;string name=&quot;screen_title_script_market&quot;>脚本市场&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4715"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.screen_title_script_manage` appears to be unused"
         errorLine1="    &lt;string name=&quot;screen_title_script_manage&quot;>管理脚本&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -39364,17 +37994,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="4717"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.screen_title_package_market` appears to be unused"
-        errorLine1="    &lt;string name=&quot;screen_title_package_market&quot;>工具包市场&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4718"
             column="13"/>
     </issue>
 
@@ -44727,17 +43346,6 @@
     <issue
         id="UseOfNonLambdaOffsetOverload"
         message="State backed values should use the lambda overload of Modifier.offset"
-        errorLine1="                                        .offset(x = animatedSidebarWidth)"
-        errorLine2="                                         ~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/layout/TabletLayout.kt"
-            line="175"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="UseOfNonLambdaOffsetOverload"
-        message="State backed values should use the lambda overload of Modifier.offset"
         errorLine1="        modifier = modifier.offset(y = waveOffsetY),"
         errorLine2="                            ~~~~~~">
         <location
@@ -45441,17 +44049,6 @@
 
     <issue
         id="TypographyDashes"
-        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
-        errorLine1="    &lt;string name=&quot;model_config_error_summary_threshold_range&quot;>Please enter a summary trigger threshold between 0-1&lt;/string>"
-        errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6563"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="TypographyDashes"
         message="Replace &quot;--&quot; with an &quot;em dash&quot; character (—, &amp;#8212;) ?"
         errorLine1="    &lt;string name=&quot;root_custom_su_command_description&quot;>Applies only in KernelSU mode. You can enter commands like su or su --mount-master.&lt;/string>"
         errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -45470,17 +44067,6 @@
             file="src/main/res/values-es/strings.xml"
             line="6586"
             column="55"/>
-    </issue>
-
-    <issue
-        id="TypographyDashes"
-        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
-        errorLine1="    &lt;string name=&quot;model_config_error_summary_threshold_range&quot;>请输入0-1之间的总结触发阈值&lt;/string>"
-        errorLine2="                                                              ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7025"
-            column="63"/>
     </issue>
 
     <issue
@@ -61535,39 +60121,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_response&quot;>AI 응답을 받는 중...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6486"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_tool_result&quot;>도구 실행 후 AI 응답을 받는 중...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6492"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;openai_retry_with_count&quot;>%1$s, %2$d번째로 재시도 중...&lt;/string>"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6495"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;message_processing&quot;>Memproses pesan...&lt;/string>"
         errorLine2="                                      ~~~~~~~~~~~~~~~~~~">
         <location
@@ -61931,39 +60484,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_processing&quot;>메시지 처리 중...&lt;/string>"
-        errorLine2="                                      ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6737"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_workspace_backing_up&quot;>작업 공간 백업 중...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6738"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_summarizing&quot;>메모리를 요약하는 중...&lt;/string>"
-        errorLine2="                                       ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6743"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;workspace_template_importing&quot;>Importando modelo de plugin...&lt;/string>"
         errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -62228,17 +60748,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;mcp_regenerating_description&quot;>Gerando com IA...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6870"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;enhanced_receiving_response&quot;>Recibiendo respuesta de la IA...&lt;/string>"
         errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -62393,17 +60902,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;speech_services_mimo_voice_id_placeholder&quot;>Exemplo: mimo_default, Bingtang, ou data:audio/mpeg;base64,...&lt;/string>"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6912"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;provider_error_retry_message&quot;>%1$s，正在进行第 %2$d 次重试...&lt;/string>"
         errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -62470,105 +60968,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_zipping_external_files&quot;>Compactando Android/data/nome_do_pacote/files...&lt;/string>"
-        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="7029"
-            column="72"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;mcp_regenerating_description&quot;>AI sedang menjana...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="7030"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_replacing_external_files&quot;>Escrevendo em Android/data/nome_do_pacote/files...&lt;/string>"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="7030"
-            column="74"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;mcp_regenerating_description&quot;>AI sedang menghasilkan...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="7033"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;artifact_project_nodes_loading&quot;>Carregando nós do projeto...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="7049"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;artifact_project_nodes_loading&quot;>프로젝트 노드를 불러오는 중...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="7059"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;speech_services_mimo_voice_id_placeholder&quot;>Contoh: mimo_default, Bing Tang, atau data:audio/mpeg;base64,...&lt;/string>"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="7072"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;speech_services_mimo_voice_id_placeholder&quot;>Contoh: mimo_default, Bingtang, atau data:audio/mpeg;base64,...&lt;/string>"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="7075"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;mcp_regenerating_description&quot;>Generando con IA...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="7100"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;memory_tool_result_pruned&quot;>&amp;lt;tool_result %1$s&amp;gt;[...工具结果已省略...]&amp;lt;/tool_result&amp;gt;&lt;/string>"
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -62591,67 +60990,12 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;speech_services_mimo_voice_id_placeholder&quot;>Ejemplo: mimo_default, Bingtang, o data:audio/mpeg;base64,...&lt;/string>"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="7142"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;ai_message_omitted_segment&quot;>[...省略%1$s段...]&lt;/string>"
         errorLine2="                                              ~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="7147"
             column="47"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_zipping_external_files&quot;>Sedang memampatkan Android/data/nama_pakej/files...&lt;/string>"
-        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="7189"
-            column="72"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_replacing_external_files&quot;>Sedang menulis Android/data/nama_pakej/files...&lt;/string>"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="7190"
-            column="74"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_zipping_external_files&quot;>Mengompres Android/data/nama paket/files...&lt;/string>"
-        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="7192"
-            column="72"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_replacing_external_files&quot;>Menulis Android/data/nama paket/files...&lt;/string>"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="7193"
-            column="74"/>
     </issue>
 
     <issue
@@ -62712,28 +61056,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;artifact_project_nodes_loading&quot;>Memuatkan nod projek...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="7209"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;artifact_project_nodes_loading&quot;>Memuat node proyek...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="7212"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;message_processing&quot;>Processing message...&lt;/string>"
         errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -62751,28 +61073,6 @@
             file="src/main/res/values/strings.xml"
             line="7214"
             column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_workspace_backing_up&quot;>Backing up workspace...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7215"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_summarizing&quot;>Summarizing memories...&lt;/string>"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7220"
-            column="40"/>
     </issue>
 
     <issue
@@ -62822,45 +61122,12 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_zipping_external_files&quot;>Comprimiendo Android/data/nombre_paquete/files...&lt;/string>"
-        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="7259"
-            column="72"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;backup_raw_snapshot_progress_replacing_external_files&quot;>Escribiendo Android/data/nombre_paquete/files...&lt;/string>"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="7260"
-            column="74"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;chat_compressing_history&quot;>正在压缩历史记录...&lt;/string>"
         errorLine2="                                            ~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="7276"
             column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;artifact_project_nodes_loading&quot;>Cargando nodos del proyecto...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="7279"
-            column="51"/>
     </issue>
 
     <issue
@@ -62919,105 +61186,6 @@
     </issue>
 
     <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;openai_retry_with_count&quot;>%1$s，正在进行第 %2$d 次重试...&lt;/string>"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7377"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;script_market_search_placeholder&quot;>Search script name, description, author...&lt;/string>"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7650"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;package_market_search_placeholder&quot;>Search package name, description, author...&lt;/string>"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7651"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;loading_your_artifacts&quot;>Loading your published content...&lt;/string>"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7675"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;workspace_template_importing&quot;>Importing plugin template...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7715"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_processing&quot;>正在处理消息...&lt;/string>"
-        errorLine2="                                      ~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7726"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_workspace_backing_up&quot;>正在备份工作区...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7727"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_summarizing&quot;>正在总结记忆...&lt;/string>"
-        errorLine2="                                       ~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7732"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;artifact_project_nodes_loading&quot;>Loading project nodes...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7924"
-            column="51"/>
-    </issue>
-
-    <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                val uri = Uri.parse(uriString)"
@@ -63037,61 +61205,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
             line="530"
             column="20"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(downloadUrl)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="530"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        data = Uri.parse(status.updateUrl)"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="725"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        data = Uri.parse(status.updateUrl)"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="725"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_PROJECT_URL)).apply {"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="959"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_PROJECT_URL)).apply {"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/about/screens/AboutScreen.kt"
-            line="973"
-            column="69"/>
     </issue>
 
     <issue
@@ -63493,28 +61606,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    painter = rememberAsyncImagePainter(model = Uri.parse(aiAvatarUri)),"
-        errorLine2="                                                                ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/bubble/BubbleAiMessageComposable.kt"
-            line="499"
-            column="65"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        model = Uri.parse(imageUrl),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/bubble/BubbleAiMessageComposable.kt"
-            line="561"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                    context.contentResolver.openInputStream(Uri.parse(uriString))?.use { input ->"
         errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -63614,34 +61705,12 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/components/CharacterCardAssignDialog.kt"
-            line="166"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                    painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),"
         errorLine2="                                                                ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/components/CharacterCardDialog.kt"
             line="1815"
             column="65"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/components/CharacterGroupAssignDialog.kt"
-            line="166"
-            column="69"/>
     </issue>
 
     <issue
@@ -63713,17 +61782,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        painter = rememberAsyncImagePainter(model = Uri.parse(displayAvatarUri)),"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/CharacterSelectorPanel.kt"
-            line="473"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                                        painter = rememberAsyncImagePainter(model = Uri.parse(activeCharacterAvatarUri)),"
         errorLine2="                                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -63741,28 +61799,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/ChatHistorySelector.kt"
             line="2131"
             column="89"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1002"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatHistorySettingsScreen.kt"
-            line="1120"
-            column="69"/>
     </issue>
 
     <issue
@@ -63895,39 +61931,6 @@
             file="src/main/java/com/ai/assistance/operit/util/DocumentConversionUtil.kt"
             line="673"
             column="37"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.htmlEncode` instead?"
-        errorLine1="                            html.append(TextUtils.htmlEncode(workbook.getSheetAt(sheetIndex).sheetName))"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/DocumentConversionUtil.kt"
-            line="686"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.htmlEncode` instead?"
-        errorLine1="                        html.append(TextUtils.htmlEncode(sheet.sheetName))"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/DocumentConversionUtil.kt"
-            line="709"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.htmlEncode` instead?"
-        errorLine1="                                html.append(TextUtils.htmlEncode(formattedValue).replace(&quot;\n&quot;, &quot;&lt;br>&quot;))"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/DocumentConversionUtil.kt"
-            line="732"
-            column="45"/>
     </issue>
 
     <issue
@@ -64758,17 +62761,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putInt(KEY_ACKNOWLEDGED_VERSION, version).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/preferences/RemoteAnnouncementPreferences.kt"
-            line="19"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="        sharedPrefs.edit().clear().apply()"
         errorLine2="        ~~~~~~~~~~~~~~~~~~">
         <location
@@ -65373,28 +63365,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                        .setUri(Uri.parse(backgroundImageUri))"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="295"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    val uri = Uri.parse(backgroundImageUri)"
-        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="379"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `Int.toDrawable` instead?"
         errorLine1="                                            android.graphics.drawable.ColorDrawable("
         errorLine2="                                            ^">
@@ -65737,50 +63707,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_RELEASES_URL))"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/UpdateChecker.kt"
-            line="123"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_REPO_URL))"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/UpdateChecker.kt"
-            line="133"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        data = Uri.parse(url)"
-        errorLine2="                               ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/update/screens/UpdateScreen.kt"
-            line="121"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        data = Uri.parse(url)"
-        errorLine2="                               ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/update/screens/UpdateScreen.kt"
-            line="121"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        return if (string.isEmpty()) null else Uri.parse(string)"
         errorLine2="                                               ~~~~~~~~~~~~~~~~~">
         <location
@@ -65908,17 +63834,6 @@
             file="src/main/java/com/ai/assistance/operit/integrations/http/WebChatHttpBridge.kt"
             line="2483"
             column="37"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Bitmap.toDrawable` instead?"
-        errorLine1="                drawableState.value = BitmapDrawable(context.resources, bmp)"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/avatar/impl/webp/view/WebPRenderer.kt"
-            line="125"
-            column="39"/>
     </issue>
 
     <issue

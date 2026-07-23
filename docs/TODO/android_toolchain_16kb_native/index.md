@@ -12,7 +12,7 @@ status: verification_pending
 
 ## 已确认基线
 
-- AGP `9.3.0`、Gradle `9.5.0` 与 Kotlin `2.3.21` 已完成 AGP 9 内置 Kotlin/Kapt 迁移
+- AGP `9.3.1`、Gradle `9.5.0` 与 Kotlin `2.3.21` 已完成 AGP 9 内置 Kotlin/Kapt 迁移
 - Gradle 运行时使用 JDK 21；Java/Kotlin 字节码目标继续为 JVM 17
 - compile SDK `36`、target SDK `34`、Build Tools `36.0.0`、CMake `3.22.1`
 - 所有源码 native 模块统一 NDK `28.2.13676358`
@@ -45,7 +45,7 @@ status: verification_pending
 
 ## 当前边界
 
-- APK 内 arm64 native 已只剩 ffmpeg-kit 的 9 个未对齐 ELF；构建脚本已固定官方 `v6.0` commit，但本机缺少 Linux/WSL 构建环境，仍未产出替换 AAR
+- APK 内 arm64 native 已只剩 ffmpeg-kit 的 9 个未对齐 ELF；构建脚本已固定官方 `v6.0` commit，AAR 导入也会在覆盖前执行结构、API、ABI 与 16 KB ELF 验证，但本机缺少可用 Linux/WSL 构建环境，仍未产出替换 AAR
 - 未被源码使用的 TensorFlow Lite 2.10 已移除，其 duplicate namespace 与 x86_64 `Aligned16KB` 告警不再存在
 - AGP 9.3 已消除 `CXX5304`；OpenFST 显式采用 `CMP0063=NEW` 后 CMake policy warning 也已消失
 - 当前 C/C++ 编译输出仍包含 fetched 或 vendored 第三方代码的废弃 API、未处理枚举和未使用表达式告警，不归为 Kiyori 产品壳源码新增问题

@@ -213,9 +213,7 @@
     <string name="nav_settings">Pengaturan</string>
     <string name="nav_tool_permissions">Izin Alat</string>
     <string name="nav_about">Tentang</string>
-    <string name="action_retry">Coba Lagi</string>
     <string name="common_collapse">Tutup</string>
-    <string name="common_expand_more">Buka Lebih Banyak</string>
     <string name="nav_packages">Manajemen Paket</string>
     <string name="nav_memory_base">Basis Memori</string>
     <string name="nav_assistant_config">Konfigurasi Asisten</string>
@@ -489,11 +487,7 @@
     <string name="about_title">Tentang Kiyori</string>
     <string name="about_version">Versi: %1$s</string>
     <string name="about_description">Kiyori adalah aplikasi asisten cerdas yang membantu pengguna menggunakan perangkat dengan lebih efisien, menyediakan analisis antarmuka, percakapan obrolan, dan fungsi lainnya.</string>
-    <string name="about_developer">Pengembang: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
-    <string name="about_contact">Hubungi kami: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
     <string name="about_copyright">© 2025 - 2026 Kiyori. Hak cipta dilindungi undang-undang.</string>
-    <string name="star_on_github">Beri Bintang di GitHub</string>
     <string name="app_logo_description">Ikon Aplikasi</string>
     <string name="github_star_description">Bintang GitHub</string>
     <string name="configure_ai">Konfigurasi Antarmuka AI</string>
@@ -683,7 +677,6 @@
     <string name="preferences_guide_title">Untuk layanan yang lebih baik, harap lengkapi pengaturan berikut</string>
     <string name="preference_lock">Kunci preferensi pengguna</string>
     <string name="preference_lock_desc">Setelah dikunci, informasi preferensi pengguna tidak dapat diubah</string>
-    <string name="packages">Manajemen paket</string>
     <string name="skills">Keterampilan</string>
     <string name="show_to_ai_short">AI</string>
     <string name="package_manager">Manajer paket</string>
@@ -1040,7 +1033,6 @@
     <string name="settings_functional_prompt_desc">Atur prompt khusus untuk fungsi yang berbeda (percakapan, suara)</string>
     <string name="settings_configure_functional_prompt">Konfigurasi prompt fungsional</string>
     <string name="settings_appearance_section">Pengaturan tampilan</string>
-    <string name="unknown_value">Tidak diketahui</string>
 
     <string name="permission_guide_warning_message">Anda belum memberikan semua izin yang diperlukan, ini dapat menyebabkan fungsi aplikasi tidak lengkap atau keluar secara tidak normal. Yakin ingin melanjutkan?</string>
     <string name="permission_guide_warning_continue">Lanjutkan</string>
@@ -1083,7 +1075,6 @@
     <string name="root_wizard_risk_details">1. Operasi ROOT memiliki risiko tertentu, dapat menyebabkan garansi perangkat tidak berlaku\n2. Beberapa aplikasi mungkin menolak berjalan di perangkat yang di-root\n3. Operasi ROOT yang tidak tepat dapat menyebabkan sistem tidak stabil</string>
     <string name="shizuku_wizard_title">Panduan Pengaturan Shizuku</string>
 
-    <string name="download">Unduh</string>
     <string name="ok">OK</string>
     <string name="dialog_title_prompt">Peringatan</string>
     <string name="ai_computer">Komputer AI</string>
@@ -1091,8 +1082,6 @@
     <string name="export_starting">Mulai mengekspor...</string>
     <string name="floating_window_permission_denied">Izin jendela mengambang tidak diberikan, mode jendela mengambang telah dimatikan</string>
     <string name="china_mirror">Mirror akselerasi domestik</string>
-    <string name="github_source">Tautan asli GitHub</string>
-    <string name="github_source_desc">Unduh langsung dari server resmi GitHub, kecepatan mungkin lambat</string>
     <string name="no_mirrors_found">Tidak ditemukan sumber mirror yang tersedia</string>
     <string name="main_github_login_success">Login berhasil, selamat datang %1$s!</string>
     <string name="main_github_get_user_failed">Gagal mendapatkan informasi pengguna: %1$s</string>
@@ -1105,8 +1094,6 @@
     <string name="beta_plan_leave">Keluar</string>
     <string name="patch_install_confirm_title">Instal Pembaruan Patch</string>
     <string name="patch_install_confirm_message">Versi patch baru terdeteksi: %1$s\n\nInstal sekarang?</string>
-    <string name="developer">Pengembang</string>
-    <string name="contact">Kontak</string>
     <string name="project_url">Alamat Proyek</string>
     <string name="open_source_licenses">Pernyataan Lisensi Sumber Terbuka</string>
     <string name="license_format">Lisensi: %1$s</string>
@@ -4848,7 +4835,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_raw_snapshot_progress_scanning_files_with_count">Menghitung file: %1$d</string>
 
     <string name="logcat_mediestore_save_failed">MediaStore gagal menyimpan: %1$s</string>
-    <string name="logcat_cannot_create_download_dir">Tidak dapat membuat direktori unduhan</string>
     <string name="logcat_cannot_create_operit_dir">Tidak dapat membuat direktori Kiyori</string>
     <string name="logcat_file_create_failed">Gagal membuat file atau file kosong</string>
     <string name="logcat_filesystem_save_failed">Sistem file gagal menyimpan: %1$s</string>
@@ -6780,7 +6766,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="quick_plugin_creator_step1_title">1. Perbarui atau unduh paket untuk membuat Skill</string>
     <string name="quick_plugin_creator_step1_desc">Setelah menekan tombol, `install_or_update.js` akan diunduh secara otomatis, dan debug_run_sandbox_script dari operit_editor akan dipanggil untuk menjalankan instalasi atau pembaruan.</string>
     <string name="quick_plugin_creator_run_setup">Unduh dan jalankan secara otomatis</string>
-    <string name="quick_plugin_creator_setup_success">Instalasi atau pembaruan Skill pembuatan paket selesai</string>
     <string name="quick_plugin_creator_step2_title">2. Masukkan kebutuhan untuk mulai membuat</string>
     <string name="quick_plugin_creator_requirement_hint">Contoh: buat alat yang dapat mengatur gambar di direktori unduhan secara massal dan menghasilkan indeks</string>
     <string name="quick_plugin_creator_requirement_empty">Silakan masukkan kebutuhan paket skrip terlebih dahulu</string>

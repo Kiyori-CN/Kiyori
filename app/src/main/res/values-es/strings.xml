@@ -86,9 +86,6 @@
     <string name="about_title">Acerca de Kiyori</string>
     <string name="about_version">Versión: %1$s</string>
     <string name="about_description">Kiyori es una aplicación de asistente inteligente que ayuda a los usuarios a utilizar sus dispositivos de manera más eficiente, proporcionando funciones como análisis de interfaz y chat.</string>
-    <string name="about_developer">Desarrollador: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
-    <string name="about_contact">Contáctenos: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
     <string name="about_copyright">© 2025 - 2026 Kiyori. Todos los derechos reservados.</string>
 
     <!-- AI Chat Screen -->
@@ -216,7 +213,6 @@
     <string name="preference_lock_desc">Una vez bloqueado, no podrá modificar la información de preferencias de usuario</string>
 
     <!-- Package Manager Screen -->
-    <string name="packages">Gestión de paquetes</string>
     <string name="package_manager">Gestor de paquetes</string>
     <string name="available_packages">Paquetes disponibles</string>
     <string name="imported_packages">Paquetes importados</string>
@@ -1567,9 +1563,7 @@
     <string name="workflow_cron_preset_every_6_hours">Cada 6 horas</string>
     <string name="workflow_cron_preset_every_15_minutes">Cada 15 minutos</string>
 
-    <string name="action_retry">Reintentar</string>
     <string name="common_collapse">Contraer</string>
-    <string name="common_expand_more">Expandir más</string>
     <string name="nav_assistant_config">Configuración del asistente</string>
     <string name="sidebar_permission_short">Permisos</string>
     <string name="sidebar_status_normal">Normal</string>
@@ -1650,8 +1644,6 @@
     <string name="settings_functional_prompt_desc">Establecer indicaciones dedicadas para diferentes funciones (conversación, voz)</string>
     <string name="settings_configure_functional_prompt">Configurar indicaciones funcionales</string>
     <string name="settings_appearance_section">Configuración de apariencia</string>
-    <string name="unknown_value">Desconocido</string>
-    <string name="download">Descargar</string>
     <string name="ok">Aceptar</string>
     <string name="dialog_title_prompt">Aviso</string>
     <string name="ai_computer">PC con IA</string>
@@ -1659,8 +1651,6 @@
     <string name="export_starting">Iniciando exportación...</string>
     <string name="floating_window_permission_denied">Permiso de ventana flotante no concedido, se ha cerrado el modo de ventana flotante</string>
     <string name="china_mirror">Espejo de aceleración nacional</string>
-    <string name="github_source">Enlace original de GitHub</string>
-    <string name="github_source_desc">Descargar directamente desde el servidor oficial de GitHub, puede ser más lento</string>
     <string name="no_mirrors_found">No se encontraron espejos disponibles</string>
     <string name="main_github_login_success">Inicio de sesión exitoso, ¡bienvenido %1$s!</string>
     <string name="main_github_get_user_failed">Error al obtener información del usuario: %1$s</string>
@@ -1775,7 +1765,6 @@
     <string name="history_auto_switch_character_desc">Al cambiar de conversación, emparejar automáticamente la tarjeta de personaje vinculada</string>
     <string name="history_auto_switch_chat">Cambiar automáticamente de chat</string>
     <string name="history_auto_switch_chat_desc">Al cambiar de tarjeta de personaje o grupo, entrar automáticamente en la conversación más reciente correspondiente; si no existe, se crea</string>
-    <string name="star_on_github">Dar estrella en GitHub</string>
     <string name="app_logo_description">Icono de la aplicación</string>
     <string name="github_star_description">Estrella de GitHub</string>
     <string name="network_status_label">Estado de red</string>
@@ -1906,8 +1895,6 @@
 
     <string name="patch_install_confirm_title">Instalar actualización de parche</string>
     <string name="patch_install_confirm_message">Se detectó una nueva versión del parche: %1$s\n\n¿Instalar ahora?</string>
-    <string name="developer">Desarrollador</string>
-    <string name="contact">Contacto</string>
     <string name="project_url">URL del proyecto</string>
     <string name="open_source_licenses">Declaración de licencias de código abierto</string>
     <string name="license_format">Licencia: %1$s</string>
@@ -4996,7 +4983,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="logcat_cannot_create_file">error al guardar: no se pudo crear el archivo, posible problema de permisos de almacenamiento</string>
     <string name="logcat_cannot_open_output_stream">no se pudo abrir el flujo de salida</string>
     <string name="logcat_mediestore_save_failed">error al guardar en MediaStore: %1$s</string>
-    <string name="logcat_cannot_create_download_dir">no se pudo crear el directorio de descargas</string>
     <string name="logcat_cannot_create_operit_dir">No se pudo crear el directorio Kiyori</string>
     <string name="logcat_file_create_failed">no se pudo crear el archivo o está vacío</string>
     <string name="logcat_filesystem_save_failed">error al guardar en el sistema de archivos: %1$s</string>
@@ -6847,7 +6833,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="quick_plugin_creator_step1_title">1. Actualiza o descarga el paquete para crear Skill</string>
     <string name="quick_plugin_creator_step1_desc">Al hacer clic en el botón, se descargará automáticamente `install_or_update.js` y se llamará a debug_run_sandbox_script de operit_editor para ejecutar la instalación o actualización.</string>
     <string name="quick_plugin_creator_run_setup">Descargar y ejecutar automáticamente</string>
-    <string name="quick_plugin_creator_setup_success">Instalación o actualización del paquete de creación de Skill completada</string>
     <string name="quick_plugin_creator_step2_title">2. Ingresa los requisitos para comenzar a crear</string>
     <string name="quick_plugin_creator_requirement_hint">Por ejemplo: una herramienta que pueda organizar en lote las imágenes del directorio de descargas y generar un índice</string>
     <string name="quick_plugin_creator_requirement_empty">Primero ingresa los requisitos del paquete de scripts</string>

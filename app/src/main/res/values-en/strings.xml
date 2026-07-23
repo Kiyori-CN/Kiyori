@@ -578,11 +578,7 @@
     <string name="about_title">About Kiyori</string>
     <string name="about_version">Version: %1$s</string>
     <string name="about_description">Kiyori is a local-first Android AI assistant and browser project with chat, tool calling, automation, and on-device model capabilities.</string>
-    <string name="about_developer">Maintainer: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
-    <string name="about_contact">Use the project Issues page for feedback.</string>
-    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
     <string name="about_copyright">© 2026 Kiyori-CN</string>
-    <string name="star_on_github">Star on GitHub</string>
     <string name="app_logo_description">App Logo</string>
     <string name="github_star_description">GitHub Star</string>
     <string name="project_issues">Report an Issue</string>
@@ -1026,7 +1022,6 @@
     <string name="tag_count_locked_status">Selected %1$d / Limit %2$d</string>
     
     <!-- Package Manager Screen -->
-    <string name="packages">Packages</string>
     <string name="skills">Skills</string>
     <string name="show_to_ai_short">AI</string>
     <string name="package_manager">Package Manager</string>
@@ -1503,8 +1498,6 @@
     <string name="settings_appearance_section">Appearance</string>
 
     <!-- About Screen -->
-    <string name="unknown_value">Unknown</string>
-    <string name="download">Download</string>
     <string name="ok">OK</string>
     <string name="dialog_title_prompt">Prompt</string>
     <string name="ai_computer">AI Computer</string>
@@ -1512,15 +1505,11 @@
     <string name="export_starting">Starting export...</string>
     <string name="floating_window_permission_denied">Floating window permission not granted, floating window mode closed</string>
     <string name="china_mirror">China Accelerated Mirror</string>
-    <string name="github_source">GitHub Original Link</string>
-    <string name="github_source_desc">Download from GitHub official servers</string>
     <string name="main_github_login_success">Login successful, welcome %1$s!</string>
     <string name="main_github_get_user_failed">Failed to get user info: %1$s</string>
     <string name="main_github_login_failed">Login failed: %1$s</string>
     <string name="main_github_login_error">Error during login: %1$s</string>
 
-    <string name="developer">Developer</string>
-    <string name="contact">Contact</string>
     <string name="project_url">Project URL</string>
     <string name="open_source_licenses">Open Source Licenses</string>
     <string name="license_format">License: %1$s</string>
@@ -1858,9 +1847,7 @@
     <string name="interface_text">Interface Text</string>
 
     <!-- Update History -->
-    <string name="action_retry">Retry</string>
     <string name="common_collapse">Collapse</string>
-    <string name="common_expand_more">Expand More</string>
     <string name="nav_memory_base">Memory Base</string>
     
     <!-- Manual Memory Update -->
@@ -5335,7 +5322,6 @@
     <string name="logcat_cannot_create_file">Save failed: Unable to create file, possibly due to storage permissions</string>
     <string name="logcat_cannot_open_output_stream">Cannot open output stream</string>
     <string name="logcat_mediestore_save_failed">MediaStore save failed: %1$s</string>
-    <string name="logcat_cannot_create_download_dir">Cannot create download directory</string>
     <string name="logcat_cannot_create_operit_dir">Cannot create Kiyori directory</string>
     <string name="logcat_file_create_failed">File creation failed or is empty</string>
     <string name="logcat_filesystem_save_failed">Filesystem save failed: %1$s</string>
@@ -5492,7 +5478,7 @@
     <string name="autoglm_api_key_placeholder">Paste your Zhipu API Key here</string>
     <string name="autoglm_one_click_button">One-Click AutoGLM Config</string>
     <string name="autoglm_status_running">Running one-click configuration, please wait...</string>
-    <string name="autoglm_status_success">AutoGLM one-click configuration completed:\nModel: %1$s\nAPI Key: %2$s\nToolkit: AutoGLM\n\nYou can now use AutoGLM mode in the chat interface.</string>
+    <string name="autoglm_status_success">AutoGLM one-click configuration completed:\n- Created or updated the AutoGLM UI controller model configuration (autoglm-phone, Zhipu)\n- Switched the "UI Controller" feature to this configuration\n- Disabled Automatic_ui_base and enabled Automatic_ui_subagent\n\nYou can now use AutoGLM mode in the chat interface.</string>
     <string name="autoglm_status_error">One-click configuration failed: %1$s</string>
     <string name="autoglm_error_empty_api_key">Please fill in the Zhipu API Key first.</string>
 
@@ -7587,7 +7573,6 @@
     <string name="quick_plugin_creator_step1_desc">Click the button to automatically download install_or_update.js and run the operit_editor debug_run_sandbox_script for installation or update.</string>
     <string name="quick_plugin_creator_run_setup">Auto download and execute</string>
     <string name="quick_plugin_creator_pull_skill_update">Pull Skill Updates</string>
-    <string name="quick_plugin_creator_setup_success">Package creation Skill installation or update completed</string>
     <string name="quick_plugin_creator_step2_title">2. Enter requirements to start creating</string>
     <string name="quick_plugin_creator_requirement_hint">For example: create a tool to batch organize images in the download directory and generate an index</string>
     <string name="quick_plugin_creator_requirement_empty">Please enter the script package requirements first</string>

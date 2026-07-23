@@ -697,8 +697,8 @@ Java_com_ai_assistance_llama_LlamaNative_nativeCreateSession(
 
     llama_model_params mparams = llama_model_default_params();
     mparams.n_gpu_layers = effectiveGpuLayers;
-    mparams.use_mmap = effectiveUseMmap;
-    mparams.use_mlock = false;
+    // llama.cpp now expresses mmap and mlock through one load mode; preserve the JNI boolean contract.
+    mparams.load_mode = effectiveUseMmap ? LLAMA_LOAD_MODE_MMAP : LLAMA_LOAD_MODE_NONE;
     mparams.use_extra_bufts = true;
 
     LOGI(

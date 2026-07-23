@@ -26,7 +26,7 @@ function registerToolPkg() {
             zh: "记账本",
             en: "Account Book",
         },
-        icon: "Book",
+        icon: Icons.Book,
         order: 120,
     });
     return true;

@@ -6,7 +6,7 @@ The app label is `Operit Clone`, the Gradle project is `Operit`, visible resourc
 
 ## Intended state
 
-The app presents Kiyori consistently, exposes only Kiyori project links, uses the Kiyori v3 brand asset, and contains no reachable Operit application-update or remote-announcement receiver.
+The app presents Kiyori consistently, exposes only Kiyori project links, uses the Kiyori brand asset, and contains no reachable Operit application-update or remote-announcement receiver.
 
 ## Verification
 
@@ -17,7 +17,7 @@ The app presents Kiyori consistently, exposes only Kiyori project links, uses th
 
 ## Evidence
 
-- The four copied Kiyori v3 source/target asset pairs have matching SHA-256 hashes.
+- The four copied Kiyori source/target asset pairs have matching SHA-256 hashes.
 - `git diff --check` passes for the parent repository and `terminal` submodule.
 - `assembleDebug --console=plain` succeeds and produces `app/build/outputs/apk/debug/app-debug.apk`.
 - `aapt dump badging` reports package `com.kiyori`, version code `45`, and version name `0.1.0`.

@@ -10,9 +10,7 @@
     <string name="nav_settings">configurar</string>
     <string name="nav_tool_permissions">Permissões de ferramentas</string>
     <string name="nav_about">sobre</string>
-    <string name="action_retry">Tente novamente</string>
     <string name="common_collapse">fechar</string>
-    <string name="common_expand_more">Expanda mais</string>
     <string name="nav_packages">Gerenciamento de pacotes</string>
     <string name="nav_memory_base">banco de memória</string>
     <string name="nav_assistant_config">Configuração do assistente</string>
@@ -516,11 +514,7 @@
     <string name="about_title">Sobre a Kiyori</string>
     <string name="about_version">Versão: %1$s</string>
     <string name="about_description">Kiyori é um aplicativo assistente inteligente que pode ajudar os usuários a usar os dispositivos com mais eficiência, fornecendo análise de interface, diálogo de chat e outras funções.</string>
-    <string name="about_developer">Desenvolvedor: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
-    <string name="about_contact">Contate-nos: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
     <string name="about_copyright">© 2025 - 2026 Kiyori. Todos os direitos reservados.</string>
-    <string name="star_on_github">Clique em uma estrela no GitHub</string>
     <string name="app_logo_description">ícone do aplicativo</string>
     <string name="github_star_description">Estrela do GitHub</string>
     <string name="configure_ai">Configurar interface de IA</string>
@@ -851,7 +845,6 @@
     <string name="preferences_guide_title">Para melhor atendê-lo, preencha as seguintes configurações</string>
     <string name="preference_lock">Bloquear preferências do usuário</string>
     <string name="preference_lock_desc">Uma vez bloqueadas, as informações de preferência do usuário não podem ser modificadas.</string>
-    <string name="packages">Gerenciamento de pacotes</string>
     <string name="skills">Habilidade</string>
     <string name="show_to_ai_short">IA</string>
     <string name="package_manager">Gerenciador de pacotes</string>
@@ -1264,8 +1257,6 @@
     <string name="settings_functional_prompt_desc">Defina palavras de prompt dedicadas para diferentes funções (diálogo, voz)</string>
     <string name="settings_configure_functional_prompt">Palavra de prompt da função de configuração</string>
     <string name="settings_appearance_section">Configurações de aparência</string>
-    <string name="unknown_value">desconhecido</string>
-    <string name="download">Vá para baixar</string>
     <string name="ok">Claro</string>
     <string name="dialog_title_prompt">dica</string>
     <string name="ai_computer">Computador de IA</string>
@@ -1273,8 +1264,6 @@
     <string name="export_starting">Comece a exportar...</string>
     <string name="floating_window_permission_denied">A permissão da janela flutuante não foi obtida e o modo de janela flutuante foi desativado.</string>
     <string name="china_mirror">Espelhamento acelerado doméstico</string>
-    <string name="github_source">Link original do GitHub</string>
-    <string name="github_source_desc">Baixe diretamente do servidor oficial do GitHub, a velocidade pode ser mais lenta</string>
     <string name="no_mirrors_found">Nenhuma fonte de espelho disponível encontrada</string>
     <string name="main_github_login_success">Login bem-sucedido. Bem-vindo %1$s!</string>
     <string name="main_github_get_user_failed">Falha ao obter informações do usuário: %1$s</string>
@@ -1286,8 +1275,6 @@
     <string name="beta_plan_leave">desistir</string>
     <string name="patch_install_confirm_title">Instalar atualizações de patch</string>
     <string name="patch_install_confirm_message">Nova versão do patch detectada: %1$s\n\nDeseja instalá-lo agora?</string>
-    <string name="developer">Desenvolvedor</string>
-    <string name="contact">Informações de contato</string>
     <string name="project_url">Endereço do projeto</string>
     <string name="open_source_licenses">Declaração de licença de código aberto</string>
     <string name="license_format">Licença: %1$s</string>
@@ -2241,9 +2228,9 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="speech_services_http_method">Método HTTP</string>
     <string name="speech_services_http_method_select">Selecione o método HTTP</string>
     <string name="speech_services_http_content_type">Tipo de conteúdo</string>
-    <string name="speech_services_http_content_type_placeholder">aplicativo/json</string>
+    <string name="speech_services_http_content_type_placeholder">application/json</string>
     <string name="speech_services_http_request_body">Solicitar modelo de corpo</string>
-    <string name="speech_services_http_request_body_placeholder">{\"texto\": \"{texto}\"}</string>
+    <string name="speech_services_http_request_body_placeholder">{\"text\": \"{text}\"}</string>
     <string name="speech_services_siliconflow_config">Configuração TTS de fluxo baseada em silício</string>
     <string name="speech_services_siliconflow_api_key">Chave de API</string>
     <string name="speech_services_siliconflow_api_key_placeholder">Por favor, insira sua chave API do Silicon Mobile</string>
@@ -3443,7 +3430,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="waifu_mode_toggle_desc">As respostas da IA ​​serão enviadas divididas por pontuação</string>
     <string name="typing_speed_settings">Configurações de velocidade de digitação</string>
     <string name="typing_speed_desc">Controle o tempo de atraso de cada personagem para simular o ritmo de digitação de pessoas reais</string>
-    <string name="current_speed_format">Velocidade atual: %,1f caracteres por segundo</string>
+    <string name="current_speed_format">Velocidade atual: %.1f caracteres por segundo</string>
     <string name="speed_fast">rápido</string>
     <string name="speed_slow">lento</string>
     <string name="current_delay_format">Atual: %dms/caracteres</string>
@@ -4544,7 +4531,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="logcat_cannot_create_file">Falha ao salvar: não é possível criar o arquivo, possivelmente problema de permissão de armazenamento</string>
     <string name="logcat_cannot_open_output_stream">Não foi possível abrir o fluxo de saída</string>
     <string name="logcat_mediestore_save_failed">Falha ao salvar no MediaStore: %1$s</string>
-    <string name="logcat_cannot_create_download_dir">Não foi possível criar o diretório de download</string>
     <string name="logcat_cannot_create_operit_dir">Não foi possível criar o diretório Kiyori</string>
     <string name="logcat_file_create_failed">A criação do arquivo falhou ou está vazia</string>
     <string name="logcat_filesystem_save_failed">Falha ao salvar o sistema de arquivos: %1$s</string>
@@ -6617,7 +6603,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="quick_plugin_creator_step1_title">1. Atualize ou baixe o pacote para criar a Skill</string>
     <string name="quick_plugin_creator_step1_desc">Ao clicar no botão, o `install_or_update.js` será baixado automaticamente e o debug_run_sandbox_script do operit_editor será chamado para executar a instalação ou atualização.</string>
     <string name="quick_plugin_creator_run_setup">Baixar e executar automaticamente</string>
-    <string name="quick_plugin_creator_setup_success">Instalação ou atualização da Skill de criação de pacotes concluída</string>
     <string name="quick_plugin_creator_step2_title">2. Insira os requisitos para começar a criar</string>
     <string name="quick_plugin_creator_requirement_hint">Exemplo: crie uma ferramenta para organizar em lote imagens do diretório de download e gerar um índice</string>
     <string name="quick_plugin_creator_requirement_empty">Insira primeiro os requisitos do pacote de scripts</string>

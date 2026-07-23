@@ -225,10 +225,16 @@ git -C ~/build/ffmpeg-kit rev-parse HEAD
 ./tools/ffmpeg/build_ffmpeg_kit_wsl.sh ~/build/ffmpeg-kit
 ```
 
-`rev-parse` 必须输出 `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`。构建完成后，从 Windows 仓库根目录导入 AAR；脚本会将当前仓库的真实目标路径转换为 WSL 路径，不依赖旧工程目录。
+`rev-parse` 必须输出 `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`。构建完成后，从 Windows 仓库根目录导入 AAR；脚本会将当前仓库的真实目标路径转换为 WSL 路径，不依赖旧工程目录。导入时先复制到临时文件，只有 ZIP CRC、Java API、唯一 `arm64-v8a` ABI、9 个预期 native 库、AArch64 ELF 和所有 `PT_LOAD >= 0x4000` 同时通过后才覆盖现有 AAR。
 
 ```powershell
 .\tools\ffmpeg\import_local_ffmpeg_kit.ps1 -Distro FedoraLinux-43
+```
+
+也可以在导入前单独验证候选文件：
+
+```powershell
+.\.venv\Scripts\python.exe -B ci\script\validate_ffmpeg_aar.py --aar <candidate.aar>
 ```
 
 导入后必须重新运行依赖准备、Debug 构建、`zipalign -c -P 16 -v 4` 与逐 ELF `llvm-readelf -lW` 审计。不得只凭 AAR 文件名或构建成功宣称支持 16 KB。

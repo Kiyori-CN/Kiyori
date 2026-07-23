@@ -11,9 +11,7 @@
     <string name="nav_settings">Tetapan</string>
     <string name="nav_tool_permissions">Kebenaran Alat</string>
     <string name="nav_about">Tentang</string>
-    <string name="action_retry">Cuba Semula</string>
     <string name="common_collapse">Tutup</string>
-    <string name="common_expand_more">Kembangkan Lagi</string>
     <string name="nav_packages">Pengurusan Pakej</string>
     <string name="nav_memory_base">Pangkalan Ingatan</string>
     <string name="nav_assistant_config">Konfigurasi Pembantu</string>
@@ -528,11 +526,7 @@
     <string name="about_title">Perihal Kiyori</string>
     <string name="about_version">Versi: %1$s</string>
     <string name="about_description">Kiyori ialah aplikasi pembantu pintar yang membantu pengguna menggunakan peranti dengan lebih cekap, menyediakan analisis antara muka, perbualan sembang dan fungsi lain.</string>
-    <string name="about_developer">Pembangun: &lt;a href="https://github.com/Kiyori-CN"&gt;Kiyori-CN&lt;/a&gt;</string>
-    <string name="about_contact">Hubungi kami: aaswordsman@foxmail.com</string>
-    <string name="about_website">&lt;a href="https://github.com/Kiyori-CN/Kiyori"&gt;GitHub: https://github.com/Kiyori-CN/Kiyori&lt;/a&gt;</string>
     <string name="about_copyright">© 2025 - 2026 Kiyori. Hak cipta terpelihara.</string>
-    <string name="star_on_github">Beri Bintang di GitHub</string>
     <string name="app_logo_description">Ikon aplikasi</string>
     <string name="github_star_description">Bintang GitHub</string>
     <string name="configure_ai">Konfigurasi antara muka AI</string>
@@ -669,7 +663,6 @@
     <string name="preferences_guide_title">Untuk memberikan perkhidmatan yang lebih baik, sila lengkapkan tetapan berikut</string>
     <string name="preference_lock">Kunci keutamaan pengguna</string>
     <string name="preference_lock_desc">Keutamaan pengguna tidak boleh diubah selepas dikunci</string>
-    <string name="packages">Pengurusan pakej</string>
     <string name="skills">Kemahiran</string>
     <string name="show_to_ai_short">AI</string>
     <string name="package_manager">Pengurus pakej</string>
@@ -1037,8 +1030,6 @@
     <string name="settings_functional_prompt_desc">Tetapkan petunjuk khusus untuk fungsi berbeza (perbualan, suara)</string>
     <string name="settings_configure_functional_prompt">Konfigurasi petunjuk fungsi</string>
     <string name="settings_appearance_section">Tetapan penampilan</string>
-    <string name="unknown_value">Tidak diketahui</string>
-    <string name="download">Pergi muat turun</string>
     <string name="ok">OK</string>
     <string name="dialog_title_prompt">Petunjuk</string>
     <string name="ai_computer">Komputer AI</string>
@@ -1046,8 +1037,6 @@
     <string name="export_starting">Mula mengeksport...</string>
     <string name="floating_window_permission_denied">Tiada kebenaran tetingkap terapung, mod tetingkap terapung ditutup</string>
     <string name="china_mirror">Cermin pecutan domestik</string>
-    <string name="github_source">Pautan asal GitHub</string>
-    <string name="github_source_desc">Muat turun terus dari pelayan rasmi GitHub, kelajuan mungkin perlahan</string>
 
     <string name="customize_ai_behavior">Sesuaikan Tingkah Laku dan Gaya Nada AI</string>
     <string name="ai_self_introduction">Pengenalan Diri AI</string>
@@ -1184,8 +1173,6 @@
 
     <string name="patch_install_confirm_title">Pasang Kemas Kini Patch</string>
     <string name="patch_install_confirm_message">Versi patch baru dikesan: %1$s\n\nPasang sekarang?</string>
-    <string name="developer">Pembangun</string>
-    <string name="contact">Maklumat Hubungan</string>
     <string name="project_url">Alamat Projek</string>
     <string name="open_source_licenses">Pernyataan Lesen Sumber Terbuka</string>
     <string name="license_format">Lesen: %1$s</string>
@@ -4845,7 +4832,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="logcat_cannot_create_file">Gagal menyimpan: Tidak dapat mencipta fail, mungkin masalah kebenaran storan</string>
     <string name="logcat_cannot_open_output_stream">Tidak dapat membuka aliran output</string>
     <string name="logcat_mediestore_save_failed">MediaStore gagal menyimpan: %1$s</string>
-    <string name="logcat_cannot_create_download_dir">Tidak dapat mencipta direktori muat turun</string>
     <string name="logcat_cannot_create_operit_dir">Tidak dapat mencipta direktori Kiyori</string>
     <string name="logcat_file_create_failed">Penciptaan fail gagal atau kosong</string>
     <string name="logcat_filesystem_save_failed">Sistem fail gagal menyimpan: %1$s</string>
@@ -6776,7 +6762,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="quick_plugin_creator_step1_title">1. Kemas kini atau muat turun pakej cipta Skill</string>
     <string name="quick_plugin_creator_step1_desc">Selepas mengklik butang, `install_or_update.js` akan dimuat turun secara automatik, dan operit_editor akan memanggil debug_run_sandbox_script untuk melaksanakan pemasangan atau kemas kini.</string>
     <string name="quick_plugin_creator_run_setup">Muat turun dan laksana secara automatik</string>
-    <string name="quick_plugin_creator_setup_success">Pemasangan atau kemas kini pakej cipta Skill selesai</string>
     <string name="quick_plugin_creator_step2_title">2. Masukkan keperluan untuk mula mencipta</string>
     <string name="quick_plugin_creator_requirement_hint">Contoh: Buat alat yang boleh menyusun gambar dalam direktori muat turun secara pukal dan menjana indeks</string>
     <string name="quick_plugin_creator_requirement_empty">Sila masukkan keperluan pakej skrip terlebih dahulu</string>

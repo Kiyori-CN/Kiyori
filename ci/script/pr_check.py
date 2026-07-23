@@ -35,7 +35,7 @@ TOOLPKG_PATTERNS = (
     "package-lock.json",
     "npm-shrinkwrap.json",
     "pnpm-workspace.yaml",
-    "tools/packages_whitelist.txt",
+    "tools/example_packages/packages_whitelist.txt",
     "tools/example_packages/sync_example_packages.py",
 )
 ANDROID_FULL_PATTERNS = (
@@ -53,6 +53,8 @@ ANDROID_FULL_PATTERNS = (
     "gradlew",
     "gradlew.bat",
     "settings.gradle.kts",
+    # The production whitelist changes generated APK assets and must run the full Android lane.
+    "tools/example_packages/packages_whitelist.txt",
     "tools/native_ripgrep/**",
 )
 ANDROID_MODULE_ROOTS = (

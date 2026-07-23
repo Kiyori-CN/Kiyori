@@ -27,7 +27,7 @@ function registerToolPkg() {
             zh: "OpenCode",
             en: "OpenCode",
         },
-        icon: "Code",
+        icon: Icons.Code,
         order: 130,
     });
     return true;

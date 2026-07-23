@@ -12,10 +12,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "example_packages"))
 
-from sync_example_packages import _manifest_runtime_files, _pack_toolpkg_folder  # noqa: E402
+from sync_example_packages import (  # noqa: E402
+    _manifest_runtime_files,
+    _pack_toolpkg_folder,
+    _pnpm_executable,
+)
 
 
 class ToolPkgRuntimeFilesTest(unittest.TestCase):
+    def test_pnpm_executable_uses_windows_command_shim(self) -> None:
+        self.assertEqual(_pnpm_executable("win32"), "pnpm.cmd")
+
+    def test_pnpm_executable_uses_posix_command(self) -> None:
+        self.assertEqual(_pnpm_executable("linux"), "pnpm")
+
     def test_ignored_runtime_files_are_included_in_archive(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
