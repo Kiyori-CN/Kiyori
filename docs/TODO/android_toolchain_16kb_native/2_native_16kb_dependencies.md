@@ -16,6 +16,8 @@
 - 未对齐 ELF：ffmpeg-kit 的 `libavcodec.so`、`libavdevice.so`、`libavfilter.so`、`libavformat.so`、`libavutil.so`、`libffmpegkit_abidetect.so`、`libffmpegkit.so`、`libswresample.so`、`libswscale.so`
 - 非 ELF：terminal 的 `libsudo.so`，文件内容为 2 字节 `$@` 占位脚本；strip 失败是预置文件类型问题，不是 CMake 产物
 
+当前 `ffmpeg-kit-local.aar` 的 SHA-256 为 `562944A2EE83BA86A09CC40C9E1EE4B0D83FF6944522F1C1AFCB7D437E47834D`。native 字符串确认它包含 FFmpeg `n6.0`，原构建路径为 `/home/aaswordsman/build/ffmpeg-kit`，使用 NDK `22.1.7171670`。官方 `v6.0` 与 `v6.0.LTS` tag 均指向 `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`；重建脚本现已强制校验该 commit 与干净 tracked source。
+
 Lint 最终报告（`2026-07-23 06:04:05 +08:00`）为 38 warnings + 2 hints，其中 `Aligned16KB=6`：ffmpeg AAR 的重复 `libavcodec.so` 记录 3 条，以及不进入当前 arm64 APK 的 TensorFlow Lite x86_64 记录 3 条。
 
 ## 处理规则
@@ -32,14 +34,16 @@ Lint 最终报告（`2026-07-23 06:04:05 +08:00`）为 38 warnings + 2 hints，�
 - MediaPipe `0.10.11 → 0.10.35`、ML Kit Text `16.0.0 → 16.0.1`（bundled common `17.0.0`）、ONNX Runtime `1.17.1 → 1.27.0`、android-gif-drawable `1.2.28 → 1.2.32`；候选 AAR 的 arm64 ELF 与最终 APK 均已复核
 - 源码 native 模块统一 NDK `28.2.13676358`，最终 APK 中 `libpty.so`、MediaPipe、ML Kit、ONNX Runtime、TensorFlow Lite arm64 及其他源码产物均已达到 16KB
 - 依赖准备脚本删除 jniLibs.zip 中旧 GIF native 副本、删除 ffmpeg AAR 内重复的 arm64 `libc++_shared.so`，并以 NDK 28 arm64 runtime 作为唯一提供者；最终 APK 不再含旧 GIF 或旧 libc++
+- ffmpeg-kit 重建入口已固定官方 `v6.0` commit，并拒绝错误 commit 或已有 tracked 修改的源码；导入脚本不再写死旧 `/mnt/d/Code/prog/assistance` 路径，而是把当前仓库目标路径转换为 WSL 路径
 
 ### 暂缓及理由
 
-- ffmpeg-kit local AAR 的 9 个 arm64 `.so` 仍为 `LOAD=0x1000`。仓库只含 AAR 和 WSL 构建脚本，没有可审计的 ffmpeg-kit 源码/hash；本机也没有 WSL，因此本轮不能声称完成重建。最短后续动作是取得固定 ffmpeg-kit 源码与构建输入，在 Linux/WSL 使用脚本和 NDK 28 重建后重新导入并复核 AAR hash、API 与 APK
+- ffmpeg-kit local AAR 的 9 个 arm64 `.so` 仍为 `LOAD=0x1000`。源码 commit 与构建入口已经固定，但本机没有 Linux/WSL、Docker 或 Podman，Kiyori 仓库的 GitHub Actions 又处于仓库级禁用状态，因此本轮不能执行或声称完成重建。最短后续动作是在获授权的 Linux/WSL 环境使用固定 commit 与 NDK 28 运行脚本，导入新 AAR 后复核 hash、Java API、运行行为与最终 APK
 - terminal `libsudo.so` 是预置的 2 字节 `$@` 文件，不能按 ELF 对齐；保持现有运行时语义，不改名、不删除、不用 suppress 掩盖
 - TensorFlow Lite x86_64 仍触发 Lint `Aligned16KB`，但当前 app `abiFilters` 只打包 arm64，最终 APK 的 arm64 `libtensorflowlite_jni.so` 已为 `0x10000`；只有未来扩大 ABI 范围时才需要升级该依赖
 
 ### 工具链待升级项
 
-- CMake `3.22.1` 配置成功但输出两次 `CXX5304`（SDK XML v4 与解析器只支持 v3）；需在验证过的 CMake/SDK 组合上升级并重新采集，不为形式化清零盲目升级
-- 本机/CI 已统一 JDK 21、Gradle 8.13、AGP 8.13.2、compile SDK 36、Build Tools 35.0.0、NDK 28.2.13676358；这些不作为待升级项
+- AGP 9.3.0、Gradle 9.5.0 与 Build Tools 36.0.0 需要和 AGP 9 内置 Kotlin/Kapt 迁移一起实施；配置探针已确认当前工程不能只改版本号
+- CMake 3.22.1 不是 `CXX5304` 的根因；除非 native 模块本身提出新版本需求，不为消除此告警单独升级
+- 本机/CI 声明已统一 JDK 21、Gradle 8.13、AGP 8.13.2、compile SDK 36、Build Tools 35.0.0、NDK 28.2.13676358；CI 实际执行仍取决于重新启用仓库级 GitHub Actions

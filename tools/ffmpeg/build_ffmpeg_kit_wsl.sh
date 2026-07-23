@@ -2,6 +2,7 @@
 set -eo pipefail
 
 FFMPEG_KIT_DIR="${1:-$HOME/build/ffmpeg-kit}"
+readonly FFMPEG_KIT_COMMIT="d6be56d7aec286eb3c292d6b23ff07a6b70d8693"
 PROXY_HOST="${OPERIT_PROXY_HOST:-172.23.176.1}"
 PROXY_PORT="${OPERIT_PROXY_PORT:-7890}"
 
@@ -67,6 +68,22 @@ prepare_sources() {
 
 if [[ ! -d "$FFMPEG_KIT_DIR" ]]; then
   echo "ffmpeg-kit repo not found: $FFMPEG_KIT_DIR" >&2
+  exit 1
+fi
+
+# The vendored AAR identifies itself as FFmpeg n6.0. Pin the matching upstream
+# source so a rebuild cannot silently use a different native implementation.
+if ! actual_commit="$(git -C "$FFMPEG_KIT_DIR" rev-parse --verify HEAD 2>/dev/null)"; then
+  echo "ffmpeg-kit source is not a Git checkout: $FFMPEG_KIT_DIR" >&2
+  exit 1
+fi
+if [[ "$actual_commit" != "$FFMPEG_KIT_COMMIT" ]]; then
+  echo "ffmpeg-kit source commit mismatch: expected $FFMPEG_KIT_COMMIT, got $actual_commit" >&2
+  exit 1
+fi
+if ! git -C "$FFMPEG_KIT_DIR" diff --quiet ||
+  ! git -C "$FFMPEG_KIT_DIR" diff --cached --quiet; then
+  echo "ffmpeg-kit source has tracked changes; use a clean checkout of $FFMPEG_KIT_COMMIT" >&2
   exit 1
 fi
 

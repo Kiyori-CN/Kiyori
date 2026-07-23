@@ -129,5 +129,28 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 self.assertNotIn("jni/arm64-v8a/libc++_shared.so", stream.namelist())
 
 
+class FFmpegBuildScriptTest(unittest.TestCase):
+    def test_ffmpeg_source_commit_is_pinned(self) -> None:
+        script = (REPO_ROOT / "tools" / "ffmpeg" / "build_ffmpeg_kit_wsl.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            'FFMPEG_KIT_COMMIT="d6be56d7aec286eb3c292d6b23ff07a6b70d8693"',
+            script,
+        )
+        self.assertIn('rev-parse --verify HEAD', script)
+        self.assertIn('diff --cached --quiet', script)
+
+    def test_ffmpeg_import_targets_current_repository(self) -> None:
+        script = (
+            REPO_ROOT / "tools" / "ffmpeg" / "import_local_ffmpeg_kit.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("/mnt/d/Code/prog/assistance", script)
+        self.assertIn("wslpath -a $targetAar", script)
+        self.assertIn("$targetWslPath", script)
+
+
 if __name__ == "__main__":
     unittest.main()

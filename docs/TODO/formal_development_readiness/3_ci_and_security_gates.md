@@ -10,6 +10,12 @@
 
 `android-build.yml` 在构建前执行同一正式开发门禁。Debug 构建用于持续验证；release bundle、签名和商店上传仍需单独授权。
 
+## 当前远端状态
+
+2026-07-23 核对 `Kiyori-CN/Kiyori` 时，三个 workflow 文件均为 active，但仓库级 GitHub Actions 权限为 `enabled=false`。`main` 的推送事件已经到达 GitHub，Actions run 与 commit check 仍为 0；这属于远端仓库设置问题，不是 workflow 的 branch 或 path 条件未命中。
+
+重新启用 Actions 会改变远端仓库状态并消耗 CI 资源，必须由仓库所有者明确授权。启用后应先手动运行 Android Build，再推送一个只含允许范围的候选提交，分别确认 `workflow_dispatch` 与 `push/main` 路径。
+
 ## 凭据边界
 
 - `local.properties`、GitHub OAuth client secret、签名材料、API Key、Cookie 和令牌不得进入 Git

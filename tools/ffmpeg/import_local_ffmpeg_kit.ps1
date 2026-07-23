@@ -23,7 +23,11 @@ else
   find ~/build/ffmpeg-kit/android/ffmpeg-kit-android-lib/build/outputs/aar -maxdepth 1 -name "*.aar" | head -n 1
 fi
 '@
-    $AarPath = (wsl.exe -d $Distro -- bash -lc $findCommand).Trim()
+    $detectedAarPath = wsl.exe -d $Distro -- bash -lc $findCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "无法从 WSL 查找 ffmpeg-kit AAR: $Distro"
+    }
+    $AarPath = ([string]$detectedAarPath).Trim()
 }
 
 if ([string]::IsNullOrWhiteSpace($AarPath)) {
@@ -35,8 +39,15 @@ if (Test-Path $AarPath) {
     $resolvedSource = (Resolve-Path $AarPath).Path
 } else {
     $linuxPath = $AarPath.Replace('\', '/')
-    $copyCommand = "cp -f `"$linuxPath`" /mnt/d/Code/prog/assistance/app/libs/ffmpeg-kit-local.aar"
-    wsl.exe -d $Distro -- bash -lc $copyCommand
+    $targetWslPath = wsl.exe -d $Distro -- wslpath -a $targetAar
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($targetWslPath)) {
+        throw "无法将目标路径转换为 WSL 路径: $targetAar"
+    }
+    $targetWslPath = ([string]$targetWslPath).Trim()
+    wsl.exe -d $Distro -- bash -lc 'cp -f -- "$1" "$2"' bash $linuxPath $targetWslPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "从 WSL 复制 ffmpeg-kit AAR 失败: $linuxPath"
+    }
 }
 
 if ($resolvedSource) {

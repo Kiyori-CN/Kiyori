@@ -45,6 +45,7 @@ status: verification_pending
 
 ## 当前边界
 
-- APK 内 arm64 native 已只剩 ffmpeg-kit 的 9 个未对齐 ELF；ffmpeg 源码构建受本机缺少 WSL/ffmpeg-kit 源码阻塞，保留为暂缓项
+- APK 内 arm64 native 已只剩 ffmpeg-kit 的 9 个未对齐 ELF；构建脚本已固定官方 `v6.0` commit，但本机缺少 Linux/WSL 构建环境，仍未产出替换 AAR
 - Android Lint 的剩余 `Aligned16KB` 还包含不随当前 arm64 APK 打包的 TensorFlow Lite x86_64 变体
-- CMake 3.22.1 配置仍报告两次 `CXX5304` SDK XML v4 解析告警；不为形式清零升级 CMake，列入工具链待升级项
+- 两次 `CXX5304` 来自 AGP 8.13.2 的 `sdklib 31.13.2` 只支持 SDK XML v3，而 Command-line Tools 22.0 使用 v4；单独升级 CMake 不能解决
+- Kiyori 私有仓库的 GitHub Actions 总开关当前为禁用，workflow 文件虽然 active，但推送没有 run/check 记录

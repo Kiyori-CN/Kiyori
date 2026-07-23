@@ -217,6 +217,22 @@ python3 ci/script/prepare_android_dependencies.py \
   --android-ndk "$ANDROID_HOME/ndk/28.2.13676358"
 ```
 
+如果需要替换 `app/libs/ffmpeg-kit-local.aar`，必须在 Linux 或 WSL 使用固定源码重建。当前 AAR 对应 FFmpeg `n6.0`，项目固定使用 ffmpeg-kit 官方 `v6.0` commit `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`；构建脚本会拒绝其他 commit 和已有 tracked 修改的源码目录。
+
+```bash
+git clone --branch v6.0 --depth 1 https://github.com/arthenica/ffmpeg-kit.git ~/build/ffmpeg-kit
+git -C ~/build/ffmpeg-kit rev-parse HEAD
+./tools/ffmpeg/build_ffmpeg_kit_wsl.sh ~/build/ffmpeg-kit
+```
+
+`rev-parse` 必须输出 `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`。构建完成后，从 Windows 仓库根目录导入 AAR；脚本会将当前仓库的真实目标路径转换为 WSL 路径，不依赖旧工程目录。
+
+```powershell
+.\tools\ffmpeg\import_local_ffmpeg_kit.ps1 -Distro FedoraLinux-43
+```
+
+导入后必须重新运行依赖准备、Debug 构建、`zipalign -c -P 16 -v 4` 与逐 ELF `llvm-readelf -lW` 审计。不得只凭 AAR 文件名或构建成功宣称支持 16 KB。
+
 3. **切换到你的工作分支 (如果需要):**
 ```bash
 git checkout docs/add-building-guide
