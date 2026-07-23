@@ -24,7 +24,7 @@ Android 主界面的大部分文案已经使用 Kiyori，但仍存在以下直�
 - Shortcut action 与 `com.ai.assistance.operit...` 实现类路径保持不变，只有 `targetPackage` 使用 `com.kiyori`
 - 当前应用内部文件与缓存目录使用 `/data/data/com.kiyori`；源码 namespace、Java bridge 和 ToolPkg ID 保持不变
 - 所有应用通知的状态栏图标统一使用现有 `ic_kiyori_notification`，不再引用平台 `ic_dialog_info`
-- 对话常驻通知显式使用 `ic_kiyori_app_icon` 作为通知卡片大图标；Manifest 改用新的 `ic_kiyori_launcher` 资源 ID，使系统重新解析 Kiyori 应用图标
+- 对话常驻、AI 回复与 AI 助手悬浮窗通知直接解码 `ic_kiyori_app_icon` 作为通知卡片大图标；AI 回复存在角色头像时继续由头像覆盖；Manifest 改用新的 `ic_kiyori_launcher` 资源 ID，使系统重新解析 Kiyori 应用图标
 
 ## 预期结果
 
@@ -32,4 +32,4 @@ Android 桌面、系统文件选择器、通知、默认助手配置、备份页
 
 ## 状态 [DONE]
 
-Android/System 显示层、默认角色、快捷方式与当前宿主沙箱路径已按上述边界实施；两轮真机复测先后暴露状态栏小图标和 iQOO 通知卡片大图标属于不同显示层，现已分别指定 Kiyori 资源，修复后的真机显示仍在第三阶段保持待验证。
+Android/System 显示层、默认角色、快捷方式与当前宿主沙箱路径已按上述边界实施；连续反馈先后暴露状态栏小图标与 iQOO 通知卡片大图标属于不同显示层，现已分别指定 Kiyori 单色资源和直接嵌入的 Kiyori Bitmap，修复后的真机显示仍在第三阶段保持待验证。

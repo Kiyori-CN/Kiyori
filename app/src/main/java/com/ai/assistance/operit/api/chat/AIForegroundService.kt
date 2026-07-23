@@ -11,7 +11,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.Icon
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.AudioRecordingConfiguration
@@ -282,6 +281,13 @@ class AIForegroundService : Service() {
             }
         }
 
+        private fun loadKiyoriNotificationLargeIcon(context: Context): Bitmap =
+            requireNotNull(
+                BitmapFactory.decodeResource(context.resources, R.drawable.ic_kiyori_app_icon)
+            ) {
+                "Kiyori notification icon resource could not be decoded"
+            }
+
         fun notifyReplyCompleted(
             context: Context,
             chatId: String?,
@@ -338,6 +344,8 @@ class AIForegroundService : Service() {
                 val notificationBuilder =
                     NotificationCompat.Builder(appContext, replyChannelId)
                         .setSmallIcon(R.drawable.ic_kiyori_notification)
+                        // iQOO may use the large icon for the card badge instead of smallIcon.
+                        .setLargeIcon(loadKiyoriNotificationLargeIcon(appContext))
                         .setContentTitle(
                             characterName
                                 ?: appContext.getString(R.string.notification_ai_reply_title)
@@ -726,6 +734,9 @@ class AIForegroundService : Service() {
     private var wakeSpeechProvider: SpeechService? = null
     private val workflowRepository by lazy { WorkflowRepository(applicationContext) }
     private val externalHttpPreferences by lazy { ExternalHttpApiPreferences.getInstance(applicationContext) }
+    private val kiyoriNotificationLargeIcon: Bitmap by lazy {
+        loadKiyoriNotificationLargeIcon(this)
+    }
 
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private var keepAliveOverlayView: View? = null
@@ -1899,12 +1910,12 @@ class AIForegroundService : Service() {
             } else {
                 getString(R.string.service_operit_running)
             }
-        // iQOO uses the large/app icon for the card badge; smallIcon only covers the status bar.
+        // Embed the bitmap because iQOO caches resource-based app icons separately from smallIcon.
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_kiyori_notification)
-            .setLargeIcon(Icon.createWithResource(this, R.drawable.ic_kiyori_app_icon))
+            .setLargeIcon(kiyoriNotificationLargeIcon)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true) // 使通知不可被用户清除
 

@@ -8,6 +8,8 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Binder
 import android.os.Handler
@@ -119,6 +121,11 @@ class FloatingChatService : Service(), FloatingWindowCallback {
     private var autoExitRunnable: Runnable? = null
 
     private val wakePrefs by lazy { WakeWordPreferences(applicationContext) }
+    private val kiyoriNotificationLargeIcon: Bitmap by lazy {
+        requireNotNull(BitmapFactory.decodeResource(resources, R.drawable.ic_kiyori_app_icon)) {
+            "Kiyori notification icon resource could not be decoded"
+        }
+    }
 
     fun consumeAutoEnterVoiceChat(): Boolean {
         val value = autoEnterVoiceChat.value
@@ -348,6 +355,8 @@ class FloatingChatService : Service(), FloatingWindowCallback {
     private fun createNotification() =
             NotificationCompat.Builder(this, CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_kiyori_notification)
+                    // iQOO may use the large icon for the card badge instead of smallIcon.
+                    .setLargeIcon(kiyoriNotificationLargeIcon)
                     .setContentTitle(getString(R.string.floating_chat_window_title))
                     .setContentText(getString(R.string.floating_chat_running_in_background))
                     .setPriority(NotificationCompat.PRIORITY_LOW)
