@@ -347,7 +347,7 @@ class FloatingChatService : Service(), FloatingWindowCallback {
 
     private fun createNotification() =
             NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setSmallIcon(R.drawable.ic_kiyori_notification)
                     .setContentTitle(getString(R.string.floating_chat_window_title))
                     .setContentText(getString(R.string.floating_chat_running_in_background))
                     .setPriority(NotificationCompat.PRIORITY_LOW)

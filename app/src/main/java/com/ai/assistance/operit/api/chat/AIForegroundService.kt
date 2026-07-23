@@ -337,7 +337,7 @@ class AIForegroundService : Service() {
                 }
                 val notificationBuilder =
                     NotificationCompat.Builder(appContext, replyChannelId)
-                        .setSmallIcon(android.R.drawable.ic_dialog_info)
+                        .setSmallIcon(R.drawable.ic_kiyori_notification)
                         .setContentTitle(
                             characterName
                                 ?: appContext.getString(R.string.notification_ai_reply_title)
@@ -1901,10 +1901,11 @@ class AIForegroundService : Service() {
             } else {
                 getString(R.string.service_operit_running)
             }
+        // Some OEMs render the platform info drawable as a full-color robot badge.
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(contentText)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_kiyori_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true) // 使通知不可被用户清除
 

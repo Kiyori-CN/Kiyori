@@ -56,7 +56,8 @@ status: verification_pending
 - 父仓库与 `terminal` 的 `git diff --check` 通过
 - WebChat 生产构建与 Android assets 同步通过；源码、dist 与 Android assets 的 favicon SHA-256 一致
 - 正式开发准备门禁通过
-- `assembleDebug` 在 4 分 17 秒内成功，APK 元数据为 `com.kiyori`、`45 / 0.1.0`、label `Kiyori`
+- 初始 `assembleDebug` 在 4 分 17 秒内成功；真机截图暴露通知仍使用平台机器人图标后，5 个同类入口统一改用 `ic_kiyori_notification`，再次构建在 1 分 14 秒内成功
+- 最新 APK 为 `2026-07-23 22:39:58 +08:00`、`450295648` 字节、SHA-256 `69A7C45604058511EAF8DE2FAB9542D2BD5D9E197398B59422B28C9EBF80E43E`，元数据为 `com.kiyori`、`45 / 0.1.0`、label `Kiyori`
 - APK 包含 Kiyori icon/roundIcon、Kiyori WebChat 与 11 个预置 ToolPkg，不包含旧 `assets/operit.png`
 - `terminal` 品牌显示改动已提交为 `e3ee8d1` 并推送到 `origin/main`；父仓库品牌清理随本清单进入 `main`
-- 未运行 release、签名、发布、安装或设备操作；真机显示仍为待验证
+- 未运行 release、签名、发布、安装或设备操作；修复后的通知及其余真机显示仍为待验证
