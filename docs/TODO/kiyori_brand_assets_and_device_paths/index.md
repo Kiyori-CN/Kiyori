@@ -50,14 +50,16 @@ status: verification_pending
 
 - `WorkspaceUtils` 的路径注释与 `apktool` 的当前宿主沙箱路径也属于本轮范围，统一使用 `com.kiyori`
 - QQ Bot 中仅存在于既有 `dist/` 包装器的旧 metadata 会随 ToolPkg 打包，因此只同步其展示文案，不改变入口或逻辑
+- iQOO 通知卡片左侧徽标不是状态栏 `smallIcon`；常驻对话通知需要显式 Kiyori 大图标，同时用新的 Kiyori Manifest 图标资源 ID 避免继续命中 Operit 时代的 OEM 图标缓存
 
 ## 验证结论
 
 - 父仓库与 `terminal` 的 `git diff --check` 通过
 - WebChat 生产构建与 Android assets 同步通过；源码、dist 与 Android assets 的 favicon SHA-256 一致
 - 正式开发准备门禁通过
-- 初始 `assembleDebug` 在 4 分 17 秒内成功；真机截图暴露通知仍使用平台机器人图标后，5 个同类入口统一改用 `ic_kiyori_notification`，再次构建在 1 分 14 秒内成功
-- 最新 APK 为 `2026-07-23 22:39:58 +08:00`、`450295648` 字节、SHA-256 `69A7C45604058511EAF8DE2FAB9542D2BD5D9E197398B59422B28C9EBF80E43E`，元数据为 `com.kiyori`、`45 / 0.1.0`、label `Kiyori`
+- 第一轮真机截图暴露 5 个通知入口仍使用平台图标，统一改用 `ic_kiyori_notification`；第二轮复测确认 iQOO 通知卡片左侧属于应用或大图标层，现已显式指定 Kiyori 大图标并切换 Manifest 图标资源 ID
+- 第二层修正首次构建被 `IconCompat` 类型错误正常拦截，改用平台 `Icon` 后 `assembleDebug` 在 1 分 21 秒内成功
+- 最新 APK 为 `2026-07-23 23:18:49 +08:00`、`458000918` 字节、SHA-256 `3ECD72FF3EB8CB82E45411640A6289E1CCAE6D0681A3487DB3CAE0A3EDFF0D7F`，元数据为 `com.kiyori`、`45 / 0.1.0`、label `Kiyori`，application icon 全部解析到 `ic_kiyori_launcher`
 - APK 包含 Kiyori icon/roundIcon、Kiyori WebChat 与 11 个预置 ToolPkg，不包含旧 `assets/operit.png`
 - `terminal` 品牌显示改动已提交为 `e3ee8d1` 并推送到 `origin/main`；父仓库品牌清理随本清单进入 `main`
 - 未运行 release、签名、发布、安装或设备操作；修复后的通知及其余真机显示仍为待验证

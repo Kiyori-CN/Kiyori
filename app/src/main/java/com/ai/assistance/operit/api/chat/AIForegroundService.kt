@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.AudioRecordingConfiguration
@@ -30,7 +31,6 @@ import com.ai.assistance.operit.util.AppLogger
 import androidx.core.app.NotificationCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.graphics.drawable.IconCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.speech.PersonalWakeListener
 import com.ai.assistance.operit.api.speech.SpeechPrerollStore
@@ -1856,8 +1856,6 @@ class AIForegroundService : Service() {
     }
 
     private fun createNotification(): Notification {
-        // 为了简单起见，使用一个安卓内置图标。
-        // 在实际项目中，应替换为应用的自定义图标。
         val wakeListeningEnabledSnapshot = wakeListeningEnabled
         val wakeListeningSuspendedSnapshot = wakeListeningSuspendedForIme || wakeListeningSuspendedForExternalRecording || wakeListeningSuspendedForFloatingFullscreen
         val externalHttpSnapshot = externalHttpStateFlow.value
@@ -1901,11 +1899,12 @@ class AIForegroundService : Service() {
             } else {
                 getString(R.string.service_operit_running)
             }
-        // Some OEMs render the platform info drawable as a full-color robot badge.
+        // iQOO uses the large/app icon for the card badge; smallIcon only covers the status bar.
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_kiyori_notification)
+            .setLargeIcon(Icon.createWithResource(this, R.drawable.ic_kiyori_app_icon))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true) // 使通知不可被用户清除
 
