@@ -74,7 +74,7 @@ fun createAndGetDefaultWorkspace(context: Context, chatId: String, projectType: 
 
 /**
  * 获取工作区路径（新位置：内部存储）
- * 路径: /data/data/com.ai.assistance.operit/files/workspace/{chatId}
+ * 路径: /data/data/com.kiyori/files/workspace/{chatId}
  */
 fun getWorkspacePath(context: Context, chatId: String): String {
     return File(context.filesDir, "workspace/$chatId").absolutePath

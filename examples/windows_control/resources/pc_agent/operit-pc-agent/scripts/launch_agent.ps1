@@ -889,7 +889,7 @@ try {
         Set-Content -Path $pidPath -Value ([string]$resolvedPid) -Encoding ASCII
     }
 
-    Write-Host "[OK] Operit PC Agent started on $url"
+    Write-Host "[OK] Kiyori PC Agent started on $url"
     Write-Log "OK" "Agent started: $url"
 
     $latestLaunchId = ""

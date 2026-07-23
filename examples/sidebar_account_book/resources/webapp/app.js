@@ -224,7 +224,7 @@
       e(
         "div",
         { className: "hero-card" },
-        e("div", { className: "eyebrow" }, "Operit Sidebar ToolPkg"),
+        e("div", { className: "eyebrow" }, "Kiyori Sidebar ToolPkg"),
         e("h1", { className: "hero-title" }, "本地 React 记账本"),
         e(
           "p",

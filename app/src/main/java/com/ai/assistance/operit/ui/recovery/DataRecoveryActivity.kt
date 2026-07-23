@@ -178,7 +178,7 @@ private fun DataRecoveryScreen() {
                 RecoverySection(title = "文件管理") {
                     val authority = "${context.packageName}.documents.data"
                     Text(
-                        text = "此页不直接打开文件管理器。需要手动查看或导出内部文件时，可以打开 MT 管理器，添加「本地存储仓库」，选择 Operit 的数据仓库后再管理。provider: $authority",
+                        text = "此页不直接打开文件管理器。需要手动查看或导出内部文件时，可以打开 MT 管理器，添加「本地存储仓库」，选择 Kiyori 的数据仓库后再管理。provider: $authority",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

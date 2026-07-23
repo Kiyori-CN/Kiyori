@@ -38,10 +38,10 @@ formal_development_readiness/
 
 ## 当前结论
 
-- 品牌/兼容性：部分完成。用户可见的终端名称已改为 Kiyori，协议、存储、备份和市场生态标识保留
+- 品牌/兼容性：待验证。当前未提交工作树已把 Android 系统界面、默认角色、WebChat、工作区模板、当前宿主沙箱路径、预置 ToolPkg 与 Terminal/Ubuntu 展示统一为 Kiyori；namespace、协议、存储、备份、Terminal rootfs 和市场生态标识保留，真机显示仍待验收
 - 自动门禁：`main@2b1fe99d` 的 2026-07-23 基线使用项目 `.venv` 通过正式准备检查、完整 Python 测试 `50/50`、Android dependency 测试 `13/13`、新鲜克隆与 `terminal` 初始化检查。该基线的 AGP 9.3/Kotlin 2.3.21 强制 Kotlin 复采为 610 条源码 warning，最终 Lint 为 46 warnings + 2 hints，baseline 未修改。本轮路径审计、市场兼容版本修复和两项 Kotlin/Compose 告警优化已重新通过 Debug 构建；完整 Lint 和真机验收仍未在本轮执行
 - 远端 CI：workflow 文件均为 active，但 Kiyori 私有仓库的 Actions 总开关为 `enabled=false`；已确认推送事件存在，workflow run 与 commit check 均为 0。重新启用前，本地门禁不能表述为远端 CI 已通过
-- Debug 构建：`2026-07-23 19:06:58 +08:00` 的 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `450295393` 字节，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 为 `46948D7C83D982221E19F0C0B8543CD308C2DBEFE85D582812F229FAD57A2695`。本次构建验证了市场兼容版本修复、路径审计后的资源与全部 11 个预置 ToolPkg；真机市场安装和文件系统验收仍待执行
+- Debug 构建：`2026-07-23 22:06:16 +08:00` 的 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `450295648` 字节，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 为 `DBA43BE71DA09B852AE11378A75EF671492CF0E8D494F364ADB63896D8A803F2`。本次构建验证了 Kiyori 品牌、图标、当前应用路径、WebChat 资产与全部 11 个预置 ToolPkg；真机 Launcher、系统文件选择器、快捷方式、通知、Terminal 和文件系统验收仍待执行
 - 16KB native：`zipalign -P 16` 通过；43 个 arm64 `.so` 中 33 个 ELF 已对齐，剩余 9 个为 ffmpeg-kit、1 个非 ELF `libsudo.so`；详见 [Android 工具链与 16 KB native](../android_toolchain_16kb_native/index.md)
 - 新鲜克隆：当前候选提交已通过父仓库克隆、`terminal` 初始化及 gitlink 对齐检查
 - Android 身份迁移：已记录为新 application ID，旧 Operit 安装不能直接覆盖

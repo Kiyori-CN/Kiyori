@@ -4749,7 +4749,7 @@
     <string name="backup_memory_count">메모리 항목</string>
     <string name="backup_memory_link_count">메모리 링크</string>
     <string name="backup_files_statistics">백업 파일 통계</string>
-    <string name="backup_files_statistics_subtitle">Operit 내보내기 디렉터리의 백업 파일</string>
+    <string name="backup_files_statistics_subtitle">Kiyori 내보내기 디렉터리의 백업 파일</string>
     <string name="backup_refresh">새로 고침</string>
     <string name="backup_scanning">스캔 중</string>
     <string name="backup_chat_files">채팅 기록</string>
@@ -4845,7 +4845,7 @@
     <string name="backup_select_export_format">내보내기 형식 선택</string>
     <string name="backup_select_format_hint">내보낼 채팅 기록 형식을 선택하세요:</string>
     <string name="backup_format_json">JSON(권장)</string>
-    <string name="backup_format_json_desc">Operit 기본 형식이며 변형과 기타 모든 데이터를 보존합니다.</string>
+    <string name="backup_format_json_desc">Kiyori 기본 형식이며 변형과 기타 모든 데이터를 보존합니다.</string>
     <string name="backup_format_markdown">마크다운</string>
     <string name="backup_format_markdown_desc">읽고 편집하기 쉬운 가벼운 마크업 형식</string>
     <string name="backup_format_html">HTML</string>
@@ -4854,7 +4854,7 @@
     <string name="backup_format_txt_desc">간단한 텍스트 형식, 공유가 용이함</string>
     <string name="backup_select_import_format">가져오기 형식 선택</string>
     <string name="backup_import_format_hint">가져올 채팅 기록 형식을 선택하세요.</string>
-    <string name="backup_format_operit">Operit JSON(권장)</string>
+    <string name="backup_format_operit">Kiyori JSON(권장)</string>
     <string name="backup_format_operit_desc">이 앱의 기본 형식으로 변형 및 기타 모든 데이터가 보존됩니다.</string>
     <string name="backup_format_chatgpt">ChatGPT</string>
     <string name="backup_format_chatgpt_desc">OpenAI ChatGPT conversations.json 내보내기 형식</string>

@@ -4595,7 +4595,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_memory_count">Entri Memori</string>
     <string name="backup_memory_link_count">Asosiasi Memori</string>
     <string name="backup_files_statistics">Statistik File Cadangan</string>
-    <string name="backup_files_statistics_subtitle">File cadangan di direktori ekspor Operit</string>
+    <string name="backup_files_statistics_subtitle">File cadangan di direktori ekspor Kiyori</string>
     <string name="backup_refresh">Segarkan</string>
     <string name="backup_scanning">Memindai</string>
     <string name="backup_chat_files">Catatan Percakapan</string>
@@ -4774,7 +4774,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_select_export_format">Pilih format ekspor</string>
     <string name="backup_select_format_hint">Silakan pilih format riwayat percakapan yang akan diekspor:</string>
     <string name="backup_format_json">JSON (Direkomendasikan)</string>
-    <string name="backup_format_json_desc">Format asli Operit, mempertahankan semua data secara lengkap</string>
+    <string name="backup_format_json_desc">Format asli Kiyori, mempertahankan semua data secara lengkap</string>
     <string name="backup_format_markdown">Markdown</string>
     <string name="backup_format_markdown_desc">Format markup ringan, mudah dibaca dan diedit</string>
     <string name="backup_format_html">HTML</string>
@@ -4783,7 +4783,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="backup_format_txt_desc">Format teks sederhana, mudah dibagikan</string>
     <string name="backup_select_import_format">Pilih format impor</string>
     <string name="backup_import_format_hint">Silakan pilih format riwayat percakapan yang akan diimpor:</string>
-    <string name="backup_format_operit">Operit JSON (Direkomendasikan)</string>
+    <string name="backup_format_operit">Kiyori JSON (Direkomendasikan)</string>
     <string name="backup_format_operit_desc">Format asli aplikasi ini, mempertahankan semua data secara lengkap</string>
     <string name="backup_format_chatgpt">ChatGPT</string>
     <string name="backup_format_chatgpt_desc">Format ekspor conversations.json OpenAI ChatGPT</string>

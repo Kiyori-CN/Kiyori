@@ -1,6 +1,6 @@
-# Operit PC Agent (Windows)
+# Kiyori PC Agent (Windows)
 
-Windows side helper project for Operit.
+Windows side helper project for Kiyori.
 
 - Local config UI: `http://127.0.0.1:58321`
 - Single-entry launcher: `operit_pc_agent.bat`

@@ -7,8 +7,8 @@
         "en": "QQ Bot Auto Reply"
     },
     "description": {
-        "zh": "把 QQ Bot 收到的消息自动桥接到 Operit 聊天能力，再把 AI 回复自动发回 QQ。",
-        "en": "Automatically bridge inbound QQ Bot messages into Operit's chat capability, then send AI replies back to QQ."
+        "zh": "把 QQ Bot 收到的消息自动桥接到 Kiyori 聊天能力，再把 AI 回复自动发回 QQ。",
+        "en": "Automatically bridge inbound QQ Bot messages into Kiyori's chat capability, then send AI replies back to QQ."
     },
     "enabledByDefault": true,
     "category": "Communication",
@@ -34,7 +34,7 @@
                 },
                 {
                     "name": "ai_timeout_ms",
-                    "description": { "zh": "等待 Operit AI 回复的超时毫秒数，默认 180000", "en": "Timeout in milliseconds while waiting for the Operit AI reply, default 180000" },
+                    "description": { "zh": "等待 Kiyori AI 回复的超时毫秒数，默认 180000", "en": "Timeout in milliseconds while waiting for the Kiyori AI reply, default 180000" },
                     "type": "number",
                     "required": false
                 },
@@ -52,7 +52,7 @@
                 },
                 {
                     "name": "chat_group",
-                    "description": { "zh": "为自动创建的 Operit 对话指定分组名，默认 QQ Bot", "en": "Group name for auto-created Operit chats, default QQ Bot" },
+                    "description": { "zh": "为自动创建的 Kiyori 对话指定分组名，默认 QQ Bot", "en": "Group name for auto-created Kiyori chats, default QQ Bot" },
                     "type": "string",
                     "required": false
                 },
@@ -64,7 +64,7 @@
                 },
                 {
                     "name": "assistant_instruction",
-                    "description": { "zh": "每次桥接到 Operit 时附带的回复指令", "en": "Instruction prepended when bridging each message into Operit" },
+                    "description": { "zh": "每次桥接到 Kiyori 时附带的回复指令", "en": "Instruction prepended when bridging each message into Kiyori" },
                     "type": "string",
                     "required": false
                 },
@@ -87,8 +87,8 @@
         {
             "name": "qqbot_auto_reply_start",
             "description": {
-                "zh": "启动 QQ Bot 自动回复循环。它会轮询消息队列，自动调用 Operit AI，再把回复发回 QQ。",
-                "en": "Start the QQ Bot auto-reply loop. It polls the message queue, invokes Operit's AI, and sends the reply back to QQ."
+                "zh": "启动 QQ Bot 自动回复循环。它会轮询消息队列，自动调用 Kiyori AI，再把回复发回 QQ。",
+                "en": "Start the QQ Bot auto-reply loop. It polls the message queue, invokes Kiyori's AI, and sends the reply back to QQ."
             },
             "parameters": []
         },

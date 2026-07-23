@@ -5,10 +5,10 @@ export const WINDOWS_SETUP_EN_US: WindowsSetupI18n = {
   subtitle:
     "Use script-driven UI to verify agent connection, share installer package, and apply config.",
   step1Title: "Step 1: Share Installer",
-  step1Desc: "Export and share Operit PC Agent ZIP to the target Windows device.",
+  step1Desc: "Export and share Kiyori PC Agent ZIP to the target Windows device.",
   step1Button: "Export and Share ZIP",
   exporting: "Exporting...",
-  shareTitle: "Operit PC Agent",
+  shareTitle: "Kiyori PC Agent",
   step1SuccessPrefix: "Exported and opened share sheet: ",
   step1ShareFailed: "Share failed",
   step1MissingResource: "Installer resource not found",

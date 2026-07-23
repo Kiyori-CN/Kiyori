@@ -4730,7 +4730,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="backup_select_export_format">Pilih format eksport</string>
     <string name="backup_select_format_hint">Sila pilih format rekod sembang yang ingin dieksport:</string>
     <string name="backup_format_json">JSON (disyorkan)</string>
-    <string name="backup_format_json_desc">Format asli Operit, mengekalkan semua data dengan lengkap</string>
+    <string name="backup_format_json_desc">Format asli Kiyori, mengekalkan semua data dengan lengkap</string>
     <string name="backup_format_markdown">Markdown</string>
     <string name="backup_format_markdown_desc">Format penanda ringan, mudah dibaca dan disunting</string>
     <string name="backup_format_html">HTML</string>
@@ -4739,7 +4739,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="backup_format_txt_desc">Format teks ringkas, mudah dikongsi</string>
     <string name="backup_select_import_format">Pilih format import</string>
     <string name="backup_import_format_hint">Sila pilih format rekod sembang yang ingin diimport:</string>
-    <string name="backup_format_operit">Operit JSON (disyorkan)</string>
+    <string name="backup_format_operit">Kiyori JSON (disyorkan)</string>
     <string name="backup_format_operit_desc">Format asli aplikasi ini, mengekalkan semua data dengan lengkap</string>
     <string name="backup_format_chatgpt">ChatGPT</string>
     <string name="backup_format_chatgpt_desc">Format eksport conversations.json OpenAI ChatGPT</string>
@@ -4757,7 +4757,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="backup_memory_count">Entri ingatan</string>
     <string name="backup_memory_link_count">Pautan ingatan</string>
     <string name="backup_files_statistics">Statistik fail sandaran</string>
-    <string name="backup_files_statistics_subtitle">Fail sandaran dalam direktori eksport Operit</string>
+    <string name="backup_files_statistics_subtitle">Fail sandaran dalam direktori eksport Kiyori</string>
     <string name="backup_refresh">Segar semula</string>
     <string name="backup_scanning">Sedang mengimbas</string>
     <string name="backup_chat_files">Rekod sembang</string>

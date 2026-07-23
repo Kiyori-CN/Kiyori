@@ -7,7 +7,7 @@ const RESOURCES = {
       chinese: "中文"
     },
     ui: {
-      title: "Operit PC Agent Console",
+      title: "Kiyori PC Agent Console",
       subtitle: "Windows bridge for mobile integration, secure HTTP relay, and command validation"
     },
     nav: {
@@ -196,7 +196,7 @@ const RESOURCES = {
       chinese: "中文"
     },
     ui: {
-      title: "Operit PC Agent 控制台",
+      title: "Kiyori PC Agent 控制台",
       subtitle: "面向移动端对接的 Windows 桥接服务：安全 HTTP 中转与命令验证"
     },
     nav: {

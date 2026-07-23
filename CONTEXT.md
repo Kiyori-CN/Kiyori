@@ -10,6 +10,7 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - **Kiyori** is the repository and Gradle root-project name.
 - The project repository is `https://github.com/Kiyori-CN/Kiyori`.
 - The Android application ID is `com.kiyori`.
+- Android system surfaces, the default assistant persona, Kiyori-owned file-provider titles, WebChat, generated workspace display text, and Kiyori-owned companion UI use the Kiyori brand.
 
 ## Product position and ownership
 
@@ -108,6 +109,7 @@ The following names are implementation or interoperability identifiers, not the 
 - the source namespace `com.ai.assistance.operit`;
 - the `operit://` OAuth callback and other externally consumed URI schemes;
 - persisted database, preference, backup, workspace, plugin, ToolPkg, MCP, Intent action, and file-format identifiers;
+- `.operit/config.json`, `com.operit.*` ToolPkg IDs, `remote_operit`, `operit-pc-agent` filenames and directories, and `OPERIT_*` environment variables;
 - attribution, license history, source references, and upstream documentation that must continue to identify Operit accurately.
 
 Changing one of these identifiers requires a separate compatibility design and migration plan.
@@ -120,5 +122,7 @@ Kiyori's user-visible `versionName` and the **Operit Market Compatibility Versio
 - The `terminal` directory is the `KiyoriTerminalCore` submodule and is pinned by a parent gitlink.
 - `com.kiyori` is a new Android application identity. It cannot in-place upgrade `com.ai.assistance.operit`; users must export and import supported backups.
 - Kiyori creates public runtime data under `Download/Kiyori`. An old Operit backup may be selected through an explicit import flow, but Kiyori does not automatically scan, merge, migrate, or delete `Download/Operit`.
+- Current-app sandbox references use `/data/data/com.kiyori`; source namespaces and external action or provider contracts continue using their established compatibility identifiers.
+- Terminal keeps `installed-rootfs/ubuntu`, `.operit_installed_ok`, its existing internal mount variables, and native filenames. Only the file-provider title and generated package-source comments use the Kiyori brand.
 - Inherited backup formats, market wire types, plugin IDs, ToolPkg IDs, MCP IDs, namespaces, and protocol identifiers remain interoperability boundaries even when visible text says Kiyori.
 - Root JavaScript metadata is private development tooling (`kiyori-tooling`), not a runtime package or public npm contract.

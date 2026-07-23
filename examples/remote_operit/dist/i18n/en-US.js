@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.REMOTE_OPERIT_SETUP_EN_US = void 0;
 exports.REMOTE_OPERIT_SETUP_EN_US = {
     title: "Remote Operit Setup",
-    subtitle: "Let the current Operit call another Operit device through the LAN HTTP API.",
+    subtitle: "Let the current Kiyori call another Operit device through the LAN HTTP API.",
     topBanner: "Enable External HTTP Chat on the target Operit device first, then paste the LAN URL and Bearer token from that screen here.",
     configCardTitle: "Connection Config",
-    configCardSubtitle: "After saving, this Operit can forward chat requests to another Operit device. A full http://IP:port URL is recommended.",
+    configCardSubtitle: "After saving, this Kiyori can forward chat requests to another Operit device. A full http://IP:port URL is recommended.",
     baseUrlLabel: "Remote Operit Base URL",
     baseUrlPlaceholder: "For example http://192.168.1.23:8094",
     tokenLabel: "Bearer Token",
@@ -38,7 +38,7 @@ exports.REMOTE_OPERIT_SETUP_EN_US = {
     statusErrorPrefix: "Operation failed: ",
     packageNotEnabled: "Package not imported or config incomplete. Save the connection config first.",
     exampleCardTitle: "How To Use",
-    exampleCardSubtitle: "Once enabled, the current Operit can forward work to another device. The main entry is remote_operit_chat.",
+    exampleCardSubtitle: "Once enabled, the current Kiyori can forward work to another device. The main entry is remote_operit_chat.",
     examplePromptTitle: "Recommended Use",
     examplePromptBody: "Use remote_operit_chat when the other device has files, apps, permissions, or context that this device does not.",
     exampleParamsTitle: "remote_operit_chat Example",

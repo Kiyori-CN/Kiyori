@@ -6,8 +6,8 @@
         "en": "QQ Bot"
     },
     "description": {
-        "zh": "把腾讯 QQ Bot 的配置、后台 Gateway WebSocket 收消息服务、消息队列读取，以及 C2C/群发消息能力整理成 Operit 工具。",
-        "en": "Expose Tencent QQ Bot configuration, background Gateway WebSocket receive service, queued inbound events, and C2C/group messaging as Operit tools."
+        "zh": "把腾讯 QQ Bot 的配置、后台 Gateway WebSocket 收消息服务、消息队列读取，以及 C2C/群发消息能力整理成 Kiyori 工具。",
+        "en": "Expose Tencent QQ Bot configuration, background Gateway WebSocket receive service, queued inbound events, and C2C/group messaging as Kiyori tools."
     },
     "enabledByDefault": true,
     "category": "Communication",

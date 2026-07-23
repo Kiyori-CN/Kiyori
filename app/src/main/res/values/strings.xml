@@ -5446,7 +5446,7 @@
     <string name="backup_memory_count">记忆条目</string>
     <string name="backup_memory_link_count">记忆关联</string>
     <string name="backup_files_statistics">备份文件统计</string>
-    <string name="backup_files_statistics_subtitle">Operit 导出目录中的备份文件</string>
+    <string name="backup_files_statistics_subtitle">Kiyori 导出目录中的备份文件</string>
     <string name="backup_refresh">刷新</string>
     <string name="backup_scanning">扫描中</string>
     <string name="backup_chat_files">聊天记录</string>
@@ -5550,7 +5550,7 @@
     <string name="backup_select_export_format">选择导出格式</string>
     <string name="backup_select_format_hint">请选择要导出的聊天记录格式：</string>
     <string name="backup_format_json">JSON（推荐）</string>
-    <string name="backup_format_json_desc">Operit 原生格式，完整保留消息切换等所有数据</string>
+    <string name="backup_format_json_desc">Kiyori 原生格式，完整保留消息切换等所有数据</string>
     <string name="backup_format_markdown">Markdown</string>
     <string name="backup_format_markdown_desc">轻量级标记格式，便于阅读和编辑</string>
     <string name="backup_format_html">HTML</string>
@@ -5561,7 +5561,7 @@
     <!-- 导入格式选择 -->
     <string name="backup_select_import_format">选择导入格式</string>
     <string name="backup_import_format_hint">请选择要导入的聊天记录格式：</string>
-    <string name="backup_format_operit">Operit JSON（推荐）</string>
+    <string name="backup_format_operit">Kiyori JSON（推荐）</string>
     <string name="backup_format_operit_desc">本应用的原生格式，完整保留消息切换等所有数据</string>
     <string name="backup_format_chatgpt">ChatGPT</string>
     <string name="backup_format_chatgpt_desc">OpenAI ChatGPT conversations.json 导出格式</string>

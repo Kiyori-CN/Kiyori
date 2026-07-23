@@ -4338,7 +4338,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="backup_memory_count">entrada de memória</string>
     <string name="backup_memory_link_count">associação de memória</string>
     <string name="backup_files_statistics">Estatísticas de arquivo de backup</string>
-    <string name="backup_files_statistics_subtitle">Arquivos de backup no diretório de exportação do Operit</string>
+    <string name="backup_files_statistics_subtitle">Arquivos de backup no diretório de exportação do Kiyori</string>
     <string name="backup_refresh">atualizar</string>
     <string name="backup_scanning">Digitalizando</string>
     <string name="backup_chat_files">Histórico de bate-papo</string>
@@ -4432,7 +4432,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="backup_select_export_format">Selecione o formato de exportação</string>
     <string name="backup_select_format_hint">Selecione o formato do histórico de bate-papo que deseja exportar:</string>
     <string name="backup_format_json">JSON (recomendado)</string>
-    <string name="backup_format_json_desc">Operar formato nativo, mantendo todos os dados intactos</string>
+    <string name="backup_format_json_desc">Formato nativo do Kiyori, mantendo todos os dados intactos</string>
     <string name="backup_format_markdown">Remarcação</string>
     <string name="backup_format_markdown_desc">Formato de marcação leve para fácil leitura e edição</string>
     <string name="backup_format_html">HTML</string>
@@ -4441,7 +4441,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="backup_format_txt_desc">Formato de texto simples para fácil compartilhamento</string>
     <string name="backup_select_import_format">Selecione o formato de importação</string>
     <string name="backup_import_format_hint">Selecione o formato do histórico de bate-papo para importar:</string>
-    <string name="backup_format_operit">Operar JSON (recomendado)</string>
+    <string name="backup_format_operit">Kiyori JSON (recomendado)</string>
     <string name="backup_format_operit_desc">O formato nativo deste aplicativo mantém todos os dados intactos</string>
     <string name="backup_format_chatgpt">Bate-papoGPT</string>
     <string name="backup_format_chatgpt_desc">Formato de exportação OpenAI ChatGPT conversas.json</string>
@@ -5862,7 +5862,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="chat_ai_service_unavailable_summarize">O serviço de IA está indisponível e não pode ser resumido</string>
     <string name="chat_summarize_failed_no_valid_summary">Falha no resumo: falha ao gerar um resumo válido</string>
     <string name="chat_summarize_generation_failed">Falha na geração do resumo: %1$s</string>
-    <string name="service_operit_running">Operat está em execução</string>
+    <string name="service_operit_running">Kiyori está em execução</string>
     <string name="service_chat_complete_reminder">Lembrete de conclusão de conversa</string>
     <string name="service_chat_complete_reminder_sound">Lembrete de conclusão de conversa (som de bipe)</string>
     <string name="service_chat_complete_reminder_vibration">Lembrete de conclusão de conversa (vibração)</string>

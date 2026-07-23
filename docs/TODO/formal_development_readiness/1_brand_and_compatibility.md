@@ -10,6 +10,7 @@ Kiyori 是用户可见的产品品牌、仓库名、Gradle 根项目名和 Andro
 - `operit://`、既有 Intent action、AIDL 名称和外部调用契约
 - 数据库、偏好、备份格式、工作区格式、插件、ToolPkg、MCP 和文件格式标识
 - `OperitForge`、Operit 市场协议、`operit_editor` 等外部生态名称
+- `.operit/config.json`、`com.operit.*` ToolPkg ID、`remote_operit`、`operit-pc-agent` 文件与目录名、`OPERIT_*` 环境变量
 - 独立于 Kiyori 产品版本的 Operit 市场兼容版本，用于插件 `minAppVer` 和 `maxAppVer` 范围判断
 - 上游作者、许可证、历史归属和源码来源
 - 内部资源 key、类名、日志标识和 native 文件名，除非它们直接出现在用户界面
@@ -17,7 +18,10 @@ Kiyori 是用户可见的产品品牌、仓库名、Gradle 根项目名和 Andro
 必须使用 Kiyori 的位置包括：
 
 - 应用名称、启动图标、About、帮助、反馈和项目链接
+- Android 系统界面、默认角色、文件选择器根标题、通知和快捷方式的当前宿主引用
+- WebChat、工作区模板展示文字以及 Kiyori 自有 companion 的界面标题
 - 用户可见的终端产品名称和示例命令输出
+- 当前应用沙箱 `/data/data/com.kiyori`；源码 namespace、action、provider 与 ToolPkg ID 不随之改名
 - Kiyori 新建公共数据的 `Download/Kiyori` 根目录
 - CI 产物名称、仓库工具包元数据和新建的开发文档
 
@@ -32,3 +36,5 @@ Kiyori `versionName` 标识产品发布，不能代替 Operit 插件运行时兼
 `ci/script/check_formal_readiness.py` 对用户可见终端文案、Kiyori application ID、根项目名、子模块来源和敏感/运行产物路径进行检查。它不以“搜索结果中不应出现 Operit”作为通过条件；允许列表由本文件定义。
 
 新增用户可见文案或链接时，必须同时更新本文件、`CONTEXT.md` 和对应语言资源，并说明是否为兼容标识。内部标识迁移不得混入品牌文案变更。
+
+默认角色直接引用现有 Kiyori drawable，WebChat favicon 复用仓库 Kiyori logo。旧 Operit 角色图片在零引用后删除，不保留并行品牌资产。Terminal 的 `installed-rootfs/ubuntu`、安装标记与内部挂载路径不属于产品品牌路径，继续保持稳定。

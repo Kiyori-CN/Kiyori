@@ -66,7 +66,7 @@ class CharacterCardManager private constructor(private val context: Context) {
         // 默认角色卡ID
         const val DEFAULT_CHARACTER_CARD_ID = "default_character"
 
-        const val DEFAULT_CHARACTER_NAME = "Operit"
+        const val DEFAULT_CHARACTER_NAME = "Kiyori"
         
         @Volatile
         private var INSTANCE: CharacterCardManager? = null
@@ -476,7 +476,10 @@ class CharacterCardManager private constructor(private val context: Context) {
             // We should migrate their existing theme settings to the default character card.
             AppLogger.d("CharacterCardManager", "First initialization detected. Migrating current theme to default character card.")
             userPreferencesManager.copyCurrentThemeToCharacterCard(DEFAULT_CHARACTER_CARD_ID)
-            userPreferencesManager.saveAiAvatarForCharacterCard(DEFAULT_CHARACTER_CARD_ID, "file:///android_asset/operit.png")
+            userPreferencesManager.saveAiAvatarForCharacterCard(
+                DEFAULT_CHARACTER_CARD_ID,
+                "android.resource://${context.packageName}/drawable/ic_kiyori_app_icon"
+            )
         }
 
         // 清理历史内置功能标签（chat/voice/desktop pet）
@@ -491,7 +494,10 @@ class CharacterCardManager private constructor(private val context: Context) {
             setupDefaultCharacterCard(preferences, DEFAULT_CHARACTER_CARD_ID)
         }
         // 同时也重置头像和主题
-        userPreferencesManager.saveAiAvatarForCharacterCard(DEFAULT_CHARACTER_CARD_ID, "file:///android_asset/operit.png")
+        userPreferencesManager.saveAiAvatarForCharacterCard(
+            DEFAULT_CHARACTER_CARD_ID,
+            "android.resource://${context.packageName}/drawable/ic_kiyori_app_icon"
+        )
     }
     
     private fun setupDefaultCharacterCard(preferences: MutablePreferences, id: String) {

@@ -6,15 +6,15 @@
         "en": "Windows Control"
     },
     "description": {
-        "zh": "通过 HTTP 调用 Operit PC Agent 控制 Windows 电脑，支持执行 PowerShell/CMD 命令并返回输出。",
-        "en": "Control a Windows PC through Operit PC Agent over HTTP, execute PowerShell/CMD commands, and return output."
+        "zh": "通过 HTTP 调用 Kiyori PC Agent 控制 Windows 电脑，支持执行 PowerShell/CMD 命令并返回输出。",
+        "en": "Control a Windows PC through Kiyori PC Agent over HTTP, execute PowerShell/CMD commands, and return output."
     },
     "enabledByDefault": false,
     "category": "System",
     "env": [
         {
             "name": "WINDOWS_AGENT_BASE_URL",
-            "description": { "zh": "Operit PC Agent 地址，例如 http://192.168.1.8:58321", "en": "Operit PC Agent URL, e.g. http://192.168.1.8:58321" },
+            "description": { "zh": "Kiyori PC Agent 地址，例如 http://192.168.1.8:58321", "en": "Kiyori PC Agent URL, e.g. http://192.168.1.8:58321" },
             "required": true
         },
         {
@@ -46,8 +46,8 @@
         {
             "name": "windows_exec",
             "description": {
-                "zh": "通过 Operit PC Agent 的 HTTP 接口在 Windows 上执行命令。",
-                "en": "Execute commands on Windows via Operit PC Agent HTTP API."
+                "zh": "通过 Kiyori PC Agent 的 HTTP 接口在 Windows 上执行命令。",
+                "en": "Execute commands on Windows via Kiyori PC Agent HTTP API."
             },
             "parameters": [
                 {

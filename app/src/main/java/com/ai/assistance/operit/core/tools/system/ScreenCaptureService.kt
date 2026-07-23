@@ -101,7 +101,7 @@ class ScreenCaptureService : Service() {
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Screen Capture Active")
-            .setContentText("Operit is capturing screen content")
+            .setContentText("Kiyori is capturing screen content")
             .setSmallIcon(R.drawable.ic_kiyori_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

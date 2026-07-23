@@ -2,7 +2,7 @@
   "name": "operit-pc-agent",
   "version": "0.2.2",
   "private": true,
-  "description": "Windows side local agent for Operit remote control.",
+  "description": "Windows side local agent for Kiyori remote control.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"

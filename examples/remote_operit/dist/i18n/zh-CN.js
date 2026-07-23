@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.REMOTE_OPERIT_SETUP_ZH_CN = void 0;
 exports.REMOTE_OPERIT_SETUP_ZH_CN = {
     title: "远程 Operit 配置",
-    subtitle: "让当前 Operit 通过局域网 HTTP API 调用另一台设备上的 Operit。",
+    subtitle: "让当前 Kiyori 通过局域网 HTTP API 调用另一台设备上的 Operit。",
     topBanner: "先在目标设备的 Operit 设置里启用“外部 HTTP 调用”，再把该设备页面里显示的局域网地址和 Bearer Token 填到这里。",
     configCardTitle: "连接配置",
-    configCardSubtitle: "保存后，当前 Operit 就能把聊天请求转发到另一台设备上的 Operit。推荐填写完整的 http://IP:端口。",
+    configCardSubtitle: "保存后，当前 Kiyori 就能把聊天请求转发到另一台设备上的 Operit。推荐填写完整的 http://IP:端口。",
     baseUrlLabel: "远程 Operit Base URL",
     baseUrlPlaceholder: "例如 http://192.168.1.23:8094",
     tokenLabel: "Bearer Token",
@@ -38,9 +38,9 @@ exports.REMOTE_OPERIT_SETUP_ZH_CN = {
     statusErrorPrefix: "操作失败：",
     packageNotEnabled: "包未导入或配置不完整，请先保存连接配置。",
     exampleCardTitle: "使用方式",
-    exampleCardSubtitle: "导入并启用后，当前 Operit 可以直接把任务转发到另一台设备。常用入口是 remote_operit_chat。",
+    exampleCardSubtitle: "导入并启用后，当前 Kiyori 可以直接把任务转发到另一台设备。常用入口是 remote_operit_chat。",
     examplePromptTitle: "推荐场景",
-    examplePromptBody: "当另一台设备拥有本机没有的文件、应用、权限或上下文时，让当前 Operit 调 remote_operit_chat 去协作。",
+    examplePromptBody: "当另一台设备拥有本机没有的文件、应用、权限或上下文时，让当前 Kiyori 调 remote_operit_chat 去协作。",
     exampleParamsTitle: "remote_operit_chat 参数示例",
     exampleParamsBody: "{\n  \"message\": \"请检查下载目录里最新的日志并总结异常\",\n  \"group\": \"ops\",\n  \"create_new_chat\": false,\n  \"show_floating\": false,\n  \"stop_after\": true\n}\n\n支持透传 message / group / create_new_chat / chat_id / create_if_none / show_floating / auto_exit_after_ms / stop_after。"
 };

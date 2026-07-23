@@ -227,7 +227,7 @@ object MessageImageGenerator {
                                                     // Logo
                                                     Image(
                                                         painter = painterResource(id = com.ai.assistance.operit.R.drawable.ic_kiyori_app_icon),
-                                                        contentDescription = "Operit Logo",
+                                                        contentDescription = "Kiyori Logo",
                                                         modifier = Modifier.size(48.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(2.dp))
