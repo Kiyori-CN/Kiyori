@@ -98,6 +98,16 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         @Volatile internal var desktopModeEnabled: Boolean = true
         @Volatile internal var desktopModeInitialized: Boolean = false
         @Volatile internal var pendingExternalOpenRequest: PendingExternalOpenRequest? = null
+
+        @Volatile private var sharedInstance: StandardBrowserSessionTools? = null
+
+        fun getSharedInstance(context: Context): StandardBrowserSessionTools =
+            sharedInstance ?: synchronized(this) {
+                sharedInstance
+                    ?: StandardBrowserSessionTools(context.applicationContext).also { instance ->
+                        sharedInstance = instance
+                    }
+            }
     }
 
     internal val historyStore by lazy { WebSessionHistoryStore.getInstance(context.applicationContext) }

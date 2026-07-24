@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
@@ -173,7 +174,7 @@ internal fun WebSessionBrowserScreen(
                     }
                 },
                 onSubmitUrl = {
-                    val target = normalizeNavigationUrl(hostState.urlDraft)
+                    val target = BrowserAddressResolver.resolve(hostState.urlDraft)
                     onNavigate(target)
                     onHostStateChange { current ->
                         current.copy(
@@ -296,6 +297,9 @@ internal fun WebSessionBrowserScreen(
                             },
                             update = { container ->
                                 webViewHost.attachContainer(container)
+                            },
+                            onRelease = { container ->
+                                webViewHost.detachContainer(container)
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -730,28 +734,6 @@ private fun BrowserDownloadSummaryBar(
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
-    }
-}
-
-private fun normalizeNavigationUrl(raw: String): String {
-    val trimmed = raw.trim()
-    if (trimmed.isBlank()) {
-        return "about:blank"
-    }
-
-    val lower = trimmed.lowercase(Locale.ROOT)
-    if (
-        lower.startsWith("http://") ||
-        lower.startsWith("https://") ||
-        lower.startsWith("about:")
-    ) {
-        return trimmed
-    }
-
-    return if (!trimmed.contains("://") && trimmed.contains(".") && !trimmed.contains(" ")) {
-        "https://$trimmed"
-    } else {
-        trimmed
     }
 }
 

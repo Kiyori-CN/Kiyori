@@ -13,13 +13,14 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - App Shell 首个切片已实现五个根目的地、三页首页 Pager、底栏可见性和 Shell Back 状态；模态 AI 左抽屉已经取代全屏 AI Center
 - AI 对话宿主保持单实例挂载，Terminal 与对话历史入口继续留在 AI 首页
 - 旧顶层抽屉、平板旧侧栏、透视变换、边缘拖动、全局手势持有者及抽屉专属主题设置已删除
-- 浏览器、小程序、文件管理、设置仍是根页面骨架；真实领域内容、独立子栈与滚动状态尚未接入
+- 浏览器首页首期已接入 WebSession 共用宿主并完成 Debug 构建，真机验收保持 `verification_pending`；小程序、文件管理和设置仍是根页面骨架
 - 全屏网页搜索和负一屏已建立页面骨架，但搜索提交、浏览器窗口合同与真实数据仍未接入
 - 模态 AI 左抽屉的无手势容器、一级页面状态、AI 设置来源返回和原版信息密度已在本切片实现；权限总览继续由后续切片完成
 - 首页三页已共享 Pager 输入与 fling；抽屉面板从状态栏底部开始且保留全屏遮罩；ToolPkg 一级根开始严格服从自身 `keepAlive` 合同
 - 2026-07-23 累积自动验证通过：Debug Kotlin 编译、定向 Shell 测试 `23/23`、完整 Debug JVM 测试 `394/394`、47 项 CI Python 测试、正式开发准备门禁、Android lint、`git diff --check` 和 `assembleDebug`
+- 2026-07-24 浏览器首页首期通过正式准备门禁、源码审计、`git diff --check` 与 Debug APK 构建；本轮未运行 JVM、UI、设备或联网测试
 - 当前告警复采完成：Kotlin 告警从 453 降至 436，lint 从 59 warning 降至 52 warning；本轮新增和高风险候选已消失，CMake 仅保留第三方 OpenFST 与本机工具链告警
-- 最新 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于 `2026-07-23 03:31:37 +08:00`，大小 `416308263` 字节，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `38F1F9A37CD55902428E1E6D42989DCCCE0C232C0D88E72764B3603AFED1C494`
+- 最新 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于 `2026-07-24 05:09:59 +08:00`，大小 `442753282` 字节，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `D824529560D448DB695823277946ED207616C5172454D29BC750CD2B028E435C`
 - 自动编译和 JVM 状态测试不替代真机手势、Back、旋转、折叠屏及流式对话持续性验收
 
 ## 目标
@@ -83,6 +84,8 @@ kiyori_product_shell/
 3. [网页搜索与自适应布局](3_web_search_and_adaptive_layout.md)
 4. [AI 能力授权与操作记录](4_capability_authorization_and_audit.md)
 5. [浏览器 source-port](5_browser_source_port.md)
+
+浏览器首页首期共享运行时与 App Shell 适配见 [浏览器首页与 WebSession 共用计划](../kiyori_browser_home_websession/index.md)。
 
 ## 决策队列
 

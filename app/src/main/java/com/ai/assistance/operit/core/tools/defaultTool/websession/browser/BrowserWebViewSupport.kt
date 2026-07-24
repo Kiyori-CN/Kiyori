@@ -377,14 +377,16 @@ internal fun StandardBrowserSessionTools.configureWebView(
             ) {
                 AppLogger.w(
                     WEBVIEW_SUPPORT_TAG,
-                    "web_session SSL error, proceeding anyway. " +
+                    "web_session SSL error, cancelling load. " +
                         "session=${session.id}, url=${error.url}, primaryError=${error.primaryError}"
                 )
+                handler.cancel()
+                session.pageLoaded = false
+                session.isLoading = false
                 session.hasSslError = true
                 notifySessionStateChanged(session)
                 updateNavigationState(session)
                 refreshSessionUiOnMain(session.id)
-                handler.proceed()
             }
 
             override fun onRenderProcessGone(
@@ -422,6 +424,15 @@ internal fun StandardBrowserSessionTools.ensureOverlayOnMain(
     appContext: Context,
     initialExpanded: Boolean = false
 ): WebSessionBrowserHost {
+    val host = ensureBrowserPresentationOnMain(appContext)
+    host.ensureCreated(initialExpanded = initialExpanded)
+    refreshSessionUiOnMain()
+    return host
+}
+
+internal fun StandardBrowserSessionTools.ensureBrowserPresentationOnMain(
+    appContext: Context,
+): WebSessionBrowserHost {
     StandardBrowserSessionTools.browserHost?.let { return it }
 
     synchronized(StandardBrowserSessionTools.overlayLock) {
@@ -435,8 +446,6 @@ internal fun StandardBrowserSessionTools.ensureOverlayOnMain(
                 callbacks = createBrowserHostCallbacks(appContext)
             )
         StandardBrowserSessionTools.browserHost = host
-        host.ensureCreated(initialExpanded = initialExpanded)
-        refreshSessionUiOnMain()
         return host
     }
 }
@@ -670,9 +679,12 @@ internal fun StandardBrowserSessionTools.setExpandedOnMain(expanded: Boolean) {
 }
 
 internal fun StandardBrowserSessionTools.openUserscriptSheetOnMain() {
-    ensureOverlayOnMain(context.applicationContext, initialExpanded = true)
-    setExpandedOnMain(true)
-    StandardBrowserSessionTools.browserHost?.showSheet(WebSessionBrowserSheetRoute.USERSCRIPTS)
+    val host = ensureBrowserPresentationOnMain(context.applicationContext)
+    if (!host.hasAppPresentation()) {
+        ensureOverlayOnMain(context.applicationContext, initialExpanded = true)
+        setExpandedOnMain(true)
+    }
+    host.showSheet(WebSessionBrowserSheetRoute.USERSCRIPTS)
     refreshSessionUiOnMain()
 }
 
@@ -706,7 +718,7 @@ internal fun StandardBrowserSessionTools.createSessionTabOnMain(
     StandardBrowserSessionTools.sessions[sessionId] = session
     addSessionOrder(sessionId)
     StandardBrowserSessionTools.activeSessionId = sessionId
-    ensureOverlayOnMain(appContext)
+    ensureBrowserPresentationOnMain(appContext)
     navigateSessionOnMain(session, initialUrl)
     ensureSessionAttachedOnMain(sessionId)
     return session
@@ -776,7 +788,7 @@ internal fun StandardBrowserSessionTools.handleUserscriptDownloadOnMain(
 
 internal fun StandardBrowserSessionTools.activateSessionOnMain(sessionId: String) {
     val session = sessionById(sessionId) ?: return
-    ensureOverlayOnMain(context.applicationContext)
+    ensureBrowserPresentationOnMain(context.applicationContext)
     StandardBrowserSessionTools.activeSessionId = sessionId
     updateNavigationState(session)
     syncProjectedBrowserStateOnMain()
@@ -784,7 +796,7 @@ internal fun StandardBrowserSessionTools.activateSessionOnMain(sessionId: String
 
 internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: String) {
     val session = sessionById(sessionId) ?: return
-    ensureOverlayOnMain(context.applicationContext)
+    ensureBrowserPresentationOnMain(context.applicationContext)
     StandardBrowserSessionTools.activeSessionId = sessionId
     runCatching {
         session.webView.onResume()
@@ -1036,7 +1048,7 @@ internal fun StandardBrowserSessionTools.createPopupSessionOnMain(
     StandardBrowserSessionTools.sessions[popupSession.id] = popupSession
     addSessionOrder(popupSession.id)
     StandardBrowserSessionTools.activeSessionId = popupSession.id
-    ensureOverlayOnMain(context.applicationContext)
+    ensureBrowserPresentationOnMain(context.applicationContext)
     syncProjectedBrowserStateOnMain()
     return popupSession
 }
@@ -1363,7 +1375,12 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
                 refreshSessionUiOnMain(nextSessionId)
             }
         } else {
-            destroyOverlayOnMain()
+            val host = StandardBrowserSessionTools.browserHost
+            if (host?.hasAppPresentation() == true) {
+                host.attachActiveWebView(null)
+            } else {
+                destroyOverlayOnMain()
+            }
         }
         refreshSessionUiOnMain()
     }

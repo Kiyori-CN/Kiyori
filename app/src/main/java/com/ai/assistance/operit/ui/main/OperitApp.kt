@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
+import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.mcp.MCPRepository
@@ -47,6 +48,7 @@ import com.ai.assistance.operit.ui.main.shell.AiTopBarMode
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
+import com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
 import com.ai.assistance.operit.ui.main.shell.PrimaryDestination
 import com.ai.assistance.operit.ui.main.shell.SoftwareHomePage
 import com.ai.assistance.operit.ui.main.shell.resolveAiDrawerSelection
@@ -107,9 +109,12 @@ fun OperitApp(
     routeNavRequest: String? = null,
     routeNavArgs: Map<String, Any?> = emptyMap(),
     routeNavRequestId: Long = 0L,
+    browserOpenRequest: String? = null,
+    browserOpenRequestId: Long = 0L,
     onShortcutNavHandled: (Long) -> Unit = {},
     onCurrentNavItemChanged: (NavItem) -> Unit = {},
-    onRouteNavHandled: (Long) -> Unit = {}
+    onRouteNavHandled: (Long) -> Unit = {},
+    onBrowserOpenHandled: (Long) -> Unit = {},
 ) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -192,6 +197,7 @@ fun OperitApp(
     var topBarTitleContent by remember { mutableStateOf<TopBarTitleContent?>(null) }
     var lastHandledShortcutRequestId by remember { mutableStateOf(0L) }
     var lastHandledRouteRequestId by remember { mutableStateOf(0L) }
+    var lastHandledBrowserOpenRequestId by remember { mutableStateOf(0L) }
     var isAiDrawerSelectionConsumed by remember { mutableStateOf(false) }
 
     LaunchedEffect(shellState.isAiDrawerOpen) {
@@ -252,6 +258,21 @@ fun OperitApp(
         )
         lastHandledRouteRequestId = routeNavRequestId
         onRouteNavHandled(routeNavRequestId)
+    }
+
+    LaunchedEffect(browserOpenRequestId, browserOpenRequest) {
+        val targetUrl = browserOpenRequest?.trim().orEmpty()
+        if (targetUrl.isBlank() || browserOpenRequestId == 0L) {
+            return@LaunchedEffect
+        }
+        if (browserOpenRequestId == lastHandledBrowserOpenRequestId) {
+            return@LaunchedEffect
+        }
+
+        BrowserPresentationCoordinator.getInstance(context).openUrl(targetUrl)
+        updateShellState(shellState.selectPrimary(PrimaryDestination.BROWSER_HOME))
+        lastHandledBrowserOpenRequestId = browserOpenRequestId
+        onBrowserOpenHandled(browserOpenRequestId)
     }
 
     // 当currentScreen改变时，检查是否需要清空TopBarActions
@@ -583,6 +604,16 @@ fun OperitApp(
                             Toast.LENGTH_SHORT,
                         ).show()
                     }
+                },
+                browserHome = { modifier ->
+                    KiyoriBrowserHome(
+                        onExitBrowser = {
+                            updateShellState(
+                                shellState.selectPrimary(PrimaryDestination.SOFTWARE_HOME),
+                            )
+                        },
+                        modifier = modifier,
+                    )
                 },
                 aiHost = {
                     AppContent(

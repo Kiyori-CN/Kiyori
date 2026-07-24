@@ -32,7 +32,7 @@ Cloud models are selected and configured by the user with their own API key, mod
 
 ## Target Product Structure
 
-The following structure is the accepted development target. It is still being planned and migrated and does not claim that every page is implemented:
+The following structure is the accepted development target. The first Browser Home slice now hosts the WebSession shared by the user and Operit AI, while device acceptance is still pending. Other pages remain under staged migration, so this structure does not claim that every page is implemented:
 
 ```text
 Kiyori App Shell
@@ -43,6 +43,8 @@ Kiyori App Shell
 ├── File Management Home
 └── Settings Home
 ```
+
+Browser Home, the browser overlay, and Operit AI browser tools use one in-process WebSession. They share tabs, the active WebView, cookies, history, bookmarks, downloads, and userscripts; changing the presentation only reattaches the same WebView. The first slice keeps the device Android System WebView provider and stores new downloads under `Download/Kiyori/browser/downloads/`.
 
 The app launches into Software Home. Minus-One Page, Software Home, and AI Home share one pager state, release velocity, and snap physics; movement follows the pointer and an unfinished fling can be interrupted by an immediate reverse drag. Its central search card keeps separate Search and AI buttons: Search opens a full-screen page dedicated to web search, while AI moves to AI Home. History, bookmarks, files, and mini apps provide search within their own pages. The five-item bottom navigation appears only on the five root pages. Minus-One Page and the full-screen AI Home hide it. AI Home always shows the conversation surface and input controls even before a model or API Key is configured; model setup lives on its own settings page and missing credentials do not block entering AI Home. AI Home and every AI top-level root show the hamburger button, including roots opened by shortcuts or external routes; deep pages show Back. AI Settings is also reachable from Settings Home as the same page, but crossing between Settings Home and the AI drawer opens the AI Settings root so it cannot inherit the other source's deep Back path.
 

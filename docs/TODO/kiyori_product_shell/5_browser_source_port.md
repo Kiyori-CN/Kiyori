@@ -1,5 +1,5 @@
 ---
-status: source_audit_required
+status: first_slice_verification_pending
 source_repository: https://github.com/Kiyori-CN/kiyori-android
 source_commit: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 ---
@@ -29,6 +29,17 @@ source_commit: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - 软件首页“AI”按钮不进入浏览器，而是进入 AI 首页
 - 浏览器冷启动会激活或创建首页窗口，同时保留既有普通窗口
 - Activity 恢复和播放器返回不额外创建首页窗口
+- 旧浏览器使用 X5/TBS；当前 Kiyori WebSession 使用 `android.webkit.WebView`，首期不会并行接入两种内核
+
+## 首期接入决策
+
+- 先复用当前 WebSession UI 和唯一 session registry，把 Browser Home 接入 App Shell
+- App Shell 与 overlay 只是 presentation owner，同一 WebView 通过容器转挂保持页面
+- Browser Home 可见时 AI 直接操作共享标签，不要求悬浮窗权限
+- 地址输入支持网址和网页搜索词，外部 HTTP/HTTPS 进入共享浏览器
+- 窗口持久化、预览、隐私窗口、媒体嗅探和播放器交接留给后续可追踪 source-port
+
+实施细节见 [浏览器首页与 WebSession 共用计划](../kiyori_browser_home_websession/index.md)。
 
 ## 迁移要求
 
@@ -45,7 +56,7 @@ source_commit: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - 软件首页进入网页搜索时，是否完整保留旧活动窗口激活规则
 - 浏览器首页作为五个根页面之一时，如何与全屏网页内容页切换
 - 浏览器搜索记录与普通浏览历史的展示边界
-- X5/TBS 与现有 Operit WebSession 的长期关系
+- Android System WebView 长期内核的 provider 版本、调试与安全诊断页面
 
 ## 验收
 

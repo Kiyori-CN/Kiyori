@@ -1905,11 +1905,21 @@ private fun playwrightLikeInputRuntimeJs(): String =
 
 internal fun StandardBrowserSessionTools.ensureOverlayPermission(toolName: String): ToolResult? {
     val appContext = context.applicationContext
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(appContext)) {
-        error(toolName, "Overlay permission is required for browser tools.")
-    } else {
-        null
+    val appPresentationActive = StandardBrowserSessionTools.browserHost?.hasAppPresentation() == true
+    if (
+        !appPresentationActive &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            !Settings.canDrawOverlays(appContext)
+    ) {
+        return error(toolName, "Overlay permission is required for browser tools.")
     }
+
+    if (!appPresentationActive) {
+        runOnMainSync<Unit> {
+            ensureOverlayOnMain(appContext)
+        }
+    }
+    return null
 }
 
 internal fun StandardBrowserSessionTools.buildPageRegistry(): BrowserPageRegistry {

@@ -94,6 +94,8 @@ class MainActivity : ComponentActivity() {
     private var pendingSharedFileUris: List<Uri>? = null
 
     private var pendingSharedText: String? = null
+    private var pendingBrowserUrl by mutableStateOf<String?>(null)
+    private var pendingBrowserRequestId by mutableStateOf(0L)
     private var pendingGitHubAuthUri: Uri? = null
     private var pendingShortcutNavItem: NavItem? = null
     private var pendingShortcutRequestId: Long = 0L
@@ -275,9 +277,13 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> {
                 // Handle "Open with" action
                 intent.data?.let { uri ->
-                    if (uri.scheme == "http" || uri.scheme == "https") {
-                        pendingSharedText = uri.toString()
-                        AppLogger.d(TAG, "Received link to open: $uri")
+                    if (
+                        uri.scheme.equals("http", ignoreCase = true) ||
+                            uri.scheme.equals("https", ignoreCase = true)
+                    ) {
+                        pendingBrowserUrl = uri.toString()
+                        pendingBrowserRequestId = System.currentTimeMillis()
+                        AppLogger.d(TAG, "Received browser URL to open: $uri")
                     } else {
                         pendingSharedFileUris = listOf(uri)
                         AppLogger.d(TAG, "Received file to open: $uri")
@@ -676,6 +682,8 @@ class MainActivity : ComponentActivity() {
                             val routeNavRequest = pendingRouteId
                             val routeNavArgs = pendingRouteArgs
                             val routeNavRequestId = pendingRouteRequestId
+                            val browserOpenRequest = pendingBrowserUrl
+                            val browserOpenRequestId = pendingBrowserRequestId
                             val initialNavItem = when {
                                 shortcutNavItem != null -> shortcutNavItem
                                 else -> currentMainNavItem
@@ -690,6 +698,8 @@ class MainActivity : ComponentActivity() {
                                         routeNavRequest = routeNavRequest,
                                         routeNavArgs = routeNavArgs,
                                         routeNavRequestId = routeNavRequestId,
+                                        browserOpenRequest = browserOpenRequest,
+                                        browserOpenRequestId = browserOpenRequestId,
                                         onShortcutNavHandled = { handledRequestId ->
                                             if (pendingShortcutRequestId == handledRequestId) {
                                                 pendingShortcutNavItem = null
@@ -704,6 +714,12 @@ class MainActivity : ComponentActivity() {
                                                 pendingRouteId = null
                                                 pendingRouteArgs = emptyMap()
                                                 pendingRouteRequestId = 0L
+                                            }
+                                        },
+                                        onBrowserOpenHandled = { handledRequestId ->
+                                            if (pendingBrowserRequestId == handledRequestId) {
+                                                pendingBrowserUrl = null
+                                                pendingBrowserRequestId = 0L
                                             }
                                         }
                                 )

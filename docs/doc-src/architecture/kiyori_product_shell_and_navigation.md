@@ -1,7 +1,7 @@
 ---
 status: accepted_design
 implementation: pending
-last_updated: 2026-07-22
+last_updated: 2026-07-24
 ---
 
 # Kiyori 产品壳与导航架构
@@ -14,7 +14,7 @@ last_updated: 2026-07-22
 - AI 对话作为稳定宿主挂入右侧 AI 首页；按钮触发的模态 AI 左抽屉已经取代全屏 AI Center
 - AI 一级根的显式身份、外部入口菜单/返回解析、AI Settings 跨来源根页重置和全局透明状态栏已接受设计，代码与新 Debug 证据待本轮落地
 - 旧手机抽屉、平板侧栏、边缘拖动、主内容透视变换、全局手势状态和抽屉专属主题设置已删除
-- 全屏网页搜索、负一屏及浏览器/小程序/文件/设置根页面当前为接线骨架，真实数据和领域行为尚未完成
+- 全屏网页搜索、负一屏及小程序/文件/设置根页面当前为接线骨架；浏览器首页开始接入现有 WebSession 共享运行时
 - 模态 AI 左抽屉、AI 一级路由替换和 AI 设置来源返回已实现并通过自动验证；真机交互保持 `verification_pending`，权限总览与状态徽标尚未完成
 - 自动检查不能证明真机手势、Back、旋转、折叠屏或流式对话持续性，以上保持 `verification_pending`
 
@@ -139,7 +139,7 @@ Kiyori App Shell/
 
 旧实现从软件首页调用 `BrowserActivity.start(openSearch = true)`，再显示 `BrowserUrlDropdownOverlay`。进程首次进入浏览器时，`BrowserProcessLaunchPolicy` 会让 `BrowserWindowRepository` 准备一个新的首页窗口，同时保留既有窗口；同一进程后续进入搜索时使用当前活动窗口。打开搜索本身不会每次都新建窗口。
 
-待确认的首期建议是保留这套窗口语义：没有本次进程浏览会话时创建并激活一个窗口，已有活动窗口时在该窗口提交首页搜索。显式“新窗口搜索”继续由浏览器窗口管理功能负责，不让软件首页搜索卡暗中改变窗口数量。
+首期采用同一语义：没有本次进程浏览会话时创建并激活一个空白标签，已有活动标签时在该标签提交首页搜索。显式“新标签搜索”继续由浏览器标签管理功能负责，不让软件首页搜索卡暗中改变标签数量。
 
 ## AI 首页与模态 AI 左抽屉
 
@@ -368,6 +368,10 @@ Operit AI 通过 Kiyori Capability API 操作产品能力，不能直接依赖�
 
 浏览器、播放器、文件、下载、阅读器等领域分别拥有自己的合同。一个综合 AI 工具可以编排多个合同，但不越过各领域 owner 写入状态。
 
+浏览器的 App Shell 页面和悬浮窗不是两个浏览器。它们只竞争 `APP_SHELL` 或 `OVERLAY` presentation owner，同一时刻由一个宿主挂载活动 WebView。标签、WebView、Cookie、历史、书签、下载和用户脚本始终只有一个领域 owner。切换 presentation 只能转挂 View，禁止调用 `loadUrl`、`reload`、`destroy` 或创建状态副本。
+
+Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限；Browser Home 不可见且 AI 需要 overlay 展示时，继续遵守 overlay 权限合同。关闭最后标签时，可见的 Browser Home 保留无标签页面；没有 App Shell owner 时才关闭无会话 overlay。
+
 AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3 关键操作。风险由具体命令、目标、范围、可逆性、数据敏感度和外部影响共同决定，不能按工具名称固定。`ALLOW` 只能免除 R0 与 R1 的逐次操作确认；R2 默认单次确认，只允许目标与范围固定的显式会话期授权；R3 每次确认，不允许会话期或持久免确认。
 
 `FORBID`、`ASK`、`ALLOW` 是工具调用门，R0-R3 是操作副作用门。`ASK` 与 R2 或 R3 同时命中时合并为一次结构化确认。所有 R2、R3 以及产生需追溯持久变化的 R1 操作写入 AI 操作记录，失败、取消和部分完成记录实际结果。
@@ -383,6 +387,10 @@ AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3
 - 历史、书签、窗口预览、下载、网页权限、媒体识别和播放器交接
 
 迁移时保留状态和交互语义，视觉层改用 Operit 原版主题与组件。包名、Activity 宿主、依赖和 Kiyori Capability API 需要按本仓库边界接入，不能把旧工程整体作为模块引用。
+
+首期内核固定为 `android.webkit.WebView` 与设备 WebView provider，不引入旧项目的 X5/TBS。原因是当前 WebSession 与 AI 自动化都基于 Android WebView 类型和回调；并行接入 X5 会产生第二套内核、Cookie 与事件状态。旧项目的窗口、搜索、历史、权限与媒体行为继续作为 source-port 合同，内核实现不随页面一起复制。
+
+首期源码边界为 `core/browser/navigation/`、`core/browser/presentation/` 和 `ui/features/browser/appshell/`。长期浏览器 owner 位于 `core/browser/`，Capability API 位于 `core/capability/browser/`，App Shell 与 overlay 位于 `ui/features/browser/`，AI 工具目录最终只保留 adapter 与兼容入口。
 
 ## 上游同步边界
 
@@ -406,8 +414,7 @@ AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3
 ## 待决策
 
 - R2 与 R3 是否采用结构化单次确认合同，删除泛化的“始终允许”操作
-- 预测性返回、输入法展开时的手势规则和浏览器网页历史顺序
-- 是否保留旧搜索窗口语义：进程首次进入浏览器时创建窗口，同一进程已有活动窗口时复用该窗口
+- 预测性返回和输入法展开时的手势规则；浏览器首期 Back 顺序已确定为对话框、外部确认、sheet、地址编辑、网页历史、浏览器根页面
 - 全屏网页搜索的建议来源与搜索记录展示
 - 是否接受负一屏首期只展示四个基础数据入口，以及“收藏”为跨内容收藏、“书签”为网页书签的定义
 - Terminal 是否在未来增加第二入口

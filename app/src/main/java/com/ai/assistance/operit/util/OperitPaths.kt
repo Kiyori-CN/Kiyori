@@ -23,6 +23,8 @@ object OperitPaths {
     private const val WEBSESSION_DIR_NAME = "websession"
     private const val USERSCRIPTS_DIR_NAME = "userscripts"
     private const val SKILLS_DIR_NAME = "skills"
+    private const val BROWSER_DIR_NAME = "browser"
+    private const val BROWSER_DOWNLOADS_DIR_NAME = "downloads"
 
     const val SHERPA_NCNN_MODELS_DIR_NAME = ".sherpa_ncnn_models"
     const val VECTOR_INDEX_DIR_NAME = ".vector_index"
@@ -117,6 +119,10 @@ object OperitPaths {
 
     fun webSessionUserscriptsDir(): File {
         return ensureDir(File(webSessionDir(), USERSCRIPTS_DIR_NAME))
+    }
+
+    fun browserDownloadsDir(): File {
+        return ensureDir(File(File(kiyoriRootDir(), BROWSER_DIR_NAME), BROWSER_DOWNLOADS_DIR_NAME))
     }
 
     fun sherpaNcnnModelsDir(context: Context): File {

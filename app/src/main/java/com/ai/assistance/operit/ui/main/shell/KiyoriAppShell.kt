@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import kotlin.math.abs
@@ -46,6 +48,7 @@ fun KiyoriAppShell(
     onAiDrawerEntrySelected: (NavigationEntrySpec) -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
     onRequestExit: () -> Unit,
+    browserHome: @Composable (Modifier) -> Unit,
     aiHost: @Composable () -> Unit,
 ) {
     val pagerState =
@@ -165,11 +168,20 @@ fun KiyoriAppShell(
         }
 
         if (state.primaryDestination != PrimaryDestination.SOFTWARE_HOME) {
-            KiyoriPrimaryRootPage(
-                destination = state.primaryDestination,
-                onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
-                modifier = Modifier.fillMaxSize().zIndex(4f),
-            )
+            if (state.primaryDestination == PrimaryDestination.BROWSER_HOME) {
+                browserHome(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 80.dp)
+                        .zIndex(4f),
+                )
+            } else {
+                KiyoriPrimaryRootPage(
+                    destination = state.primaryDestination,
+                    onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
+                    modifier = Modifier.fillMaxSize().zIndex(4f),
+                )
+            }
         }
 
         val forceAiHostFullscreen = !aiHostIsRoot

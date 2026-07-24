@@ -4,13 +4,13 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.media.MediaScannerConnection
-import android.os.Environment
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.HttpMultiPartDownloader
+import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.io.FileOutputStream
 import java.util.LinkedHashMap
@@ -1277,7 +1277,7 @@ internal fun StandardBrowserSessionTools.launchBrowserExternalIntent(intent: Int
 }
 
 private fun BrowserDownloadManager.resolveUniqueDestinationFile(suggestedFileName: String): File {
-    val downloadsDir = publicDownloadsDirectory()
+    val downloadsDir = OperitPaths.browserDownloadsDir()
     val sanitized = suggestedFileName.trim().ifBlank { "download" }
     val dotIndex = sanitized.lastIndexOf('.')
     val base = if (dotIndex > 0) sanitized.substring(0, dotIndex) else sanitized
@@ -1294,13 +1294,6 @@ private fun BrowserDownloadManager.resolveUniqueDestinationFile(suggestedFileNam
     }
     return candidate
 }
-
-private fun publicDownloadsDirectory(): File =
-    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).apply {
-        if (!exists()) {
-            mkdirs()
-        }
-    }
 
 private fun buildSinglePartPath(destination: File): File =
     File(destination.parentFile, "${destination.name}.part")

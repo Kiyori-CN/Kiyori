@@ -109,7 +109,7 @@ object ToolGetter {
      * @return 会话型 Web 工具实现（标准权限级别）
      */
     fun getBrowserSessionTools(context: Context): StandardBrowserSessionTools {
-        return StandardBrowserSessionTools(context)
+        return StandardBrowserSessionTools.getSharedInstance(context)
     }
 
     /**

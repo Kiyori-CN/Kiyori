@@ -34,6 +34,8 @@ Current work status and implementation notes belong in `docs/TODO/`.
 | **Software Home** | The default center page shown after launch and the first of five primary destinations. It owns the three-page horizontal home space. |
 | **Minus-One Page** | The page immediately left of Software Home. It is part of the home pager and hides the five-item bottom navigation. |
 | **AI Home** | The full-screen Operit AI conversation page immediately right of Software Home. It hides the five-item bottom navigation, shares Software Home's pager state and fling physics, and has no edge-drawer gesture. |
+| **Browser Runtime** | The single in-process WebSession state owner shared by Browser Home, the browser overlay, and Operit AI browser tools. |
+| **Browser Presentation Owner** | The exclusive host currently mounting the active browser WebView: either `APP_SHELL` or `OVERLAY`. Ownership changes reattach the same View and never navigate or reload it. |
 | **Modal AI Drawer** | The Kiyori-owned, button-triggered left overlay that exposes AI top-level navigation without moving or rebuilding the page below it. Its scrim covers the window while its panel begins below the status bar. It has no edge or drag gesture. |
 | **AI Top-Level Page** | AI Home, Packages, Permission Grant, Workflow, Assistant Configuration, Memory, Toolbox, a ToolPkg drawer destination, or AI Settings when entered from the Modal AI Drawer. Native roots retain independent state and child stacks; ToolPkg roots retain them only when their route declares `keepAlive=true`. |
 | **AI Settings** | The settings owned specifically by the AI subsystem. Modal AI Drawer and Kiyori Settings both navigate to this single settings destination while preserving their distinct Back origins. |
@@ -54,6 +56,7 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - All three home pages use one `PagerState` and one fling behavior. Movement follows the pointer, and a new reverse drag can cancel an unfinished fling; Shell state changes only after the pager settles.
 - The five primary destinations are Software Home, Browser Home, Mini App Home, File Management Home, and Settings Home.
 - The five-item bottom navigation is visible only on those five root pages. It is hidden on Minus-One Page, AI Home, Full-Screen Web Search, child pages, and immersive content pages.
+- Browser Home and the browser overlay are presentations of one Browser Runtime. Tabs, the active WebView, cookies, history, bookmarks, downloads, and userscripts are not copied between them.
 - AI Home and every explicitly identified AI Navigation Root show the hamburger button, including roots opened by shortcuts, widgets, raw routes, or router-gateway requests. AI deep pages show Back until navigation reaches an explicit root. Browser, Mini App, File Management, and Kiyori Settings pages do not expose the drawer button.
 - Host navigation roots match their registered route ID. ToolPkg plugin roots match both route ID and registered route arguments. Route arguments, stack depth, and instance-ID prefixes never establish root ownership.
 - The drawer contains Packages, Permission Grant, Workflow, AI Dialogue, Assistant Configuration, Memory, Toolbox, ToolPkg dynamic destinations, and AI Settings. AI Dialogue returns to the existing AI Home without creating a conversation or clearing its draft.

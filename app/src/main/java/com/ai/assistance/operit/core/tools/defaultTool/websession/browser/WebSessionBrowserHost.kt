@@ -19,10 +19,12 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
@@ -90,7 +92,9 @@ internal class WebSessionBrowserHost(
     }
 
     private val windowManager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val webViewHost = WebSessionWebViewHost()
+    private val overlayWebViewHost = WebSessionWebViewHost()
+    private var appWebViewHost: WebSessionWebViewHost? = null
+    private var activeWebView: WebView? = null
 
     private var rootView: DeceptiveMinimizedLayout? = null
     private var composeView: ComposeView? = null
@@ -104,6 +108,8 @@ internal class WebSessionBrowserHost(
     private var selectionActionsParams: WindowManager.LayoutParams? = null
 
     private var isExpanded: Boolean = false
+    private var appPresentationActive by mutableStateOf(false)
+    private var restoreExpandedOverlayAfterAppPresentation: Boolean = false
     private var hostState by mutableStateOf(WebSessionBrowserHostState())
     fun ensureCreated(initialExpanded: Boolean = false) {
         if (rootView != null) {
@@ -134,56 +140,13 @@ internal class WebSessionBrowserHost(
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                 installViewTreeOwners(this, lifecycleOwner)
                 setContent {
-                    val bookmarks by store.bookmarksFlow.collectAsState(initial = emptyList())
-                    val history by store.historyFlow.collectAsState(initial = emptyList())
-                    val userscriptUiState by userscriptStore.state.collectAsState()
-
-                    WebSessionFloatingTheme {
-                        WebSessionBrowserScreen(
-                            hostState = hostState,
-                            bookmarks = bookmarks,
-                            globalHistory = history,
-                            userscriptUiState = userscriptUiState,
-                            webViewHost = webViewHost,
-                            onHostStateChange = { transform ->
-                                updateHostState(transform)
-                            },
-                            onNavigate = callbacks::onNavigate,
-                            onBack = callbacks::onBack,
-                            onForward = callbacks::onForward,
-                            onRefreshOrStop = callbacks::onRefreshOrStop,
-                            onSelectTab = callbacks::onSelectTab,
-                            onCloseTab = callbacks::onCloseTab,
-                            onNewTab = callbacks::onNewTab,
-                            onMinimize = callbacks::onMinimize,
-                            onCloseCurrentTab = callbacks::onCloseCurrentTab,
-                            onCloseAllTabs = callbacks::onCloseAllTabs,
-                            onToggleBookmark = callbacks::onToggleBookmark,
-                            onRemoveBookmark = callbacks::onRemoveBookmark,
-                            onSelectSessionHistory = callbacks::onSelectSessionHistory,
-                            onOpenUrl = callbacks::onOpenUrl,
-                            onClearHistory = callbacks::onClearHistory,
-                            onToggleDesktopMode = callbacks::onToggleDesktopMode,
-                            onOpenUserscripts = callbacks::onOpenUserscripts,
-                            onImportUserscript = callbacks::onImportUserscript,
-                            onInstallUserscriptFromUrl = callbacks::onInstallUserscriptFromUrl,
-                            onConfirmUserscriptInstall = callbacks::onConfirmUserscriptInstall,
-                            onCancelUserscriptInstall = callbacks::onCancelUserscriptInstall,
-                            onSetUserscriptEnabled = callbacks::onSetUserscriptEnabled,
-                            onDeleteUserscript = callbacks::onDeleteUserscript,
-                            onCheckUserscriptUpdate = callbacks::onCheckUserscriptUpdate,
-                            onInvokeUserscriptMenu = callbacks::onInvokeUserscriptMenu,
-                            onPauseDownload = callbacks::onPauseDownload,
-                            onResumeDownload = callbacks::onResumeDownload,
-                            onCancelDownload = callbacks::onCancelDownload,
-                            onRetryDownload = callbacks::onRetryDownload,
-                            onDeleteDownload = callbacks::onDeleteDownload,
-                            onOpenDownloadedFile = callbacks::onOpenDownloadedFile,
-                            onOpenDownloadLocation = callbacks::onOpenDownloadLocation,
-                            onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
-                            onCancelExternalOpen = callbacks::onCancelExternalOpen,
-                            onHandlePendingDialog = callbacks::onHandlePendingDialog
-                        )
+                    if (!appPresentationActive) {
+                        WebSessionFloatingTheme {
+                            BrowserContent(
+                                webViewHost = overlayWebViewHost,
+                                onMinimize = callbacks::onMinimize,
+                            )
+                        }
                     }
                 }
             }
@@ -199,9 +162,10 @@ internal class WebSessionBrowserHost(
         overlayLifecycleOwner = lifecycleOwner
         rootView = root
         composeView = compose
-        overlayParams = createOverlayLayoutParams(initialExpanded)
+        val expandedAtCreation = initialExpanded && !appPresentationActive
+        overlayParams = createOverlayLayoutParams(expandedAtCreation)
         windowManager.addView(root, overlayParams)
-        setExpanded(initialExpanded)
+        setExpanded(expandedAtCreation)
     }
 
     fun destroy() {
@@ -223,7 +187,68 @@ internal class WebSessionBrowserHost(
         rootView = null
         overlayParams = null
         indicatorParams = null
-        webViewHost.clear()
+        overlayWebViewHost.clear()
+        appWebViewHost?.clear()
+        appWebViewHost = null
+        activeWebView = null
+        appPresentationActive = false
+        restoreExpandedOverlayAfterAppPresentation = false
+    }
+
+    @Composable
+    fun BrowserContent(
+        webViewHost: WebSessionWebViewHost,
+        onMinimize: () -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        val bookmarks by store.bookmarksFlow.collectAsState(initial = emptyList())
+        val history by store.historyFlow.collectAsState(initial = emptyList())
+        val userscriptUiState by userscriptStore.state.collectAsState()
+
+        WebSessionBrowserScreen(
+            hostState = hostState,
+            bookmarks = bookmarks,
+            globalHistory = history,
+            userscriptUiState = userscriptUiState,
+            webViewHost = webViewHost,
+            onHostStateChange = ::updateHostState,
+            onNavigate = callbacks::onNavigate,
+            onBack = callbacks::onBack,
+            onForward = callbacks::onForward,
+            onRefreshOrStop = callbacks::onRefreshOrStop,
+            onSelectTab = callbacks::onSelectTab,
+            onCloseTab = callbacks::onCloseTab,
+            onNewTab = callbacks::onNewTab,
+            onMinimize = onMinimize,
+            onCloseCurrentTab = callbacks::onCloseCurrentTab,
+            onCloseAllTabs = callbacks::onCloseAllTabs,
+            onToggleBookmark = callbacks::onToggleBookmark,
+            onRemoveBookmark = callbacks::onRemoveBookmark,
+            onSelectSessionHistory = callbacks::onSelectSessionHistory,
+            onOpenUrl = callbacks::onOpenUrl,
+            onClearHistory = callbacks::onClearHistory,
+            onToggleDesktopMode = callbacks::onToggleDesktopMode,
+            onOpenUserscripts = callbacks::onOpenUserscripts,
+            onImportUserscript = callbacks::onImportUserscript,
+            onInstallUserscriptFromUrl = callbacks::onInstallUserscriptFromUrl,
+            onConfirmUserscriptInstall = callbacks::onConfirmUserscriptInstall,
+            onCancelUserscriptInstall = callbacks::onCancelUserscriptInstall,
+            onSetUserscriptEnabled = callbacks::onSetUserscriptEnabled,
+            onDeleteUserscript = callbacks::onDeleteUserscript,
+            onCheckUserscriptUpdate = callbacks::onCheckUserscriptUpdate,
+            onInvokeUserscriptMenu = callbacks::onInvokeUserscriptMenu,
+            onPauseDownload = callbacks::onPauseDownload,
+            onResumeDownload = callbacks::onResumeDownload,
+            onCancelDownload = callbacks::onCancelDownload,
+            onRetryDownload = callbacks::onRetryDownload,
+            onDeleteDownload = callbacks::onDeleteDownload,
+            onOpenDownloadedFile = callbacks::onOpenDownloadedFile,
+            onOpenDownloadLocation = callbacks::onOpenDownloadLocation,
+            onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
+            onCancelExternalOpen = callbacks::onCancelExternalOpen,
+            onHandlePendingDialog = callbacks::onHandlePendingDialog,
+            modifier = modifier,
+        )
     }
 
     fun updateHostProjection(
@@ -250,7 +275,97 @@ internal class WebSessionBrowserHost(
     }
 
     fun attachActiveWebView(webView: WebView?) {
-        webViewHost.setActiveWebView(webView)
+        activeWebView = webView
+        val appHost = appWebViewHost
+        if (appHost != null) {
+            overlayWebViewHost.setActiveWebView(null)
+            appHost.setActiveWebView(webView)
+        } else {
+            overlayWebViewHost.setActiveWebView(webView)
+        }
+    }
+
+    fun acquireAppPresentation(webViewHost: WebSessionWebViewHost) {
+        if (appWebViewHost === webViewHost) {
+            return
+        }
+
+        restoreExpandedOverlayAfterAppPresentation = rootView != null && isExpanded
+        if (isExpanded) {
+            setExpanded(
+                expanded = false,
+                resetTransientUi = false,
+                showMinimizedIndicator = false,
+            )
+        }
+        appWebViewHost?.setActiveWebView(null)
+        appWebViewHost = webViewHost
+        appPresentationActive = true
+        hideIndicator()
+        overlayWebViewHost.setActiveWebView(null)
+        webViewHost.setActiveWebView(activeWebView)
+    }
+
+    fun releaseAppPresentation(webViewHost: WebSessionWebViewHost) {
+        if (appWebViewHost !== webViewHost) {
+            return
+        }
+
+        webViewHost.setActiveWebView(null)
+        appWebViewHost = null
+        appPresentationActive = false
+        if (rootView != null) {
+            overlayWebViewHost.setActiveWebView(activeWebView)
+            if (restoreExpandedOverlayAfterAppPresentation) {
+                setExpanded(true)
+            } else if (!isExpanded) {
+                showIndicator()
+            }
+        }
+        restoreExpandedOverlayAfterAppPresentation = false
+    }
+
+    fun hasAppPresentation(): Boolean = appPresentationActive
+
+    fun hasOverlayPresentation(): Boolean = rootView != null
+
+    fun handleBack(): Boolean {
+        val browserState = hostState.browserState
+        val pendingDialog = browserState.pendingDialog
+        if (pendingDialog != null) {
+            callbacks.onHandlePendingDialog(false, null)
+            return true
+        }
+
+        val externalPrompt = hostState.externalOpenPrompt
+        if (externalPrompt != null) {
+            callbacks.onCancelExternalOpen(externalPrompt.requestId)
+            return true
+        }
+
+        if (hostState.sheetRoute != WebSessionBrowserSheetRoute.NONE) {
+            updateHostState { current ->
+                current.copy(sheetRoute = WebSessionBrowserSheetRoute.NONE)
+            }
+            return true
+        }
+
+        if (hostState.isEditingUrl) {
+            updateHostState { current ->
+                current.copy(
+                    isEditingUrl = false,
+                    urlDraft = current.browserState.currentUrl,
+                )
+            }
+            return true
+        }
+
+        if (browserState.canGoBack) {
+            callbacks.onBack()
+            return true
+        }
+
+        return false
     }
 
     fun showTextSelectionActionsOverlay(anchorX: Double, anchorY: Double) {
@@ -322,10 +437,19 @@ internal class WebSessionBrowserHost(
     fun currentBrowserAreaSize(): Pair<Int, Int> =
         hostState.browserAreaWidthPx.coerceAtLeast(0) to hostState.browserAreaHeightPx.coerceAtLeast(0)
 
-    fun setExpanded(expanded: Boolean) {
+    fun setExpanded(
+        expanded: Boolean,
+        resetTransientUi: Boolean = true,
+        showMinimizedIndicator: Boolean = true,
+    ) {
         val params = overlayParams ?: return
         val root = rootView ?: return
         val compose = composeView ?: return
+
+        if (expanded && appPresentationActive) {
+            hideIndicator()
+            return
+        }
 
         if (!expanded) {
             hideTextSelectionActionsOverlay()
@@ -333,7 +457,7 @@ internal class WebSessionBrowserHost(
 
         isExpanded = expanded
         hostState =
-            if (expanded) {
+            if (expanded || !resetTransientUi) {
                 hostState
             } else {
                 hostState.copy(
@@ -352,7 +476,7 @@ internal class WebSessionBrowserHost(
             applyExpandedLayoutParams(params)
             hideIndicator()
         } else {
-            if (indicatorView == null) {
+            if (showMinimizedIndicator && indicatorView == null) {
                 showIndicator()
             }
 
@@ -422,7 +546,7 @@ internal class WebSessionBrowserHost(
     }
 
     private fun evaluateActiveWebViewSelectedText(onResult: (String) -> Unit) {
-        val webView = webViewHost.currentWebView() ?: return
+        val webView = activeWebView ?: return
         webView.evaluateJavascript(activeWebViewSelectionTextScript()) { rawValue ->
             try {
                 val selectedText = JSONTokener(rawValue).nextValue() as String
@@ -441,7 +565,7 @@ internal class WebSessionBrowserHost(
         """.trimIndent()
 
     private fun selectAllActiveWebViewText() {
-        val webView = webViewHost.currentWebView() ?: return
+        val webView = activeWebView ?: return
         webView.evaluateJavascript(
             """
             (function() {
@@ -457,7 +581,7 @@ internal class WebSessionBrowserHost(
     }
 
     private fun clearActiveWebViewSelection() {
-        val webView = webViewHost.currentWebView() ?: return
+        val webView = activeWebView ?: return
         webView.evaluateJavascript(
             """
             (function() {
@@ -543,7 +667,7 @@ internal class WebSessionBrowserHost(
         anchorY: Double
     ) {
         val params = selectionActionsParams ?: return
-        val webView = webViewHost.currentWebView() ?: return
+        val webView = activeWebView ?: return
         if (actionsView.measuredWidth == 0 || actionsView.measuredHeight == 0) {
             actionsView.measure(
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
@@ -597,7 +721,7 @@ internal class WebSessionBrowserHost(
     }
 
     private fun showIndicator() {
-        if (indicatorView != null) {
+        if (appPresentationActive || indicatorView != null) {
             return
         }
 
@@ -664,7 +788,7 @@ internal class WebSessionBrowserHost(
     }
 
     private fun updateIndicatorLayoutForCurrentState() {
-        if (isExpanded) {
+        if (isExpanded || appPresentationActive) {
             return
         }
         val indicator = indicatorView ?: return
