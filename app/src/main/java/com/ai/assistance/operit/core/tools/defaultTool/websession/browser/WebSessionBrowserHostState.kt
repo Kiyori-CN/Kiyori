@@ -11,7 +11,10 @@ internal enum class WebSessionBrowserSheetRoute {
     DOWNLOADS,
     HISTORY,
     BOOKMARKS,
-    USERSCRIPTS
+    USERSCRIPTS,
+    USER_AGENT,
+    NETWORK_LOG,
+    PAGE_SOURCE,
 }
 
 @Immutable
@@ -32,11 +35,36 @@ internal data class WebSessionSessionHistoryItem(
 )
 
 @Immutable
+internal data class WebSessionBrowserNetworkEntry(
+    val method: String,
+    val url: String,
+    val isMainFrame: Boolean,
+    val isStatic: Boolean,
+    val timestamp: Long,
+)
+
+@Immutable
 internal data class WebSessionPendingDialogState(
     val type: String,
     val message: String,
     val defaultValue: String? = null,
     val url: String? = null
+)
+
+@Immutable
+@Serializable
+internal data class WebSessionSearchRecord(
+    val id: Long,
+    val query: String,
+    val targetUrl: String,
+    val createdAt: Long,
+)
+
+@Immutable
+internal data class WebSessionPageSourceState(
+    val isLoading: Boolean = false,
+    val content: String? = null,
+    val error: String? = null,
 )
 
 @Immutable
@@ -49,6 +77,7 @@ internal data class WebSessionBrowserState(
     val isLoading: Boolean = false,
     val hasSslError: Boolean = false,
     val isDesktopMode: Boolean = true,
+    val userAgent: String = "",
     val activeDownloadCount: Int = 0,
     val hasFailedDownloads: Boolean = false,
     val failedDownloadCount: Int = 0,
@@ -57,7 +86,8 @@ internal data class WebSessionBrowserState(
     val pendingDialog: WebSessionPendingDialogState? = null,
     val tabs: List<WebSessionBrowserTab> = emptyList(),
     val sessionHistory: List<WebSessionSessionHistoryItem> = emptyList(),
-    val userscriptMenuCommands: List<UserscriptPageMenuCommand> = emptyList()
+    val userscriptMenuCommands: List<UserscriptPageMenuCommand> = emptyList(),
+    val networkEntries: List<WebSessionBrowserNetworkEntry> = emptyList(),
 )
 
 internal enum class BrowserDownloadFilter {
@@ -105,8 +135,10 @@ internal data class ExternalOpenPromptState(
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
-    val isEditingUrl: Boolean = false,
-    val urlDraft: String = WebSessionBrowserState().currentUrl,
+    val isSearchVisible: Boolean = false,
+    val isSearchEnginePanelVisible: Boolean = false,
+    val searchDraft: String = "",
+    val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val externalOpenPrompt: ExternalOpenPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),
     val viewportWidthPx: Int? = null,

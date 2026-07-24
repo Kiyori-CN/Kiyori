@@ -24,6 +24,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
@@ -570,6 +571,83 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             setDesktopModeEnabled(!StandardBrowserSessionTools.desktopModeEnabled)
         }
 
+        override fun onSetSearchEngine(engine: WebSessionSearchEngine) {
+            ioScope.launch {
+                runCatching {
+                    historyStore.setSearchEngine(engine)
+                }.onFailure { error ->
+                    AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to persist browser search engine", error)
+                }
+            }
+        }
+
+        override fun onSubmitSearch(query: String, engine: WebSessionSearchEngine) {
+            val normalizedQuery = query.trim()
+            if (normalizedQuery.isBlank()) {
+                return
+            }
+            val targetUrl = BrowserAddressResolver.resolve(normalizedQuery, engine)
+            if (targetUrl == engine.buildSearchUrl(normalizedQuery)) {
+                ioScope.launch {
+                    runCatching {
+                        historyStore.setSearchEngine(engine)
+                        historyStore.addSearchHistory(normalizedQuery, targetUrl)
+                    }.onFailure { error ->
+                        AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to persist browser search history", error)
+                    }
+                }
+            } else {
+                ioScope.launch {
+                    runCatching {
+                        historyStore.setSearchEngine(engine)
+                    }.onFailure { error ->
+                        AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to persist browser search engine", error)
+                    }
+                }
+            }
+            runOnMainSync<Unit> {
+                openUrlOnMain(appContext, targetUrl)
+            }
+        }
+
+        override fun onOpenSearchRecord(record: WebSessionSearchRecord) {
+            runOnMainSync<Unit> {
+                openUrlOnMain(appContext, record.targetUrl)
+            }
+        }
+
+        override fun onDeleteSearchHistory(id: Long) {
+            ioScope.launch {
+                runCatching {
+                    historyStore.deleteSearchHistory(id)
+                }.onFailure { error ->
+                    AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to delete browser search history", error)
+                }
+            }
+        }
+
+        override fun onClearSearchHistory() {
+            ioScope.launch {
+                runCatching {
+                    historyStore.clearSearchHistory()
+                }.onFailure { error ->
+                    AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to clear browser search history", error)
+                }
+            }
+        }
+
+        override fun onCopyCurrentUrl() {
+            StandardBrowserSessionTools.browserHost?.copyCurrentUrlToClipboard()
+        }
+
+        override fun onOpenPageSource() {
+            StandardBrowserSessionTools.browserHost?.beginPageSourceRead()
+        }
+
+        override fun onCopyPageSource() {
+            StandardBrowserSessionTools.browserHost?.copyPageSourceToClipboard()
+        }
+
         override fun onOpenUserscripts() {
             runOnMainSync<Unit> {
                 openUserscriptSheetOnMain()
@@ -850,6 +928,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         isLoading = activeSession?.isLoading == true,
         hasSslError = activeSession?.hasSslError == true,
         isDesktopMode = StandardBrowserSessionTools.desktopModeEnabled,
+        userAgent = activeSession?.webView?.settings?.userAgentString.orEmpty(),
         activeDownloadCount = downloadSummary.activeCount,
         hasFailedDownloads = downloadSummary.failedCount > 0,
         failedDownloadCount = downloadSummary.failedCount,
@@ -878,7 +957,21 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
             },
         sessionHistory =
             activeSession?.let { buildSessionHistory(it.webView) } ?: emptyList(),
-        userscriptMenuCommands = userscriptManager.getMenuCommands(activeId)
+        userscriptMenuCommands = userscriptManager.getMenuCommands(activeId),
+        networkEntries =
+            activeSession?.let { session ->
+                synchronized(session.networkEntries) {
+                    session.networkEntries.map { entry ->
+                        WebSessionBrowserNetworkEntry(
+                            method = entry.method,
+                            url = entry.url,
+                            isMainFrame = entry.isMainFrame,
+                            isStatic = entry.isStatic,
+                            timestamp = entry.timestamp,
+                        )
+                    }
+                }
+            } ?: emptyList()
     )
 }
 

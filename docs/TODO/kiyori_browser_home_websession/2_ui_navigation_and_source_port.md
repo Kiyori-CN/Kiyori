@@ -10,7 +10,7 @@ ui_contract_superseded_by: ../kiyori_browser_ui_refactor/index.md
 ```text
 Kiyori App Shell/
 	Browser Home/
-		WebSessionTopUrlBar
+		WebSessionBrowserTopBar
 		ExternalOpenPrompt 或 DownloadSummary
 		活动 WebView
 		WebSessionBottomToolbar

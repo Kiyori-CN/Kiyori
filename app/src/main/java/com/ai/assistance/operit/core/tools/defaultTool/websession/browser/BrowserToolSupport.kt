@@ -205,6 +205,10 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
             session.networkEntries.removeAt(0)
         }
     }
+    notifySessionStateChanged(session)
+    StandardBrowserSessionTools.mainHandler.post {
+        refreshSessionUiOnMain(session.id)
+    }
 }
 
 internal fun StandardBrowserSessionTools.notifySessionStateChanged(session: BrowserToolSession) {

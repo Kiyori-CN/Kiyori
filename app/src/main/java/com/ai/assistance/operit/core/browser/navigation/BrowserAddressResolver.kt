@@ -1,15 +1,18 @@
 package com.ai.assistance.operit.core.browser.navigation
 
 import android.net.Uri
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import java.util.Locale
 
 internal object BrowserAddressResolver {
     private const val BLANK_URL = "about:blank"
-    private const val SEARCH_URL_PREFIX = "https://www.baidu.com/s?wd="
     private val ipv4WithOptionalPort =
         Regex("""^(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?:/.*)?$""")
 
-    fun resolve(raw: String): String {
+    fun resolve(
+        raw: String,
+        searchEngine: WebSessionSearchEngine = WebSessionSearchEngine.DEFAULT,
+    ): String {
         val value = raw.trim()
         if (value.isBlank()) {
             return BLANK_URL
@@ -28,7 +31,7 @@ internal object BrowserAddressResolver {
             return "https://$value"
         }
 
-        return SEARCH_URL_PREFIX + Uri.encode(value)
+        return searchEngine.buildSearchUrl(value)
     }
 
     private fun looksLikeHost(value: String, lower: String): Boolean {

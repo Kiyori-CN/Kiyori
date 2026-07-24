@@ -8,7 +8,8 @@ status: completed
 
 ```text
 Browser Home/
-	WebSessionTopUrlBar
+	WebSessionBrowserTopBar
+	WebSessionBrowserSearchScreen（搜索覆盖层）
 	ExternalOpenPrompt 或 DownloadSummary
 	Active WebView 或 No-Tabs Empty State
 	Browser Bottom Bar
@@ -27,15 +28,13 @@ Kiyori 五项全局底栏不属于该树。Browser Home 自身仍由 App Shell �
 
 ## 顶部区域
 
-本轮保留现有地址栏的功能和大体结构：
+当前实现使用新的浏览器顶栏和全屏搜索覆盖层：
 
 - 状态栏安全区由地址栏处理
-- 点击地址进入编辑，提交使用 `BrowserAddressResolver`
-- 非编辑状态保留收藏和刷新或停止
-- 最小化在 App Shell 返回 Software Home，在 overlay 缩为 indicator
+- 点击搜索框进入全屏搜索，提交使用 `BrowserAddressResolver`
+- 顶栏固定显示返回、搜索框和刷新或停止
+- 搜索页持久化当前引擎与最近记录，提交和打开记录都调用共享 Browser Runtime
 - 下载活动条和外部打开确认继续位于地址栏下方
-
-完整搜索引擎切换、搜索记录和旧 Kiyori 全屏搜索页不在本轮添加。
 
 ## 浏览器底栏
 

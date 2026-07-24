@@ -96,7 +96,7 @@ internal fun WebSessionBrowserTabOverview(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        text = stringResource(R.string.web_session_tabs),
+                        text = stringResource(R.string.web_session_windows),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )

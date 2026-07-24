@@ -46,12 +46,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
@@ -59,6 +61,11 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSession
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserTabOverview
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserToolbox
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.resolveWebSessionBrowserChromeLayout
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserNetworkLog
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPageSource
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserUserAgent
 import java.util.Locale
 
 private fun WebSessionBrowserSheetRoute.isBrowserDrawerRoute(): Boolean =
@@ -69,6 +76,8 @@ internal fun WebSessionBrowserScreen(
     hostState: WebSessionBrowserHostState,
     bookmarks: List<WebSessionBookmark>,
     globalHistory: List<WebSessionHistoryEntry>,
+    searchEngine: WebSessionSearchEngine,
+    searchHistory: List<WebSessionSearchRecord>,
     userscriptUiState: WebSessionUserscriptUiState,
     webViewHost: WebSessionWebViewHost,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
@@ -88,6 +97,14 @@ internal fun WebSessionBrowserScreen(
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
     onToggleDesktopMode: () -> Unit,
+    onSetSearchEngine: (WebSessionSearchEngine) -> Unit,
+    onSubmitSearch: (String, WebSessionSearchEngine) -> Unit,
+    onOpenSearchRecord: (WebSessionSearchRecord) -> Unit,
+    onDeleteSearchHistory: (Long) -> Unit,
+    onClearSearchHistory: () -> Unit,
+    onCopyCurrentUrl: () -> Unit,
+    onOpenPageSource: () -> Unit,
+    onCopyPageSource: () -> Unit,
     onOpenUserscripts: () -> Unit,
     onImportUserscript: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
@@ -174,50 +191,28 @@ internal fun WebSessionBrowserScreen(
                         .fillMaxSize()
                         .onSizeChanged { totalHeightPx = it.height }
             ) {
-            WebSessionTopUrlBar(
-                url = browserState.currentUrl.ifBlank { "about:blank" },
+            WebSessionBrowserTopBar(
+                currentUrl = browserState.currentUrl.ifBlank { "about:blank" },
                 pageTitle = browserState.pageTitle,
                 isLoading = browserState.isLoading,
-                isEditing = hostState.isEditingUrl,
-                urlDraft = hostState.urlDraft,
-                isBookmarked = isBookmarked,
-                onStartEditing = {
+                onBack = {
+                    if (browserState.canGoBack) {
+                        onBack()
+                    } else {
+                        onMinimize()
+                    }
+                },
+                onOpenSearch = {
                     onHostStateChange { current ->
                         current.copy(
-                            isEditingUrl = true,
-                            urlDraft = browserState.currentUrl.ifBlank { "about:blank" }
+                            isSearchVisible = true,
+                            isSearchEnginePanelVisible = false,
+                            searchDraft = "",
                         )
                     }
-                },
-                onUrlDraftChange = { draft ->
-                    onHostStateChange { current ->
-                        current.copy(urlDraft = draft)
-                    }
-                },
-                onSubmitUrl = {
-                    val target = BrowserAddressResolver.resolve(hostState.urlDraft)
-                    onNavigate(target)
-                    onHostStateChange { current ->
-                        current.copy(
-                            isEditingUrl = false,
-                            urlDraft = target
-                        )
-                    }
-                },
-                onStopEditing = {
-                    onHostStateChange { current ->
-                        current.copy(
-                            isEditingUrl = false,
-                            urlDraft = browserState.currentUrl
-                        )
-                    }
-                },
-                onToggleBookmark = {
-                    onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
                 },
                 onRefreshOrStop = onRefreshOrStop,
-                onMinimize = onMinimize,
-                modifier = Modifier.statusBarsPadding()
+                modifier = Modifier
             )
 
             if (browserState.activeDownloadCount > 0) {
@@ -348,6 +343,50 @@ internal fun WebSessionBrowserScreen(
             }
         }
 
+        if (hostState.isSearchVisible) {
+            WebSessionBrowserSearchScreen(
+                currentUrl = browserState.currentUrl,
+                searchEngine = searchEngine,
+                searchHistory = searchHistory,
+                draft = hostState.searchDraft,
+                isEnginePanelVisible = hostState.isSearchEnginePanelVisible,
+                onDraftChange = { draft ->
+                    onHostStateChange { current -> current.copy(searchDraft = draft) }
+                },
+                onBack = {
+                    onHostStateChange {
+                        it.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "")
+                    }
+                },
+                onEnginePanelVisibleChange = { visible ->
+                    onHostStateChange { current -> current.copy(isSearchEnginePanelVisible = visible) }
+                },
+                onSubmit = {
+                    val query = hostState.searchDraft.trim()
+                    if (query.isNotBlank()) {
+                        onSubmitSearch(query, searchEngine)
+                        onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
+                    }
+                },
+                onSelectEngine = onSetSearchEngine,
+                onOpenSearchRecord = { record ->
+                    onOpenSearchRecord(record)
+                    onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
+                },
+                onDeleteSearchRecord = onDeleteSearchHistory,
+                onClearSearchHistory = onClearSearchHistory,
+                onCopyCurrentUrl = onCopyCurrentUrl,
+                onOpenCurrentUrl = {
+                    onOpenUrl(browserState.currentUrl)
+                    onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
+                },
+                onUseCurrentUrl = {
+                    onHostStateChange { current -> current.copy(searchDraft = browserState.currentUrl) }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
         if (tabOverviewMounted) {
             WebSessionBrowserTabOverview(
                 isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.TABS,
@@ -406,6 +445,10 @@ internal fun WebSessionBrowserScreen(
                         bookmarks = bookmarks,
                         globalHistory = globalHistory,
                         userscriptUiState = userscriptUiState,
+                        isBookmarked = isBookmarked,
+                        onToggleBookmark = {
+                            onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
+                        },
                         onDismiss = dismissSheet,
                         onCloseCurrentTab = onCloseCurrentTab,
                         onCloseAllTabs = onCloseAllTabs,
@@ -414,6 +457,15 @@ internal fun WebSessionBrowserScreen(
                         onOpenUrl = onOpenUrl,
                         onClearHistory = onClearHistory,
                         onToggleDesktopMode = onToggleDesktopMode,
+                        onOpenUserAgent = {
+                            onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) }
+                        },
+                        onOpenNetworkLog = {
+                            onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) }
+                        },
+                        onReload = onRefreshOrStop,
+                        onOpenPageSource = onOpenPageSource,
+                        onCopyPageSource = onCopyPageSource,
                         onHostStateChange = onHostStateChange,
                         hostState = hostState,
                         onOpenUserscripts = onOpenUserscripts,
@@ -540,6 +592,8 @@ private fun WebSessionBrowserDrawerContent(
     bookmarks: List<WebSessionBookmark>,
     globalHistory: List<WebSessionHistoryEntry>,
     userscriptUiState: WebSessionUserscriptUiState,
+    isBookmarked: Boolean,
+    onToggleBookmark: () -> Unit,
     onDismiss: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
@@ -548,6 +602,11 @@ private fun WebSessionBrowserDrawerContent(
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
     onToggleDesktopMode: () -> Unit,
+    onOpenUserAgent: () -> Unit,
+    onOpenNetworkLog: () -> Unit,
+    onReload: () -> Unit,
+    onOpenPageSource: () -> Unit,
+    onCopyPageSource: () -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
     hostState: WebSessionBrowserHostState,
     onOpenUserscripts: () -> Unit,
@@ -570,9 +629,13 @@ private fun WebSessionBrowserDrawerContent(
     when (sheetRoute) {
         WebSessionBrowserSheetRoute.MENU ->
             WebSessionBrowserToolbox(
-                isDesktopMode = browserState.isDesktopMode,
+                isBookmarked = isBookmarked,
+                canAddBookmark = browserState.activeSessionId != null && browserState.currentUrl != "about:blank",
                 activeDownloadCount = browserState.activeDownloadCount,
                 failedDownloadCount = browserState.failedDownloadCount,
+                onAddBookmark = {
+                    onToggleBookmark()
+                },
                 onOpenHistory = {
                     onHostStateChange { current ->
                         current.copy(sheetRoute = WebSessionBrowserSheetRoute.HISTORY)
@@ -594,14 +657,17 @@ private fun WebSessionBrowserDrawerContent(
                     }
                     onOpenUserscripts()
                 },
+                onOpenUserAgent = onOpenUserAgent,
+                onOpenNetworkLog = onOpenNetworkLog,
+                onReload = onReload,
+                onOpenPageSource = {
+                    onDismiss()
+                    onOpenPageSource()
+                },
                 userscriptMenuCommands = browserState.userscriptMenuCommands,
                 onInvokeUserscriptMenu = { commandId ->
                     onDismiss()
                     onInvokeUserscriptMenu(commandId)
-                },
-                onToggleDesktopMode = {
-                    onDismiss()
-                    onToggleDesktopMode()
                 },
                 onCloseCurrentTab = {
                     onDismiss()
@@ -674,6 +740,32 @@ private fun WebSessionBrowserDrawerContent(
                 onDeleteScript = onDeleteUserscript,
                 onCheckUpdate = onCheckUserscriptUpdate,
                 onInvokeMenuCommand = onInvokeUserscriptMenu,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+        WebSessionBrowserSheetRoute.USER_AGENT ->
+            WebSessionBrowserUserAgent(
+                userAgent = browserState.userAgent,
+                isDesktopMode = browserState.isDesktopMode,
+                onToggleDesktopMode = onToggleDesktopMode,
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+        WebSessionBrowserSheetRoute.NETWORK_LOG ->
+            WebSessionBrowserNetworkLog(
+                entries = browserState.networkEntries,
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+        WebSessionBrowserSheetRoute.PAGE_SOURCE ->
+            WebSessionBrowserPageSource(
+                isLoading = hostState.pageSource.isLoading,
+                content = hostState.pageSource.content,
+                error = hostState.pageSource.error,
+                onCopy = onCopyPageSource,
+                onDismiss = onDismiss,
                 modifier = Modifier.fillMaxSize(),
             )
 

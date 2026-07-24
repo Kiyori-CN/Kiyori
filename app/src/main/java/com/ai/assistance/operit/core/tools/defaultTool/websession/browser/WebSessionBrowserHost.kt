@@ -70,6 +70,14 @@ internal class WebSessionBrowserHost(
         fun onOpenUrl(url: String)
         fun onClearHistory()
         fun onToggleDesktopMode()
+        fun onSetSearchEngine(engine: WebSessionSearchEngine)
+        fun onSubmitSearch(query: String, engine: WebSessionSearchEngine)
+        fun onOpenSearchRecord(record: WebSessionSearchRecord)
+        fun onDeleteSearchHistory(id: Long)
+        fun onClearSearchHistory()
+        fun onCopyCurrentUrl()
+        fun onOpenPageSource()
+        fun onCopyPageSource()
         fun onOpenUserscripts()
         fun onImportUserscript()
         fun onInstallUserscriptFromUrl(url: String)
@@ -203,12 +211,16 @@ internal class WebSessionBrowserHost(
     ) {
         val bookmarks by store.bookmarksFlow.collectAsState(initial = emptyList())
         val history by store.historyFlow.collectAsState(initial = emptyList())
+        val searchEngine by store.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
+        val searchHistory by store.searchHistoryFlow.collectAsState(initial = emptyList())
         val userscriptUiState by userscriptStore.state.collectAsState()
 
         WebSessionBrowserScreen(
             hostState = hostState,
             bookmarks = bookmarks,
             globalHistory = history,
+            searchEngine = searchEngine,
+            searchHistory = searchHistory,
             userscriptUiState = userscriptUiState,
             webViewHost = webViewHost,
             onHostStateChange = ::updateHostState,
@@ -228,6 +240,14 @@ internal class WebSessionBrowserHost(
             onOpenUrl = callbacks::onOpenUrl,
             onClearHistory = callbacks::onClearHistory,
             onToggleDesktopMode = callbacks::onToggleDesktopMode,
+            onSetSearchEngine = callbacks::onSetSearchEngine,
+            onSubmitSearch = callbacks::onSubmitSearch,
+            onOpenSearchRecord = callbacks::onOpenSearchRecord,
+            onDeleteSearchHistory = callbacks::onDeleteSearchHistory,
+            onClearSearchHistory = callbacks::onClearSearchHistory,
+            onCopyCurrentUrl = callbacks::onCopyCurrentUrl,
+            onOpenPageSource = callbacks::onOpenPageSource,
+            onCopyPageSource = callbacks::onCopyPageSource,
             onOpenUserscripts = callbacks::onOpenUserscripts,
             onImportUserscript = callbacks::onImportUserscript,
             onInstallUserscriptFromUrl = callbacks::onInstallUserscriptFromUrl,
@@ -263,13 +283,7 @@ internal class WebSessionBrowserHost(
                     downloadUiState.copy(
                         selectedFilter = hostState.downloadUiState.selectedFilter
                     ),
-                externalOpenPrompt = externalOpenPrompt,
-                urlDraft =
-                    if (hostState.isEditingUrl) {
-                        hostState.urlDraft
-                    } else {
-                        browserState.currentUrl
-                    }
+                externalOpenPrompt = externalOpenPrompt
             )
         updateIndicatorLayoutForCurrentState()
     }
@@ -350,11 +364,17 @@ internal class WebSessionBrowserHost(
             return true
         }
 
-        if (hostState.isEditingUrl) {
+        if (hostState.isSearchEnginePanelVisible) {
+            updateHostState { current -> current.copy(isSearchEnginePanelVisible = false) }
+            return true
+        }
+
+        if (hostState.isSearchVisible) {
             updateHostState { current ->
                 current.copy(
-                    isEditingUrl = false,
-                    urlDraft = current.browserState.currentUrl,
+                    isSearchVisible = false,
+                    isSearchEnginePanelVisible = false,
+                    searchDraft = "",
                 )
             }
             return true
@@ -462,8 +482,10 @@ internal class WebSessionBrowserHost(
             } else {
                 hostState.copy(
                     sheetRoute = WebSessionBrowserSheetRoute.NONE,
-                    isEditingUrl = false,
-                    urlDraft = hostState.browserState.currentUrl
+                    isSearchVisible = false,
+                    isSearchEnginePanelVisible = false,
+                    searchDraft = "",
+                    pageSource = WebSessionPageSourceState(),
                 )
             }
 
@@ -523,6 +545,80 @@ internal class WebSessionBrowserHost(
 
     fun showSheet(route: WebSessionBrowserSheetRoute) {
         updateHostState { it.copy(sheetRoute = route) }
+    }
+
+    fun beginPageSourceRead() {
+        updateHostState {
+            it.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.PAGE_SOURCE,
+                pageSource = WebSessionPageSourceState(isLoading = true),
+            )
+        }
+        val webView = activeWebView
+        if (webView == null) {
+            updateHostState {
+                it.copy(
+                    pageSource = WebSessionPageSourceState(
+                        error = appContext.getString(R.string.web_session_source_unavailable),
+                    )
+                )
+            }
+            return
+        }
+        webView.evaluateJavascript(
+            """
+            (function() {
+                var root = document.documentElement;
+                return root ? root.outerHTML : "";
+            })();
+            """.trimIndent()
+        ) { rawValue ->
+            try {
+                val content = JSONTokener(rawValue).nextValue() as? String
+                if (content.isNullOrBlank()) {
+                    updateHostState {
+                        it.copy(
+                            pageSource = WebSessionPageSourceState(
+                                error = appContext.getString(R.string.web_session_source_empty),
+                            )
+                        )
+                    }
+                } else {
+                    updateHostState {
+                        it.copy(
+                            pageSource = WebSessionPageSourceState(content = content),
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.e("WebSessionBrowserHost", "Failed to read current page source", e)
+                updateHostState {
+                    it.copy(
+                        pageSource = WebSessionPageSourceState(
+                            error = appContext.getString(R.string.web_session_source_read_failed),
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun copyCurrentUrlToClipboard() {
+        val url = hostState.browserState.currentUrl
+        if (url.isBlank()) {
+            return
+        }
+        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("web_url", url))
+    }
+
+    fun copyPageSourceToClipboard() {
+        val content = hostState.pageSource.content
+        if (content.isNullOrBlank()) {
+            return
+        }
+        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("page_source", content))
     }
 
     private fun updateHostState(transform: (WebSessionBrowserHostState) -> WebSessionBrowserHostState) {

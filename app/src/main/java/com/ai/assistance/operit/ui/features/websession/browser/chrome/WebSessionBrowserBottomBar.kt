@@ -86,7 +86,7 @@ internal fun WebSessionBrowserBottomBar(
             BrowserBottomBarTabAction(
                 count = tabCount,
                 contentDescription =
-                    "${stringResource(R.string.web_session_tabs)}，${tabCount.coerceAtLeast(0)}",
+                    "${stringResource(R.string.web_session_windows)}，${tabCount.coerceAtLeast(0)}",
                 onClick = onTabs,
             )
             BrowserBottomBarAction(

@@ -25,7 +25,10 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         private val KEY_BOOKMARKS = stringPreferencesKey("bookmarks_json")
         private val KEY_HISTORY = stringPreferencesKey("history_json")
         private val KEY_DESKTOP_MODE = booleanPreferencesKey("desktop_mode")
+        private val KEY_SEARCH_ENGINE = stringPreferencesKey("search_engine")
+        private val KEY_SEARCH_HISTORY = stringPreferencesKey("search_history_json")
         private const val MAX_HISTORY_ENTRIES = 500
+        private const val MAX_SEARCH_HISTORY_ENTRIES = 12
 
         @Volatile private var instance: WebSessionHistoryStore? = null
 
@@ -58,6 +61,17 @@ internal class WebSessionHistoryStore private constructor(private val context: C
     val desktopModeFlow: Flow<Boolean> =
         context.webSessionHistoryDataStore.data.map { preferences ->
             preferences[KEY_DESKTOP_MODE] ?: true
+        }
+
+    val searchEngineFlow: Flow<WebSessionSearchEngine> =
+        context.webSessionHistoryDataStore.data.map { preferences ->
+            WebSessionSearchEngine.fromId(preferences[KEY_SEARCH_ENGINE])
+        }
+
+    val searchHistoryFlow: Flow<List<WebSessionSearchRecord>> =
+        context.webSessionHistoryDataStore.data.map { preferences ->
+            decodeSearchHistory(preferences[KEY_SEARCH_HISTORY])
+                .sortedByDescending { it.createdAt }
         }
 
     suspend fun recordVisit(url: String, title: String, isReload: Boolean) {
@@ -186,6 +200,57 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         }
     }
 
+    suspend fun setSearchEngine(engine: WebSessionSearchEngine) {
+        context.webSessionHistoryDataStore.edit { preferences ->
+            preferences[KEY_SEARCH_ENGINE] = engine.id
+        }
+    }
+
+    suspend fun addSearchHistory(query: String, targetUrl: String) {
+        val normalizedQuery = query.trim()
+        val normalizedTargetUrl = targetUrl.trim()
+        if (normalizedQuery.isBlank() || normalizedTargetUrl.isBlank()) {
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        context.webSessionHistoryDataStore.edit { preferences ->
+            val current = decodeSearchHistory(preferences[KEY_SEARCH_HISTORY])
+            val updated = buildList {
+                add(
+                    WebSessionSearchRecord(
+                        id = now,
+                        query = normalizedQuery,
+                        targetUrl = normalizedTargetUrl,
+                        createdAt = now,
+                    )
+                )
+                addAll(
+                    current.filterNot {
+                        it.query == normalizedQuery || it.targetUrl == normalizedTargetUrl
+                    }
+                )
+            }
+            preferences[KEY_SEARCH_HISTORY] = json.encodeToString(
+                updated.take(MAX_SEARCH_HISTORY_ENTRIES)
+            )
+        }
+    }
+
+    suspend fun deleteSearchHistory(id: Long) {
+        context.webSessionHistoryDataStore.edit { preferences ->
+            val updated = decodeSearchHistory(preferences[KEY_SEARCH_HISTORY])
+                .filterNot { it.id == id }
+            preferences[KEY_SEARCH_HISTORY] = json.encodeToString(updated)
+        }
+    }
+
+    suspend fun clearSearchHistory() {
+        context.webSessionHistoryDataStore.edit { preferences ->
+            preferences[KEY_SEARCH_HISTORY] = json.encodeToString(emptyList<WebSessionSearchRecord>())
+        }
+    }
+
     private fun decodeBookmarks(raw: String?): List<WebSessionBookmark> {
         return if (raw.isNullOrBlank()) {
             emptyList()
@@ -199,6 +264,15 @@ internal class WebSessionHistoryStore private constructor(private val context: C
             emptyList()
         } else {
             runCatching { json.decodeFromString<List<WebSessionHistoryEntry>>(raw) }.getOrElse { emptyList() }
+        }
+    }
+
+    private fun decodeSearchHistory(raw: String?): List<WebSessionSearchRecord> {
+        return if (raw.isNullOrBlank()) {
+            emptyList()
+        } else {
+            runCatching { json.decodeFromString<List<WebSessionSearchRecord>>(raw) }
+                .getOrElse { emptyList() }
         }
     }
 
