@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -19,6 +20,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -109,6 +113,7 @@ internal class WebSessionBrowserHost(
     private var composeView: ComposeView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var overlayLifecycleOwner: WebSessionOverlayLifecycleOwner? = null
+    private var backCallbackRegistrar: BrowserOverlayBackCallbackRegistrar? = null
 
     private var indicatorView: ComposeView? = null
     private var indicatorParams: WindowManager.LayoutParams? = null
@@ -139,6 +144,9 @@ internal class WebSessionBrowserHost(
             DeceptiveMinimizedLayout(appContext).apply {
                 setBackgroundColor(AndroidColor.TRANSPARENT)
                 setOnClickListener {}
+                onLegacyBack = {
+                    isExpanded && !appPresentationActive && handleBack()
+                }
             }
         installViewTreeOwners(root, lifecycleOwner)
 
@@ -176,12 +184,22 @@ internal class WebSessionBrowserHost(
         val expandedAtCreation = initialExpanded && !appPresentationActive
         overlayParams = createOverlayLayoutParams(expandedAtCreation)
         windowManager.addView(root, overlayParams)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backCallbackRegistrar =
+                BrowserOverlayBackCallbackRegistrar(
+                    root = root,
+                    onBack = ::handleBack,
+                )
+        }
         setExpanded(expandedAtCreation)
     }
 
     fun destroy() {
         hideTextSelectionActionsOverlay()
         hideIndicator()
+        backCallbackRegistrar?.dispose()
+        backCallbackRegistrar = null
+        rootView?.onLegacyBack = null
         overlayLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         overlayLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         overlayLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
@@ -527,10 +545,7 @@ internal class WebSessionBrowserHost(
             params.width = 1
             params.height = 1
             params.gravity = Gravity.TOP or Gravity.START
-            params.flags =
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            params.flags = BrowserOverlayWindowPolicy.minimizedFlags()
 
             indicatorParams?.let {
                 params.x = it.x
@@ -542,6 +557,7 @@ internal class WebSessionBrowserHost(
         if (root.windowToken != null) {
             windowManager.updateViewLayout(root, params)
         }
+        syncBackInputRegistration()
         updateIndicatorLayoutForCurrentState()
     }
 
@@ -551,8 +567,23 @@ internal class WebSessionBrowserHost(
         params.gravity = Gravity.CENTER
         params.x = 0
         params.y = 0
-        params.flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        // The overlay must own the physical screen edge. Without this contract Compose starts
+        // below the status bar/cutout and leaves the previous window visible above browser chrome.
+        params.flags = BrowserOverlayWindowPolicy.expandedFlags()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            params.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            params.setFitInsetsTypes(0)
+        }
         params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    }
+
+    private fun syncBackInputRegistration() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backCallbackRegistrar?.setEnabled(isExpanded && !appPresentationActive)
+        }
     }
 
     fun showSheet(route: WebSessionBrowserSheetRoute) {
@@ -938,12 +969,19 @@ internal class WebSessionBrowserHost(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 type,
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                BrowserOverlayWindowPolicy.expandedFlags(),
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.CENTER
                 x = 0
                 y = 0
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    setFitInsetsTypes(0)
+                }
                 softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             }
         } else {
@@ -951,9 +989,7 @@ internal class WebSessionBrowserHost(
                 1,
                 1,
                 type,
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                BrowserOverlayWindowPolicy.minimizedFlags(),
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -1039,10 +1075,69 @@ private class WebSessionOverlayLifecycleOwner :
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private class BrowserOverlayBackCallbackRegistrar(
+    private val root: View,
+    private val onBack: () -> Boolean,
+) : View.OnAttachStateChangeListener {
+    private val callback = OnBackInvokedCallback { onBack() }
+    private var enabled: Boolean = false
+    private var dispatcher: OnBackInvokedDispatcher? = null
+
+    init {
+        root.addOnAttachStateChangeListener(this)
+    }
+
+    fun setEnabled(enabled: Boolean) {
+        this.enabled = enabled
+        syncRegistration()
+    }
+
+    fun dispose() {
+        enabled = false
+        unregister()
+        root.removeOnAttachStateChangeListener(this)
+    }
+
+    override fun onViewAttachedToWindow(view: View) {
+        syncRegistration()
+    }
+
+    override fun onViewDetachedFromWindow(view: View) {
+        unregister()
+    }
+
+    private fun syncRegistration() {
+        if (!enabled || !root.isAttachedToWindow) {
+            unregister()
+            return
+        }
+
+        val nextDispatcher = root.findOnBackInvokedDispatcher() ?: return
+        if (dispatcher === nextDispatcher) {
+            return
+        }
+
+        unregister()
+        nextDispatcher.registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            callback,
+        )
+        dispatcher = nextDispatcher
+    }
+
+    private fun unregister() {
+        val currentDispatcher = dispatcher ?: return
+        currentDispatcher.unregisterOnBackInvokedCallback(callback)
+        dispatcher = null
+    }
+}
+
 private class DeceptiveMinimizedLayout(context: Context) : FrameLayout(context) {
     var minimizedMeasureEnabled: Boolean = false
     var fakeWidthPx: Int = 1
     var fakeHeightPx: Int = 1
+    var onLegacyBack: (() -> Boolean)? = null
 
     init {
         clipChildren = false
@@ -1054,6 +1149,20 @@ private class DeceptiveMinimizedLayout(context: Context) : FrameLayout(context) 
         fakeWidthPx = fakeWidth.coerceAtLeast(1)
         fakeHeightPx = fakeHeight.coerceAtLeast(1)
         requestLayout()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (
+            BrowserOverlayWindowPolicy.shouldHandleLegacyBack(
+                sdkInt = Build.VERSION.SDK_INT,
+                keyCode = event.keyCode,
+                action = event.action,
+                isCanceled = event.isCanceled,
+            ) && onLegacyBack?.invoke() == true
+        ) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

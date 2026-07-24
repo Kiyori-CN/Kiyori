@@ -2010,11 +2010,17 @@ internal fun StandardBrowserSessionTools.renderOpenTabs(
     if (ordered.isEmpty()) {
         return "No open tabs."
     }
-    return ordered.mapIndexed { index, session ->
-        val active = if (session.id == activeId) " [active]" else ""
-        val title = sessionDisplayTitle(session).ifBlank { "about:blank" }
-        "- [$index] $title$active\n  ${session.currentUrl.ifBlank { "about:blank" }}"
-    }.joinToString("\n")
+    return BrowserTabDiscoveryFormatter.render(
+        ordered.mapIndexed { index, session ->
+            BrowserTabDiscoveryEntry(
+                index = index,
+                sessionId = session.id,
+                title = sessionDisplayTitle(session).ifBlank { "about:blank" },
+                url = session.currentUrl.ifBlank { "about:blank" },
+                isActive = session.id == activeId,
+            )
+        }
+    )
 }
 
 internal fun StandardBrowserSessionTools.renderPageState(session: BrowserToolSession): String {

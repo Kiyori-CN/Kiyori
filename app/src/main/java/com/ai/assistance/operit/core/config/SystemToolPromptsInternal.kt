@@ -305,7 +305,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_click",
-                            description = "Click an element on the current page by browser_snapshot ref, including refs inside same-origin iframes.",
+                            description = "Click an element in the active tab of the shared Browser Runtime by browser_snapshot ref, including tabs opened manually in Kiyori and refs inside same-origin iframes.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "ref", type = "string", description = "target element ref from browser_snapshot output; provide ref or selector", required = false),
@@ -392,7 +392,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_navigate",
-                            description = "Navigate the active browser tab to a URL. If no tab exists yet, the first tab is created automatically.",
+                            description = "Navigate the active tab in the shared Browser Runtime. Use browser_tabs list/select first when the user refers to a tab opened manually in Kiyori. If no tab exists yet, the first tab is created automatically.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "url", type = "string", description = "target URL", required = true)
@@ -449,7 +449,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_snapshot",
-                            description = "Capture a structured accessibility-style snapshot of the current page, including same-origin iframe content.",
+                            description = "Capture a structured accessibility-style snapshot of the active tab in the shared Browser Runtime, including a tab opened manually in Kiyori and same-origin iframe content.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "filename", type = "string", description = "optional output snapshot file name", required = false),
@@ -471,7 +471,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_type",
-                            description = "Type text into an editable element.",
+                            description = "Type text into an editable element in the active tab of the shared Browser Runtime. Use browser_tabs list/select first when the target page was opened manually in Kiyori.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "element", type = "string", description = "optional, human-readable element description", required = false),
@@ -493,7 +493,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_tabs",
-                            description = "List, create, select, or close browser tabs using 0-based indexes.",
+                            description = "List every tab in the shared Browser Runtime, including tabs opened manually in Browser Home or the browser overlay, or create, select, and close tabs using 0-based indexes. List output includes each stable session_id and active state; select the intended tab before snapshot, click, type, or navigation.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "action", type = "string", description = "one of: list, create, select, close", required = true),
@@ -3297,7 +3297,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_click",
-                            description = "按 browser_snapshot 的 ref 点击当前页面元素，包括同源 iframe 内的 ref。",
+                            description = "按 browser_snapshot 的 ref 点击共享 Browser Runtime 当前活动窗口中的页面元素；人工在 Kiyori 中打开的窗口与同源 iframe 内的 ref 同样可操作。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "ref", type = "string", description = "来自 browser_snapshot 输出的目标元素 ref；ref 和 selector 至少提供一个", required = false),
@@ -3384,7 +3384,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_navigate",
-                            description = "让当前活动 tab 跳转到指定 URL。若当前没有 tab，会自动创建首个 tab。",
+                            description = "让共享 Browser Runtime 的当前活动窗口跳转到指定 URL。用户指的是人工打开的窗口时，先用 browser_tabs list/select 选择它。若当前没有窗口，会自动创建首个窗口。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "url", type = "string", description = "目标 URL", required = true)
@@ -3441,7 +3441,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_snapshot",
-                            description = "抓取当前页面的结构化无障碍风格快照，包括同源 iframe 内容。",
+                            description = "抓取共享 Browser Runtime 当前活动窗口的结构化无障碍风格快照，人工在 Kiyori 中打开的窗口与同源 iframe 内容同样可读取。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "filename", type = "string", description = "可选，输出快照文件名", required = false),
@@ -3463,7 +3463,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_type",
-                            description = "向可编辑元素输入文本。",
+                            description = "向共享 Browser Runtime 当前活动窗口的可编辑元素输入文本；目标页面由用户人工打开时，先用 browser_tabs list/select 选择它。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "element", type = "string", description = "可选，人类可读元素描述", required = false),
@@ -3485,7 +3485,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_tabs",
-                            description = "使用 0-based 索引列出、创建、切换或关闭浏览器 tab。",
+                            description = "列出共享 Browser Runtime 的全部窗口，包括人工从浏览器首页或悬浮窗打开的窗口，也可使用 0-based 索引创建、切换或关闭窗口。list 输出包含稳定 session_id 和活动状态；执行 snapshot、点击、输入或导航前先选择目标窗口。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "action", type = "string", description = "list/create/select/close 之一", required = true),

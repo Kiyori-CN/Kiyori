@@ -1507,7 +1507,8 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                         openTabs = renderOpenTabs(registry),
                         pageState = session?.let { activeSession -> renderPageState(activeSession) } ?: "No active page.",
                         snapshot = session?.let { activeSession -> captureSnapshotText(activeSession) },
-                        result = "Listed open tabs."
+                        result =
+                            "Listed every tab in the shared Browser Runtime, including tabs opened manually in Kiyori."
                     )
                 )
             }
