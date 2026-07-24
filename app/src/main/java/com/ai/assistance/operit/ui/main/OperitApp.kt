@@ -56,6 +56,7 @@ import com.ai.assistance.operit.ui.main.shell.SoftwareHomePage
 import com.ai.assistance.operit.ui.main.shell.resolveAiDrawerSelection
 import com.ai.assistance.operit.ui.main.shell.resolveAiTopBarMode
 import com.ai.assistance.operit.ui.main.shell.hasSameAiSettingsSourceFamily
+import com.ai.assistance.operit.ui.main.shell.openExternalChild
 import com.ai.assistance.operit.ui.main.shell.buildAiPrimaryStack
 import com.ai.assistance.operit.ui.main.shell.preservesAiPrimaryStack
 import com.ai.assistance.operit.ui.main.shell.toAiPrimaryRouteEntry
@@ -114,10 +115,13 @@ fun OperitApp(
     routeNavRequestId: Long = 0L,
     browserOpenRequest: String? = null,
     browserOpenRequestId: Long = 0L,
+    kiyoriShellChildRequest: KiyoriShellChild? = null,
+    kiyoriShellRequestId: Long = 0L,
     onShortcutNavHandled: (Long) -> Unit = {},
     onCurrentNavItemChanged: (NavItem) -> Unit = {},
     onRouteNavHandled: (Long) -> Unit = {},
     onBrowserOpenHandled: (Long) -> Unit = {},
+    onKiyoriShellRequestHandled: (Long) -> Unit = {},
 ) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -205,6 +209,7 @@ fun OperitApp(
     var lastHandledShortcutRequestId by remember { mutableStateOf(0L) }
     var lastHandledRouteRequestId by remember { mutableStateOf(0L) }
     var lastHandledBrowserOpenRequestId by remember { mutableStateOf(0L) }
+    var lastHandledKiyoriShellRequestId by remember { mutableStateOf(0L) }
     var isAiDrawerSelectionConsumed by remember { mutableStateOf(false) }
 
     LaunchedEffect(shellState.isAiDrawerOpen) {
@@ -280,6 +285,20 @@ fun OperitApp(
         updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME))
         lastHandledBrowserOpenRequestId = browserOpenRequestId
         onBrowserOpenHandled(browserOpenRequestId)
+    }
+
+    LaunchedEffect(kiyoriShellRequestId, kiyoriShellChildRequest) {
+        val destination = kiyoriShellChildRequest ?: return@LaunchedEffect
+        if (kiyoriShellRequestId == 0L || kiyoriShellRequestId == lastHandledKiyoriShellRequestId) {
+            return@LaunchedEffect
+        }
+        isNavigatingBack = false
+        routerState.resetTo(
+            aiChatDrawerEntry.toAiPrimaryRouteEntry(RouteEntrySource.DEFAULT),
+        )
+        updateShellState(shellState.openExternalChild(destination))
+        lastHandledKiyoriShellRequestId = kiyoriShellRequestId
+        onKiyoriShellRequestHandled(kiyoriShellRequestId)
     }
 
     // 当currentScreen改变时，检查是否需要清空TopBarActions
@@ -603,6 +622,11 @@ fun OperitApp(
                         shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
                     )
                 },
+                onOpenBrowserSettingsFromKiyoriSettings = {
+                    updateShellState(
+                        shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
+                    )
+                },
                 onSubmitWebSearch = { request ->
                     val createdSessionId =
                         BrowserPresentationCoordinator.getInstance(context)
@@ -642,6 +666,11 @@ fun OperitApp(
                         onOpenAiDialogue = {
                             updateShellState(
                                 shellState.showSoftwareHomePage(SoftwareHomePage.AI_HOME),
+                            )
+                        },
+                        onOpenBrowserSettings = {
+                            updateShellState(
+                                shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
                             )
                         },
                         onCloseBrowser = {

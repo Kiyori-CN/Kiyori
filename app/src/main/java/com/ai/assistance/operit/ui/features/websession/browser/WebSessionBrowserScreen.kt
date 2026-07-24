@@ -99,6 +99,7 @@ internal fun WebSessionBrowserScreen(
     onRequestTabThumbnails: () -> Unit,
     onTopBarBack: () -> Unit,
     onOpenAiDialogue: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: (WebSessionProfile) -> Unit,
@@ -505,7 +506,10 @@ internal fun WebSessionBrowserScreen(
                         onExitBrowser()
                     },
                     onCollapse = dismissSheet,
-                    onOpenBrowserSettings = { openPlaceholder(WebSessionBrowserPlaceholderPage.BROWSER_SETTINGS) },
+                    onOpenBrowserSettings = {
+                        dismissSheet()
+                        onOpenBrowserSettings()
+                    },
                 )
             }
             if (mountedDrawerRoute.isBrowserChildDrawerRoute()) {

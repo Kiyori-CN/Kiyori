@@ -25,7 +25,6 @@ internal enum class WebSessionBrowserPlaceholderPage {
     READER_MODE,
     AD_MARKING,
     SITE_CONFIG,
-    BROWSER_SETTINGS,
 }
 
 @Immutable

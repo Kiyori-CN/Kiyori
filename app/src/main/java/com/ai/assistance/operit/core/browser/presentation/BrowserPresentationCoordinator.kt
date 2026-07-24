@@ -3,6 +3,7 @@ package com.ai.assistance.operit.core.browser.presentation
 import android.content.Context
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
+import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
@@ -14,6 +15,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensure
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUrlOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.setDesktopModeEnabled
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.showToast
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
 import com.ai.assistance.operit.util.AppLogger
@@ -106,6 +108,19 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             }
         }
 
+    fun browserSettingsState(): BrowserRuntimeSettingsState =
+        tools.runOnMainSync {
+            BrowserRuntimeSettingsState(
+                defaultProfile = tools.defaultSessionProfile,
+                incognitoAvailability = tools.profileManager.incognitoAvailability,
+                isDesktopMode = StandardBrowserSessionTools.desktopModeEnabled,
+            )
+        }
+
+    fun setDesktopMode(enabled: Boolean) {
+        tools.setDesktopModeEnabled(enabled)
+    }
+
     fun openUrlInNewSession(
         url: String,
         profile: WebSessionProfile,
@@ -149,4 +164,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 internal data class BrowserNewSessionProfileState(
     val defaultProfile: WebSessionProfile,
     val incognitoAvailability: WebSessionIncognitoAvailability,
+)
+
+internal data class BrowserRuntimeSettingsState(
+    val defaultProfile: WebSessionProfile,
+    val incognitoAvailability: WebSessionIncognitoAvailability,
+    val isDesktopMode: Boolean,
 )

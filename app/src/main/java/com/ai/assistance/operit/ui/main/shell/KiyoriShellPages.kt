@@ -375,6 +375,7 @@ internal fun KiyoriMinusOnePage() {
 internal fun KiyoriPrimaryRootPage(
     destination: PrimaryDestination,
     onOpenAiSettings: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val visual = primaryDestinationVisuals.single { item -> item.destination == destination }
@@ -382,6 +383,7 @@ internal fun KiyoriPrimaryRootPage(
         KiyoriSettingsHomePage(
             title = stringResource(visual.labelResId),
             onOpenAiSettings = onOpenAiSettings,
+            onOpenBrowserSettings = onOpenBrowserSettings,
             modifier = modifier,
         )
         return
@@ -403,51 +405,6 @@ internal fun KiyoriPrimaryRootPage(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
-        }
-    }
-}
-
-@Composable
-private fun KiyoriSettingsHomePage(
-    title: String,
-    onOpenAiSettings: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier =
-            modifier
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 20.dp, vertical = 24.dp)
-                .padding(bottom = 72.dp),
-    ) {
-        Spacer(modifier = Modifier.height(36.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Surface(
-            onClick = onOpenAiSettings,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(R.string.kiyori_shell_ai_settings),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
         }
     }
 }

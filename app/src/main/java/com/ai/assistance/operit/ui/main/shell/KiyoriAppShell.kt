@@ -50,6 +50,7 @@ internal fun KiyoriAppShell(
     networkType: String,
     onAiDrawerEntrySelected: (NavigationEntrySpec) -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
+    onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
     browserHome: @Composable (Modifier) -> Unit,
@@ -182,6 +183,7 @@ internal fun KiyoriAppShell(
                 KiyoriPrimaryRootPage(
                     destination = state.primaryDestination,
                     onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
+                    onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
                     modifier = Modifier.fillMaxSize().zIndex(4f),
                 )
             }
@@ -221,16 +223,35 @@ internal fun KiyoriAppShell(
         }
 
         AnimatedVisibility(
-            visible = state.child == KiyoriShellChild.FULL_SCREEN_WEB_SEARCH && aiHostIsRoot,
+            visible = state.child != null && aiHostIsRoot,
             modifier = Modifier.fillMaxSize().zIndex(12f),
             enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
         ) {
-            KiyoriFullScreenWebSearchPage(
-                onBack = { onStateChange(state.copy(child = null)) },
-                onSubmitSearch = onSubmitWebSearch,
-                modifier = Modifier.fillMaxSize(),
-            )
+            when (state.child) {
+                KiyoriShellChild.FULL_SCREEN_WEB_SEARCH ->
+                    KiyoriFullScreenWebSearchPage(
+                        onBack = { onStateChange(state.closeChild()) },
+                        onSubmitSearch = onSubmitWebSearch,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                KiyoriShellChild.BROWSER_SETTINGS ->
+                    KiyoriBrowserSettingsPage(
+                        onBack = { onStateChange(state.closeChild()) },
+                        onOpenSearchHistory = {
+                            onStateChange(
+                                state.openChild(KiyoriShellChild.BROWSER_SEARCH_HISTORY),
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                KiyoriShellChild.BROWSER_SEARCH_HISTORY ->
+                    KiyoriBrowserSearchHistoryPage(
+                        onBack = { onStateChange(state.closeChild()) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                null -> Unit
+            }
         }
 
         val bottomBarAlpha =

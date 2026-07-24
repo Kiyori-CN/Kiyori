@@ -9,11 +9,9 @@ Settings Home 只有一条 AI 设置入口，无法体现 Kiyori 作为浏览器
 只显示已有真实状态 owner 或本里程碑同步实现的入口：
 
 - 网页浏览器
-- 下载中心
-- 文件下载器设置
 - Operit AI 设置
-- 权限与系统能力入口，在现有真实路由可直接接通时展示
-- 视频播放器只在播放器基础里程碑完成后加入
+
+下载中心和文件下载器设置在第五里程碑完成真实页面后加入；视频播放器在播放器基础里程碑完成后加入。当前只有 Shizuku 授权页与 AI 工具授权页，尚未形成 `CONTEXT.md` 定义的 Kiyori Permission Center，因此本里程碑不把任一旧页面伪装成权限中心。
 
 不展示音乐、小说、广告拦截、备份等尚未建立 Kiyori 页面和状态 owner 的空入口。
 
@@ -23,6 +21,8 @@ Settings Home 只有一条 AI 设置入口，无法体现 Kiyori 作为浏览器
 - 入口按“浏览与内容”“AI 与系统”分组，使用 Operit theme 的圆角卡片、图标色和右箭头
 - 手机为单列列表；840dp 及以上为两列分组卡片，内容最大宽度受限
 - 页面与子设置使用同一个 Shell child stack；系统 Back 和顶栏返回都回到 Settings Home
+- 从 Browser Home 打开时，浏览器设置覆盖在同一个 WebView presentation 上方，返回后直接恢复原网页，不重新挂载或导航
+- 从 overlay 菜单打开时先收缩悬浮网页，再通过显式 Kiyori 内部 Intent 拉起同一 Browser Settings 页面
 
 ## 浏览器设置
 
@@ -36,6 +36,15 @@ Settings Home 只有一条 AI 设置入口，无法体现 Kiyori 作为浏览器
 
 浏览器菜单“浏览器设置”和 Settings Home 必须打开同一页面、同一 store，不复制状态。
 
+## 已采用实现
+
+- `KiyoriShellChild` 增加 `BROWSER_SETTINGS` 与 `BROWSER_SEARCH_HISTORY`，Back 从搜索记录返回浏览器设置，再返回原 Settings Home 或 Browser Home owner
+- Settings Home 在 `<840dp` 使用单列分组卡片，在 `>=840dp` 使用两列；页面只展示“网页浏览器”和“Operit AI 设置”
+- Browser Settings 直接读取 `WebSessionHistoryStore.searchEngineFlow`、`searchHistoryFlow`、既有 desktop mode 与 Browser Runtime 默认 Profile
+- 搜索记录页复用同一 store，支持逐条删除和清空，不复制记录
+- 浏览器菜单删除 `BROWSER_SETTINGS` 说明页；App presentation 直接打开 Shell child，overlay presentation 收缩后使用 `com.kiyori.action.OPEN_BROWSER_SETTINGS` 打开同一 child
+- 网站数据区只解释普通与无痕生命周期，不提供未实现的批量清理按钮
+
 ## 自问自答
 
 ### 为什么播放器入口不能先放出来？
@@ -48,9 +57,9 @@ Settings Home 只有一条 AI 设置入口，无法体现 Kiyori 作为浏览器
 
 ## 预计文件
 
-- `KiyoriShellPages.kt`、`KiyoriShellState.kt`、`KiyoriAppShell.kt`
-- 新的 Kiyori settings 页面与 browser settings store/adapter
-- 浏览器菜单 callback 和 Host 路由
+- `KiyoriSettingsPages.kt`、`KiyoriShellPages.kt`、`KiyoriShellState.kt`、`KiyoriAppShell.kt`
+- `BrowserPresentationCoordinator.kt` 作为既有 Browser Runtime 设置适配器
+- `WebSessionBrowserHost.kt`、`WebSessionBrowserScreen.kt`、`KiyoriBrowserHome.kt` 与 `MainActivity.kt` 的菜单和 Shell 路由
 - Shell navigation 与 settings store 测试
 - `README.md`、`CONTEXT.md`
 
@@ -61,3 +70,21 @@ Settings Home 只有一条 AI 设置入口，无法体现 Kiyori 作为浏览器
 - 改变引擎、默认 Profile 和 UA 后新窗口行为与 UI 同步
 - Back 不丢失原 Settings Home 或 Browser Home 来源
 - Debug APK、提交和推送门禁通过
+
+## 本地验收结果
+
+[DONE]
+
+- `KiyoriShellStateTest` 与 `KiyoriSettingsPagesTest` 共 30 项 JVM 测试通过，零失败、零错误
+- Debug Kotlin、资源合并与本轮新增七组语言资源编译通过；已删除零引用且缺少默认值的旧 `web_session_close_current_tab` 翻译资源
+- `ci/script/check_formal_readiness.py --repository . --require-main` 与 `git diff --check` 通过
+- `:app:assembleDebug` 完成 230 个任务，零失败
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`
+- 生成时间：`2026-07-25 01:03:31 +08:00`
+- 大小：`449491326` 字节
+- SHA-256：`1A25388BD8C82207229227CEF1548075B96E296281A7E561112BDF290C8FFCD8`
+- application ID：`com.kiyori`
+- 版本：`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`
+- 签名：Android Debug certificate，APK Signature Scheme v2 通过
+- 对齐：`zipalign -c -P 16 4` 通过
+- Settings Home 手机/平板视觉、系统 Back、Browser Home 原页恢复和 overlay Intent 拉起仍为 `verification_pending`

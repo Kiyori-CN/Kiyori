@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -143,12 +142,6 @@ private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderMode
                 title = stringResource(R.string.web_session_site_config),
                 description = stringResource(R.string.web_session_placeholder_site_config),
                 icon = Icons.Filled.Security,
-            )
-        WebSessionBrowserPlaceholderPage.BROWSER_SETTINGS ->
-            PlaceholderModel(
-                title = stringResource(R.string.web_session_browser_settings),
-                description = stringResource(R.string.web_session_placeholder_browser_settings),
-                icon = Icons.Filled.Settings,
             )
     }
 

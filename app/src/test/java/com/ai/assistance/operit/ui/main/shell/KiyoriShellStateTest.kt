@@ -120,6 +120,34 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `browser search history Back returns through browser settings to its owner`() {
+        val historyState =
+            KiyoriShellState(primaryDestination = PrimaryDestination.BROWSER_HOME)
+                .openChild(KiyoriShellChild.BROWSER_SEARCH_HISTORY)
+
+        val settingsTransition = historyState.handleBack()
+        assertEquals(KiyoriShellBackResult.CONSUMED, settingsTransition.result)
+        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, settingsTransition.state.child)
+        assertEquals(PrimaryDestination.BROWSER_HOME, settingsTransition.state.primaryDestination)
+
+        val ownerTransition = settingsTransition.state.handleBack()
+        assertEquals(KiyoriShellBackResult.CONSUMED, ownerTransition.result)
+        assertEquals(null, ownerTransition.state.child)
+        assertEquals(PrimaryDestination.BROWSER_HOME, ownerTransition.state.primaryDestination)
+    }
+
+    @Test
+    fun `external browser settings request opens the Kiyori settings owner`() {
+        val state =
+            KiyoriShellState(primaryDestination = PrimaryDestination.BROWSER_HOME)
+                .openExternalChild(KiyoriShellChild.BROWSER_SETTINGS)
+
+        assertEquals(PrimaryDestination.SETTINGS_HOME, state.primaryDestination)
+        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, state.child)
+        assertFalse(state.showsBottomBar)
+    }
+
+    @Test
     fun `AI drawer width follows window classes and separating fold`() {
         assertEquals(300f, calculateKiyoriAiDrawerWidthDp(400f), 0f)
         assertEquals(320f, calculateKiyoriAiDrawerWidthDp(600f), 0f)
