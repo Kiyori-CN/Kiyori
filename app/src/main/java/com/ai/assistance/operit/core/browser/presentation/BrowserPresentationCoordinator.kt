@@ -6,10 +6,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureOverlayOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureSessionAttachedOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUrlOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
 
 /**
  * Coordinates the one browser presentation lease shared by Kiyori Browser Home and the
@@ -32,12 +34,33 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             presentation
         }
 
+    fun prepareBrowserForAiHome() {
+        tools.runOnMainSync<Unit> {
+            tools.ensureOverlayOnMain(appContext, initialExpanded = false)
+            val session =
+                tools.getSession(null)
+                    ?: tools.createSessionTabOnMain(appContext, initialUrl = "about:blank")
+            tools.ensureSessionAttachedOnMain(session.id)
+            tools.refreshSessionUiOnMain(session.id)
+        }
+    }
+
     fun releaseAppPresentation(
         presentation: WebSessionBrowserHost,
         webViewHost: WebSessionWebViewHost,
     ) {
         tools.runOnMainSync<Unit> {
             presentation.releaseAppPresentation(webViewHost)
+        }
+    }
+
+    fun releaseAppPresentationAndDestroy(
+        presentation: WebSessionBrowserHost,
+        webViewHost: WebSessionWebViewHost,
+    ) {
+        tools.runOnMainSync<Unit> {
+            presentation.releaseAppPresentation(webViewHost)
+            tools.destroyBrowserPresentationOnMain()
         }
     }
 

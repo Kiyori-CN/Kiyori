@@ -14,6 +14,11 @@ enum class PrimaryDestination {
     SETTINGS_HOME,
 }
 
+enum class KiyoriBrowserReturnTarget {
+    SOFTWARE_HOME,
+    AI_HOME,
+}
+
 enum class SoftwareHomePage(val pagerIndex: Int) {
     MINUS_ONE(0),
     HOME(1),
@@ -60,6 +65,7 @@ data class KiyoriShellState(
     val softwareHomePage: SoftwareHomePage = SoftwareHomePage.HOME,
     val child: KiyoriShellChild? = null,
     val isAiDrawerOpen: Boolean = false,
+    val browserReturnTarget: KiyoriBrowserReturnTarget? = null,
 ) {
     val showsBottomBar: Boolean
         get() =
@@ -79,7 +85,37 @@ data class KiyoriShellState(
                 },
             child = null,
             isAiDrawerOpen = false,
+            browserReturnTarget = null,
         )
+
+    fun openBrowser(returnTarget: KiyoriBrowserReturnTarget): KiyoriShellState =
+        copy(
+            primaryDestination = PrimaryDestination.BROWSER_HOME,
+            child = null,
+            isAiDrawerOpen = false,
+            browserReturnTarget = returnTarget,
+        )
+
+    fun exitBrowser(): KiyoriShellState =
+        when (browserReturnTarget) {
+            KiyoriBrowserReturnTarget.AI_HOME ->
+                copy(
+                    primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                    softwareHomePage = SoftwareHomePage.AI_HOME,
+                    child = null,
+                    isAiDrawerOpen = false,
+                    browserReturnTarget = null,
+                )
+            KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+            null ->
+                copy(
+                    primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                    softwareHomePage = SoftwareHomePage.HOME,
+                    child = null,
+                    isAiDrawerOpen = false,
+                    browserReturnTarget = null,
+                )
+        }
 
     fun showSoftwareHomePage(page: SoftwareHomePage): KiyoriShellState =
         copy(
@@ -87,6 +123,7 @@ data class KiyoriShellState(
             softwareHomePage = page,
             child = null,
             isAiDrawerOpen = false,
+            browserReturnTarget = null,
         )
 
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =

@@ -48,15 +48,10 @@ internal fun WebSessionBrowserBottomBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 1.dp,
-        shadowElevation = 10.dp,
-        border =
-            BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f),
-            ),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier =
@@ -91,7 +86,7 @@ internal fun WebSessionBrowserBottomBar(
             )
             BrowserBottomBarAction(
                 icon = Icons.Filled.MoreHoriz,
-                contentDescription = stringResource(R.string.toolbox),
+                contentDescription = stringResource(R.string.web_session_browser_menu_button),
                 onClick = onToolbox,
             )
         }

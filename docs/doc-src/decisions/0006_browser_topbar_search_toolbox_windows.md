@@ -1,26 +1,52 @@
 ---
-status: verification_pending
+status: accepted
 reference: D:/10_Project/kiyori-android@24a2dfa91f0a4166dc58e5c4732d11861173f766
 ---
 
-# 浏览器顶栏、全屏搜索、工具抽屉与窗口重构决策
+# 浏览器顶栏、全屏搜索、浏览器菜单与窗口重构决策
 
-本轮以旧 Kiyori `24a2dfa…` 的 BrowserTopBar、BrowserToolboxSheet、BrowserBottomBar 和 BrowserWindowPage 为布局参考，但不把参考仓库的 X5/WebView 内核能力误认为当前 Kiyori 已具备。
+## 决策摘要
 
-冻结的实现原则：
+本轮继续使用旧 Kiyori 固定提交作为页面结构参考，使用 Kiyori 当前 WebSession runtime 作为能力边界。Browser Home、overlay 和 AI `browser_*` 工具始终共用一套 `StandardBrowserSessionTools`，不因 UI 重构复制 WebView、Cookie 或 session registry。
 
-- 顶栏为返回、搜索框、刷新；搜索框打开全屏搜索覆盖层
-- 搜索引擎、搜索记录、网络日志和页面源码必须有真实状态与真实回调
-- 工具网格只渲染当前已接通的能力；未接通能力不显示
-- 第四按钮复刻普通 WebSession 窗口总览；无痕窗口等待可验证的 WebView profile 隔离
-- 人与 AI 继续共用唯一 `StandardBrowserSessionTools` runtime 和活动 WebView
-- 本轮只构建 Debug，改动不提交不推送，真机验收保持 `verification_pending`
+## AI 协同展示与退出
 
-完整证据与自问自答见 [专项 TODO](../../TODO/kiyori_browser_topbar_search_toolbox_windows/index.md)。
+- AI 工具首次展示网页时创建最小化 overlay/indicator；用户点击 indicator 后展开同一个 WebView
+- overlay 展开态左上角返回只收缩 indicator，不调用 WebView history，保证 AI 操控不被人类 chrome 动作打断
+- AI Home 顶栏在终端左侧加入浏览器按钮。它确保现有 overlay lease/session 存在，记录 `AI_HOME` Browser return source，再把同一个 WebView 借给 App Shell Browser Home
+- App Shell Browser Home 顶栏返回按来源退出：AI Home 来源回 AI Home，普通根入口回 Software Home；释放 app presentation 后 indicator 恢复
+- 浏览器菜单 `AI对话` 与上述 AI Home 回跳语义相同
+- 浏览器菜单 `退出浏览器` 只移除展示层/indicator，保留 sessions 和 activeSessionId；窗口总览清空或 AI `browser_close_all` 才删除所有 session
 
-## 实施结果
+## 顶栏与网页融合
 
-- 顶栏、全屏搜索、搜索引擎与最近记录已接入 `WebSessionBrowserHost` 和 `WebSessionHistoryStore`
-- 工具抽屉已按真实运行时能力接入加书签、书签、历史、下载、插件、UA标识、网络日志、刷新和查看源码
-- 第四按钮已复用现有 session 总览、单项关闭、新建和关闭全部动作；无痕窗口及未接通能力没有伪造入口
-- `:app:compileDebugKotlin` 与定向 JVM 单测已通过；正式开发准备门禁通过，Debug APK 已构建并完成元数据与 ZIP 16KB 对齐核对，真机验收仍待完成
+顶栏从左到右为返回、搜索框、刷新/停止。底栏仍为后退、前进、主页、窗口、浏览器菜单。网页后退不再由顶栏负责，避免 overlay 返回打断 AI。顶栏、底栏、透明系统栏和网页共用 edge-to-edge 背景，移除 1dp 分隔线、tonal elevation 和 shadow 分割；WebView 不新增颜色猜测协议。
+
+## 浏览器下拉抽屉菜单
+
+底栏第五入口称为“浏览器菜单按钮”，弹出的 host 称为“浏览器下拉抽屉菜单”。主菜单固定高度、全宽、不可拖动，四行内容固定为：
+
+1. 加书签、书签、历史、下载、插件
+2. 悬浮嗅探、UA标识、网络日志、AI对话、工具箱
+3. 无痕模式、阅读模式、查看源码、标记广告、网站配置
+4. 退出浏览器、收起抽屉、浏览器设置
+
+前三行 cell 显示图标和文字，第四行只显示图标但保留无障碍 contentDescription。旧的关闭当前/全部标签动作从主菜单删除；窗口总览仍保留卡片关闭和清空窗口，因为清空窗口是明确的 runtime 清理动作。
+
+历史、下载、书签、插件、UA、网络日志、源码和说明页属于可拖动子抽屉；主菜单与子抽屉使用不同 composable host，所有抽屉左右贴屏。未接通能力进入真实说明页，不使用无动作按钮、Toast 或假状态。
+
+## 普通/无痕窗口
+
+第四底栏入口复刻普通/无痕 selector 与窗口卡片页。普通模式投影真实 `browserState.tabs`，新建/选择/关闭/清空调用现有 session callbacks。无痕模式只呈现 selector、空状态和隔离说明；由于当前 `CookieManager.getInstance()`、WebView data store 和 session 模型没有 profile 隔离，不能创建伪无痕。真正无痕另立 runtime/profile 设计。
+
+## 全屏搜索
+
+搜索页是 host presentation overlay，不改变活动 WebView。它复刻参考版的自动聚焦 URI 输入、九个搜索引擎、当前 URL 操作、两列搜索记录、单条删除、一键清空、引擎面板和短转场。搜索提交通过 `BrowserAddressResolver` 和 `openUrlOnMain` 进入共享 runtime，搜索引擎与记录继续由 `WebSessionHistoryStore` 持久化。
+
+## 验收边界
+
+- 源码实现与 Debug APK 构建是本轮本地验收；真机视觉、拖动、系统 Back、IME、旋转、真实网页刷新和 AI 并发操作仍为 `verification_pending`
+- 本轮不运行 Release、安装、ADB、MuMu 或设备自动化
+- 本轮改动不提交、不推送，等待用户实测
+
+完整证据、自问自答和逐项接线见 [专项 TODO](../../TODO/kiyori_browser_topbar_search_toolbox_windows/index.md)。

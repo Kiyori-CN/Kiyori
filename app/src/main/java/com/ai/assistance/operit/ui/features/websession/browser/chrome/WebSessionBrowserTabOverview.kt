@@ -48,19 +48,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserTab
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserWindowMode
 import kotlinx.coroutines.delay
 
 @Composable
 internal fun WebSessionBrowserTabOverview(
     isVisible: Boolean,
     tabs: List<WebSessionBrowserTab>,
+    windowMode: WebSessionBrowserWindowMode,
     columnCount: Int,
     onDismissRequest: () -> Unit,
     onHidden: () -> Unit,
     onSelectTab: (String) -> Unit,
     onCloseTab: (String) -> Unit,
     onNewTab: () -> Unit,
+    onOpenIncognitoInfo: () -> Unit,
     onCloseAllTabs: () -> Unit,
+    onWindowModeChange: (WebSessionBrowserWindowMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(isVisible) {
@@ -113,7 +117,59 @@ internal fun WebSessionBrowserTabOverview(
                     }
                 }
 
-                if (tabs.isEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    WindowModeTab(
+                        title = stringResource(R.string.web_session_normal_window),
+                        count = tabs.size,
+                        selected = windowMode == WebSessionBrowserWindowMode.NORMAL,
+                        onClick = { onWindowModeChange(WebSessionBrowserWindowMode.NORMAL) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    WindowModeTab(
+                        title = stringResource(R.string.web_session_incognito_title),
+                        count = 0,
+                        selected = windowMode == WebSessionBrowserWindowMode.INCOGNITO,
+                        onClick = { onWindowModeChange(WebSessionBrowserWindowMode.INCOGNITO) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                if (windowMode == WebSessionBrowserWindowMode.INCOGNITO) {
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Language,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(16.dp).size(34.dp),
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.web_session_incognito_unavailable),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.web_session_incognito_unavailable_summary),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                } else if (tabs.isEmpty()) {
                     Column(
                         modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -188,7 +244,10 @@ internal fun WebSessionBrowserTabOverview(
                         modifier =
                             Modifier
                                 .size(48.dp)
-                                .clickable(role = Role.Button, onClick = onNewTab),
+                                .clickable(
+                                    role = Role.Button,
+                                    onClick = if (windowMode == WebSessionBrowserWindowMode.NORMAL) onNewTab else onOpenIncognitoInfo,
+                                ),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -205,11 +264,44 @@ internal fun WebSessionBrowserTabOverview(
                     TabOverviewBottomAction(
                         icon = Icons.Filled.DeleteSweep,
                         contentDescription = stringResource(R.string.web_session_close_all_tabs),
-                        onClick = onCloseAllTabs,
-                        isError = true,
+                        onClick = if (windowMode == WebSessionBrowserWindowMode.NORMAL) onCloseAllTabs else onDismissRequest,
+                        isError = windowMode == WebSessionBrowserWindowMode.NORMAL,
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WindowModeTab(
+    title: String,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

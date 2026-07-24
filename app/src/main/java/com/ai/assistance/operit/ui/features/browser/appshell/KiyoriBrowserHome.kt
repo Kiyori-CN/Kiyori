@@ -20,6 +20,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 @Composable
 internal fun KiyoriBrowserHome(
     onExitBrowser: () -> Unit,
+    onOpenAiDialogue: () -> Unit,
+    onCloseBrowser: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -37,9 +39,16 @@ internal fun KiyoriBrowserHome(
         }
     }
 
+    fun releaseAppPresentation() {
+        presentation?.let { acquired ->
+            coordinator.releaseAppPresentation(acquired, webViewHost)
+        }
+    }
+
     BackHandler(enabled = presentation != null) {
         val handledByBrowser = presentation?.handleBack() == true
         if (!handledByBrowser) {
+            releaseAppPresentation()
             onExitBrowser()
         }
     }
@@ -52,7 +61,20 @@ internal fun KiyoriBrowserHome(
     ) {
         presentation?.BrowserContent(
             webViewHost = webViewHost,
-            onMinimize = onExitBrowser,
+            onTopBarBack = {
+                releaseAppPresentation()
+                onExitBrowser()
+            },
+            onOpenAiDialogue = {
+                releaseAppPresentation()
+                onOpenAiDialogue()
+            },
+            onExitBrowser = {
+                presentation?.let { acquired ->
+                    coordinator.releaseAppPresentationAndDestroy(acquired, webViewHost)
+                }
+                onCloseBrowser()
+            },
             modifier = Modifier.fillMaxSize(),
         )
     }

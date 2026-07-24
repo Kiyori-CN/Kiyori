@@ -521,6 +521,12 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
+        override fun onExitBrowser() {
+            runOnMainSync<Unit> {
+                destroyBrowserPresentationOnMain()
+            }
+        }
+
         override fun onCloseCurrentTab() {
             resolvePreferredSessionId()?.let { closeSession(it) }
         }
@@ -746,6 +752,15 @@ internal fun StandardBrowserSessionTools.destroyOverlayOnMain() {
     StandardBrowserSessionTools.browserHost?.destroy()
     StandardBrowserSessionTools.browserHost = null
     StandardBrowserSessionTools.activeSessionId = null
+}
+
+/**
+ * Removes only the browser presentation. Sessions remain available to AI browser tools and can
+ * be mounted again by a later Browser Home or overlay request.
+ */
+internal fun StandardBrowserSessionTools.destroyBrowserPresentationOnMain() {
+    StandardBrowserSessionTools.browserHost?.destroy()
+    StandardBrowserSessionTools.browserHost = null
 }
 
 internal fun StandardBrowserSessionTools.setExpandedOnMain(expanded: Boolean) {

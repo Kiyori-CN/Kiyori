@@ -19,7 +19,7 @@ status: completed
 | `browser/ui/BrowserBottomBar.kt` | 后退、前进、主页、窗口数、工具箱 | `ui/features/websession/browser/chrome/WebSessionBrowserBottomBar.kt` | 使用 Operit 主题与 Material 图标；窗口数对应共享标签总数 |
 | `browser/ui/BrowserScreen.kt` | 页面分层、全屏窗口页、覆盖层 Back 顺序 | `WebSessionBrowserScreen.kt` 与 `chrome/` 子包 | 不迁移媒体、无痕、预览、X5 或 Activity 状态 |
 | `BrowserWindowPage` | 顶部标题、卡片网格、底部返回/新建/清理 | `chrome/WebSessionBrowserTabOverview.kt` | 卡片不伪造网页截图；直接观察现有 tabs 投影 |
-| `browser/ui/BrowserToolboxSheet.kt` | 五列网格、底部三动作区 | `chrome/WebSessionBrowserToolbox.kt` | 只展示当前已实现功能；使用主题错误色表达关闭全部 |
+| `browser/ui/BrowserToolboxSheet.kt` | 五列网格、底部三动作区 | `chrome/WebSessionBrowserMenuDrawer.kt` | 主菜单固定四行；关闭窗口动作只保留在窗口总览 |
 | `ui/compose/KiyoriBottomDrawer.kt` | Partial、Expanded、Hidden 三态与拖动手柄 | `chrome/WebSessionBrowserBottomDrawer.kt` | 只允许手柄纵向拖动，避免和历史、下载、脚本列表滚动争抢 |
 | `BrowserTopBar.kt` | 顶部返回、搜索与页面动作的空间关系 | `WebSessionBrowserTopBar.kt` 与 `WebSessionBrowserSearchScreen.kt` | 当前 Kiyori 已接入全屏搜索、引擎选择和搜索记录；仍使用共享地址解析与收藏逻辑 |
 | `BrowserActivity.kt` | 根退出、系统 Back | `KiyoriBrowserHome.kt` 与 `KiyoriAppShell.kt` | 不新增 Activity；App Shell presentation 继续复用活动 WebView |
@@ -66,7 +66,8 @@ app/src/main/java/com/ai/assistance/operit/
 		chrome/
 			WebSessionBrowserBottomBar.kt
 			WebSessionBrowserBottomDrawer.kt
-			WebSessionBrowserToolbox.kt
+			WebSessionBrowserMenuDrawer.kt
+			WebSessionBrowserPlaceholderSheet.kt
 			WebSessionBrowserTabOverview.kt
 			WebSessionBrowserChromeLayout.kt
 ```

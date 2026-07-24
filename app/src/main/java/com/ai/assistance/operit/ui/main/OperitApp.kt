@@ -47,6 +47,7 @@ import com.ai.assistance.operit.ui.main.shell.AiSettingsEntrySource
 import com.ai.assistance.operit.ui.main.shell.AiTopBarMode
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
+import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserReturnTarget
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
 import com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
 import com.ai.assistance.operit.ui.main.shell.PrimaryDestination
@@ -70,6 +71,7 @@ import kotlinx.coroutines.withContext
 // 为TopAppBar的actions提供CompositionLocal
 // 它允许子组件（如AIChatScreen）向上提供它们的action Composable
 val LocalTopBarActions = compositionLocalOf<(@Composable (RowScope.() -> Unit)) -> Unit> { {} }
+val LocalOpenBrowser = compositionLocalOf<() -> Unit> { {} }
 
 class TopBarTitleContent(val content: @Composable () -> Unit)
 
@@ -136,18 +138,21 @@ fun OperitApp(
     }
     var shellChildName by rememberSaveable { mutableStateOf<String?>(null) }
     var isAiDrawerOpen by rememberSaveable { mutableStateOf(false) }
+    var browserReturnTargetName by rememberSaveable { mutableStateOf<String?>(null) }
     val shellState =
         KiyoriShellState(
             primaryDestination = PrimaryDestination.valueOf(primaryDestinationName),
             softwareHomePage = SoftwareHomePage.valueOf(softwareHomePageName),
             child = shellChildName?.let(KiyoriShellChild::valueOf),
             isAiDrawerOpen = isAiDrawerOpen,
+            browserReturnTarget = browserReturnTargetName?.let(KiyoriBrowserReturnTarget::valueOf),
         )
     val updateShellState: (KiyoriShellState) -> Unit = { nextState ->
         primaryDestinationName = nextState.primaryDestination.name
         softwareHomePageName = nextState.softwareHomePage.name
         shellChildName = nextState.child?.name
         isAiDrawerOpen = nextState.isAiDrawerOpen
+        browserReturnTargetName = nextState.browserReturnTarget?.name
     }
 
     val aiDrawerEntries =
@@ -270,7 +275,7 @@ fun OperitApp(
         }
 
         BrowserPresentationCoordinator.getInstance(context).openUrl(targetUrl)
-        updateShellState(shellState.selectPrimary(PrimaryDestination.BROWSER_HOME))
+        updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME))
         lastHandledBrowserOpenRequestId = browserOpenRequestId
         onBrowserOpenHandled(browserOpenRequestId)
     }
@@ -571,7 +576,11 @@ fun OperitApp(
             },
             LocalTopBarTitleContent provides { titleContent ->
                 topBarTitleContent = titleContent
-            }
+            },
+            LocalOpenBrowser provides {
+                BrowserPresentationCoordinator.getInstance(context).prepareBrowserForAiHome()
+                updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.AI_HOME))
+            },
         ) {
             KiyoriAppShell(
                 state = shellState,
@@ -609,8 +618,16 @@ fun OperitApp(
                     KiyoriBrowserHome(
                         onExitBrowser = {
                             updateShellState(
-                                shellState.selectPrimary(PrimaryDestination.SOFTWARE_HOME),
+                                shellState.exitBrowser(),
                             )
+                        },
+                        onOpenAiDialogue = {
+                            updateShellState(
+                                shellState.showSoftwareHomePage(SoftwareHomePage.AI_HOME),
+                            )
+                        },
+                        onCloseBrowser = {
+                            updateShellState(shellState.exitBrowser())
                         },
                         modifier = modifier,
                     )

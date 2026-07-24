@@ -53,6 +53,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -79,12 +80,12 @@ internal fun WebSessionBrowserTopBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().statusBarsPadding(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        shadowElevation = 3.dp,
+        color = Color.Transparent,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -179,6 +180,19 @@ internal fun WebSessionBrowserSearchScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    fun submitSearch() {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        onSubmit()
+    }
+
+    fun closeSearch() {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        onBack()
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -199,7 +213,7 @@ internal fun WebSessionBrowserSearchScreen(
                 BrowserChromeIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.web_session_back),
-                    onClick = onBack,
+                    onClick = ::closeSearch,
                 )
                 Surface(
                     modifier = Modifier.weight(1f),
@@ -237,7 +251,7 @@ internal fun WebSessionBrowserSearchScreen(
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+                            keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
                             decorationBox = { innerTextField ->
                                 Box(modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), contentAlignment = Alignment.CenterStart) {
                                     if (draft.isBlank()) {
@@ -260,7 +274,7 @@ internal fun WebSessionBrowserSearchScreen(
                                 )
                             }
                         }
-                        IconButton(onClick = onSubmit, modifier = Modifier.size(32.dp)) {
+                        IconButton(onClick = ::submitSearch, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 imageVector = Icons.Filled.Search,
                                 contentDescription = stringResource(R.string.web_session_search_submit),
@@ -269,6 +283,7 @@ internal fun WebSessionBrowserSearchScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.width(34.dp))
             }
 
             if (isEnginePanelVisible) {
@@ -326,12 +341,23 @@ internal fun WebSessionBrowserSearchScreen(
                         )
                     }
                 } else {
-                    searchHistory.forEach { record ->
-                        SearchRecordCard(
-                            record = record,
-                            onOpen = { onOpenSearchRecord(record) },
-                            onDelete = { onDeleteSearchRecord(record.id) },
-                        )
+                    searchHistory.chunked(2).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            row.forEach { record ->
+                                SearchRecordCard(
+                                    record = record,
+                                    onOpen = { onOpenSearchRecord(record) },
+                                    onDelete = { onDeleteSearchRecord(record.id) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (row.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(18.dp))
@@ -419,9 +445,14 @@ private fun RowScope.SearchActionButton(icon: ImageVector, title: String, onClic
 }
 
 @Composable
-private fun SearchRecordCard(record: WebSessionSearchRecord, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun SearchRecordCard(
+    record: WebSessionSearchRecord,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen),
+        modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen),
         shape = RoundedCornerShape(15.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f)),

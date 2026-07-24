@@ -228,14 +228,20 @@ fun KiyoriAppShell(
                 else -> 1f
             }
         if (bottomBarAlpha > 0.01f) {
-            KiyoriBottomNavigation(
-                selectedDestination = state.primaryDestination,
-                alpha = bottomBarAlpha,
-                onDestinationSelected = { destination ->
-                    onStateChange(state.selectPrimary(destination))
-                },
-                modifier = Modifier.zIndex(10f),
-            )
+                KiyoriBottomNavigation(
+                    selectedDestination = state.primaryDestination,
+                    alpha = bottomBarAlpha,
+                    onDestinationSelected = { destination ->
+                    onStateChange(
+                        if (destination == PrimaryDestination.BROWSER_HOME) {
+                            state.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)
+                        } else {
+                            state.selectPrimary(destination)
+                        }
+                    )
+                    },
+                    modifier = Modifier.zIndex(10f),
+                )
         }
 
         KiyoriModalAiDrawer(

@@ -81,11 +81,9 @@ internal fun WebSessionBrowserBottomDrawer(
         val statusBarInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
         val drawerHeight = (maxHeight - statusBarInset).coerceAtLeast(1.dp)
         val drawerHeightPx = with(density) { drawerHeight.toPx() }.coerceAtLeast(1f)
-        val drawerWidth =
-            minOf(
-                maxWidth,
-                layout.drawerMaxWidthDp.dp,
-            )
+        // Child drawers are intentionally edge-to-edge. The reference layout uses the full
+        // viewport so the scrim and drawer never leave horizontal seams on phones or tablets.
+        val drawerWidth = maxWidth
         val partialOffsetFraction = 1f - layout.drawerPartialFraction
 
         LaunchedEffect(isVisible, partialOffsetFraction) {
@@ -197,8 +195,8 @@ internal fun WebSessionBrowserBottomDrawer(
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            tonalElevation = 2.dp,
-            shadowElevation = 8.dp,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 val handleDescription =

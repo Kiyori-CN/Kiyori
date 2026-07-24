@@ -62,6 +62,7 @@ internal class WebSessionBrowserHost(
         fun onCloseTab(sessionId: String)
         fun onNewTab()
         fun onMinimize()
+        fun onExitBrowser()
         fun onCloseCurrentTab()
         fun onCloseAllTabs()
         fun onToggleBookmark(url: String, title: String)
@@ -152,7 +153,9 @@ internal class WebSessionBrowserHost(
                         WebSessionFloatingTheme {
                             BrowserContent(
                                 webViewHost = overlayWebViewHost,
-                                onMinimize = callbacks::onMinimize,
+                                onTopBarBack = callbacks::onMinimize,
+                                onOpenAiDialogue = callbacks::onMinimize,
+                                onExitBrowser = callbacks::onExitBrowser,
                             )
                         }
                     }
@@ -206,7 +209,9 @@ internal class WebSessionBrowserHost(
     @Composable
     fun BrowserContent(
         webViewHost: WebSessionWebViewHost,
-        onMinimize: () -> Unit,
+        onTopBarBack: () -> Unit,
+        onOpenAiDialogue: () -> Unit,
+        onExitBrowser: () -> Unit,
         modifier: Modifier = Modifier,
     ) {
         val bookmarks by store.bookmarksFlow.collectAsState(initial = emptyList())
@@ -231,7 +236,9 @@ internal class WebSessionBrowserHost(
             onSelectTab = callbacks::onSelectTab,
             onCloseTab = callbacks::onCloseTab,
             onNewTab = callbacks::onNewTab,
-            onMinimize = onMinimize,
+            onTopBarBack = onTopBarBack,
+            onOpenAiDialogue = onOpenAiDialogue,
+            onExitBrowser = onExitBrowser,
             onCloseCurrentTab = callbacks::onCloseCurrentTab,
             onCloseAllTabs = callbacks::onCloseAllTabs,
             onToggleBookmark = callbacks::onToggleBookmark,
@@ -377,6 +384,11 @@ internal class WebSessionBrowserHost(
                     searchDraft = "",
                 )
             }
+            return true
+        }
+
+        if (!appPresentationActive && isExpanded) {
+            setExpanded(false)
             return true
         }
 

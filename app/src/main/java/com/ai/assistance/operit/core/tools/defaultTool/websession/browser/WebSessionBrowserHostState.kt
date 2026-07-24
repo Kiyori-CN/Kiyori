@@ -15,6 +15,22 @@ internal enum class WebSessionBrowserSheetRoute {
     USER_AGENT,
     NETWORK_LOG,
     PAGE_SOURCE,
+    PLACEHOLDER,
+}
+
+internal enum class WebSessionBrowserWindowMode {
+    NORMAL,
+    INCOGNITO,
+}
+
+internal enum class WebSessionBrowserPlaceholderPage {
+    FLOATING_SNIFFER,
+    TOOLBOX,
+    INCOGNITO,
+    READER_MODE,
+    AD_MARKING,
+    SITE_CONFIG,
+    BROWSER_SETTINGS,
 }
 
 @Immutable
@@ -135,6 +151,8 @@ internal data class ExternalOpenPromptState(
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
+    val windowMode: WebSessionBrowserWindowMode = WebSessionBrowserWindowMode.NORMAL,
+    val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
     val isSearchVisible: Boolean = false,
     val isSearchEnginePanelVisible: Boolean = false,
     val searchDraft: String = "",

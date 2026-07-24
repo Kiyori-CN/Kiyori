@@ -49,6 +49,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
@@ -58,11 +59,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserMenuDrawer
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserTabOverview
-import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserToolbox
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.resolveWebSessionBrowserChromeLayout
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserNetworkLog
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPageSource
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPlaceholderSheet
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserUserAgent
@@ -70,6 +72,9 @@ import java.util.Locale
 
 private fun WebSessionBrowserSheetRoute.isBrowserDrawerRoute(): Boolean =
     this != WebSessionBrowserSheetRoute.NONE && this != WebSessionBrowserSheetRoute.TABS
+
+private fun WebSessionBrowserSheetRoute.isBrowserChildDrawerRoute(): Boolean =
+    isBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU
 
 @Composable
 internal fun WebSessionBrowserScreen(
@@ -88,7 +93,9 @@ internal fun WebSessionBrowserScreen(
     onSelectTab: (String) -> Unit,
     onCloseTab: (String) -> Unit,
     onNewTab: () -> Unit,
-    onMinimize: () -> Unit,
+    onTopBarBack: () -> Unit,
+    onOpenAiDialogue: () -> Unit,
+    onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
     onToggleBookmark: (String, String) -> Unit,
@@ -157,7 +164,18 @@ internal fun WebSessionBrowserScreen(
         }
     val dismissSheet = {
         onHostStateChange { current ->
-            current.copy(sheetRoute = WebSessionBrowserSheetRoute.NONE)
+            current.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                placeholderPage = null,
+            )
+        }
+    }
+    val openPlaceholder: (WebSessionBrowserPlaceholderPage) -> Unit = { page ->
+        onHostStateChange { current ->
+            current.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.PLACEHOLDER,
+                placeholderPage = page,
+            )
         }
     }
     val activeSheetRoute = hostState.sheetRoute
@@ -195,13 +213,7 @@ internal fun WebSessionBrowserScreen(
                 currentUrl = browserState.currentUrl.ifBlank { "about:blank" },
                 pageTitle = browserState.pageTitle,
                 isLoading = browserState.isLoading,
-                onBack = {
-                    if (browserState.canGoBack) {
-                        onBack()
-                    } else {
-                        onMinimize()
-                    }
-                },
+                onBack = onTopBarBack,
                 onOpenSearch = {
                     onHostStateChange { current ->
                         current.copy(
@@ -226,14 +238,6 @@ internal fun WebSessionBrowserScreen(
                     }
                 )
             }
-
-            Spacer(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
-            )
 
             Box(
                 modifier =
@@ -314,14 +318,6 @@ internal fun WebSessionBrowserScreen(
                 }
             }
 
-            Spacer(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
-            )
-
             WebSessionBrowserBottomBar(
                 canGoBack = browserState.canGoBack,
                 canGoForward = browserState.canGoForward,
@@ -390,7 +386,8 @@ internal fun WebSessionBrowserScreen(
         if (tabOverviewMounted) {
             WebSessionBrowserTabOverview(
                 isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.TABS,
-                tabs = browserState.tabs,
+                tabs = if (hostState.windowMode == com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserWindowMode.NORMAL) browserState.tabs else emptyList(),
+                windowMode = hostState.windowMode,
                 columnCount = chromeLayout.tabColumnCount,
                 onDismissRequest = dismissSheet,
                 onHidden = {
@@ -407,9 +404,15 @@ internal fun WebSessionBrowserScreen(
                     onNewTab()
                     dismissSheet()
                 },
+                onOpenIncognitoInfo = {
+                    openPlaceholder(WebSessionBrowserPlaceholderPage.INCOGNITO)
+                },
                 onCloseAllTabs = {
                     onCloseAllTabs()
                     dismissSheet()
+                },
+                onWindowModeChange = { mode ->
+                    onHostStateChange { current -> current.copy(windowMode = mode) }
                 },
             )
         }
@@ -417,74 +420,114 @@ internal fun WebSessionBrowserScreen(
         if (mountedDrawerRoute.isBrowserDrawerRoute()) {
             // This drawer is composed in both the App Shell and TYPE_APPLICATION_OVERLAY host;
             // a dialog-backed Material sheet cannot safely obtain an Activity token there.
-            WebSessionBrowserBottomDrawer(
-                isVisible = activeSheetRoute.isBrowserDrawerRoute(),
-                layout = chromeLayout,
-                onDismissRequest = dismissSheet,
-                onHidden = {
-                    if (!activeSheetRoute.isBrowserDrawerRoute()) {
-                        mountedDrawerRoute = WebSessionBrowserSheetRoute.NONE
-                    }
-                },
-            ) {
-                AnimatedContent(
-                    targetState = mountedDrawerRoute,
-                    modifier = Modifier.fillMaxSize(),
-                    transitionSpec = {
-                        (fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 24 })
-                            .togetherWith(
-                                fadeOut(tween(110)) +
-                                    slideOutVertically(tween(110)) { -it / 30 },
-                            )
+            if (mountedDrawerRoute == WebSessionBrowserSheetRoute.MENU) {
+                WebSessionBrowserMenuDrawer(
+                    isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.MENU,
+                    isBookmarked = isBookmarked,
+                    canAddBookmark = browserState.activeSessionId != null && browserState.currentUrl != "about:blank",
+                    onAddBookmark = {
+                        onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
+                        dismissSheet()
                     },
-                    label = "WebSessionBrowserDrawerRoute",
-                ) { drawerRoute ->
-                    WebSessionBrowserDrawerContent(
-                        sheetRoute = drawerRoute,
-                        browserState = browserState,
-                        bookmarks = bookmarks,
-                        globalHistory = globalHistory,
-                        userscriptUiState = userscriptUiState,
-                        isBookmarked = isBookmarked,
-                        onToggleBookmark = {
-                            onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
+                    onOpenBookmarks = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.BOOKMARKS) } },
+                    onOpenHistory = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.HISTORY) } },
+                    onOpenDownloads = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.DOWNLOADS) } },
+                    onOpenUserscripts = {
+                        onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USERSCRIPTS) }
+                        onOpenUserscripts()
+                    },
+                    onOpenFloatingSniffer = { openPlaceholder(WebSessionBrowserPlaceholderPage.FLOATING_SNIFFER) },
+                    onOpenUserAgent = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) } },
+                    onOpenNetworkLog = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) } },
+                    onOpenAiDialogue = {
+                        dismissSheet()
+                        onOpenAiDialogue()
+                    },
+                    onOpenToolbox = { openPlaceholder(WebSessionBrowserPlaceholderPage.TOOLBOX) },
+                    onOpenIncognito = { openPlaceholder(WebSessionBrowserPlaceholderPage.INCOGNITO) },
+                    onOpenReaderMode = { openPlaceholder(WebSessionBrowserPlaceholderPage.READER_MODE) },
+                    onOpenPageSource = {
+                        dismissSheet()
+                        onOpenPageSource()
+                    },
+                    onOpenAdMarking = { openPlaceholder(WebSessionBrowserPlaceholderPage.AD_MARKING) },
+                    onOpenSiteConfig = { openPlaceholder(WebSessionBrowserPlaceholderPage.SITE_CONFIG) },
+                    onExitBrowser = {
+                        dismissSheet()
+                        onExitBrowser()
+                    },
+                    onCollapse = dismissSheet,
+                    onOpenBrowserSettings = { openPlaceholder(WebSessionBrowserPlaceholderPage.BROWSER_SETTINGS) },
+                )
+            }
+            if (mountedDrawerRoute.isBrowserChildDrawerRoute()) {
+                WebSessionBrowserBottomDrawer(
+                    isVisible = activeSheetRoute.isBrowserChildDrawerRoute(),
+                    layout = chromeLayout,
+                    onDismissRequest = dismissSheet,
+                    onHidden = {
+                        if (!activeSheetRoute.isBrowserDrawerRoute()) {
+                            mountedDrawerRoute = WebSessionBrowserSheetRoute.NONE
+                        }
+                    },
+                ) {
+                    AnimatedContent(
+                        targetState = mountedDrawerRoute,
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = {
+                            (fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 24 })
+                                .togetherWith(
+                                    fadeOut(tween(110)) +
+                                        slideOutVertically(tween(110)) { -it / 30 },
+                                )
                         },
-                        onDismiss = dismissSheet,
-                        onCloseCurrentTab = onCloseCurrentTab,
-                        onCloseAllTabs = onCloseAllTabs,
-                        onRemoveBookmark = onRemoveBookmark,
-                        onSelectSessionHistory = onSelectSessionHistory,
-                        onOpenUrl = onOpenUrl,
-                        onClearHistory = onClearHistory,
-                        onToggleDesktopMode = onToggleDesktopMode,
-                        onOpenUserAgent = {
-                            onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) }
-                        },
-                        onOpenNetworkLog = {
-                            onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) }
-                        },
-                        onReload = onRefreshOrStop,
-                        onOpenPageSource = onOpenPageSource,
-                        onCopyPageSource = onCopyPageSource,
-                        onHostStateChange = onHostStateChange,
-                        hostState = hostState,
-                        onOpenUserscripts = onOpenUserscripts,
-                        onImportUserscript = onImportUserscript,
-                        onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
-                        onConfirmUserscriptInstall = onConfirmUserscriptInstall,
-                        onCancelUserscriptInstall = onCancelUserscriptInstall,
-                        onSetUserscriptEnabled = onSetUserscriptEnabled,
-                        onDeleteUserscript = onDeleteUserscript,
-                        onCheckUserscriptUpdate = onCheckUserscriptUpdate,
-                        onInvokeUserscriptMenu = onInvokeUserscriptMenu,
-                        onPauseDownload = onPauseDownload,
-                        onResumeDownload = onResumeDownload,
-                        onCancelDownload = onCancelDownload,
-                        onRetryDownload = onRetryDownload,
-                        onDeleteDownload = onDeleteDownload,
-                        onOpenDownloadedFile = onOpenDownloadedFile,
-                        onOpenDownloadLocation = onOpenDownloadLocation,
-                    )
+                        label = "WebSessionBrowserDrawerRoute",
+                    ) { drawerRoute ->
+                        WebSessionBrowserDrawerContent(
+                            sheetRoute = drawerRoute,
+                            browserState = browserState,
+                            bookmarks = bookmarks,
+                            globalHistory = globalHistory,
+                            userscriptUiState = userscriptUiState,
+                            isBookmarked = isBookmarked,
+                            onToggleBookmark = {
+                                onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
+                            },
+                            onDismiss = dismissSheet,
+                            onRemoveBookmark = onRemoveBookmark,
+                            onSelectSessionHistory = onSelectSessionHistory,
+                            onOpenUrl = onOpenUrl,
+                            onClearHistory = onClearHistory,
+                            onToggleDesktopMode = onToggleDesktopMode,
+                            onOpenUserAgent = {
+                                onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) }
+                            },
+                            onOpenNetworkLog = {
+                                onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) }
+                            },
+                            onReload = onRefreshOrStop,
+                            onOpenPageSource = onOpenPageSource,
+                            onCopyPageSource = onCopyPageSource,
+                            onHostStateChange = onHostStateChange,
+                            hostState = hostState,
+                            onOpenUserscripts = onOpenUserscripts,
+                            onImportUserscript = onImportUserscript,
+                            onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
+                            onConfirmUserscriptInstall = onConfirmUserscriptInstall,
+                            onCancelUserscriptInstall = onCancelUserscriptInstall,
+                            onSetUserscriptEnabled = onSetUserscriptEnabled,
+                            onDeleteUserscript = onDeleteUserscript,
+                            onCheckUserscriptUpdate = onCheckUserscriptUpdate,
+                            onInvokeUserscriptMenu = onInvokeUserscriptMenu,
+                            onPauseDownload = onPauseDownload,
+                            onResumeDownload = onResumeDownload,
+                            onCancelDownload = onCancelDownload,
+                            onRetryDownload = onRetryDownload,
+                            onDeleteDownload = onDeleteDownload,
+                            onOpenDownloadedFile = onOpenDownloadedFile,
+                            onOpenDownloadLocation = onOpenDownloadLocation,
+                        )
+                    }
                 }
             }
         }
@@ -595,8 +638,6 @@ private fun WebSessionBrowserDrawerContent(
     isBookmarked: Boolean,
     onToggleBookmark: () -> Unit,
     onDismiss: () -> Unit,
-    onCloseCurrentTab: () -> Unit,
-    onCloseAllTabs: () -> Unit,
     onRemoveBookmark: (String) -> Unit,
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
@@ -627,59 +668,6 @@ private fun WebSessionBrowserDrawerContent(
     onOpenDownloadLocation: (String) -> Unit
 ) {
     when (sheetRoute) {
-        WebSessionBrowserSheetRoute.MENU ->
-            WebSessionBrowserToolbox(
-                isBookmarked = isBookmarked,
-                canAddBookmark = browserState.activeSessionId != null && browserState.currentUrl != "about:blank",
-                activeDownloadCount = browserState.activeDownloadCount,
-                failedDownloadCount = browserState.failedDownloadCount,
-                onAddBookmark = {
-                    onToggleBookmark()
-                },
-                onOpenHistory = {
-                    onHostStateChange { current ->
-                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.HISTORY)
-                    }
-                },
-                onOpenDownloads = {
-                    onHostStateChange { current ->
-                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.DOWNLOADS)
-                    }
-                },
-                onOpenBookmarks = {
-                    onHostStateChange { current ->
-                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.BOOKMARKS)
-                    }
-                },
-                onOpenUserscripts = {
-                    onHostStateChange { current ->
-                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.USERSCRIPTS)
-                    }
-                    onOpenUserscripts()
-                },
-                onOpenUserAgent = onOpenUserAgent,
-                onOpenNetworkLog = onOpenNetworkLog,
-                onReload = onReload,
-                onOpenPageSource = {
-                    onDismiss()
-                    onOpenPageSource()
-                },
-                userscriptMenuCommands = browserState.userscriptMenuCommands,
-                onInvokeUserscriptMenu = { commandId ->
-                    onDismiss()
-                    onInvokeUserscriptMenu(commandId)
-                },
-                onCloseCurrentTab = {
-                    onDismiss()
-                    onCloseCurrentTab()
-                },
-                onCloseAllTabs = {
-                    onDismiss()
-                    onCloseAllTabs()
-                },
-                onCollapse = onDismiss,
-            )
-
         WebSessionBrowserSheetRoute.DOWNLOADS ->
             WebSessionDownloadSheet(
                 uiState = hostState.downloadUiState,
@@ -769,8 +757,16 @@ private fun WebSessionBrowserDrawerContent(
                 modifier = Modifier.fillMaxSize(),
             )
 
+        WebSessionBrowserSheetRoute.PLACEHOLDER ->
+            WebSessionBrowserPlaceholderSheet(
+                page = hostState.placeholderPage,
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxSize(),
+            )
+
         WebSessionBrowserSheetRoute.NONE,
-        WebSessionBrowserSheetRoute.TABS -> Unit
+        WebSessionBrowserSheetRoute.TABS,
+        WebSessionBrowserSheetRoute.MENU -> Unit
     }
 }
 

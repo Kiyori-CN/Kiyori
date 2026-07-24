@@ -62,6 +62,28 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `browser home remembers AI source and exits back to AI home`() {
+        val browserState = KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, browserState.primaryDestination)
+        assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
+        assertEquals(
+            KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+            browserState.exitBrowser(),
+        )
+    }
+
+    @Test
+    fun `browser home opened from software home exits to center home`() {
+        val browserState = KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)
+
+        assertEquals(
+            KiyoriShellState(),
+            browserState.exitBrowser(),
+        )
+    }
+
+    @Test
     fun `child destination hides bottom navigation and Back restores owner`() {
         val state =
             KiyoriShellState(
