@@ -64,11 +64,12 @@ internal class WebSessionBrowserHost(
         fun onRefreshOrStop()
         fun onSelectTab(sessionId: String)
         fun onCloseTab(sessionId: String)
-        fun onNewTab()
+        fun onNewTab(profile: WebSessionProfile)
+        fun onRequestTabThumbnails()
         fun onMinimize()
         fun onExitBrowser()
         fun onCloseCurrentTab()
-        fun onCloseAllTabs()
+        fun onCloseAllTabs(profile: WebSessionProfile)
         fun onToggleBookmark(url: String, title: String)
         fun onRemoveBookmark(url: String)
         fun onSelectSessionHistory(index: Int)
@@ -254,6 +255,7 @@ internal class WebSessionBrowserHost(
             onSelectTab = callbacks::onSelectTab,
             onCloseTab = callbacks::onCloseTab,
             onNewTab = callbacks::onNewTab,
+            onRequestTabThumbnails = callbacks::onRequestTabThumbnails,
             onTopBarBack = onTopBarBack,
             onOpenAiDialogue = onOpenAiDialogue,
             onExitBrowser = onExitBrowser,

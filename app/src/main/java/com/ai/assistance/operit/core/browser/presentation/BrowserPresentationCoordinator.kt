@@ -1,8 +1,11 @@
 package com.ai.assistance.operit.core.browser.presentation
 
 import android.content.Context
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
@@ -11,7 +14,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensure
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUrlOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.showToast
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
+import com.ai.assistance.operit.util.AppLogger
 
 /**
  * Coordinates the one browser presentation lease shared by Kiyori Browser Home and the
@@ -79,12 +84,53 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
      * existing page. Creating through the shared StandardBrowserSessionTools instance also makes
      * the new tab immediately discoverable by the browser_* AI tools.
      */
-    fun openUrlInNewSession(url: String): String =
+    fun newSessionProfileState(): BrowserNewSessionProfileState =
         tools.runOnMainSync {
-            tools.ensureBrowserPresentationOnMain(appContext)
-            val session = tools.createSessionTabOnMain(appContext, initialUrl = url)
-            tools.refreshSessionUiOnMain(session.id)
-            session.id
+            BrowserNewSessionProfileState(
+                defaultProfile = tools.defaultSessionProfile,
+                incognitoAvailability = tools.profileManager.incognitoAvailability,
+            )
+        }
+
+    fun setDefaultSessionProfile(profile: WebSessionProfile): Boolean =
+        tools.runOnMainSync {
+            if (
+                profile == WebSessionProfile.INCOGNITO &&
+                    !tools.profileManager.incognitoAvailability.isAvailable
+            ) {
+                false
+            } else {
+                tools.defaultSessionProfile = profile
+                tools.refreshSessionUiOnMain()
+                true
+            }
+        }
+
+    fun openUrlInNewSession(
+        url: String,
+        profile: WebSessionProfile,
+    ): String? =
+        tools.runOnMainSync {
+            try {
+                tools.ensureBrowserPresentationOnMain(appContext)
+                val session =
+                    tools.createSessionTabOnMain(
+                        appContext = appContext,
+                        initialUrl = url,
+                        profile = profile,
+                    )
+                tools.refreshSessionUiOnMain(session.id)
+                session.id
+            } catch (error: IllegalStateException) {
+                if (profile != WebSessionProfile.INCOGNITO) {
+                    throw error
+                }
+                AppLogger.e("BrowserPresentation", "Unable to create browser profile session", error)
+                tools.defaultSessionProfile = WebSessionProfile.NORMAL
+                tools.showToast(appContext.getString(R.string.web_session_incognito_reset_failed))
+                tools.refreshSessionUiOnMain()
+                null
+            }
         }
 
     companion object {
@@ -99,3 +145,8 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             }
     }
 }
+
+internal data class BrowserNewSessionProfileState(
+    val defaultProfile: WebSessionProfile,
+    val incognitoAvailability: WebSessionIncognitoAvailability,
+)

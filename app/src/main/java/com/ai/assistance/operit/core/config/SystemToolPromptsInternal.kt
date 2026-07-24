@@ -493,11 +493,12 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_tabs",
-                            description = "List every tab in the shared Browser Runtime, including tabs opened manually in Browser Home or the browser overlay, or create, select, and close tabs using 0-based indexes. List output includes each stable session_id and active state; select the intended tab before snapshot, click, type, or navigation.",
+                            description = "List every tab in the shared Browser Runtime, including tabs opened manually in Browser Home or the browser overlay, or create, select, and close tabs using 0-based indexes. List output includes each stable session_id, profile=normal|incognito, and active state. Incognito isolates website data, not Kiyori AI actions already authorized by the user. Select the intended tab before snapshot, click, type, or navigation.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "action", type = "string", description = "one of: list, create, select, close", required = true),
-                                    ToolParameterSchema(name = "index", type = "integer", description = "optional tab index used by select or close", required = false)
+                                    ToolParameterSchema(name = "index", type = "integer", description = "optional tab index used by select or close", required = false),
+                                    ToolParameterSchema(name = "profile", type = "string", description = "optional profile for create: normal or incognito; omitted uses the Browser Runtime default", required = false)
                                 )
                         ),
                         ToolPrompt(
@@ -3485,11 +3486,12 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_tabs",
-                            description = "列出共享 Browser Runtime 的全部窗口，包括人工从浏览器首页或悬浮窗打开的窗口，也可使用 0-based 索引创建、切换或关闭窗口。list 输出包含稳定 session_id 和活动状态；执行 snapshot、点击、输入或导航前先选择目标窗口。",
+                            description = "列出共享 Browser Runtime 的全部窗口，包括人工从浏览器首页或悬浮窗打开的窗口，也可使用 0-based 索引创建、切换或关闭窗口。list 输出包含稳定 session_id、profile=normal|incognito 和活动状态。无痕只隔离网站数据，不隔离用户已授权的 Kiyori AI 操作；执行 snapshot、点击、输入或导航前先选择目标窗口。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "action", type = "string", description = "list/create/select/close 之一", required = true),
-                                    ToolParameterSchema(name = "index", type = "integer", description = "可选，select 或 close 使用的 tab 索引", required = false)
+                                    ToolParameterSchema(name = "index", type = "integer", description = "可选，select 或 close 使用的 tab 索引", required = false),
+                                    ToolParameterSchema(name = "profile", type = "string", description = "可选，create 使用 normal 或 incognito；未提供时使用 Browser Runtime 当前默认 Profile", required = false)
                                 )
                         ),
                         ToolPrompt(

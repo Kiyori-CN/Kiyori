@@ -84,9 +84,10 @@ kiyori_browser_product_completion/
 
 1. [DONE] P0：悬浮浏览器系统 Back、状态栏背景和人工窗口 AI 接管；本地实现、定向测试与 Debug APK 已完成，真机验收待用户执行
 2. [DONE] P0：软件首页与全屏搜索已接入共享 Browser Runtime，本地测试与 Debug APK 已验证，真机视觉和输入法待验收；真无痕窗口模型属于下一独立里程碑
-3. P1：窗口缩略图、设置和下载中心
-4. P1：负一屏与四行菜单真实能力
-5. P2：媒体 Intent、播放器、嗅探和悬浮播放
+3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
+4. P1：设置主页、浏览器设置和下载中心
+5. P1：负一屏与四行菜单真实能力
+6. P2：媒体 Intent、播放器、嗅探和悬浮播放
 
 ## 完成定义
 

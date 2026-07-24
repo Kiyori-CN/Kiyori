@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,9 +54,11 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
@@ -92,12 +95,13 @@ internal fun WebSessionBrowserScreen(
     onRefreshOrStop: () -> Unit,
     onSelectTab: (String) -> Unit,
     onCloseTab: (String) -> Unit,
-    onNewTab: () -> Unit,
+    onNewTab: (WebSessionProfile) -> Unit,
+    onRequestTabThumbnails: () -> Unit,
     onTopBarBack: () -> Unit,
     onOpenAiDialogue: () -> Unit,
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
-    onCloseAllTabs: () -> Unit,
+    onCloseAllTabs: (WebSessionProfile) -> Unit,
     onToggleBookmark: (String, String) -> Unit,
     onRemoveBookmark: (String) -> Unit,
     onSelectSessionHistory: (Int) -> Unit,
@@ -183,7 +187,10 @@ internal fun WebSessionBrowserScreen(
     var mountedDrawerRoute by remember { mutableStateOf(WebSessionBrowserSheetRoute.NONE) }
     LaunchedEffect(activeSheetRoute) {
         when {
-            activeSheetRoute == WebSessionBrowserSheetRoute.TABS -> tabOverviewMounted = true
+            activeSheetRoute == WebSessionBrowserSheetRoute.TABS -> {
+                tabOverviewMounted = true
+                onRequestTabThumbnails()
+            }
             activeSheetRoute.isBrowserDrawerRoute() -> mountedDrawerRoute = activeSheetRoute
         }
     }
@@ -327,7 +334,12 @@ internal fun WebSessionBrowserScreen(
                 onHome = { onNavigate("about:blank") },
                 onTabs = {
                     onHostStateChange { current ->
-                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.TABS)
+                        current.copy(
+                            sheetRoute = WebSessionBrowserSheetRoute.TABS,
+                            selectedProfile =
+                                browserState.activeProfile
+                                    ?: browserState.defaultSessionProfile,
+                        )
                     }
                 },
                 onToolbox = {
@@ -379,6 +391,8 @@ internal fun WebSessionBrowserScreen(
                 onUseCurrentUrl = {
                     onHostStateChange { current -> current.copy(searchDraft = browserState.currentUrl) }
                 },
+                profileNotice = null,
+                trailingAction = { Spacer(modifier = Modifier.size(34.dp)) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -386,8 +400,9 @@ internal fun WebSessionBrowserScreen(
         if (tabOverviewMounted) {
             WebSessionBrowserTabOverview(
                 isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.TABS,
-                tabs = if (hostState.windowMode == com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserWindowMode.NORMAL) browserState.tabs else emptyList(),
-                windowMode = hostState.windowMode,
+                tabs = browserState.tabs,
+                selectedProfile = hostState.selectedProfile,
+                incognitoAvailability = browserState.incognitoAvailability,
                 columnCount = chromeLayout.tabColumnCount,
                 onDismissRequest = dismissSheet,
                 onHidden = {
@@ -399,20 +414,46 @@ internal fun WebSessionBrowserScreen(
                     onSelectTab(sessionId)
                     dismissSheet()
                 },
-                onCloseTab = onCloseTab,
-                onNewTab = {
-                    onNewTab()
-                    dismissSheet()
+                onCloseTab = { sessionId ->
+                    val remainingProfiles =
+                        browserState.tabs
+                            .filterNot { tab -> tab.sessionId == sessionId }
+                            .map { tab -> tab.profile }
+                    val selectedProfile =
+                        resolveSelectedProfileAfterRemoval(
+                            selectedProfile = hostState.selectedProfile,
+                            remainingProfiles = remainingProfiles,
+                        )
+                    onCloseTab(sessionId)
+                    if (selectedProfile != hostState.selectedProfile) {
+                        onHostStateChange { current ->
+                            current.copy(selectedProfile = selectedProfile)
+                        }
+                    }
                 },
-                onOpenIncognitoInfo = {
-                    openPlaceholder(WebSessionBrowserPlaceholderPage.INCOGNITO)
+                onNewTab = {
+                    onNewTab(hostState.selectedProfile)
+                    dismissSheet()
                 },
                 onCloseAllTabs = {
-                    onCloseAllTabs()
-                    dismissSheet()
+                    val remainingProfiles =
+                        browserState.tabs
+                            .filterNot { tab -> tab.profile == hostState.selectedProfile }
+                            .map { tab -> tab.profile }
+                    val selectedProfile =
+                        resolveSelectedProfileAfterRemoval(
+                            selectedProfile = hostState.selectedProfile,
+                            remainingProfiles = remainingProfiles,
+                        )
+                    onCloseAllTabs(hostState.selectedProfile)
+                    if (selectedProfile != hostState.selectedProfile) {
+                        onHostStateChange { current ->
+                            current.copy(selectedProfile = selectedProfile)
+                        }
+                    }
                 },
-                onWindowModeChange = { mode ->
-                    onHostStateChange { current -> current.copy(windowMode = mode) }
+                onProfileChange = { profile ->
+                    onHostStateChange { current -> current.copy(selectedProfile = profile) }
                 },
             )
         }
@@ -444,7 +485,14 @@ internal fun WebSessionBrowserScreen(
                         onOpenAiDialogue()
                     },
                     onOpenToolbox = { openPlaceholder(WebSessionBrowserPlaceholderPage.TOOLBOX) },
-                    onOpenIncognito = { openPlaceholder(WebSessionBrowserPlaceholderPage.INCOGNITO) },
+                    onOpenIncognito = {
+                        onHostStateChange { current ->
+                            current.copy(
+                                sheetRoute = WebSessionBrowserSheetRoute.TABS,
+                                selectedProfile = WebSessionProfile.INCOGNITO,
+                            )
+                        }
+                    },
                     onOpenReaderMode = { openPlaceholder(WebSessionBrowserPlaceholderPage.READER_MODE) },
                     onOpenPageSource = {
                         dismissSheet()

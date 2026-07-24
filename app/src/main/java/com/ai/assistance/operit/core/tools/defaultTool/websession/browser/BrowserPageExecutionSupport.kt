@@ -2018,6 +2018,7 @@ internal fun StandardBrowserSessionTools.renderOpenTabs(
                 title = sessionDisplayTitle(session).ifBlank { "about:blank" },
                 url = session.currentUrl.ifBlank { "about:blank" },
                 isActive = session.id == activeId,
+                profile = session.profile,
             )
         }
     )

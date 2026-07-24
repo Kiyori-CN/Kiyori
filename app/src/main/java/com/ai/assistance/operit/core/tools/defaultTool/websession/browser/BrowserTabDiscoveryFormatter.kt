@@ -6,6 +6,7 @@ internal data class BrowserTabDiscoveryEntry(
     val title: String,
     val url: String,
     val isActive: Boolean,
+    val profile: WebSessionProfile,
 )
 
 internal object BrowserTabDiscoveryFormatter {
@@ -22,6 +23,7 @@ internal object BrowserTabDiscoveryFormatter {
                 val active = if (entry.isActive) " [active]" else ""
                 appendLine("- [${entry.index}] ${entry.title.singleLine()}$active")
                 appendLine("  session_id: ${entry.sessionId}")
+                appendLine("  profile: ${entry.profile.wireName}")
                 append("  url: ${entry.url.singleLine()}")
                 if (entryIndex != entries.lastIndex) {
                     appendLine()

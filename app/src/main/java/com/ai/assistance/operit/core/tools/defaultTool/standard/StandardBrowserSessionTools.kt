@@ -111,6 +111,8 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
     }
 
     internal val historyStore by lazy { WebSessionHistoryStore.getInstance(context.applicationContext) }
+    internal val profileManager = WebSessionProfileManager()
+    @Volatile internal var defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL
     private val userscriptRepository by lazy { UserscriptRepository.getInstance(context.applicationContext) }
     internal val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val userscriptManager by lazy {
@@ -121,9 +123,14 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                     openUserscriptSheetOnMain()
                 }
             },
-            onOpenTab = { url, active ->
+            onOpenTab = { sourceSessionId, url, active ->
                 runOnMainSync<String?> {
-                    openUserscriptTabOnMain(context.applicationContext, url, active)
+                    openUserscriptTabOnMain(
+                        appContext = context.applicationContext,
+                        sourceSessionId = sourceSessionId,
+                        url = url,
+                        active = active,
+                    )
                 }
             },
             onActivateSession = { sessionId ->
@@ -149,6 +156,9 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
     }
 
     init {
+        runOnMainSync<Unit> {
+            profileManager.initialize()
+        }
         ensureDesktopModeInitialized()
         initializeBrowserDownloadSupport()
     }
@@ -157,6 +167,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         val id: String,
         val webView: WebView,
         val sessionName: String?,
+        val profile: WebSessionProfile,
         val customUserAgent: String? = null,
         val createdAt: Long = System.currentTimeMillis()
     ) {
@@ -176,6 +187,9 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         @Volatile var viewportHeightPx: Int? = null
         @Volatile var appliedViewportScaleFactor: Float = 1f
         @Volatile var lastSnapshot: BrowserSnapshot? = null
+        @Volatile var thumbnail: Bitmap? = null
+        @Volatile var thumbnailUpdatedAt: Long = 0L
+        @Volatile var thumbnailRequestGeneration: Long = 0L
         val stateSignal: Object = Object()
         @Volatile var stateVersion: Long = 0L
         val consoleEntries: MutableList<BrowserConsoleEntry> = mutableListOf()
@@ -1508,23 +1522,50 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                         pageState = session?.let { activeSession -> renderPageState(activeSession) } ?: "No active page.",
                         snapshot = session?.let { activeSession -> captureSnapshotText(activeSession) },
                         result =
-                            "Listed every tab in the shared Browser Runtime, including tabs opened manually in Kiyori."
+                            "Listed every tab in the shared Browser Runtime, including tabs opened manually in Kiyori. " +
+                                "Incognito isolates website data, not Kiyori AI actions already authorized by the user."
                     )
                 )
             }
 
             "create" -> {
                 ensureOverlayPermission(tool.name)?.let { return it }
+                val profile =
+                    when (
+                        val resolution =
+                            resolveSessionProfileRequest(
+                                requestedWireName = param(tool, "profile"),
+                                defaultProfile = defaultSessionProfile,
+                                incognitoAvailability = profileManager.incognitoAvailability,
+                            )
+                    ) {
+                        is WebSessionProfileResolution.Accepted -> resolution.profile
+                        is WebSessionProfileResolution.Rejected ->
+                            return when (resolution.reason) {
+                                WebSessionProfileRejection.UNKNOWN_PROFILE ->
+                                    error(tool.name, "profile must be one of: normal, incognito")
+                                WebSessionProfileRejection.INCOGNITO_UNAVAILABLE ->
+                                    error(
+                                        tool.name,
+                                        "Incognito WebView profile is unavailable: ${profileManager.incognitoAvailability}",
+                                    )
+                            }
+                    }
                 val session =
                     runOnMainSync {
-                        createSessionTabOnMain(context.applicationContext, initialUrl = "about:blank")
+                        createSessionTabOnMain(
+                            appContext = context.applicationContext,
+                            initialUrl = "about:blank",
+                            profile = profile,
+                        )
                     }
                 val settlement = settleBrowserAction(session, captureActionMarkers(session))
                 ok(
                     tool.name,
                     buildSettledBrowserResponse(
                         settlement = settlement,
-                        result = "Created tab ${currentTabIndex(session.id)}."
+                        result =
+                            "Created ${session.profile.wireName} tab ${currentTabIndex(session.id)}."
                     )
                 )
             }

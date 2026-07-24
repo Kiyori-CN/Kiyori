@@ -1253,7 +1253,7 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             name = "browser_tabs",
             descriptionGenerator = { tool ->
                 val action = tool.parameters.find { it.name == "action" }?.value ?: ""
-                "Manage browser tabs with action ${action.ifBlank { "(missing action)" }}"
+                "Manage shared normal/incognito browser tabs with action ${action.ifBlank { "(missing action)" }}"
             },
             executor = { tool -> ToolGetter.getBrowserSessionTools(context).invoke(tool) }
     )

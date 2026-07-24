@@ -6982,4 +6982,13 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="kiyori_shell_history">Histórico</string>
     <string name="kiyori_shell_downloads">Downloads</string>
     <string name="kiyori_shell_exit_hint">Pressione Voltar novamente para sair do Kiyori</string>
+    <string name="web_session_normal_window">Janelas normais</string>
+    <string name="web_session_incognito_title">Janelas anônimas</string>
+    <string name="web_session_incognito_mode">Modo anônimo</string>
+    <string name="web_session_incognito_unavailable">O modo anônimo não está disponível neste dispositivo</string>
+    <string name="web_session_incognito_unavailable_summary">O Android System WebView não oferece perfis de navegação isolados; a criação anônima fica desativada e nenhuma janela normal é criada no lugar.</string>
+    <string name="web_session_incognito_reset_failed">O Kiyori não conseguiu remover o perfil anônimo anterior. O modo anônimo fica desativado nesta execução para proteger o isolamento.</string>
+    <string name="web_session_incognito_ai_notice">O modo anônimo isola cookies, cache e WebStorage. Ações do Kiyori AI já autorizadas pelo usuário ainda podem ler e controlar esta janela. Os dados da sessão são excluídos após o fechamento da última janela anônima.</string>
+    <string name="web_session_no_profile_tabs">Nenhuma %1$s</string>
+    <string name="web_session_clear_profile_tabs">Fechar todas as janelas deste grupo</string>
 </resources>

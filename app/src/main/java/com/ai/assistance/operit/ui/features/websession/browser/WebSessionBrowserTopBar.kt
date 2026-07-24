@@ -177,6 +177,8 @@ internal fun WebSessionBrowserSearchScreen(
     onCopyCurrentUrl: () -> Unit,
     onOpenCurrentUrl: () -> Unit,
     onUseCurrentUrl: () -> Unit,
+    profileNotice: String?,
+    trailingAction: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -290,7 +292,22 @@ internal fun WebSessionBrowserSearchScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.width(34.dp))
+                trailingAction()
+            }
+
+            if (profileNotice != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                ) {
+                    Text(
+                        text = profileNotice,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
             }
 
             if (isEnginePanelVisible) {

@@ -7141,4 +7141,13 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="kiyori_shell_history">Sejarah</string>
     <string name="kiyori_shell_downloads">Muat Turun</string>
     <string name="kiyori_shell_exit_hint">Tekan Kembali sekali lagi untuk keluar dari Kiyori</string>
+    <string name="web_session_normal_window">Tetingkap biasa</string>
+    <string name="web_session_incognito_title">Tetingkap inkognito</string>
+    <string name="web_session_incognito_mode">Mod inkognito</string>
+    <string name="web_session_incognito_unavailable">Inkognito tidak tersedia pada peranti ini</string>
+    <string name="web_session_incognito_unavailable_summary">Android System WebView tidak menyokong profil pelayaran terasing, jadi penciptaan inkognito dilumpuhkan dan tidak digantikan dengan tetingkap biasa.</string>
+    <string name="web_session_incognito_reset_failed">Kiyori tidak dapat memadam profil inkognito sebelumnya. Inkognito dilumpuhkan untuk sesi ini bagi melindungi pengasingan.</string>
+    <string name="web_session_incognito_ai_notice">Inkognito mengasingkan kuki, cache dan WebStorage. Tindakan Kiyori AI yang telah dibenarkan pengguna masih boleh membaca dan mengawal tetingkap ini. Data sesi dipadam selepas tetingkap inkognito terakhir ditutup.</string>
+    <string name="web_session_no_profile_tabs">Tiada %1$s</string>
+    <string name="web_session_clear_profile_tabs">Tutup semua tetingkap dalam kumpulan ini</string>
 </resources>

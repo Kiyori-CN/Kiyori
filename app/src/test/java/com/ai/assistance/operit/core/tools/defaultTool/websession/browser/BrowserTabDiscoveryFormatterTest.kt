@@ -16,6 +16,7 @@ class BrowserTabDiscoveryFormatterTest {
                         title = "Page opened by the user",
                         url = "https://example.com/manual",
                         isActive = true,
+                        profile = WebSessionProfile.NORMAL,
                     ),
                     BrowserTabDiscoveryEntry(
                         index = 1,
@@ -23,6 +24,7 @@ class BrowserTabDiscoveryFormatterTest {
                         title = "AI page",
                         url = "https://example.com/ai",
                         isActive = false,
+                        profile = WebSessionProfile.INCOGNITO,
                     ),
                 )
             )
@@ -30,6 +32,8 @@ class BrowserTabDiscoveryFormatterTest {
         assertTrue(rendered.contains("same tabs used by Kiyori UI and AI browser tools"))
         assertTrue(rendered.contains("session_id: manual-session-id"))
         assertTrue(rendered.contains("session_id: ai-session-id"))
+        assertTrue(rendered.contains("profile: normal"))
+        assertTrue(rendered.contains("profile: incognito"))
         assertTrue(rendered.contains("[0] Page opened by the user [active]"))
     }
 
@@ -44,6 +48,7 @@ class BrowserTabDiscoveryFormatterTest {
                         title = "Line one\nLine two",
                         url = "https://example.com/\npath",
                         isActive = false,
+                        profile = WebSessionProfile.NORMAL,
                     )
                 )
             )

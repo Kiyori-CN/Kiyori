@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.shell
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -51,12 +54,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
+import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import kotlinx.coroutines.launch
@@ -453,12 +460,32 @@ internal fun KiyoriFullScreenWebSearchPage(
 ) {
     val context = LocalContext.current
     val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
+    val browserCoordinator = remember(context) { BrowserPresentationCoordinator.getInstance(context) }
+    var profileState by
+        remember(browserCoordinator) {
+            mutableStateOf(browserCoordinator.newSessionProfileState())
+        }
     val searchEngine by
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
     val searchHistory by historyStore.searchHistoryFlow.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
     var isEnginePanelVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedProfile by rememberSaveable { mutableStateOf(profileState.defaultProfile) }
+    val profileNotice =
+        when {
+            !profileState.incognitoAvailability.isAvailable ->
+                when (profileState.incognitoAvailability) {
+                    WebSessionIncognitoAvailability.PROFILE_RESET_FAILED ->
+                        stringResource(R.string.web_session_incognito_reset_failed)
+                    WebSessionIncognitoAvailability.UNSUPPORTED ->
+                        stringResource(R.string.web_session_incognito_unavailable_summary)
+                    WebSessionIncognitoAvailability.AVAILABLE -> null
+                }
+            selectedProfile == WebSessionProfile.INCOGNITO ->
+                stringResource(R.string.web_session_incognito_ai_notice)
+            else -> null
+        }
 
     Box(
         modifier =
@@ -477,18 +504,32 @@ internal fun KiyoriFullScreenWebSearchPage(
             onEnginePanelVisibleChange = { isEnginePanelVisible = it },
             onBack = onBack,
             onSubmit = {
-                resolveKiyoriWebSearchRequest(query, searchEngine)?.let(onSubmitSearch)
+                profileState = browserCoordinator.newSessionProfileState()
+                if (
+                    selectedProfile == WebSessionProfile.NORMAL ||
+                        profileState.incognitoAvailability.isAvailable
+                ) {
+                    resolveKiyoriWebSearchRequest(query, searchEngine, selectedProfile)
+                        ?.let(onSubmitSearch)
+                }
             },
             onSelectEngine = { engine ->
                 scope.launch { historyStore.setSearchEngine(engine) }
             },
             onOpenSearchRecord = { record ->
-                onSubmitSearch(
-                    KiyoriWebSearchRequest(
-                        query = record.query,
-                        targetUrl = record.targetUrl,
-                    ),
-                )
+                profileState = browserCoordinator.newSessionProfileState()
+                if (
+                    selectedProfile == WebSessionProfile.NORMAL ||
+                        profileState.incognitoAvailability.isAvailable
+                ) {
+                    onSubmitSearch(
+                        KiyoriWebSearchRequest(
+                            query = record.query,
+                            targetUrl = record.targetUrl,
+                            profile = selectedProfile,
+                        ),
+                    )
+                }
             },
             onDeleteSearchRecord = { recordId ->
                 scope.launch { historyStore.deleteSearchHistory(recordId) }
@@ -499,6 +540,25 @@ internal fun KiyoriFullScreenWebSearchPage(
             onCopyCurrentUrl = {},
             onOpenCurrentUrl = {},
             onUseCurrentUrl = {},
+            profileNotice = profileNotice,
+            trailingAction = {
+                KiyoriSearchProfileAction(
+                    selectedProfile = selectedProfile,
+                    incognitoAvailability = profileState.incognitoAvailability,
+                    onToggle = {
+                        val requestedProfile =
+                            if (selectedProfile == WebSessionProfile.INCOGNITO) {
+                                WebSessionProfile.NORMAL
+                            } else {
+                                WebSessionProfile.INCOGNITO
+                            }
+                        if (browserCoordinator.setDefaultSessionProfile(requestedProfile)) {
+                            selectedProfile = requestedProfile
+                        }
+                        profileState = browserCoordinator.newSessionProfileState()
+                    },
+                )
+            },
             modifier = Modifier.fillMaxHeight().widthIn(max = 920.dp).fillMaxWidth(),
         )
     }
@@ -507,11 +567,13 @@ internal fun KiyoriFullScreenWebSearchPage(
 internal data class KiyoriWebSearchRequest(
     val query: String,
     val targetUrl: String,
+    val profile: WebSessionProfile,
 )
 
 internal fun resolveKiyoriWebSearchRequest(
     rawQuery: String,
     searchEngine: WebSessionSearchEngine,
+    profile: WebSessionProfile,
 ): KiyoriWebSearchRequest? {
     val query = rawQuery.trim()
     if (query.isBlank()) {
@@ -520,7 +582,55 @@ internal fun resolveKiyoriWebSearchRequest(
     return KiyoriWebSearchRequest(
         query = query,
         targetUrl = BrowserAddressResolver.resolve(query, searchEngine),
+        profile = profile,
     )
+}
+
+@Composable
+private fun KiyoriSearchProfileAction(
+    selectedProfile: WebSessionProfile,
+    incognitoAvailability: WebSessionIncognitoAvailability,
+    onToggle: () -> Unit,
+) {
+    val enabled = incognitoAvailability.isAvailable
+    val selected = selectedProfile == WebSessionProfile.INCOGNITO
+    Surface(
+        modifier =
+            Modifier
+                .size(40.dp)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onToggle),
+        shape = CircleShape,
+        color =
+            when {
+                !enabled -> MaterialTheme.colorScheme.surfaceContainerHighest
+                selected -> MaterialTheme.colorScheme.secondaryContainer
+                else -> MaterialTheme.colorScheme.surface
+            },
+        contentColor =
+            when {
+                !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                selected -> MaterialTheme.colorScheme.onSecondaryContainer
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        border =
+            BorderStroke(
+                width = 1.dp,
+                color =
+                    if (selected) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+            ),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Filled.VisibilityOff,
+                contentDescription = stringResource(R.string.web_session_incognito_mode),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
 }
 
 @Composable

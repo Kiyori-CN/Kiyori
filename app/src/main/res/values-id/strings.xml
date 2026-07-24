@@ -7145,4 +7145,13 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_shell_history">Riwayat</string>
     <string name="kiyori_shell_downloads">Unduhan</string>
     <string name="kiyori_shell_exit_hint">Tekan Kembali sekali lagi untuk keluar dari Kiyori</string>
+    <string name="web_session_normal_window">Jendela normal</string>
+    <string name="web_session_incognito_title">Jendela samaran</string>
+    <string name="web_session_incognito_mode">Mode samaran</string>
+    <string name="web_session_incognito_unavailable">Mode samaran tidak tersedia di perangkat ini</string>
+    <string name="web_session_incognito_unavailable_summary">Android System WebView tidak mendukung profil penjelajahan terisolasi, sehingga pembuatan samaran dinonaktifkan dan tidak diganti dengan jendela normal.</string>
+    <string name="web_session_incognito_reset_failed">Kiyori tidak dapat menghapus profil samaran sebelumnya. Mode samaran dinonaktifkan untuk sesi ini demi menjaga isolasi.</string>
+    <string name="web_session_incognito_ai_notice">Mode samaran mengisolasi cookie, cache, dan WebStorage. Tindakan Kiyori AI yang telah diizinkan pengguna tetap dapat membaca dan mengontrol jendela ini. Data sesi dihapus setelah jendela samaran terakhir ditutup.</string>
+    <string name="web_session_no_profile_tabs">Tidak ada %1$s</string>
+    <string name="web_session_clear_profile_tabs">Tutup semua jendela dalam grup ini</string>
 </resources>

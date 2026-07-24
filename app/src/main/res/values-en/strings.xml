@@ -7854,4 +7854,13 @@
     <string name="kiyori_shell_history">History</string>
     <string name="kiyori_shell_downloads">Downloads</string>
     <string name="kiyori_shell_exit_hint">Press Back again to exit Kiyori</string>
+    <string name="web_session_normal_window">Normal windows</string>
+    <string name="web_session_incognito_title">Incognito windows</string>
+    <string name="web_session_incognito_mode">Incognito mode</string>
+    <string name="web_session_incognito_unavailable">Incognito is unavailable on this device</string>
+    <string name="web_session_incognito_unavailable_summary">Android System WebView does not support isolated browsing profiles, so incognito creation is disabled and no normal window is substituted.</string>
+    <string name="web_session_incognito_reset_failed">Kiyori could not remove the previous incognito profile. Incognito is disabled for this run to protect isolation.</string>
+    <string name="web_session_incognito_ai_notice">Incognito isolates cookies, cache, and WebStorage. Kiyori AI actions already authorized by the user can still read and operate this window. Session data is deleted after the final incognito window closes.</string>
+    <string name="web_session_no_profile_tabs">No %1$s</string>
+    <string name="web_session_clear_profile_tabs">Close every window in this group</string>
 </resources>

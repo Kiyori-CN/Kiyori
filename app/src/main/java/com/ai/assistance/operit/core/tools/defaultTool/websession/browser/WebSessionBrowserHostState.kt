@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
 import kotlinx.serialization.Serializable
@@ -18,15 +19,9 @@ internal enum class WebSessionBrowserSheetRoute {
     PLACEHOLDER,
 }
 
-internal enum class WebSessionBrowserWindowMode {
-    NORMAL,
-    INCOGNITO,
-}
-
 internal enum class WebSessionBrowserPlaceholderPage {
     FLOATING_SNIFFER,
     TOOLBOX,
-    INCOGNITO,
     READER_MODE,
     AD_MARKING,
     SITE_CONFIG,
@@ -39,7 +34,10 @@ internal data class WebSessionBrowserTab(
     val title: String,
     val url: String,
     val isActive: Boolean,
-    val hasSslError: Boolean
+    val hasSslError: Boolean,
+    val profile: WebSessionProfile,
+    val thumbnail: Bitmap?,
+    val thumbnailUpdatedAt: Long,
 )
 
 @Immutable
@@ -86,6 +84,10 @@ internal data class WebSessionPageSourceState(
 @Immutable
 internal data class WebSessionBrowserState(
     val activeSessionId: String? = null,
+    val activeProfile: WebSessionProfile? = null,
+    val defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL,
+    val incognitoAvailability: WebSessionIncognitoAvailability =
+        WebSessionIncognitoAvailability.UNSUPPORTED,
     val pageTitle: String = "",
     val currentUrl: String = "about:blank",
     val canGoBack: Boolean = false,
@@ -151,7 +153,7 @@ internal data class ExternalOpenPromptState(
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
-    val windowMode: WebSessionBrowserWindowMode = WebSessionBrowserWindowMode.NORMAL,
+    val selectedProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
     val isSearchVisible: Boolean = false,
     val isSearchEnginePanelVisible: Boolean = false,

@@ -185,6 +185,19 @@ internal class UserscriptCookieService(
         return true
     }
 
+    fun requestHeader(url: String): String? =
+        cookieManager.getCookie(url)?.takeIf { cookie -> cookie.isNotBlank() }
+
+    fun acceptResponseCookies(
+        url: String,
+        cookies: List<String>,
+    ) {
+        cookies.forEach { cookie ->
+            cookieManager.setCookie(url, cookie)
+        }
+        flush()
+    }
+
     private fun flush() {
         runCatching { cookieManager.flush() }
     }

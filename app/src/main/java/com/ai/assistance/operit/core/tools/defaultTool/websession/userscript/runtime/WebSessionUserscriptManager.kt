@@ -58,7 +58,7 @@ import org.json.JSONObject
 internal class WebSessionUserscriptManager(
     private val context: Context,
     private val onOpenUserscriptUi: () -> Unit,
-    private val onOpenTab: (url: String, active: Boolean) -> String?,
+    private val onOpenTab: (sourceSessionId: String, url: String, active: Boolean) -> String?,
     private val onActivateSession: (sessionId: String) -> Unit,
     private val onCloseSession: (sessionId: String) -> Boolean,
     private val onDownload: (sessionId: String, url: String, fileName: String?) -> Unit,
@@ -68,6 +68,8 @@ internal class WebSessionUserscriptManager(
     private data class SessionBinding(
         val sessionId: String,
         val webView: WebView,
+        val cookieScope: String,
+        val cookieService: UserscriptCookieService,
         val scriptHandler: ScriptHandler?,
         val menuCommands: LinkedHashMap<String, UserscriptPageMenuCommand> = linkedMapOf()
     )
@@ -89,7 +91,6 @@ internal class WebSessionUserscriptManager(
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
     private val storageNotifier = UserscriptStorageNotifier()
     private val tabStateStore = UserscriptTabStateStore()
-    private val cookieService = UserscriptCookieService(CookieManager.getInstance())
     private val webRequestEngine = UserscriptWebRequestEngine()
     private val requestClient =
         OkHttpClient.Builder()
@@ -98,6 +99,7 @@ internal class WebSessionUserscriptManager(
             .build()
 
     private val sessionBindings = ConcurrentHashMap<String, SessionBinding>()
+    private val cookieServices = ConcurrentHashMap<String, UserscriptCookieService>()
     private val sessionPageStates = ConcurrentHashMap<String, SessionPageState>()
     private val activeCalls = ConcurrentHashMap<String, Call>()
     private val abortedRequestKeys = ConcurrentHashMap.newKeySet<String>()
@@ -188,7 +190,9 @@ internal class WebSessionUserscriptManager(
 
     fun attachSession(
         sessionId: String,
-        webView: WebView
+        webView: WebView,
+        cookieScope: String,
+        cookieManager: CookieManager,
     ) {
         if (!supportState.isSupported) {
             return
@@ -200,6 +204,10 @@ internal class WebSessionUserscriptManager(
         sessionPageStates.putIfAbsent(sessionId, SessionPageState())
         val attachNow = {
             runCatching { existing?.scriptHandler?.remove() }
+            val cookieService =
+                cookieServices.computeIfAbsent(cookieScope) {
+                    UserscriptCookieService(cookieManager)
+                }
             val scriptHandler =
                 runCatching {
                     WebViewCompat.addDocumentStartJavaScript(
@@ -241,6 +249,8 @@ internal class WebSessionUserscriptManager(
                 SessionBinding(
                     sessionId = sessionId,
                     webView = webView,
+                    cookieScope = cookieScope,
+                    cookieService = cookieService,
                     scriptHandler = scriptHandler
                 )
         }
@@ -253,6 +263,9 @@ internal class WebSessionUserscriptManager(
 
     fun detachSession(sessionId: String) {
         val binding = sessionBindings.remove(sessionId) ?: return
+        if (sessionBindings.values.none { remaining -> remaining.cookieScope == binding.cookieScope }) {
+            cookieServices.remove(binding.cookieScope)
+        }
         sessionPageStates.remove(sessionId)
         if (visibleSessionId == sessionId) {
             visibleSessionId = null
@@ -723,7 +736,8 @@ internal class WebSessionUserscriptManager(
                     return
                 }
                 mainHandler.post {
-                    val openedSessionId = onOpenTab(url, payload.optBoolean("active", true))
+                    val openedSessionId =
+                        onOpenTab(sessionId, url, payload.optBoolean("active", true))
                     if (!openedSessionId.isNullOrBlank()) {
                         openedTabOwners[openedSessionId] = sessionId
                         if (requestId.isNotBlank()) {
@@ -777,7 +791,7 @@ internal class WebSessionUserscriptManager(
             "gm_get_tab" -> handleGetTab(sessionId, payload, replyProxy, requestId)
             "gm_save_tab" -> handleSaveTab(sessionId, payload, replyProxy, requestId)
             "gm_get_tabs" -> handleGetTabs(payload, replyProxy, requestId)
-            "gm_cookie" -> handleCookie(payload, replyProxy, requestId)
+            "gm_cookie" -> handleCookie(sessionId, payload, replyProxy, requestId)
             "gm_audio" -> handleAudio(sessionId, payload, replyProxy, requestId)
             "gm_web_request_register" -> handleRegisterWebRequest(sessionId, payload, replyProxy, requestId)
             "gm_web_request_unregister" -> handleUnregisterWebRequest(payload, replyProxy, requestId)
@@ -1006,10 +1020,16 @@ internal class WebSessionUserscriptManager(
     }
 
     private fun handleCookie(
+        sessionId: String,
         payload: JSONObject,
         replyProxy: JavaScriptReplyProxy,
         requestId: String
     ) {
+        val cookieService = sessionBindings[sessionId]?.cookieService
+        if (cookieService == null) {
+            postRpcError(replyProxy, requestId, "session_not_found")
+            return
+        }
         val details = payload.optJSONObject("details") ?: JSONObject()
         val pageUrl = payload.optString("pageUrl", "")
         runCatching {
@@ -1175,6 +1195,9 @@ internal class WebSessionUserscriptManager(
         payload: JSONObject,
         replyProxy: JavaScriptReplyProxy
     ) {
+        val cookieService =
+            sessionBindings[sessionId]?.cookieService
+                ?: throw IllegalStateException("Userscript session is not attached")
         val method = payload.optString("method", "GET").uppercase()
         val url = payload.optString("url", "")
         val responseType = payload.optString("responseType", "text")
@@ -1208,7 +1231,7 @@ internal class WebSessionUserscriptManager(
             requestBuilder.header(key, value)
         }
         if (!anonymous) {
-            CookieManager.getInstance().getCookie(targetUrl)?.takeIf { it.isNotBlank() }?.let { cookie ->
+            cookieService.requestHeader(targetUrl)?.let { cookie ->
                 if (!headers.keys.any { it.equals("Cookie", ignoreCase = true) }) {
                     requestBuilder.header("Cookie", cookie)
                 }
@@ -1265,12 +1288,10 @@ internal class WebSessionUserscriptManager(
             try {
                 val response = call.execute()
                 if (!anonymous) {
-                    response.headers("Set-Cookie").forEach { cookie ->
-                        CookieManager.getInstance().setCookie(targetUrl, cookie)
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        CookieManager.getInstance().flush()
-                    }
+                    cookieService.acceptResponseCookies(
+                        targetUrl,
+                        response.headers("Set-Cookie"),
+                    )
                 }
                 val body = response.body
                 val total = body?.contentLength()?.takeIf { it >= 0L } ?: 0L

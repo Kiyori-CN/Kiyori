@@ -6992,4 +6992,13 @@
     <string name="kiyori_shell_history">기록</string>
     <string name="kiyori_shell_downloads">다운로드</string>
     <string name="kiyori_shell_exit_hint">Kiyori를 종료하려면 뒤로 버튼을 한 번 더 누르세요</string>
+    <string name="web_session_normal_window">일반 창</string>
+    <string name="web_session_incognito_title">시크릿 창</string>
+    <string name="web_session_incognito_mode">시크릿 모드</string>
+    <string name="web_session_incognito_unavailable">이 기기에서는 시크릿 창을 사용할 수 없습니다</string>
+    <string name="web_session_incognito_unavailable_summary">Android System WebView가 격리된 브라우징 프로필을 지원하지 않아 시크릿 창 만들기를 비활성화했으며 일반 창으로 대신 만들지 않습니다.</string>
+    <string name="web_session_incognito_reset_failed">Kiyori가 이전 시크릿 프로필을 삭제하지 못했습니다. 격리를 보호하기 위해 이번 실행에서는 시크릿 창을 비활성화했습니다.</string>
+    <string name="web_session_incognito_ai_notice">시크릿 창은 쿠키, 캐시, WebStorage를 격리합니다. 사용자가 이미 허용한 Kiyori AI 작업은 이 창을 계속 읽고 조작할 수 있습니다. 마지막 시크릿 창을 닫으면 세션 데이터가 삭제됩니다.</string>
+    <string name="web_session_no_profile_tabs">%1$s 없음</string>
+    <string name="web_session_clear_profile_tabs">이 그룹의 모든 창 닫기</string>
 </resources>

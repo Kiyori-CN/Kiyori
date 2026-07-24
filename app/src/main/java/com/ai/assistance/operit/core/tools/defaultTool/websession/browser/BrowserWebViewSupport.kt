@@ -6,6 +6,9 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.view.MotionEvent
@@ -38,23 +41,42 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
+private const val TAB_THUMBNAIL_WIDTH_PX = 320
+private const val TAB_THUMBNAIL_HEIGHT_PX = 180
+private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
 
 internal fun StandardBrowserSessionTools.createSessionOnMain(
     appContext: Context,
     sessionId: String,
     sessionName: String?,
-    customUserAgent: String?
+    customUserAgent: String?,
+    profile: WebSessionProfile,
 ): BrowserToolSession {
+    // Profile binding must precede settings, bridges, userscripts, and navigation. Binding later
+    // would let the new WebView touch the default profile before an incognito session is isolated.
+    profileManager.requireProfileAvailable(profile)
     val webView = WebView(resolveWebViewContext(appContext))
+    try {
+        profileManager.bindProfileBeforeConfiguration(webView, profile)
+    } catch (error: Exception) {
+        webView.destroy()
+        throw error
+    }
     val session =
         BrowserToolSession(
             id = sessionId,
             webView = webView,
             sessionName = sessionName,
+            profile = profile,
             customUserAgent = customUserAgent
         )
     configureWebView(session, resolveUserAgent(customUserAgent))
-    userscriptManager.attachSession(session.id, session.webView)
+    userscriptManager.attachSession(
+        sessionId = session.id,
+        webView = session.webView,
+        cookieScope = session.profile.wireName,
+        cookieManager = profileManager.cookieManagerFor(session.webView, session.profile),
+    )
     return session
 }
 
@@ -97,7 +119,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
         }
     }
     applySessionUserAgent(session, userAgent)
-    configureCookiePolicy(session.webView)
+    configureCookiePolicy(session)
 
     session.webView.apply {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -297,6 +319,9 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 session.isLoading = true
                 session.hasSslError = false
                 session.lastSnapshot = null
+                // A navigation invalidates both the image and pending visual-state callbacks;
+                // otherwise the window grid could display content captured from the previous URL.
+                clearSessionThumbnail(session)
                 clearEventLogs(session)
                 session.pendingDialog = null
                 notifySessionStateChanged(session)
@@ -328,6 +353,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 ioScope.launch {
                     historyStore.updateTitle(url, session.pageTitle)
                 }
+                requestSessionThumbnailOnMain(session, force = true)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -509,9 +535,29 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             closeSession(sessionId)
         }
 
-        override fun onNewTab() {
+        override fun onNewTab(profile: WebSessionProfile) {
             runOnMainSync<Unit> {
-                createSessionTabOnMain(appContext, initialUrl = "about:blank")
+                try {
+                    createSessionTabOnMain(
+                        appContext = appContext,
+                        initialUrl = "about:blank",
+                        profile = profile,
+                    )
+                } catch (error: IllegalStateException) {
+                    if (profile != WebSessionProfile.INCOGNITO) {
+                        throw error
+                    }
+                    AppLogger.e(WEBVIEW_SUPPORT_TAG, "Unable to create browser profile tab", error)
+                    defaultSessionProfile = WebSessionProfile.NORMAL
+                    showToast(context.getString(R.string.web_session_incognito_reset_failed))
+                    refreshSessionUiOnMain()
+                }
+            }
+        }
+
+        override fun onRequestTabThumbnails() {
+            runOnMainSync<Unit> {
+                requestAllSessionThumbnailsOnMain()
             }
         }
 
@@ -531,8 +577,11 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             resolvePreferredSessionId()?.let { closeSession(it) }
         }
 
-        override fun onCloseAllTabs() {
-            val ids = orderedSessionIds()
+        override fun onCloseAllTabs(profile: WebSessionProfile) {
+            val ids =
+                orderedSessionIds().filter { sessionId ->
+                    sessionById(sessionId)?.profile == profile
+                }
             ids.forEach { closeSession(it) }
         }
 
@@ -804,10 +853,22 @@ internal fun StandardBrowserSessionTools.createSessionTabOnMain(
     appContext: Context,
     initialUrl: String,
     sessionName: String? = null,
-    customUserAgent: String? = null
+    customUserAgent: String? = null,
+    profile: WebSessionProfile = defaultSessionProfile,
 ): BrowserToolSession {
+    StandardBrowserSessionTools.activeSessionId
+        ?.let(::sessionById)
+        ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
     val sessionId = UUID.randomUUID().toString()
-    val session = createSessionOnMain(appContext, sessionId, sessionName, customUserAgent)
+    val session =
+        try {
+            createSessionOnMain(appContext, sessionId, sessionName, customUserAgent, profile)
+        } catch (error: IllegalStateException) {
+            if (profile == WebSessionProfile.INCOGNITO) {
+                defaultSessionProfile = WebSessionProfile.NORMAL
+            }
+            throw error
+        }
     StandardBrowserSessionTools.sessions[sessionId] = session
     addSessionOrder(sessionId)
     StandardBrowserSessionTools.activeSessionId = sessionId
@@ -819,11 +880,18 @@ internal fun StandardBrowserSessionTools.createSessionTabOnMain(
 
 internal fun StandardBrowserSessionTools.openUserscriptTabOnMain(
     appContext: Context,
+    sourceSessionId: String,
     url: String,
     active: Boolean
 ): String {
+    val sourceSession = sessionById(sourceSessionId) ?: return ""
     val previousActiveId = StandardBrowserSessionTools.activeSessionId
-    val newSession = createSessionTabOnMain(appContext, initialUrl = url)
+    val newSession =
+        createSessionTabOnMain(
+            appContext = appContext,
+            initialUrl = url,
+            profile = sourceSession.profile,
+        )
     if (!active && !previousActiveId.isNullOrBlank() && previousActiveId != newSession.id) {
         activateSessionOnMain(previousActiveId)
     }
@@ -882,6 +950,10 @@ internal fun StandardBrowserSessionTools.handleUserscriptDownloadOnMain(
 internal fun StandardBrowserSessionTools.activateSessionOnMain(sessionId: String) {
     val session = sessionById(sessionId) ?: return
     ensureBrowserPresentationOnMain(context.applicationContext)
+    StandardBrowserSessionTools.activeSessionId
+        ?.takeIf { activeId -> activeId != sessionId }
+        ?.let(::sessionById)
+        ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
     StandardBrowserSessionTools.activeSessionId = sessionId
     updateNavigationState(session)
     syncProjectedBrowserStateOnMain()
@@ -890,6 +962,10 @@ internal fun StandardBrowserSessionTools.activateSessionOnMain(sessionId: String
 internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: String) {
     val session = sessionById(sessionId) ?: return
     ensureBrowserPresentationOnMain(context.applicationContext)
+    StandardBrowserSessionTools.activeSessionId
+        ?.takeIf { activeId -> activeId != sessionId }
+        ?.let(::sessionById)
+        ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
     StandardBrowserSessionTools.activeSessionId = sessionId
     runCatching {
         session.webView.onResume()
@@ -936,6 +1012,9 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
 
     return WebSessionBrowserState(
         activeSessionId = activeId,
+        activeProfile = activeSession?.profile,
+        defaultSessionProfile = defaultSessionProfile,
+        incognitoAvailability = profileManager.incognitoAvailability,
         pageTitle = activeSession?.pageTitle.orEmpty(),
         currentUrl = activeSession?.currentUrl?.ifBlank { "about:blank" } ?: "about:blank",
         canGoBack = activeSession?.canGoBack == true,
@@ -966,7 +1045,10 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                         title = sessionDisplayTitle(session),
                         url = session.currentUrl.ifBlank { "about:blank" },
                         isActive = session.id == activeId,
-                        hasSslError = session.hasSslError
+                        hasSslError = session.hasSslError,
+                        profile = session.profile,
+                        thumbnail = session.thumbnail,
+                        thumbnailUpdatedAt = session.thumbnailUpdatedAt,
                     )
                 }
             },
@@ -988,6 +1070,96 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                 }
             } ?: emptyList()
     )
+}
+
+internal fun StandardBrowserSessionTools.requestAllSessionThumbnailsOnMain() {
+    orderedSessionIds().forEach { sessionId ->
+        sessionById(sessionId)?.let { session ->
+            requestSessionThumbnailOnMain(session, force = true)
+        }
+    }
+}
+
+internal fun StandardBrowserSessionTools.requestSessionThumbnailOnMain(
+    session: BrowserToolSession,
+    force: Boolean,
+) {
+    val webView = session.webView
+    val currentUrl = session.currentUrl
+    if (
+        !session.pageLoaded ||
+            session.isLoading ||
+            currentUrl.isBlank() ||
+            currentUrl == "about:blank" ||
+            webView.width <= 0 ||
+            webView.height <= 0
+    ) {
+        return
+    }
+    val now = System.currentTimeMillis()
+    if (!force && now - session.thumbnailUpdatedAt < TAB_THUMBNAIL_MIN_REFRESH_MS) {
+        return
+    }
+
+    val generation = session.thumbnailRequestGeneration + 1L
+    session.thumbnailRequestGeneration = generation
+    try {
+        webView.postVisualStateCallback(
+            generation,
+            object : WebView.VisualStateCallback() {
+            override fun onComplete(requestId: Long) {
+                if (
+                    requestId != session.thumbnailRequestGeneration ||
+                        sessionById(session.id) !== session ||
+                        session.currentUrl != currentUrl ||
+                        !session.pageLoaded ||
+                        session.isLoading
+                ) {
+                    return
+                }
+                try {
+                    val sourceWidth = webView.width
+                    val sourceHeight = webView.height
+                    if (sourceWidth <= 0 || sourceHeight <= 0) {
+                        return
+                    }
+                    val bitmap =
+                        Bitmap.createBitmap(
+                            TAB_THUMBNAIL_WIDTH_PX,
+                            TAB_THUMBNAIL_HEIGHT_PX,
+                            Bitmap.Config.ARGB_8888,
+                        )
+                    val canvas = Canvas(bitmap)
+                    canvas.drawColor(Color.WHITE)
+                    val scale = TAB_THUMBNAIL_WIDTH_PX.toFloat() / sourceWidth.toFloat()
+                    canvas.save()
+                    canvas.scale(scale, scale)
+                    webView.draw(canvas)
+                    canvas.restore()
+                    session.thumbnail = bitmap
+                    session.thumbnailUpdatedAt = System.currentTimeMillis()
+                    refreshSessionUiOnMain(session.id)
+                } catch (error: Exception) {
+                    AppLogger.w(
+                        WEBVIEW_SUPPORT_TAG,
+                        "Unable to capture WebSession thumbnail: session=${session.id}, error=${error.message}",
+                    )
+                }
+            }
+            },
+        )
+    } catch (error: Exception) {
+        AppLogger.w(
+            WEBVIEW_SUPPORT_TAG,
+            "Unable to request WebSession visual state: session=${session.id}, error=${error.message}",
+        )
+    }
+}
+
+internal fun StandardBrowserSessionTools.clearSessionThumbnail(session: BrowserToolSession) {
+    session.thumbnailRequestGeneration += 1L
+    session.thumbnail = null
+    session.thumbnailUpdatedAt = 0L
 }
 
 internal fun StandardBrowserSessionTools.buildSessionHistory(
@@ -1135,8 +1307,9 @@ internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserT
     }
 }
 
-internal fun StandardBrowserSessionTools.configureCookiePolicy(webView: WebView) {
-    val cookieManager = CookieManager.getInstance()
+internal fun StandardBrowserSessionTools.configureCookiePolicy(session: BrowserToolSession) {
+    val webView = session.webView
+    val cookieManager = profileManager.cookieManagerFor(webView, session.profile)
     cookieManager.setAcceptCookie(true)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
         cookieManager.setAcceptThirdPartyCookies(webView, true)
@@ -1151,7 +1324,8 @@ internal fun StandardBrowserSessionTools.createPopupSessionOnMain(
             appContext = parentSession.webView.context ?: context.applicationContext,
             sessionId = UUID.randomUUID().toString(),
             sessionName = parentSession.sessionName,
-            customUserAgent = parentSession.customUserAgent
+            customUserAgent = parentSession.customUserAgent,
+            profile = parentSession.profile,
         )
     StandardBrowserSessionTools.sessions[popupSession.id] = popupSession
     addSessionOrder(popupSession.id)
@@ -1438,8 +1612,12 @@ internal fun StandardBrowserSessionTools.resolvePendingDialogOnMain(
 }
 
 internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolean {
-    val orderedBeforeClose = orderedSessionIds()
-    val closedIndex = orderedBeforeClose.indexOf(sessionId)
+    val orderedBeforeClose =
+        orderedSessionIds().mapNotNull { id ->
+            sessionById(id)?.let { session ->
+                BrowserSessionProfileEntry(sessionId = id, profile = session.profile)
+            }
+        }
     val wasActive = StandardBrowserSessionTools.activeSessionId == sessionId
     val previouslyActiveId = StandardBrowserSessionTools.activeSessionId
     val session = StandardBrowserSessionTools.sessions.remove(sessionId) ?: return false
@@ -1462,20 +1640,30 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
         session.pendingDialog?.jsResult?.cancel()
         session.pendingDialog = null
         notifySessionStateChanged(session)
-        cleanupWebViewOnMain(session.webView)
+        clearSessionThumbnail(session)
+        val webViewDestroyed = cleanupWebViewOnMain(session.webView)
+        if (
+            session.profile == WebSessionProfile.INCOGNITO &&
+                webViewDestroyed &&
+                StandardBrowserSessionTools.sessions.values.none { remaining ->
+                    remaining.profile == WebSessionProfile.INCOGNITO
+                }
+        ) {
+            val deleted = profileManager.deleteIncognitoProfileAfterLastWebView()
+            if (!deleted) {
+                defaultSessionProfile = WebSessionProfile.NORMAL
+            }
+        }
 
         val remainingIds = orderedSessionIds().filter { sessionById(it) != null }
         val nextSessionId =
-            if (wasActive) {
-                when {
-                    remainingIds.isEmpty() -> null
-                    closedIndex >= 0 && closedIndex < remainingIds.size -> remainingIds[closedIndex]
-                    closedIndex > 0 && closedIndex - 1 < remainingIds.size -> remainingIds[closedIndex - 1]
-                    else -> remainingIds.firstOrNull()
-                }
-            } else {
-                previouslyActiveId?.takeIf { sessionById(it) != null } ?: remainingIds.firstOrNull()
-            }
+            resolveSessionAfterClose(
+                orderedBeforeClose = orderedBeforeClose,
+                closedSessionId = sessionId,
+                remainingSessionIds = remainingIds.toSet(),
+                previouslyActiveSessionId = previouslyActiveId,
+                wasActive = wasActive,
+            )
         if (nextSessionId != null) {
             if (wasActive) {
                 activateSessionOnMain(nextSessionId)
@@ -1496,14 +1684,15 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
     return true
 }
 
-internal fun StandardBrowserSessionTools.cleanupWebViewOnMain(webView: WebView) {
+internal fun StandardBrowserSessionTools.cleanupWebViewOnMain(webView: WebView): Boolean =
     try {
         webView.stopLoading()
         webView.loadUrl("about:blank")
         webView.onPause()
         webView.removeAllViews()
         webView.destroy()
+        true
     } catch (e: Exception) {
         AppLogger.w(WEBVIEW_SUPPORT_TAG, "Error during WebView cleanup: ${e.message}")
+        false
     }
-}

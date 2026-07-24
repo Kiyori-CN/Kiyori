@@ -604,14 +604,20 @@ fun OperitApp(
                     )
                 },
                 onSubmitWebSearch = { request ->
-                    BrowserPresentationCoordinator.getInstance(context)
-                        .openUrlInNewSession(request.targetUrl)
-                    scope.launch {
-                        browserHistoryStore.addSearchHistory(request.query, request.targetUrl)
+                    val createdSessionId =
+                        BrowserPresentationCoordinator.getInstance(context)
+                        .openUrlInNewSession(
+                            url = request.targetUrl,
+                            profile = request.profile,
+                        )
+                    if (createdSessionId != null) {
+                        scope.launch {
+                            browserHistoryStore.addSearchHistory(request.query, request.targetUrl)
+                        }
+                        updateShellState(
+                            shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                        )
                     }
-                    updateShellState(
-                        shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
-                    )
                 },
                 onRequestExit = {
                     val now = System.currentTimeMillis()

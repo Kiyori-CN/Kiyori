@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.main.shell
 
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -28,7 +29,13 @@ class KiyoriSoftwareHomeSearchTest {
 
     @Test
     fun `blank home search does not create a browser request`() {
-        assertNull(resolveKiyoriWebSearchRequest("   ", WebSessionSearchEngine.BING))
+        assertNull(
+            resolveKiyoriWebSearchRequest(
+                "   ",
+                WebSessionSearchEngine.BING,
+                WebSessionProfile.NORMAL,
+            )
+        )
     }
 
     @Test
@@ -37,10 +44,12 @@ class KiyoriSoftwareHomeSearchTest {
             KiyoriWebSearchRequest(
                 query = "example.com/docs",
                 targetUrl = "https://example.com/docs",
+                profile = WebSessionProfile.INCOGNITO,
             ),
             resolveKiyoriWebSearchRequest(
                 rawQuery = "  example.com/docs  ",
                 searchEngine = WebSessionSearchEngine.BING,
+                profile = WebSessionProfile.INCOGNITO,
             ),
         )
     }
