@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,18 +38,6 @@ internal fun WebSessionSheetScaffold(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .fillMaxWidth(0.12f)
-                    .height(4.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
-                        shape = CircleShape
-                    )
-        )
-
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = title,
@@ -68,7 +54,6 @@ internal fun WebSessionSheetScaffold(
         }
 
         content()
-        Spacer(modifier = Modifier.height(4.dp))
     }
 }
 

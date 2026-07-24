@@ -64,6 +64,7 @@ data class KiyoriShellState(
     val showsBottomBar: Boolean
         get() =
             child == null && !isAiDrawerOpen &&
+                primaryDestination != PrimaryDestination.BROWSER_HOME &&
                 (primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                     softwareHomePage == SoftwareHomePage.HOME)
 

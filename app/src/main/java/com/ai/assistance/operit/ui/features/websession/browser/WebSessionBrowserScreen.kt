@@ -3,19 +3,25 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import android.net.Uri
 import android.graphics.Color as AndroidColor
 import android.widget.FrameLayout
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,7 +38,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -49,7 +54,15 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserTabOverview
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserToolbox
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.resolveWebSessionBrowserChromeLayout
 import java.util.Locale
+
+private fun WebSessionBrowserSheetRoute.isBrowserDrawerRoute(): Boolean =
+    this != WebSessionBrowserSheetRoute.NONE && this != WebSessionBrowserSheetRoute.TABS
 
 @Composable
 internal fun WebSessionBrowserScreen(
@@ -120,11 +133,6 @@ internal fun WebSessionBrowserScreen(
             }
         }
     }
-    val currentTabNumber =
-        browserState.tabs.indexOfFirst { it.isActive }
-            .takeIf { it >= 0 }
-            ?.plus(1)
-            ?: 0
     val isBookmarked =
         remember(browserState.currentUrl, bookmarks) {
             val normalizedUrl = normalizeLookupUrl(browserState.currentUrl)
@@ -136,16 +144,29 @@ internal fun WebSessionBrowserScreen(
         }
     }
     val activeSheetRoute = hostState.sheetRoute
+    var tabOverviewMounted by remember { mutableStateOf(false) }
+    var mountedDrawerRoute by remember { mutableStateOf(WebSessionBrowserSheetRoute.NONE) }
+    LaunchedEffect(activeSheetRoute) {
+        when {
+            activeSheetRoute == WebSessionBrowserSheetRoute.TABS -> tabOverviewMounted = true
+            activeSheetRoute.isBrowserDrawerRoute() -> mountedDrawerRoute = activeSheetRoute
+        }
+    }
     var promptDraft by remember(browserState.pendingDialog?.message, browserState.pendingDialog?.defaultValue) {
         mutableStateOf(browserState.pendingDialog?.defaultValue.orEmpty())
     }
 
-    Box(
+    BoxWithConstraints(
         modifier =
             modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
     ) {
+        val chromeLayout =
+            resolveWebSessionBrowserChromeLayout(
+                widthDp = maxWidth.value,
+                heightDp = maxHeight.value,
+            )
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier =
@@ -198,15 +219,6 @@ internal fun WebSessionBrowserScreen(
                 onMinimize = onMinimize,
                 modifier = Modifier.statusBarsPadding()
             )
-
-            hostState.externalOpenPrompt?.let { prompt ->
-                ExternalOpenPromptBar(
-                    title = prompt.title,
-                    target = prompt.target,
-                    onConfirm = { onConfirmExternalOpen(prompt.requestId) },
-                    onCancel = { onCancelExternalOpen(prompt.requestId) }
-                )
-            }
 
             if (browserState.activeDownloadCount > 0) {
                 BrowserDownloadSummaryBar(
@@ -315,96 +327,128 @@ internal fun WebSessionBrowserScreen(
                         .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
             )
 
-            WebSessionBottomToolbar(
+            WebSessionBrowserBottomBar(
                 canGoBack = browserState.canGoBack,
                 canGoForward = browserState.canGoForward,
-                currentTabNumber = currentTabNumber,
+                tabCount = browserState.tabs.size,
                 onBack = onBack,
                 onForward = onForward,
-                onNewTab = onNewTab,
+                onHome = { onNavigate("about:blank") },
                 onTabs = {
                     onHostStateChange { current ->
                         current.copy(sheetRoute = WebSessionBrowserSheetRoute.TABS)
                     }
                 },
-                onMenu = {
+                onToolbox = {
                     onHostStateChange { current ->
                         current.copy(sheetRoute = WebSessionBrowserSheetRoute.MENU)
                     }
-                },
-                modifier = Modifier.navigationBarsPadding()
+                }
             )
             }
         }
 
-        if (activeSheetRoute != WebSessionBrowserSheetRoute.NONE) {
-            val scrimInteractionSource = remember { MutableInteractionSource() }
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f))
-                        .clickable(
-                            interactionSource = scrimInteractionSource,
-                            indication = null,
-                            onClick = dismissSheet
-                        )
+        if (tabOverviewMounted) {
+            WebSessionBrowserTabOverview(
+                isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.TABS,
+                tabs = browserState.tabs,
+                columnCount = chromeLayout.tabColumnCount,
+                onDismissRequest = dismissSheet,
+                onHidden = {
+                    if (activeSheetRoute != WebSessionBrowserSheetRoute.TABS) {
+                        tabOverviewMounted = false
+                    }
+                },
+                onSelectTab = { sessionId ->
+                    onSelectTab(sessionId)
+                    dismissSheet()
+                },
+                onCloseTab = onCloseTab,
+                onNewTab = {
+                    onNewTab()
+                    dismissSheet()
+                },
+                onCloseAllTabs = {
+                    onCloseAllTabs()
+                    dismissSheet()
+                },
             )
+        }
 
-            // WebSession lives in an overlay window, so using ModalBottomSheet would
-            // create a dialog window that does not have a valid activity token here.
-            Surface(
+        if (mountedDrawerRoute.isBrowserDrawerRoute()) {
+            // This drawer is composed in both the App Shell and TYPE_APPLICATION_OVERLAY host;
+            // a dialog-backed Material sheet cannot safely obtain an Activity token there.
+            WebSessionBrowserBottomDrawer(
+                isVisible = activeSheetRoute.isBrowserDrawerRoute(),
+                layout = chromeLayout,
+                onDismissRequest = dismissSheet,
+                onHidden = {
+                    if (!activeSheetRoute.isBrowserDrawerRoute()) {
+                        mountedDrawerRoute = WebSessionBrowserSheetRoute.NONE
+                    }
+                },
+            ) {
+                AnimatedContent(
+                    targetState = mountedDrawerRoute,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = {
+                        (fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 24 })
+                            .togetherWith(
+                                fadeOut(tween(110)) +
+                                    slideOutVertically(tween(110)) { -it / 30 },
+                            )
+                    },
+                    label = "WebSessionBrowserDrawerRoute",
+                ) { drawerRoute ->
+                    WebSessionBrowserDrawerContent(
+                        sheetRoute = drawerRoute,
+                        browserState = browserState,
+                        bookmarks = bookmarks,
+                        globalHistory = globalHistory,
+                        userscriptUiState = userscriptUiState,
+                        onDismiss = dismissSheet,
+                        onCloseCurrentTab = onCloseCurrentTab,
+                        onCloseAllTabs = onCloseAllTabs,
+                        onRemoveBookmark = onRemoveBookmark,
+                        onSelectSessionHistory = onSelectSessionHistory,
+                        onOpenUrl = onOpenUrl,
+                        onClearHistory = onClearHistory,
+                        onToggleDesktopMode = onToggleDesktopMode,
+                        onHostStateChange = onHostStateChange,
+                        hostState = hostState,
+                        onOpenUserscripts = onOpenUserscripts,
+                        onImportUserscript = onImportUserscript,
+                        onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
+                        onConfirmUserscriptInstall = onConfirmUserscriptInstall,
+                        onCancelUserscriptInstall = onCancelUserscriptInstall,
+                        onSetUserscriptEnabled = onSetUserscriptEnabled,
+                        onDeleteUserscript = onDeleteUserscript,
+                        onCheckUserscriptUpdate = onCheckUserscriptUpdate,
+                        onInvokeUserscriptMenu = onInvokeUserscriptMenu,
+                        onPauseDownload = onPauseDownload,
+                        onResumeDownload = onResumeDownload,
+                        onCancelDownload = onCancelDownload,
+                        onRetryDownload = onRetryDownload,
+                        onDeleteDownload = onDeleteDownload,
+                        onOpenDownloadedFile = onOpenDownloadedFile,
+                        onOpenDownloadLocation = onOpenDownloadLocation,
+                    )
+                }
+            }
+        }
+
+        hostState.externalOpenPrompt?.let { prompt ->
+            ExternalOpenPromptBar(
+                title = prompt.title,
+                target = prompt.target,
+                onConfirm = { onConfirmExternalOpen(prompt.requestId) },
+                onCancel = { onCancelExternalOpen(prompt.requestId) },
                 modifier =
                     Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 6.dp)
-                        .navigationBarsPadding()
-                        .imePadding(),
-                shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
-                color = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                tonalElevation = 1.dp,
-                shadowElevation = 2.dp
-            ) {
-                WebSessionOverlaySheetContent(
-                    sheetRoute = activeSheetRoute,
-                    browserState = browserState,
-                    bookmarks = bookmarks,
-                    globalHistory = globalHistory,
-                    userscriptUiState = userscriptUiState,
-                    onDismiss = dismissSheet,
-                    onSelectTab = onSelectTab,
-                    onCloseTab = onCloseTab,
-                    onNewTab = onNewTab,
-                    onCloseCurrentTab = onCloseCurrentTab,
-                    onCloseAllTabs = onCloseAllTabs,
-                    onRemoveBookmark = onRemoveBookmark,
-                    onSelectSessionHistory = onSelectSessionHistory,
-                    onOpenUrl = onOpenUrl,
-                    onClearHistory = onClearHistory,
-                    onToggleDesktopMode = onToggleDesktopMode,
-                    onHostStateChange = onHostStateChange,
-                    hostState = hostState,
-                    onOpenUserscripts = onOpenUserscripts,
-                    onImportUserscript = onImportUserscript,
-                    onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
-                    onConfirmUserscriptInstall = onConfirmUserscriptInstall,
-                    onCancelUserscriptInstall = onCancelUserscriptInstall,
-                    onSetUserscriptEnabled = onSetUserscriptEnabled,
-                    onDeleteUserscript = onDeleteUserscript,
-                    onCheckUserscriptUpdate = onCheckUserscriptUpdate,
-                    onInvokeUserscriptMenu = onInvokeUserscriptMenu,
-                    onPauseDownload = onPauseDownload,
-                    onResumeDownload = onResumeDownload,
-                    onCancelDownload = onCancelDownload,
-                    onRetryDownload = onRetryDownload,
-                    onDeleteDownload = onDeleteDownload,
-                    onOpenDownloadedFile = onOpenDownloadedFile,
-                    onOpenDownloadLocation = onOpenDownloadLocation
-                )
-            }
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 58.dp),
+            )
         }
 
         browserState.pendingDialog?.let { pendingDialog ->
@@ -490,16 +534,13 @@ private fun PendingDialogOverlay(
 }
 
 @Composable
-private fun WebSessionOverlaySheetContent(
+private fun WebSessionBrowserDrawerContent(
     sheetRoute: WebSessionBrowserSheetRoute,
     browserState: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserState,
     bookmarks: List<WebSessionBookmark>,
     globalHistory: List<WebSessionHistoryEntry>,
     userscriptUiState: WebSessionUserscriptUiState,
     onDismiss: () -> Unit,
-    onSelectTab: (String) -> Unit,
-    onCloseTab: (String) -> Unit,
-    onNewTab: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: () -> Unit,
     onRemoveBookmark: (String) -> Unit,
@@ -527,29 +568,11 @@ private fun WebSessionOverlaySheetContent(
     onOpenDownloadLocation: (String) -> Unit
 ) {
     when (sheetRoute) {
-        WebSessionBrowserSheetRoute.TABS ->
-            WebSessionTabSheet(
-                tabs = browserState.tabs,
-                onSelectTab = { sessionId ->
-                    onSelectTab(sessionId)
-                    onDismiss()
-                },
-                onCloseTab = onCloseTab,
-                onNewTab = {
-                    onNewTab()
-                    onDismiss()
-                }
-            )
-
         WebSessionBrowserSheetRoute.MENU ->
-            WebSessionMenuSheet(
+            WebSessionBrowserToolbox(
                 isDesktopMode = browserState.isDesktopMode,
-                downloadSummary =
-                    stringResource(
-                        R.string.web_session_downloads_summary,
-                        browserState.activeDownloadCount,
-                        browserState.failedDownloadCount
-                    ),
+                activeDownloadCount = browserState.activeDownloadCount,
+                failedDownloadCount = browserState.failedDownloadCount,
                 onOpenHistory = {
                     onHostStateChange { current ->
                         current.copy(sheetRoute = WebSessionBrowserSheetRoute.HISTORY)
@@ -587,7 +610,8 @@ private fun WebSessionOverlaySheetContent(
                 onCloseAllTabs = {
                     onDismiss()
                     onCloseAllTabs()
-                }
+                },
+                onCollapse = onDismiss,
             )
 
         WebSessionBrowserSheetRoute.DOWNLOADS ->
@@ -607,7 +631,8 @@ private fun WebSessionOverlaySheetContent(
                 onRetryDownload = onRetryDownload,
                 onDeleteDownload = onDeleteDownload,
                 onOpenDownloadedFile = onOpenDownloadedFile,
-                onOpenDownloadLocation = onOpenDownloadLocation
+                onOpenDownloadLocation = onOpenDownloadLocation,
+                modifier = Modifier.fillMaxSize(),
             )
 
         WebSessionBrowserSheetRoute.HISTORY ->
@@ -622,7 +647,8 @@ private fun WebSessionOverlaySheetContent(
                     onOpenUrl(url)
                     onDismiss()
                 },
-                onClearHistory = onClearHistory
+                onClearHistory = onClearHistory,
+                modifier = Modifier.fillMaxSize(),
             )
 
         WebSessionBrowserSheetRoute.BOOKMARKS ->
@@ -632,7 +658,8 @@ private fun WebSessionOverlaySheetContent(
                     onOpenUrl(url)
                     onDismiss()
                 },
-                onRemoveBookmark = onRemoveBookmark
+                onRemoveBookmark = onRemoveBookmark,
+                modifier = Modifier.fillMaxSize(),
             )
 
         WebSessionBrowserSheetRoute.USERSCRIPTS ->
@@ -646,10 +673,12 @@ private fun WebSessionOverlaySheetContent(
                 onSetScriptEnabled = onSetUserscriptEnabled,
                 onDeleteScript = onDeleteUserscript,
                 onCheckUpdate = onCheckUserscriptUpdate,
-                onInvokeMenuCommand = onInvokeUserscriptMenu
+                onInvokeMenuCommand = onInvokeUserscriptMenu,
+                modifier = Modifier.fillMaxSize(),
             )
 
-        WebSessionBrowserSheetRoute.NONE -> Unit
+        WebSessionBrowserSheetRoute.NONE,
+        WebSessionBrowserSheetRoute.TABS -> Unit
     }
 }
 
@@ -658,10 +687,11 @@ private fun ExternalOpenPromptBar(
     title: String,
     target: String,
     onConfirm: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = 0.dp,

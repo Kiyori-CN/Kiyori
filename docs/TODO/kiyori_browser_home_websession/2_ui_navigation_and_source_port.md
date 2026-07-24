@@ -1,5 +1,6 @@
 ---
 status: verification_pending
+ui_contract_superseded_by: ../kiyori_browser_ui_refactor/index.md
 ---
 
 # 界面、导航与 source-port
@@ -16,7 +17,7 @@ Kiyori App Shell/
 	KiyoriBottomNavigation
 ```
 
-Browser Home 沿用现有 WebSession 控件与文案。页面背景绘制到物理顶边，地址栏处理状态栏安全区。浏览器工具栏位于 Kiyori 五项底栏上方；Shell 底栏保持可见。
+本节记录首期接入时的界面基线。首期让浏览器工具栏位于 Kiyori 五项底栏上方；该临时界面合同已由 [浏览器沉浸式 UI 重构](../kiyori_browser_ui_refactor/index.md) 取代。共享 runtime、地址解析、Back 与 presentation owner 结论继续有效。
 
 ## 按钮语义
 

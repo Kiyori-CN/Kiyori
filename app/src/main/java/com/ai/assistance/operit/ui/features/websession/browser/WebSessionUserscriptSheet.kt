@@ -72,6 +72,7 @@ internal fun WebSessionUserscriptSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

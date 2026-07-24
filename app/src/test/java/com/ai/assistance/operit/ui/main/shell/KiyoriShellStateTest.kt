@@ -39,14 +39,26 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `all non software root destinations show bottom navigation`() {
+    fun `non browser root destinations show bottom navigation`() {
         PrimaryDestination.entries
-            .filterNot { destination -> destination == PrimaryDestination.SOFTWARE_HOME }
+            .filterNot { destination ->
+                destination == PrimaryDestination.SOFTWARE_HOME ||
+                    destination == PrimaryDestination.BROWSER_HOME
+            }
             .forEach { destination ->
                 assertTrue(
                     KiyoriShellState(primaryDestination = destination).showsBottomBar,
                 )
             }
+    }
+
+    @Test
+    fun `browser home owns immersive chrome and hides bottom navigation`() {
+        assertFalse(
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.BROWSER_HOME,
+            ).showsBottomBar,
+        )
     }
 
     @Test
