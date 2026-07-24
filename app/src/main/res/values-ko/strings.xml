@@ -6981,6 +6981,7 @@
     <string name="kiyori_shell_settings_home">설정</string>
     <string name="kiyori_shell_minus_one">왼쪽 페이지</string>
     <string name="kiyori_shell_search_hint">URL을 입력하거나 웹 검색</string>
+    <string name="kiyori_shell_home_subtitle">웹 콘텐츠를 탐색하고 이해하고 활용하세요</string>
     <string name="kiyori_shell_search_action">검색</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">웹 검색</string>

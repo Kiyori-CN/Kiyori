@@ -72,6 +72,21 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         }
     }
 
+    /**
+     * Starts a product-level browsing task in a new shared WebSession.
+     *
+     * Software Home must never reuse the active tab because the user can be returning to an
+     * existing page. Creating through the shared StandardBrowserSessionTools instance also makes
+     * the new tab immediately discoverable by the browser_* AI tools.
+     */
+    fun openUrlInNewSession(url: String): String =
+        tools.runOnMainSync {
+            tools.ensureBrowserPresentationOnMain(appContext)
+            val session = tools.createSessionTabOnMain(appContext, initialUrl = url)
+            tools.refreshSessionUiOnMain(session.id)
+            session.id
+        }
+
     companion object {
         @Volatile private var instance: BrowserPresentationCoordinator? = null
 

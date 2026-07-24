@@ -1,6 +1,11 @@
 package com.ai.assistance.operit.ui.main.shell
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableState
@@ -34,7 +39,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun KiyoriAppShell(
+internal fun KiyoriAppShell(
     state: KiyoriShellState,
     onStateChange: (KiyoriShellState) -> Unit,
     aiHostIsRoot: Boolean,
@@ -45,6 +50,7 @@ fun KiyoriAppShell(
     networkType: String,
     onAiDrawerEntrySelected: (NavigationEntrySpec) -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
+    onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
     browserHome: @Composable (Modifier) -> Unit,
     aiHost: @Composable () -> Unit,
@@ -214,10 +220,16 @@ fun KiyoriAppShell(
             aiHost()
         }
 
-        if (state.child == KiyoriShellChild.FULL_SCREEN_WEB_SEARCH && aiHostIsRoot) {
+        AnimatedVisibility(
+            visible = state.child == KiyoriShellChild.FULL_SCREEN_WEB_SEARCH && aiHostIsRoot,
+            modifier = Modifier.fillMaxSize().zIndex(12f),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
+        ) {
             KiyoriFullScreenWebSearchPage(
                 onBack = { onStateChange(state.copy(child = null)) },
-                modifier = Modifier.fillMaxSize().zIndex(12f),
+                onSubmitSearch = onSubmitWebSearch,
+                modifier = Modifier.fillMaxSize(),
             )
         }
 

@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.mcp.MCPRepository
@@ -121,6 +122,7 @@ fun OperitApp(
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val browserHistoryStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val activity = remember(context) {
         context as? Activity ?: error("OperitApp must be hosted by an Activity")
     }
@@ -599,6 +601,16 @@ fun OperitApp(
                     )
                     updateShellState(
                         shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
+                    )
+                },
+                onSubmitWebSearch = { request ->
+                    BrowserPresentationCoordinator.getInstance(context)
+                        .openUrlInNewSession(request.targetUrl)
+                    scope.launch {
+                        browserHistoryStore.addSearchHistory(request.query, request.targetUrl)
+                    }
+                    updateShellState(
+                        shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
                     )
                 },
                 onRequestExit = {

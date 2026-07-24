@@ -7201,6 +7201,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="kiyori_shell_settings_home">Ajustes</string>
     <string name="kiyori_shell_minus_one">Página lateral</string>
     <string name="kiyori_shell_search_hint">Introduce una URL o busca en la web</string>
+    <string name="kiyori_shell_home_subtitle">Navega, comprende y trabaja con contenido web</string>
     <string name="kiyori_shell_search_action">Buscar</string>
     <string name="kiyori_shell_ai_action">IA</string>
     <string name="kiyori_shell_web_search">Búsqueda web</string>

@@ -7898,6 +7898,7 @@
     <string name="kiyori_shell_settings_home">设置首页</string>
     <string name="kiyori_shell_minus_one">负一屏</string>
     <string name="kiyori_shell_search_hint">输入网址或搜索网页</string>
+    <string name="kiyori_shell_home_subtitle">浏览、理解与处理网页内容</string>
     <string name="kiyori_shell_search_action">搜索</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">网页搜索</string>

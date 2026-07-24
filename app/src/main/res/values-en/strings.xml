@@ -7843,6 +7843,7 @@
     <string name="kiyori_shell_settings_home">Settings</string>
     <string name="kiyori_shell_minus_one">Minus-One Page</string>
     <string name="kiyori_shell_search_hint">Enter a URL or search the web</string>
+    <string name="kiyori_shell_home_subtitle">Browse, understand, and work with web content</string>
     <string name="kiyori_shell_search_action">Search</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Web Search</string>

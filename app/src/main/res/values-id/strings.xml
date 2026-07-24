@@ -7134,6 +7134,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_shell_settings_home">Setelan</string>
     <string name="kiyori_shell_minus_one">Halaman Samping</string>
     <string name="kiyori_shell_search_hint">Masukkan URL atau cari di web</string>
+    <string name="kiyori_shell_home_subtitle">Jelajahi, pahami, dan olah konten web</string>
     <string name="kiyori_shell_search_action">Cari</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Pencarian Web</string>

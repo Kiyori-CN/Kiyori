@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -189,10 +190,16 @@ internal fun WebSessionBrowserSearchScreen(
     }
 
     fun closeSearch() {
+        if (isEnginePanelVisible) {
+            onEnginePanelVisibleChange(false)
+            return
+        }
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
         onBack()
     }
+
+    BackHandler(onBack = ::closeSearch)
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
