@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -130,7 +131,6 @@ private fun RowScope.BrowserBottomBarTabAction(
     contentDescription: String,
     onClick: () -> Unit,
 ) {
-    val displayCount = if (count > 99) "99+" else count.coerceAtLeast(0).toString()
     Box(
         modifier = Modifier.weight(1f),
         contentAlignment = Alignment.Center,
@@ -146,22 +146,34 @@ private fun RowScope.BrowserBottomBarTabAction(
                     },
             contentAlignment = Alignment.Center,
         ) {
-            Surface(
-                modifier = Modifier.size(width = 23.dp, height = 21.dp),
-                shape = RoundedCornerShape(3.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.7.dp, MaterialTheme.colorScheme.onSurface),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = displayCount,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = if (displayCount.length > 2) 7.sp else 9.sp,
-                        lineHeight = if (displayCount.length > 2) 7.sp else 9.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            WebSessionBrowserWindowCountIcon(count = count)
+        }
+    }
+}
+
+@Composable
+internal fun WebSessionBrowserWindowCountIcon(
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
+    val displayCount = if (count > 99) "99+" else count.coerceAtLeast(0).toString()
+    val contentColor = LocalContentColor.current
+    Surface(
+        modifier = modifier.size(width = 23.dp, height = 21.dp),
+        shape = RoundedCornerShape(3.dp),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = contentColor,
+        border = BorderStroke(1.7.dp, contentColor),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = displayCount,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = if (displayCount.length > 2) 7.sp else 9.sp,
+                lineHeight = if (displayCount.length > 2) 7.sp else 9.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
         }
     }
 }

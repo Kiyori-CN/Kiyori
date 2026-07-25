@@ -96,6 +96,8 @@ fun AttachmentSelectorPanel(
         onAttachPackage: (String) -> Unit = {},
         onTakePhoto: (Uri) -> Unit,
         userQuery: String = "",
+        externalCameraCaptureRequestId: Long? = null,
+        onExternalCameraCaptureHandled: (Long) -> Unit = {},
         onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -104,6 +106,14 @@ fun AttachmentSelectorPanel(
         onTakePhoto = onTakePhoto,
         onDismiss = onDismiss,
     )
+
+    LaunchedEffect(visible, externalCameraCaptureRequestId) {
+        val requestId = externalCameraCaptureRequestId
+        if (visible && requestId != null) {
+            launchCameraCapture()
+            onExternalCameraCaptureHandled(requestId)
+        }
+    }
 
     var showPackageDialog by remember { mutableStateOf(false) }
 
@@ -335,6 +345,8 @@ fun AttachmentSelectorPopupPanel(
         onAttachMemory: () -> Unit = {},
         onAttachPackage: (String) -> Unit = {},
         onTakePhoto: (Uri) -> Unit,
+        externalCameraCaptureRequestId: Long? = null,
+        onExternalCameraCaptureHandled: (Long) -> Unit = {},
         onDismiss: () -> Unit
 ) {
     if (!visible) return
@@ -345,6 +357,14 @@ fun AttachmentSelectorPopupPanel(
             onTakePhoto = onTakePhoto,
             onDismiss = onDismiss,
     )
+
+    LaunchedEffect(externalCameraCaptureRequestId) {
+        val requestId = externalCameraCaptureRequestId
+        if (requestId != null) {
+            launchCameraCapture()
+            onExternalCameraCaptureHandled(requestId)
+        }
+    }
 
     var showPackageDialog by remember { mutableStateOf(false) }
 

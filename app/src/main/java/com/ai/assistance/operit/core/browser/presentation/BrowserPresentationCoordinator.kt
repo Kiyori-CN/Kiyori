@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
@@ -19,6 +20,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.setDes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.showToast
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
 import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Coordinates the one browser presentation lease shared by Kiyori Browser Home and the
@@ -28,6 +30,7 @@ import com.ai.assistance.operit.util.AppLogger
 internal class BrowserPresentationCoordinator private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val tools = ToolGetter.getBrowserSessionTools(appContext)
+    val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
 
     fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): WebSessionBrowserHost =
         tools.runOnMainSync {
@@ -49,6 +52,18 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                     ?: tools.createSessionTabOnMain(appContext, initialUrl = "about:blank")
             tools.ensureSessionAttachedOnMain(session.id)
             tools.refreshSessionUiOnMain(session.id)
+        }
+    }
+
+    fun openWindowOverview() {
+        tools.runOnMainSync<Unit> {
+            val presentation = tools.ensureBrowserPresentationOnMain(appContext)
+            val session =
+                tools.getSession(null)
+                    ?: tools.createSessionTabOnMain(appContext, initialUrl = "about:blank")
+            tools.ensureSessionAttachedOnMain(session.id)
+            tools.refreshSessionUiOnMain(session.id)
+            presentation.showSheet(WebSessionBrowserSheetRoute.TABS)
         }
     }
 
@@ -141,7 +156,6 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                     throw error
                 }
                 AppLogger.e("BrowserPresentation", "Unable to create browser profile session", error)
-                tools.defaultSessionProfile = WebSessionProfile.NORMAL
                 tools.showToast(appContext.getString(R.string.web_session_incognito_reset_failed))
                 tools.refreshSessionUiOnMain()
                 null

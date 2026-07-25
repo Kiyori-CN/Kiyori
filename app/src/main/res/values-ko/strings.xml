@@ -6979,8 +6979,14 @@
     <string name="kiyori_shell_file_management_home">파일</string>
     <string name="kiyori_shell_settings_home">설정</string>
     <string name="kiyori_shell_minus_one">왼쪽 페이지</string>
-    <string name="kiyori_shell_search_hint">URL을 입력하거나 웹 검색</string>
-    <string name="kiyori_shell_home_subtitle">웹 콘텐츠를 탐색하고 이해하고 활용하세요</string>
+    <string name="kiyori_shell_search_hint">웹을 검색하거나 URL 입력</string>
+    <string name="kiyori_shell_ai_hint">AI에 질문이나 작업 보내기</string>
+    <string name="kiyori_home_weather_query">%1$s 날씨</string>
+    <string name="kiyori_home_weather_current">%1$s, %2$d도</string>
+    <string name="kiyori_home_weather_loading">날씨 불러오는 중</string>
+    <string name="kiyori_home_weather_permission">날씨에 위치 사용</string>
+    <string name="kiyori_home_weather_retry">날씨를 사용할 수 없음. 탭하여 다시 시도</string>
+    <string name="kiyori_home_browser_windows">브라우저 창 %1$d개</string>
     <string name="kiyori_shell_search_action">검색</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">웹 검색</string>
@@ -6999,7 +7005,7 @@
     <string name="kiyori_browser_settings_search_history_count">검색 기록 %1$d개 관리</string>
     <string name="kiyori_browser_settings_default_profile">새 창 기본 모드</string>
     <string name="kiyori_browser_settings_normal_profile_summary">일반 사이트 데이터를 사용하고 로그인 상태 유지</string>
-    <string name="kiyori_browser_settings_incognito_profile_summary">마지막 시크릿 창을 닫으면 삭제되는 별도 임시 프로필 사용</string>
+    <string name="kiyori_browser_settings_incognito_profile_summary">시크릿 세션마다 새 격리 Profile을 사용하고 마지막 창을 닫으면 폐기한 뒤 다음 콜드 스타트에서 삭제</string>
     <string name="kiyori_browser_settings_user_agent">기본 웹 식별 정보</string>
     <string name="kiyori_browser_settings_desktop_mode">데스크톱 모드</string>
     <string name="kiyori_browser_settings_desktop_mode_summary">데스크톱 식별 정보이며 변경 시 현재 기본 UA 페이지를 다시 불러옵니다</string>
@@ -7016,10 +7022,13 @@
     <string name="web_session_normal_window">일반 창</string>
     <string name="web_session_incognito_title">시크릿 창</string>
     <string name="web_session_incognito_mode">시크릿 모드</string>
+    <string name="web_session_normal_mode">일반 모드</string>
+    <string name="web_session_incognito_enabled">시크릿 모드를 켰습니다</string>
+    <string name="web_session_incognito_disabled">시크릿 모드를 껐습니다</string>
     <string name="web_session_incognito_unavailable">이 기기에서는 시크릿 창을 사용할 수 없습니다</string>
     <string name="web_session_incognito_unavailable_summary">Android System WebView가 격리된 브라우징 프로필을 지원하지 않아 시크릿 창 만들기를 비활성화했으며 일반 창으로 대신 만들지 않습니다.</string>
     <string name="web_session_incognito_reset_failed">Kiyori가 이전 시크릿 프로필을 삭제하지 못했습니다. 격리를 보호하기 위해 이번 실행에서는 시크릿 창을 비활성화했습니다.</string>
-    <string name="web_session_incognito_ai_notice">시크릿 창은 쿠키, 캐시, WebStorage를 격리합니다. 사용자가 이미 허용한 Kiyori AI 작업은 이 창을 계속 읽고 조작할 수 있습니다. 마지막 시크릿 창을 닫으면 세션 데이터가 삭제됩니다.</string>
+    <string name="web_session_incognito_ai_notice">시크릿 창은 세대별 독립 Profile로 쿠키, 캐시, WebStorage를 격리합니다. 사용자가 허용한 Kiyori AI 작업은 이 창을 계속 조작할 수 있습니다. 마지막 창을 닫으면 해당 세대를 폐기하고 다음 콜드 스타트에서 삭제합니다.</string>
     <string name="web_session_no_profile_tabs">%1$s 없음</string>
     <string name="web_session_clear_profile_tabs">이 그룹의 모든 창 닫기</string>
 </resources>

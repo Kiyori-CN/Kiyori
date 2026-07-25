@@ -7199,8 +7199,14 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="kiyori_shell_file_management_home">Archivos</string>
     <string name="kiyori_shell_settings_home">Ajustes</string>
     <string name="kiyori_shell_minus_one">Página lateral</string>
-    <string name="kiyori_shell_search_hint">Introduce una URL o busca en la web</string>
-    <string name="kiyori_shell_home_subtitle">Navega, comprende y trabaja con contenido web</string>
+    <string name="kiyori_shell_search_hint">Busca en la web o introduce una URL</string>
+    <string name="kiyori_shell_ai_hint">Envía una pregunta o tarea a la IA</string>
+    <string name="kiyori_home_weather_query">Tiempo en %1$s</string>
+    <string name="kiyori_home_weather_current">%1$s, %2$d grados</string>
+    <string name="kiyori_home_weather_loading">Cargando el tiempo</string>
+    <string name="kiyori_home_weather_permission">Usar la ubicación para el tiempo</string>
+    <string name="kiyori_home_weather_retry">Tiempo no disponible, toca para reintentar</string>
+    <string name="kiyori_home_browser_windows">%1$d ventanas del navegador</string>
     <string name="kiyori_shell_search_action">Buscar</string>
     <string name="kiyori_shell_ai_action">IA</string>
     <string name="kiyori_shell_web_search">Búsqueda web</string>
@@ -7219,7 +7225,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="kiyori_browser_settings_search_history_count">Gestionar %1$d registros de búsqueda</string>
     <string name="kiyori_browser_settings_default_profile">Modo predeterminado para ventanas nuevas</string>
     <string name="kiyori_browser_settings_normal_profile_summary">Usa datos normales y conserva el inicio de sesión</string>
-    <string name="kiyori_browser_settings_incognito_profile_summary">Usa un perfil temporal separado que se elimina al cerrar la última ventana privada</string>
+    <string name="kiyori_browser_settings_incognito_profile_summary">Usa un perfil aislado nuevo por sesión de incógnito, lo retira al cerrar su última ventana y lo elimina en el siguiente inicio en frío</string>
     <string name="kiyori_browser_settings_user_agent">Identidad web predeterminada</string>
     <string name="kiyori_browser_settings_desktop_mode">Modo escritorio</string>
     <string name="kiyori_browser_settings_desktop_mode_summary">Identidad de escritorio; el cambio recarga la página actual con UA predeterminado</string>
@@ -7236,10 +7242,13 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_normal_window">Ventanas normales</string>
     <string name="web_session_incognito_title">Ventanas de incógnito</string>
     <string name="web_session_incognito_mode">Modo incógnito</string>
+    <string name="web_session_normal_mode">Modo normal</string>
+    <string name="web_session_incognito_enabled">Se activó el modo incógnito</string>
+    <string name="web_session_incognito_disabled">Se desactivó el modo incógnito</string>
     <string name="web_session_incognito_unavailable">El modo incógnito no está disponible en este dispositivo</string>
     <string name="web_session_incognito_unavailable_summary">Android System WebView no admite perfiles de navegación aislados; se desactiva la creación de incógnito y no se sustituye por una ventana normal.</string>
     <string name="web_session_incognito_reset_failed">Kiyori no pudo eliminar el perfil de incógnito anterior. El modo incógnito está desactivado en esta ejecución para proteger el aislamiento.</string>
-    <string name="web_session_incognito_ai_notice">El modo incógnito aísla cookies, caché y WebStorage. Las acciones de Kiyori AI ya autorizadas por el usuario aún pueden leer y controlar esta ventana. Los datos se eliminan al cerrar la última ventana de incógnito.</string>
+    <string name="web_session_incognito_ai_notice">El modo incógnito usa una generación de perfil aislada para cookies, caché y WebStorage. Las acciones de Kiyori AI autorizadas aún pueden controlar esta ventana. La generación se retira al cerrar su última ventana y se elimina en el siguiente inicio en frío.</string>
     <string name="web_session_no_profile_tabs">No hay %1$s</string>
     <string name="web_session_clear_profile_tabs">Cerrar todas las ventanas de este grupo</string>
 </resources>

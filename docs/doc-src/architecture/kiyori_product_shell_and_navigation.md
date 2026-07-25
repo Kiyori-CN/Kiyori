@@ -59,9 +59,12 @@ Kiyori App Shell/
 ├── 软件首页/
 │   ├── 负一屏
 │   ├── 软件首页
-│   │   └── 软件首页搜索卡/
-│   │       ├── 搜索 -> 全屏网页搜索页
-│   │       └── AI -> AI 首页
+│   │   ├── 左上定位天气 -> 当前城市天气网页
+│   │   ├── 右上真实窗口计数 -> Browser Host 原窗口总览
+│   │   └── 同背景渐变描边搜索框/
+│   │       ├── Search 模式 + 主框点击 -> 全屏网页搜索页
+│   │       ├── AI 模式 + 主框点击 -> 保留会话与草稿的 AI 首页
+│   │       └── 附件/语音/相机 -> AI 首页原输入能力
 │   └── AI 首页
 │       └── 模态 AI 左抽屉 -> AI 一级页面
 ├── 浏览器首页/
@@ -130,7 +133,7 @@ Kiyori App Shell/
 
 ## 全屏网页搜索
 
-软件首页搜索卡包含“搜索”和“AI”两个按钮。“搜索”打开全屏网页搜索页；“AI”把首页 Pager 移动到 AI 首页。全屏网页搜索页只接受网址或网页搜索词，并把结果交给 Kiyori 浏览器。
+软件首页搜索框与页面使用相同背景，常规高度为 `114dp`、短布局为 `96dp`，只由约 `1dp` 的彩色渐变描边定义边界，不绘制外侧扩散、模糊或阴影。常规窗口先测量标题与搜索框，再把搜索框顶部描边放在可用首页高度的 `38.2%`；短窗口将顶部位置限制在标题完整可见所需的最小位置。Compact、Medium 与 Expanded 的内容宽度上限分别为 `544dp`、`584dp` 和 `624dp`，最小水平留白分别为 `24dp`、`48dp` 和 `72dp`。标题圆环为 `18dp`。底部“搜索 / AI”位于同一个 `120×32dp` 圆角分段框内，左右严格等宽并由中央细线分隔，文字与选项图标保持原尺寸；选中项使用固定明暗蓝色的图标、文字和轻量圆角底，按压水波裁切在各自圆角选区内。分段不是立即导航按钮，只决定主框提示和点击目标。搜索模式显示“搜索网页或输入网址”，主框点击后打开全屏网页搜索页；AI 模式显示“把问题和任务发给AI”，主框点击后进入现有 AI Home，保留其对话和草稿，并在 Pager settled 后让真实输入框获得焦点和显示输入法。模式通过可保存 Compose 状态在返回首页和旋转后保持，冷启动默认搜索。右侧附件、语音和相机仍为 AI Home 一次性动作，同时把首页模式切为 AI，只有 Pager settled 后才交给现有附件状态、麦克风权限 launcher 或相机 launcher 消费。全屏网页搜索页只接受网址或网页搜索词，并把结果交给 Kiyori 浏览器。
 
 明确排除：
 
@@ -142,11 +145,15 @@ Kiyori App Shell/
 
 历史页和书签页各自拥有搜索框、筛选状态和结果列表。它们可以复用文本输入组件，但不能与全屏网页搜索共享业务结果模型。
 
-旧 `kiyori-android` 的 `HomeLandingSearch.kt` 是搜索卡结构来源。两个按钮不是同一个结果页的筛选模式：“搜索”进入网页搜索，“AI”直接进入 AI 首页。
+旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
-旧实现从软件首页调用 `BrowserActivity.start(openSearch = true)`，再显示 `BrowserUrlDropdownOverlay`。进程首次进入浏览器时，`BrowserProcessLaunchPolicy` 会让 `BrowserWindowRepository` 准备一个新的首页窗口，同时保留既有窗口；同一进程后续进入搜索时使用当前活动窗口。打开搜索本身不会每次都新建窗口。
+软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openUrlInNewSession` 在唯一 Browser Runtime 中创建并激活新 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时白底黑字提示。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
 
-首期采用同一语义：没有本次进程浏览会话时创建并激活一个空白标签，已有活动标签时在该标签提交首页搜索。显式“新标签搜索”继续由浏览器标签管理功能负责，不让软件首页搜索卡暗中改变标签数量。
+同一时间存活的无痕窗口共享一个唯一命名的 AndroidX Profile 代际。关闭最后一个无痕窗口后，Browser Runtime 销毁 WebView、清理 Cookie、WebStorage 和定位授权，并立即退休代际；下一段无痕会话创建全新代际。AndroidX 禁止在同一进程删除已加载 Profile，因此启动清理会在下一次冷启动、任何 Kiyori 无痕 Profile 加载前物理删除全部退休代际。窗口总览的缩略图固定为 `320×512`，使用两个方向的最小缩放值居中绘制完整当前 WebView 视口；UI 以 `5:8` 纵向比例和 `ContentScale.Fit` 显示，不裁切网页。
+
+首页右上角窗口按钮的数量由 `StandardBrowserSessionTools.syncProjectedBrowserStateOnMain` 同步发布。首页与浏览器底栏第四项共同使用 `WebSessionBrowserWindowCountIcon` 的 `23×21dp` 方框数字视觉；点击首页按钮后先确保共享 presentation 和活动 session，再在同一个 `WebSessionBrowserHost` 上设置 `WebSessionBrowserSheetRoute.TABS`，因此两处进入完全相同的总览页面。
+
+首页左上角天气只在已有定位授权时自动刷新；未授权时点击请求 Android 定位权限。`LocationManager.NETWORK_PROVIDER` 提供城市级定位，`Geocoder` 的 `locality` 是唯一城市字段；定位、城市解析、网络或响应失败都会显示明确的不可用状态，不展示猜测值。Open-Meteo 当前天气接口接收经纬度并返回摄氏温度与 WMO code，前台每 30 分钟最多刷新一次。免费接口仅限非商业用途并受服务限制，坐标会发送给该第三方；参见 <https://open-meteo.com/en/terms>。
 
 ## AI 首页与模态 AI 左抽屉
 
@@ -347,11 +354,12 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 - 根据有效宽度选择底部导航或 Navigation Rail
 - 模态 AI 抽屉宽度为 `320dp`
-- 软件首页中央内容限制最大宽度，避免横向拉伸
+- 软件首页保持标题在上、搜索框在下的居中单列，中央内容最大宽度为 `584dp`，避免横向拉伸
 
 ### Expanded
 
 - 使用 Navigation Rail 或适合宽屏的永久顶层导航区域
+- 软件首页仍保持同一居中单列，不切换为品牌/搜索左右双栏，中央内容最大宽度为 `624dp`
 - 模态 AI 抽屉宽度为 `360dp`，不把它固定在 AI 首页旁边
 - 对话正文、搜索输入和设置表单使用可读的最大内容宽度
 

@@ -16,12 +16,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +68,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 
@@ -177,8 +181,10 @@ internal fun WebSessionBrowserSearchScreen(
     onCopyCurrentUrl: () -> Unit,
     onOpenCurrentUrl: () -> Unit,
     onUseCurrentUrl: () -> Unit,
-    profileNotice: String?,
-    trailingAction: @Composable () -> Unit,
+    selectedProfile: WebSessionProfile,
+    incognitoAvailability: WebSessionIncognitoAvailability,
+    onToggleProfile: () -> Unit,
+    profileFeedback: String?,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -213,7 +219,8 @@ internal fun WebSessionBrowserSearchScreen(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -292,22 +299,11 @@ internal fun WebSessionBrowserSearchScreen(
                         }
                     }
                 }
-                trailingAction()
-            }
-
-            if (profileNotice != null) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
-                ) {
-                    Text(
-                        text = profileNotice,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
-                }
+                WebSessionSearchProfileAction(
+                    selectedProfile = selectedProfile,
+                    incognitoAvailability = incognitoAvailability,
+                    onToggle = onToggleProfile,
+                )
             }
 
             if (isEnginePanelVisible) {
@@ -386,7 +382,66 @@ internal fun WebSessionBrowserSearchScreen(
                 }
                 Spacer(modifier = Modifier.height(18.dp))
             }
+            }
+
+            if (profileFeedback != null) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = 32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.White,
+                    contentColor = Color.Black,
+                    shadowElevation = 4.dp,
+                ) {
+                    Text(
+                        text = profileFeedback,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun WebSessionSearchProfileAction(
+    selectedProfile: WebSessionProfile,
+    incognitoAvailability: WebSessionIncognitoAvailability,
+    onToggle: () -> Unit,
+) {
+    val enabled = incognitoAvailability.isAvailable
+    val incognitoSelected = selectedProfile == WebSessionProfile.INCOGNITO
+    val contentDescription =
+        when {
+            !enabled -> stringResource(R.string.web_session_incognito_unavailable)
+            incognitoSelected -> stringResource(R.string.web_session_incognito_mode)
+            else -> stringResource(R.string.web_session_normal_mode)
+        }
+    IconButton(
+        onClick = onToggle,
+        enabled = enabled,
+        modifier = Modifier.size(40.dp),
+    ) {
+        Icon(
+            imageVector =
+                if (incognitoSelected) {
+                    Icons.Filled.VisibilityOff
+                } else {
+                    Icons.Filled.Visibility
+                },
+            contentDescription = contentDescription,
+            tint =
+                if (enabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                },
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

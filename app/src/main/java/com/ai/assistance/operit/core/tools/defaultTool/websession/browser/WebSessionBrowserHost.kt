@@ -77,8 +77,16 @@ internal class WebSessionBrowserHost(
         fun onClearHistory()
         fun onToggleDesktopMode()
         fun onSetSearchEngine(engine: WebSessionSearchEngine)
-        fun onSubmitSearch(query: String, engine: WebSessionSearchEngine)
-        fun onOpenSearchRecord(record: WebSessionSearchRecord)
+        fun onSetDefaultSessionProfile(profile: WebSessionProfile): Boolean
+        fun onSubmitSearch(
+            query: String,
+            engine: WebSessionSearchEngine,
+            profile: WebSessionProfile,
+        )
+        fun onOpenSearchRecord(
+            record: WebSessionSearchRecord,
+            profile: WebSessionProfile,
+        )
         fun onDeleteSearchHistory(id: Long)
         fun onClearSearchHistory()
         fun onCopyCurrentUrl()
@@ -272,6 +280,7 @@ internal class WebSessionBrowserHost(
             onClearHistory = callbacks::onClearHistory,
             onToggleDesktopMode = callbacks::onToggleDesktopMode,
             onSetSearchEngine = callbacks::onSetSearchEngine,
+            onSetDefaultSessionProfile = callbacks::onSetDefaultSessionProfile,
             onSubmitSearch = callbacks::onSubmitSearch,
             onOpenSearchRecord = callbacks::onOpenSearchRecord,
             onDeleteSearchHistory = callbacks::onDeleteSearchHistory,

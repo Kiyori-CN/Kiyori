@@ -7132,8 +7132,14 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_shell_file_management_home">File</string>
     <string name="kiyori_shell_settings_home">Setelan</string>
     <string name="kiyori_shell_minus_one">Halaman Samping</string>
-    <string name="kiyori_shell_search_hint">Masukkan URL atau cari di web</string>
-    <string name="kiyori_shell_home_subtitle">Jelajahi, pahami, dan olah konten web</string>
+    <string name="kiyori_shell_search_hint">Cari di web atau masukkan URL</string>
+    <string name="kiyori_shell_ai_hint">Kirim pertanyaan atau tugas ke AI</string>
+    <string name="kiyori_home_weather_query">Cuaca %1$s</string>
+    <string name="kiyori_home_weather_current">%1$s, %2$d derajat</string>
+    <string name="kiyori_home_weather_loading">Memuat cuaca</string>
+    <string name="kiyori_home_weather_permission">Gunakan lokasi untuk cuaca</string>
+    <string name="kiyori_home_weather_retry">Cuaca tidak tersedia, ketuk untuk mencoba lagi</string>
+    <string name="kiyori_home_browser_windows">%1$d jendela browser</string>
     <string name="kiyori_shell_search_action">Cari</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Pencarian Web</string>
@@ -7152,7 +7158,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_browser_settings_search_history_count">Kelola %1$d riwayat pencarian</string>
     <string name="kiyori_browser_settings_default_profile">Mode bawaan untuk jendela baru</string>
     <string name="kiyori_browser_settings_normal_profile_summary">Gunakan data situs normal dan simpan status masuk</string>
-    <string name="kiyori_browser_settings_incognito_profile_summary">Gunakan profil sementara terpisah yang dihapus setelah jendela samaran terakhir ditutup</string>
+    <string name="kiyori_browser_settings_incognito_profile_summary">Gunakan Profile terisolasi baru untuk setiap sesi samaran, hentikan setelah jendela terakhir ditutup, lalu hapus saat mulai dingin berikutnya</string>
     <string name="kiyori_browser_settings_user_agent">Identitas web bawaan</string>
     <string name="kiyori_browser_settings_desktop_mode">Mode desktop</string>
     <string name="kiyori_browser_settings_desktop_mode_summary">Identitas desktop; perubahan memuat ulang halaman UA bawaan saat ini</string>
@@ -7169,10 +7175,13 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_normal_window">Jendela normal</string>
     <string name="web_session_incognito_title">Jendela samaran</string>
     <string name="web_session_incognito_mode">Mode samaran</string>
+    <string name="web_session_normal_mode">Mode normal</string>
+    <string name="web_session_incognito_enabled">Mode samaran telah diaktifkan</string>
+    <string name="web_session_incognito_disabled">Mode samaran telah dinonaktifkan</string>
     <string name="web_session_incognito_unavailable">Mode samaran tidak tersedia di perangkat ini</string>
     <string name="web_session_incognito_unavailable_summary">Android System WebView tidak mendukung profil penjelajahan terisolasi, sehingga pembuatan samaran dinonaktifkan dan tidak diganti dengan jendela normal.</string>
     <string name="web_session_incognito_reset_failed">Kiyori tidak dapat menghapus profil samaran sebelumnya. Mode samaran dinonaktifkan untuk sesi ini demi menjaga isolasi.</string>
-    <string name="web_session_incognito_ai_notice">Mode samaran mengisolasi cookie, cache, dan WebStorage. Tindakan Kiyori AI yang telah diizinkan pengguna tetap dapat membaca dan mengontrol jendela ini. Data sesi dihapus setelah jendela samaran terakhir ditutup.</string>
+    <string name="web_session_incognito_ai_notice">Mode samaran memakai generasi profil terisolasi untuk cookie, cache, dan WebStorage. Tindakan Kiyori AI yang diizinkan tetap dapat mengontrol jendela ini. Generasi dihentikan setelah jendela terakhir ditutup dan dihapus saat mulai dingin berikutnya.</string>
     <string name="web_session_no_profile_tabs">Tidak ada %1$s</string>
     <string name="web_session_clear_profile_tabs">Tutup semua jendela dalam grup ini</string>
 </resources>

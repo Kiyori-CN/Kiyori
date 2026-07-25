@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import android.Manifest
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,36 +14,57 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.Dehaze
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LocationOff
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,23 +74,48 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserWindowCountIcon
+import com.ai.assistance.operit.ui.main.AiHomeQuickAction
+import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherRepository
+import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherState
+import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherVisual
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private data class PrimaryDestinationVisual(
@@ -105,9 +155,15 @@ private val primaryDestinationVisuals =
 
 @Composable
 internal fun KiyoriSoftwareHomePage(
+    browserWindowCount: Int,
     onSearchClick: () -> Unit,
     onAiClick: () -> Unit,
+    onAiQuickAction: (AiHomeQuickAction) -> Unit,
+    onWeatherSearch: (String) -> Unit,
+    onWindowsClick: () -> Unit,
 ) {
+    var selectedMode by rememberSaveable { mutableStateOf(KiyoriSoftwareHomeMode.SEARCH) }
+
     BoxWithConstraints(
         modifier =
             Modifier
@@ -117,53 +173,102 @@ internal fun KiyoriSoftwareHomePage(
                 .padding(bottom = 72.dp),
     ) {
         val layout = resolveKiyoriSoftwareHomeLayout(maxWidth.value)
-        when (layout) {
-            KiyoriSoftwareHomeLayout.COMPACT ->
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Spacer(modifier = Modifier.weight(0.3f))
-                    KiyoriHomeBrandHero(compact = true)
-                    Spacer(modifier = Modifier.height(30.dp))
-                    KiyoriHomeSearchCard(
-                        onSearchClick = onSearchClick,
-                        onAiClick = onAiClick,
-                        modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.weight(0.7f))
-                }
+        val heightLayout = resolveKiyoriSoftwareHomeHeightLayout(maxHeight.value)
+        val horizontalPadding =
+            when (layout) {
+                KiyoriSoftwareHomeLayout.COMPACT ->
+                    KIYORI_HOME_COMPACT_HORIZONTAL_PADDING_DP.dp
+                KiyoriSoftwareHomeLayout.MEDIUM ->
+                    KIYORI_HOME_MEDIUM_HORIZONTAL_PADDING_DP.dp
+                KiyoriSoftwareHomeLayout.EXPANDED ->
+                    KIYORI_HOME_EXPANDED_HORIZONTAL_PADDING_DP.dp
+            }
+        val contentMaxWidth =
+            when (layout) {
+                KiyoriSoftwareHomeLayout.COMPACT -> KIYORI_HOME_COMPACT_MAX_WIDTH_DP.dp
+                KiyoriSoftwareHomeLayout.MEDIUM -> KIYORI_HOME_MEDIUM_MAX_WIDTH_DP.dp
+                KiyoriSoftwareHomeLayout.EXPANDED -> KIYORI_HOME_EXPANDED_MAX_WIDTH_DP.dp
+            }
+        val useShortViewportLayout = heightLayout == KiyoriSoftwareHomeHeightLayout.SHORT
+        val searchFrameHeight =
+            if (useShortViewportLayout) {
+                KIYORI_HOME_SHORT_SEARCH_FRAME_HEIGHT_DP.dp
+            } else {
+                KIYORI_HOME_REGULAR_SEARCH_FRAME_HEIGHT_DP.dp
+            }
+        val brandSearchSpacing = if (useShortViewportLayout) 8.dp else 16.dp
+        val topActionsVerticalPadding = if (useShortViewportLayout) 0.dp else 6.dp
 
-            KiyoriSoftwareHomeLayout.MEDIUM,
-            KiyoriSoftwareHomeLayout.EXPANDED ->
-                Row(
-                    modifier =
-                        Modifier
-                            .align(Alignment.Center)
-                            .widthIn(max = 1080.dp)
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal =
-                                    if (layout == KiyoriSoftwareHomeLayout.EXPANDED) {
-                                        56.dp
-                                    } else {
-                                        32.dp
-                                    },
-                            ),
-                    horizontalArrangement = Arrangement.spacedBy(40.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    KiyoriHomeBrandHero(
-                        compact = false,
-                        modifier = Modifier.weight(0.9f),
-                    )
-                    KiyoriHomeSearchCard(
-                        onSearchClick = onSearchClick,
-                        onAiClick = onAiClick,
-                        modifier = Modifier.weight(1.1f).widthIn(max = 520.dp),
-                    )
-                }
+        Layout(
+            modifier = Modifier.fillMaxSize().padding(horizontal = horizontalPadding),
+            content = {
+                KiyoriHomeBrandTitle()
+                KiyoriHomeSearchFrame(
+                    mode = selectedMode,
+                    onModeSelected = { mode -> selectedMode = mode },
+                    onPrimaryClick = {
+                        when (resolveKiyoriSoftwareHomePrimaryTarget(selectedMode)) {
+                            KiyoriSoftwareHomePrimaryTarget.WEB_SEARCH -> onSearchClick()
+                            KiyoriSoftwareHomePrimaryTarget.AI_HOME -> onAiClick()
+                        }
+                    },
+                    onAiQuickAction = { action ->
+                        selectedMode = KiyoriSoftwareHomeMode.AI
+                        onAiQuickAction(action)
+                    },
+                    frameHeight = searchFrameHeight,
+                    useShortViewportLayout = useShortViewportLayout,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+        ) { measurables, constraints ->
+            val contentWidth = minOf(constraints.maxWidth, contentMaxWidth.roundToPx())
+            val titlePlaceable =
+                measurables[0].measure(
+                    constraints.copy(minWidth = 0, maxWidth = contentWidth, minHeight = 0),
+                )
+            val searchPlaceable =
+                measurables[1].measure(
+                    Constraints(
+                        minWidth = contentWidth,
+                        maxWidth = contentWidth,
+                        minHeight = 0,
+                        maxHeight = constraints.maxHeight,
+                    ),
+                )
+            val spacing = brandSearchSpacing.roundToPx()
+            val searchTopY =
+                resolveKiyoriSoftwareHomeSearchTopY(
+                    availableHeight = constraints.maxHeight.toFloat(),
+                    titleHeight = titlePlaceable.height.toFloat(),
+                    titleSpacing = spacing.toFloat(),
+                ).roundToInt()
+            val titleY = searchTopY - spacing - titlePlaceable.height
+
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                titlePlaceable.placeRelative(
+                    x = (constraints.maxWidth - titlePlaceable.width) / 2,
+                    y = titleY,
+                )
+                searchPlaceable.placeRelative(
+                    x = (constraints.maxWidth - searchPlaceable.width) / 2,
+                    y = searchTopY,
+                )
+            }
         }
+        KiyoriHomeTopActions(
+            browserWindowCount = browserWindowCount,
+            onWeatherSearch = onWeatherSearch,
+            onWindowsClick = onWindowsClick,
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = horizontalPadding,
+                        vertical = topActionsVerticalPadding,
+                    ),
+        )
     }
 }
 
@@ -173,6 +278,34 @@ internal enum class KiyoriSoftwareHomeLayout {
     EXPANDED,
 }
 
+internal enum class KiyoriSoftwareHomeHeightLayout {
+    SHORT,
+    REGULAR,
+}
+
+internal enum class KiyoriSoftwareHomeMode {
+    SEARCH,
+    AI,
+}
+
+internal enum class KiyoriSoftwareHomePrimaryTarget {
+    WEB_SEARCH,
+    AI_HOME,
+}
+
+internal const val KIYORI_SOFTWARE_HOME_GOLDEN_TOP_FRACTION = 0.382f
+internal const val KIYORI_HOME_MODE_SEGMENT_WIDTH_DP = 120
+internal const val KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP = 32
+internal const val KIYORI_HOME_BRAND_ICON_SIZE_DP = 18
+internal const val KIYORI_HOME_REGULAR_SEARCH_FRAME_HEIGHT_DP = 114
+internal const val KIYORI_HOME_SHORT_SEARCH_FRAME_HEIGHT_DP = 96
+internal const val KIYORI_HOME_COMPACT_HORIZONTAL_PADDING_DP = 24
+internal const val KIYORI_HOME_MEDIUM_HORIZONTAL_PADDING_DP = 48
+internal const val KIYORI_HOME_EXPANDED_HORIZONTAL_PADDING_DP = 72
+internal const val KIYORI_HOME_COMPACT_MAX_WIDTH_DP = 544
+internal const val KIYORI_HOME_MEDIUM_MAX_WIDTH_DP = 584
+internal const val KIYORI_HOME_EXPANDED_MAX_WIDTH_DP = 624
+
 internal fun resolveKiyoriSoftwareHomeLayout(widthDp: Float): KiyoriSoftwareHomeLayout =
     when {
         widthDp >= 840f -> KiyoriSoftwareHomeLayout.EXPANDED
@@ -180,139 +313,478 @@ internal fun resolveKiyoriSoftwareHomeLayout(widthDp: Float): KiyoriSoftwareHome
         else -> KiyoriSoftwareHomeLayout.COMPACT
     }
 
+internal fun resolveKiyoriSoftwareHomeHeightLayout(heightDp: Float): KiyoriSoftwareHomeHeightLayout =
+    if (heightDp < 440f) {
+        KiyoriSoftwareHomeHeightLayout.SHORT
+    } else {
+        KiyoriSoftwareHomeHeightLayout.REGULAR
+    }
+
+internal fun resolveKiyoriSoftwareHomeSearchTopY(
+    availableHeight: Float,
+    titleHeight: Float,
+    titleSpacing: Float,
+): Float =
+    maxOf(
+        availableHeight * KIYORI_SOFTWARE_HOME_GOLDEN_TOP_FRACTION,
+        titleHeight + titleSpacing,
+    )
+
+internal fun resolveKiyoriSoftwareHomePrimaryTarget(
+    mode: KiyoriSoftwareHomeMode,
+): KiyoriSoftwareHomePrimaryTarget =
+    when (mode) {
+        KiyoriSoftwareHomeMode.SEARCH -> KiyoriSoftwareHomePrimaryTarget.WEB_SEARCH
+        KiyoriSoftwareHomeMode.AI -> KiyoriSoftwareHomePrimaryTarget.AI_HOME
+    }
+
 @Composable
-private fun KiyoriHomeBrandHero(
-    compact: Boolean,
+private fun KiyoriHomeTopActions(
+    browserWindowCount: Int,
+    onWeatherSearch: (String) -> Unit,
+    onWindowsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val weatherRepository =
+        remember(context) { KiyoriWeatherRepository.getInstance(context.applicationContext) }
+    val weatherState by weatherRepository.state.collectAsState()
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestMultiplePermissions(),
+        ) { grants ->
+            weatherRepository.recordPermissionResult(
+                grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true ||
+                    grants[Manifest.permission.ACCESS_FINE_LOCATION] == true,
+            )
+        }
+
+    LaunchedEffect(lifecycleOwner, weatherRepository) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                weatherRepository.refresh()
+                delay(KiyoriWeatherRepository.REFRESH_INTERVAL_MILLIS)
+            }
+        }
+    }
+
+    Row(
         modifier = modifier,
-        horizontalAlignment = if (compact) Alignment.CenterHorizontally else Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_kiyori_app_icon),
-            contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.size(if (compact) 72.dp else 88.dp),
+        KiyoriWeatherButton(
+            state = weatherState,
+            onClick = {
+                when (val current = weatherState) {
+                    is KiyoriWeatherState.Available -> onWeatherSearch(current.city)
+                    KiyoriWeatherState.PermissionRequired,
+                    KiyoriWeatherState.PermissionDenied ->
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                            ),
+                        )
+                    KiyoriWeatherState.Loading -> Unit
+                    is KiyoriWeatherState.Unavailable -> weatherRepository.refresh(force = true)
+                }
+            },
+            modifier = Modifier.weight(1f, fill = false),
         )
-        Text(
-            text = "Kiyori",
-            style =
-                if (compact) {
-                    MaterialTheme.typography.displaySmall
-                } else {
-                    MaterialTheme.typography.displayMedium
-                },
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = stringResource(R.string.kiyori_shell_home_subtitle),
-            style = if (compact) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
+        KiyoriBrowserWindowsButton(
+            windowCount = browserWindowCount,
+            onClick = onWindowsClick,
         )
     }
 }
 
 @Composable
-private fun KiyoriHomeSearchCard(
-    onSearchClick: () -> Unit,
-    onAiClick: () -> Unit,
+private fun KiyoriHomeBrandTitle() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            text = "Kiyori",
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Image(
+            painter = painterResource(R.drawable.ic_kiyori_app_icon),
+            contentDescription = null,
+            modifier =
+                Modifier
+                    .offset(y = (-4).dp)
+                    .size(KIYORI_HOME_BRAND_ICON_SIZE_DP.dp),
+        )
+    }
+}
+
+@Composable
+private fun KiyoriHomeSearchFrame(
+    mode: KiyoriSoftwareHomeMode,
+    onModeSelected: (KiyoriSoftwareHomeMode) -> Unit,
+    onPrimaryClick: () -> Unit,
+    onAiQuickAction: (AiHomeQuickAction) -> Unit,
+    frameHeight: Dp,
+    useShortViewportLayout: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        onClick = onSearchClick,
-        modifier = modifier.height(132.dp),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
-        tonalElevation = 2.dp,
-        shadowElevation = 2.dp,
+    Box(
+        modifier =
+            modifier
+                .height(frameHeight)
+                .kiyoriGradientSearchFrame(),
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 15.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = if (useShortViewportLayout) 8.dp else 10.dp,
+                    ),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clickable(role = Role.Button, onClick = onPrimaryClick)
+                        .padding(horizontal = 2.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        modifier = Modifier.padding(8.dp).size(18.dp),
+                Crossfade(
+                    targetState = mode,
+                    animationSpec = tween(durationMillis = 150),
+                ) { currentMode ->
+                    Text(
+                        text =
+                            stringResource(
+                                when (currentMode) {
+                                    KiyoriSoftwareHomeMode.SEARCH -> R.string.kiyori_shell_search_hint
+                                    KiyoriSoftwareHomeMode.AI -> R.string.kiyori_shell_ai_hint
+                                },
+                            ),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(
-                    text = stringResource(R.string.kiyori_shell_search_hint),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                KiyoriSearchModeButton(
-                    icon = Icons.Default.Search,
-                    label = stringResource(R.string.kiyori_shell_search_action),
-                    selected = true,
-                    onClick = onSearchClick,
+                KiyoriSearchAiSegment(
+                    selectedMode = mode,
+                    onModeSelected = onModeSelected,
                 )
-                KiyoriSearchModeButton(
-                    icon = Icons.Default.AutoAwesome,
-                    label = stringResource(R.string.kiyori_shell_ai_action),
-                    selected = false,
-                    onClick = onAiClick,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                    KiyoriHomeToolButton(
+                        icon = Icons.Default.AttachFile,
+                        contentDescription = stringResource(R.string.add_attachment),
+                        onClick = { onAiQuickAction(AiHomeQuickAction.OPEN_ATTACHMENTS) },
+                    )
+                    KiyoriHomeToolButton(
+                        icon = Icons.Default.Mic,
+                        contentDescription = stringResource(R.string.voice_input),
+                        onClick = { onAiQuickAction(AiHomeQuickAction.START_VOICE_SESSION) },
+                    )
+                    KiyoriHomeToolButton(
+                        icon = Icons.Default.PhotoCamera,
+                        contentDescription = stringResource(R.string.attachment_camera),
+                        onClick = { onAiQuickAction(AiHomeQuickAction.CAPTURE_PHOTO) },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun KiyoriSearchModeButton(
+private fun KiyoriSearchAiSegment(
+    selectedMode: KiyoriSoftwareHomeMode,
+    onModeSelected: (KiyoriSoftwareHomeMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier =
+            modifier
+                .width(KIYORI_HOME_MODE_SEGMENT_WIDTH_DP.dp)
+                .height(KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP.dp),
+        shape = RoundedCornerShape(11.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            KiyoriSearchAiSegmentOption(
+                icon = Icons.Default.Search,
+                label = stringResource(R.string.kiyori_shell_search_action),
+                selected = selectedMode == KiyoriSoftwareHomeMode.SEARCH,
+                onClick = { onModeSelected(KiyoriSoftwareHomeMode.SEARCH) },
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .width(1.dp)
+                        .height(18.dp)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+            )
+            KiyoriSearchAiSegmentOption(
+                icon = Icons.Default.AutoAwesome,
+                label = stringResource(R.string.kiyori_shell_ai_action),
+                selected = selectedMode == KiyoriSoftwareHomeMode.AI,
+                onClick = { onModeSelected(KiyoriSoftwareHomeMode.AI) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun KiyoriSearchAiSegmentOption(
     icon: ImageVector,
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color =
-            if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            },
-        contentColor =
-            if (selected) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+    val selectedColor =
+        if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+            Color(0xFF79A7FF)
+        } else {
+            Color(0xFF2F6FED)
+        }
+    val contentColor by
+        animateColorAsState(
+            targetValue =
+                if (selected) selectedColor else MaterialTheme.colorScheme.onSurfaceVariant,
+            animationSpec = tween(durationMillis = 150),
+            label = "homeModeContent",
+        )
+    val backgroundColor by
+        animateColorAsState(
+            targetValue = if (selected) selectedColor.copy(alpha = 0.1f) else Color.Transparent,
+            animationSpec = tween(durationMillis = 150),
+            label = "homeModeBackground",
+        )
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .padding(2.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(backgroundColor)
+                .selectable(
+                    selected = selected,
+                    onClick = onClick,
+                    role = Role.Tab,
+                ),
+        contentAlignment = Alignment.Center,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(text = label, style = MaterialTheme.typography.labelLarge)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = contentColor,
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 10.sp,
+                lineHeight = 10.sp,
+                color = contentColor,
+                maxLines = 1,
+            )
         }
     }
 }
+
+@Composable
+private fun KiyoriHomeToolButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(38.dp)
+                .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun KiyoriWeatherButton(
+    state: KiyoriWeatherState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val contentDescription =
+        when (state) {
+            is KiyoriWeatherState.Available ->
+                stringResource(
+                    R.string.kiyori_home_weather_current,
+                    state.city,
+                    state.temperatureCelsius.roundToInt(),
+                )
+            KiyoriWeatherState.Loading -> stringResource(R.string.kiyori_home_weather_loading)
+            KiyoriWeatherState.PermissionRequired,
+            KiyoriWeatherState.PermissionDenied ->
+                stringResource(R.string.kiyori_home_weather_permission)
+            is KiyoriWeatherState.Unavailable -> stringResource(R.string.kiyori_home_weather_retry)
+        }
+    Surface(
+        onClick = onClick,
+        modifier = modifier.defaultMinSize(minWidth = 48.dp).height(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        enabled = state != KiyoriWeatherState.Loading,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            when (state) {
+                is KiyoriWeatherState.Available -> {
+                    Icon(
+                        imageVector = kiyoriWeatherIcon(state.visual),
+                        contentDescription = contentDescription,
+                        modifier = Modifier.size(21.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = "${state.temperatureCelsius.roundToInt()}\u00B0",
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = state.city,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                KiyoriWeatherState.Loading ->
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                KiyoriWeatherState.PermissionRequired,
+                KiyoriWeatherState.PermissionDenied ->
+                    Icon(
+                        imageVector = Icons.Default.LocationOff,
+                        contentDescription = contentDescription,
+                        modifier = Modifier.size(21.dp),
+                    )
+                is KiyoriWeatherState.Unavailable ->
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = contentDescription,
+                        modifier = Modifier.size(21.dp),
+                    )
+            }
+        }
+    }
+}
+
+@Composable
+private fun KiyoriBrowserWindowsButton(
+    windowCount: Int,
+    onClick: () -> Unit,
+) {
+    val windowDescription = stringResource(R.string.kiyori_home_browser_windows, windowCount)
+    Surface(
+        onClick = onClick,
+        modifier =
+            Modifier
+                .size(48.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = windowDescription
+                },
+        shape = CircleShape,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            WebSessionBrowserWindowCountIcon(
+                count = windowCount,
+            )
+        }
+    }
+}
+
+private fun kiyoriWeatherIcon(visual: KiyoriWeatherVisual): ImageVector =
+    when (visual) {
+        KiyoriWeatherVisual.CLEAR -> Icons.Default.WbSunny
+        KiyoriWeatherVisual.PARTLY_CLOUDY -> Icons.Default.CloudQueue
+        KiyoriWeatherVisual.OVERCAST -> Icons.Default.Cloud
+        KiyoriWeatherVisual.FOG -> Icons.Default.Dehaze
+        KiyoriWeatherVisual.DRIZZLE -> Icons.Default.Grain
+        KiyoriWeatherVisual.RAIN -> Icons.Default.WaterDrop
+        KiyoriWeatherVisual.SNOW -> Icons.Default.AcUnit
+        KiyoriWeatherVisual.THUNDERSTORM -> Icons.Default.FlashOn
+    }
+
+private fun Modifier.kiyoriGradientSearchFrame(): Modifier =
+    drawWithCache {
+        val gradientColors =
+            listOf(
+                Color(0xFF54C878),
+                Color(0xFF45B9D4),
+                Color(0xFF8277DA),
+                Color(0xFFF09A6C),
+                Color(0xFF54C878),
+            )
+        val strokeWidth = 1.dp.toPx()
+        val frameInset = strokeWidth / 2f
+        val cornerRadius = 18.dp.toPx() - frameInset
+        val frameSize =
+            Size(
+                width = size.width - frameInset * 2f,
+                height = size.height - frameInset * 2f,
+            )
+        val frameTopLeft = Offset(frameInset, frameInset)
+        val borderBrush = Brush.linearGradient(gradientColors)
+
+        onDrawBehind {
+            drawRoundRect(
+                brush = borderBrush,
+                topLeft = frameTopLeft,
+                size = frameSize,
+                cornerRadius = CornerRadius(cornerRadius),
+                style = Stroke(width = strokeWidth),
+            )
+        }
+    }
 
 @Composable
 internal fun KiyoriMinusOnePage() {
@@ -429,20 +901,16 @@ internal fun KiyoriFullScreenWebSearchPage(
     var query by rememberSaveable { mutableStateOf("") }
     var isEnginePanelVisible by rememberSaveable { mutableStateOf(false) }
     var selectedProfile by rememberSaveable { mutableStateOf(profileState.defaultProfile) }
-    val profileNotice =
-        when {
-            !profileState.incognitoAvailability.isAvailable ->
-                when (profileState.incognitoAvailability) {
-                    WebSessionIncognitoAvailability.PROFILE_RESET_FAILED ->
-                        stringResource(R.string.web_session_incognito_reset_failed)
-                    WebSessionIncognitoAvailability.UNSUPPORTED ->
-                        stringResource(R.string.web_session_incognito_unavailable_summary)
-                    WebSessionIncognitoAvailability.AVAILABLE -> null
-                }
-            selectedProfile == WebSessionProfile.INCOGNITO ->
-                stringResource(R.string.web_session_incognito_ai_notice)
-            else -> null
+    var profileFeedback by remember { mutableStateOf<String?>(null) }
+    val incognitoEnabledMessage = stringResource(R.string.web_session_incognito_enabled)
+    val incognitoDisabledMessage = stringResource(R.string.web_session_incognito_disabled)
+
+    LaunchedEffect(profileFeedback) {
+        if (profileFeedback != null) {
+            delay(1_200)
+            profileFeedback = null
         }
+    }
 
     Box(
         modifier =
@@ -497,25 +965,22 @@ internal fun KiyoriFullScreenWebSearchPage(
             onCopyCurrentUrl = {},
             onOpenCurrentUrl = {},
             onUseCurrentUrl = {},
-            profileNotice = profileNotice,
-            trailingAction = {
-                KiyoriSearchProfileAction(
-                    selectedProfile = selectedProfile,
-                    incognitoAvailability = profileState.incognitoAvailability,
-                    onToggle = {
-                        val requestedProfile =
-                            if (selectedProfile == WebSessionProfile.INCOGNITO) {
-                                WebSessionProfile.NORMAL
-                            } else {
-                                WebSessionProfile.INCOGNITO
-                            }
-                        if (browserCoordinator.setDefaultSessionProfile(requestedProfile)) {
-                            selectedProfile = requestedProfile
+            selectedProfile = selectedProfile,
+            incognitoAvailability = profileState.incognitoAvailability,
+            onToggleProfile = {
+                val requestedProfile = selectedProfile.opposite()
+                if (browserCoordinator.setDefaultSessionProfile(requestedProfile)) {
+                    selectedProfile = requestedProfile
+                    profileFeedback =
+                        if (requestedProfile == WebSessionProfile.INCOGNITO) {
+                            incognitoEnabledMessage
+                        } else {
+                            incognitoDisabledMessage
                         }
-                        profileState = browserCoordinator.newSessionProfileState()
-                    },
-                )
+                }
+                profileState = browserCoordinator.newSessionProfileState()
             },
+            profileFeedback = profileFeedback,
             modifier = Modifier.fillMaxHeight().widthIn(max = 920.dp).fillMaxWidth(),
         )
     }
@@ -541,53 +1006,6 @@ internal fun resolveKiyoriWebSearchRequest(
         targetUrl = BrowserAddressResolver.resolve(query, searchEngine),
         profile = profile,
     )
-}
-
-@Composable
-private fun KiyoriSearchProfileAction(
-    selectedProfile: WebSessionProfile,
-    incognitoAvailability: WebSessionIncognitoAvailability,
-    onToggle: () -> Unit,
-) {
-    val enabled = incognitoAvailability.isAvailable
-    val selected = selectedProfile == WebSessionProfile.INCOGNITO
-    Surface(
-        modifier =
-            Modifier
-                .size(40.dp)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onToggle),
-        shape = CircleShape,
-        color =
-            when {
-                !enabled -> MaterialTheme.colorScheme.surfaceContainerHighest
-                selected -> MaterialTheme.colorScheme.secondaryContainer
-                else -> MaterialTheme.colorScheme.surface
-            },
-        contentColor =
-            when {
-                !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                selected -> MaterialTheme.colorScheme.onSecondaryContainer
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        border =
-            BorderStroke(
-                width = 1.dp,
-                color =
-                    if (selected) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
-                    },
-            ),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Filled.VisibilityOff,
-                contentDescription = stringResource(R.string.web_session_incognito_mode),
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
 }
 
 @Composable

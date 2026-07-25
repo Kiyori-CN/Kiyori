@@ -63,6 +63,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import androidx.core.content.ContextCompat
@@ -112,6 +115,8 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
 
     internal val historyStore by lazy { WebSessionHistoryStore.getInstance(context.applicationContext) }
     internal val profileManager = WebSessionProfileManager()
+    private val _browserWindowCount = MutableStateFlow(0)
+    internal val browserWindowCount: StateFlow<Int> = _browserWindowCount.asStateFlow()
     @Volatile internal var defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL
     private val userscriptRepository by lazy { UserscriptRepository.getInstance(context.applicationContext) }
     internal val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -161,6 +166,10 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         }
         ensureDesktopModeInitialized()
         initializeBrowserDownloadSupport()
+    }
+
+    internal fun publishBrowserWindowCount(count: Int) {
+        _browserWindowCount.value = count
     }
 
     internal data class WebSession(

@@ -67,11 +67,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -94,6 +97,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -188,6 +192,10 @@ fun AgentChatInputSection(
     modifier: Modifier = Modifier,
     externalAttachmentPanelState: Boolean? = null,
     onAttachmentPanelStateChange: ((Boolean) -> Unit)? = null,
+    externalInputFocusRequestId: Long? = null,
+    externalVoiceRequestId: Long? = null,
+    externalCameraCaptureRequestId: Long? = null,
+    onExternalQuickActionHandled: (Long) -> Unit = {},
     showInputProcessingStatus: Boolean = true,
     enableTools: Boolean = true,
     replyToMessage: ChatMessage? = null,
@@ -241,6 +249,8 @@ fun AgentChatInputSection(
     var showCharacterCardMemoryBindingSwitchConfirm by remember { mutableStateOf(false) }
     var pendingCharacterCardMemorySelection by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val inputFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val characterCardManager = remember(context) { CharacterCardManager.getInstance(context) }
     val activePromptManager = remember(context) { ActivePromptManager.getInstance(context) }
@@ -458,6 +468,29 @@ fun AgentChatInputSection(
                 actualViewModel.showToast(context.getString(R.string.microphone_permission_denied_toast))
             }
         }
+
+    LaunchedEffect(externalVoiceRequestId) {
+        val requestId = externalVoiceRequestId
+        if (requestId != null) {
+            actualViewModel.onFloatingButtonClick(
+                FloatingMode.FULLSCREEN,
+                voicePermissionLauncher,
+                colorScheme,
+                typography,
+            )
+            onExternalQuickActionHandled(requestId)
+        }
+    }
+
+    LaunchedEffect(externalInputFocusRequestId) {
+        val requestId = externalInputFocusRequestId
+        if (requestId != null) {
+            inputFocusRequester.requestFocus()
+            withFrameNanos { }
+            keyboardController?.show()
+            onExternalQuickActionHandled(requestId)
+        }
+    }
 
     val (showAttachmentPanel, setShowAttachmentPanel) =
         remember { mutableStateOf(externalAttachmentPanelState ?: false) }
@@ -846,7 +879,12 @@ fun AgentChatInputSection(
                                 style = inputTextStyle,
                             )
                         },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).onPreviewKeyEvent(onEnterToSendKeyEvent),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 44.dp)
+                                .focusRequester(inputFocusRequester)
+                                .onPreviewKeyEvent(onEnterToSendKeyEvent),
                         textStyle = inputTextStyle,
                         maxLines = 6,
                         minLines = 1,
@@ -1146,7 +1184,12 @@ fun AgentChatInputSection(
                                     style = inputTextStyle,
                                 )
                             },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).onPreviewKeyEvent(onEnterToSendKeyEvent),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 44.dp)
+                                    .focusRequester(inputFocusRequester)
+                                    .onPreviewKeyEvent(onEnterToSendKeyEvent),
                             textStyle = inputTextStyle,
                             maxLines = 6,
                             minLines = 1,
@@ -1465,6 +1508,8 @@ fun AgentChatInputSection(
                 onAttachMemory = onAttachMemory,
                 onAttachPackage = onAttachPackage,
                 onTakePhoto = onTakePhoto,
+                externalCameraCaptureRequestId = externalCameraCaptureRequestId,
+                onExternalCameraCaptureHandled = onExternalQuickActionHandled,
                 onDismiss = { setShowAttachmentPanel(false) },
             )
 

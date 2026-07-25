@@ -2,16 +2,23 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.webkit.Profile
 import androidx.webkit.ProfileStore
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.ai.assistance.operit.util.AppLogger
 import java.util.Locale
+import java.util.UUID
 import kotlin.math.abs
 
-internal enum class WebSessionProfile(val wireName: String) {
-    NORMAL("normal"),
-    INCOGNITO("incognito"),
+internal const val KIYORI_INCOGNITO_PROFILE_PREFIX = "kiyori-incognito-"
+
+internal enum class WebSessionProfile(
+    val wireName: String,
+    val shouldPersistBrowserHistory: Boolean,
+) {
+    NORMAL("normal", shouldPersistBrowserHistory = true),
+    INCOGNITO("incognito", shouldPersistBrowserHistory = false),
     ;
 
     companion object {
@@ -21,6 +28,50 @@ internal enum class WebSessionProfile(val wireName: String) {
             }
     }
 }
+
+internal fun isKiyoriIncognitoProfileName(profileName: String): Boolean =
+    profileName.startsWith(KIYORI_INCOGNITO_PROFILE_PREFIX)
+
+internal fun deleteStaleKiyoriIncognitoProfiles(
+    existingProfileNames: Collection<String>,
+    deleteProfile: (String) -> Boolean,
+    remainingProfileNames: () -> Collection<String>,
+): Boolean {
+    existingProfileNames
+        .filter(::isKiyoriIncognitoProfileName)
+        .forEach { profileName -> deleteProfile(profileName) }
+    return remainingProfileNames().none(::isKiyoriIncognitoProfileName)
+}
+
+internal class WebSessionIncognitoGeneration(
+    private val createGenerationId: () -> String = { UUID.randomUUID().toString() },
+) {
+    private var activeProfileName: String? = null
+
+    @Synchronized
+    fun acquireProfileName(): String =
+        activeProfileName
+            ?: "$KIYORI_INCOGNITO_PROFILE_PREFIX${createGenerationId()}".also { profileName ->
+                activeProfileName = profileName
+            }
+
+    @Synchronized
+    fun retireProfile(): String? =
+        activeProfileName.also {
+            activeProfileName = null
+        }
+}
+
+internal fun WebSessionProfile.opposite(): WebSessionProfile =
+    when (this) {
+        WebSessionProfile.NORMAL -> WebSessionProfile.INCOGNITO
+        WebSessionProfile.INCOGNITO -> WebSessionProfile.NORMAL
+    }
+
+internal fun shouldCreateSessionForSearch(
+    activeProfile: WebSessionProfile?,
+    requestedProfile: WebSessionProfile,
+): Boolean = activeProfile != requestedProfile
 
 internal enum class WebSessionIncognitoAvailability {
     AVAILABLE,
@@ -71,16 +122,18 @@ internal fun resolveSessionProfileRequest(
 /**
  * Owns the AndroidX WebKit profile lifecycle for the shared Browser Runtime.
  *
- * The incognito profile is process-session state: stale Kiyori profiles are deleted before the
- * first WebView is created, all live incognito WebViews share one profile, and the profile is
- * deleted only after the final incognito WebView has been destroyed.
+ * A live incognito window group shares one uniquely named generation. AndroidX does not allow a
+ * loaded Profile to be deleted in the same process, even after every WebView is destroyed. The
+ * final window therefore retires the generation immediately, while the next cold start deletes
+ * every retired Kiyori Profile before any of them can be loaded again.
  */
 internal class WebSessionProfileManager {
     companion object {
         private const val TAG = "WebSessionProfile"
-        private const val INCOGNITO_PROFILE_PREFIX = "kiyori-incognito-"
-        private const val INCOGNITO_PROFILE_NAME = "${INCOGNITO_PROFILE_PREFIX}session-v1"
     }
+
+    private val incognitoGeneration = WebSessionIncognitoGeneration()
+    private var activeIncognitoProfile: Profile? = null
 
     @Volatile
     var incognitoAvailability: WebSessionIncognitoAvailability =
@@ -94,13 +147,13 @@ internal class WebSessionProfileManager {
         }
 
         val store = ProfileStore.getInstance()
-        val staleProfiles =
-            store.allProfileNames.filter { profileName ->
-                profileName.startsWith(INCOGNITO_PROFILE_PREFIX)
-            }
         val resetSucceeded =
             try {
-                staleProfiles.all(store::deleteProfile)
+                deleteStaleKiyoriIncognitoProfiles(
+                    existingProfileNames = store.allProfileNames,
+                    deleteProfile = store::deleteProfile,
+                    remainingProfileNames = { store.allProfileNames },
+                )
             } catch (error: Exception) {
                 AppLogger.e(TAG, "Failed to inspect or delete stale Kiyori incognito profiles", error)
                 false
@@ -123,8 +176,19 @@ internal class WebSessionProfileManager {
         }
         requireProfileAvailable(profile)
         try {
-            ProfileStore.getInstance().getOrCreateProfile(INCOGNITO_PROFILE_NAME)
-            WebViewCompat.setProfile(webView, INCOGNITO_PROFILE_NAME)
+            val profileName = incognitoGeneration.acquireProfileName()
+            val androidXProfile =
+                activeIncognitoProfile
+                    ?: ProfileStore.getInstance().getOrCreateProfile(profileName).also { created ->
+                        check(created.name == profileName) {
+                            "AndroidX returned an unexpected incognito Profile: ${created.name}"
+                        }
+                        activeIncognitoProfile = created
+                    }
+            check(androidXProfile.name == profileName) {
+                "Incognito generation changed while WebViews are still active"
+            }
+            WebViewCompat.setProfile(webView, profileName)
         } catch (error: Exception) {
             incognitoAvailability = WebSessionIncognitoAvailability.PROFILE_RESET_FAILED
             AppLogger.e(TAG, "Failed to bind the Kiyori incognito WebView profile", error)
@@ -152,26 +216,35 @@ internal class WebSessionProfileManager {
             }
         }
 
-    fun deleteIncognitoProfileAfterLastWebView(): Boolean {
-        if (!incognitoAvailability.isAvailable) {
-            return false
+    fun retireIncognitoProfileAfterLastWebView() {
+        val retiredProfileName = incognitoGeneration.retireProfile()
+        val retiredProfile = activeIncognitoProfile
+        activeIncognitoProfile = null
+        if (retiredProfile == null) {
+            return
         }
-        val store = ProfileStore.getInstance()
-        if (INCOGNITO_PROFILE_NAME !in store.allProfileNames) {
-            return true
-        }
-        val deleted =
-            try {
-                store.deleteProfile(INCOGNITO_PROFILE_NAME)
-            } catch (error: Exception) {
-                AppLogger.e(TAG, "Failed to delete the final Kiyori incognito WebView profile", error)
-                false
+
+        // The retired name is never reused. These clears reduce retained data immediately; the
+        // next cold start performs the physical Profile deletion allowed by AndroidX.
+        runCatching {
+            retiredProfile.cookieManager.removeAllCookies {
+                runCatching { retiredProfile.cookieManager.flush() }
+                    .onFailure { error ->
+                        AppLogger.w(TAG, "Failed to flush retired incognito cookies", error)
+                    }
             }
-        if (!deleted) {
-            incognitoAvailability = WebSessionIncognitoAvailability.PROFILE_RESET_FAILED
-            AppLogger.e(TAG, "Failed to delete the final Kiyori incognito WebView profile")
+        }.onFailure { error ->
+            AppLogger.w(TAG, "Failed to clear retired incognito cookies", error)
         }
-        return deleted
+        runCatching { retiredProfile.webStorage.deleteAllData() }
+            .onFailure { error ->
+                AppLogger.w(TAG, "Failed to clear retired incognito WebStorage", error)
+            }
+        runCatching { retiredProfile.geolocationPermissions.clearAll() }
+            .onFailure { error ->
+                AppLogger.w(TAG, "Failed to clear retired incognito geolocation permissions", error)
+            }
+        AppLogger.d(TAG, "Retired Kiyori incognito Profile: $retiredProfileName")
     }
 }
 

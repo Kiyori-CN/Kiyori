@@ -50,11 +50,13 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserReturnTarget
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
+import com.ai.assistance.operit.ui.main.shell.KiyoriWebSearchRequest
 import com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
 import com.ai.assistance.operit.ui.main.shell.PrimaryDestination
 import com.ai.assistance.operit.ui.main.shell.SoftwareHomePage
 import com.ai.assistance.operit.ui.main.shell.resolveAiDrawerSelection
 import com.ai.assistance.operit.ui.main.shell.resolveAiTopBarMode
+import com.ai.assistance.operit.ui.main.shell.resolveKiyoriWebSearchRequest
 import com.ai.assistance.operit.ui.main.shell.hasSameAiSettingsSourceFamily
 import com.ai.assistance.operit.ui.main.shell.openExternalChild
 import com.ai.assistance.operit.ui.main.shell.buildAiPrimaryStack
@@ -67,6 +69,7 @@ import androidx.compose.foundation.layout.RowScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -127,6 +130,9 @@ fun OperitApp(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val browserHistoryStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
+    val browserCoordinator =
+        remember(context) { BrowserPresentationCoordinator.getInstance(context.applicationContext) }
+    val browserWindowCount by browserCoordinator.browserWindowCount.collectAsState()
     val activity = remember(context) {
         context as? Activity ?: error("OperitApp must be hosted by an Activity")
     }
@@ -487,6 +493,32 @@ fun OperitApp(
         updateShellState(shellState.closeAiDrawer())
     }
 
+    fun submitWebSearch(request: KiyoriWebSearchRequest) {
+        val createdSessionId =
+            browserCoordinator.openUrlInNewSession(
+                url = request.targetUrl,
+                profile = request.profile,
+            )
+        if (createdSessionId != null) {
+            if (request.profile.shouldPersistBrowserHistory) {
+                scope.launch {
+                    browserHistoryStore.addSearchHistory(request.query, request.targetUrl)
+                }
+            }
+            updateShellState(
+                shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+            )
+        }
+    }
+
+    fun openAiHome(action: AiHomeQuickAction?) {
+        replaceAiPrimary(aiChatDrawerEntry, RouteEntrySource.DEFAULT)
+        action?.let(PendingAiHomeActionHandler::request)
+        updateShellState(
+            shellState.showSoftwareHomePage(SoftwareHomePage.AI_HOME),
+        )
+    }
+
     // Function to navigate to TokenConfig, treated as sub-navigation.
     fun navigateToTokenConfig() {
         navigateTo(Screen.TokenConfig)
@@ -599,7 +631,7 @@ fun OperitApp(
                 topBarTitleContent = titleContent
             },
             LocalOpenBrowser provides {
-                BrowserPresentationCoordinator.getInstance(context).prepareBrowserForAiHome()
+                browserCoordinator.prepareBrowserForAiHome()
                 updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.AI_HOME))
             },
         ) {
@@ -612,7 +644,28 @@ fun OperitApp(
                 aiDrawerEntries = aiDrawerEntries,
                 isNetworkAvailable = isNetworkAvailable,
                 networkType = networkType,
+                browserWindowCount = browserWindowCount,
                 onAiDrawerEntrySelected = ::selectAiDrawerEntry,
+                onOpenAiHome = { openAiHome(AiHomeQuickAction.FOCUS_INPUT) },
+                onAiQuickAction = { action -> openAiHome(action) },
+                onAiHomeSettled = PendingAiHomeActionHandler::markAiHomeReady,
+                onWeatherSearch = { city ->
+                    scope.launch {
+                        val request =
+                            resolveKiyoriWebSearchRequest(
+                                rawQuery = context.getString(R.string.kiyori_home_weather_query, city),
+                                searchEngine = browserHistoryStore.searchEngineFlow.first(),
+                                profile = browserCoordinator.newSessionProfileState().defaultProfile,
+                            )
+                        request?.let(::submitWebSearch)
+                    }
+                },
+                onOpenBrowserWindows = {
+                    browserCoordinator.openWindowOverview()
+                    updateShellState(
+                        shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                    )
+                },
                 onOpenAiSettingsFromKiyoriSettings = {
                     replaceAiPrimary(
                         aiSettingsDrawerEntry,
@@ -627,22 +680,7 @@ fun OperitApp(
                         shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
                     )
                 },
-                onSubmitWebSearch = { request ->
-                    val createdSessionId =
-                        BrowserPresentationCoordinator.getInstance(context)
-                        .openUrlInNewSession(
-                            url = request.targetUrl,
-                            profile = request.profile,
-                        )
-                    if (createdSessionId != null) {
-                        scope.launch {
-                            browserHistoryStore.addSearchHistory(request.query, request.targetUrl)
-                        }
-                        updateShellState(
-                            shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
-                        )
-                    }
-                },
+                onSubmitWebSearch = ::submitWebSearch,
                 onRequestExit = {
                     val now = System.currentTimeMillis()
                     if (now - lastExitAttemptAt <= EXIT_CONFIRM_WINDOW_MILLIS) {

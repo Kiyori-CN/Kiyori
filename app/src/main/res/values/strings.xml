@@ -7740,6 +7740,9 @@
     <string name="web_session_ai_dialogue">AI对话</string>
     <string name="web_session_browser_toolbox">工具箱</string>
     <string name="web_session_incognito_mode">无痕模式</string>
+    <string name="web_session_normal_mode">有痕模式</string>
+    <string name="web_session_incognito_enabled">已开启无痕模式</string>
+    <string name="web_session_incognito_disabled">已关闭无痕模式</string>
     <string name="web_session_reader_mode">阅读模式</string>
     <string name="web_session_ad_marking">标记广告</string>
     <string name="web_session_site_config">网站配置</string>
@@ -7750,7 +7753,7 @@
     <string name="web_session_incognito_unavailable">此设备无法使用无痕窗口</string>
     <string name="web_session_incognito_unavailable_summary">当前 Android System WebView 不支持独立浏览 Profile，因此无痕入口已禁用，不会创建普通窗口代替。</string>
     <string name="web_session_incognito_reset_failed">Kiyori 无法删除上一次无痕 Profile。为保护隔离，本次运行已禁用无痕窗口。</string>
-    <string name="web_session_incognito_ai_notice">无痕窗口会隔离 Cookie、缓存和 WebStorage；用户已授权的 Kiyori AI 仍可读取和操作该窗口。关闭最后一个无痕窗口后会话数据会删除。</string>
+    <string name="web_session_incognito_ai_notice">无痕窗口使用独立代际 Profile 隔离 Cookie、缓存和 WebStorage；用户已授权的 Kiyori AI 仍可读取和操作该窗口。关闭最后一个无痕窗口后该代际立即退休，并在下次冷启动删除。</string>
     <string name="web_session_no_profile_tabs">暂无%1$s</string>
     <string name="web_session_clear_profile_tabs">关闭当前分组全部窗口</string>
     <string name="web_session_placeholder_status">当前功能尚未接入</string>
@@ -7900,8 +7903,14 @@
     <string name="kiyori_shell_file_management_home">文件管理首页</string>
     <string name="kiyori_shell_settings_home">设置首页</string>
     <string name="kiyori_shell_minus_one">负一屏</string>
-    <string name="kiyori_shell_search_hint">输入网址或搜索网页</string>
-    <string name="kiyori_shell_home_subtitle">浏览、理解与处理网页内容</string>
+    <string name="kiyori_shell_search_hint">搜索网页或输入网址</string>
+    <string name="kiyori_shell_ai_hint">把问题和任务发给AI</string>
+    <string name="kiyori_home_weather_query">%1$s 天气</string>
+    <string name="kiyori_home_weather_current">%1$s，%2$d 度</string>
+    <string name="kiyori_home_weather_loading">正在加载天气</string>
+    <string name="kiyori_home_weather_permission">允许定位以显示天气</string>
+    <string name="kiyori_home_weather_retry">天气暂不可用，点按重试</string>
+    <string name="kiyori_home_browser_windows">%1$d 个浏览器窗口</string>
     <string name="kiyori_shell_search_action">搜索</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">网页搜索</string>
@@ -7920,7 +7929,7 @@
     <string name="kiyori_browser_settings_search_history_count">管理 %1$d 条搜索记录</string>
     <string name="kiyori_browser_settings_default_profile">新窗口默认模式</string>
     <string name="kiyori_browser_settings_normal_profile_summary">使用普通网站数据并保留登录状态</string>
-    <string name="kiyori_browser_settings_incognito_profile_summary">使用独立临时 Profile，最后一个无痕窗口关闭后删除</string>
+    <string name="kiyori_browser_settings_incognito_profile_summary">每段无痕会话使用全新隔离 Profile，关闭最后一个窗口后退休并在下次冷启动删除</string>
     <string name="kiyori_browser_settings_user_agent">默认网页标识</string>
     <string name="kiyori_browser_settings_desktop_mode">电脑模式</string>
     <string name="kiyori_browser_settings_desktop_mode_summary">桌面网页标识；修改后会重新加载当前普通 UA 页面</string>

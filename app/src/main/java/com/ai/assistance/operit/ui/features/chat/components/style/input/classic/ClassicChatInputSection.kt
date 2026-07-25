@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,7 +45,10 @@ import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isShiftPressed
@@ -107,6 +111,10 @@ fun ClassicChatInputSection(
     modifier: Modifier = Modifier,
     externalAttachmentPanelState: Boolean? = null,
     onAttachmentPanelStateChange: ((Boolean) -> Unit)? = null,
+    externalInputFocusRequestId: Long? = null,
+    externalVoiceRequestId: Long? = null,
+    externalCameraCaptureRequestId: Long? = null,
+    onExternalQuickActionHandled: (Long) -> Unit = {},
     showInputProcessingStatus: Boolean = true,
     enableTools: Boolean = true,
     replyToMessage: ChatMessage? = null, // 回复目标消息
@@ -122,6 +130,8 @@ fun ClassicChatInputSection(
     val showTokenLimitDialog = remember { mutableStateOf(false) }
     val showFullscreenInput = remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val inputFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val isProcessing =
         isLoading ||
             inputState is InputProcessingState.Connecting ||
@@ -204,6 +214,29 @@ fun ClassicChatInputSection(
                 actualViewModel.showToast(context.getString(R.string.microphone_permission_denied_toast))
             }
         }
+
+    androidx.compose.runtime.LaunchedEffect(externalVoiceRequestId) {
+        val requestId = externalVoiceRequestId
+        if (requestId != null) {
+            actualViewModel.onFloatingButtonClick(
+                FloatingMode.FULLSCREEN,
+                voicePermissionLauncher,
+                colorScheme,
+                typography,
+            )
+            onExternalQuickActionHandled(requestId)
+        }
+    }
+
+    LaunchedEffect(externalInputFocusRequestId) {
+        val requestId = externalInputFocusRequestId
+        if (requestId != null) {
+            inputFocusRequester.requestFocus()
+            withFrameNanos { }
+            keyboardController?.show()
+            onExternalQuickActionHandled(requestId)
+        }
+    }
 
     // 控制附件面板的展开状态 - 使用外部状态或本地状态
     val (showAttachmentPanel, setShowAttachmentPanel) =
@@ -504,6 +537,7 @@ fun ClassicChatInputSection(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 30.dp)
+                        .focusRequester(inputFocusRequester)
                         .onPreviewKeyEvent { keyEvent ->
                             if (!enableEnterToSend) {
                                 false
@@ -761,6 +795,8 @@ fun ClassicChatInputSection(
                 onAttachPackage = onAttachPackage,
                 onTakePhoto = onTakePhoto,
                 userQuery = userMessage.text,
+                externalCameraCaptureRequestId = externalCameraCaptureRequestId,
+                onExternalCameraCaptureHandled = onExternalQuickActionHandled,
                 onDismiss = { setShowAttachmentPanel(false) }
             )
 

@@ -7841,8 +7841,14 @@
     <string name="kiyori_shell_file_management_home">Files</string>
     <string name="kiyori_shell_settings_home">Settings</string>
     <string name="kiyori_shell_minus_one">Minus-One Page</string>
-    <string name="kiyori_shell_search_hint">Enter a URL or search the web</string>
-    <string name="kiyori_shell_home_subtitle">Browse, understand, and work with web content</string>
+    <string name="kiyori_shell_search_hint">Search the web or enter a URL</string>
+    <string name="kiyori_shell_ai_hint">Send a question or task to AI</string>
+    <string name="kiyori_home_weather_query">%1$s weather</string>
+    <string name="kiyori_home_weather_current">%1$s, %2$d degrees</string>
+    <string name="kiyori_home_weather_loading">Loading weather</string>
+    <string name="kiyori_home_weather_permission">Use location for weather</string>
+    <string name="kiyori_home_weather_retry">Weather unavailable, tap to retry</string>
+    <string name="kiyori_home_browser_windows">%1$d browser windows</string>
     <string name="kiyori_shell_search_action">Search</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Web Search</string>
@@ -7861,7 +7867,7 @@
     <string name="kiyori_browser_settings_search_history_count">Manage %1$d search records</string>
     <string name="kiyori_browser_settings_default_profile">Default mode for new windows</string>
     <string name="kiyori_browser_settings_normal_profile_summary">Use normal site data and keep sign-in state</string>
-    <string name="kiyori_browser_settings_incognito_profile_summary">Use a separate temporary profile deleted after the last incognito window closes</string>
+    <string name="kiyori_browser_settings_incognito_profile_summary">Use a fresh isolated Profile for each incognito session, retired after its last window closes and deleted on the next cold start</string>
     <string name="kiyori_browser_settings_user_agent">Default web identity</string>
     <string name="kiyori_browser_settings_desktop_mode">Desktop mode</string>
     <string name="kiyori_browser_settings_desktop_mode_summary">Desktop identity; changing it reloads the current default-UA page</string>
@@ -7878,10 +7884,13 @@
     <string name="web_session_normal_window">Normal windows</string>
     <string name="web_session_incognito_title">Incognito windows</string>
     <string name="web_session_incognito_mode">Incognito mode</string>
+    <string name="web_session_normal_mode">Regular browsing</string>
+    <string name="web_session_incognito_enabled">Incognito mode enabled</string>
+    <string name="web_session_incognito_disabled">Incognito mode disabled</string>
     <string name="web_session_incognito_unavailable">Incognito is unavailable on this device</string>
     <string name="web_session_incognito_unavailable_summary">Android System WebView does not support isolated browsing profiles, so incognito creation is disabled and no normal window is substituted.</string>
     <string name="web_session_incognito_reset_failed">Kiyori could not remove the previous incognito profile. Incognito is disabled for this run to protect isolation.</string>
-    <string name="web_session_incognito_ai_notice">Incognito isolates cookies, cache, and WebStorage. Kiyori AI actions already authorized by the user can still read and operate this window. Session data is deleted after the final incognito window closes.</string>
+    <string name="web_session_incognito_ai_notice">Incognito uses an isolated profile generation for cookies, cache, and WebStorage. User-authorized Kiyori AI actions can still read and control this window. The generation retires after its last window closes and is deleted on the next cold start.</string>
     <string name="web_session_no_profile_tabs">No %1$s</string>
     <string name="web_session_clear_profile_tabs">Close every window in this group</string>
 </resources>

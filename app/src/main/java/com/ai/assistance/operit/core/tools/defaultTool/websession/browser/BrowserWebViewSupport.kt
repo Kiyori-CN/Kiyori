@@ -42,8 +42,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
-private const val TAB_THUMBNAIL_WIDTH_PX = 320
-private const val TAB_THUMBNAIL_HEIGHT_PX = 180
 private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
 
 internal fun StandardBrowserSessionTools.createSessionOnMain(
@@ -191,8 +189,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 super.onReceivedTitle(view, title)
                 session.pageTitle = title.orEmpty()
                 refreshSessionUiOnMain(session.id)
-                ioScope.launch {
-                    historyStore.updateTitle(session.currentUrl, session.pageTitle)
+                if (session.profile.shouldPersistBrowserHistory) {
+                    ioScope.launch {
+                        historyStore.updateTitle(session.currentUrl, session.pageTitle)
+                    }
                 }
             }
 
@@ -351,8 +351,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 refreshNavigationStateFromWebView(view, session)
                 injectDownloadHelper(view)
                 injectTextSelectionHelper(view)
-                ioScope.launch {
-                    historyStore.updateTitle(url, session.pageTitle)
+                if (session.profile.shouldPersistBrowserHistory) {
+                    ioScope.launch {
+                        historyStore.updateTitle(url, session.pageTitle)
+                    }
                 }
                 requestSessionThumbnailOnMain(session, force = true)
             }
@@ -393,8 +395,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 val pageTitle = view.title.orEmpty()
                 notifySessionStateChanged(session)
                 refreshNavigationStateFromWebView(view, session)
-                ioScope.launch {
-                    historyStore.recordVisit(url, pageTitle, isReload)
+                if (session.profile.shouldPersistBrowserHistory) {
+                    ioScope.launch {
+                        historyStore.recordVisit(url, pageTitle, isReload)
+                    }
                 }
             }
 
@@ -549,7 +553,6 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                         throw error
                     }
                     AppLogger.e(WEBVIEW_SUPPORT_TAG, "Unable to create browser profile tab", error)
-                    defaultSessionProfile = WebSessionProfile.NORMAL
                     showToast(context.getString(R.string.web_session_incognito_reset_failed))
                     refreshSessionUiOnMain()
                 }
@@ -637,7 +640,25 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onSubmitSearch(query: String, engine: WebSessionSearchEngine) {
+        override fun onSetDefaultSessionProfile(profile: WebSessionProfile): Boolean =
+            runOnMainSync {
+                if (
+                    profile == WebSessionProfile.INCOGNITO &&
+                        !profileManager.incognitoAvailability.isAvailable
+                ) {
+                    false
+                } else {
+                    defaultSessionProfile = profile
+                    refreshSessionUiOnMain()
+                    true
+                }
+            }
+
+        override fun onSubmitSearch(
+            query: String,
+            engine: WebSessionSearchEngine,
+            profile: WebSessionProfile,
+        ) {
             val normalizedQuery = query.trim()
             if (normalizedQuery.isBlank()) {
                 return
@@ -647,7 +668,9 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 ioScope.launch {
                     runCatching {
                         historyStore.setSearchEngine(engine)
-                        historyStore.addSearchHistory(normalizedQuery, targetUrl)
+                        if (profile.shouldPersistBrowserHistory) {
+                            historyStore.addSearchHistory(normalizedQuery, targetUrl)
+                        }
                     }.onFailure { error ->
                         AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to persist browser search history", error)
                     }
@@ -661,14 +684,40 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     }
                 }
             }
-            runOnMainSync<Unit> {
-                openUrlOnMain(appContext, targetUrl)
-            }
+            openSearchTarget(targetUrl, profile)
         }
 
-        override fun onOpenSearchRecord(record: WebSessionSearchRecord) {
+        override fun onOpenSearchRecord(
+            record: WebSessionSearchRecord,
+            profile: WebSessionProfile,
+        ) {
+            openSearchTarget(record.targetUrl, profile)
+        }
+
+        private fun openSearchTarget(
+            targetUrl: String,
+            profile: WebSessionProfile,
+        ) {
             runOnMainSync<Unit> {
-                openUrlOnMain(appContext, record.targetUrl)
+                val activeSession = getActiveSessionOnMain()
+                if (!shouldCreateSessionForSearch(activeSession?.profile, profile)) {
+                    openUrlOnMain(appContext, targetUrl)
+                    return@runOnMainSync
+                }
+                try {
+                    createSessionTabOnMain(
+                        appContext = appContext,
+                        initialUrl = targetUrl,
+                        profile = profile,
+                    )
+                } catch (error: IllegalStateException) {
+                    AppLogger.e(
+                        WEBVIEW_SUPPORT_TAG,
+                        "Unable to open search target in requested browser profile",
+                        error,
+                    )
+                    showToast(context.getString(R.string.web_session_incognito_reset_failed))
+                }
             }
         }
 
@@ -878,14 +927,7 @@ internal fun StandardBrowserSessionTools.createSessionTabOnMain(
         ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
     val sessionId = UUID.randomUUID().toString()
     val session =
-        try {
-            createSessionOnMain(appContext, sessionId, sessionName, customUserAgent, profile)
-        } catch (error: IllegalStateException) {
-            if (profile == WebSessionProfile.INCOGNITO) {
-                defaultSessionProfile = WebSessionProfile.NORMAL
-            }
-            throw error
-        }
+        createSessionOnMain(appContext, sessionId, sessionName, customUserAgent, profile)
     StandardBrowserSessionTools.sessions[sessionId] = session
     addSessionOrder(sessionId)
     StandardBrowserSessionTools.activeSessionId = sessionId
@@ -1003,6 +1045,7 @@ internal fun StandardBrowserSessionTools.refreshSessionUiOnMain(sessionId: Strin
 
 internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
     val registry = buildPageRegistry()
+    publishBrowserWindowCount(registry.orderedSessionIds.size)
     val resolvedActiveId = registry.activeSessionId
     val activeSession = resolvedActiveId?.let(::sessionById)
     StandardBrowserSessionTools.activeSessionId = resolvedActiveId
@@ -1142,15 +1185,20 @@ internal fun StandardBrowserSessionTools.requestSessionThumbnailOnMain(
                     }
                     val bitmap =
                         Bitmap.createBitmap(
-                            TAB_THUMBNAIL_WIDTH_PX,
-                            TAB_THUMBNAIL_HEIGHT_PX,
+                            BROWSER_TAB_THUMBNAIL_WIDTH_PX,
+                            BROWSER_TAB_THUMBNAIL_HEIGHT_PX,
                             Bitmap.Config.ARGB_8888,
                         )
                     val canvas = Canvas(bitmap)
                     canvas.drawColor(Color.WHITE)
-                    val scale = TAB_THUMBNAIL_WIDTH_PX.toFloat() / sourceWidth.toFloat()
+                    val transform =
+                        resolveBrowserThumbnailTransform(
+                            sourceWidth = sourceWidth,
+                            sourceHeight = sourceHeight,
+                        ) ?: return
                     canvas.save()
-                    canvas.scale(scale, scale)
+                    canvas.translate(transform.offsetX, transform.offsetY)
+                    canvas.scale(transform.scale, transform.scale)
                     webView.draw(canvas)
                     canvas.restore()
                     session.thumbnail = bitmap
@@ -1658,18 +1706,14 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
         session.pendingDialog = null
         notifySessionStateChanged(session)
         clearSessionThumbnail(session)
-        val webViewDestroyed = cleanupWebViewOnMain(session.webView)
+        cleanupWebViewOnMain(session.webView)
         if (
             session.profile == WebSessionProfile.INCOGNITO &&
-                webViewDestroyed &&
                 StandardBrowserSessionTools.sessions.values.none { remaining ->
                     remaining.profile == WebSessionProfile.INCOGNITO
                 }
         ) {
-            val deleted = profileManager.deleteIncognitoProfileAfterLastWebView()
-            if (!deleted) {
-                defaultSessionProfile = WebSessionProfile.NORMAL
-            }
+            profileManager.retireIncognitoProfileAfterLastWebView()
         }
 
         val remainingIds = orderedSessionIds().filter { sessionById(it) != null }
@@ -1701,15 +1745,19 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
     return true
 }
 
-internal fun StandardBrowserSessionTools.cleanupWebViewOnMain(webView: WebView): Boolean =
-    try {
-        webView.stopLoading()
-        webView.loadUrl("about:blank")
-        webView.onPause()
-        webView.removeAllViews()
-        webView.destroy()
-        true
-    } catch (e: Exception) {
-        AppLogger.w(WEBVIEW_SUPPORT_TAG, "Error during WebView cleanup: ${e.message}")
-        false
+internal fun StandardBrowserSessionTools.cleanupWebViewOnMain(webView: WebView) {
+    // Loading about:blank starts another navigation in the retiring Profile. Clear only the
+    // WebView-owned runtime state here; Profile data is isolated and retired separately.
+    listOf<Pair<String, () -> Unit>>(
+        "stop loading" to { webView.stopLoading() },
+        "pause" to { webView.onPause() },
+        "clear history" to { webView.clearHistory() },
+        "clear SSL preferences" to { webView.clearSslPreferences() },
+        "remove child views" to { webView.removeAllViews() },
+        "destroy" to { webView.destroy() },
+    ).forEach { (operation, action) ->
+        runCatching(action).onFailure { error ->
+            AppLogger.w(WEBVIEW_SUPPORT_TAG, "Failed to $operation during WebView cleanup", error)
+        }
     }
+}

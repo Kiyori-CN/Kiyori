@@ -8,6 +8,21 @@ import org.junit.Test
 
 class KiyoriSoftwareHomeSearchTest {
     @Test
+    fun `home visual dimensions keep the compact refinement contract`() {
+        assertEquals(120, KIYORI_HOME_MODE_SEGMENT_WIDTH_DP)
+        assertEquals(32, KIYORI_HOME_MODE_SEGMENT_HEIGHT_DP)
+        assertEquals(18, KIYORI_HOME_BRAND_ICON_SIZE_DP)
+        assertEquals(114, KIYORI_HOME_REGULAR_SEARCH_FRAME_HEIGHT_DP)
+        assertEquals(96, KIYORI_HOME_SHORT_SEARCH_FRAME_HEIGHT_DP)
+        assertEquals(24, KIYORI_HOME_COMPACT_HORIZONTAL_PADDING_DP)
+        assertEquals(48, KIYORI_HOME_MEDIUM_HORIZONTAL_PADDING_DP)
+        assertEquals(72, KIYORI_HOME_EXPANDED_HORIZONTAL_PADDING_DP)
+        assertEquals(544, KIYORI_HOME_COMPACT_MAX_WIDTH_DP)
+        assertEquals(584, KIYORI_HOME_MEDIUM_MAX_WIDTH_DP)
+        assertEquals(624, KIYORI_HOME_EXPANDED_MAX_WIDTH_DP)
+    }
+
+    @Test
     fun `home layout changes at tablet and expanded width gates`() {
         assertEquals(
             KiyoriSoftwareHomeLayout.COMPACT,
@@ -24,6 +39,57 @@ class KiyoriSoftwareHomeSearchTest {
         assertEquals(
             KiyoriSoftwareHomeLayout.EXPANDED,
             resolveKiyoriSoftwareHomeLayout(840f),
+        )
+    }
+
+    @Test
+    fun `short viewport layout changes below 440 dp`() {
+        assertEquals(
+            KiyoriSoftwareHomeHeightLayout.SHORT,
+            resolveKiyoriSoftwareHomeHeightLayout(439f),
+        )
+        assertEquals(
+            KiyoriSoftwareHomeHeightLayout.REGULAR,
+            resolveKiyoriSoftwareHomeHeightLayout(440f),
+        )
+    }
+
+    @Test
+    fun `regular home places the search top border on the golden ratio point`() {
+        assertEquals(0.382f, KIYORI_SOFTWARE_HOME_GOLDEN_TOP_FRACTION, 0f)
+        assertEquals(
+            229.2f,
+            resolveKiyoriSoftwareHomeSearchTopY(
+                availableHeight = 600f,
+                titleHeight = 44f,
+                titleSpacing = 16f,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `short home keeps the title visible when the golden point is too high`() {
+        assertEquals(
+            52f,
+            resolveKiyoriSoftwareHomeSearchTopY(
+                availableHeight = 120f,
+                titleHeight = 44f,
+                titleSpacing = 8f,
+            ),
+            0f,
+        )
+    }
+
+    @Test
+    fun `home mode selects the matching primary destination`() {
+        assertEquals(
+            KiyoriSoftwareHomePrimaryTarget.WEB_SEARCH,
+            resolveKiyoriSoftwareHomePrimaryTarget(KiyoriSoftwareHomeMode.SEARCH),
+        )
+        assertEquals(
+            KiyoriSoftwareHomePrimaryTarget.AI_HOME,
+            resolveKiyoriSoftwareHomePrimaryTarget(KiyoriSoftwareHomeMode.AI),
         )
     }
 

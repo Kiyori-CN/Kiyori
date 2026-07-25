@@ -1,11 +1,81 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WebSessionProfilePolicyTest {
+    @Test
+    fun `profile toggle is symmetric`() {
+        assertEquals(WebSessionProfile.INCOGNITO, WebSessionProfile.NORMAL.opposite())
+        assertEquals(WebSessionProfile.NORMAL, WebSessionProfile.INCOGNITO.opposite())
+    }
+
+    @Test
+    fun `only normal profile persists browser history`() {
+        assertTrue(WebSessionProfile.NORMAL.shouldPersistBrowserHistory)
+        assertFalse(WebSessionProfile.INCOGNITO.shouldPersistBrowserHistory)
+    }
+
+    @Test
+    fun `live incognito windows share a generation and retirement creates a new one`() {
+        var generationId = 0
+        val generation = WebSessionIncognitoGeneration { "generation-${++generationId}" }
+
+        val firstName = generation.acquireProfileName()
+        assertEquals(firstName, generation.acquireProfileName())
+        assertEquals(firstName, generation.retireProfile())
+
+        val secondName = generation.acquireProfileName()
+        assertNotEquals(firstName, secondName)
+        assertTrue(isKiyoriIncognitoProfileName(firstName))
+        assertTrue(isKiyoriIncognitoProfileName(secondName))
+    }
+
+    @Test
+    fun `stale cleanup succeeds when a profile already disappeared`() {
+        var deletionAttempts = 0
+
+        val completed =
+            deleteStaleKiyoriIncognitoProfiles(
+                existingProfileNames =
+                    listOf("Default", "${KIYORI_INCOGNITO_PROFILE_PREFIX}retired"),
+                deleteProfile = {
+                    deletionAttempts += 1
+                    false
+                },
+                remainingProfileNames = { listOf("Default") },
+            )
+
+        assertTrue(completed)
+        assertEquals(1, deletionAttempts)
+    }
+
+    @Test
+    fun `browser search reuses only a tab with the requested profile`() {
+        assertTrue(
+            !shouldCreateSessionForSearch(
+                activeProfile = WebSessionProfile.NORMAL,
+                requestedProfile = WebSessionProfile.NORMAL,
+            ),
+        )
+        assertTrue(
+            shouldCreateSessionForSearch(
+                activeProfile = WebSessionProfile.NORMAL,
+                requestedProfile = WebSessionProfile.INCOGNITO,
+            ),
+        )
+        assertTrue(
+            shouldCreateSessionForSearch(
+                activeProfile = null,
+                requestedProfile = WebSessionProfile.NORMAL,
+            ),
+        )
+    }
+
     @Test
     fun `wire profile parsing is explicit and rejects unknown values`() {
         assertEquals(WebSessionProfile.NORMAL, WebSessionProfile.fromWireName("normal"))

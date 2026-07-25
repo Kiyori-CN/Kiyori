@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_TAB_THUMBNAIL_ASPECT_RATIO
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
@@ -389,7 +390,7 @@ private fun BrowserTabOverviewCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onSelect),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(if (tab.isActive) 2.dp else 1.dp, borderColor),
         tonalElevation = if (tab.isActive) 1.dp else 0.dp,
@@ -399,7 +400,7 @@ private fun BrowserTabOverviewCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
+                        .aspectRatio(BROWSER_TAB_THUMBNAIL_ASPECT_RATIO)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 contentAlignment = Alignment.Center,
             ) {
@@ -408,7 +409,7 @@ private fun BrowserTabOverviewCard(
                         bitmap = thumbnail,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                     )
                 } else {
                     BrowserTabIdentity(tab = tab)
@@ -459,16 +460,6 @@ private fun BrowserTabOverviewCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = tab.profile.displayName(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color =
-                        if (tab.profile == WebSessionProfile.INCOGNITO) {
-                            MaterialTheme.colorScheme.secondary
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
                 )
             }
         }

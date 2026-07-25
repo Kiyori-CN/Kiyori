@@ -78,6 +78,8 @@ import com.ai.assistance.operit.ui.features.chat.webview.computer.ComputerScreen
 import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatViewModel
 import com.ai.assistance.operit.ui.main.LocalTopBarActions
 import com.ai.assistance.operit.ui.main.LocalOpenBrowser
+import com.ai.assistance.operit.ui.main.AiHomeQuickAction
+import com.ai.assistance.operit.ui.main.PendingAiHomeActionHandler
 import com.ai.assistance.operit.ui.main.PendingChatDraftHandler
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.SharedFileHandler
@@ -434,7 +436,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         actualViewModel.createNewChatWithDraft(draft)
         PendingChatDraftHandler.clearPendingDraft()
     }
-
 
     // 添加WebView刷新相关状态
     val webViewRefreshCounter by actualViewModel.webViewRefreshCounter.collectAsState()
@@ -1518,6 +1519,7 @@ private fun ChatInputBottomBar(
     onRequestAutoScrollToBottom: () -> Unit,
 ) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
     val waifuPreferences = remember(context) { WaifuPreferences.getInstance(context) }
@@ -1525,6 +1527,21 @@ private fun ChatInputBottomBar(
     val userMessage by actualViewModel.userMessage.collectAsState()
     val attachments by actualViewModel.attachments.collectAsState()
     val attachmentPanelState by actualViewModel.attachmentPanelState.collectAsState()
+    val pendingAiHomeAction by PendingAiHomeActionHandler.pendingAction.collectAsState()
+    val readyAiHomeAction =
+        pendingAiHomeAction?.takeIf { pending -> pending.isAiHomeReady && isCurrentScreen }
+    LaunchedEffect(readyAiHomeAction?.requestId, isCurrentScreen) {
+        val pending = readyAiHomeAction ?: return@LaunchedEffect
+        when (pending.action) {
+            AiHomeQuickAction.FOCUS_INPUT -> Unit
+            AiHomeQuickAction.OPEN_ATTACHMENTS -> {
+                actualViewModel.updateAttachmentPanelState(true)
+                PendingAiHomeActionHandler.consume(pending.requestId)
+            }
+            AiHomeQuickAction.CAPTURE_PHOTO -> actualViewModel.updateAttachmentPanelState(true)
+            AiHomeQuickAction.START_VOICE_SESSION -> Unit
+        }
+    }
     val replyToMessage by actualViewModel.replyToMessage.collectAsState()
     val permissionLevel by actualViewModel.masterPermissionLevel.collectAsState()
     val isSummarizing by actualViewModel.isSummarizing.collectAsState()
@@ -1867,6 +1884,21 @@ private fun ChatInputBottomBar(
                 chatInputWaterGlass = chatInputWaterGlass,
                 externalAttachmentPanelState = attachmentPanelState,
                 onAttachmentPanelStateChange = actualViewModel::updateAttachmentPanelState,
+                externalInputFocusRequestId =
+                    readyAiHomeAction
+                        ?.takeIf { pending -> pending.action == AiHomeQuickAction.FOCUS_INPUT }
+                        ?.requestId,
+                externalVoiceRequestId =
+                    readyAiHomeAction
+                        ?.takeIf { pending ->
+                            pending.action == AiHomeQuickAction.START_VOICE_SESSION
+                        }
+                        ?.requestId,
+                externalCameraCaptureRequestId =
+                    readyAiHomeAction
+                        ?.takeIf { pending -> pending.action == AiHomeQuickAction.CAPTURE_PHOTO }
+                        ?.requestId,
+                onExternalQuickActionHandled = PendingAiHomeActionHandler::consume,
                 showInputProcessingStatus = showInputProcessingStatus,
                 enableTools = enableTools,
                 replyToMessage = replyToMessage,
@@ -1957,6 +1989,21 @@ private fun ChatInputBottomBar(
                 chatInputWaterGlass = chatInputWaterGlass,
                 externalAttachmentPanelState = attachmentPanelState,
                 onAttachmentPanelStateChange = actualViewModel::updateAttachmentPanelState,
+                externalInputFocusRequestId =
+                    readyAiHomeAction
+                        ?.takeIf { pending -> pending.action == AiHomeQuickAction.FOCUS_INPUT }
+                        ?.requestId,
+                externalVoiceRequestId =
+                    readyAiHomeAction
+                        ?.takeIf { pending ->
+                            pending.action == AiHomeQuickAction.START_VOICE_SESSION
+                        }
+                        ?.requestId,
+                externalCameraCaptureRequestId =
+                    readyAiHomeAction
+                        ?.takeIf { pending -> pending.action == AiHomeQuickAction.CAPTURE_PHOTO }
+                        ?.requestId,
+                onExternalQuickActionHandled = PendingAiHomeActionHandler::consume,
                 showInputProcessingStatus = showInputProcessingStatus,
                 enableTools = enableTools,
                 replyToMessage = replyToMessage,

@@ -59,6 +59,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
@@ -72,6 +73,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowser
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserUserAgent
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private fun WebSessionBrowserSheetRoute.isBrowserDrawerRoute(): Boolean =
     this != WebSessionBrowserSheetRoute.NONE && this != WebSessionBrowserSheetRoute.TABS
@@ -110,8 +112,9 @@ internal fun WebSessionBrowserScreen(
     onClearHistory: () -> Unit,
     onToggleDesktopMode: () -> Unit,
     onSetSearchEngine: (WebSessionSearchEngine) -> Unit,
-    onSubmitSearch: (String, WebSessionSearchEngine) -> Unit,
-    onOpenSearchRecord: (WebSessionSearchRecord) -> Unit,
+    onSetDefaultSessionProfile: (WebSessionProfile) -> Boolean,
+    onSubmitSearch: (String, WebSessionSearchEngine, WebSessionProfile) -> Unit,
+    onOpenSearchRecord: (WebSessionSearchRecord, WebSessionProfile) -> Unit,
     onDeleteSearchHistory: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
     onCopyCurrentUrl: () -> Unit,
@@ -186,6 +189,9 @@ internal fun WebSessionBrowserScreen(
     val activeSheetRoute = hostState.sheetRoute
     var tabOverviewMounted by remember { mutableStateOf(false) }
     var mountedDrawerRoute by remember { mutableStateOf(WebSessionBrowserSheetRoute.NONE) }
+    var profileFeedback by remember { mutableStateOf<String?>(null) }
+    val incognitoEnabledMessage = stringResource(R.string.web_session_incognito_enabled)
+    val incognitoDisabledMessage = stringResource(R.string.web_session_incognito_disabled)
     LaunchedEffect(activeSheetRoute) {
         when {
             activeSheetRoute == WebSessionBrowserSheetRoute.TABS -> {
@@ -193,6 +199,12 @@ internal fun WebSessionBrowserScreen(
                 onRequestTabThumbnails()
             }
             activeSheetRoute.isBrowserDrawerRoute() -> mountedDrawerRoute = activeSheetRoute
+        }
+    }
+    LaunchedEffect(profileFeedback) {
+        if (profileFeedback != null) {
+            delay(1_200)
+            profileFeedback = null
         }
     }
     var promptDraft by remember(browserState.pendingDialog?.message, browserState.pendingDialog?.defaultValue) {
@@ -223,11 +235,15 @@ internal fun WebSessionBrowserScreen(
                 isLoading = browserState.isLoading,
                 onBack = onTopBarBack,
                 onOpenSearch = {
+                    profileFeedback = null
                     onHostStateChange { current ->
                         current.copy(
                             isSearchVisible = true,
                             isSearchEnginePanelVisible = false,
                             searchDraft = "",
+                            searchProfile =
+                                browserState.activeProfile
+                                    ?: browserState.defaultSessionProfile,
                         )
                     }
                 },
@@ -363,6 +379,7 @@ internal fun WebSessionBrowserScreen(
                     onHostStateChange { current -> current.copy(searchDraft = draft) }
                 },
                 onBack = {
+                    profileFeedback = null
                     onHostStateChange {
                         it.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "")
                     }
@@ -373,13 +390,15 @@ internal fun WebSessionBrowserScreen(
                 onSubmit = {
                     val query = hostState.searchDraft.trim()
                     if (query.isNotBlank()) {
-                        onSubmitSearch(query, searchEngine)
+                        onSubmitSearch(query, searchEngine, hostState.searchProfile)
+                        profileFeedback = null
                         onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
                     }
                 },
                 onSelectEngine = onSetSearchEngine,
                 onOpenSearchRecord = { record ->
-                    onOpenSearchRecord(record)
+                    onOpenSearchRecord(record, hostState.searchProfile)
+                    profileFeedback = null
                     onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
                 },
                 onDeleteSearchRecord = onDeleteSearchHistory,
@@ -387,13 +406,29 @@ internal fun WebSessionBrowserScreen(
                 onCopyCurrentUrl = onCopyCurrentUrl,
                 onOpenCurrentUrl = {
                     onOpenUrl(browserState.currentUrl)
+                    profileFeedback = null
                     onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
                 },
                 onUseCurrentUrl = {
                     onHostStateChange { current -> current.copy(searchDraft = browserState.currentUrl) }
                 },
-                profileNotice = null,
-                trailingAction = { Spacer(modifier = Modifier.size(34.dp)) },
+                selectedProfile = hostState.searchProfile,
+                incognitoAvailability = browserState.incognitoAvailability,
+                onToggleProfile = {
+                    val requestedProfile = hostState.searchProfile.opposite()
+                    if (onSetDefaultSessionProfile(requestedProfile)) {
+                        onHostStateChange { current ->
+                            current.copy(searchProfile = requestedProfile)
+                        }
+                        profileFeedback =
+                            if (requestedProfile == WebSessionProfile.INCOGNITO) {
+                                incognitoEnabledMessage
+                            } else {
+                                incognitoDisabledMessage
+                            }
+                    }
+                },
+                profileFeedback = profileFeedback,
                 modifier = Modifier.fillMaxSize(),
             )
         }

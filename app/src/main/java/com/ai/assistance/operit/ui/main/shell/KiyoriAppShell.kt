@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.zIndex
+import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -48,7 +49,13 @@ internal fun KiyoriAppShell(
     aiDrawerEntries: List<NavigationEntrySpec>,
     isNetworkAvailable: Boolean,
     networkType: String,
+    browserWindowCount: Int,
     onAiDrawerEntrySelected: (NavigationEntrySpec) -> Unit,
+    onOpenAiHome: () -> Unit,
+    onAiQuickAction: (AiHomeQuickAction) -> Unit,
+    onAiHomeSettled: () -> Unit,
+    onWeatherSearch: (String) -> Unit,
+    onOpenBrowserWindows: () -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
@@ -63,6 +70,7 @@ internal fun KiyoriAppShell(
         )
     val latestState by rememberUpdatedState(state)
     val latestOnStateChange by rememberUpdatedState(onStateChange)
+    val latestOnAiHomeSettled by rememberUpdatedState(onAiHomeSettled)
     val pagerFlingBehavior = PagerDefaults.flingBehavior(state = pagerState)
     val aiHostPagerGestureState =
         remember(pagerState) {
@@ -104,6 +112,9 @@ internal fun KiyoriAppShell(
                 val page = SoftwareHomePage.fromPagerIndex(pageIndex)
                 if (latestState.softwareHomePage != page) {
                     latestOnStateChange(latestState.showSoftwareHomePage(page))
+                }
+                if (page == SoftwareHomePage.AI_HOME) {
+                    latestOnAiHomeSettled()
                 }
             }
     }
@@ -157,16 +168,16 @@ internal fun KiyoriAppShell(
                 SoftwareHomePage.MINUS_ONE -> KiyoriMinusOnePage()
                 SoftwareHomePage.HOME ->
                     KiyoriSoftwareHomePage(
+                        browserWindowCount = browserWindowCount,
                         onSearchClick = {
                             onStateChange(
                                 state.openChild(KiyoriShellChild.FULL_SCREEN_WEB_SEARCH),
                             )
                         },
-                        onAiClick = {
-                            onStateChange(
-                                state.showSoftwareHomePage(SoftwareHomePage.AI_HOME),
-                            )
-                        },
+                        onAiClick = onOpenAiHome,
+                        onAiQuickAction = onAiQuickAction,
+                        onWeatherSearch = onWeatherSearch,
+                        onWindowsClick = onOpenBrowserWindows,
                     )
                 SoftwareHomePage.AI_HOME -> Unit
             }

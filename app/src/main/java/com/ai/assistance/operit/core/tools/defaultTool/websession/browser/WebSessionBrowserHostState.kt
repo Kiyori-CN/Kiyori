@@ -157,6 +157,7 @@ internal data class WebSessionBrowserHostState(
     val isSearchVisible: Boolean = false,
     val isSearchEnginePanelVisible: Boolean = false,
     val searchDraft: String = "",
+    val searchProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val externalOpenPrompt: ExternalOpenPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),

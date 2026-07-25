@@ -7128,8 +7128,14 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="kiyori_shell_file_management_home">Fail</string>
     <string name="kiyori_shell_settings_home">Tetapan</string>
     <string name="kiyori_shell_minus_one">Halaman Sisi</string>
-    <string name="kiyori_shell_search_hint">Masukkan URL atau cari di web</string>
-    <string name="kiyori_shell_home_subtitle">Layari, fahami dan urus kandungan web</string>
+    <string name="kiyori_shell_search_hint">Cari di web atau masukkan URL</string>
+    <string name="kiyori_shell_ai_hint">Hantar soalan atau tugasan kepada AI</string>
+    <string name="kiyori_home_weather_query">Cuaca %1$s</string>
+    <string name="kiyori_home_weather_current">%1$s, %2$d darjah</string>
+    <string name="kiyori_home_weather_loading">Memuatkan cuaca</string>
+    <string name="kiyori_home_weather_permission">Gunakan lokasi untuk cuaca</string>
+    <string name="kiyori_home_weather_retry">Cuaca tidak tersedia, ketik untuk cuba lagi</string>
+    <string name="kiyori_home_browser_windows">%1$d tetingkap pelayar</string>
     <string name="kiyori_shell_search_action">Cari</string>
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Carian Web</string>
@@ -7148,7 +7154,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="kiyori_browser_settings_search_history_count">Urus %1$d rekod carian</string>
     <string name="kiyori_browser_settings_default_profile">Mod lalai untuk tetingkap baharu</string>
     <string name="kiyori_browser_settings_normal_profile_summary">Gunakan data laman biasa dan kekalkan status log masuk</string>
-    <string name="kiyori_browser_settings_incognito_profile_summary">Gunakan profil sementara berasingan yang dipadam selepas tetingkap inkognito terakhir ditutup</string>
+    <string name="kiyori_browser_settings_incognito_profile_summary">Gunakan Profile terasing baharu bagi setiap sesi inkognito, tamatkan selepas tetingkap terakhir ditutup dan padam pada mula sejuk seterusnya</string>
     <string name="kiyori_browser_settings_user_agent">Identiti web lalai</string>
     <string name="kiyori_browser_settings_desktop_mode">Mod desktop</string>
     <string name="kiyori_browser_settings_desktop_mode_summary">Identiti desktop; perubahan memuat semula halaman UA lalai semasa</string>
@@ -7165,10 +7171,13 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_normal_window">Tetingkap biasa</string>
     <string name="web_session_incognito_title">Tetingkap inkognito</string>
     <string name="web_session_incognito_mode">Mod inkognito</string>
+    <string name="web_session_normal_mode">Mod biasa</string>
+    <string name="web_session_incognito_enabled">Mod inkognito telah dihidupkan</string>
+    <string name="web_session_incognito_disabled">Mod inkognito telah dimatikan</string>
     <string name="web_session_incognito_unavailable">Inkognito tidak tersedia pada peranti ini</string>
     <string name="web_session_incognito_unavailable_summary">Android System WebView tidak menyokong profil pelayaran terasing, jadi penciptaan inkognito dilumpuhkan dan tidak digantikan dengan tetingkap biasa.</string>
     <string name="web_session_incognito_reset_failed">Kiyori tidak dapat memadam profil inkognito sebelumnya. Inkognito dilumpuhkan untuk sesi ini bagi melindungi pengasingan.</string>
-    <string name="web_session_incognito_ai_notice">Inkognito mengasingkan kuki, cache dan WebStorage. Tindakan Kiyori AI yang telah dibenarkan pengguna masih boleh membaca dan mengawal tetingkap ini. Data sesi dipadam selepas tetingkap inkognito terakhir ditutup.</string>
+    <string name="web_session_incognito_ai_notice">Inkognito menggunakan generasi Profile terasing untuk kuki, cache dan WebStorage. Tindakan Kiyori AI yang dibenarkan masih boleh mengawal tetingkap ini. Generasi ditamatkan selepas tetingkap terakhir ditutup dan dipadam pada mula sejuk seterusnya.</string>
     <string name="web_session_no_profile_tabs">Tiada %1$s</string>
     <string name="web_session_clear_profile_tabs">Tutup semua tetingkap dalam kumpulan ini</string>
 </resources>
