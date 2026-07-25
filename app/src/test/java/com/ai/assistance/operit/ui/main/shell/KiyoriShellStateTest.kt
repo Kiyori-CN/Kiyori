@@ -120,34 +120,6 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `browser search history Back returns through browser settings to its owner`() {
-        val historyState =
-            KiyoriShellState(primaryDestination = PrimaryDestination.BROWSER_HOME)
-                .openChild(KiyoriShellChild.BROWSER_SEARCH_HISTORY)
-
-        val settingsTransition = historyState.handleBack()
-        assertEquals(KiyoriShellBackResult.CONSUMED, settingsTransition.result)
-        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, settingsTransition.state.child)
-        assertEquals(PrimaryDestination.BROWSER_HOME, settingsTransition.state.primaryDestination)
-
-        val ownerTransition = settingsTransition.state.handleBack()
-        assertEquals(KiyoriShellBackResult.CONSUMED, ownerTransition.result)
-        assertEquals(null, ownerTransition.state.child)
-        assertEquals(PrimaryDestination.BROWSER_HOME, ownerTransition.state.primaryDestination)
-    }
-
-    @Test
-    fun `external browser settings request opens the Kiyori settings owner`() {
-        val state =
-            KiyoriShellState(primaryDestination = PrimaryDestination.BROWSER_HOME)
-                .openExternalChild(KiyoriShellChild.BROWSER_SETTINGS)
-
-        assertEquals(PrimaryDestination.SETTINGS_HOME, state.primaryDestination)
-        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, state.child)
-        assertFalse(state.showsBottomBar)
-    }
-
-    @Test
     fun `AI drawer width follows window classes and separating fold`() {
         assertEquals(300f, calculateKiyoriAiDrawerWidthDp(400f), 0f)
         assertEquals(320f, calculateKiyoriAiDrawerWidthDp(600f), 0f)
@@ -272,17 +244,35 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `cross source AI settings opens its stable root without child routes`() {
+    fun `AI settings opened from Kiyori Settings returns to Settings Home`() {
+        val state =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+                isAiDrawerOpen = true,
+            )
+
+        assertEquals(
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SETTINGS_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ),
+            state.returnFromKiyoriAiSettings(),
+        )
+    }
+
+    @Test
+    fun `AI primary stack restoration follows explicit restore decision`() {
         val targetRoot =
             RouteEntry(
                 instanceId = "settings-root",
                 routeId = "native.settings",
-                source = RouteEntrySource.KIYORI_SETTINGS,
+                source = RouteEntrySource.AI_DRAWER,
                 navigationRootEntryId = "main.settings",
             )
         val savedStack =
             listOf(
-                targetRoot.copy(source = RouteEntrySource.AI_DRAWER),
+                targetRoot,
                 RouteEntry(instanceId = "child", routeId = "native.settings.detail"),
             )
 
@@ -369,26 +359,6 @@ class KiyoriShellStateTest {
             runtime = RouteRuntime.TOOLPKG_COMPOSE_DSL,
             keepAlive = keepAlive,
         )
-
-    @Test
-    fun `AI settings returns to its navigation source`() {
-        val state =
-            KiyoriShellState(
-                primaryDestination = PrimaryDestination.SETTINGS_HOME,
-                softwareHomePage = SoftwareHomePage.AI_HOME,
-            )
-
-        assertEquals(
-            KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
-            state.returnFromAiSettings(AiSettingsEntrySource.AI_DRAWER),
-        )
-        assertEquals(
-            PrimaryDestination.SETTINGS_HOME,
-            state
-                .returnFromAiSettings(AiSettingsEntrySource.KIYORI_SETTINGS)
-                .primaryDestination,
-        )
-    }
 
     @Test
     fun `Back from side home page returns to software home center`() {

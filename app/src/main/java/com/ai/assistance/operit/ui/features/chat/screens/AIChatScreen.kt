@@ -843,14 +843,26 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onAiComputerButtonClick()
-                        }
+                        },
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                containerColor =
+                                    if (showAiComputer) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                contentColor =
+                                    if (showAiComputer) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        appBarContentColor
+                                    },
+                            ),
                 ) {
                     Icon(
                             imageVector = Icons.Default.Terminal,
                             contentDescription = stringResource(R.string.ai_computer),
-                            tint =
-                            if (showAiComputer) MaterialTheme.colorScheme.primaryContainer
-                            else appBarContentColor
                     )
                 }
 
@@ -859,7 +871,22 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onWorkspaceButtonClick()
-                        }
+                        },
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                containerColor =
+                                    if (showWebView) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                contentColor =
+                                    if (showWebView) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        appBarContentColor
+                                    },
+                            ),
                 ) {
                     if (isWorkspacePreparing) {
                         CircularProgressIndicator(
@@ -875,9 +902,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                                 contentDescription =
                                 if (hasBoundWorkspace) stringResource(R.string.workspace)
                                 else stringResource(R.string.setup_workspace),
-                                tint =
-                                if (showWebView) MaterialTheme.colorScheme.primaryContainer
-                                else appBarContentColor
                         )
                     }
                 }

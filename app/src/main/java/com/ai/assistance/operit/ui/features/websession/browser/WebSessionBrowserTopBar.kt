@@ -72,6 +72,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_GAP_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR
 
 @Composable
 internal fun WebSessionBrowserTopBar(
@@ -85,14 +91,21 @@ internal fun WebSessionBrowserTopBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().statusBarsPadding(),
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP.dp,
+                        vertical = WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP.dp,
+                    ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            horizontalArrangement = Arrangement.spacedBy(WEB_SESSION_BROWSER_TOP_GAP_DP.dp),
         ) {
             BrowserChromeIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
@@ -100,13 +113,17 @@ internal fun WebSessionBrowserTopBar(
                 onClick = onBack,
             )
             Surface(
-                modifier = Modifier.weight(1f).clickable(role = Role.Button, onClick = onOpenSearch),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp)
+                        .clickable(role = Role.Button, onClick = onOpenSearch),
                 shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+                color = MaterialTheme.colorScheme.background,
+                border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -150,7 +167,7 @@ private fun BrowserChromeIconButton(
 ) {
     Box(
         modifier = Modifier
-            .size(34.dp)
+            .size(WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP.dp)
             .alpha(if (enabled) 1f else 0.38f)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics {
@@ -222,9 +239,15 @@ internal fun WebSessionBrowserSearchScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP.dp,
+                            vertical = WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP.dp,
+                        ),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(WEB_SESSION_BROWSER_TOP_GAP_DP.dp),
             ) {
                 BrowserChromeIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
@@ -232,13 +255,16 @@ internal fun WebSessionBrowserSearchScreen(
                     onClick = ::closeSearch,
                 )
                 Surface(
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                    color = MaterialTheme.colorScheme.background,
+                    border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 4.dp),
+                        modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Row(
@@ -392,8 +418,8 @@ internal fun WebSessionBrowserSearchScreen(
                             .navigationBarsPadding()
                             .padding(bottom = 32.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color.White,
-                    contentColor = Color.Black,
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                     shadowElevation = 4.dp,
                 ) {
                     Text(
@@ -424,7 +450,7 @@ private fun WebSessionSearchProfileAction(
     IconButton(
         onClick = onToggle,
         enabled = enabled,
-        modifier = Modifier.size(40.dp),
+        modifier = Modifier.size(WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP.dp),
     ) {
         Icon(
             imageVector =

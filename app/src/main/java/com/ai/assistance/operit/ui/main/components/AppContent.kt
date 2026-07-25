@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -82,6 +83,7 @@ import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.platform.LocalDensity
 import com.ai.assistance.operit.api.chat.AIForegroundService
+import com.ai.assistance.operit.ui.theme.resolveContrastingContentColor
 
 // 定义一个 CompositionLocal，用于向下传递当前屏幕是否可见的状态
 val LocalIsCurrentScreen = compositionLocalOf { true }
@@ -183,15 +185,28 @@ fun AppContent(
                     )
                     .value
 
+    val appBarContainerColor =
+            when {
+                toolbarTransparent -> Color.Transparent
+                useCustomAppBarColor && customAppBarColor != null -> Color(customAppBarColor)
+                else -> MaterialTheme.colorScheme.background
+            }
+    val automaticAppBarContentColor =
+            when {
+                toolbarTransparent -> MaterialTheme.colorScheme.onBackground
+                useCustomAppBarColor && customAppBarColor != null ->
+                    resolveContrastingContentColor(appBarContainerColor)
+                else -> MaterialTheme.colorScheme.onBackground
+            }
     val appBarContentColor =
             if (forceAppBarContentColor) {
                 when (appBarContentColorMode) {
                     UserPreferencesManager.APP_BAR_CONTENT_COLOR_MODE_LIGHT -> Color.White
                     UserPreferencesManager.APP_BAR_CONTENT_COLOR_MODE_DARK -> Color.Black
-                    else -> MaterialTheme.colorScheme.onPrimary
+                    else -> automaticAppBarContentColor
                 }
             } else {
-                MaterialTheme.colorScheme.onPrimary
+                automaticAppBarContentColor
             }
 
     // 获取聊天历史管理器
@@ -255,7 +270,8 @@ fun AppContent(
             topBar = {
                 // 单一工具栏 - 使用小型化的设计
                 // 使用 windowInsets 参数让 TopAppBar 自己处理状态栏的 insets
-                TopAppBar(
+                Column {
+                    TopAppBar(
                     windowInsets = WindowInsets.statusBars,
                     title = {
                         if (titleContent != null) {
@@ -323,18 +339,21 @@ fun AppContent(
                     actions = actions,
                     colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor =
-                        when {
-                            toolbarTransparent -> Color.Transparent
-                            useCustomAppBarColor && customAppBarColor != null -> Color(customAppBarColor)
-                            else -> MaterialTheme.colorScheme.primary
-                        },
+                        containerColor = appBarContainerColor,
+                        scrolledContainerColor = appBarContainerColor,
                         titleContentColor = appBarContentColor,
                         navigationIconContentColor = appBarContentColor,
                         actionIconContentColor = appBarContentColor
                     ),
                     // Scaffold会处理 insets, 这里不再需要手动添加 modifier
                 )
+                    if (!toolbarTransparent) {
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+                    }
+                }
             },
             containerColor = Color.Transparent
         ) { innerPadding ->

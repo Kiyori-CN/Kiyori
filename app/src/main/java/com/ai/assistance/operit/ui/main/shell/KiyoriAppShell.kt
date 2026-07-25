@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
+import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -57,7 +58,6 @@ internal fun KiyoriAppShell(
     onWeatherSearch: (String) -> Unit,
     onOpenBrowserWindows: () -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
-    onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
     browserHome: @Composable (Modifier) -> Unit,
@@ -194,7 +194,6 @@ internal fun KiyoriAppShell(
                 KiyoriPrimaryRootPage(
                     destination = state.primaryDestination,
                     onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
-                    onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
                     modifier = Modifier.fillMaxSize().zIndex(4f),
                 )
             }
@@ -239,29 +238,16 @@ internal fun KiyoriAppShell(
             enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
         ) {
-            when (state.child) {
-                KiyoriShellChild.FULL_SCREEN_WEB_SEARCH ->
-                    KiyoriFullScreenWebSearchPage(
-                        onBack = { onStateChange(state.closeChild()) },
-                        onSubmitSearch = onSubmitWebSearch,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                KiyoriShellChild.BROWSER_SETTINGS ->
-                    KiyoriBrowserSettingsPage(
-                        onBack = { onStateChange(state.closeChild()) },
-                        onOpenSearchHistory = {
-                            onStateChange(
-                                state.openChild(KiyoriShellChild.BROWSER_SEARCH_HISTORY),
-                            )
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                KiyoriShellChild.BROWSER_SEARCH_HISTORY ->
-                    KiyoriBrowserSearchHistoryPage(
-                        onBack = { onStateChange(state.closeChild()) },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                null -> Unit
+            KiyoriBrowserTheme {
+                when (state.child) {
+                    KiyoriShellChild.FULL_SCREEN_WEB_SEARCH ->
+                        KiyoriFullScreenWebSearchPage(
+                            onBack = { onStateChange(state.closeChild()) },
+                            onSubmitSearch = onSubmitWebSearch,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    null -> Unit
+                }
             }
         }
 

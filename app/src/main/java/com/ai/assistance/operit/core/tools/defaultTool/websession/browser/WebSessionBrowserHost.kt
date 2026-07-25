@@ -92,7 +92,6 @@ internal class WebSessionBrowserHost(
         fun onCopyCurrentUrl()
         fun onOpenPageSource()
         fun onCopyPageSource()
-        fun onOpenBrowserSettings()
         fun onOpenUserscripts()
         fun onImportUserscript()
         fun onInstallUserscriptFromUrl(url: String)
@@ -173,7 +172,6 @@ internal class WebSessionBrowserHost(
                                 webViewHost = overlayWebViewHost,
                                 onTopBarBack = callbacks::onMinimize,
                                 onOpenAiDialogue = callbacks::onMinimize,
-                                onOpenBrowserSettings = callbacks::onOpenBrowserSettings,
                                 onExitBrowser = callbacks::onExitBrowser,
                             )
                         }
@@ -240,7 +238,6 @@ internal class WebSessionBrowserHost(
         webViewHost: WebSessionWebViewHost,
         onTopBarBack: () -> Unit,
         onOpenAiDialogue: () -> Unit,
-        onOpenBrowserSettings: () -> Unit,
         onExitBrowser: () -> Unit,
         modifier: Modifier = Modifier,
     ) {
@@ -269,7 +266,6 @@ internal class WebSessionBrowserHost(
             onRequestTabThumbnails = callbacks::onRequestTabThumbnails,
             onTopBarBack = onTopBarBack,
             onOpenAiDialogue = onOpenAiDialogue,
-            onOpenBrowserSettings = onOpenBrowserSettings,
             onExitBrowser = onExitBrowser,
             onCloseCurrentTab = callbacks::onCloseCurrentTab,
             onCloseAllTabs = callbacks::onCloseAllTabs,

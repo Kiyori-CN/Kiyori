@@ -21,7 +21,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 internal fun KiyoriBrowserHome(
     onExitBrowser: () -> Unit,
     onOpenAiDialogue: () -> Unit,
-    onOpenBrowserSettings: () -> Unit,
     onCloseBrowser: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -70,7 +69,6 @@ internal fun KiyoriBrowserHome(
                 releaseAppPresentation()
                 onOpenAiDialogue()
             },
-            onOpenBrowserSettings = onOpenBrowserSettings,
             onExitBrowser = {
                 presentation?.let { acquired ->
                     coordinator.releaseAppPresentationAndDestroy(acquired, webViewHost)

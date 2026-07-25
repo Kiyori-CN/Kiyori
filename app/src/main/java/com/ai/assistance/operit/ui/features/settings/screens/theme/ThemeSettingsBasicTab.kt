@@ -35,7 +35,7 @@ internal fun ThemeSettingsBasicTab(
     onShowSaveSuccessMessage: () -> Unit,
 ) {
     val preferencesManager = shared.preferencesManager
-    val useSystemTheme by preferencesManager.useSystemTheme.collectAsState(initial = true)
+    val useSystemTheme by preferencesManager.useSystemTheme.collectAsState(initial = false)
     val themeMode by preferencesManager.themeMode.collectAsState(
         initial = UserPreferencesManager.THEME_MODE_LIGHT,
     )
@@ -175,8 +175,8 @@ private fun ThemeSettingsBasicColorPanel(
     onShowSaveSuccessMessage: () -> Unit,
 ) {
     val preferencesManager = shared.preferencesManager
-    val defaultPrimaryColor = Color.Magenta.toArgb()
-    val defaultSecondaryColor = Color.Blue.toArgb()
+    val defaultPrimaryColor = MaterialTheme.colorScheme.primary.toArgb()
+    val defaultSecondaryColor = MaterialTheme.colorScheme.secondary.toArgb()
     val defaultAppBarColor = MaterialTheme.colorScheme.surface.toArgb()
     val defaultHeaderIconColor = Color.Gray.toArgb()
 

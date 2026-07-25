@@ -593,12 +593,17 @@ private fun createExportIconCropOptions(context: Context, sourceUri: Uri): CropI
         context.theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)
         surfaceColor = typedValue.data
 
-        onPrimaryColor = if (isNightMode) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+        context.theme.resolveAttribute(
+            com.google.android.material.R.attr.colorOnPrimary,
+            typedValue,
+            true,
+        )
+        onPrimaryColor = typedValue.data
     } catch (_: Exception) {
-        primaryColor = if (isNightMode) 0xFF9C27B0.toInt() else 0xFF6200EE.toInt()
-        statusBarColor = if (isNightMode) 0xFF7B1FA2.toInt() else 0xFF3700B3.toInt()
-        surfaceColor = if (isNightMode) android.graphics.Color.BLACK else android.graphics.Color.WHITE
-        onPrimaryColor = if (isNightMode) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+        primaryColor = if (isNightMode) 0xFFF1F3F4.toInt() else 0xFF202124.toInt()
+        statusBarColor = primaryColor
+        surfaceColor = if (isNightMode) 0xFF121212.toInt() else 0xFFFFFFFF.toInt()
+        onPrimaryColor = if (isNightMode) 0xFF202124.toInt() else 0xFFFFFFFF.toInt()
     }
 
     return CropImageContractOptions(

@@ -1043,6 +1043,8 @@ fun AgentChatInputSection(
                                 else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                             }
 
+                        val isVoiceAction = !showCancelAction && !showQueueAction && !canSendMessage
+
                         val actionButtonIconTint =
                             when {
                                 showCancelAction -> MaterialTheme.colorScheme.onError
@@ -1053,7 +1055,7 @@ fun AgentChatInputSection(
                                     } else {
                                         MaterialTheme.colorScheme.onPrimary
                                     }
-                                else -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
                             }
 
                         Box(
@@ -1074,7 +1076,15 @@ fun AgentChatInputSection(
                                 modifier =
                                     Modifier
                                         .size(36.dp)
-                                        .background(actionButtonBackground, CircleShape)
+                                        .then(
+                                            if (isVoiceAction) {
+                                                Modifier
+                                            } else {
+                                                Modifier
+                                                    .clip(CircleShape)
+                                                    .background(actionButtonBackground)
+                                            }
+                                        )
                                         .clickable(
                                             enabled = sendButtonEnabled,
                                             onClick = {
@@ -1348,6 +1358,8 @@ fun AgentChatInputSection(
                                     else -> MaterialTheme.colorScheme.primary
                                 }
 
+                            val isVoiceAction = !showCancelAction && !showQueueAction && !canSendMessage
+
                             val actionButtonIconTint =
                                 when {
                                     showCancelAction -> MaterialTheme.colorScheme.onError
@@ -1358,7 +1370,7 @@ fun AgentChatInputSection(
                                         } else {
                                             MaterialTheme.colorScheme.onPrimary
                                         }
-                                    else -> MaterialTheme.colorScheme.onPrimary
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
 
                             Box(
@@ -1379,7 +1391,15 @@ fun AgentChatInputSection(
                                     modifier =
                                         Modifier
                                             .size(36.dp)
-                                            .background(actionButtonBackground, CircleShape)
+                                            .then(
+                                                if (isVoiceAction) {
+                                                    Modifier
+                                                } else {
+                                                    Modifier
+                                                        .clip(CircleShape)
+                                                        .background(actionButtonBackground)
+                                                }
+                                            )
                                             .clickable(
                                                 enabled = sendButtonEnabled,
                                                 onClick = {

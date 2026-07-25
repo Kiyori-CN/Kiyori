@@ -1,6 +1,6 @@
 package com.ai.assistance.operit.ui.features.websession.browser.chrome
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -9,12 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -24,7 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -59,23 +56,28 @@ internal fun WebSessionBrowserBottomBar(
                 Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                    .padding(
+                        start = WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP.dp,
+                        top = WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP.dp,
+                        end = WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP.dp,
+                        bottom = WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP.dp,
+                    ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BrowserBottomBarAction(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                iconResId = R.drawable.ic_kiyori_browser_bottom_back,
                 contentDescription = stringResource(R.string.web_session_back),
                 enabled = canGoBack,
                 onClick = onBack,
             )
             BrowserBottomBarAction(
-                icon = Icons.AutoMirrored.Filled.ArrowForward,
+                iconResId = R.drawable.ic_kiyori_browser_bottom_forward,
                 contentDescription = stringResource(R.string.web_session_forward),
                 enabled = canGoForward,
                 onClick = onForward,
             )
             BrowserBottomBarAction(
-                icon = Icons.Filled.Home,
+                iconResId = R.drawable.ic_kiyori_browser_bottom_home,
                 contentDescription = stringResource(R.string.kiyori_shell_browser_home),
                 onClick = onHome,
             )
@@ -86,7 +88,7 @@ internal fun WebSessionBrowserBottomBar(
                 onClick = onTabs,
             )
             BrowserBottomBarAction(
-                icon = Icons.Filled.MoreHoriz,
+            iconResId = R.drawable.ic_kiyori_tool_toolbox,
                 contentDescription = stringResource(R.string.web_session_browser_menu_button),
                 onClick = onToolbox,
             )
@@ -96,7 +98,7 @@ internal fun WebSessionBrowserBottomBar(
 
 @Composable
 private fun RowScope.BrowserBottomBarAction(
-    icon: ImageVector,
+    iconResId: Int,
     contentDescription: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
@@ -108,7 +110,8 @@ private fun RowScope.BrowserBottomBarAction(
         Box(
             modifier =
                 Modifier
-                    .size(46.dp)
+                    .size(WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP.dp)
+                    .clip(CircleShape)
                     .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
                     .semantics(mergeDescendants = true) {
                         this.contentDescription = contentDescription
@@ -117,9 +120,9 @@ private fun RowScope.BrowserBottomBarAction(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = icon,
+                painter = painterResource(iconResId),
                 contentDescription = null,
-                modifier = Modifier.size(25.dp),
+                modifier = Modifier.size(WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP.dp),
             )
         }
     }
@@ -138,7 +141,7 @@ private fun RowScope.BrowserBottomBarTabAction(
         Box(
             modifier =
                 Modifier
-                    .size(46.dp)
+                    .size(WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP.dp)
                     .clickable(role = Role.Button, onClick = onClick)
                     .semantics(mergeDescendants = true) {
                         this.contentDescription = contentDescription
@@ -158,22 +161,22 @@ internal fun WebSessionBrowserWindowCountIcon(
 ) {
     val displayCount = if (count > 99) "99+" else count.coerceAtLeast(0).toString()
     val contentColor = LocalContentColor.current
-    Surface(
-        modifier = modifier.size(width = 23.dp, height = 21.dp),
-        shape = RoundedCornerShape(3.dp),
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = contentColor,
-        border = BorderStroke(1.7.dp, contentColor),
+    val countShape = RoundedCornerShape(1.75.dp)
+    Box(
+        modifier =
+            modifier
+                .size(20.dp)
+                .clip(countShape)
+                .border(1.75.dp, contentColor, countShape),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = displayCount,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = if (displayCount.length > 2) 7.sp else 9.sp,
-                lineHeight = if (displayCount.length > 2) 7.sp else 9.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-            )
-        }
+        Text(
+            text = displayCount,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = if (displayCount.length > 2) 7.sp else 9.sp,
+            lineHeight = if (displayCount.length > 2) 7.sp else 9.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
     }
 }

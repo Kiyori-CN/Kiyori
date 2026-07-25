@@ -123,19 +123,6 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             }
         }
 
-    fun browserSettingsState(): BrowserRuntimeSettingsState =
-        tools.runOnMainSync {
-            BrowserRuntimeSettingsState(
-                defaultProfile = tools.defaultSessionProfile,
-                incognitoAvailability = tools.profileManager.incognitoAvailability,
-                isDesktopMode = StandardBrowserSessionTools.desktopModeEnabled,
-            )
-        }
-
-    fun setDesktopMode(enabled: Boolean) {
-        tools.setDesktopModeEnabled(enabled)
-    }
-
     fun openUrlInNewSession(
         url: String,
         profile: WebSessionProfile,
@@ -178,10 +165,4 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 internal data class BrowserNewSessionProfileState(
     val defaultProfile: WebSessionProfile,
     val incognitoAvailability: WebSessionIncognitoAvailability,
-)
-
-internal data class BrowserRuntimeSettingsState(
-    val defaultProfile: WebSessionProfile,
-    val incognitoAvailability: WebSessionIncognitoAvailability,
-    val isDesktopMode: Boolean,
 )

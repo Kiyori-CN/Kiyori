@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.compose.ui.graphics.Color
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import org.junit.Assert.assertEquals
@@ -20,6 +21,19 @@ class KiyoriSoftwareHomeSearchTest {
         assertEquals(544, KIYORI_HOME_COMPACT_MAX_WIDTH_DP)
         assertEquals(584, KIYORI_HOME_MEDIUM_MAX_WIDTH_DP)
         assertEquals(624, KIYORI_HOME_EXPANDED_MAX_WIDTH_DP)
+        assertEquals(1, KIYORI_HOME_SEARCH_FRAME_STROKE_WIDTH_DP)
+        assertEquals(
+            listOf(
+                Color(0xFF54C878),
+                Color(0xFF45B9D4),
+                Color(0xFF8277DA),
+                Color(0xFFF09A6C),
+                Color(0xFF54C878),
+            ),
+            KIYORI_HOME_SEARCH_FRAME_GRADIENT_COLORS,
+        )
+        assertEquals(Color(0xFF2F6FED), KIYORI_HOME_SELECTED_LIGHT_COLOR)
+        assertEquals(Color(0xFF79A7FF), KIYORI_HOME_SELECTED_DARK_COLOR)
     }
 
     @Test

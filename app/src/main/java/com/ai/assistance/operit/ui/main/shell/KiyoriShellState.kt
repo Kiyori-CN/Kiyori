@@ -33,18 +33,11 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
-    BROWSER_SETTINGS,
-    BROWSER_SEARCH_HISTORY,
 }
 
 enum class AiDrawerSelectionEffect {
     CLOSE_ONLY,
     REPLACE_PRIMARY,
-}
-
-enum class AiSettingsEntrySource {
-    AI_DRAWER,
-    KIYORI_SETTINGS,
 }
 
 enum class AiTopBarMode {
@@ -131,26 +124,14 @@ data class KiyoriShellState(
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =
         copy(child = destination, isAiDrawerOpen = false)
 
-    fun closeChild(): KiyoriShellState =
-        when (child) {
-            KiyoriShellChild.BROWSER_SEARCH_HISTORY ->
-                copy(child = KiyoriShellChild.BROWSER_SETTINGS)
-            KiyoriShellChild.FULL_SCREEN_WEB_SEARCH,
-            KiyoriShellChild.BROWSER_SETTINGS,
-            null -> copy(child = null)
-        }
+    fun closeChild(): KiyoriShellState = copy(child = null)
 
     fun openAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = true)
 
     fun closeAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = false)
 
-    fun returnFromAiSettings(source: AiSettingsEntrySource): KiyoriShellState =
-        when (source) {
-            AiSettingsEntrySource.AI_DRAWER ->
-                showSoftwareHomePage(SoftwareHomePage.AI_HOME)
-            AiSettingsEntrySource.KIYORI_SETTINGS ->
-                selectPrimary(PrimaryDestination.SETTINGS_HOME)
-        }
+    fun returnFromKiyoriAiSettings(): KiyoriShellState =
+        selectPrimary(PrimaryDestination.SETTINGS_HOME)
 
     fun handleBack(): KiyoriShellBackTransition =
         when {
@@ -185,18 +166,6 @@ data class KiyoriShellState(
                     result = KiyoriShellBackResult.REQUEST_EXIT,
                 )
         }
-}
-
-internal fun KiyoriShellState.openExternalChild(
-    destination: KiyoriShellChild,
-): KiyoriShellState {
-    val owner =
-        when (destination) {
-            KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
-            KiyoriShellChild.BROWSER_SETTINGS,
-            KiyoriShellChild.BROWSER_SEARCH_HISTORY -> PrimaryDestination.SETTINGS_HOME
-        }
-    return selectPrimary(owner).openChild(destination)
 }
 
 internal fun resolveAiDrawerSelection(

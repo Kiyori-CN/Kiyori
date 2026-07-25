@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
 import android.net.Uri
-import android.graphics.Color as AndroidColor
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -41,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -72,6 +72,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowser
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserUserAgent
+import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import java.util.Locale
 import kotlinx.coroutines.delay
 
@@ -101,7 +102,6 @@ internal fun WebSessionBrowserScreen(
     onRequestTabThumbnails: () -> Unit,
     onTopBarBack: () -> Unit,
     onOpenAiDialogue: () -> Unit,
-    onOpenBrowserSettings: () -> Unit,
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: (WebSessionProfile) -> Unit,
@@ -211,12 +211,13 @@ internal fun WebSessionBrowserScreen(
         mutableStateOf(browserState.pendingDialog?.defaultValue.orEmpty())
     }
 
-    BoxWithConstraints(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-    ) {
+    KiyoriBrowserTheme {
+        BoxWithConstraints(
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+        ) {
         val chromeLayout =
             resolveWebSessionBrowserChromeLayout(
                 widthDp = maxWidth.value,
@@ -316,6 +317,7 @@ internal fun WebSessionBrowserScreen(
                         }
                     }
                 } else {
+                    val browserHostBackgroundColor = MaterialTheme.colorScheme.background.toArgb()
                     Box(
                         modifier =
                             Modifier
@@ -326,11 +328,12 @@ internal fun WebSessionBrowserScreen(
                         AndroidView(
                             factory = { context ->
                                 FrameLayout(context).apply {
-                                    setBackgroundColor(AndroidColor.WHITE)
+                                    setBackgroundColor(browserHostBackgroundColor)
                                     webViewHost.attachContainer(this)
                                 }
                             },
                             update = { container ->
+                                container.setBackgroundColor(browserHostBackgroundColor)
                                 webViewHost.attachContainer(container)
                             },
                             onRelease = { container ->
@@ -541,10 +544,6 @@ internal fun WebSessionBrowserScreen(
                         onExitBrowser()
                     },
                     onCollapse = dismissSheet,
-                    onOpenBrowserSettings = {
-                        dismissSheet()
-                        onOpenBrowserSettings()
-                    },
                 )
             }
             if (mountedDrawerRoute.isBrowserChildDrawerRoute()) {
@@ -645,6 +644,7 @@ internal fun WebSessionBrowserScreen(
                     onHandlePendingDialog(false, null)
                 }
             )
+        }
         }
     }
 }
@@ -854,8 +854,8 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.NONE,
         WebSessionBrowserSheetRoute.TABS,
         WebSessionBrowserSheetRoute.MENU -> Unit
+        }
     }
-}
 
 @Composable
 private fun ExternalOpenPromptBar(

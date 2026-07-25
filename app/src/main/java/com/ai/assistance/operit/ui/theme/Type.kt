@@ -7,36 +7,31 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toFile
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import java.io.File
 
-// Set of Material typography styles to start with
-val Typography = Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+private val Material3Typography = Typography()
+
+val Typography =
+    Typography(
+        displayLarge = Material3Typography.displayLarge.copy(letterSpacing = 0.sp),
+        displayMedium = Material3Typography.displayMedium.copy(letterSpacing = 0.sp),
+        displaySmall = Material3Typography.displaySmall.copy(letterSpacing = 0.sp),
+        headlineLarge = Material3Typography.headlineLarge.copy(letterSpacing = 0.sp),
+        headlineMedium = Material3Typography.headlineMedium.copy(letterSpacing = 0.sp),
+        headlineSmall = Material3Typography.headlineSmall.copy(letterSpacing = 0.sp),
+        titleLarge = Material3Typography.titleLarge.copy(letterSpacing = 0.sp),
+        titleMedium = Material3Typography.titleMedium.copy(letterSpacing = 0.sp),
+        titleSmall = Material3Typography.titleSmall.copy(letterSpacing = 0.sp),
+        bodyLarge = Material3Typography.bodyLarge.copy(letterSpacing = 0.sp),
+        bodyMedium = Material3Typography.bodyMedium.copy(letterSpacing = 0.sp),
+        bodySmall = Material3Typography.bodySmall.copy(letterSpacing = 0.sp),
+        labelLarge = Material3Typography.labelLarge.copy(letterSpacing = 0.sp),
+        labelMedium = Material3Typography.labelMedium.copy(letterSpacing = 0.sp),
+        labelSmall = Material3Typography.labelSmall.copy(letterSpacing = 0.sp),
     )
-)
 
 /**
  * 根据系统字体名称获取 FontFamily

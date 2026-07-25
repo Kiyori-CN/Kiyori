@@ -67,7 +67,7 @@ kiyori_browser_product_completion/
 | 新窗口默认 Profile | Browser Runtime | 无痕按钮改变 | `browser_tabs list` 可观察 |
 | 历史、书签和搜索记录 | `WebSessionHistoryStore` | 浏览器、负一屏和全屏页复用 | 浏览器工具不复制存储 |
 | 下载任务 | `BrowserDownloadManager` | 浏览器抽屉和全屏下载中心复用 | 下载事件进入浏览器结果 |
-| 浏览器设置 | 新的 browser settings store | 设置页和浏览器菜单复用 | 只通过明确能力读取或修改 |
+| 浏览器运行偏好 | 既有搜索、历史、Profile 与 UA owner | 浏览器主流程继续使用；专用设置页待重新设计 | 只通过明确能力读取或修改 |
 | 播放会话 | 后续唯一 player session | 全屏、悬浮和浏览器共用 | 后续 capability adapter 操作 |
 
 ## 全局交互合同
@@ -85,7 +85,7 @@ kiyori_browser_product_completion/
 1. [DONE] P0：悬浮浏览器系统 Back、状态栏背景和人工窗口 AI 接管；本地实现、定向测试与 Debug APK 已完成，真机验收待用户执行
 2. [DONE] P0：软件首页与全屏搜索已接入共享 Browser Runtime，本地测试与 Debug APK 已验证，真机视觉和输入法待验收；真无痕窗口模型属于下一独立里程碑
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
-4. [DONE] P1：设置主页与唯一浏览器设置；本地实现、定向测试与 Debug APK 已完成，真机视觉、Back 和 overlay 拉起待用户验收
+4. [SUPERSEDED] P1：曾完成设置主页与唯一浏览器设置；该浏览器设置页面、路由、Intent 和页面专用逻辑已在专业主题第七阶段删除，第四行设置按钮原样保留为空占位，后续另行设计
 5. P1：下载中心与文件下载器设置
 6. P1：负一屏与四行菜单真实能力
 7. P2：媒体 Intent、播放器、嗅探和悬浮播放

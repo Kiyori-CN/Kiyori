@@ -666,31 +666,27 @@ fun ClassicChatInputSection(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Send button (发送按钮) - 确保圆形
+                val isVoiceAction = !showCancelAction && !showQueueAction && !canSendMessage
+                val semanticActionBackground =
+                    when {
+                        showCancelAction -> MaterialTheme.colorScheme.error
+                        showQueueAction -> MaterialTheme.colorScheme.tertiary
+                        isOverTokenLimit -> MaterialTheme.colorScheme.secondary
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+
+                // Idle voice is a peer tool action; only send/cancel/queue receives a filled container.
                 Box(
                     modifier =
                     Modifier
                         .size(36.dp)
-                        .clip(CircleShape)
-                        .background(
-                            when {
-                                showCancelAction ->
-                                    MaterialTheme
-                                        .colorScheme
-                                        .error
-                                showQueueAction ->
-                                    MaterialTheme.colorScheme.tertiary
-
-                                canSendMessage ->
-                                    if (isOverTokenLimit)
-                                        MaterialTheme.colorScheme.secondary // Warning color
-                                    else
-                                        MaterialTheme.colorScheme.primary
-
-                                else ->
-                                    MaterialTheme
-                                        .colorScheme
-                                        .primary
+                        .then(
+                            if (isVoiceAction) {
+                                Modifier
+                            } else {
+                                Modifier
+                                    .clip(CircleShape)
+                                    .background(semanticActionBackground)
                             }
                         )
                         .clickable(
@@ -739,7 +735,7 @@ fun ClassicChatInputSection(
                                 else
                                     MaterialTheme.colorScheme.onPrimary
 
-                            else -> MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     Icon(
                         imageVector =

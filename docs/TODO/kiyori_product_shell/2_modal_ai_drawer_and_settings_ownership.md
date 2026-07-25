@@ -36,7 +36,7 @@ baseline: e42bd44f
 - 面板内容只处理水平与底部安全区，不重复加入状态栏顶部 inset
 - 左侧两角为直角，右上与右下为 `16dp` 圆角
 - 遮罩使用主题暗色约 `32%` 不透明度，并保留抽屉边缘阴影
-- 使用共享 Operit 主题，不恢复抽屉专属玻璃、背景色、强调色或持久化偏好
+- 使用共享 `OperitTheme` 的组件视觉语言，默认色板遵守 [专业浏览器灰白默认主题](../../doc-src/decisions/0007_professional_browser_theme.md)，不恢复抽屉专属玻璃、背景色、强调色或持久化偏好
 
 ## 导航与状态合同
 
@@ -49,8 +49,8 @@ baseline: e42bd44f
 - AI 一级页面各自保留滚动、筛选、表单和子页面栈
 - 原生 AI 一级根使用稳定宿主实例并保留状态；ToolPkg 根每次进入创建新路由实例，只有其 `RouteSpec.keepAlive=true` 时才保留组合状态和已保存子栈
 - AI 一级页面 Back 返回 AI Home；深层页面 Back 返回所属一级页面
-- AI 设置从抽屉进入时作为 AI 一级页面，Back 返回 AI Home；从 Kiyori 设置进入时显示返回箭头，Back 返回 Kiyori 设置首页
-- AI 设置只有一份页面、表单、滚动与持久状态。同一来源族内可以恢复子页面栈；在 AI 抽屉来源族与 Kiyori 设置之间切换时始终打开 AI 设置根页，避免沿用另一来源的深层返回路径
+- AI 设置从抽屉进入时作为 AI 一级页面，Back 返回 AI Home；从 Kiyori 设置首页进入时显示返回语义并返回设置首页
+- AI 设置只有一份页面、表单与持久状态；同来源族可恢复自己的子页面栈，跨来源族始终从 AI 设置根页开始
 
 ## 系统栏合同
 
@@ -69,12 +69,12 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 2. [已完成] 删除全屏页面、状态、来源枚举和七套 AI Center 字符串
 3. [已完成] 建立无手势模态容器、响应式宽度和分隔铰链约束
 4. [已完成] 从 `ScreenRouteRegistry` 与 ToolPkg 目录生成抽屉入口，恢复原版状态头部、快捷卡、列表、图标和插件顺序
-5. [已完成] 建立一级页面替换、独立状态栈、当前入口关闭、AI 设置来源返回和动作入口单次执行
+5. [已完成] 建立一级页面替换、独立状态栈、当前入口关闭、AI 设置返回 AI Home 和动作入口单次执行
 6. [已完成] 保持 AI Home 持续组合并补充纯状态测试
 7. [已完成] 顺序执行授权的 Debug 门禁、测试、lint 和构建，记录新 APK 元数据
 8. [已完成] 保留真机 `verification_pending` 清单
 9. [已完成] 为 AI 一级根写入显式入口 ID，统一四类外部导航匹配并建立菜单/返回模式解析
-10. [已完成] 修正 AI 设置跨来源子栈，保留共享页面状态但强制从根页开始
+10. [已完成] AI 设置使用抽屉与 Kiyori 设置两类明确来源；同来源族保留子栈，跨来源族打开根页
 11. [已完成] 统一 Kiyori Shell 透明状态栏并删除冲突的旧设置、偏好和字符串
 12. [已完成] 重新执行授权的 Debug 验证序列并更新 APK 证据；真机项目继续见下方 `verification_pending`
 13. [已完成] 首页三页共享 Pager 输入与 fling，删除 AI 覆盖层阈值跳转
@@ -83,13 +83,13 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 
 ## 自动验收
 
-- `KiyoriShellStateTest` 覆盖抽屉 Back 优先级、响应式宽度、一级页面替换、当前入口关闭和 AI 设置来源返回
+- `KiyoriShellStateTest` 覆盖抽屉 Back 优先级、响应式宽度、一级页面替换、当前入口关闭和 AI 设置返回 AI Home
 - 源码不存在全屏 AI Center 页面、路由来源、状态或当前字符串
 - 源码不存在 `PhoneLayout`、`TabletLayout`、全局 `draggable`、`drawerProgress` 或页面透视变换的重新接入
 - ToolPkg 动态入口 route ID、注册协议与顺序保持不变
 - 原生一级根固定宿主实例；ToolPkg 根每次进入生成新实例，只有 `keepAlive=true` 恢复组合状态和子栈
 - 启动、快捷方式、raw route 与 `AppRouterGateway` 对同一宿主根路由使用一致的显式匹配；插件仍要求参数完全匹配
-- 自动状态测试覆盖 AI 根菜单、深层返回、Kiyori Settings 来源返回和 AI Settings 跨来源根页重置
+- 自动状态测试覆盖 AI 根菜单、深层返回、AI 一级栈恢复和 `RouteEntrySource.KIYORI_SETTINGS` 的返回语义
 - 源码不存在 `statusBarTransparent`、`useCustomStatusBarColor` 或 `customStatusBarColor` 的设置与持久化
 - 无模型配置或 API Key 时 AI Home 仍显示聊天内容区和输入框；源码不存在强制替换 AI Home 的配置整页、`shouldShowConfigDialog` 或 `CHAT_ONBOARDING` 路由
 - 普通模型与参数配置页的 Back 不经过 API Key readiness guard，缺少凭据不会阻塞离开页面

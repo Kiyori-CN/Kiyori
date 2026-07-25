@@ -7,7 +7,7 @@ status: completed
 ## 设计来源优先级
 
 1. 当前 Kiyori 产品合同决定 Browser Runtime、App Shell、Back 和人与 AI 共用语义。
-2. Operit 原版主题决定颜色、排版、形状、图标、surface 层级和交互密度。
+2. Operit 原版决定语义颜色角色的使用方式、排版、形状、图标、surface 层级和交互密度；默认色板值遵守 [专业浏览器灰白默认主题](../../doc-src/decisions/0007_professional_browser_theme.md)。
 3. `kiyori-android@24a2dfa9` 决定浏览器页面组成、底栏顺序、标签总览和工具菜单的信息架构。
 
 旧项目代码只读。复制布局意图时必须删除 Activity、X5、硬编码主题和页面私有数据 owner 的假设。
@@ -16,7 +16,7 @@ status: completed
 
 | 旧源 | 可迁移布局 | 当前目标 | 刻意差异 |
 | --- | --- | --- | --- |
-| `browser/ui/BrowserBottomBar.kt` | 后退、前进、主页、窗口数、工具箱 | `ui/features/websession/browser/chrome/WebSessionBrowserBottomBar.kt` | 使用 Operit 主题与 Material 图标；窗口数对应共享标签总数 |
+| `browser/ui/BrowserBottomBar.kt` | 后退、前进、主页、窗口数、工具箱 | `ui/features/websession/browser/chrome/WebSessionBrowserBottomBar.kt` | 使用共享 `OperitTheme`、Kiyori 默认色板与 Material 图标；窗口数对应共享标签总数 |
 | `browser/ui/BrowserScreen.kt` | 页面分层、全屏窗口页、覆盖层 Back 顺序 | `WebSessionBrowserScreen.kt` 与 `chrome/` 子包 | 不迁移媒体、无痕、预览、X5 或 Activity 状态 |
 | `BrowserWindowPage` | 顶部标题、卡片网格、底部返回/新建/清理 | `chrome/WebSessionBrowserTabOverview.kt` | 卡片不伪造网页截图；直接观察现有 tabs 投影 |
 | `browser/ui/BrowserToolboxSheet.kt` | 五列网格、底部三动作区 | `chrome/WebSessionBrowserMenuDrawer.kt` | 主菜单固定四行；关闭窗口动作只保留在窗口总览 |

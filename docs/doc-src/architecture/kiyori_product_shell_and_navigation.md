@@ -1,7 +1,7 @@
 ---
 status: accepted_design
 implementation: partial
-last_updated: 2026-07-24
+last_updated: 2026-07-26
 ---
 
 # Kiyori 产品壳与导航架构
@@ -12,10 +12,10 @@ last_updated: 2026-07-24
 
 - Kiyori App Shell 已成为唯一顶层导航 owner，并持有五个根目的地、三页首页 Pager、底栏可见性与 Shell Back 状态
 - AI 对话作为稳定宿主挂入右侧 AI 首页；按钮触发的模态 AI 左抽屉已经取代全屏 AI Center
-- AI 一级根的显式身份、外部入口菜单/返回解析、AI Settings 跨来源根页重置和全局透明状态栏已接受设计，代码与新 Debug 证据待本轮落地
+- AI 一级根的显式身份、外部入口菜单/返回解析和全局透明状态栏已落地；AI Settings 由模态 AI 抽屉和设置首页进入同一页面，并按入口来源返回
 - 旧手机抽屉、平板侧栏、边缘拖动、主内容透视变换、全局手势状态和抽屉专属主题设置已删除
-- 全屏网页搜索、负一屏及小程序/文件/设置根页面当前为接线骨架；浏览器首页已接入共享 WebSession，并完成沉浸式浏览器底栏、标签总览与三态底部抽屉
-- 模态 AI 左抽屉、AI 一级路由替换和 AI 设置来源返回已实现并通过自动验证；真机交互保持 `verification_pending`，权限总览与状态徽标尚未完成
+- 全屏网页搜索已经接入共享 Browser Runtime；负一屏、文件管理和设置根页面按固定旧版提交完成静态复刻，小程序根页面仍是接线骨架
+- 模态 AI 左抽屉、AI 一级路由替换和 AI 设置双来源返回已实现并通过自动验证；真机交互保持 `verification_pending`，权限总览与状态徽标尚未完成
 - 自动检查不能证明真机手势、Back、旋转、折叠屏或流式对话持续性，以上保持 `verification_pending`
 
 稳定术语以根目录 [CONTEXT.md](../../../CONTEXT.md) 为准。产品定位决策见 [Kiyori 产品定位与 Operit AI 边界](../decisions/0001_kiyori_product_positioning.md)，当前导航决策见 [模态 AI 左抽屉导航](../decisions/0004_modal_ai_drawer_navigation.md)，视觉规则见 [UI 设计来源层级](../decisions/0003_ui_design_source_hierarchy.md)。
@@ -25,7 +25,7 @@ last_updated: 2026-07-24
 Kiyori 不建立与 AI 页面割裂的第二套视觉系统。来源层级固定为：
 
 1. 当前已接受的 Kiyori 产品合同决定功能行为、页面归属和导航语义。
-2. [AAswordman/Operit@ef00abc5](https://github.com/AAswordman/Operit/tree/ef00abc5099187b4665957e9697cb743c81fa154) 决定视觉语言，包括主题 token、排版、形状、图标处理、动效、弹窗、设置行、液态玻璃与水波玻璃组件。
+2. [AAswordman/Operit@ef00abc5](https://github.com/AAswordman/Operit/tree/ef00abc5099187b4665957e9697cb743c81fa154) 决定视觉语言，包括主题 token 的使用方式、排版、形状、图标处理、动效、弹窗、设置行、液态玻璃与水波玻璃组件；默认 token 值由 [专业浏览器灰白默认主题](../decisions/0007_professional_browser_theme.md) 决定。
 3. [Kiyori-CN/kiyori-android@24a2dfa9](https://github.com/Kiyori-CN/kiyori-android/tree/24a2dfa91f0a4166dc58e5c4732d11861173f766) 决定 Kiyori 自有页面的结构、功能布局和浏览器交互基线。
 
 当旧 Kiyori 页面存在硬编码颜色、圆角或其他独立样式时，保留其信息结构，使用 Operit 视觉组件重新表达。两份参考仓库都不是本项目的运行依赖。
@@ -74,12 +74,11 @@ Kiyori App Shell/
 │   ├── 全屏标签总览
 │   └── 浏览器底部抽屉
 ├── 小程序首页/
-├── 文件管理首页/
-└── 设置首页/
-    └── AI 设置
+├── 文件管理首页/（固定布局，实际存储容量，其余空动作）
+└── 设置首页/（固定布局，AI 设置入口，其余空动作）
 ```
 
-模态 AI 抽屉和设置首页进入的是同一个 AI 设置页面与持久状态。来源只决定根页面 Back 返回 AI 首页还是 Kiyori 设置首页。
+AI 设置由模态 AI 抽屉或设置首页进入同一页面与持久状态。从抽屉进入时作为 AI 一级页面返回 AI 首页；从设置首页进入时显示返回语义并回到设置首页。跨来源进入时从 AI 设置根页开始，不恢复另一来源的深层子页。
 
 ## 顶层状态模型
 
@@ -147,7 +146,7 @@ Kiyori App Shell/
 
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
-软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openUrlInNewSession` 在唯一 Browser Runtime 中创建并激活新 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时白底黑字提示。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openUrlInNewSession` 在唯一 Browser Runtime 中创建并激活新 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
 
 同一时间存活的无痕窗口共享一个唯一命名的 AndroidX Profile 代际。关闭最后一个无痕窗口后，Browser Runtime 销毁 WebView、清理 Cookie、WebStorage 和定位授权，并立即退休代际；下一段无痕会话创建全新代际。AndroidX 禁止在同一进程删除已加载 Profile，因此启动清理会在下一次冷启动、任何 Kiyori 无痕 Profile 加载前物理删除全部退休代际。窗口总览的缩略图固定为 `320×512`，使用两个方向的最小缩放值居中绘制完整当前 WebView 视口；UI 以 `5:8` 纵向比例和 `ContentScale.Fit` 显示，不裁切网页。
 
@@ -181,11 +180,11 @@ AI 首页只承担对话主界面，不再承担 Operit 应用壳。即使当前
 - 设备能力授权：Android 运行时权限、文件访问、Shizuku、无障碍、悬浮窗、电池优化豁免、Root 和调试能力，由 Kiyori 系统安全设置持有状态
 - AI 工具授权：`ALLOW`、`ASK`、`FORBID` 及单工具例外，由 AI 设置持有状态
 
-抽屉“权限”快捷卡直接进入 `Screen.ShizukuCommands`。Kiyori 设置中的权限入口进入权限总览，AI 设置中的 AI 工具授权进入 `Screen.ToolPermission` 并继续由 `ToolPermissionSystem` 持有状态。三者不复制或混合持久状态。
+抽屉“权限”快捷卡直接进入 `Screen.ShizukuCommands`。AI 设置中的 AI 工具授权进入 `Screen.ToolPermission` 并继续由 `ToolPermissionSystem` 持有状态。权限中心仍是系统设置目标，但当前静态设置首页没有导航到它；这些领域不复制或混合持久状态。
 
 ### 权限中心合同
 
-Kiyori 设置首页进入权限中心。权限中心是系统级的状态汇总与导航页，不是第三套权限存储；抽屉“权限”高频卡片仍按已确认合同直接进入 `Screen.ShizukuCommands`。
+权限中心的目标仍是系统级状态汇总与导航页，不是第三套权限存储；当前静态设置首页尚未接入该页面。抽屉“权限”高频卡片继续按已确认合同直接进入 `Screen.ShizukuCommands`。
 
 当前源码和已接受的安全合同涉及四类能力。前两类已有实现，后两类仍处于设计阶段：
 
@@ -261,7 +260,8 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 - 每个 AI 一级页面保留自己的滚动、筛选、表单和子页面栈
 - 宿主一级根使用稳定实例并保存子栈。ToolPkg 一级根每次进入创建新路由实例；只有对应 `RouteSpec.keepAlive=true` 时，`stableScreenKey` 和保存栈才跨抽屉切换保留
 - AI 一级页面 Back 返回 AI Home，深层页面 Back 返回所属一级页面
-- AI 设置从抽屉进入时属于 AI 一级页面，从 Kiyori 设置进入时返回 Kiyori 设置首页；两种来源共享同一页面、表单、滚动与持久状态，同来源族可恢复子栈，跨来源族始终打开 AI 设置根页
+- AI 设置从抽屉进入时属于 AI 一级页面，根页面 Back 返回 AI 首页；从 Kiyori 设置首页进入时使用 `RouteEntrySource.KIYORI_SETTINGS`，显示返回语义并返回设置首页
+- AI 设置只有一份页面、表单和持久状态；同来源族可恢复自己的子页面栈，跨来源族进入时从 AI 设置根页开始
 - 窗口尺寸或折叠姿态变化只改变抽屉宽度，不创建新页面实例，也不重置当前页面状态
 
 ### 原版左抽屉映射
@@ -289,7 +289,7 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 
 ### 视觉与组件合同
 
-- 沿用 Operit 的主题 token、字体层级、图标、选中态、状态徽标、分隔线和交互密度
+- 沿用 Operit 对语义主题 token 的使用方式、字体层级、图标、选中态、状态徽标、分隔线和交互密度；默认 token 值遵守 [专业浏览器灰白默认主题](../decisions/0007_professional_browser_theme.md)
 - 模块状态区显示“Operit AI”，不再由 `softwareIdentity` 决定 Kiyori 应用品牌
 - 保留包数量、权限状态、工作流数量和动态插件入口，不把可操作状态退化为静态按钮
 - 使用原版纵向滚动层级；AI 设置固定在底部安全区上方，不随长列表消失
@@ -301,7 +301,7 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 - 不保留原 `PhoneLayout` 对右侧主内容施加的水平与垂直位移、`0.92` 缩放、`-7°` Y 轴旋转、`24dp` 动态圆角和 `18dp` 动态阴影
 - 底层页面保持原尺寸、原坐标、正面朝向、圆角与不透明度，继续渲染但不接收触摸
 - 不恢复原 `drawerProgress`、`contentTranslationX`、`contentTranslationY`、`contentScale`、`contentRotationY`、`contentCornerRadius` 或 `contentShadowElevation`
-- 抽屉专属水玻璃、按钮玻璃、背景色和强调色偏好保持删除；模态抽屉直接使用共享 Operit 主题 token
+- 抽屉专属水玻璃、按钮玻璃、背景色和强调色偏好保持删除；模态抽屉直接使用共享 `OperitTheme`，其默认 token 值遵守 [专业浏览器灰白默认主题](../decisions/0007_professional_browser_theme.md)
 
 Terminal 不是这次抽屉迁移的对象。第一阶段保留 AI 首页右上角 Terminal 按钮，不在抽屉、文件管理首页或开发者设置新增入口。未来若增加入口，所有入口必须指向同一 Terminal 页面、会话与持久状态。
 
@@ -313,16 +313,22 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 ## 负一屏
 
-负一屏首期参考旧 `HomeMinusOnePage.kt`、`HomeMinusOneSections.kt` 和 `HomeMinusOneData.kt`。基础数据入口固定包含：
+负一屏按固定提交中的 `HomeMinusOnePage.kt`、`HomeMinusOneSections.kt` 和 `HomeMinusOneData.kt` 静态复刻。基础数据卡固定包含：
 
 - 收藏
 - 书签
 - 历史
 - 下载
 
-旧参考还包含新版、手册、版本、搜索、工具箱、清理、备份和退出等快捷工具。当前建议首期不展示这组快捷工具：其中多个入口尚无 Kiyori 页面或已迁入其他明确位置，提前展示会形成重复入口或无效按钮。后续只把已有稳定 owner 和真实页面的高频动作加入快捷区。
+四张数据卡的计数当前固定为 `0`。快捷工具完整保留新版、手册、版本、搜索、工具箱、清理、备份和退出，所有数据卡、快捷工具和顶栏关闭按钮均为空动作，不读取浏览器或文件状态。
 
-“收藏”与“书签”必须定义为不同数据域。当前建议“书签”专指浏览器 URL 书签，“收藏”作为视频、音乐、小说和其他内容对象的跨内容收藏入口；在收藏数据模型建立前不展示虚假计数。
+“收藏”与“书签”未来仍必须定义为不同数据域；在 owner 和数据模型建立前，静态页不会展示虚假动态计数。
+
+## 文件管理与设置首页静态合同
+
+文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，其余按钮为空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。
+
+设置首页使用固定 `#F5F5F2` 背景、四个旧版 PNG 顶栏图标和四张白色 `16dp` 圆角卡片。卡片不绘制外描边，内部保留细分隔线。四组分别包含 `4/4/4/4` 个入口，共 16 项；第一张卡首项“AI 设置”进入现有唯一 AI 设置根页，其余入口和顶栏动作均为空，不进入浏览器设置、权限中心或其他领域页面。
 
 ## 设置所有权
 
@@ -337,6 +343,8 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 | 产品发行、帮助与关于 | 对话策略和 AI 用量信息 |
 
 每项设置只允许一个持久化 owner。另一个页面只能通过导航进入 owner 页面，不能维护镜像开关或重复偏好。
+
+当前设置首页只增加通往既有 AI owner 页的导航，不复制 AI 设置状态，也不为其他空入口提前建立导航或持久化 owner。
 
 权限中心横跨两列做状态汇总，但不改变这张 owner 表。其设备能力使用 Kiyori 系统安全设置的状态，AI 工具授权使用 AI 设置中的既有工具权限状态。
 
@@ -403,7 +411,7 @@ AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3
 - `BrowserTopBar` 与 `BrowserUrlDropdownOverlay` 的地址输入、搜索引擎和搜索记录
 - 历史、书签、窗口预览、下载、网页权限、媒体识别和播放器交接
 
-迁移时保留状态和交互语义，视觉层改用 Operit 原版主题与组件。包名、Activity 宿主、依赖和 Kiyori Capability API 需要按本仓库边界接入，不能把旧工程整体作为模块引用。
+迁移时保留状态和交互语义，组件、形状、排版、图标与动效改用 Operit 原版视觉语言，默认色板遵守 [专业浏览器灰白默认主题](../decisions/0007_professional_browser_theme.md)。包名、Activity 宿主、依赖和 Kiyori Capability API 需要按本仓库边界接入，不能把旧工程整体作为模块引用。
 
 首期内核固定为 `android.webkit.WebView` 与设备 WebView provider，不引入旧项目的 X5/TBS。原因是当前 WebSession 与 AI 自动化都基于 Android WebView 类型和回调；并行接入 X5 会产生第二套内核、Cookie 与事件状态。旧项目的窗口、搜索、历史、权限与媒体行为继续作为 source-port 合同，内核实现不随页面一起复制。
 
@@ -426,14 +434,13 @@ AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3
 - `app/src/main/java/com/android/kiyori/app/ui/HomeLandingPage.kt`
 - `app/src/main/java/com/android/kiyori/app/ui/HomeLandingSearch.kt`
 
-可复用的是三页空间关系、AI 根页面稳定挂载、底栏随 Pager 隐藏、搜索与 AI 双按钮、负一屏数据结构和浏览器状态语义。包名、Activity 组织、旧页面的独立视觉样式和 Operit replica 宿主不是本仓库的目标架构。
+可复用的是三页空间关系、AI 根页面稳定挂载、底栏随 Pager 隐藏、搜索与 AI 双按钮、浏览器状态语义，以及负一屏、文件管理和设置首页的固定视觉布局。包名、Activity 组织和 Operit replica 宿主不是本仓库的目标架构。
 
 ## 待决策
 
 - R2 与 R3 是否采用结构化单次确认合同，删除泛化的“始终允许”操作
 - 预测性返回和输入法展开时的手势规则；浏览器首期 Back 顺序已确定为对话框、外部确认、sheet、地址编辑、网页历史、浏览器根页面
 - 全屏网页搜索的建议来源与搜索记录展示
-- 是否接受负一屏首期只展示四个基础数据入口，以及“收藏”为跨内容收藏、“书签”为网页书签的定义
 - Terminal 是否在未来增加第二入口
 
 这些问题进入 [产品壳 TODO](../../TODO/kiyori_product_shell/index.md)，达成共识后再更新本文。

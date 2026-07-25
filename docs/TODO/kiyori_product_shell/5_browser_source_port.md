@@ -46,7 +46,7 @@ source_commit: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 1. 为每个源文件记录目标文件、保留行为和刻意差异。
 2. 保留浏览窗口稳定 ID、活动窗口、无痕状态和页面预览语义。
 3. 保留网址规范化、搜索引擎、网页权限、外部 scheme 和下载安全策略。
-4. 把旧硬编码主题替换为 Operit 原版主题 token 与共用组件。
+4. 把旧硬编码主题替换为 Operit 原版的语义 token 使用方式与共用组件，默认 token 值遵守 [专业浏览器灰白默认主题](../../doc-src/decisions/0007_professional_browser_theme.md)。
 5. 接入 Kiyori App Shell、Back 契约和窗口自适应状态。
 6. 给浏览器状态与命令建立 Kiyori Capability API，不让 AI 直接调用页面组件。
 7. 对照源行为完成后，删除不属于当前仓库边界的旧宿主代码。

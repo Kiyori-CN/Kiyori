@@ -16,8 +16,10 @@ Kiyori 尚未正式发布，因此不需要为首期临时界面保留并行入�
 - `PrimaryDestination.BROWSER_HOME` 仍是 App Shell 根目的地，但呈现为沉浸式浏览器根。
 - Browser Home 隐藏 Kiyori 五项全局底栏并删除对应底部高度预留。
 - 浏览器专属底栏固定为后退、前进、主页、标签页和工具箱。
+- 浏览器底栏的五等分图标中心是 App Shell 五按钮的对齐基准；菜单第四行三个动作占同一五槽坐标中的第 `1/3/5` 槽。
+- 普通顶栏与全屏搜索顶部区域使用相同的外边距、左右单按钮槽、搜索框宽度和 `42dp` 高度；搜索框背景与外部 chrome 背景一致。
 - 标签页打开浏览器内全屏标签总览；工具箱和历史、收藏、下载、Userscripts 使用浏览器底部抽屉。
-- 浏览器 UI 主要采用 `kiyori-android@24a2dfa9` 的布局和信息架构，视觉使用 Operit 原版主题。
+- 浏览器 UI 主要采用 `kiyori-android@24a2dfa9` 的布局和信息架构，组件、形状、排版、图标与动效使用 Operit 原版视觉语言，默认色板遵守 [专业浏览器灰白默认主题](0007_professional_browser_theme.md)。
 - 完整全屏搜索页、搜索记录、无痕窗口、窗口预览、X5/TBS、媒体嗅探和播放器交接不进入本决策的实现范围。
 - App Shell、Browser Home、overlay 和 AI 工具继续共享 `StandardBrowserSessionTools`、活动 WebView、Cookie、历史、收藏、下载和 Userscripts。
 - 标签总览和抽屉是 presentation 瞬态状态，不能成为业务 owner，也不能触发 WebView reload 或重建。

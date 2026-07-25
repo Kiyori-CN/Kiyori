@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-07-22
+updated: 2026-07-26
 ---
 
 # Kiyori 产品定位与 Operit AI 边界
@@ -26,7 +27,7 @@ Kiyori 从 Operit 源码建立新的独立项目。项目需要长期吸收 Oper
 - 后续上游同步需要区分 AI 内部能力和 Operit 应用壳变更
 - 新页面必须明确属于 Kiyori 系统、内容域或 AI 子模块
 - 全局语言、产品级主题和其他跨域设置迁入 Kiyori 系统设置
-- AI 设置只保留 AI 专属配置，并从模态 AI 抽屉与设置首页进入同一页面和持久状态
+- AI 设置只保留 AI 专属配置；模态 AI 抽屉与 Kiyori 设置首页进入同一页面和持久状态，入口来源只决定根页面 Back 返回 AI 首页还是设置首页
 - 不实施全局 `Operit` 到 `Kiyori` 字符串或包名替换
 
 ## 相关资料

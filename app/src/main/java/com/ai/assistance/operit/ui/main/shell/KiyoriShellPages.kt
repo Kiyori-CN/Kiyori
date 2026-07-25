@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,34 +32,23 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Dehaze
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Grain
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -81,8 +72,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -91,6 +82,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -109,6 +101,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_CENTER_ICON_SIZE_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserWindowCountIcon
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherRepository
@@ -121,7 +119,8 @@ import kotlinx.coroutines.launch
 private data class PrimaryDestinationVisual(
     val destination: PrimaryDestination,
     val labelResId: Int,
-    val icon: ImageVector,
+    val iconResId: Int,
+    val iconSizeDp: Int = WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP,
 )
 
 private val primaryDestinationVisuals =
@@ -129,27 +128,28 @@ private val primaryDestinationVisuals =
         PrimaryDestinationVisual(
             PrimaryDestination.SOFTWARE_HOME,
             R.string.kiyori_shell_software_home,
-            Icons.Default.Home,
+            R.drawable.ic_kiyori_nav_home,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.BROWSER_HOME,
             R.string.kiyori_shell_browser_home,
-            Icons.Default.Language,
+            R.drawable.ic_kiyori_nav_globe,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.MINI_APP_HOME,
             R.string.kiyori_shell_mini_app_home,
-            Icons.Default.Apps,
+            R.drawable.ic_kiyori_nav_apps,
+            WEB_SESSION_BROWSER_BOTTOM_CENTER_ICON_SIZE_DP,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.FILE_MANAGEMENT_HOME,
             R.string.kiyori_shell_file_management_home,
-            Icons.Default.Folder,
+            R.drawable.ic_kiyori_nav_folder,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.SETTINGS_HOME,
             R.string.kiyori_shell_settings_home,
-            Icons.Default.Settings,
+            R.drawable.ic_kiyori_tool_settings,
         ),
     )
 
@@ -305,6 +305,17 @@ internal const val KIYORI_HOME_EXPANDED_HORIZONTAL_PADDING_DP = 72
 internal const val KIYORI_HOME_COMPACT_MAX_WIDTH_DP = 544
 internal const val KIYORI_HOME_MEDIUM_MAX_WIDTH_DP = 584
 internal const val KIYORI_HOME_EXPANDED_MAX_WIDTH_DP = 624
+internal const val KIYORI_HOME_SEARCH_FRAME_STROKE_WIDTH_DP = 1
+internal val KIYORI_HOME_SEARCH_FRAME_GRADIENT_COLORS =
+    listOf(
+        Color(0xFF54C878),
+        Color(0xFF45B9D4),
+        Color(0xFF8277DA),
+        Color(0xFFF09A6C),
+        Color(0xFF54C878),
+    )
+internal val KIYORI_HOME_SELECTED_LIGHT_COLOR = Color(0xFF2F6FED)
+internal val KIYORI_HOME_SELECTED_DARK_COLOR = Color(0xFF79A7FF)
 
 internal fun resolveKiyoriSoftwareHomeLayout(widthDp: Float): KiyoriSoftwareHomeLayout =
     when {
@@ -562,9 +573,9 @@ private fun KiyoriSearchAiSegmentOption(
 ) {
     val selectedColor =
         if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-            Color(0xFF79A7FF)
+            KIYORI_HOME_SELECTED_DARK_COLOR
         } else {
-            Color(0xFF2F6FED)
+            KIYORI_HOME_SELECTED_LIGHT_COLOR
         }
     val contentColor by
         animateColorAsState(
@@ -756,15 +767,7 @@ private fun kiyoriWeatherIcon(visual: KiyoriWeatherVisual): ImageVector =
 
 private fun Modifier.kiyoriGradientSearchFrame(): Modifier =
     drawWithCache {
-        val gradientColors =
-            listOf(
-                Color(0xFF54C878),
-                Color(0xFF45B9D4),
-                Color(0xFF8277DA),
-                Color(0xFFF09A6C),
-                Color(0xFF54C878),
-            )
-        val strokeWidth = 1.dp.toPx()
+        val strokeWidth = KIYORI_HOME_SEARCH_FRAME_STROKE_WIDTH_DP.dp.toPx()
         val frameInset = strokeWidth / 2f
         val cornerRadius = 18.dp.toPx() - frameInset
         val frameSize =
@@ -773,7 +776,7 @@ private fun Modifier.kiyoriGradientSearchFrame(): Modifier =
                 height = size.height - frameInset * 2f,
             )
         val frameTopLeft = Offset(frameInset, frameInset)
-        val borderBrush = Brush.linearGradient(gradientColors)
+        val borderBrush = Brush.linearGradient(KIYORI_HOME_SEARCH_FRAME_GRADIENT_COLORS)
 
         onDrawBehind {
             drawRoundRect(
@@ -787,86 +790,33 @@ private fun Modifier.kiyoriGradientSearchFrame(): Modifier =
     }
 
 @Composable
-internal fun KiyoriMinusOnePage() {
-    val entries =
-        listOf(
-            R.string.kiyori_shell_favorites to Icons.Default.Favorite,
-            R.string.kiyori_shell_bookmarks to Icons.Default.Bookmark,
-            R.string.kiyori_shell_history to Icons.Default.History,
-            R.string.kiyori_shell_downloads to Icons.Default.Download,
-        )
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 24.dp, vertical = 24.dp),
-    ) {
-        Spacer(modifier = Modifier.height(36.dp))
-        Text(
-            text = stringResource(R.string.kiyori_shell_minus_one),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        entries.chunked(2).forEach { rowEntries ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                rowEntries.forEach { (labelResId, icon) ->
-                    Surface(
-                        modifier = Modifier.weight(1f).height(88.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = stringResource(labelResId),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-    }
-}
-
-@Composable
 internal fun KiyoriPrimaryRootPage(
     destination: PrimaryDestination,
     onOpenAiSettings: () -> Unit,
-    onOpenBrowserSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val visual = primaryDestinationVisuals.single { item -> item.destination == destination }
-    if (destination == PrimaryDestination.SETTINGS_HOME) {
-        KiyoriSettingsHomePage(
-            title = stringResource(visual.labelResId),
-            onOpenAiSettings = onOpenAiSettings,
-            onOpenBrowserSettings = onOpenBrowserSettings,
-            modifier = modifier,
-        )
-        return
+    when (destination) {
+        PrimaryDestination.FILE_MANAGEMENT_HOME -> {
+            KiyoriFileManagementPage(modifier = modifier)
+            return
+        }
+        PrimaryDestination.SETTINGS_HOME -> {
+            KiyoriSettingsHomePage(
+                onOpenAiSettings = onOpenAiSettings,
+                modifier = modifier,
+            )
+            return
+        }
+        else -> Unit
     }
+    val visual = primaryDestinationVisuals.single { item -> item.destination == destination }
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.background).padding(bottom = 72.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector = visual.icon,
+                painter = painterResource(visual.iconResId),
                 contentDescription = null,
                 modifier = Modifier.size(36.dp),
                 tint = MaterialTheme.colorScheme.primary,
@@ -1019,23 +969,64 @@ internal fun KiyoriBottomNavigation(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        NavigationBar(
+        Surface(
             modifier = Modifier.fillMaxWidth().graphicsLayer { this.alpha = alpha },
-            containerColor = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
-            primaryDestinationVisuals.forEach { item ->
-                val label = stringResource(item.labelResId)
-                NavigationBarItem(
-                    selected = selectedDestination == item.destination,
-                    onClick = { onDestinationSelected(item.destination) },
-                    icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = label,
-                        )
-                    },
-                    alwaysShowLabel = false,
-                )
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(
+                            start = WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP.dp,
+                            top = WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP.dp,
+                            end = WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP.dp,
+                            bottom = WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP.dp,
+                        ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                primaryDestinationVisuals.forEach { item ->
+                    val label = stringResource(item.labelResId)
+                    val selected = selectedDestination == item.destination
+                    val interactionSource = remember(item.destination) { MutableInteractionSource() }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP.dp)
+                                    .clickable(
+                                        interactionSource = interactionSource,
+                                        indication = null,
+                                        role = Role.Button,
+                                        onClick = { onDestinationSelected(item.destination) },
+                                    )
+                                    .semantics(mergeDescendants = true) {
+                                        contentDescription = label
+                                        role = Role.Button
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(item.iconResId),
+                                contentDescription = null,
+                                modifier = Modifier.size(item.iconSizeDp.dp),
+                                tint =
+                                    if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                            )
+                        }
+                    }
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-07-22
+updated: 2026-07-26
 supersedes: 0002_product_shell_and_ai_center_navigation.md
 ---
 
@@ -25,11 +26,11 @@ supersedes: 0002_product_shell_and_ai_center_navigation.md
 - AI 一级页面保留各自的页面状态与子栈。一级页面显示三横线，深层页面显示返回箭头；一级页面 Back 返回 AI 首页，深层页面 Back 返回所属一级页面。
 - 原生一级根使用稳定实例。ToolPkg 一级根每次进入生成新路由实例，只有对应路由声明 `keepAlive=true` 时才恢复组合状态和保存子栈。
 - AI 一级根在路由条目上显式保存注册入口 ID。宿主入口按 route ID 匹配，ToolPkg 插件入口按 route ID 和注册参数匹配；不得通过 route args、返回栈深度或 instance ID 前缀猜测根归属。启动、快捷方式、raw route 与 `AppRouterGateway` 共用这一规则。
-- AI 设置保持单一页面、表单、滚动与持久状态。从 AI 抽屉进入时属于 AI 一级页面，从 Kiyori 设置进入时返回 Kiyori 设置首页；同来源族可恢复深层子栈，跨来源族进入时必须打开 AI 设置根页。
+- AI 设置保持单一页面、表单与持久状态。从 AI 抽屉进入时属于 AI 一级页面，根页面 Back 返回 AI 首页；从 Kiyori 设置首页进入时显示返回语义并回到设置首页。同来源族可恢复自己的子页面栈，跨来源族进入时必须打开 AI 设置根页。
 - `Screen.ShizukuCommands`、Kiyori 权限总览和 `ToolPermissionSystem` 继续是三个不同的页面与状态 owner，不互相复制。
 - AI Home 保持单一、稳定的组合宿主。打开或关闭抽屉、切换 AI 一级页面都不能暂停、取消、销毁或重建其流式回答、思考、工具调用、附件、草稿、会话和滚动状态。
 - 三页首页与 AI Home 覆盖层共享一个 Pager 状态和 fling 行为；移动跟随手指，新手势可以立即中断尚未完成的 fling，Shell 状态在页面 settle 后更新。
-- 抽屉直接使用共享 Operit 主题。不得恢复抽屉专属玻璃、背景色、强调色或持久化偏好。
+- 抽屉直接使用共享 `OperitTheme` 的组件视觉语言，默认色板遵守 [专业浏览器灰白默认主题](0007_professional_browser_theme.md)。不得恢复抽屉专属玻璃、背景色、强调色或持久化偏好。
 - Kiyori 页面使用同一 edge-to-edge 状态栏：页面背景和抽屉遮罩延伸至物理顶边，抽屉面板从状态栏底部开始，显示中的状态栏保持透明。删除继承的透明状态栏和自定义状态栏颜色设置及偏好，只保留隐藏状态栏。
 
 ## 影响

@@ -31,7 +31,6 @@ import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
-import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.AppLogger
 import java.util.LinkedHashSet
 import java.util.Locale
@@ -751,22 +750,6 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
 
         override fun onCopyPageSource() {
             StandardBrowserSessionTools.browserHost?.copyPageSourceToClipboard()
-        }
-
-        override fun onOpenBrowserSettings() {
-            runOnMainSync<Unit> {
-                setExpandedOnMain(false)
-            }
-            context.startActivity(
-                Intent(context, MainActivity::class.java).apply {
-                    action = MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS
-                    addFlags(
-                        Intent.FLAG_ACTIVITY_NEW_TASK or
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
-                    )
-                },
-            )
         }
 
         override fun onOpenUserscripts() {

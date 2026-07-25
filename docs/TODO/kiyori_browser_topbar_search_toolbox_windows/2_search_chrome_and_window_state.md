@@ -11,7 +11,8 @@ Browser Runtime 与 presentation state 必须分开：
 计划新增或调整的 presentation 字段：
 
 - `sheetRoute` 增加 `PLACEHOLDER`
-- `placeholderPage`：悬浮嗅探、浏览器工具箱、无痕、阅读、标记广告、网站配置、浏览器设置
+- `placeholderPage`：悬浮嗅探、浏览器工具箱、无痕、阅读、标记广告、网站配置
+- 浏览器设置按钮保留在第四行原位置并使用原图标，当前点击为空，不打开说明页
 - `windowMode`：`NORMAL`、`INCOGNITO`
 - 现有 `isSearchVisible`、`searchDraft`、`isSearchEnginePanelVisible`、`pageSource`
 - Host 继续通过 `appPresentationActive` 区分 `APP_SHELL` 与 `OVERLAY`；不把 owner 写入 AI 协议

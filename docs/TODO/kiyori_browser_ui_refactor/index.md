@@ -12,7 +12,7 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 
 本轮把 Browser Home 从“WebSession 浏览器加 Kiyori 五项全局底栏”改为完整的浏览器根页面。进入底部第二项后，Kiyori 五项全局底栏隐藏，浏览器地址栏、网页区域、浏览器专属底栏、标签总览和工具抽屉构成同一套浏览器界面。
 
-页面结构主要参考 `D:/10_Project/kiyori-android` 的浏览器布局，参考提交固定为 `24a2dfa91f0a4166dc58e5c4732d11861173f766`。视觉继续使用 Operit 原版主题 token、排版、颜色、形状和图标语言，不复制旧项目的硬编码白色主题、Activity 宿主、X5 类型或页面私有状态。
+页面结构主要参考 `D:/10_Project/kiyori-android` 的浏览器布局，参考提交固定为 `24a2dfa91f0a4166dc58e5c4732d11861173f766`。视觉继续使用 Operit 原版的语义 token 使用方式、排版和形状，默认 token 值遵守 [专业浏览器灰白默认主题](../../doc-src/decisions/0007_professional_browser_theme.md)；App Shell 底栏、浏览器底栏和浏览器四行菜单采用该参考提交的 Kiyori 空心描边 Vector 与几何，不复制旧项目的硬编码白色主题、Activity 宿主、X5 类型或页面私有状态。
 
 ## 已确认基线
 

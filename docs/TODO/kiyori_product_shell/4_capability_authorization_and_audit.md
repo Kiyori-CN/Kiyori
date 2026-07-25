@@ -51,7 +51,7 @@ status: design_required
 
 ## 推荐的结构化确认合同
 
-当前 `PermissionRequestOverlay` 主要展示操作描述、工具名称和参数，并提供拒绝、允许、始终允许。Kiyori 保留 Operit 的主题、排版和组件处理，但 R2 与 R3 需要由结构化请求驱动，不能继续依赖一段自由文本或原始参数决定用户看到的风险信息。
+当前 `PermissionRequestOverlay` 主要展示操作描述、工具名称和参数，并提供拒绝、允许、始终允许。Kiyori 保留 Operit 对语义 token 的使用方式、排版和组件处理，默认色板遵守 [专业浏览器灰白默认主题](../../doc-src/decisions/0007_professional_browser_theme.md)，但 R2 与 R3 需要由结构化请求驱动，不能继续依赖一段自由文本或原始参数决定用户看到的风险信息。
 
 每个确认请求至少包含：
 

@@ -38,8 +38,8 @@ private fun ThemeSettingsInterfaceColorPanel(
     onShowSaveSuccessMessage: () -> Unit,
 ) {
     val preferencesManager = shared.preferencesManager
-    val defaultPrimaryColor = Color.Magenta.toArgb()
-    val defaultSecondaryColor = Color.Blue.toArgb()
+    val defaultPrimaryColor = MaterialTheme.colorScheme.primary.toArgb()
+    val defaultSecondaryColor = MaterialTheme.colorScheme.secondary.toArgb()
     val defaultAppBarColor = MaterialTheme.colorScheme.surface.toArgb()
     val defaultHeaderIconColor = Color.Gray.toArgb()
 
