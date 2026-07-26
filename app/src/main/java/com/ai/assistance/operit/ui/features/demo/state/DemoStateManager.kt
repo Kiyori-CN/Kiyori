@@ -28,8 +28,17 @@ import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.core.tools.system.Terminal
 import com.ai.assistance.operit.data.mcp.plugins.MCPSharedSession
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.terminal.TerminalEnvironmentContract
 
 private const val TAG = "DemoStateManager"
+
+private suspend fun checkNodejsToolchainReady(terminal: Terminal, sessionId: String): Boolean {
+    val output = terminal.executeCommand(
+        sessionId,
+        TerminalEnvironmentContract.NODE_TOOLCHAIN_CHECK_COMMAND
+    )
+    return TerminalEnvironmentContract.isNodeToolchainReady(output)
+}
 
 /**
  * Consolidated state management for the demo screens. Handles state initialization, updates, and
@@ -283,9 +292,8 @@ class DemoStateManager(private val context: Context, private val coroutineScope:
 
             val terminal = Terminal.getInstance(context)
             
-            // 检查pnpm安装状态
-            val pnpmResult = terminal.executeCommand(sessionId, "command -v pnpm")
-            isPnpmInstalled.value = pnpmResult != null && pnpmResult.contains("pnpm")
+            // pnpm 状态代表 Node.js、pnpm 和 TypeScript 三项均可实际执行。
+            isPnpmInstalled.value = checkNodejsToolchainReady(terminal, sessionId)
             
             // 检查python安装状态
             val pythonResult = terminal.executeCommand(sessionId, "command -v python")
@@ -365,8 +373,7 @@ suspend fun refreshPermissionsAndStatus(
         val sessionId = MCPSharedSession.getOrCreateSharedSession(context)
         if (sessionId != null) {
             val terminal = Terminal.getInstance(context)
-            val pnpmResult = terminal.executeCommand(sessionId, "command -v pnpm")
-            val isPnpmInstalled = pnpmResult != null && pnpmResult.contains("pnpm")
+            val isPnpmInstalled = checkNodejsToolchainReady(terminal, sessionId)
             
             val pythonResult = terminal.executeCommand(sessionId, "command -v python")
             var hasPython = pythonResult != null && (pythonResult.contains("python") || pythonResult.contains("/python"))

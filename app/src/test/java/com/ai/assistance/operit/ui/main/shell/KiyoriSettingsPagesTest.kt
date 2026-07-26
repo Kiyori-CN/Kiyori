@@ -154,6 +154,11 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals("12MB", formatBrowserDownloadChunkSize(12288))
         assertEquals("256KB", formatBrowserDownloadChunkSize(256))
+        assertEquals(13, KIYORI_DOWNLOAD_SELECTION_HEADER_VERTICAL_PADDING_DP)
+        assertEquals(10, KIYORI_DOWNLOAD_SELECTION_OPTION_VERTICAL_PADDING_DP)
+        assertEquals(44, KIYORI_DOWNLOAD_SELECTION_OPTION_MIN_HEIGHT_DP)
+        assertEquals(20, KIYORI_DOWNLOAD_SELECTION_CHECK_ICON_SIZE_DP)
+        assertEquals(13, KIYORI_DOWNLOAD_SELECTION_CANCEL_VERTICAL_PADDING_DP)
     }
 
     @Test

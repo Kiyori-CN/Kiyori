@@ -424,7 +424,7 @@ class BrowserDownloadTransportTest {
             config =
                 BrowserDownloadTransportConfig(
                     maxConcurrentTasks = 3,
-                    normalThreadCount = 4,
+                    normalThreadCount = 6,
                     m3u8ThreadCount = 16,
                     chunkSizeKb = DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB,
                     enableHttp2 = enableHttp2,

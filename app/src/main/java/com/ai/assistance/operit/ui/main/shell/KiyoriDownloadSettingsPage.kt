@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_CHUNK_SIZE_KB_OPTIONS
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_M3U8_THREAD_OPTIONS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
@@ -75,6 +77,11 @@ internal enum class KiyoriDownloadSettingsAction {
 }
 
 internal const val KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE = "文件下载器设置"
+internal const val KIYORI_DOWNLOAD_SELECTION_HEADER_VERTICAL_PADDING_DP = 13
+internal const val KIYORI_DOWNLOAD_SELECTION_OPTION_VERTICAL_PADDING_DP = 10
+internal const val KIYORI_DOWNLOAD_SELECTION_OPTION_MIN_HEIGHT_DP = 44
+internal const val KIYORI_DOWNLOAD_SELECTION_CHECK_ICON_SIZE_DP = 20
+internal const val KIYORI_DOWNLOAD_SELECTION_CANCEL_VERTICAL_PADDING_DP = 13
 
 internal data class KiyoriDownloadSettingsEntrySpec(
     val title: String,
@@ -231,13 +238,17 @@ internal fun KiyoriDownloadSettingsPage(
                                     title = "同时下载任务数",
                                     currentValue = settings.maxConcurrentTasks.toString(),
                                     options =
-                                        (1..maxConcurrentTasksLimit).map { value ->
-                                            KiyoriDownloadSettingsSelectionOption(
-                                                label = value.toString(),
-                                                selected = settings.maxConcurrentTasks == value,
-                                                onSelect = { settingsStore.setMaxConcurrentTasks(value) },
-                                            )
-                                        },
+                                        BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS
+                                            .filter { value -> value <= maxConcurrentTasksLimit }
+                                            .map { value ->
+                                                KiyoriDownloadSettingsSelectionOption(
+                                                    label = value.toString(),
+                                                    selected = settings.maxConcurrentTasks == value,
+                                                    onSelect = {
+                                                        settingsStore.setMaxConcurrentTasks(value)
+                                                    },
+                                                )
+                                            },
                                 )
                         }
                         KiyoriDownloadSettingsAction.SELECT_NORMAL_THREAD_COUNT ->
@@ -510,7 +521,13 @@ private fun KiyoriDownloadSettingsSelectionSheet(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 24.dp,
+                            vertical = KIYORI_DOWNLOAD_SELECTION_HEADER_VERTICAL_PADDING_DP.dp,
+                        ),
             )
             HorizontalDivider(color = Color(0xFFEFEFEF))
             selection.options.forEach { option ->
@@ -518,8 +535,12 @@ private fun KiyoriDownloadSettingsSelectionSheet(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .heightIn(min = KIYORI_DOWNLOAD_SELECTION_OPTION_MIN_HEIGHT_DP.dp)
                             .clickable { onSelect(option) }
-                            .padding(horizontal = 22.dp, vertical = 14.dp),
+                            .padding(
+                                horizontal = 22.dp,
+                                vertical = KIYORI_DOWNLOAD_SELECTION_OPTION_VERTICAL_PADDING_DP.dp,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(option.label, fontSize = 14.sp, modifier = Modifier.weight(1f))
@@ -527,7 +548,8 @@ private fun KiyoriDownloadSettingsSelectionSheet(
                         Icon(
                             Icons.Rounded.Check,
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp),
+                            modifier =
+                                Modifier.size(KIYORI_DOWNLOAD_SELECTION_CHECK_ICON_SIZE_DP.dp),
                         )
                     }
                 }
@@ -541,7 +563,9 @@ private fun KiyoriDownloadSettingsSelectionSheet(
                     Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onDismiss)
-                        .padding(vertical = 16.dp),
+                        .padding(
+                            vertical = KIYORI_DOWNLOAD_SELECTION_CANCEL_VERTICAL_PADDING_DP.dp,
+                        ),
             )
         }
     }

@@ -32,7 +32,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
@@ -306,6 +306,9 @@ internal const val KIYORI_HOME_COMPACT_MAX_WIDTH_DP = 544
 internal const val KIYORI_HOME_MEDIUM_MAX_WIDTH_DP = 584
 internal const val KIYORI_HOME_EXPANDED_MAX_WIDTH_DP = 624
 internal const val KIYORI_HOME_SEARCH_FRAME_STROKE_WIDTH_DP = 1
+internal const val KIYORI_HOME_TOOL_ICON_SIZE_DP = 20
+internal const val KIYORI_HOME_ATTACHMENT_ICON_SIZE_DP = 24
+internal const val KIYORI_HOME_ATTACHMENT_ICON_ALPHA = 0.9f
 internal val KIYORI_HOME_SEARCH_FRAME_GRADIENT_COLORS =
     listOf(
         Color(0xFF54C878),
@@ -499,9 +502,11 @@ private fun KiyoriHomeSearchFrame(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                     KiyoriHomeToolButton(
-                        icon = Icons.Default.AttachFile,
+                        icon = Icons.Default.Add,
                         contentDescription = stringResource(R.string.add_attachment),
                         onClick = { onAiQuickAction(AiHomeQuickAction.OPEN_ATTACHMENTS) },
+                        iconSizeDp = KIYORI_HOME_ATTACHMENT_ICON_SIZE_DP,
+                        tintAlpha = KIYORI_HOME_ATTACHMENT_ICON_ALPHA,
                     )
                     KiyoriHomeToolButton(
                         icon = Icons.Default.Mic,
@@ -632,6 +637,8 @@ private fun KiyoriHomeToolButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    iconSizeDp: Int = KIYORI_HOME_TOOL_ICON_SIZE_DP,
+    tintAlpha: Float = 1f,
 ) {
     Box(
         modifier =
@@ -643,8 +650,8 @@ private fun KiyoriHomeToolButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(iconSizeDp.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = tintAlpha),
         )
     }
 }

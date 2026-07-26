@@ -24,6 +24,8 @@ RUNTIME_ARTIFACT_PATTERNS = (
     ".venv/",
     "local.properties",
 )
+LEGACY_TERMINAL_BANNER_MARKER = "| |_| | |_) |  __/ |   | | |_"
+EXPECTED_TERMINAL_BANNER_TEXT = "Kiyori Ubuntu environment on Android"
 
 
 def git(root: Path, *args: str) -> str:
@@ -111,6 +113,34 @@ def check_visible_branding(root: Path, errors: list[str]) -> None:
             index = text.find(token)
             if index >= 0 and '"' in text[max(0, text.rfind("\n", 0, index) + 1):index]:
                 errors.append(f"{path.relative_to(root)}:{line_number(text, index)} contains a visible legacy brand {token}")
+
+    terminal_output = (
+        root
+        / "terminal"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "ai"
+        / "assistance"
+        / "operit"
+        / "terminal"
+        / "view"
+        / "domain"
+        / "OutputProcessor.kt"
+    )
+    if terminal_output.is_file():
+        text = terminal_output.read_text(encoding="utf-8")
+        legacy_index = text.find(LEGACY_TERMINAL_BANNER_MARKER)
+        if legacy_index >= 0:
+            errors.append(
+                f"{terminal_output.relative_to(root)}:{line_number(text, legacy_index)} "
+                "contains the visible legacy Operit ASCII banner"
+            )
+        if EXPECTED_TERMINAL_BANNER_TEXT not in text:
+            errors.append(
+                f"{terminal_output.relative_to(root)} must identify the visible Ubuntu environment as Kiyori"
+            )
 
 
 def check_runtime_urls(root: Path, errors: list[str]) -> None:

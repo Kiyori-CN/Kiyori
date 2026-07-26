@@ -193,7 +193,7 @@ class BrowserDownloadM3u8RuntimeTest {
         BrowserDownloadTransport(
             BrowserDownloadTransportConfig(
                 maxConcurrentTasks = 1,
-                normalThreadCount = 1,
+                normalThreadCount = 3,
                 m3u8ThreadCount = 3,
                 chunkSizeKb = DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB,
                 enableHttp2 = true,

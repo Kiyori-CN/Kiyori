@@ -8,6 +8,7 @@
 - 首页直接复用 `ic_kiyori_app_icon`、`MaterialTheme` 和 24dp 搜索 surface，没有引入独立色板或无 owner 的相机、语音、附件入口
 - `KiyoriFullScreenWebSearchPage` 复用 `WebSessionBrowserSearchScreen`、`WebSessionHistoryStore` 与 `BrowserAddressResolver`；搜索引擎、记录、删除和清空都与 Browser Home 观察同一数据
 - `BrowserPresentationCoordinator.openUrlInNewSession` 通过同一 `StandardBrowserSessionTools` 创建并激活新 WebSession，首页提交不会覆盖当前窗口，AI 无需额外同步即可发现该 session
+- 搜索框右下角附件入口使用 AI 首页默认 Agent 输入栏同一 `Icons.Default.Add` 与 `24dp` 图标尺寸；点击仍通过既有一次性动作进入同一附件面板
 - 搜索页进入时自动聚焦；返回会先关闭搜索引擎面板；空输入不产生窗口或记录；提交后 Shell 以 Software Home 为返回目标进入 Browser Home
 - App Shell 使用淡入与轻微上移动画显示搜索页，Home Pager 和 AI Home 保持原有 composition/state
 - 无痕按钮不在本阶段伪造；它将在第三里程碑与 AndroidX WebKit Multi-Profile、默认新窗口 Profile 和设备支持判断同时启用

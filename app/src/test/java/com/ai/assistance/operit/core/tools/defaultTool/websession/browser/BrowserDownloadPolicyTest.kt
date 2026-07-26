@@ -57,37 +57,40 @@ class BrowserDownloadPolicyTest {
 
     @Test
     fun `segment thread count honors range support and one MiB minimum`() {
-        assertEquals(1, resolveBrowserDownloadSegmentThreadCount(-1L, false, 8))
-        assertEquals(1, resolveBrowserDownloadSegmentThreadCount(64L * 1024L * 1024L, false, 8))
-        assertEquals(1, resolveBrowserDownloadSegmentThreadCount(2L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES - 1L, true, 8))
-        assertEquals(2, resolveBrowserDownloadSegmentThreadCount(2L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 8))
-        assertEquals(4, resolveBrowserDownloadSegmentThreadCount(7L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 8))
-        assertEquals(8, resolveBrowserDownloadSegmentThreadCount(8L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 8))
-        assertEquals(2, resolveBrowserDownloadSegmentThreadCount(64L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 2))
+        assertEquals(1, resolveBrowserDownloadSegmentThreadCount(-1L, false, 6))
+        assertEquals(1, resolveBrowserDownloadSegmentThreadCount(64L * 1024L * 1024L, false, 6))
+        assertEquals(1, resolveBrowserDownloadSegmentThreadCount(2L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES - 1L, true, 6))
+        assertEquals(2, resolveBrowserDownloadSegmentThreadCount(2L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 6))
+        assertEquals(6, resolveBrowserDownloadSegmentThreadCount(7L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 6))
+        assertEquals(12, resolveBrowserDownloadSegmentThreadCount(12L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 12))
+        assertEquals(3, resolveBrowserDownloadSegmentThreadCount(64L * MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES, true, 3))
     }
 
     @Test
     fun `download setting value sets are strict`() {
         assertTrue(isSupportedBrowserDownloadConcurrency(1))
-        assertTrue(isSupportedBrowserDownloadConcurrency(4))
+        assertTrue(isSupportedBrowserDownloadConcurrency(8))
         assertFalse(isSupportedBrowserDownloadConcurrency(0))
-        assertFalse(isSupportedBrowserDownloadConcurrency(5))
-        assertEquals(listOf(1, 2, 4, 8), BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS)
+        assertFalse(isSupportedBrowserDownloadConcurrency(9))
+        assertEquals((1..8).toList(), BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS)
+        assertEquals(listOf(3, 6, 12, 20, 32), BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS)
         assertEquals(listOf(3, 8, 16, 20, 32, 48, 64), BROWSER_DOWNLOAD_M3U8_THREAD_OPTIONS)
         assertEquals(
             listOf(12288, 8192, 4096, 2048, 1024, 512, 256),
             BROWSER_DOWNLOAD_CHUNK_SIZE_KB_OPTIONS,
         )
-        assertFalse(isSupportedBrowserDownloadSegmentThreadCount(3))
+        assertTrue(isSupportedBrowserDownloadSegmentThreadCount(3))
+        assertFalse(isSupportedBrowserDownloadSegmentThreadCount(4))
         assertFalse(isSupportedBrowserDownloadM3u8ThreadCount(4))
         assertFalse(isSupportedBrowserDownloadChunkSizeKb(128))
     }
 
     @Test
-    fun `download settings default values and dynamic task limit match the legacy contract`() {
+    fun `download settings defaults and dynamic task limit match the refined contract`() {
         val settings = BrowserDownloadSettings()
 
         assertEquals(1, settings.version)
+        assertEquals(DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT, settings.segmentThreadCount)
         assertEquals(DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT, settings.m3u8ThreadCount)
         assertTrue(settings.autoMergeM3u8)
         assertFalse(settings.autoTransferToPublicDirectory)
@@ -95,16 +98,16 @@ class BrowserDownloadPolicyTest {
         assertFalse(settings.autoCleanApk)
         assertTrue(settings.enableHttp2)
         assertEquals(4, MAX_BROWSER_M3U8_VARIANT_DEPTH)
-        assertEquals(4, resolveBrowserDownloadMaxConcurrentTasksLimit(4, 16))
-        assertEquals(4, resolveBrowserDownloadMaxConcurrentTasksLimit(8, 20))
-        assertEquals(2, resolveBrowserDownloadMaxConcurrentTasksLimit(8, 64))
+        assertEquals(8, resolveBrowserDownloadMaxConcurrentTasksLimit(6, 16))
+        assertEquals(6, resolveBrowserDownloadMaxConcurrentTasksLimit(20, 20))
+        assertEquals(2, resolveBrowserDownloadMaxConcurrentTasksLimit(32, 64))
     }
 
     @Test
     fun `transport task concurrency respects frozen thread limits`() {
-        assertEquals(4, resolveBrowserDownloadTransportMaxConcurrentTasks(4, 4, 16))
-        assertEquals(2, resolveBrowserDownloadTransportMaxConcurrentTasks(4, 8, 64))
-        assertEquals(1, resolveBrowserDownloadTransportMaxConcurrentTasks(1, 1, 3))
+        assertEquals(8, resolveBrowserDownloadTransportMaxConcurrentTasks(8, 6, 16))
+        assertEquals(2, resolveBrowserDownloadTransportMaxConcurrentTasks(8, 32, 64))
+        assertEquals(1, resolveBrowserDownloadTransportMaxConcurrentTasks(1, 3, 3))
     }
 
     @Test

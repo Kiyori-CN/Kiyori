@@ -6,10 +6,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal const val BROWSER_DOWNLOAD_SETTINGS_VERSION = 1
-internal val BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS = listOf(1, 2, 4, 8)
+internal val BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS = (1..8).toList()
+internal val BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS = listOf(3, 6, 12, 20, 32)
 internal val BROWSER_DOWNLOAD_M3U8_THREAD_OPTIONS = listOf(3, 8, 16, 20, 32, 48, 64)
 internal val BROWSER_DOWNLOAD_CHUNK_SIZE_KB_OPTIONS =
     listOf(12288, 8192, 4096, 2048, 1024, 512, 256)
+internal const val DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT = 6
 internal const val DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT = 16
 internal const val DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB = 2048
 
@@ -31,7 +33,7 @@ internal data class BrowserDownloadSettings(
     val customDirectoryUri: String = "",
     val customDirectoryName: String = "",
     val maxConcurrentTasks: Int = 3,
-    val segmentThreadCount: Int = 4,
+    val segmentThreadCount: Int = DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT,
     val m3u8ThreadCount: Int = DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT,
     val autoMergeM3u8: Boolean = true,
     val autoTransferToPublicDirectory: Boolean = false,
@@ -119,12 +121,27 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         require(isSupportedBrowserDownloadSegmentThreadCount(value)) {
             "Unsupported browser download segment thread count: $value"
         }
+        // Persist the matching task limit with the per-task thread count so the store remains
+        // valid after restart and the transport never exceeds the shared 128-request budget.
+        val nextMaxConcurrentTasks =
+            minOf(
+                _state.value.maxConcurrentTasks,
+                resolveBrowserDownloadMaxConcurrentTasksLimit(
+                    normalThreadCount = value,
+                    m3u8ThreadCount = _state.value.m3u8ThreadCount,
+                ),
+            )
         preferences
             .edit()
             .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
             .putInt(KEY_SEGMENT_THREAD_COUNT, value)
+            .putInt(KEY_MAX_CONCURRENT_TASKS, nextMaxConcurrentTasks)
             .apply()
-        _state.value = _state.value.copy(segmentThreadCount = value)
+        _state.value =
+            _state.value.copy(
+                segmentThreadCount = value,
+                maxConcurrentTasks = nextMaxConcurrentTasks,
+            )
     }
 
     fun setM3u8ThreadCount(value: Int) {
@@ -260,7 +277,11 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                         "Browser download custom directory name preference is null"
                     }.trim(),
                 maxConcurrentTasks = preferences.getInt(KEY_MAX_CONCURRENT_TASKS, 3),
-                segmentThreadCount = preferences.getInt(KEY_SEGMENT_THREAD_COUNT, 4),
+                segmentThreadCount =
+                    preferences.getInt(
+                        KEY_SEGMENT_THREAD_COUNT,
+                        DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT,
+                    ),
                 m3u8ThreadCount =
                     preferences.getInt(
                         KEY_M3U8_THREAD_COUNT,
@@ -346,7 +367,8 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
     }
 }
 
-internal fun isSupportedBrowserDownloadConcurrency(value: Int): Boolean = value in 1..4
+internal fun isSupportedBrowserDownloadConcurrency(value: Int): Boolean =
+    value in BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS
 
 internal fun isSupportedBrowserDownloadSegmentThreadCount(value: Int): Boolean =
     value in BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS
@@ -367,5 +389,8 @@ internal fun resolveBrowserDownloadMaxConcurrentTasksLimit(
     require(isSupportedBrowserDownloadM3u8ThreadCount(m3u8ThreadCount)) {
         "Unsupported browser download M3U8 thread count: $m3u8ThreadCount"
     }
-    return minOf(4, 128 / maxOf(normalThreadCount, m3u8ThreadCount))
+    return minOf(
+        BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS.last(),
+        128 / maxOf(normalThreadCount, m3u8ThreadCount),
+    )
 }

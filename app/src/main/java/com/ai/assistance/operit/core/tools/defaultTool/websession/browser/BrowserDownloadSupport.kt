@@ -49,7 +49,6 @@ import org.json.JSONObject
 
 private const val DOWNLOAD_SUPPORT_TAG = "BrowserDownloadSupport"
 private const val BROWSER_DOWNLOAD_STATE_FILE = "browser_download_tasks.json"
-private const val DEFAULT_BROWSER_DOWNLOAD_THREADS = 4
 private const val DOWNLOAD_TYPE_HTTP = "http"
 internal const val MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES = 1024L * 1024L
 internal const val BROWSER_DOWNLOAD_APK_AUTO_CLEAN_DELAY_MILLIS = 90_000L
@@ -154,9 +153,7 @@ internal fun resolveBrowserDownloadSegmentThreadCount(
         return 1
     }
     val maximumSegmentsBySize = (totalBytes / MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES).coerceAtLeast(1L)
-    return BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS.last { option ->
-        option <= requestedThreadCount && option.toLong() <= maximumSegmentsBySize
-    }
+    return minOf(requestedThreadCount.toLong(), maximumSegmentsBySize).toInt()
 }
 
 internal fun resolveBrowserDownloadTransportMaxConcurrentTasks(
@@ -361,7 +358,11 @@ internal data class BrowserDownloadTaskRecord(
                 downloadedBytes = json.optLong("downloaded_bytes"),
                 speedBytesPerSecond = json.optLong("speed_bytes_per_second"),
                 supportsResume = json.optBoolean("supports_resume"),
-                threadCount = json.optInt("thread_count", DEFAULT_BROWSER_DOWNLOAD_THREADS),
+                threadCount =
+                    json.optInt(
+                        "thread_count",
+                        DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT,
+                    ),
                 m3u8ThreadCount =
                     json.optInt(
                         "m3u8_thread_count",

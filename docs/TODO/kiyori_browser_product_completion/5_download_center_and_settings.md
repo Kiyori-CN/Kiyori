@@ -11,7 +11,7 @@
 | 自定义下载器 | `DownloadRequestDispatcher`、下载中心新增任务 | 第三内部阶段接入同一 HTTP 请求入口；内置归 Kiyori manager，系统归 Android `DownloadManager` |
 | 自定义下载目录 | `InternalDownloadManager` 完成文件转存 | 第四内部阶段接入同一 settings/task owner；内置任务冻结 SAF 目标目录，系统下载器不消费该设置 |
 | 同时下载任务数 | `InternalDownloadManager.schedulePendingDownloads` | 第一内部阶段接入现有 `BrowserDownloadManager` |
-| 普通格式下载线程数 | HTTP Range 分段调度 | 第一内部阶段按当前 downloader 的 1/2/4/8 安全上限接入 |
+| 普通格式下载线程数 | HTTP Range 分段调度 | 已按用户确认收敛为 `3/6/12/20/32` 五档，默认 `6`；实际并发继续受文件大小与每段至少 `1 MiB` 约束 |
 | M3U8 下载线程数 | M3U8 分片 semaphore | 已接入同一 manager 的资源 semaphore 与设置 UI |
 | M3U8 自动合并 | M3U8 manifest 与本地包生成 | 已接入 playlist/companion runtime 与设置 UI |
 | 自动转存公开目录 | 下载完成转存 | 内置下载默认落应用下载目录；新任务启用后完成时转存 `Download/Kiyori/browser/downloads/`，与 SAF 目录互斥 |
@@ -268,6 +268,16 @@
 - 四组下载设置卡移除最外围描边，内部行、分隔线、选择面板、方形勾选框和十二项真实 consumer 保持不变
 - 共享容器统一 `14dp` 分组间距与 `28dp` 底部留白，作为后续 Kiyori 设置子页面的默认视觉基线
 - `KiyoriSettingsPagesTest` 锁定两页最终标题、展开/中间/吸顶三帧和折叠进度边界；真机滑动轨迹、字体缩放和横竖屏视觉仍需设备验收
+
+### 内部阶段 5-E5 下载选项与选择抽屉微调
+
+- “同时下载任务数”候选上限从 `4` 提升为 `8`。默认普通线程 `6` 与 M3U8 线程 `16` 对应完整 `1..8`；选择更高线程时仍按 `128 / max(normalThreads, m3u8Threads)` 同步收窄，最高上限改为 `8`
+- 普通格式线程候选严格为 `3/6/12/20/32`，默认 `6`；M3U8 候选继续保持 `3/8/16/20/32/48/64` 与默认 `16`
+- 普通线程和 M3U8 线程变化都在同一次设置写入中规范 `maxConcurrentTasks`，避免持久化组合在重启后违反 transport 的总请求预算
+- 普通 Range 的实际 semaphore permit 取所选线程数与 `totalBytes / 1 MiB` 的较小值；不支持 Range、未知长度或不足 `1 MiB` 时仍使用单线程
+- 选择抽屉标题与取消区垂直 padding 改为 `13dp`，选项为 `10dp` 且保持最小 `44dp` 点击高度，勾选图标改为 `20dp`；八项并发列表不再占用过高面板
+- 本轮只调整这些候选与选择抽屉密度，不改变 M3U8 下载算法、队列 owner、任务冻结、SAF、自动转存、APK 清理或系统下载器边界
+- 本地验证完成：五组定向 JVM 测试 `50/50`，Formal readiness 与 `git diff --check` 通过；`:app:assembleDebug` 完成 `230` 个任务。`app-debug.apk` 生成于 `2026-07-26 23:28:34 +08:00`，大小 `449493010` bytes，SHA-256 `425E2CE64C6262A0AFF8F16B43D13F395E5BF444FFAB34694F468D62E95DC556`，`com.kiyori 45/0.1.0`，Debug V2 签名及 16KB ZIP 对齐通过。设置抽屉密度、两个齿轮入口和首页加号仍需真机视觉与触摸验收
 
 ### 自问自答
 

@@ -22,6 +22,9 @@ class KiyoriSoftwareHomeSearchTest {
         assertEquals(584, KIYORI_HOME_MEDIUM_MAX_WIDTH_DP)
         assertEquals(624, KIYORI_HOME_EXPANDED_MAX_WIDTH_DP)
         assertEquals(1, KIYORI_HOME_SEARCH_FRAME_STROKE_WIDTH_DP)
+        assertEquals(20, KIYORI_HOME_TOOL_ICON_SIZE_DP)
+        assertEquals(24, KIYORI_HOME_ATTACHMENT_ICON_SIZE_DP)
+        assertEquals(0.9f, KIYORI_HOME_ATTACHMENT_ICON_ALPHA, 0f)
         assertEquals(
             listOf(
                 Color(0xFF54C878),

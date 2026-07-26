@@ -44,6 +44,44 @@ class FormalReadinessTest(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("visible legacy brand", errors[0])
 
+    def test_visible_legacy_terminal_ascii_banner_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = (
+                root
+                / "terminal/src/main/java/com/ai/assistance/operit/terminal/view/domain/OutputProcessor.kt"
+            )
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                'val banner = "| |_| | |_) |  __/ |   | | |_"\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+
+            check_visible_branding(root, errors)
+
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(any("legacy Operit ASCII banner" in error for error in errors))
+            self.assertTrue(any("must identify" in error for error in errors))
+
+    def test_kiyori_terminal_banner_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = (
+                root
+                / "terminal/src/main/java/com/ai/assistance/operit/terminal/view/domain/OutputProcessor.kt"
+            )
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                'val banner = "Kiyori Ubuntu environment on Android"\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+
+            check_visible_branding(root, errors)
+
+            self.assertEqual(errors, [])
+
     def test_upstream_runtime_url_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
