@@ -141,11 +141,33 @@ internal data class BrowserDownloadUiState(
     val selectedFilter: BrowserDownloadFilter = BrowserDownloadFilter.IN_PROGRESS
 )
 
+internal fun filterBrowserDownloadItems(
+    tasks: List<BrowserDownloadItem>,
+    filter: BrowserDownloadFilter,
+): List<BrowserDownloadItem> =
+    tasks.filter { item ->
+        when (filter) {
+            BrowserDownloadFilter.IN_PROGRESS ->
+                item.status in setOf("queued", "connecting", "downloading", "paused", "canceled")
+            BrowserDownloadFilter.COMPLETED -> item.status == "completed"
+            BrowserDownloadFilter.FAILED -> item.status == "failed"
+        }
+    }
+
 @Immutable
 internal data class ExternalOpenPromptState(
     val requestId: String,
     val title: String,
     val target: String
+)
+
+@Immutable
+internal data class BrowserDownloadPromptState(
+    val requestId: String,
+    val fileName: String,
+    val mimeType: String?,
+    val contentLength: Long,
+    val engine: BrowserDownloadEngine,
 )
 
 @Immutable
@@ -160,6 +182,7 @@ internal data class WebSessionBrowserHostState(
     val searchProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val externalOpenPrompt: ExternalOpenPromptState? = null,
+    val downloadPrompt: BrowserDownloadPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),
     val viewportWidthPx: Int? = null,
     val viewportHeightPx: Int? = null,

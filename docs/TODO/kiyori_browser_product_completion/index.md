@@ -2,7 +2,7 @@
 fork: https://github.com/Kiyori-CN/Kiyori
 upstream: https://github.com/AAswordman/Operit
 status: active
-baseline: 6704fa2539e5cbcacacf91a9b0550b935fbe7718
+baseline: 166c941344dbcfb8317e12e6f45ff712ca80f125
 legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 player_reference: 32f5f16988c1b2d5979eef692695bdef7232b7eb
 hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
@@ -15,6 +15,10 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 本计划承接已经完成的 [浏览器首页与 WebSession 共用计划](../kiyori_browser_home_websession/index.md)、[浏览器沉浸式 UI 重构](../kiyori_browser_ui_refactor/index.md) 和 [浏览器顶栏、全屏搜索、浏览器菜单与窗口重构](../kiyori_browser_topbar_search_toolbox_windows/index.md)。前三轮已经建立唯一 Browser Runtime、沉浸式 Browser Home、搜索与菜单框架；本轮继续解决悬浮窗口系统行为、人工窗口的 AI 接管、软件首页、真无痕、窗口缩略图、设置、下载、负一屏、菜单真实能力和播放器。
 
 Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态和伪能力直接删除，不保留并行界面、兼容开关或回退路径。`com.ai.assistance.operit`、`operit://`、ToolPkg、MCP、Intent action、数据库和持久化格式等兼容标识继续遵守 `CONTEXT.md`。
+
+2026-07-26 用户确认以 `GPL-3.0-or-later` 作为完整 mpv 播放器移植的分发边界。该决定只授权本地开发中的许可证与依赖设计，不授权公开发布；播放器依赖进入仓库时必须同时完成完整 GPL 正文、第三方 NOTICE、来源、版本、哈希、ABI、对应源码和动态/静态链接义务审计。旧 mpv AAR 与当前 FFmpegKit 的七个同名 `libav*.so` 不允许通过 packaging 选取规则掩盖，必须建立无重复 native 库的统一栈。
+
+当前 Goal 只复刻 `kiyori-android@24a2dfa9` 已有的 UI 和真实运行时能力。旧项目没有消费者的入口保留空页面或不可交互状态，不在 Kiyori 另行发明实现；旧项目已有消费者的状态接入当前唯一 Browser Runtime、Download Manager 或后续唯一 PlayerSession。
 
 ## 用户目标
 
@@ -52,9 +56,9 @@ kiyori_browser_product_completion/
 2. 更新对应 TODO、`CONTEXT.md` 和用户可见文档
 3. 先运行最窄的定向测试，再运行正式开发门禁与 `git diff --check`
 4. 成功构建 Debug APK，核对时间、大小、SHA-256、包名、版本和签名
-5. 审计 staged allowlist，提交到唯一 `main`
-6. 推送 `origin/main`，使用远端 ref 确认 SHA 与本地 HEAD 一致
-7. 记录任务日记后才进入下一编号
+5. 记录任务日记和 APK 证据后才进入下一编号
+
+提交和推送不是里程碑默认动作。只有用户在当前任务中另行明确授权时，才审计 staged allowlist、提交到唯一 `main` 并核对远端 SHA；当前 Goal 未授权提交或推送。
 
 任何构建仍在运行时不得启动第二个 Gradle 构建。Release、部署、APK 安装、ADB、MuMu 和设备自动化不在本计划授权范围内。
 
@@ -85,14 +89,14 @@ kiyori_browser_product_completion/
 1. [DONE] P0：悬浮浏览器系统 Back、状态栏背景和人工窗口 AI 接管；本地实现、定向测试与 Debug APK 已完成，真机验收待用户执行
 2. [DONE] P0：软件首页与全屏搜索已接入共享 Browser Runtime，本地测试与 Debug APK 已验证，真机视觉和输入法待验收；真无痕窗口模型属于下一独立里程碑
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
-4. [SUPERSEDED] P1：曾完成设置主页与唯一浏览器设置；该浏览器设置页面、路由、Intent 和页面专用逻辑已在专业主题第七阶段删除，第四行设置按钮原样保留为空占位，后续另行设计
-5. P1：下载中心与文件下载器设置
+4. [DONE] P1：已按旧版 `5/5/2/5/6` 分组重新复刻网页浏览器设置；自定义主页、网页外部应用、网页定位和悬浮嗅探偏好接入唯一 owner，其他旧版未实现项为空占位；根页面已使用无描边分组卡和连续折叠吸顶标题，本地测试与门禁通过，最新 Debug APK 与真机视觉状态见第十阶段
+5. [IN PROGRESS] P1：下载中心与文件下载器设置；完整 `5/3/3/1` 文件下载器设置页与十二项旧版真实 consumer 已接通，并与网页浏览器设置共用无描边卡片和连续折叠吸顶标题；仍待下载中心双筛选/批量操作复刻及真机综合验收
 6. P1：负一屏与四行菜单真实能力
 7. P2：媒体 Intent、播放器、嗅探和悬浮播放
 
 ## 完成定义
 
-- 十个里程碑均有源码、文档、自动检查、Debug APK、提交、推送和远端 SHA 证据
+- 十个里程碑均有源码、文档、自动检查和 Debug APK 证据；提交、推送和远端 SHA 仅在另行授权时属于完成证据
 - 所有已展示入口都有真实实现；仍受硬依赖限制的入口不伪造成功状态
 - 人工和 AI 在普通与无痕窗口中共享唯一 Browser Runtime，并能从工具结果确认窗口 Profile
 - 视频 `ACTION_VIEW` 不再进入 AI 附件链路

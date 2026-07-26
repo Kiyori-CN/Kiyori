@@ -101,6 +101,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         @Volatile internal var desktopModeEnabled: Boolean = true
         @Volatile internal var desktopModeInitialized: Boolean = false
         @Volatile internal var pendingExternalOpenRequest: PendingExternalOpenRequest? = null
+        @Volatile internal var pendingBrowserDownloadRequest: PendingBrowserDownloadRequest? = null
 
         @Volatile private var sharedInstance: StandardBrowserSessionTools? = null
 
@@ -114,6 +115,9 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
     }
 
     internal val historyStore by lazy { WebSessionHistoryStore.getInstance(context.applicationContext) }
+    internal val browserSettingsStore by lazy {
+        WebSessionBrowserSettingsStore.getInstance(context.applicationContext)
+    }
     internal val profileManager = WebSessionProfileManager()
     private val _browserWindowCount = MutableStateFlow(0)
     internal val browserWindowCount: StateFlow<Int> = _browserWindowCount.asStateFlow()
@@ -1564,7 +1568,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                     runOnMainSync {
                         createSessionTabOnMain(
                             appContext = context.applicationContext,
-                            initialUrl = "about:blank",
+                            initialUrl = browserSettingsStore.current.homeUrl,
                             profile = profile,
                         )
                     }

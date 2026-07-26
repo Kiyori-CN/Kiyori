@@ -5,6 +5,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
@@ -31,6 +32,7 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     private val appContext = context.applicationContext
     private val tools = ToolGetter.getBrowserSessionTools(appContext)
     val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
+    val browserSettings: StateFlow<WebSessionBrowserSettings> = tools.browserSettingsStore.state
 
     fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): WebSessionBrowserHost =
         tools.runOnMainSync {
@@ -38,7 +40,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             presentation.acquireAppPresentation(webViewHost)
 
             val session = tools.getSession(null)
-                ?: tools.createSessionTabOnMain(appContext, initialUrl = "about:blank")
+                ?: tools.createSessionTabOnMain(
+                    appContext,
+                    initialUrl = tools.browserSettingsStore.current.homeUrl,
+                )
             tools.ensureSessionAttachedOnMain(session.id)
             tools.refreshSessionUiOnMain(session.id)
             presentation
@@ -49,7 +54,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             tools.ensureOverlayOnMain(appContext, initialExpanded = false)
             val session =
                 tools.getSession(null)
-                    ?: tools.createSessionTabOnMain(appContext, initialUrl = "about:blank")
+                    ?: tools.createSessionTabOnMain(
+                        appContext,
+                        initialUrl = tools.browserSettingsStore.current.homeUrl,
+                    )
             tools.ensureSessionAttachedOnMain(session.id)
             tools.refreshSessionUiOnMain(session.id)
         }
@@ -60,7 +68,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             val presentation = tools.ensureBrowserPresentationOnMain(appContext)
             val session =
                 tools.getSession(null)
-                    ?: tools.createSessionTabOnMain(appContext, initialUrl = "about:blank")
+                    ?: tools.createSessionTabOnMain(
+                        appContext,
+                        initialUrl = tools.browserSettingsStore.current.homeUrl,
+                    )
             tools.ensureSessionAttachedOnMain(session.id)
             tools.refreshSessionUiOnMain(session.id)
             presentation.showSheet(WebSessionBrowserSheetRoute.TABS)
@@ -122,6 +133,28 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                 true
             }
         }
+
+    fun setBrowserHomeUrl(url: String) {
+        tools.browserSettingsStore.setHomeUrl(url)
+    }
+
+    fun setAllowWebPageOpenApp(enabled: Boolean) {
+        tools.runOnMainSync<Unit> {
+            tools.browserSettingsStore.setAllowWebPageOpenApp(enabled)
+            if (!enabled) {
+                StandardBrowserSessionTools.pendingExternalOpenRequest = null
+                tools.refreshSessionUiOnMain()
+            }
+        }
+    }
+
+    fun setAllowWebPageGeolocation(enabled: Boolean) {
+        tools.browserSettingsStore.setAllowWebPageGeolocation(enabled)
+    }
+
+    fun setFloatingSniffPlaybackEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setFloatingSniffPlaybackEnabled(enabled)
+    }
 
     fun openUrlInNewSession(
         url: String,

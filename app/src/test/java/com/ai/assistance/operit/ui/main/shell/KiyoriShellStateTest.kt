@@ -102,6 +102,79 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `browser settings child retains browser owner until Back`() {
+        val browserState =
+            KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)
+        val settingsState = browserState.openChild(KiyoriShellChild.BROWSER_SETTINGS)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, settingsState.primaryDestination)
+        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, settingsState.child)
+        assertEquals(browserState, settingsState.closeChild())
+    }
+
+    @Test
+    fun `external browser settings request uses settings home owner`() {
+        assertEquals(
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SETTINGS_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+                child = KiyoriShellChild.BROWSER_SETTINGS,
+            ),
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openExternalChild(KiyoriShellChild.BROWSER_SETTINGS),
+        )
+    }
+
+    @Test
+    fun `download settings opened from center return to center before its owner`() {
+        val owner =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SETTINGS_HOME,
+            )
+        val center = owner.openChild(KiyoriShellChild.DOWNLOAD_CENTER)
+        val settings = center.openNestedChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+
+        assertEquals(KiyoriShellChild.DOWNLOAD_SETTINGS, settings.child)
+        assertEquals(KiyoriShellChild.DOWNLOAD_CENTER, settings.childBackTarget)
+        assertEquals(center, settings.closeChild())
+        assertEquals(owner, settings.closeChild().closeChild())
+    }
+
+    @Test
+    fun `settings home downloader entry opens settings directly`() {
+        val owner =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SETTINGS_HOME,
+            )
+        val settings = owner.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+
+        assertEquals(KiyoriShellChild.DOWNLOAD_SETTINGS, settings.child)
+        assertEquals(null, settings.childBackTarget)
+        assertEquals(owner, settings.closeChild())
+    }
+
+    @Test
+    fun `external download child requests use settings home owner`() {
+        listOf(
+            KiyoriShellChild.DOWNLOAD_CENTER,
+            KiyoriShellChild.DOWNLOAD_SETTINGS,
+        ).forEach { child ->
+            val state =
+                KiyoriShellState(
+                    primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                    softwareHomePage = SoftwareHomePage.AI_HOME,
+                ).openExternalChild(child)
+
+            assertEquals(PrimaryDestination.SETTINGS_HOME, state.primaryDestination)
+            assertEquals(SoftwareHomePage.AI_HOME, state.softwareHomePage)
+            assertEquals(child, state.child)
+            assertEquals(null, state.childBackTarget)
+        }
+    }
+
+    @Test
     fun `Back closes AI drawer before child and page navigation`() {
         val state =
             KiyoriShellState(

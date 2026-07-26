@@ -108,7 +108,7 @@ internal class BrowserTextSelectionBridge {
 internal fun StandardBrowserSessionTools.createDownloadListener(
     session: BrowserToolSession
 ): DownloadListener {
-    return DownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
+    return DownloadListener { url, userAgent, contentDisposition, mimetype, contentLength ->
         try {
             when {
                 url.startsWith("blob:") -> {
@@ -132,7 +132,8 @@ internal fun StandardBrowserSessionTools.createDownloadListener(
                         url = url,
                         userAgent = userAgent,
                         contentDisposition = contentDisposition,
-                        mimeType = mimetype
+                        mimeType = mimetype,
+                        contentLength = contentLength,
                     )
                 }
             }
@@ -870,14 +871,16 @@ internal fun StandardBrowserSessionTools.handleRegularDownload(
     url: String,
     userAgent: String,
     contentDisposition: String?,
-    mimeType: String?
+    mimeType: String?,
+    contentLength: Long,
 ) {
     startBrowserManagedDownload(
         session = session,
         url = url,
         userAgent = userAgent,
         contentDisposition = contentDisposition,
-        mimeType = mimeType
+        mimeType = mimeType,
+        contentLength = contentLength,
     )
 }
 

@@ -18,7 +18,9 @@
 - 以 `mpv-android-anime4k` 的 libmpv、渲染参数和 Anime4K shader 选择为优化参考
 - 建立唯一 `PlayerSession`，拥有 URI、headers、标题、时长、位置、暂停、倍速、音轨、字幕和渲染 surface
 - 全屏 Activity 和后续悬浮播放器只切换 surface owner，不重新加载 media
-- 新增二进制依赖前审计许可证、ABI、APK 体积和 arm64 16KB ELF；不以 AAR 能编译替代兼容性证明
+- 用户已接受完整移植所需的 `GPL-3.0-or-later` 分发边界，但未授权公开发布；引入播放器依赖时同步补齐许可证正文、NOTICE、来源、版本、哈希、ABI 和对应源码义务
+- 旧 `mpv-android-lib-v0.1.10.aar` 与当前 `ffmpeg-kit-local.aar` 含七个同名但内容不同的 `libav*.so`，禁止使用 packaging 选取规则掩盖冲突
+- 必须构建或选定无重复动态库的统一 FFmpeg/libmpv 栈，并审计 APK 体积、全部 ABI 与 arm64 16KB `PT_LOAD`；不以 AAR 能编译替代兼容性证明
 
 ## 首期播放器 UI
 
@@ -37,4 +39,4 @@
 - 本地 content URI 和网络视频可开始、暂停、seek 和恢复
 - Activity 重建和方向变化不重载媒体
 - libmpv 依赖、ABI、许可证和 16KB 证据记录完整
-- Debug APK、提交、推送和远端 SHA 门禁通过；真机解码和手势保持待验证
+- Debug APK 与本地门禁通过；提交、推送和远端 SHA 仅在用户另行授权时执行，真机解码和手势保持待验证

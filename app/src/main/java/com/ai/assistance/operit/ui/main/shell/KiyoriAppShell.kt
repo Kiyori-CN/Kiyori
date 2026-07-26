@@ -58,6 +58,7 @@ internal fun KiyoriAppShell(
     onWeatherSearch: (String) -> Unit,
     onOpenBrowserWindows: () -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
+    onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
     browserHome: @Composable (Modifier) -> Unit,
@@ -165,7 +166,12 @@ internal fun KiyoriAppShell(
             key = { page -> page },
         ) { page ->
             when (SoftwareHomePage.fromPagerIndex(page)) {
-                SoftwareHomePage.MINUS_ONE -> KiyoriMinusOnePage()
+                SoftwareHomePage.MINUS_ONE ->
+                    KiyoriMinusOnePage(
+                        onOpenDownloadCenter = {
+                            onStateChange(state.openChild(KiyoriShellChild.DOWNLOAD_CENTER))
+                        },
+                    )
                 SoftwareHomePage.HOME ->
                     KiyoriSoftwareHomePage(
                         browserWindowCount = browserWindowCount,
@@ -194,6 +200,10 @@ internal fun KiyoriAppShell(
                 KiyoriPrimaryRootPage(
                     destination = state.primaryDestination,
                     onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
+                    onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
+                    onOpenDownloadSettings = {
+                        onStateChange(state.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS))
+                    },
                     modifier = Modifier.fillMaxSize().zIndex(4f),
                 )
             }
@@ -244,6 +254,26 @@ internal fun KiyoriAppShell(
                         KiyoriFullScreenWebSearchPage(
                             onBack = { onStateChange(state.closeChild()) },
                             onSubmitSearch = onSubmitWebSearch,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    KiyoriShellChild.BROWSER_SETTINGS ->
+                        KiyoriBrowserSettingsPage(
+                            onBack = { onStateChange(state.closeChild()) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    KiyoriShellChild.DOWNLOAD_CENTER ->
+                        KiyoriDownloadCenterPage(
+                            onBack = { onStateChange(state.closeChild()) },
+                            onOpenSettings = {
+                                onStateChange(
+                                    state.openNestedChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
+                                )
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    KiyoriShellChild.DOWNLOAD_SETTINGS ->
+                        KiyoriDownloadSettingsPage(
+                            onBack = { onStateChange(state.closeChild()) },
                             modifier = Modifier.fillMaxSize(),
                         )
                     null -> Unit

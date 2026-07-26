@@ -7244,6 +7244,17 @@
     <string name="web_session_download_status_canceled">Canceled</string>
     <string name="web_session_download_open_failed">Unable to open the downloaded file</string>
     <string name="web_session_download_location_open_failed">Unable to open the download location</string>
+    <string name="web_session_system_download_enqueued">Added to the system download queue: %1$s</string>
+    <string name="web_session_system_download_description">Kiyori browser download</string>
+    <string name="web_session_download_engine_internal">Built-in downloader</string>
+    <string name="web_session_download_engine_system">System downloader</string>
+    <string name="web_session_download_confirm_title">Confirm download</string>
+    <string name="web_session_download_confirm_file">File: %1$s</string>
+    <string name="web_session_download_confirm_type">Type: %1$s</string>
+    <string name="web_session_download_confirm_size">Size: %1$s</string>
+    <string name="web_session_download_confirm_engine">Downloader: %1$s</string>
+    <string name="web_session_download_confirm_cancel">Cancel</string>
+    <string name="web_session_download_confirm_action">Download</string>
     <string name="web_session_external_open_title">Open external app</string>
     <string name="web_session_external_open_allow_once">Allow once</string>
     <string name="web_session_external_open_cancel">Cancel</string>

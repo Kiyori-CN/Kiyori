@@ -793,6 +793,8 @@ private fun Modifier.kiyoriGradientSearchFrame(): Modifier =
 internal fun KiyoriPrimaryRootPage(
     destination: PrimaryDestination,
     onOpenAiSettings: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -803,6 +805,8 @@ internal fun KiyoriPrimaryRootPage(
         PrimaryDestination.SETTINGS_HOME -> {
             KiyoriSettingsHomePage(
                 onOpenAiSettings = onOpenAiSettings,
+                onOpenBrowserSettings = onOpenBrowserSettings,
+                onOpenDownloadSettings = onOpenDownloadSettings,
                 modifier = modifier,
             )
             return

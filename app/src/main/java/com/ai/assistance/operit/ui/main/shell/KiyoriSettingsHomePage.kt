@@ -60,6 +60,8 @@ internal data class KiyoriSettingsHomeEntry(
 internal enum class KiyoriSettingsHomeAction {
     NONE,
     OPEN_AI_SETTINGS,
+    OPEN_BROWSER_SETTINGS,
+    OPEN_DOWNLOAD_SETTINGS,
 }
 
 internal val kiyoriSettingsHomeGroups =
@@ -76,13 +78,23 @@ internal val kiyoriSettingsHomeGroups =
             KiyoriSettingsHomeEntry("小程序订阅", Icons.Default.GridView, Color(0xFF5AA9EA)),
         ),
         listOf(
-            KiyoriSettingsHomeEntry("网页浏览器", Icons.Default.Language, Color(0xFF6A96F2)),
+            KiyoriSettingsHomeEntry(
+                "网页浏览器",
+                Icons.Default.Language,
+                Color(0xFF6A96F2),
+                KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
+            ),
             KiyoriSettingsHomeEntry("视频播放器", Icons.Default.PlayCircle, Color(0xFFF06E71)),
             KiyoriSettingsHomeEntry("音乐播放器", Icons.Default.Audiotrack, Color(0xFF8A6FF2)),
             KiyoriSettingsHomeEntry("小说阅读器", Icons.AutoMirrored.Filled.MenuBook, Color(0xFFCC935C)),
         ),
         listOf(
-            KiyoriSettingsHomeEntry("文件下载器", Icons.Default.Download, Color(0xFFF27D84)),
+            KiyoriSettingsHomeEntry(
+                "文件下载器",
+                Icons.Default.Download,
+                Color(0xFFF27D84),
+                KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
+            ),
             KiyoriSettingsHomeEntry("文件管理器", Icons.Default.Folder, Color(0xFF56B38A)),
             KiyoriSettingsHomeEntry("广告拦截器", Icons.Default.Block, Color(0xFF58C68E)),
             KiyoriSettingsHomeEntry("日志记录器", Icons.Default.BugReport, Color(0xFF5A8FD8)),
@@ -98,6 +110,8 @@ internal val kiyoriSettingsHomeGroups =
 @Composable
 internal fun KiyoriSettingsHomePage(
     onOpenAiSettings: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -109,6 +123,8 @@ internal fun KiyoriSettingsHomePage(
             KiyoriSettingsHomeGroupCard(
                 entries = group,
                 onOpenAiSettings = onOpenAiSettings,
+                onOpenBrowserSettings = onOpenBrowserSettings,
+                onOpenDownloadSettings = onOpenDownloadSettings,
             )
         }
         item { Spacer(modifier = Modifier.height(96.dp)) }
@@ -163,6 +179,8 @@ private fun KiyoriSettingsHeaderAction(
 private fun KiyoriSettingsHomeGroupCard(
     entries: List<KiyoriSettingsHomeEntry>,
     onOpenAiSettings: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
@@ -175,6 +193,8 @@ private fun KiyoriSettingsHomeGroupCard(
                 KiyoriSettingsHomeRow(
                     entry = entry,
                     onOpenAiSettings = onOpenAiSettings,
+                    onOpenBrowserSettings = onOpenBrowserSettings,
+                    onOpenDownloadSettings = onOpenDownloadSettings,
                 )
                 if (index != entries.lastIndex) {
                     Box(
@@ -194,6 +214,8 @@ private fun KiyoriSettingsHomeGroupCard(
 private fun KiyoriSettingsHomeRow(
     entry: KiyoriSettingsHomeEntry,
     onOpenAiSettings: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
 ) {
     Row(
         modifier =
@@ -203,6 +225,8 @@ private fun KiyoriSettingsHomeRow(
                     when (entry.action) {
                         KiyoriSettingsHomeAction.NONE -> Unit
                         KiyoriSettingsHomeAction.OPEN_AI_SETTINGS -> onOpenAiSettings()
+                        KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
+                        KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
                     }
                 }
                 .padding(start = 16.dp, end = 14.dp, top = 16.dp, bottom = 16.dp),

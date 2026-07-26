@@ -31,6 +31,7 @@ import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
+import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.AppLogger
 import java.util.LinkedHashSet
 import java.util.Locale
@@ -544,7 +545,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 try {
                     createSessionTabOnMain(
                         appContext = appContext,
-                        initialUrl = "about:blank",
+                        initialUrl = browserSettingsStore.current.homeUrl,
                         profile = profile,
                     )
                 } catch (error: IllegalStateException) {
@@ -574,6 +575,24 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             runOnMainSync<Unit> {
                 destroyBrowserPresentationOnMain()
             }
+        }
+
+        override fun onOpenBrowserSettings() {
+            // The overlay must release its expanded presentation before MainActivity displays
+            // settings; otherwise two focusable windows compete while the same WebView stays live.
+            runOnMainSync<Unit> {
+                setExpandedOnMain(false)
+            }
+            context.startActivity(
+                Intent(context, MainActivity::class.java).apply {
+                    action = MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    )
+                },
+            )
         }
 
         override fun onCloseCurrentTab() {
@@ -822,6 +841,18 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
+        override fun onConfirmBrowserDownload(requestId: String) {
+            runOnMainSync<Unit> {
+                confirmBrowserDownloadRequest(requestId)
+            }
+        }
+
+        override fun onCancelBrowserDownload(requestId: String) {
+            runOnMainSync<Unit> {
+                cancelBrowserDownloadRequest(requestId)
+            }
+        }
+
         override fun onConfirmExternalOpen(requestId: String) {
             runOnMainSync<Unit> {
                 confirmExternalOpenRequest(requestId)
@@ -985,7 +1016,8 @@ internal fun StandardBrowserSessionTools.handleUserscriptDownloadOnMain(
         userAgent = session.webView.settings.userAgentString.orEmpty(),
         contentDisposition =
             fileName?.takeIf { it.isNotBlank() }?.let { "attachment; filename=\"$it\"" },
-        mimeType = null
+        mimeType = null,
+        contentLength = -1L,
     )
 }
 
@@ -1041,7 +1073,8 @@ internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
     StandardBrowserSessionTools.browserHost?.updateHostProjection(
         browserState = buildBrowserState(registry, buildBrowserDownloadSummary()),
         downloadUiState = buildBrowserDownloadUiState(),
-        externalOpenPrompt = StandardBrowserSessionTools.pendingExternalOpenRequest?.toUiState()
+        externalOpenPrompt = StandardBrowserSessionTools.pendingExternalOpenRequest?.toUiState(),
+        downloadPrompt = StandardBrowserSessionTools.pendingBrowserDownloadRequest?.toUiState(),
     )
 }
 
@@ -1393,6 +1426,16 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
 ): Boolean {
     val rawUrl = uri.toString()
     val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return false
+    if (
+        scheme != "http" &&
+            scheme != "https" &&
+            scheme != "about" &&
+            !browserSettingsStore.current.allowWebPageOpenApp
+    ) {
+        // Disabling this setting is an explicit deny policy. Consuming the navigation here keeps
+        // WebView from attempting an unsupported external scheme or creating an external prompt.
+        return true
+    }
     return when (scheme) {
         "http", "https" -> {
             if (isUserscriptInstallUri(uri)) {
@@ -1534,6 +1577,10 @@ internal fun StandardBrowserSessionTools.handleGeolocationPermissionRequest(
     origin: String,
     callback: GeolocationPermissions.Callback
 ) {
+    if (!browserSettingsStore.current.allowWebPageGeolocation) {
+        callback.invoke(origin, false, false)
+        return
+    }
     ioScope.launch {
         val permissionResults =
             ensureAndroidPermissions(

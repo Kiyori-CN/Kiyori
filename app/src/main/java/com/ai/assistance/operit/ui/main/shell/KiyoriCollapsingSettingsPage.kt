@@ -1,0 +1,208 @@
+package com.ai.assistance.operit.ui.main.shell
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+
+internal val KIYORI_SETTINGS_PAGE_BACKGROUND = Color(0xFFF5F5F2)
+
+internal data class KiyoriCollapsingSettingsHeaderFrame(
+    val contentHeightDp: Float,
+    val titleStartDp: Float,
+    val titleTopDp: Float,
+    val titleFontSizeSp: Float,
+)
+
+internal fun calculateKiyoriSettingsHeaderCollapseProgress(
+    firstVisibleItemIndex: Int,
+    firstVisibleItemScrollOffset: Int,
+    collapseDistancePx: Float,
+): Float {
+    require(firstVisibleItemIndex >= 0) { "firstVisibleItemIndex must not be negative" }
+    require(firstVisibleItemScrollOffset >= 0) {
+        "firstVisibleItemScrollOffset must not be negative"
+    }
+    require(collapseDistancePx > 0f) { "collapseDistancePx must be positive" }
+    return if (firstVisibleItemIndex > 0) {
+        1f
+    } else {
+        (firstVisibleItemScrollOffset / collapseDistancePx).coerceIn(0f, 1f)
+    }
+}
+
+internal fun calculateKiyoriSettingsHeaderFrame(
+    collapseProgress: Float,
+): KiyoriCollapsingSettingsHeaderFrame {
+    require(collapseProgress in 0f..1f) { "collapseProgress must be within 0..1" }
+    return KiyoriCollapsingSettingsHeaderFrame(
+        contentHeightDp = lerpFloat(128f, 56f, collapseProgress),
+        titleStartDp = lerpFloat(32f, 56f, collapseProgress),
+        titleTopDp = lerpFloat(60f, 16f, collapseProgress),
+        titleFontSizeSp = lerpFloat(26f, 20f, collapseProgress),
+    )
+}
+
+@Composable
+internal fun KiyoriCollapsingSettingsPage(
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    val density = LocalDensity.current
+    val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+    val collapseDistancePx = with(density) { 72.dp.toPx() }
+    val listState = rememberLazyListState()
+    val collapseProgress by
+        remember(listState, collapseDistancePx) {
+            derivedStateOf {
+                calculateKiyoriSettingsHeaderCollapseProgress(
+                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+                    collapseDistancePx = collapseDistancePx,
+                )
+            }
+        }
+    val headerFrame = calculateKiyoriSettingsHeaderFrame(collapseProgress)
+    val expandedHeaderFrame = calculateKiyoriSettingsHeaderFrame(0f)
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(KIYORI_SETTINGS_PAGE_BACKGROUND),
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item(key = "kiyori_settings_collapsing_header_space") {
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            statusBarHeight + expandedHeaderFrame.contentHeightDp.dp,
+                        ),
+                )
+            }
+            content()
+            item(key = "kiyori_settings_bottom_space") {
+                Spacer(modifier = Modifier.height(28.dp))
+            }
+        }
+
+        KiyoriCollapsingSettingsHeader(
+            title = title,
+            onBack = onBack,
+            statusBarHeight = statusBarHeight,
+            frame = headerFrame,
+            modifier = Modifier.zIndex(1f),
+        )
+    }
+}
+
+@Composable
+internal fun KiyoriSettingsGroupCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(), content = content)
+    }
+}
+
+@Composable
+private fun KiyoriCollapsingSettingsHeader(
+    title: String,
+    onBack: () -> Unit,
+    statusBarHeight: androidx.compose.ui.unit.Dp,
+    frame: KiyoriCollapsingSettingsHeaderFrame,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(statusBarHeight + frame.contentHeightDp.dp)
+                .background(KIYORI_SETTINGS_PAGE_BACKGROUND)
+                .clipToBounds(),
+    ) {
+        IconButton(
+            onClick = onBack,
+            modifier =
+                Modifier
+                    .offset(x = 8.dp, y = statusBarHeight + 4.dp)
+                    .size(48.dp),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "返回",
+                tint = Color(0xFF2B2B2B),
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Text(
+            text = title,
+            fontSize = frame.titleFontSizeSp.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF202020),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = frame.titleStartDp.dp, end = 16.dp)
+                    .offset(y = statusBarHeight + frame.titleTopDp.dp)
+                    .semantics { heading() },
+        )
+    }
+}
+
+private fun lerpFloat(
+    start: Float,
+    end: Float,
+    fraction: Float,
+): Float = start + (end - start) * fraction

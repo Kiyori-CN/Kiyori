@@ -6356,6 +6356,17 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_download_status_canceled">Cancelado</string>
     <string name="web_session_download_open_failed">No se puede abrir el archivo descargado</string>
     <string name="web_session_download_location_open_failed">No se puede abrir la ubicación de descarga</string>
+    <string name="web_session_system_download_enqueued">Añadido a la cola de descargas del sistema: %1$s</string>
+    <string name="web_session_system_download_description">Descarga del navegador Kiyori</string>
+    <string name="web_session_download_engine_internal">Descargador integrado</string>
+    <string name="web_session_download_engine_system">Descargador del sistema</string>
+    <string name="web_session_download_confirm_title">Confirmar descarga</string>
+    <string name="web_session_download_confirm_file">Archivo: %1$s</string>
+    <string name="web_session_download_confirm_type">Tipo: %1$s</string>
+    <string name="web_session_download_confirm_size">Tamaño: %1$s</string>
+    <string name="web_session_download_confirm_engine">Descargador: %1$s</string>
+    <string name="web_session_download_confirm_cancel">Cancelar</string>
+    <string name="web_session_download_confirm_action">Descargar</string>
     <string name="web_session_external_open_title">Abrir aplicación externa</string>
     <string name="web_session_external_open_allow_once">Permitir una vez</string>
     <string name="web_session_external_open_cancel">Cancelar</string>

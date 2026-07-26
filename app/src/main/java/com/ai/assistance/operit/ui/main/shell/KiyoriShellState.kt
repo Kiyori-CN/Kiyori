@@ -33,6 +33,9 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
+    BROWSER_SETTINGS,
+    DOWNLOAD_CENTER,
+    DOWNLOAD_SETTINGS,
 }
 
 enum class AiDrawerSelectionEffect {
@@ -59,6 +62,7 @@ data class KiyoriShellState(
     val primaryDestination: PrimaryDestination = PrimaryDestination.SOFTWARE_HOME,
     val softwareHomePage: SoftwareHomePage = SoftwareHomePage.HOME,
     val child: KiyoriShellChild? = null,
+    val childBackTarget: KiyoriShellChild? = null,
     val isAiDrawerOpen: Boolean = false,
     val browserReturnTarget: KiyoriBrowserReturnTarget? = null,
 ) {
@@ -79,6 +83,7 @@ data class KiyoriShellState(
                     softwareHomePage
                 },
             child = null,
+            childBackTarget = null,
             isAiDrawerOpen = false,
             browserReturnTarget = null,
         )
@@ -87,6 +92,7 @@ data class KiyoriShellState(
         copy(
             primaryDestination = PrimaryDestination.BROWSER_HOME,
             child = null,
+            childBackTarget = null,
             isAiDrawerOpen = false,
             browserReturnTarget = returnTarget,
         )
@@ -98,6 +104,7 @@ data class KiyoriShellState(
                     primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                     softwareHomePage = SoftwareHomePage.AI_HOME,
                     child = null,
+                    childBackTarget = null,
                     isAiDrawerOpen = false,
                     browserReturnTarget = null,
                 )
@@ -107,6 +114,7 @@ data class KiyoriShellState(
                     primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                     softwareHomePage = SoftwareHomePage.HOME,
                     child = null,
+                    childBackTarget = null,
                     isAiDrawerOpen = false,
                     browserReturnTarget = null,
                 )
@@ -117,14 +125,30 @@ data class KiyoriShellState(
             primaryDestination = PrimaryDestination.SOFTWARE_HOME,
             softwareHomePage = page,
             child = null,
+            childBackTarget = null,
             isAiDrawerOpen = false,
             browserReturnTarget = null,
         )
 
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =
-        copy(child = destination, isAiDrawerOpen = false)
+        copy(child = destination, childBackTarget = null, isAiDrawerOpen = false)
 
-    fun closeChild(): KiyoriShellState = copy(child = null)
+    fun openNestedChild(destination: KiyoriShellChild): KiyoriShellState {
+        val currentChild = requireNotNull(child) { "A nested child requires an active parent child." }
+        require(currentChild != destination) { "A child cannot use itself as its Back target." }
+        return copy(
+            child = destination,
+            childBackTarget = currentChild,
+            isAiDrawerOpen = false,
+        )
+    }
+
+    fun closeChild(): KiyoriShellState =
+        if (childBackTarget == null) {
+            copy(child = null)
+        } else {
+            copy(child = childBackTarget, childBackTarget = null)
+        }
 
     fun openAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = true)
 
@@ -166,6 +190,19 @@ data class KiyoriShellState(
                     result = KiyoriShellBackResult.REQUEST_EXIT,
                 )
         }
+}
+
+internal fun KiyoriShellState.openExternalChild(
+    destination: KiyoriShellChild,
+): KiyoriShellState {
+    val owner =
+        when (destination) {
+            KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
+            KiyoriShellChild.BROWSER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
+            KiyoriShellChild.DOWNLOAD_CENTER,
+            KiyoriShellChild.DOWNLOAD_SETTINGS -> PrimaryDestination.SETTINGS_HOME
+        }
+    return selectPrimary(owner).openChild(destination)
 }
 
 internal fun resolveAiDrawerSelection(

@@ -60,12 +60,15 @@ import android.net.Uri
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
+import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
 import com.ai.assistance.operit.widget.ToolPkgDesktopWidgetHost
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_SETTINGS_SHORTCUT = "com.ai.assistance.operit.action.OPEN_SETTINGS_SHORTCUT"
+        const val ACTION_OPEN_KIYORI_BROWSER_SETTINGS =
+            "com.kiyori.action.OPEN_BROWSER_SETTINGS"
     }
 
     private val TAG = "MainActivity"
@@ -103,6 +106,8 @@ class MainActivity : ComponentActivity() {
     private var pendingRouteId: String? = null
     private var pendingRouteArgs: Map<String, Any?> = emptyMap()
     private var pendingRouteRequestId: Long = 0L
+    private var pendingKiyoriShellChild by mutableStateOf<KiyoriShellChild?>(null)
+    private var pendingKiyoriShellRequestId by mutableStateOf(0L)
 
     // 通知权限请求启动器
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -244,6 +249,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?): Boolean {
+        if (intent?.action == ACTION_OPEN_KIYORI_BROWSER_SETTINGS) {
+            pendingKiyoriShellChild = KiyoriShellChild.BROWSER_SETTINGS
+            pendingKiyoriShellRequestId = System.currentTimeMillis()
+            AppLogger.d(TAG, "Requested opening Kiyori browser settings")
+            return true
+        }
+
         if (intent?.action == ACTION_OPEN_SETTINGS_SHORTCUT) {
             pendingShortcutNavItem = NavItem.Settings
             pendingShortcutRequestId = System.currentTimeMillis()
@@ -684,6 +696,8 @@ class MainActivity : ComponentActivity() {
                             val routeNavRequestId = pendingRouteRequestId
                             val browserOpenRequest = pendingBrowserUrl
                             val browserOpenRequestId = pendingBrowserRequestId
+                            val kiyoriShellChildRequest = pendingKiyoriShellChild
+                            val kiyoriShellRequestId = pendingKiyoriShellRequestId
                             val initialNavItem = when {
                                 shortcutNavItem != null -> shortcutNavItem
                                 else -> currentMainNavItem
@@ -700,6 +714,8 @@ class MainActivity : ComponentActivity() {
                                         routeNavRequestId = routeNavRequestId,
                                         browserOpenRequest = browserOpenRequest,
                                         browserOpenRequestId = browserOpenRequestId,
+                                        kiyoriShellChildRequest = kiyoriShellChildRequest,
+                                        kiyoriShellRequestId = kiyoriShellRequestId,
                                         onShortcutNavHandled = { handledRequestId ->
                                             if (pendingShortcutRequestId == handledRequestId) {
                                                 pendingShortcutNavItem = null
@@ -720,6 +736,12 @@ class MainActivity : ComponentActivity() {
                                             if (pendingBrowserRequestId == handledRequestId) {
                                                 pendingBrowserUrl = null
                                                 pendingBrowserRequestId = 0L
+                                            }
+                                        },
+                                        onKiyoriShellRequestHandled = { handledRequestId ->
+                                            if (pendingKiyoriShellRequestId == handledRequestId) {
+                                                pendingKiyoriShellChild = null
+                                                pendingKiyoriShellRequestId = 0L
                                             }
                                         },
                                 )

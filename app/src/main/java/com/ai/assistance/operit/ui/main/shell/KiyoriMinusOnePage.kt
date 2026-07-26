@@ -26,23 +26,34 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
+
+internal enum class KiyoriMinusOneDataAction {
+    NONE,
+    OPEN_DOWNLOAD_CENTER,
+}
 
 internal data class KiyoriMinusOneDataItem(
     val title: String,
     val count: Int,
     val accentColor: Color,
     val backgroundColors: List<Color>,
+    val action: KiyoriMinusOneDataAction = KiyoriMinusOneDataAction.NONE,
 )
 
 internal data class KiyoriMinusOneQuickTool(
@@ -55,7 +66,13 @@ internal val kiyoriMinusOneDataItems =
         KiyoriMinusOneDataItem("收藏", 0, Color(0xFF39A95F), listOf(Color(0xFFF0FAF2), Color.White)),
         KiyoriMinusOneDataItem("书签", 0, Color(0xFFE45D65), listOf(Color(0xFFFEF0F1), Color.White)),
         KiyoriMinusOneDataItem("历史", 0, Color(0xFF6E48E6), listOf(Color(0xFFF4F0FE), Color.White)),
-        KiyoriMinusOneDataItem("下载", 0, Color(0xFFE1BE4E), listOf(Color(0xFFFFF8E9), Color.White)),
+        KiyoriMinusOneDataItem(
+            "下载",
+            0,
+            Color(0xFFE1BE4E),
+            listOf(Color(0xFFFFF8E9), Color.White),
+            KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER,
+        ),
     )
 
 internal val kiyoriMinusOneQuickTools =
@@ -71,7 +88,13 @@ internal val kiyoriMinusOneQuickTools =
     )
 
 @Composable
-internal fun KiyoriMinusOnePage(modifier: Modifier = Modifier) {
+internal fun KiyoriMinusOnePage(
+    onOpenDownloadCenter: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val downloadManager = remember(context) { BrowserDownloadManager.getInstance(context) }
+    val downloadTasks by downloadManager.taskSnapshots.collectAsState()
     Column(
         modifier =
             modifier
@@ -84,7 +107,10 @@ internal fun KiyoriMinusOnePage(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            KiyoriMinusOneDataSection()
+            KiyoriMinusOneDataSection(
+                downloadCount = downloadTasks.size,
+                onOpenDownloadCenter = onOpenDownloadCenter,
+            )
             KiyoriMinusOneQuickToolsSection()
         }
     }
@@ -120,7 +146,10 @@ private fun KiyoriMinusOneTopBar() {
 }
 
 @Composable
-private fun KiyoriMinusOneDataSection() {
+private fun KiyoriMinusOneDataSection(
+    downloadCount: Int,
+    onOpenDownloadCenter: () -> Unit,
+) {
     Text(
         text = "我的数据",
         fontSize = 13.sp,
@@ -143,7 +172,13 @@ private fun KiyoriMinusOneDataSection() {
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .background(Brush.verticalGradient(item.backgroundColors))
-                            .clickable(onClick = {})
+                            .clickable {
+                                when (item.action) {
+                                    KiyoriMinusOneDataAction.NONE -> Unit
+                                    KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER ->
+                                        onOpenDownloadCenter()
+                                }
+                            }
                             .padding(horizontal = 18.dp, vertical = 18.dp),
                 ) {
                     Row(
@@ -152,7 +187,17 @@ private fun KiyoriMinusOneDataSection() {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = item.accentColor)
-                        Text(item.count.toString(), fontSize = 20.sp, fontWeight = FontWeight.Medium, color = item.accentColor)
+                        Text(
+                            text =
+                                if (item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER) {
+                                    downloadCount.toString()
+                                } else {
+                                    item.count.toString()
+                                },
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = item.accentColor,
+                        )
                     }
                 }
             }

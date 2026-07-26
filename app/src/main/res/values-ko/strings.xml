@@ -6734,6 +6734,17 @@
     <string name="web_session_download_status_canceled">취소됨</string>
     <string name="web_session_download_open_failed">다운로드한 파일을 열 수 없습니다.</string>
     <string name="web_session_download_location_open_failed">다운로드 위치를 열 수 없습니다.</string>
+    <string name="web_session_system_download_enqueued">시스템 다운로드 대기열에 추가됨: %1$s</string>
+    <string name="web_session_system_download_description">Kiyori 브라우저 다운로드</string>
+    <string name="web_session_download_engine_internal">내장 다운로더</string>
+    <string name="web_session_download_engine_system">시스템 다운로더</string>
+    <string name="web_session_download_confirm_title">다운로드 확인</string>
+    <string name="web_session_download_confirm_file">파일: %1$s</string>
+    <string name="web_session_download_confirm_type">유형: %1$s</string>
+    <string name="web_session_download_confirm_size">크기: %1$s</string>
+    <string name="web_session_download_confirm_engine">다운로더: %1$s</string>
+    <string name="web_session_download_confirm_cancel">취소</string>
+    <string name="web_session_download_confirm_action">다운로드</string>
     <string name="web_session_external_open_title">외부 앱 열기</string>
     <string name="web_session_external_open_allow_once">한 번만 허용</string>
     <string name="web_session_external_open_cancel">취소</string>

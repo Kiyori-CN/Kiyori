@@ -1,6 +1,61 @@
-# 设置首页与浏览器设置（已被后续决策取代）
+# 网页浏览器设置复刻
 
-## 后续决策
+## 2026-07-26 当前里程碑
+
+[DONE]
+
+严格参考 `D:\10_Project\kiyori-android@24a2dfa9` 的 `SettingsBrowserScreen.kt`、`SettingsScreen.kt`、`BrowserPreferencesRepository.kt` 和运行时消费者，恢复旧版五张卡片的 `5/5/2/5/6` 顺序、固定浅色页面、行高、文字、右箭头和方形勾选框。设置首页“网页浏览器”和浏览器菜单第四行设置按钮打开同一个 `KiyoriShellChild.BROWSER_SETTINGS`。
+
+### 真实消费者矩阵
+
+| 旧版项目 | Kiyori owner | 当前作用 |
+| --- | --- | --- |
+| 悬浮嗅探播放 | `WebSessionBrowserSettingsStore` | 持久化真实偏好；第九里程碑的 media candidate/player consumer 接入前不宣称嗅探可用 |
+| 网页主页自定义 | `WebSessionBrowserSettingsStore` + `StandardBrowserSessionTools` | 约束浏览器主页按钮、人工新窗口和 AI `browser_tabs create` |
+| 允许网页打开应用 | `WebSessionBrowserSettingsStore` + WebView navigation override | 关闭后直接拒绝外部 scheme，不创建外部打开确认请求 |
+| 允许网页获取位置 | `WebSessionBrowserSettingsStore` + WebChromeClient geolocation request | 关闭后直接拒绝网页定位；开启后继续使用现有 Android 权限协调器 |
+| 腾讯 X5 调试 | 空占位 | 旧版 X5 有真实消费者；当前 Kiyori 固定使用 Android System WebView，不引入第二个 WebView runtime |
+| 其余旧版行 | 空占位 | 导航行打开同标题空页；旧版无消费者的勾选项保持旧显示值但不可交互 |
+
+### 页面与返回合同
+
+- Settings Home 打开时保留 `SETTINGS_HOME` owner，Back 返回原设置首页
+- Browser Home 打开时保留 `BROWSER_HOME`、活动 WebView 和 WebSession，Back 恢复原网页且不导航、不重载
+- overlay 打开时先收缩 focusable overlay，再使用 `com.kiyori.action.OPEN_BROWSER_SETTINGS` 请求同一 Shell child；媒体网页仍留在原 Browser Runtime
+- 主页编辑子页和空占位子页在设置页面内部持有，系统 Back 与顶栏返回先关闭子页，再关闭 Browser Settings
+
+### 2026-07-26 设置子页面视觉切片
+
+- 浏览器设置根标题改为“网页浏览器设置”，与文件下载器设置共用 `KiyoriCollapsingSettingsPage`
+- 顶栏返回键和状态栏 inset 固定；同一个标题在列表前 `72dp` 滚动内，从展开态 `start=32dp / top=60dp / 26sp` 连续插值到吸顶态 `start=56dp / top=16dp / 20sp`
+- 顶栏内容高度同步从 `128dp` 收缩到 `56dp`；进度到达 `1` 后固定，继续滚动不再改变标题位置、字号或顶栏高度
+- 五组浏览器设置卡与主页自定义卡均移除最外围描边，内部 `0.6dp` 分隔线、行高、右箭头和方形勾选框保持不变
+- 手机、平板、横屏和显示挖孔使用实际 `WindowInsets.statusBars`；标题单行完整显示，不使用两份标题交叉淡入
+
+### 验收门禁
+
+- `KiyoriSettingsPagesTest` 锁定五组顺序和四个真实接线能力
+- `KiyoriShellStateTest` 锁定 Settings Home、Browser Home 和 overlay external child owner
+- 运行正式开发准备门禁、`git diff --check`、定向 JVM 测试和 `:app:assembleDebug`
+- 核验 Debug APK；手机/平板视觉、真实网页外部 scheme、定位权限和 Browser Home 原页恢复保持 `verification_pending`
+
+### 2026-07-26 本地验收结果
+
+- `KiyoriSettingsPagesTest` 5 项与 `KiyoriShellStateTest` 29 项通过，零跳过、零失败、零错误
+- `.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main` 通过
+- `git diff --check` 通过；仅有工作树既有 CRLF 到 LF 提示
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 在 `3m 21s` 完成 230 个任务，零失败
+- Debug APK：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 生成时间：`2026-07-26 12:05:43 +08:00`
+- 大小：`449485670` 字节
+- SHA-256：`5A44006F4EE1AC3056D8F93BC42C04F74B6AACA87566207CC9B4033CB697A7E3`
+- application ID：`com.kiyori`
+- 版本：`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`
+- 签名：Android Debug certificate，APK Signature Scheme v2 通过
+- 对齐：`zipalign -c -P 16 4` 通过
+- 手机/平板视觉、真实网页外部 scheme、定位权限、overlay Intent 拉起、WebView 保活和 Browser Home 返回仍为 `verification_pending`
+
+## 历史决策记录
 
 本里程碑记录 2026-07-25 曾完成的浏览器设置实现与构建证据。2026-07-26 的[专业主题第七阶段](../kiyori_professional_browser_theme/7_ai_theme_settings_and_browser_settings_removal.md)已删除浏览器设置页、搜索记录管理子页、Shell 路由、外部 Intent 和页面专用逻辑。浏览器菜单第四行“浏览器设置”按钮、原图标和三按钮位置继续保留，点击为空；下文只作为历史记录，不再描述当前源码。
 

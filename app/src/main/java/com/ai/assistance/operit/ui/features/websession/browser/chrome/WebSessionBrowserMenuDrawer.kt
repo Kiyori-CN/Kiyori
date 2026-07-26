@@ -61,6 +61,7 @@ internal fun WebSessionBrowserMenuDrawer(
     onOpenPageSource: () -> Unit,
     onOpenAdMarking: () -> Unit,
     onOpenSiteConfig: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
     onExitBrowser: () -> Unit,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
@@ -169,7 +170,7 @@ internal fun WebSessionBrowserMenuDrawer(
                         BottomMenuAction(
                             title = stringResource(R.string.web_session_browser_settings),
                             iconResId = R.drawable.ic_kiyori_tool_settings,
-                            onClick = {},
+                            onClick = onOpenBrowserSettings,
                         )
                     }
                 }

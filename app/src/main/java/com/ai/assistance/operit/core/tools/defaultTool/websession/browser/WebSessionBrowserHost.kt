@@ -68,6 +68,7 @@ internal class WebSessionBrowserHost(
         fun onRequestTabThumbnails()
         fun onMinimize()
         fun onExitBrowser()
+        fun onOpenBrowserSettings()
         fun onCloseCurrentTab()
         fun onCloseAllTabs(profile: WebSessionProfile)
         fun onToggleBookmark(url: String, title: String)
@@ -108,6 +109,8 @@ internal class WebSessionBrowserHost(
         fun onDeleteDownload(taskId: String, deleteFile: Boolean)
         fun onOpenDownloadedFile(taskId: String)
         fun onOpenDownloadLocation(taskId: String)
+        fun onConfirmBrowserDownload(requestId: String)
+        fun onCancelBrowserDownload(requestId: String)
         fun onConfirmExternalOpen(requestId: String)
         fun onCancelExternalOpen(requestId: String)
         fun onHandlePendingDialog(accept: Boolean, promptText: String?)
@@ -115,6 +118,7 @@ internal class WebSessionBrowserHost(
 
     private val windowManager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val overlayWebViewHost = WebSessionWebViewHost()
+    private val browserSettingsStore = WebSessionBrowserSettingsStore.getInstance(appContext)
     private var appWebViewHost: WebSessionWebViewHost? = null
     private var activeWebView: WebView? = null
 
@@ -172,6 +176,7 @@ internal class WebSessionBrowserHost(
                                 webViewHost = overlayWebViewHost,
                                 onTopBarBack = callbacks::onMinimize,
                                 onOpenAiDialogue = callbacks::onMinimize,
+                                onOpenBrowserSettings = callbacks::onOpenBrowserSettings,
                                 onExitBrowser = callbacks::onExitBrowser,
                             )
                         }
@@ -238,6 +243,7 @@ internal class WebSessionBrowserHost(
         webViewHost: WebSessionWebViewHost,
         onTopBarBack: () -> Unit,
         onOpenAiDialogue: () -> Unit,
+        onOpenBrowserSettings: () -> Unit,
         onExitBrowser: () -> Unit,
         modifier: Modifier = Modifier,
     ) {
@@ -246,6 +252,7 @@ internal class WebSessionBrowserHost(
         val searchEngine by store.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
         val searchHistory by store.searchHistoryFlow.collectAsState(initial = emptyList())
         val userscriptUiState by userscriptStore.state.collectAsState()
+        val browserSettings by browserSettingsStore.state.collectAsState()
 
         WebSessionBrowserScreen(
             hostState = hostState,
@@ -266,6 +273,7 @@ internal class WebSessionBrowserHost(
             onRequestTabThumbnails = callbacks::onRequestTabThumbnails,
             onTopBarBack = onTopBarBack,
             onOpenAiDialogue = onOpenAiDialogue,
+            onOpenBrowserSettings = onOpenBrowserSettings,
             onExitBrowser = onExitBrowser,
             onCloseCurrentTab = callbacks::onCloseCurrentTab,
             onCloseAllTabs = callbacks::onCloseAllTabs,
@@ -300,9 +308,12 @@ internal class WebSessionBrowserHost(
             onDeleteDownload = callbacks::onDeleteDownload,
             onOpenDownloadedFile = callbacks::onOpenDownloadedFile,
             onOpenDownloadLocation = callbacks::onOpenDownloadLocation,
+            onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
+            onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
             onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
             onCancelExternalOpen = callbacks::onCancelExternalOpen,
             onHandlePendingDialog = callbacks::onHandlePendingDialog,
+            homeUrl = browserSettings.homeUrl,
             modifier = modifier,
         )
     }
@@ -310,7 +321,8 @@ internal class WebSessionBrowserHost(
     fun updateHostProjection(
         browserState: WebSessionBrowserState,
         downloadUiState: BrowserDownloadUiState,
-        externalOpenPrompt: ExternalOpenPromptState?
+        externalOpenPrompt: ExternalOpenPromptState?,
+        downloadPrompt: BrowserDownloadPromptState?,
     ) {
         hostState =
             hostState.copy(
@@ -319,7 +331,8 @@ internal class WebSessionBrowserHost(
                     downloadUiState.copy(
                         selectedFilter = hostState.downloadUiState.selectedFilter
                     ),
-                externalOpenPrompt = externalOpenPrompt
+                externalOpenPrompt = externalOpenPrompt,
+                downloadPrompt = downloadPrompt,
             )
         updateIndicatorLayoutForCurrentState()
     }
@@ -384,6 +397,12 @@ internal class WebSessionBrowserHost(
         val pendingDialog = browserState.pendingDialog
         if (pendingDialog != null) {
             callbacks.onHandlePendingDialog(false, null)
+            return true
+        }
+
+        val downloadPrompt = hostState.downloadPrompt
+        if (downloadPrompt != null) {
+            callbacks.onCancelBrowserDownload(downloadPrompt.requestId)
             return true
         }
 
@@ -896,9 +915,12 @@ internal class WebSessionBrowserHost(
                                 appContext.getString(R.string.web_session_accessibility_minimized_indicator),
                             activeDownloadCount = hostState.browserState.activeDownloadCount,
                             hasFailedDownloads = hostState.browserState.hasFailedDownloads,
+                            downloadPrompt = hostState.downloadPrompt,
                             externalOpenPrompt = hostState.externalOpenPrompt,
                             onToggleFullscreen = { setExpanded(true) },
                             onDragBy = { dx, dy -> moveIndicatorBy(dx, dy) },
+                            onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
+                            onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
                             onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
                             onCancelExternalOpen = callbacks::onCancelExternalOpen
                         )
@@ -1035,14 +1057,14 @@ internal class WebSessionBrowserHost(
     }
 
     private fun indicatorWidthPx(): Int =
-        if (hostState.externalOpenPrompt != null) {
+        if (hostState.downloadPrompt != null || hostState.externalOpenPrompt != null) {
             dp(248)
         } else {
             dp(40).coerceAtLeast(1)
         }
 
     private fun indicatorHeightPx(): Int =
-        if (hostState.externalOpenPrompt != null) {
+        if (hostState.downloadPrompt != null || hostState.externalOpenPrompt != null) {
             dp(86)
         } else {
             dp(40).coerceAtLeast(1)

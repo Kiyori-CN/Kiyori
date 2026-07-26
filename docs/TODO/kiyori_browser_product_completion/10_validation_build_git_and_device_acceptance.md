@@ -11,13 +11,23 @@
 
 APK 证据至少记录：绝对路径、生成时间、大小、SHA-256、application ID、versionCode、versionName、minSdk、targetSdk 和 Android Debug v2 签名。涉及 native 依赖时额外记录 ABI、ZIP 16KB 对齐和每个 arm64 ELF 的 `PT_LOAD` 对齐。
 
+## 当前最新本地制品
+
+- 网页浏览器/文件下载器设置页共享视觉切片：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 生成时间 `2026-07-26 22:49:16 +08:00`，大小 `449493010` 字节，SHA-256 `7B95F7B44C482C1734158BA6A5E79EA775F575F69105FDC984B269039C278D48`
+- `applicationId com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`、`compileSdk 36`
+- Android Debug V2 签名通过；`zipalign -c -P 16 -v 4` 为 `Verification successful`
+- 本切片定向 `KiyoriSettingsPagesTest` 为 7/7，覆盖两页最终标题、展开/中间/吸顶帧、浏览器与下载设置分组合同；Formal readiness 与 `git diff --check` 通过
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 34s`，230 个任务零失败，其中 26 个执行、204 个为 up-to-date；该制品证明共享折叠顶栏、无描边设置分组和既有浏览器/下载设置代码可进入 Debug APK。真实设备上的连续滑动轨迹、标题完整显示、字体缩放、状态栏 inset、手机/平板/横屏视觉，以及此前的下载网络和文件行为仍为 `verification_pending`
+
 ## Git 门禁
 
-- 每次提交前再次确认 `main`、HEAD、工作树和 staged allowlist
+- 当前 Goal 默认只保留本地修改和 Debug APK，不创建提交、不推送
+- 用户在当前任务中另行明确授权提交时，才再次确认 `main`、HEAD、工作树和 staged allowlist
 - 禁止纳入 `work/`、APK、AAB、Gradle cache、`.venv`、凭据、运行日志和任务日记
 - commit message 只描述当前里程碑
-- `git push origin main` 成功后使用 `git ls-remote origin refs/heads/main` 核对 SHA
-- 推送网络失败只允许有界重试同一提交；不得产生额外空提交或强制推送
+- 另行授权推送后，`git push origin main` 成功才使用 `git ls-remote origin refs/heads/main` 核对 SHA
+- 已授权推送发生网络失败时，只允许有界重试同一提交；不得产生额外空提交或强制推送
 
 ## 终局真机清单
 

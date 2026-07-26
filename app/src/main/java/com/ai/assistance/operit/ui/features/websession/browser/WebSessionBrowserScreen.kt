@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
 import android.net.Uri
+import android.text.format.Formatter
 import android.widget.FrameLayout
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -42,11 +43,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
@@ -102,6 +106,7 @@ internal fun WebSessionBrowserScreen(
     onRequestTabThumbnails: () -> Unit,
     onTopBarBack: () -> Unit,
     onOpenAiDialogue: () -> Unit,
+    onOpenBrowserSettings: () -> Unit,
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: (WebSessionProfile) -> Unit,
@@ -136,9 +141,12 @@ internal fun WebSessionBrowserScreen(
     onDeleteDownload: (String, Boolean) -> Unit,
     onOpenDownloadedFile: (String) -> Unit,
     onOpenDownloadLocation: (String) -> Unit,
+    onConfirmBrowserDownload: (String) -> Unit,
+    onCancelBrowserDownload: (String) -> Unit,
     onConfirmExternalOpen: (String) -> Unit,
     onCancelExternalOpen: (String) -> Unit,
     onHandlePendingDialog: (Boolean, String?) -> Unit,
+    homeUrl: String,
     modifier: Modifier = Modifier
 ) {
     val browserState = hostState.browserState
@@ -351,7 +359,7 @@ internal fun WebSessionBrowserScreen(
                 tabCount = browserState.tabs.size,
                 onBack = onBack,
                 onForward = onForward,
-                onHome = { onNavigate("about:blank") },
+                onHome = { onNavigate(homeUrl) },
                 onTabs = {
                     onHostStateChange { current ->
                         current.copy(
@@ -539,6 +547,10 @@ internal fun WebSessionBrowserScreen(
                     },
                     onOpenAdMarking = { openPlaceholder(WebSessionBrowserPlaceholderPage.AD_MARKING) },
                     onOpenSiteConfig = { openPlaceholder(WebSessionBrowserPlaceholderPage.SITE_CONFIG) },
+                    onOpenBrowserSettings = {
+                        dismissSheet()
+                        onOpenBrowserSettings()
+                    },
                     onExitBrowser = {
                         dismissSheet()
                         onExitBrowser()
@@ -618,7 +630,13 @@ internal fun WebSessionBrowserScreen(
             }
         }
 
-        hostState.externalOpenPrompt?.let { prompt ->
+        hostState.downloadPrompt?.let { prompt ->
+            BrowserDownloadConfirmationOverlay(
+                prompt = prompt,
+                onConfirm = { onConfirmBrowserDownload(prompt.requestId) },
+                onCancel = { onCancelBrowserDownload(prompt.requestId) },
+            )
+        } ?: hostState.externalOpenPrompt?.let { prompt ->
             ExternalOpenPromptBar(
                 title = prompt.title,
                 target = prompt.target,
@@ -645,6 +663,81 @@ internal fun WebSessionBrowserScreen(
                 }
             )
         }
+        }
+    }
+}
+
+@Composable
+private fun BrowserDownloadConfirmationOverlay(
+    prompt: BrowserDownloadPromptState,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val context = LocalContext.current
+    val engineLabel =
+        when (prompt.engine) {
+            BrowserDownloadEngine.INTERNAL -> stringResource(R.string.web_session_download_engine_internal)
+            BrowserDownloadEngine.SYSTEM -> stringResource(R.string.web_session_download_engine_system)
+        }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.52f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 2.dp,
+            shadowElevation = 6.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.web_session_download_confirm_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(R.string.web_session_download_confirm_file, prompt.fileName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                prompt.mimeType?.let { mimeType ->
+                    Text(
+                        text = stringResource(R.string.web_session_download_confirm_type, mimeType),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                if (prompt.contentLength > 0L) {
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.web_session_download_confirm_size,
+                                Formatter.formatFileSize(context, prompt.contentLength),
+                            ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.web_session_download_confirm_engine, engineLabel),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onCancel) {
+                        Text(stringResource(R.string.web_session_download_confirm_cancel))
+                    }
+                    TextButton(onClick = onConfirm) {
+                        Text(stringResource(R.string.web_session_download_confirm_action))
+                    }
+                }
+            }
         }
     }
 }
