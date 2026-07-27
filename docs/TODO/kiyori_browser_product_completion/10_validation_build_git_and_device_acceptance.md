@@ -13,12 +13,12 @@ APK 证据至少记录：绝对路径、生成时间、大小、SHA-256、applic
 
 ## 当前最新本地制品
 
-- 网页浏览器/文件下载器设置页共享视觉切片：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
-- 生成时间 `2026-07-26 22:49:16 +08:00`，大小 `449493010` 字节，SHA-256 `7B95F7B44C482C1734158BA6A5E79EA775F575F69105FDC984B269039C278D48`
+- 浏览器与负一屏共享下载抽屉切片：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 生成时间 `2026-07-27 12:44:52 +08:00`，大小 `449493010` 字节，SHA-256 `B658EEEB9E854011F58C475321279269E80443C2E3E113E8451E08B75B9269F9`
 - `applicationId com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`、`compileSdk 36`
 - Android Debug V2 签名通过；`zipalign -c -P 16 -v 4` 为 `Verification successful`
-- 本切片定向 `KiyoriSettingsPagesTest` 为 7/7，覆盖两页最终标题、展开/中间/吸顶帧、浏览器与下载设置分组合同；Formal readiness 与 `git diff --check` 通过
-- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 34s`，230 个任务零失败，其中 26 个执行、204 个为 up-to-date；该制品证明共享折叠顶栏、无描边设置分组和既有浏览器/下载设置代码可进入 Debug APK。真实设备上的连续滑动轨迹、标题完整显示、字体缩放、状态栏 inset、手机/平板/横屏视觉，以及此前的下载网络和文件行为仍为 `verification_pending`
+- 本轮 Shell 回归定向 `KiyoriShellStateTest` 为 `35/35`，覆盖抽屉显示、退出动画、完全隐藏、AI 非根路由下负一屏入口、Back 优先级和完整 Shell 保存恢复；此前下载全链路五组测试基线为 `80/80`。Formal readiness、旧拆分式 Shell 保存变量零匹配与 `git diff --check` 通过
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 56s`，230 个任务零失败，其中 25 个执行、205 个为 up-to-date；该制品让 `OperitApp` 直接保存完整 `KiyoriShellState`，不再在顶层桥接中丢弃 `isDownloadDrawerOpen`。软件首页与负一屏实际触摸、抽屉视觉与拖动、菜单周围点击关闭、长按动作、输入法遮挡、SAF 文件与权限、Android `DownloadManager`、真实 M3U8 remux 和 APK 自动清理仍为 `verification_pending`
 
 ## Git 门禁
 

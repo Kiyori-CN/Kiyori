@@ -40,14 +40,14 @@ internal data class BrowserDownloadSettings(
     val chunkSizeKb: Int = DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB,
     val autoCleanApk: Boolean = false,
     val enableHttp2: Boolean = true,
-    val deleteFileByDefault: Boolean = false,
     val skipConfirmation: Boolean = false,
     val showCompletionTip: Boolean = true,
 )
 
 internal class BrowserDownloadSettingsStore private constructor(context: Context) {
+    private val preferencesContext = context.applicationContext
     private val preferences =
-        context.applicationContext.getSharedPreferences(
+        preferencesContext.getSharedPreferences(
             PREFERENCES_NAME,
             Context.MODE_PRIVATE,
         )
@@ -69,6 +69,7 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
     fun setCustomDirectory(uri: String, displayName: String) {
         val normalizedUri = uri.trim()
         val normalizedName = displayName.trim()
+        val previousUri = _state.value.customDirectoryUri
         require(normalizedUri.isNotBlank()) { "Custom browser download directory URI is blank" }
         require(normalizedName.isNotBlank()) { "Custom browser download directory name is blank" }
         preferences
@@ -84,9 +85,14 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                 customDirectoryName = normalizedName,
                 autoTransferToPublicDirectory = false,
             )
+        if (previousUri.isNotBlank() && previousUri != normalizedUri) {
+            BrowserDownloadManager.getInstance(preferencesContext)
+                .releasePersistedDirectoryPermissionIfUnused(previousUri)
+        }
     }
 
     fun clearCustomDirectory() {
+        val previousUri = _state.value.customDirectoryUri
         preferences
             .edit()
             .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
@@ -94,6 +100,10 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
             .remove(KEY_CUSTOM_DIRECTORY_NAME)
             .apply()
         _state.value = _state.value.copy(customDirectoryUri = "", customDirectoryName = "")
+        if (previousUri.isNotBlank()) {
+            BrowserDownloadManager.getInstance(preferencesContext)
+                .releasePersistedDirectoryPermissionIfUnused(previousUri)
+        }
     }
 
     fun setMaxConcurrentTasks(value: Int) {
@@ -179,6 +189,7 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
     }
 
     fun setAutoTransferToPublicDirectory(enabled: Boolean) {
+        val previousUri = _state.value.customDirectoryUri
         val editor =
             preferences
                 .edit()
@@ -196,6 +207,10 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                 customDirectoryName = if (enabled) "" else _state.value.customDirectoryName,
                 autoTransferToPublicDirectory = enabled,
             )
+        if (enabled && previousUri.isNotBlank()) {
+            BrowserDownloadManager.getInstance(preferencesContext)
+                .releasePersistedDirectoryPermissionIfUnused(previousUri)
+        }
     }
 
     fun setChunkSizeKb(value: Int) {
@@ -226,15 +241,6 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
             .putBoolean(KEY_ENABLE_HTTP2, enabled)
             .apply()
         _state.value = _state.value.copy(enableHttp2 = enabled)
-    }
-
-    fun setDeleteFileByDefault(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_DELETE_FILE_BY_DEFAULT, enabled)
-            .apply()
-        _state.value = _state.value.copy(deleteFileByDefault = enabled)
     }
 
     fun setSkipConfirmation(enabled: Boolean) {
@@ -297,7 +303,6 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                     ),
                 autoCleanApk = preferences.getBoolean(KEY_AUTO_CLEAN_APK, false),
                 enableHttp2 = preferences.getBoolean(KEY_ENABLE_HTTP2, true),
-                deleteFileByDefault = preferences.getBoolean(KEY_DELETE_FILE_BY_DEFAULT, false),
                 skipConfirmation = preferences.getBoolean(KEY_SKIP_CONFIRMATION, false),
                 showCompletionTip = preferences.getBoolean(KEY_SHOW_COMPLETION_TIP, true),
             )
@@ -351,7 +356,6 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         private const val KEY_CHUNK_SIZE_KB = "chunk_size_kb"
         private const val KEY_AUTO_CLEAN_APK = "auto_clean_apk"
         private const val KEY_ENABLE_HTTP2 = "enable_http2"
-        private const val KEY_DELETE_FILE_BY_DEFAULT = "delete_file_by_default"
         private const val KEY_SKIP_CONFIRMATION = "skip_confirmation"
         private const val KEY_SHOW_COMPLETION_TIP = "show_completion_tip"
 
@@ -394,3 +398,12 @@ internal fun resolveBrowserDownloadMaxConcurrentTasksLimit(
         128 / maxOf(normalThreadCount, m3u8ThreadCount),
     )
 }
+
+internal fun shouldReleaseBrowserDownloadDirectoryPermission(
+    candidateUri: String,
+    settingsDirectoryUri: String,
+    taskDirectoryUris: Collection<String>,
+): Boolean =
+    candidateUri.isNotBlank() &&
+        candidateUri != settingsDirectoryUri &&
+        candidateUri !in taskDirectoryUris

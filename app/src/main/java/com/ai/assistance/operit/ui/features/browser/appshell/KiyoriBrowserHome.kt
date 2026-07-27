@@ -22,6 +22,7 @@ internal fun KiyoriBrowserHome(
     onExitBrowser: () -> Unit,
     onOpenAiDialogue: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
     onCloseBrowser: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -71,6 +72,7 @@ internal fun KiyoriBrowserHome(
                 onOpenAiDialogue()
             },
             onOpenBrowserSettings = onOpenBrowserSettings,
+            onOpenDownloadSettings = onOpenDownloadSettings,
             onExitBrowser = {
                 presentation?.let { acquired ->
                     coordinator.releaseAppPresentationAndDestroy(acquired, webViewHost)

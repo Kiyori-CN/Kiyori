@@ -51,6 +51,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSE
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_M3U8_THREAD_OPTIONS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveBrowserDownloadMaxConcurrentTasksLimit
@@ -167,6 +168,8 @@ internal fun KiyoriDownloadSettingsPage(
                         ?: throw IllegalStateException("无法读取所选目录名称")
                 settingsStore.setCustomDirectory(uri.toString(), displayName)
             } catch (error: Exception) {
+                BrowserDownloadManager.getInstance(context)
+                    .releasePersistedDirectoryPermissionIfUnused(uri.toString())
                 AppLogger.e(
                     "KiyoriDownloadSettings",
                     "Failed to persist custom download directory",

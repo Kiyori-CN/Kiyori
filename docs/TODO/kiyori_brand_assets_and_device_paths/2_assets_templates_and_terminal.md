@@ -31,7 +31,7 @@
 - 终端 READY 后的欢迎横幅和环境说明使用 Kiyori；Ubuntu 发行版文件与 rootfs 内容保持原样
 - 环境配置界面的 `Operit Required` 改为 `Kiyori Required`
 - 写入 Ubuntu 软件源文件的来源注释使用 `From Kiyori Settings`
-- Node.js 首装使用 npm 的既有全局 bin 同时安装 pnpm 与 TypeScript，安装页和父应用共用三项可执行性检查
+- Node.js 首装使用 npm 的既有全局 bin 同时安装 pnpm 与 TypeScript，安装页和父应用通过 `npm prefix -g` 解析同一 bin 后共用三项可执行性检查
 - namespace、AIDL、rootfs 目录、安装标记、chroot 临时文件、环境变量和 native 库名保持不变
 
 ## 预期结果

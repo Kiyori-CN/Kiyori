@@ -3,6 +3,8 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -595,6 +597,22 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             )
         }
 
+        override fun onOpenDownloadSettings() {
+            runOnMainSync<Unit> {
+                setExpandedOnMain(false)
+            }
+            context.startActivity(
+                Intent(context, MainActivity::class.java).apply {
+                    action = MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    )
+                },
+            )
+        }
+
         override fun onCloseCurrentTab() {
             resolvePreferredSessionId()?.let { closeSession(it) }
         }
@@ -835,9 +853,114 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onOpenDownloadLocation(taskId: String) {
-            if (!openDownloadLocation(taskId)) {
+        override fun onOpenDownloadFileManager() {
+            if (!openDownloadLocation()) {
                 showToast(appContext.getString(R.string.web_session_download_location_open_failed))
+            }
+        }
+
+        override fun onStartManualDownload(
+            fileName: String,
+            url: String,
+            suffix: String,
+            engine: BrowserDownloadEngine,
+        ): Boolean {
+            val result = runCatching {
+                runOnMainSync {
+                    startManualBrowserDownload(
+                        url = url,
+                        requestedFileName = fileName,
+                        requestedSuffix = suffix,
+                        engine = engine,
+                    )
+                }
+            }
+            return result.fold(
+                onSuccess = { accepted -> accepted },
+                onFailure = { error ->
+                    AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to start manual browser download", error)
+                    showToast(error.toString())
+                    false
+                },
+            )
+        }
+
+        override fun onRedownload(taskId: String) {
+            browserDownloadManager().redownloadCompletedTask(taskId)
+                .onSuccess { task ->
+                    showToast(context.getString(R.string.download_started, task.fileName))
+                }
+                .onFailure { error -> showToast(error.toString()) }
+        }
+
+        override fun onRenameDownload(
+            taskId: String,
+            targetFileName: String,
+            mode: BrowserDownloadRenameMode,
+        ) {
+            ioScope.launch {
+                browserDownloadManager().renameDownloadedFile(taskId, targetFileName)
+                    .onSuccess {
+                        showToast(
+                            if (mode == BrowserDownloadRenameMode.SUFFIX) {
+                                "后缀修改成功"
+                            } else {
+                                "重命名成功"
+                            },
+                        )
+                    }
+                    .onFailure { error -> showToast(error.toString()) }
+            }
+        }
+
+        override fun onMoveDownload(taskId: String, treeUriString: String) {
+            ioScope.launch {
+                browserDownloadManager().moveDownloadedFileToDirectory(taskId, treeUriString)
+                    .onSuccess { showToast("文件夹修改成功") }
+                    .onFailure { error -> showToast(error.toString()) }
+            }
+        }
+
+        override fun onCopyDownloadUrl(taskId: String) {
+            val url = browserDownloadManager().copyDownloadUrl(taskId)
+            if (url == null) {
+                showToast("当前下载链接不可用")
+                return
+            }
+            copyBrowserDownloadText(context, "download_url", url)
+            showToast("已复制下载链接")
+        }
+
+        override fun onShareDownload(taskId: String) {
+            if (!browserDownloadManager().shareDownloadedFile(taskId)) {
+                showToast("当前文件暂时无法分享")
+            }
+        }
+
+        override fun onCopyDownloadLocation(taskId: String) {
+            val location = browserDownloadManager().copyDownloadLocation(taskId)
+            if (location == null) {
+                showToast("当前文件路径不可用")
+                return
+            }
+            copyBrowserDownloadText(context, "download_path", location)
+            showToast("已复制文件路径")
+        }
+
+        override fun onTransferDownload(taskId: String) {
+            ioScope.launch {
+                browserDownloadManager().transferDownloadedFileToPublicDirectory(taskId)
+                    .onSuccess { showToast("已转存到公开目录") }
+                    .onFailure { error -> showToast(error.toString()) }
+            }
+        }
+
+        override fun onMergeDownloadToMp4(taskId: String) {
+            showToast("正在合并MP4")
+            ioScope.launch {
+                browserDownloadManager().mergeM3u8PackageToMp4(taskId)
+                    .onSuccess { task -> showToast("已合并为${task.fileName}") }
+                    .onFailure { error -> showToast(error.toString()) }
             }
         }
 
@@ -876,6 +999,11 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
     }
+
+private fun copyBrowserDownloadText(context: Context, label: String, value: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, value))
+}
 
 internal fun StandardBrowserSessionTools.destroyOverlayOnMain() {
     StandardBrowserSessionTools.browserHost?.destroy()

@@ -62,6 +62,57 @@ class BrowserDownloadTransportTest {
     }
 
     @Test
+    fun `probe retries transient HEAD failures before returning metadata`() {
+        val requestCount = AtomicInteger()
+        LoopbackServer().use { server ->
+            server.handle("/transient-head") { exchange ->
+                if (requestCount.incrementAndGet() < 3) {
+                    exchange.respond(status = 503)
+                } else {
+                    exchange.respond(
+                        status = 200,
+                        headers =
+                            mapOf(
+                                "Content-Length" to "7",
+                                "Accept-Ranges" to "bytes",
+                                "Content-Type" to "application/octet-stream",
+                            ),
+                    )
+                }
+            }
+            server.start()
+
+            newTransport(retryDelay = {}).use { transport ->
+                val result = transport.probe(server.url("/transient-head"))
+
+                assertEquals(7L, result.contentLength)
+                assertTrue(result.acceptsRanges)
+                assertEquals(3, requestCount.get())
+            }
+        }
+    }
+
+    @Test
+    fun `probe permanent HTTP failure performs exactly five attempts`() {
+        val requestCount = AtomicInteger()
+        LoopbackServer().use { server ->
+            server.handle("/permanent-probe-failure") { exchange ->
+                requestCount.incrementAndGet()
+                exchange.respond(status = 503)
+            }
+            server.start()
+
+            newTransport(retryDelay = {}).use { transport ->
+                assertThrows(IOException::class.java) {
+                    transport.probe(server.url("/permanent-probe-failure"))
+                }
+            }
+
+            assertEquals(BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT, requestCount.get())
+        }
+    }
+
+    @Test
     fun `HEAD 405 is followed by an exact zero byte range probe`() {
         val headCount = AtomicInteger()
         val rangeCount = AtomicInteger()

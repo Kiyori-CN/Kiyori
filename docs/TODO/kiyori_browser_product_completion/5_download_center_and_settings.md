@@ -66,7 +66,7 @@
 - 同时下载任务数：1 至 4
 - 单任务分段线程数：1、2、4、8
 - 下载目录：内置下载默认使用应用下载目录；可通过 SAF 选择持久化自定义目录并恢复默认目录，也可为之后的新任务开启公开目录自动转存
-- 删除记录时是否同时删除文件：仅作为下载中心删除确认的默认勾选状态，不绕过确认
+- 删除记录时是否同时删除文件：每次删除确认都由用户明确选择“仅删除记录”或“记录和文件”，不持久化默认选项
 
 其余旧版真实设置保留在上述后续内部阶段，不在第一阶段伪造开关或宣称完成。
 
@@ -75,7 +75,7 @@
 - `BrowserDownloadSettingsStore` 继续使用 additive schema version `1`，新增默认 `INTERNAL`、默认开启完成提示和默认保留确认；持久化 engine ID 只接受 `internal` 或 `system`
 - WebView 与 userscript 的 `http/https` 下载进入同一个请求函数。请求会冻结文件名、MIME、已知长度、下载器、Cookie、User-Agent 和 Referer；设置未跳过确认时，由 `StandardBrowserSessionTools.pendingBrowserDownloadRequest` 持有唯一临时状态
 - Browser Home、展开的悬浮浏览器和最小化指示器观察同一 prompt。系统 Back 先取消确认，不修改 WebView 页面、历史或网络状态
-- 内置模式只调用现有 `BrowserDownloadManager.startHttpDownload`；系统模式只调用 Android `DownloadManager.enqueue`，使用 `Download/Kiyori/browser/downloads/` 目标路径和系统完成通知，不向 Kiyori JSON、任务数、下载中心或 AI task event 写入镜像记录
+- 内置模式只调用现有 `BrowserDownloadManager.startHttpDownload`；系统模式只调用 Android `DownloadManager.enqueue`，使用 `Download/Kiyori/browser/downloads/` 目标路径和系统完成通知，不向 Kiyori JSON、任务数、下载抽屉或 AI task event 写入镜像记录
 - `blob:` 与 `data:` 不能由 Android `DownloadManager` 接管，继续使用现有 inline payload 路径；这属于下载类型的单一所有权，不是失败后的切换
 - “下载完成强提示”只消费内置 manager 的 `completed/failed` 事件并显示 Toast，默认开启。系统任务完成 UI 始终由 Android 下载服务负责
 - 内置或系统启动异常都写入 `AppLogger` 并显示失败信息，不再移植旧版“交给外部应用”逻辑
@@ -111,7 +111,7 @@
 ### 设置页与 UI
 
 - “自定义下载目录”点击后显示旧版选择面板：`选择目录`、已有目录时追加 `恢复默认目录`
-- 下载中心继续使用同一 `BrowserDownloadManager.taskSnapshots`；完成卡片增加旧版动作入口，删除仍先二次确认并沿用 `deleteFileByDefault`
+- 下载抽屉继续使用同一 `BrowserDownloadManager.taskSnapshots`；完成卡片增加旧版动作入口，删除始终二次确认并由用户本次明确选择是否同时删除文件
 - `KiyoriDownloadSettingsPage` 不再把目录做成说明型空子页；目录选择器的权限错误必须写 `AppLogger` 并显示可见失败提示
 
 ### 阶段 4 本地证据
@@ -121,7 +121,7 @@
 - HTTP 分段和 `.part` 文件继续使用既有 staging 目录；完成时直接写入默认文件或冻结的 SAF 目录，SAF 写入失败会把任务置为 `FAILED`，不会改存默认目录
 - 完成任务已接入重命名、修改后缀、移动到 SAF 目录、复制下载链接、分享文件、复制路径或 `content://` URI，以及转存 `Download/Kiyori/browser/downloads/`
 - 路径文件分享使用现有 `FileProvider`，SAF 文件分享使用原始 URI；移动和转存都只在复制成功后删除源文件
-- `BrowserDownloadPolicyTest` 覆盖自定义目录默认值、重命名/后缀规则和 URI/路径显示规则；`KiyoriSettingsPagesTest` 锁定目录选择器接线，`KiyoriShellStateTest` 保持下载中心导航合同
+- `BrowserDownloadPolicyTest` 覆盖自定义目录默认值、重命名/后缀规则和 URI/路径显示规则；`KiyoriSettingsPagesTest` 锁定目录选择器接线，`KiyoriShellStateTest` 保持共享下载抽屉状态合同
 - `BrowserDownloadPolicyTest` 11/11、`KiyoriSettingsPagesTest` 6/6、`KiyoriShellStateTest` 31/31，共 48/48 通过
 - Formal readiness 与 `git diff --check` 通过；最终 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 3m 14s`，230 个任务零失败
 - Debug APK：`2026-07-26 17:08:19 +08:00`，`449493010` 字节，SHA-256 `75DB5E0A545DCE71A61F396A9E58163D918DAD9752C44FEB22D695C90C1DE3A4`，`com.kiyori`，`45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug v2 签名和 `zipalign -c -P 16 -v 4` 通过
@@ -297,18 +297,103 @@ playlist 的本地 URI 指向同目录 companion files。单独复制 playlist �
 
 当前 `HttpURLConnection` helper 没有每个任务的 OkHttp `Protocol` owner，无法真实实现“优先 HTTP/2 / 仅 HTTP/1.1”。Browser 专用 OkHttp transport 才能让设置直接约束连接，而不影响仍使用通用 helper 的其他文件工具。
 
-## 全屏下载中心
+## 旧全屏下载中心设计（已废止）
 
-- 顶部包含返回、标题、进行中数量和设置入口
-- selector 为“下载中”“已完成”“失败”，复用现有 filter 语义
-- 任务卡显示文件名、进度、速度、大小、状态、保存位置和上下文动作
-- 宽屏使用双列卡片；手机保持单列和足够的触摸面积
-- 支持暂停、继续、取消、重试、打开文件、打开位置、删除记录和删除文件
-- 批量操作只在有明确目标集合时显示，删除文件必须二次确认
+旧三筛选全屏页面、宽屏双列任务卡和 nested Download Settings 路由已经被统一下载抽屉方案替代。负一屏和浏览器菜单现在打开同一双页签内容，继续读取唯一 `BrowserDownloadManager` snapshot；设置首页仍直接进入 Download Settings。
 
-浏览器抽屉保留紧凑下载视图；Settings Home 直接进入 Download Settings，负一屏进入全屏下载中心。三处读取同一个 `BrowserDownloadManager` snapshot 和事件流。
+## 2026-07-27 浏览器下载下拉抽屉正式复刻切片
 
-## 内部阶段 2 实现
+### 范围与参考
+
+- `D:\03_Default\图片\Kiyori\1.jpg` 至 `7.jpg` 是本切片的视觉权威；`D:\10_Project\kiyori-android` 只提供 Compose 结构与已实现交互参考，`D:\10_Project\hikerView` 用于核对真实下载业务语义和不同任务类型的操作矩阵
+- 保留 `WebSessionBrowserBottomDrawer` 的位置、部分展开/完全展开状态、拖动阈值、遮罩和弹簧动画；本切片只替换下载抽屉内容，不建立新的抽屉宿主
+- 当前界面按未发布方案迭代处理：旧三筛选紧凑抽屉彻底替换为“已下载 / 下载中”双页签；旧全屏 `KiyoriDownloadCenterPage`、`DOWNLOAD_CENTER` Shell 路由、旧任务卡和三筛选投影全部删除，负一屏与浏览器菜单打开同一共享下拉抽屉
+- `BrowserDownloadManager` 继续是唯一 Kiyori 任务 owner，`BrowserDownloadSettingsStore` 继续拥有下载器、并发、线程、目标目录、确认、提示、M3U8、HTTP 协议与 APK 清理设置；Android `DownloadManager` 任务不镜像进 Kiyori 列表
+
+### UI 与交互
+
+- 顶部严格保留“我的下载”、四竖线菜单、“新增”“清空”；菜单包含排序方式、批量删除、文件管理、显示时间、分类显示和更多设置
+- “已下载 / 下载中”字体与页签垂直留白收紧，绿色指示线贴近文字，标题行与页签整体压扁以增加任务列表可用高度；顶部菜单宽度和单行高度同步收紧
+- 顶部菜单使用显式透明全屏点击层；菜单 Surface 自身消费点击，点击菜单周围任意区域立即关闭，不依赖平台窗外点击判定
+- Shell 共享抽屉宿主只在抽屉可见或退出动画尚未完成时参与组合；完全隐藏后移除 `zIndex(30)` 的全屏命中树，避免透明遮罩截断软件首页 Pager 与全部按钮触摸
+- 页签固定为“已下载 / 下载中”。已下载只显示 `COMPLETED`，下载中统一承载排队、连接、下载、暂停、失败和取消状态；页签切换时清理批量选择
+- 排序提供最新、最早和名称；分类按 MIME 与后缀稳定归入视频、音频、图片、应用、压缩包、文档和其他，只改变当前投影，不写入任务 JSON
+- 任务卡保持紧凑：文件名、来源、状态、大小/进度/速度、可选时间和分类；点击已完成任务打开文件，长按按任务格式和状态打开对应操作面板，批量模式只切换显式目标集合
+- “新增”弹窗包含文件名、URL、后缀、内置/系统下载器。初始下载器读取当前设置；用户本次显式选择只决定本次任务，内置任务仍冻结当前下载设置，系统任务直接交给 Android `DownloadManager`
+- “清空”与批量删除必须二次确认。删除记录始终清理任务拥有的临时分片；是否删除已完成文件由本次明确选择决定，不静默改写任务或系统下载
+- “文件管理”调用真实下载位置入口；“更多设置”通过 Shell 的 Download Settings 路由打开同一个设置 owner，overlay 先最小化并继续保留活动 WebView
+
+### 真实业务入口
+
+- `BrowserDownloadItem` 只扩充 manager record 的只读投影：来源 URL、MIME、创建/完成时间、M3U8 离线包标志和重新下载能力；不复制 headers、分片或持久化状态
+- 手动下载统一校验 `http/https` URL，按文件名、URL 与用户后缀生成目标名和 MIME；内置分流调用现有 `startHttpDownload`，系统分流调用现有 Android `DownloadManager` 请求构造
+- 手动下载具有明确的浏览器会话与独立入口两种请求上下文。浏览器会话上下文携带当前 Profile 的 Cookie、User-Agent 与 Referer；负一屏首次打开且没有活动 WebSession 时使用独立请求 ID 与空页面头，不创建隐藏 WebView、悬浮层或第二套下载 owner
+- 已完成普通网络任务的“重新下载”创建一个新的 manager task，保留原记录；只有具备非空 `http/https` 来源的任务显示该动作
+- 普通已完成文件按 `7.jpg` 提供删除、批量删除、重新下载、重命名、修改后缀、修改文件夹、复制下载链接、分享本地文件、复制文件路径和公开目录转存；缺少网络来源的任务不显示重新下载或复制链接
+- M3U8 离线包使用独立操作集合，只保留删除、批量删除、重新下载、重命名、复制下载链接和合并 MP4，不显示修改后缀、SAF 移动、分享单个 playlist、复制 playlist 路径或公开目录转存
+- 活动和暂停任务按 `6.jpg` 提供 manager 已真实实现的暂停、继续、取消、删除和批量取消；失败、取消任务改为恢复、删除和批量删除。`hikerView` 的“边下边播”依赖本地代理端点与播放器 owner，当前 Kiyori 尚无该调用链，本切片不显示无 consumer 的按钮
+- 长按操作集合由纯策略解析器按完成普通文件、完成 M3U8 离线包、活动任务、暂停任务、失败/取消任务分别生成；UI 只把动作枚举绑定到 manager consumer，测试锁定不同格式和状态不会出现错误按钮或重复“恢复下载”
+- “合并为MP4格式”仅对已完成、路径型 M3U8 离线包显示。FFmpeg 读取本地重写后的 playlist，输出到同目录临时文件并原子改名；同一任务记录切换到 MP4 是提交点，源离线包仅在提交后清理，清理异常不删除已提交的 MP4
+
+### 验证门禁
+
+- 纯 JVM 测试覆盖双页签、排序、分类、手动文件名/后缀解析、批量目标选择、重新下载能力和 MP4 输出命名
+- 定向测试后执行 `git diff --check`、Formal readiness 与 `:app:assembleDebug`；核验 Debug APK 路径、大小和 SHA-256
+- 本地构建不替代抽屉拖动、长按、输入法、系统下载器、文件选择器、FFmpeg 实际媒体和真机视觉验收，缺失项保持 `verification_pending`
+
+### 本轮实现与本地证据
+
+- 下载抽屉已替换为双页签实现，保留原 `WebSessionBrowserBottomDrawer` 的展示位置、拖动、部分/完全展开和弹簧动画；负一屏通过 Shell 状态打开同一抽屉，旧全屏中心、三筛选投影和任务卡已删除
+- 普通文件、M3U8 离线包、活动/暂停任务和失败/取消任务已使用不同长按操作集合；普通文件面板与 `7.jpg` 的十项顺序一致，活动任务实现暂停、取消和批量取消，未把缺少代理与播放器 consumer 的“边下边播”做成空动作
+- 手动新增、内置/系统分流、已完成网络任务重新下载、设置路由和 M3U8 本地 remux 已接入唯一 manager；M3U8 合并以任务记录切换到 MP4 为提交点，提交后源包清理失败只记录明确日志，不删除已提交 MP4
+- `git diff --check` 通过；`:app:compileDebugKotlin` 通过。定向 JVM 测试为 `BrowserDownloadPolicyTest 19`、`BrowserDownloadDrawerPolicyTest 8`、`BrowserDownloadTransportTest 14`、`KiyoriShellStateTest 32`、`KiyoriSettingsPagesTest 7`，合计 `80/80`，零失败、零错误
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main` 通过；`:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 1s`，`230` 个任务零失败，其中 `26` 个执行、`204` 个为 up-to-date
+- Debug APK：`2026-07-27 05:39:49 +08:00`，`449493010` 字节，SHA-256 `C7E701E83B9020701B2AB7E7569F96F86BD82C0DA99E92D9965EBA22BED4A93A`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
+- 抽屉视觉与拖动、菜单周围点击关闭、不同格式长按矩阵、输入法遮挡、Android `DownloadManager`、SAF 文件移动与权限、真实 M3U8 媒体 remux 和 APK 自动清理仍需目标 Android 设备验收，当前切片保持 `verification_pending`
+
+### 2026-07-27 统一入口与下载器复核增量
+
+- 负一屏“下载”不再打开旧全屏页面，而是把 `KiyoriShellState` 的共享下载抽屉状态置为可见；系统 Back、切换主页面、打开设置子页和抽屉拖动关闭都归一到同一可见状态
+- `BrowserDownloadManager.taskSnapshots` 继续是共享抽屉的唯一数据输入；Shell 宿主只构造 UI 投影和动作回调，不持久化第二份列表、排序、分类或批量状态
+- 删除无消费者的 `deleteFileByDefault` 设置字段、setter 与 preference key 代码。删除弹窗继续要求用户本次明确选择“只删记录”或“记录和文件”，不把 UI 决策写入下载设置
+- SAF 自定义目录被替换、恢复默认或因启用自动公开转存而清除时，设置 owner 释放不再使用的持久化 URI 权限；任务记录仍持有实际文件所需的 content URI 访问语义
+- 目录选择读取失败或完成文件移动失败时，刚取得的 SAF tree 权限也按同一 owner 判定释放；当前设置或其他任务仍引用该目录时不释放
+- 下载传输的 HEAD 与精确 `0-0` Range 元数据探测进入与正文、分段和 M3U8 资源相同的五次有界重试；测试分别覆盖瞬时 HEAD 失败和探测最终失败次数
+- SAF `ContentResolver.delete()` 只有删除行数大于零才视为成功。移动或转存的源删除返回零行时必须回滚新副本并保留原任务位置，不能误报完成并遗留源文件
+- 活动/暂停任务的“批量取消”使用独立批量动作，只允许选择 `canCancel` 任务并调用 manager cancel；它不再复用批量删除确认，暂停任务卡的内联第二动作也统一为“取消”
+- 验收必须证明 `KiyoriDownloadCenterPage`、`DOWNLOAD_CENTER`、旧 `BrowserDownloadTaskCard`、旧三筛选投影和 `deleteFileByDefault` 在项目源码与测试中零引用
+
+### 2026-07-27 软件首页触摸回归修复
+
+- 目标设备反馈软件首页无法滑动且全部按钮无响应。根因是 Shell 始终以 `zIndex(30)` 组合 `KiyoriDownloadDrawerHost`；即使抽屉状态为隐藏，内部仍保留 `fillMaxSize()` 的透明遮罩与点击树，位于软件首页 Pager 和按钮之上
+- 宿主现在只在抽屉可见或退出动画尚未完成时组合。完全隐藏后从组合树移除，不创建下载 manager、任务订阅、透明遮罩、抽屉内容或点击节点；关闭过程继续由原 `WebSessionBrowserBottomDrawer` 完成弹簧退出动画
+- `KiyoriShellStateTest` 新增显示、退出动画保留、完全隐藏移除三态策略覆盖，当前 `33/33` 通过；`:app:compileDebugKotlin`、Formal readiness 和 `git diff --check` 通过
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 37s`，`230` 个任务零失败，其中 `25` 个执行、`205` 个为 up-to-date
+- Debug APK：`2026-07-27 11:27:54 +08:00`，`449493010` 字节，SHA-256 `A444F8D9BDAFAC45603620AE43AFC714881A68FF54EB59ECC31AE7BFDD398A3C`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
+- 自动检查证明隐藏态不再组合全屏命中树，但软件首页实际滑动、搜索框、天气、窗口计数、AI 快捷动作和底部五入口仍需使用该 APK 在目标设备复测
+
+### 2026-07-27 负一屏下载入口接线修复
+
+- 负一屏下载卡已经调用 `openDownloadDrawer()`，但 Shell 又把抽屉显示与 `aiHostIsRoot` 绑定，并在后台 AI route 不是 `Screen.AiChat` 时立即关闭抽屉；由于 AI host 会在软件首页和负一屏后方保留内部路由，这个错误耦合会让点击表现为无响应
+- 删除 AI 非根路由自动关闭下载抽屉的副作用；共享下载抽屉现在只由 `KiyoriShellState.isDownloadDrawerOpen` 控制，不受后台 AI route 深度影响
+- 负一屏点击、抽屉关闭和打开下载设置都改用 `latestState` 与 `latestOnStateChange`，避免 Pager 页面持有旧 Shell 快照；即使 AI host 不是根页面，系统 Back 也会优先关闭已经打开的下载抽屉
+- `KiyoriShellStateTest` 新增 AI 根路由与非根路由下的显示合同及 Back 优先级，当前 `34/34` 通过；`:app:compileDebugKotlin`、Formal readiness 和 `git diff --check` 通过
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 42s`，`230` 个任务零失败，其中 `25` 个执行、`205` 个为 up-to-date
+- Debug APK：`2026-07-27 11:47:02 +08:00`，`449493010` 字节，SHA-256 `44381497BF14D1861F609F47328D51BF3E778B98E7E54176AA010ADD7B58E22E`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
+- 自动验证证明入口状态不再受 AI route 影响；负一屏下载卡实际点击、抽屉进入动画和 Back 关闭仍需使用该 APK 在目标设备复测
+
+### 2026-07-27 负一屏下载状态 owner 修复
+
+- 目标设备继续反馈负一屏下载卡点击无响应。进一步追踪发现 `KiyoriAppShell` 已提交 `isDownloadDrawerOpen = true`，但 `OperitApp` 仍用多组 `rememberSaveable` 字段重建 Shell，并且构造与回写都遗漏下载抽屉字段；新状态在顶层桥接中立即丢失
+- `OperitApp` 现在直接持有单一可保存的 `KiyoriShellState`。`KiyoriShellStateSaver` 按确定顺序保存主目的地、软件首页页码、child、child Back target、AI 抽屉、下载抽屉和浏览器返回目标，不再维护容易漏字段的并行状态桥接
+- `KiyoriShellStateTest` 新增完整保存恢复合同并通过 `35/35`；Formal readiness、旧拆分式 Shell 保存变量零匹配与 `git diff --check` 通过
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 56s`，`230` 个任务零失败，其中 `25` 个执行、`205` 个为 up-to-date
+- Debug APK：`2026-07-27 12:44:52 +08:00`，`449493010` 字节，SHA-256 `B658EEEB9E854011F58C475321279269E80443C2E3E113E8451E08B75B9269F9`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
+- 自动验证证明下载抽屉可见状态已经跨过应用根状态 owner；负一屏实际点击、抽屉进入动画和系统 Back 关闭仍需在目标设备安装该 APK 后复测
+
+## 历史记录：内部阶段 2 实现
+
+以下内容记录旧全屏中心阶段的本地证据，已经被 2026-07-27 统一入口与下载器复核增量替代，不再描述当前 UI 合同。
 
 - Settings Home“文件下载器”直接进入 Download Settings；负一屏“下载”进入 Shell Download Center 并显示 manager 的真实任务数，浏览器菜单“下载”进入共享紧凑下载抽屉
 - Download Center 按手机单列、`>=720dp` 双列展示任务卡，并复用“下载中、已完成、失败”纯过滤合同
@@ -330,7 +415,7 @@ playlist 的本地 URI 指向同目录 companion files。单独复制 playlist �
 
 进程恢复时网络、计费和目标文件状态可能已经变化。明确恢复可避免未经用户动作重新产生网络副作用。
 
-### 为什么系统下载不显示在 Kiyori 下载中心？
+### 为什么系统下载不显示在 Kiyori 下载抽屉？
 
 Android `DownloadManager` 已经持有系统任务的 ID、进度、通知、失败和生命周期。把它复制进 Kiyori JSON 会产生无法原子同步的第二 owner，因此系统模式明确只在系统下载界面管理。
 
@@ -343,8 +428,8 @@ Android `DownloadManager` 已经持有系统任务的 ID、进度、通知、失
 - `BrowserDownloadSupport.kt`
 - `BrowserDownloadM3u8Policy.kt`
 - `WebSessionBrowserHostState.kt`
-- `WebSessionDownloadSheet.kt`
-- 新的 Download Center、设置 store 和页面
+- `WebSessionDownloadDrawer.kt`
+- `KiyoriDownloadDrawerHost.kt`、设置 store 和页面
 - Shell/Settings/Browser callbacks
 - 队列、设置、状态恢复和 UI contract 测试
 - `README.md`、`CONTEXT.md`
@@ -353,6 +438,6 @@ Android `DownloadManager` 已经持有系统任务的 ID、进度、通知、失
 
 - 并发任务数和分段线程设置真实约束 manager
 - 多任务暂停、恢复、取消、失败和完成时队列顺序正确
-- 抽屉与全屏下载中心显示同一任务和实时进度
+- 浏览器与负一屏的共享下载抽屉显示同一任务和实时进度
 - 打开文件、位置和删除动作保持现有安全确认
 - Debug APK 与本地门禁通过；提交、推送和远端 SHA 仅在用户另行授权时执行

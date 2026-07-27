@@ -97,12 +97,14 @@ internal fun KiyoriAppShell(
         state.primaryDestination,
         state.child,
         state.isAiDrawerOpen,
+        state.isDownloadDrawerOpen,
         aiHostIsRoot,
     ) {
         if (
             state.primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                 state.child != null ||
                 state.isAiDrawerOpen ||
+                state.isDownloadDrawerOpen ||
                 !aiHostIsRoot
         ) {
             return@LaunchedEffect
@@ -120,10 +122,17 @@ internal fun KiyoriAppShell(
             }
     }
 
-    BackHandler(enabled = aiHostIsRoot && !state.isAiDrawerOpen) {
-        val transition = state.handleBack()
+    BackHandler(
+        enabled =
+            shouldEnableKiyoriShellBackHandler(
+                aiHostIsRoot = aiHostIsRoot,
+                isAiDrawerOpen = state.isAiDrawerOpen,
+                isDownloadDrawerOpen = state.isDownloadDrawerOpen,
+            ),
+    ) {
+        val transition = latestState.handleBack()
         when (transition.result) {
-            KiyoriShellBackResult.CONSUMED -> onStateChange(transition.state)
+            KiyoriShellBackResult.CONSUMED -> latestOnStateChange(transition.state)
             KiyoriShellBackResult.REQUEST_EXIT -> onRequestExit()
         }
     }
@@ -155,7 +164,8 @@ internal fun KiyoriAppShell(
             aiHostIsRoot &&
                 state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
                 state.child == null &&
-                !state.isAiDrawerOpen
+                !state.isAiDrawerOpen &&
+                !state.isDownloadDrawerOpen
 
         HorizontalPager(
             state = pagerState,
@@ -168,8 +178,8 @@ internal fun KiyoriAppShell(
             when (SoftwareHomePage.fromPagerIndex(page)) {
                 SoftwareHomePage.MINUS_ONE ->
                     KiyoriMinusOnePage(
-                        onOpenDownloadCenter = {
-                            onStateChange(state.openChild(KiyoriShellChild.DOWNLOAD_CENTER))
+                        onOpenDownloadDrawer = {
+                            latestOnStateChange(latestState.openDownloadDrawer())
                         },
                     )
                 SoftwareHomePage.HOME ->
@@ -261,16 +271,6 @@ internal fun KiyoriAppShell(
                             onBack = { onStateChange(state.closeChild()) },
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.DOWNLOAD_CENTER ->
-                        KiyoriDownloadCenterPage(
-                            onBack = { onStateChange(state.closeChild()) },
-                            onOpenSettings = {
-                                onStateChange(
-                                    state.openNestedChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
-                                )
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
                     KiyoriShellChild.DOWNLOAD_SETTINGS ->
                         KiyoriDownloadSettingsPage(
                             onBack = { onStateChange(state.closeChild()) },
@@ -304,6 +304,25 @@ internal fun KiyoriAppShell(
                 )
         }
 
+        KiyoriDownloadDrawerHost(
+            isVisible =
+                shouldPresentKiyoriDownloadDrawer(
+                    isDownloadDrawerOpen = state.isDownloadDrawerOpen,
+                    aiHostIsRoot = aiHostIsRoot,
+                ),
+            onDismissRequest = {
+                latestOnStateChange(latestState.closeDownloadDrawer())
+            },
+            onOpenDownloadSettings = {
+                latestOnStateChange(
+                    latestState
+                        .closeDownloadDrawer()
+                        .openChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
+                )
+            },
+            modifier = Modifier.fillMaxSize().zIndex(30f),
+        )
+
         KiyoriModalAiDrawer(
             isOpen = state.isAiDrawerOpen,
             selectedEntryId = selectedAiEntryId,
@@ -324,6 +343,21 @@ internal fun calculateKiyoriAiHostTranslation(
 
 internal fun shouldReverseKiyoriPagerDrag(layoutDirection: LayoutDirection): Boolean =
     layoutDirection == LayoutDirection.Ltr
+
+internal fun shouldPresentKiyoriDownloadDrawer(
+    isDownloadDrawerOpen: Boolean,
+    aiHostIsRoot: Boolean,
+): Boolean {
+    // The download drawer belongs to the Shell. The retained AI route may be a child screen while
+    // Minus-One is visible, so AI route depth must never cancel or hide this explicit user action.
+    return isDownloadDrawerOpen
+}
+
+internal fun shouldEnableKiyoriShellBackHandler(
+    aiHostIsRoot: Boolean,
+    isAiDrawerOpen: Boolean,
+    isDownloadDrawerOpen: Boolean,
+): Boolean = isDownloadDrawerOpen || (aiHostIsRoot && !isAiDrawerOpen)
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun calculateKiyoriPagerPageOffset(

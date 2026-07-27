@@ -49,6 +49,7 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserReturnTarget
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
+import com.ai.assistance.operit.ui.main.shell.KiyoriShellStateSaver
 import com.ai.assistance.operit.ui.main.shell.KiyoriWebSearchRequest
 import com.ai.assistance.operit.ui.features.browser.appshell.KiyoriBrowserHome
 import com.ai.assistance.operit.ui.main.shell.PrimaryDestination
@@ -141,29 +142,11 @@ fun OperitApp(
     var navigationRevision by remember { mutableStateOf(0) }
     val configuration = LocalConfiguration.current
     val navigationModel = remember(context, configuration, navigationRevision) { AppRouteCatalog.build(context) }
-    var primaryDestinationName by rememberSaveable {
-        mutableStateOf(PrimaryDestination.SOFTWARE_HOME.name)
+    var shellState by rememberSaveable(stateSaver = KiyoriShellStateSaver) {
+        mutableStateOf(KiyoriShellState())
     }
-    var softwareHomePageName by rememberSaveable {
-        mutableStateOf(SoftwareHomePage.HOME.name)
-    }
-    var shellChildName by rememberSaveable { mutableStateOf<String?>(null) }
-    var isAiDrawerOpen by rememberSaveable { mutableStateOf(false) }
-    var browserReturnTargetName by rememberSaveable { mutableStateOf<String?>(null) }
-    val shellState =
-        KiyoriShellState(
-            primaryDestination = PrimaryDestination.valueOf(primaryDestinationName),
-            softwareHomePage = SoftwareHomePage.valueOf(softwareHomePageName),
-            child = shellChildName?.let(KiyoriShellChild::valueOf),
-            isAiDrawerOpen = isAiDrawerOpen,
-            browserReturnTarget = browserReturnTargetName?.let(KiyoriBrowserReturnTarget::valueOf),
-        )
     val updateShellState: (KiyoriShellState) -> Unit = { nextState ->
-        primaryDestinationName = nextState.primaryDestination.name
-        softwareHomePageName = nextState.softwareHomePage.name
-        shellChildName = nextState.child?.name
-        isAiDrawerOpen = nextState.isAiDrawerOpen
-        browserReturnTargetName = nextState.browserReturnTarget?.name
+        shellState = nextState
     }
 
     val aiDrawerEntries =
@@ -709,6 +692,11 @@ fun OperitApp(
                         onOpenBrowserSettings = {
                             updateShellState(
                                 shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
+                            )
+                        },
+                        onOpenDownloadSettings = {
+                            updateShellState(
+                                shellState.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
                             )
                         },
                         onCloseBrowser = {

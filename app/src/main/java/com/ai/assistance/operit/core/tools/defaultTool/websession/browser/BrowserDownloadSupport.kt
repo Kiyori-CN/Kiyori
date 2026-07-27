@@ -12,6 +12,8 @@ import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.util.AppLogger
@@ -450,6 +452,45 @@ internal class BrowserDownloadManager private constructor(
     fun snapshotTasks(): List<BrowserDownloadTaskRecord> =
         _taskSnapshots.value.map { task -> task.snapshot() }
 
+    fun releasePersistedDirectoryPermissionIfUnused(treeUriString: String?) {
+        val normalizedUri = treeUriString?.trim().orEmpty()
+        if (normalizedUri.isBlank()) {
+            return
+        }
+        val taskDirectoryUris =
+            synchronized(tasks) {
+                tasks.values.mapNotNull { task -> task.targetDirectoryUri }
+            }
+        if (
+            !shouldReleaseBrowserDownloadDirectoryPermission(
+                candidateUri = normalizedUri,
+                settingsDirectoryUri = settingsStore.current.customDirectoryUri,
+                taskDirectoryUris = taskDirectoryUris,
+            )
+        ) {
+            return
+        }
+        val treeUri = normalizedUri.toUri()
+        val permission =
+            appContext.contentResolver.persistedUriPermissions
+                .firstOrNull { persisted -> persisted.uri == treeUri }
+                ?: return
+        val releaseFlags =
+            (if (permission.isReadPermission) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+                (if (permission.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+        if (releaseFlags == 0) {
+            return
+        }
+        runCatching {
+            appContext.contentResolver.releasePersistableUriPermission(treeUri, releaseFlags)
+        }.onFailure { error ->
+            AppLogger.w(
+                DOWNLOAD_SUPPORT_TAG,
+                "Failed to release unused browser download directory permission: ${error.message}",
+            )
+        }
+    }
+
     fun latestSessionUpdateAt(sessionId: String): Long =
         synchronized(tasks) {
             tasks.values
@@ -655,6 +696,23 @@ internal class BrowserDownloadManager private constructor(
             ?.sourceUrl
             ?.takeIf { url -> url.isNotBlank() }
 
+    fun redownloadCompletedTask(taskId: String): Result<BrowserDownloadTaskRecord> =
+        runCatching {
+            val task = requireCompletedTask(taskId)
+            val sourceUrl = requireNotNull(task.sourceUrl?.takeIf(::isBrowserDownloadNetworkUrl)) {
+                "当前任务没有可重新下载的网络地址"
+            }
+            startHttpDownload(
+                sessionId = task.sessionId,
+                url = sourceUrl,
+                suggestedFileName = task.fileName,
+                mimeType = task.mimeType,
+                headers = task.headers,
+            )
+        }.onFailure { error ->
+            AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to redownload browser task: ${error.message}")
+        }
+
     fun copyDownloadLocation(taskId: String): String? =
         snapshotTasks()
             .firstOrNull { task -> task.id == taskId }
@@ -761,6 +819,10 @@ internal class BrowserDownloadManager private constructor(
                 )
                 snapshotTask(taskId)
             }.onFailure { error ->
+                // The document picker grants this tree before the copy starts. A failed move must
+                // release that grant once no setting or retained task owns it, or repeated failures
+                // would permanently accumulate unrelated SAF permissions.
+                releasePersistedDirectoryPermissionIfUnused(treeUriString)
                 AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to move browser download: ${error.message}")
             }
         }
@@ -800,6 +862,104 @@ internal class BrowserDownloadManager private constructor(
             }
         }
 
+    suspend fun mergeM3u8PackageToMp4(taskId: String): Result<BrowserDownloadTaskRecord> =
+        withContext(Dispatchers.IO) {
+            var temporaryOutput: File? = null
+            var completedOutput: File? = null
+            var taskUpdated = false
+            runCatching {
+                val task = requireCompletedTask(taskId)
+                require(task.isM3u8Package) { "仅支持M3U8离线包合并" }
+                require(task.destinationUri.isNullOrBlank()) { "M3U8离线包必须位于应用下载目录" }
+                val playlistFile = File(task.destinationPath)
+                require(playlistFile.isFile) { "M3U8离线播放列表不存在" }
+                require(browserM3u8PackageDirectoryFor(playlistFile).isDirectory) {
+                    "M3U8离线包资源目录不存在"
+                }
+                val outputFile =
+                    resolveUniqueBrowserDownloadFile(
+                        directory = requireNotNull(playlistFile.parentFile),
+                        suggestedFileName = resolveBrowserDownloadMp4FileName(task.fileName),
+                    )
+                temporaryOutput =
+                    File(
+                        outputFile.parentFile,
+                        ".${outputFile.name}.${UUID.randomUUID()}.partial",
+                    )
+                val session =
+                    FFmpegKit.executeWithArguments(
+                        arrayOf(
+                            "-y",
+                            "-protocol_whitelist",
+                            "file,crypto,data",
+                            "-allowed_extensions",
+                            "ALL",
+                            "-i",
+                            playlistFile.absolutePath,
+                            "-map",
+                            "0:v:0?",
+                            "-map",
+                            "0:a:0?",
+                            "-c",
+                            "copy",
+                            "-bsf:a",
+                            "aac_adtstoasc",
+                            "-movflags",
+                            "+faststart",
+                            "-f",
+                            "mp4",
+                            requireNotNull(temporaryOutput).absolutePath,
+                        ),
+                    )
+                require(ReturnCode.isSuccess(session.returnCode)) {
+                    "M3U8合并失败：${session.output}"
+                }
+                val completedTemporaryOutput = requireNotNull(temporaryOutput)
+                require(completedTemporaryOutput.isFile && completedTemporaryOutput.length() > 0L) {
+                    "M3U8合并未生成有效MP4文件"
+                }
+                require(completedTemporaryOutput.renameTo(outputFile)) { "MP4文件写入失败" }
+                completedOutput = outputFile
+                // The task-record switch is the commit point. The source package must remain
+                // untouched until the generated MP4 is durable and owned by the task; otherwise
+                // a partial source cleanup could leave neither a usable package nor a usable MP4.
+                mutateTask(taskId, forcePersist = true, forceUi = true) { current ->
+                    current.fileName = outputFile.name
+                    current.destinationPath = outputFile.absolutePath
+                    current.destinationUri = null
+                    current.targetDirectoryUri = null
+                    current.mimeType = "video/mp4"
+                    current.totalBytes = outputFile.length()
+                    current.downloadedBytes = outputFile.length()
+                    current.speedBytesPerSecond = 0L
+                    current.isM3u8Package = false
+                    current.errorMessage = null
+                    current.updatedAt = System.currentTimeMillis()
+                }
+                taskUpdated = true
+                runCatching { deleteTaskLocation(task) }
+                    .onFailure { cleanupError ->
+                        AppLogger.w(
+                            DOWNLOAD_SUPPORT_TAG,
+                            "M3U8 source cleanup failed after MP4 commit: ${cleanupError.message}",
+                        )
+                    }
+                MediaScannerConnection.scanFile(
+                    appContext,
+                    arrayOf(outputFile.absolutePath),
+                    arrayOf("video/mp4"),
+                    null,
+                )
+                snapshotTask(taskId)
+            }.onFailure { error ->
+                temporaryOutput?.takeIf { file -> file.exists() }?.delete()
+                if (!taskUpdated) {
+                    completedOutput?.takeIf { file -> file.exists() }?.delete()
+                }
+                AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to merge browser M3U8 package: ${error.message}")
+            }
+        }
+
     private fun requireCompletedTask(taskId: String): BrowserDownloadTaskRecord =
         snapshotTasks()
             .firstOrNull { task -> task.id == taskId }
@@ -821,11 +981,15 @@ internal class BrowserDownloadManager private constructor(
         destinationUri: String?,
         targetDirectoryUri: String?,
     ) {
+        val previousTargetDirectoryUri = snapshotTask(taskId).targetDirectoryUri
         mutateTask(taskId, forcePersist = true, forceUi = true) { task ->
             task.fileName = fileName
             task.destinationPath = destinationPath
             task.destinationUri = destinationUri
             task.targetDirectoryUri = targetDirectoryUri
+        }
+        if (previousTargetDirectoryUri != targetDirectoryUri) {
+            releasePersistedDirectoryPermissionIfUnused(previousTargetDirectoryUri)
         }
     }
 
@@ -861,7 +1025,9 @@ internal class BrowserDownloadManager private constructor(
             when (uri.scheme?.lowercase(Locale.ROOT)) {
                 "content" -> {
                     val deleted = appContext.contentResolver.delete(uri, null, null)
-                    require(deleted >= 0) { "无法删除当前 SAF 文件" }
+                    require(browserDownloadContentDeleteSucceeded(deleted)) {
+                        "无法删除当前 SAF 文件"
+                    }
                 }
                 "file" -> require(File(uri.path.orEmpty()).delete()) { "无法删除当前文件" }
                 else -> throw IOException("Unsupported browser download URI: $uriString")
@@ -1742,6 +1908,7 @@ internal class BrowserDownloadManager private constructor(
         inlinePayloads.remove(taskId)
         publishTaskSnapshots()
         persistState(force = true)
+        releasePersistedDirectoryPermissionIfUnused(task.targetDirectoryUri)
         dispatchUiRefresh(force = true)
         scheduleQueuedTasks()
     }
@@ -2039,6 +2206,8 @@ internal fun StandardBrowserSessionTools.initializeBrowserDownloadSupport() {
     }
 }
 
+internal fun browserDownloadContentDeleteSucceeded(deletedRows: Int): Boolean = deletedRows > 0
+
 internal fun StandardBrowserSessionTools.startBrowserManagedDownload(
     session: StandardBrowserSessionTools.WebSession,
     url: String,
@@ -2087,6 +2256,62 @@ internal fun StandardBrowserSessionTools.startBrowserManagedDownload(
     }
 }
 
+internal fun StandardBrowserSessionTools.startManualBrowserDownload(
+    url: String,
+    requestedFileName: String,
+    requestedSuffix: String,
+    engine: BrowserDownloadEngine,
+): Boolean {
+    require(isBrowserDownloadNetworkUrl(url)) {
+        "Manual browser downloads require an http or https URL: $url"
+    }
+    val session = getActiveSessionOnMain()
+    val fileName =
+        sanitizeFileName(
+            resolveManualBrowserDownloadFileName(
+                requestedFileName = requestedFileName,
+                url = url,
+                requestedSuffix = requestedSuffix,
+            ),
+        )
+    val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    val mimeType =
+        extension.takeIf { value -> value.isNotBlank() }
+            ?.let { value -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(value) }
+    val headers = linkedMapOf<String, String>()
+    session?.let { activeSession ->
+        activeSession.webView.settings.userAgentString
+            ?.takeIf { value -> value.isNotBlank() }
+            ?.let { value -> headers["User-Agent"] = value }
+        profileManager.cookieManagerFor(activeSession.webView, activeSession.profile)
+            .getCookie(url)
+            ?.takeIf { value -> value.isNotBlank() }
+            ?.let { value -> headers["Cookie"] = value }
+        activeSession.currentUrl.takeIf { value -> value.isNotBlank() }
+            ?.let { value -> headers["Referer"] = value }
+    }
+    // The Minus-One drawer is a first-class manual entry and may exist before any WebSession.
+    // Its stable request owner records that origin without creating a hidden tab or WebView.
+    val requestSessionId = session?.id ?: BROWSER_STANDALONE_MANUAL_DOWNLOAD_SESSION_ID
+    // The add-download dialog is the explicit user confirmation for this request. Dispatching
+    // here prevents a second confirmation surface while preserving the selected engine owner.
+    return dispatchBrowserDownloadRequest(
+        PendingBrowserDownloadRequest(
+            requestId = UUID.randomUUID().toString(),
+            sessionId = requestSessionId,
+            url = url.trim(),
+            fileName = fileName,
+            mimeType = mimeType,
+            contentLength = -1L,
+            headers = headers.toMap(),
+            engine = engine,
+        ),
+    )
+}
+
+private const val BROWSER_STANDALONE_MANUAL_DOWNLOAD_SESSION_ID =
+    "kiyori-standalone-manual-download"
+
 internal fun StandardBrowserSessionTools.confirmBrowserDownloadRequest(requestId: String) {
     val request = StandardBrowserSessionTools.pendingBrowserDownloadRequest ?: return
     if (request.requestId != requestId) {
@@ -2108,8 +2333,8 @@ internal fun StandardBrowserSessionTools.cancelBrowserDownloadRequest(requestId:
 
 private fun StandardBrowserSessionTools.dispatchBrowserDownloadRequest(
     request: PendingBrowserDownloadRequest,
-) {
-    runCatching {
+): Boolean {
+    val result = runCatching {
         when (request.engine) {
             BrowserDownloadEngine.INTERNAL -> {
                 browserDownloadManager().startHttpDownload(
@@ -2133,19 +2358,24 @@ private fun StandardBrowserSessionTools.dispatchBrowserDownloadRequest(
                 )
             }
         }
-    }.onFailure { error ->
-        AppLogger.e(
-            DOWNLOAD_SUPPORT_TAG,
-            "Unable to dispatch ${request.engine.persistedId} browser download: ${error.message}",
-            error,
-        )
-        showToast(
-            context.getString(
-                com.ai.assistance.operit.R.string.download_failed,
-                error.message ?: request.fileName,
-            ),
-        )
     }
+    return result.fold(
+        onSuccess = { true },
+        onFailure = { error ->
+            AppLogger.e(
+                DOWNLOAD_SUPPORT_TAG,
+                "Unable to dispatch ${request.engine.persistedId} browser download: ${error.message}",
+                error,
+            )
+            showToast(
+                context.getString(
+                    com.ai.assistance.operit.R.string.download_failed,
+                    error.toString(),
+                ),
+            )
+            false
+        },
+    )
 }
 
 private fun StandardBrowserSessionTools.enqueueSystemBrowserDownload(
@@ -2242,13 +2472,14 @@ internal fun StandardBrowserSessionTools.buildBrowserDownloadSummary(): BrowserD
 
 internal fun buildBrowserDownloadUiState(
     tasks: List<BrowserDownloadTaskRecord>,
-    selectedFilter: BrowserDownloadFilter = BrowserDownloadFilter.IN_PROGRESS,
 ): BrowserDownloadUiState {
     val items =
         tasks.map { task ->
             BrowserDownloadItem(
                 id = task.id,
                 fileName = task.fileName,
+                sourceUrl = task.sourceUrl,
+                mimeType = task.mimeType,
                 status = task.status.wireName,
                 type = task.type,
                 progress = task.progressOrNull(),
@@ -2256,6 +2487,9 @@ internal fun buildBrowserDownloadUiState(
                 totalBytes = task.totalBytes,
                 speedBytesPerSecond = task.speedBytesPerSecond,
                 destinationPath = browserDownloadSavedLocation(task),
+                createdAt = task.createdAt,
+                completedAt = task.completedAt,
+                isM3u8Package = task.isM3u8Package,
                 errorMessage = task.errorMessage,
                 canPause =
                     task.status == BrowserDownloadStatus.QUEUED ||
@@ -2271,10 +2505,18 @@ internal fun buildBrowserDownloadUiState(
                 canDelete = true,
                 canDeleteFile = browserDownloadSavedLocation(task).isNotBlank(),
                 canOpenFile = task.status == BrowserDownloadStatus.COMPLETED,
-                canOpenLocation = task.status == BrowserDownloadStatus.COMPLETED
+                canOpenLocation = task.status == BrowserDownloadStatus.COMPLETED,
+                canRedownload =
+                    task.status == BrowserDownloadStatus.COMPLETED &&
+                        task.sourceUrl?.let(::isBrowserDownloadNetworkUrl) == true,
+                canMergeToMp4 =
+                    task.status == BrowserDownloadStatus.COMPLETED &&
+                        task.isM3u8Package &&
+                        task.destinationUri.isNullOrBlank() &&
+                        task.destinationPath.isNotBlank(),
             )
         }
-    return BrowserDownloadUiState(tasks = items, selectedFilter = selectedFilter)
+    return BrowserDownloadUiState(tasks = items)
 }
 
 internal fun StandardBrowserSessionTools.buildBrowserDownloadUiState(): BrowserDownloadUiState =

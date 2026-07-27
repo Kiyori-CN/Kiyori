@@ -45,7 +45,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 
 internal enum class KiyoriMinusOneDataAction {
     NONE,
-    OPEN_DOWNLOAD_CENTER,
+    OPEN_DOWNLOAD_DRAWER,
 }
 
 internal data class KiyoriMinusOneDataItem(
@@ -71,7 +71,7 @@ internal val kiyoriMinusOneDataItems =
             0,
             Color(0xFFE1BE4E),
             listOf(Color(0xFFFFF8E9), Color.White),
-            KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER,
+            KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER,
         ),
     )
 
@@ -89,7 +89,7 @@ internal val kiyoriMinusOneQuickTools =
 
 @Composable
 internal fun KiyoriMinusOnePage(
-    onOpenDownloadCenter: () -> Unit,
+    onOpenDownloadDrawer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -109,7 +109,7 @@ internal fun KiyoriMinusOnePage(
         ) {
             KiyoriMinusOneDataSection(
                 downloadCount = downloadTasks.size,
-                onOpenDownloadCenter = onOpenDownloadCenter,
+                onOpenDownloadDrawer = onOpenDownloadDrawer,
             )
             KiyoriMinusOneQuickToolsSection()
         }
@@ -148,7 +148,7 @@ private fun KiyoriMinusOneTopBar() {
 @Composable
 private fun KiyoriMinusOneDataSection(
     downloadCount: Int,
-    onOpenDownloadCenter: () -> Unit,
+    onOpenDownloadDrawer: () -> Unit,
 ) {
     Text(
         text = "我的数据",
@@ -175,8 +175,8 @@ private fun KiyoriMinusOneDataSection(
                             .clickable {
                                 when (item.action) {
                                     KiyoriMinusOneDataAction.NONE -> Unit
-                                    KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER ->
-                                        onOpenDownloadCenter()
+                                    KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER ->
+                                        onOpenDownloadDrawer()
                                 }
                             }
                             .padding(horizontal = 18.dp, vertical = 18.dp),
@@ -189,7 +189,7 @@ private fun KiyoriMinusOneDataSection(
                         Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = item.accentColor)
                         Text(
                             text =
-                                if (item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER) {
+                                if (item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER) {
                                     downloadCount.toString()
                                 } else {
                                     item.count.toString()

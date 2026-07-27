@@ -29,6 +29,31 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `saveable Shell owner preserves download drawer and every navigation field`() {
+        val states =
+            listOf(
+                KiyoriShellState(
+                    softwareHomePage = SoftwareHomePage.MINUS_ONE,
+                ).openDownloadDrawer(),
+                KiyoriShellState(
+                    primaryDestination = PrimaryDestination.SETTINGS_HOME,
+                    softwareHomePage = SoftwareHomePage.AI_HOME,
+                    child = KiyoriShellChild.DOWNLOAD_SETTINGS,
+                    childBackTarget = KiyoriShellChild.BROWSER_SETTINGS,
+                    isAiDrawerOpen = true,
+                    browserReturnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                ),
+            )
+
+        states.forEach { state ->
+            assertEquals(
+                state,
+                restoreKiyoriShellState(state.toKiyoriShellSaveableValues()),
+            )
+        }
+    }
+
+    @Test
     fun `minus one and AI home hide bottom navigation`() {
         assertFalse(
             KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE).showsBottomBar,
@@ -128,18 +153,73 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `download settings opened from center return to center before its owner`() {
+    fun `shared download drawer hides bottom navigation and Back restores its owner`() {
         val owner =
             KiyoriShellState(
-                primaryDestination = PrimaryDestination.SETTINGS_HOME,
+                softwareHomePage = SoftwareHomePage.MINUS_ONE,
             )
-        val center = owner.openChild(KiyoriShellChild.DOWNLOAD_CENTER)
-        val settings = center.openNestedChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+        val drawer = owner.openDownloadDrawer()
 
-        assertEquals(KiyoriShellChild.DOWNLOAD_SETTINGS, settings.child)
-        assertEquals(KiyoriShellChild.DOWNLOAD_CENTER, settings.childBackTarget)
-        assertEquals(center, settings.closeChild())
-        assertEquals(owner, settings.closeChild().closeChild())
+        assertTrue(drawer.isDownloadDrawerOpen)
+        assertFalse(drawer.showsBottomBar)
+        assertEquals(
+            KiyoriShellBackTransition(
+                state = owner,
+                result = KiyoriShellBackResult.CONSUMED,
+            ),
+            drawer.handleBack(),
+        )
+    }
+
+    @Test
+    fun `hidden download drawer host is absent after its exit animation`() {
+        assertFalse(
+            shouldComposeKiyoriDownloadDrawer(
+                isVisible = false,
+                keepMountedUntilHidden = false,
+            ),
+        )
+        assertTrue(
+            shouldComposeKiyoriDownloadDrawer(
+                isVisible = true,
+                keepMountedUntilHidden = false,
+            ),
+        )
+        assertTrue(
+            shouldComposeKiyoriDownloadDrawer(
+                isVisible = false,
+                keepMountedUntilHidden = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `shared download drawer presentation is independent of retained AI route depth`() {
+        assertTrue(
+            shouldPresentKiyoriDownloadDrawer(
+                isDownloadDrawerOpen = true,
+                aiHostIsRoot = true,
+            ),
+        )
+        assertTrue(
+            shouldPresentKiyoriDownloadDrawer(
+                isDownloadDrawerOpen = true,
+                aiHostIsRoot = false,
+            ),
+        )
+        assertFalse(
+            shouldPresentKiyoriDownloadDrawer(
+                isDownloadDrawerOpen = false,
+                aiHostIsRoot = true,
+            ),
+        )
+        assertTrue(
+            shouldEnableKiyoriShellBackHandler(
+                aiHostIsRoot = false,
+                isAiDrawerOpen = false,
+                isDownloadDrawerOpen = true,
+            ),
+        )
     }
 
     @Test
@@ -157,21 +237,16 @@ class KiyoriShellStateTest {
 
     @Test
     fun `external download child requests use settings home owner`() {
-        listOf(
-            KiyoriShellChild.DOWNLOAD_CENTER,
-            KiyoriShellChild.DOWNLOAD_SETTINGS,
-        ).forEach { child ->
-            val state =
-                KiyoriShellState(
-                    primaryDestination = PrimaryDestination.SOFTWARE_HOME,
-                    softwareHomePage = SoftwareHomePage.AI_HOME,
-                ).openExternalChild(child)
+        val state =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openExternalChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
 
-            assertEquals(PrimaryDestination.SETTINGS_HOME, state.primaryDestination)
-            assertEquals(SoftwareHomePage.AI_HOME, state.softwareHomePage)
-            assertEquals(child, state.child)
-            assertEquals(null, state.childBackTarget)
-        }
+        assertEquals(PrimaryDestination.SETTINGS_HOME, state.primaryDestination)
+        assertEquals(SoftwareHomePage.AI_HOME, state.softwareHomePage)
+        assertEquals(KiyoriShellChild.DOWNLOAD_SETTINGS, state.child)
+        assertEquals(null, state.childBackTarget)
     }
 
     @Test

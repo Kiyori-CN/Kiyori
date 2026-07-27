@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.compose.runtime.saveable.listSaver
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntryKind
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.RouteEntry
@@ -34,7 +35,6 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
     BROWSER_SETTINGS,
-    DOWNLOAD_CENTER,
     DOWNLOAD_SETTINGS,
 }
 
@@ -64,11 +64,12 @@ data class KiyoriShellState(
     val child: KiyoriShellChild? = null,
     val childBackTarget: KiyoriShellChild? = null,
     val isAiDrawerOpen: Boolean = false,
+    val isDownloadDrawerOpen: Boolean = false,
     val browserReturnTarget: KiyoriBrowserReturnTarget? = null,
 ) {
     val showsBottomBar: Boolean
         get() =
-            child == null && !isAiDrawerOpen &&
+            child == null && !isAiDrawerOpen && !isDownloadDrawerOpen &&
                 primaryDestination != PrimaryDestination.BROWSER_HOME &&
                 (primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                     softwareHomePage == SoftwareHomePage.HOME)
@@ -85,6 +86,7 @@ data class KiyoriShellState(
             child = null,
             childBackTarget = null,
             isAiDrawerOpen = false,
+            isDownloadDrawerOpen = false,
             browserReturnTarget = null,
         )
 
@@ -94,6 +96,7 @@ data class KiyoriShellState(
             child = null,
             childBackTarget = null,
             isAiDrawerOpen = false,
+            isDownloadDrawerOpen = false,
             browserReturnTarget = returnTarget,
         )
 
@@ -106,6 +109,7 @@ data class KiyoriShellState(
                     child = null,
                     childBackTarget = null,
                     isAiDrawerOpen = false,
+                    isDownloadDrawerOpen = false,
                     browserReturnTarget = null,
                 )
             KiyoriBrowserReturnTarget.SOFTWARE_HOME,
@@ -116,6 +120,7 @@ data class KiyoriShellState(
                     child = null,
                     childBackTarget = null,
                     isAiDrawerOpen = false,
+                    isDownloadDrawerOpen = false,
                     browserReturnTarget = null,
                 )
         }
@@ -127,11 +132,17 @@ data class KiyoriShellState(
             child = null,
             childBackTarget = null,
             isAiDrawerOpen = false,
+            isDownloadDrawerOpen = false,
             browserReturnTarget = null,
         )
 
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =
-        copy(child = destination, childBackTarget = null, isAiDrawerOpen = false)
+        copy(
+            child = destination,
+            childBackTarget = null,
+            isAiDrawerOpen = false,
+            isDownloadDrawerOpen = false,
+        )
 
     fun openNestedChild(destination: KiyoriShellChild): KiyoriShellState {
         val currentChild = requireNotNull(child) { "A nested child requires an active parent child." }
@@ -140,6 +151,7 @@ data class KiyoriShellState(
             child = destination,
             childBackTarget = currentChild,
             isAiDrawerOpen = false,
+            isDownloadDrawerOpen = false,
         )
     }
 
@@ -150,9 +162,20 @@ data class KiyoriShellState(
             copy(child = childBackTarget, childBackTarget = null)
         }
 
-    fun openAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = true)
+    fun openAiDrawer(): KiyoriShellState =
+        copy(isAiDrawerOpen = true, isDownloadDrawerOpen = false)
 
     fun closeAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = false)
+
+    fun openDownloadDrawer(): KiyoriShellState =
+        copy(
+            child = null,
+            childBackTarget = null,
+            isAiDrawerOpen = false,
+            isDownloadDrawerOpen = true,
+        )
+
+    fun closeDownloadDrawer(): KiyoriShellState = copy(isDownloadDrawerOpen = false)
 
     fun returnFromKiyoriAiSettings(): KiyoriShellState =
         selectPrimary(PrimaryDestination.SETTINGS_HOME)
@@ -162,6 +185,11 @@ data class KiyoriShellState(
             isAiDrawerOpen ->
                 KiyoriShellBackTransition(
                     state = closeAiDrawer(),
+                    result = KiyoriShellBackResult.CONSUMED,
+                )
+            isDownloadDrawerOpen ->
+                KiyoriShellBackTransition(
+                    state = closeDownloadDrawer(),
                     result = KiyoriShellBackResult.CONSUMED,
                 )
             child != null ->
@@ -192,6 +220,45 @@ data class KiyoriShellState(
         }
 }
 
+// Keep every Shell field behind one saveable owner. Splitting the fields across OperitApp caused
+// newly added overlays to be silently discarded when their field was omitted from the bridge.
+internal fun KiyoriShellState.toKiyoriShellSaveableValues(): List<Any> =
+    listOf(
+        primaryDestination.name,
+        softwareHomePage.name,
+        child?.name.orEmpty(),
+        childBackTarget?.name.orEmpty(),
+        isAiDrawerOpen,
+        isDownloadDrawerOpen,
+        browserReturnTarget?.name.orEmpty(),
+    )
+
+internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
+    KiyoriShellState(
+        primaryDestination = PrimaryDestination.valueOf(values[0] as String),
+        softwareHomePage = SoftwareHomePage.valueOf(values[1] as String),
+        child =
+            (values[2] as String)
+                .takeIf { name -> name.isNotEmpty() }
+                ?.let(KiyoriShellChild::valueOf),
+        childBackTarget =
+            (values[3] as String)
+                .takeIf { name -> name.isNotEmpty() }
+                ?.let(KiyoriShellChild::valueOf),
+        isAiDrawerOpen = values[4] as Boolean,
+        isDownloadDrawerOpen = values[5] as Boolean,
+        browserReturnTarget =
+            (values[6] as String)
+                .takeIf { name -> name.isNotEmpty() }
+                ?.let(KiyoriBrowserReturnTarget::valueOf),
+    )
+
+internal val KiyoriShellStateSaver =
+    listSaver<KiyoriShellState, Any>(
+        save = { state -> state.toKiyoriShellSaveableValues() },
+        restore = ::restoreKiyoriShellState,
+    )
+
 internal fun KiyoriShellState.openExternalChild(
     destination: KiyoriShellChild,
 ): KiyoriShellState {
@@ -199,7 +266,6 @@ internal fun KiyoriShellState.openExternalChild(
         when (destination) {
             KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
             KiyoriShellChild.BROWSER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
-            KiyoriShellChild.DOWNLOAD_CENTER,
             KiyoriShellChild.DOWNLOAD_SETTINGS -> PrimaryDestination.SETTINGS_HOME
         }
     return selectPrimary(owner).openChild(destination)

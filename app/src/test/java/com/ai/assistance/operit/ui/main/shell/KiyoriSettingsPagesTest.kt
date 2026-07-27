@@ -233,7 +233,7 @@ class KiyoriSettingsPagesTest {
         assertEquals(
             listOf("下载"),
             kiyoriMinusOneDataItems
-                .filter { item -> item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_CENTER }
+                .filter { item -> item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER }
                 .map(KiyoriMinusOneDataItem::title),
         )
         assertEquals(

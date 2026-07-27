@@ -69,6 +69,8 @@ class MainActivity : ComponentActivity() {
         const val ACTION_OPEN_SETTINGS_SHORTCUT = "com.ai.assistance.operit.action.OPEN_SETTINGS_SHORTCUT"
         const val ACTION_OPEN_KIYORI_BROWSER_SETTINGS =
             "com.kiyori.action.OPEN_BROWSER_SETTINGS"
+        const val ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS =
+            "com.kiyori.action.OPEN_DOWNLOAD_SETTINGS"
     }
 
     private val TAG = "MainActivity"
@@ -253,6 +255,13 @@ class MainActivity : ComponentActivity() {
             pendingKiyoriShellChild = KiyoriShellChild.BROWSER_SETTINGS
             pendingKiyoriShellRequestId = System.currentTimeMillis()
             AppLogger.d(TAG, "Requested opening Kiyori browser settings")
+            return true
+        }
+
+        if (intent?.action == ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS) {
+            pendingKiyoriShellChild = KiyoriShellChild.DOWNLOAD_SETTINGS
+            pendingKiyoriShellRequestId = System.currentTimeMillis()
+            AppLogger.d(TAG, "Requested opening Kiyori download settings")
             return true
         }
 

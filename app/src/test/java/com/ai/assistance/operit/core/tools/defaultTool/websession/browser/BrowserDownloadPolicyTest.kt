@@ -104,6 +104,40 @@ class BrowserDownloadPolicyTest {
     }
 
     @Test
+    fun `directory permission is released only after settings and tasks stop owning it`() {
+        val directoryUri = "content://downloads/tree/primary%3AKiyori"
+
+        assertFalse(
+            shouldReleaseBrowserDownloadDirectoryPermission(
+                candidateUri = directoryUri,
+                settingsDirectoryUri = directoryUri,
+                taskDirectoryUris = emptyList(),
+            ),
+        )
+        assertFalse(
+            shouldReleaseBrowserDownloadDirectoryPermission(
+                candidateUri = directoryUri,
+                settingsDirectoryUri = "",
+                taskDirectoryUris = listOf(directoryUri),
+            ),
+        )
+        assertTrue(
+            shouldReleaseBrowserDownloadDirectoryPermission(
+                candidateUri = directoryUri,
+                settingsDirectoryUri = "",
+                taskDirectoryUris = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun `SAF source deletion requires a positive deleted row count`() {
+        assertFalse(browserDownloadContentDeleteSucceeded(-1))
+        assertFalse(browserDownloadContentDeleteSucceeded(0))
+        assertTrue(browserDownloadContentDeleteSucceeded(1))
+    }
+
+    @Test
     fun `transport task concurrency respects frozen thread limits`() {
         assertEquals(8, resolveBrowserDownloadTransportMaxConcurrentTasks(8, 6, 16))
         assertEquals(2, resolveBrowserDownloadTransportMaxConcurrentTasks(8, 32, 64))
@@ -361,33 +395,6 @@ class BrowserDownloadPolicyTest {
         assertEquals(".bin", browserM3u8ResourceExtension("https://cdn.example.com/key"))
     }
 
-    @Test
-    fun `download filters partition current terminal states`() {
-        val tasks =
-            listOf(
-                downloadItem("queued", "queued"),
-                downloadItem("paused", "paused"),
-                downloadItem("completed", "completed"),
-                downloadItem("failed", "failed"),
-            )
-
-        assertEquals(
-            listOf("queued", "paused"),
-            filterBrowserDownloadItems(tasks, BrowserDownloadFilter.IN_PROGRESS)
-                .map(BrowserDownloadItem::id),
-        )
-        assertEquals(
-            listOf("completed"),
-            filterBrowserDownloadItems(tasks, BrowserDownloadFilter.COMPLETED)
-                .map(BrowserDownloadItem::id),
-        )
-        assertEquals(
-            listOf("failed"),
-            filterBrowserDownloadItems(tasks, BrowserDownloadFilter.FAILED)
-                .map(BrowserDownloadItem::id),
-        )
-    }
-
     private fun queueEntry(
         taskId: String,
         queuedAt: Long,
@@ -409,25 +416,4 @@ class BrowserDownloadPolicyTest {
             tempPath = "segment-$index.part",
         )
 
-    private fun downloadItem(id: String, status: String): BrowserDownloadItem =
-        BrowserDownloadItem(
-            id = id,
-            fileName = "$id.bin",
-            status = status,
-            type = "http",
-            progress = null,
-            downloadedBytes = 0L,
-            totalBytes = -1L,
-            speedBytesPerSecond = 0L,
-            destinationPath = "D:/$id.bin",
-            errorMessage = null,
-            canPause = false,
-            canResume = false,
-            canCancel = false,
-            canRetry = false,
-            canDelete = true,
-            canDeleteFile = true,
-            canOpenFile = false,
-            canOpenLocation = false,
-        )
 }

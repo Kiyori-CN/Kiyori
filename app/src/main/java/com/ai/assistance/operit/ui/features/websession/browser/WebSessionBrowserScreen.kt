@@ -51,6 +51,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
@@ -107,6 +108,7 @@ internal fun WebSessionBrowserScreen(
     onTopBarBack: () -> Unit,
     onOpenAiDialogue: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
+    onOpenDownloadSettings: () -> Unit,
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: (WebSessionProfile) -> Unit,
@@ -140,7 +142,16 @@ internal fun WebSessionBrowserScreen(
     onRetryDownload: (String) -> Unit,
     onDeleteDownload: (String, Boolean) -> Unit,
     onOpenDownloadedFile: (String) -> Unit,
-    onOpenDownloadLocation: (String) -> Unit,
+    onOpenDownloadFileManager: () -> Unit,
+    onStartManualDownload: (String, String, String, BrowserDownloadEngine) -> Boolean,
+    onRedownload: (String) -> Unit,
+    onRenameDownload: (String, String, BrowserDownloadRenameMode) -> Unit,
+    onMoveDownload: (String, String) -> Unit,
+    onCopyDownloadUrl: (String) -> Unit,
+    onShareDownload: (String) -> Unit,
+    onCopyDownloadLocation: (String) -> Unit,
+    onTransferDownload: (String) -> Unit,
+    onMergeDownloadToMp4: (String) -> Unit,
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
     onConfirmExternalOpen: (String) -> Unit,
@@ -623,7 +634,20 @@ internal fun WebSessionBrowserScreen(
                             onRetryDownload = onRetryDownload,
                             onDeleteDownload = onDeleteDownload,
                             onOpenDownloadedFile = onOpenDownloadedFile,
-                            onOpenDownloadLocation = onOpenDownloadLocation,
+                            onOpenDownloadFileManager = onOpenDownloadFileManager,
+                            onStartManualDownload = onStartManualDownload,
+                            onRedownload = onRedownload,
+                            onRenameDownload = onRenameDownload,
+                            onMoveDownload = onMoveDownload,
+                            onCopyDownloadUrl = onCopyDownloadUrl,
+                            onShareDownload = onShareDownload,
+                            onCopyDownloadLocation = onCopyDownloadLocation,
+                            onTransferDownload = onTransferDownload,
+                            onMergeDownloadToMp4 = onMergeDownloadToMp4,
+                            onOpenDownloadSettings = {
+                                dismissSheet()
+                                onOpenDownloadSettings()
+                            },
                         )
                     }
                 }
@@ -845,27 +869,39 @@ private fun WebSessionBrowserDrawerContent(
     onRetryDownload: (String) -> Unit,
     onDeleteDownload: (String, Boolean) -> Unit,
     onOpenDownloadedFile: (String) -> Unit,
-    onOpenDownloadLocation: (String) -> Unit
+    onOpenDownloadFileManager: () -> Unit,
+    onStartManualDownload: (String, String, String, BrowserDownloadEngine) -> Boolean,
+    onRedownload: (String) -> Unit,
+    onRenameDownload: (String, String, BrowserDownloadRenameMode) -> Unit,
+    onMoveDownload: (String, String) -> Unit,
+    onCopyDownloadUrl: (String) -> Unit,
+    onShareDownload: (String) -> Unit,
+    onCopyDownloadLocation: (String) -> Unit,
+    onTransferDownload: (String) -> Unit,
+    onMergeDownloadToMp4: (String) -> Unit,
+    onOpenDownloadSettings: () -> Unit,
 ) {
     when (sheetRoute) {
         WebSessionBrowserSheetRoute.DOWNLOADS ->
             WebSessionDownloadSheet(
                 uiState = hostState.downloadUiState,
-                onFilterChange = { filter ->
-                    onHostStateChange { current ->
-                        current.copy(
-                            downloadUiState =
-                                current.downloadUiState.copy(selectedFilter = filter)
-                        )
-                    }
-                },
                 onPauseDownload = onPauseDownload,
                 onResumeDownload = onResumeDownload,
                 onCancelDownload = onCancelDownload,
                 onRetryDownload = onRetryDownload,
                 onDeleteDownload = onDeleteDownload,
                 onOpenDownloadedFile = onOpenDownloadedFile,
-                onOpenDownloadLocation = onOpenDownloadLocation,
+                onOpenDownloadFileManager = onOpenDownloadFileManager,
+                onStartManualDownload = onStartManualDownload,
+                onRedownload = onRedownload,
+                onRenameDownload = onRenameDownload,
+                onMoveDownload = onMoveDownload,
+                onCopyDownloadUrl = onCopyDownloadUrl,
+                onShareDownload = onShareDownload,
+                onCopyDownloadLocation = onCopyDownloadLocation,
+                onTransferDownload = onTransferDownload,
+                onMergeDownloadToMp4 = onMergeDownloadToMp4,
+                onOpenDownloadSettings = onOpenDownloadSettings,
                 modifier = Modifier.fillMaxSize(),
             )
 

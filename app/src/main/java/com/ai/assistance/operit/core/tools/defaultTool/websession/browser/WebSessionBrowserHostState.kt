@@ -107,16 +107,12 @@ internal data class WebSessionBrowserState(
     val networkEntries: List<WebSessionBrowserNetworkEntry> = emptyList(),
 )
 
-internal enum class BrowserDownloadFilter {
-    IN_PROGRESS,
-    COMPLETED,
-    FAILED
-}
-
 @Immutable
 internal data class BrowserDownloadItem(
     val id: String,
     val fileName: String,
+    val sourceUrl: String?,
+    val mimeType: String?,
     val status: String,
     val type: String,
     val progress: Float?,
@@ -124,6 +120,9 @@ internal data class BrowserDownloadItem(
     val totalBytes: Long,
     val speedBytesPerSecond: Long,
     val destinationPath: String,
+    val createdAt: Long,
+    val completedAt: Long?,
+    val isM3u8Package: Boolean,
     val errorMessage: String?,
     val canPause: Boolean,
     val canResume: Boolean,
@@ -132,27 +131,15 @@ internal data class BrowserDownloadItem(
     val canDelete: Boolean,
     val canDeleteFile: Boolean,
     val canOpenFile: Boolean,
-    val canOpenLocation: Boolean
+    val canOpenLocation: Boolean,
+    val canRedownload: Boolean,
+    val canMergeToMp4: Boolean,
 )
 
 @Immutable
 internal data class BrowserDownloadUiState(
     val tasks: List<BrowserDownloadItem> = emptyList(),
-    val selectedFilter: BrowserDownloadFilter = BrowserDownloadFilter.IN_PROGRESS
 )
-
-internal fun filterBrowserDownloadItems(
-    tasks: List<BrowserDownloadItem>,
-    filter: BrowserDownloadFilter,
-): List<BrowserDownloadItem> =
-    tasks.filter { item ->
-        when (filter) {
-            BrowserDownloadFilter.IN_PROGRESS ->
-                item.status in setOf("queued", "connecting", "downloading", "paused", "canceled")
-            BrowserDownloadFilter.COMPLETED -> item.status == "completed"
-            BrowserDownloadFilter.FAILED -> item.status == "failed"
-        }
-    }
 
 @Immutable
 internal data class ExternalOpenPromptState(

@@ -102,6 +102,11 @@ internal class BrowserDownloadTransport(
     internal fun probe(
         url: String,
         headers: Map<String, String> = emptyMap(),
+    ): BrowserDownloadProbeResult = executeWithRetry { probeOnce(url, headers) }
+
+    private fun probeOnce(
+        url: String,
+        headers: Map<String, String>,
     ): BrowserDownloadProbeResult {
         val head = executeHead(url, headers)
         if (head.code == 405 || head.code == 501) {

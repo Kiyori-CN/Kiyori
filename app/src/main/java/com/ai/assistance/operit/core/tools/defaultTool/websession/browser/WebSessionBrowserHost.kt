@@ -69,6 +69,7 @@ internal class WebSessionBrowserHost(
         fun onMinimize()
         fun onExitBrowser()
         fun onOpenBrowserSettings()
+        fun onOpenDownloadSettings()
         fun onCloseCurrentTab()
         fun onCloseAllTabs(profile: WebSessionProfile)
         fun onToggleBookmark(url: String, title: String)
@@ -108,7 +109,21 @@ internal class WebSessionBrowserHost(
         fun onRetryDownload(taskId: String)
         fun onDeleteDownload(taskId: String, deleteFile: Boolean)
         fun onOpenDownloadedFile(taskId: String)
-        fun onOpenDownloadLocation(taskId: String)
+        fun onOpenDownloadFileManager()
+        fun onStartManualDownload(
+            fileName: String,
+            url: String,
+            suffix: String,
+            engine: BrowserDownloadEngine,
+        ): Boolean
+        fun onRedownload(taskId: String)
+        fun onRenameDownload(taskId: String, targetFileName: String, mode: BrowserDownloadRenameMode)
+        fun onMoveDownload(taskId: String, treeUriString: String)
+        fun onCopyDownloadUrl(taskId: String)
+        fun onShareDownload(taskId: String)
+        fun onCopyDownloadLocation(taskId: String)
+        fun onTransferDownload(taskId: String)
+        fun onMergeDownloadToMp4(taskId: String)
         fun onConfirmBrowserDownload(requestId: String)
         fun onCancelBrowserDownload(requestId: String)
         fun onConfirmExternalOpen(requestId: String)
@@ -177,6 +192,7 @@ internal class WebSessionBrowserHost(
                                 onTopBarBack = callbacks::onMinimize,
                                 onOpenAiDialogue = callbacks::onMinimize,
                                 onOpenBrowserSettings = callbacks::onOpenBrowserSettings,
+                                onOpenDownloadSettings = callbacks::onOpenDownloadSettings,
                                 onExitBrowser = callbacks::onExitBrowser,
                             )
                         }
@@ -244,6 +260,7 @@ internal class WebSessionBrowserHost(
         onTopBarBack: () -> Unit,
         onOpenAiDialogue: () -> Unit,
         onOpenBrowserSettings: () -> Unit,
+        onOpenDownloadSettings: () -> Unit,
         onExitBrowser: () -> Unit,
         modifier: Modifier = Modifier,
     ) {
@@ -274,6 +291,7 @@ internal class WebSessionBrowserHost(
             onTopBarBack = onTopBarBack,
             onOpenAiDialogue = onOpenAiDialogue,
             onOpenBrowserSettings = onOpenBrowserSettings,
+            onOpenDownloadSettings = onOpenDownloadSettings,
             onExitBrowser = onExitBrowser,
             onCloseCurrentTab = callbacks::onCloseCurrentTab,
             onCloseAllTabs = callbacks::onCloseAllTabs,
@@ -307,7 +325,16 @@ internal class WebSessionBrowserHost(
             onRetryDownload = callbacks::onRetryDownload,
             onDeleteDownload = callbacks::onDeleteDownload,
             onOpenDownloadedFile = callbacks::onOpenDownloadedFile,
-            onOpenDownloadLocation = callbacks::onOpenDownloadLocation,
+            onOpenDownloadFileManager = callbacks::onOpenDownloadFileManager,
+            onStartManualDownload = callbacks::onStartManualDownload,
+            onRedownload = callbacks::onRedownload,
+            onRenameDownload = callbacks::onRenameDownload,
+            onMoveDownload = callbacks::onMoveDownload,
+            onCopyDownloadUrl = callbacks::onCopyDownloadUrl,
+            onShareDownload = callbacks::onShareDownload,
+            onCopyDownloadLocation = callbacks::onCopyDownloadLocation,
+            onTransferDownload = callbacks::onTransferDownload,
+            onMergeDownloadToMp4 = callbacks::onMergeDownloadToMp4,
             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
             onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
@@ -327,10 +354,7 @@ internal class WebSessionBrowserHost(
         hostState =
             hostState.copy(
                 browserState = browserState,
-                downloadUiState =
-                    downloadUiState.copy(
-                        selectedFilter = hostState.downloadUiState.selectedFilter
-                    ),
+                downloadUiState = downloadUiState,
                 externalOpenPrompt = externalOpenPrompt,
                 downloadPrompt = downloadPrompt,
             )
