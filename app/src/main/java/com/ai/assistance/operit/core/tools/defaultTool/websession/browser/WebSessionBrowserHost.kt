@@ -81,6 +81,7 @@ internal class WebSessionBrowserHost(
         fun onSelectSessionHistory(index: Int)
         fun onOpenUrl(url: String)
         fun onClearHistory()
+        fun onClearNetworkLog()
         fun onSelectUserAgentMode(mode: WebSessionUserAgentMode)
         fun onSaveCustomGlobalUserAgent(userAgent: String)
         fun onSaveSiteUserAgentRule(domain: String, userAgent: String)
@@ -317,6 +318,7 @@ internal class WebSessionBrowserHost(
             onSelectSessionHistory = callbacks::onSelectSessionHistory,
             onOpenUrl = callbacks::onOpenUrl,
             onClearHistory = callbacks::onClearHistory,
+            onClearNetworkLog = callbacks::onClearNetworkLog,
             onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
             onSaveCustomGlobalUserAgent = callbacks::onSaveCustomGlobalUserAgent,
             onSaveSiteUserAgentRule = callbacks::onSaveSiteUserAgentRule,

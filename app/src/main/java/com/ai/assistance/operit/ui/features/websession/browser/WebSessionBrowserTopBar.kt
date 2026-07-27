@@ -67,7 +67,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
@@ -569,36 +568,6 @@ private fun SearchRecordCard(
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(17.dp))
-            }
-        }
-    }
-}
-
-@Composable
-internal fun WebSessionBrowserNetworkLog(
-    entries: List<WebSessionBrowserNetworkEntry>,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    BrowserInfoPage(
-        title = stringResource(R.string.web_session_network_log),
-        onBack = onDismiss,
-        modifier = modifier,
-    ) {
-        if (entries.isEmpty()) {
-            Text(text = stringResource(R.string.web_session_network_log_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            entries.asReversed().forEach { entry ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(text = "${entry.method} · ${if (entry.isMainFrame) "main" else "resource"}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        Text(text = entry.url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    }
-                }
             }
         }
     }

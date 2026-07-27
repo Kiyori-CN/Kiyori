@@ -53,6 +53,7 @@ internal data class WebSessionBrowserNetworkEntry(
     val url: String,
     val isMainFrame: Boolean,
     val isStatic: Boolean,
+    val category: BrowserNetworkRequestCategory,
     val timestamp: Long,
 )
 

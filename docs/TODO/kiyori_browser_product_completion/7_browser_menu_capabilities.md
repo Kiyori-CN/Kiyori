@@ -39,9 +39,21 @@
 - UA 变化立即更新所有没有显式 session UA 的现有窗口；只重载当前活动窗口，避免后台标签被无提示刷新
 - `WebSessionBrowserSettingsStore` 是 UA 模式、自定义全局 UA 和站点规则的唯一持久化 owner；旧 `desktop_mode` 布尔状态、UA 子抽屉页面和切换按钮在本里程碑删除
 
+## 网络日志实现合同
+
+- `BrowserNetworkRequestEntry` 继续由当前活动 WebSession 的 `shouldInterceptRequest` 采集并保存在该 session 的内存队列中；Browser Home、悬浮浏览器和 AI 浏览器工具读取同一份最多 500 条记录，不新增持久化日志库或第二个浏览器状态
+- 页面开始导航时清空该 session 的控制台和网络事件；抽屉中的“清空”只清当前 session 的网络请求，不改网页、历史、下载、其他窗口或控制台记录
+- 抽屉复用书签与下载相同的 Hidden/Partial/Expanded 宿主、`52dp` 标题栏、中性浏览器配色、空态和居中模态弹窗。标题栏提供真实条目数与清空动作，内容依次为 URL 搜索、`全部 / 视频 / 音乐 / 图片 / 网页 / 其他` 横向分类和请求列表
+- 分类只依据 Android WebView 当前能够确认的主框架标记、请求 URL、扩展名和 `Accept` 请求头。第三方域名使用明确的“第三方”提示；不把异域请求直接宣称为广告，不凭空补 HTTP status、响应 MIME、失败、拦截或响应体
+- 请求行显示资源类型、method、host、紧凑 URL 和时间；不通过 Coil、WebView 或其他网络客户端加载图片缩略图，避免查看日志本身再次发起请求并污染列表
+- 点击请求打开与书签、下载一致的居中操作弹窗。复制链接使用系统剪贴板；下载资源进入唯一 `BrowserDownloadManager` 并采用当前默认下载器及活动 Profile 的 User-Agent、Cookie、Referer；外部打开只处理本条已记录的 HTTP/HTTPS URL；详情显示完整 URL、method、分类、主框架/子资源和捕获时间
+- 旧版“播放资源”等待播放器与媒体 candidate owner 完成，“拦截网址”等待广告规则 owner 完成；本轮不显示无真实 consumer 的动作，也不复制 legacy X5 响应头或 hikerView Adblock 状态
+
 ## 验收
 
 - 加书签、书签、历史、下载和网络日志复用现有真实 owner；UA 标识接入唯一 Browser Settings owner 和活动 WebView
+- 网络日志点击后主菜单退出并打开共享可拖动子抽屉；搜索、六类过滤、第三方提示、清空、复制、下载、外部打开和详情均作用于当前 active session 的真实记录
+- 自动测试覆盖请求分类、第三方 host 判定、紧凑 URL、过滤与搜索；本地验证不宣称已获得 HTTP 响应、广告拦截或真机 WebView 请求完整性
 - 点击 UA 标识时主菜单消失，一级选择弹窗直接显示；系统 Back、遮罩点击和取消均关闭当前最上层 UA 弹窗
 - 六种入口、两种自定义编辑路径、域名规则增删、子域匹配及 preset UA 均有定向测试或可复核运行时证据
 - 旧版未实现的入口保持明确空占位，不伪造状态
@@ -57,3 +69,12 @@
 - `WebSessionUserAgentPolicyTest` 6 项与 `WebSessionBrowserUserAgentRoutingTest` 1 项通过；正式开发准备门禁、7 份 `strings.xml` 解析、`git diff --check` 和 `:app:assembleDebug` 通过
 - Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`2026-07-27 22:19:59 +08:00`，`449501741` 字节，`com.kiyori`，`45 / 0.1.0`，SHA-256 `95327BFCACC4598DC44AA921D687E7F90119A2C451730C263AAF1D042506EF63`，V2 Debug 签名且 `zipalign -P 16` 通过
 - 真机上的弹窗尺寸、输入法、系统 Back、实际请求 UA、域名跳转和普通/无痕窗口组合仍待用户验收，不由 JVM 测试或 APK 构建替代
+
+## 2026-07-27 网络日志小步 [DONE]
+
+- `NETWORK_LOG` 保持共享三态子抽屉路由；主菜单点击后退出固定菜单并打开同一个 `WebSessionBrowserBottomDrawer`，Browser Home 和悬浮浏览器没有新增第二个 host 或 WebView
+- `BrowserNetworkLogPolicy` 根据主框架、URL、扩展名和 `Accept` 请求头生成 `视频 / 音乐 / 图片 / 网页 / 其他` 分类，并提供倒序过滤、搜索、跨 host 判定和紧凑 URL；现有每 session 500 条内存队列继续是唯一日志 owner
+- 新抽屉与书签、下载统一使用 `52dp` 标题栏、中性表面、紧凑筛选和居中模态弹窗，提供当前 session 清空、复制链接、按当前默认 engine 下载、外部打开和请求详情；列表不加载资源缩略图，也不显示无法确认的响应状态、广告拦截或播放动作
+- `BrowserNetworkLogPolicyTest`、`WebSessionBrowserUserAgentRoutingTest`、`WebSessionBrowserChromeLayoutTest`、`WebSessionBookmarkPolicyTest` 和 `BrowserDownloadDrawerPolicyTest` 合计 `27/27`，零失败、零错误、零跳过；正式开发准备门禁、7 份 `strings.xml` 解析与 `git diff --check` 通过
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`。Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`2026-07-27 23:43:42 +08:00`，`449513873` 字节，`com.kiyori`，`45 / 0.1.0`，SHA-256 `2A32681AC44E53E1C898C5C1E8C1F24F49257EB8EC01216DCE49DA01F3C82577`，V2 Debug 签名且 `zipalign -P 16` 通过
+- 真机上的菜单到抽屉转场、半展开/全展开拖动、500 条实时请求滚动、系统 Back、复制/下载/外部打开、普通/无痕窗口隔离和真实网页请求分类仍待用户验收，不由 JVM 测试或 APK 构建替代

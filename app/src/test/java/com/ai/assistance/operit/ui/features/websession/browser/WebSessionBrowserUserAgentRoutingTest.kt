@@ -11,5 +11,6 @@ class WebSessionBrowserUserAgentRoutingTest {
         assertFalse(WebSessionBrowserSheetRoute.USER_AGENT.isWebSessionBrowserDrawerRoute())
         assertTrue(WebSessionBrowserSheetRoute.MENU.isWebSessionBrowserDrawerRoute())
         assertTrue(WebSessionBrowserSheetRoute.HISTORY.isWebSessionBrowserDrawerRoute())
+        assertTrue(WebSessionBrowserSheetRoute.NETWORK_LOG.isWebSessionBrowserDrawerRoute())
     }
 }

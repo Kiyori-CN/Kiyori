@@ -43,6 +43,7 @@ internal data class BrowserNetworkRequestEntry(
     val url: String,
     val isMainFrame: Boolean,
     val isStatic: Boolean,
+    val category: BrowserNetworkRequestCategory,
     val headers: Map<String, String> = emptyMap(),
     val timestamp: Long = System.currentTimeMillis()
 )
@@ -181,6 +182,13 @@ internal fun StandardBrowserSessionTools.clearEventLogs(session: BrowserToolSess
     }
 }
 
+internal fun StandardBrowserSessionTools.clearNetworkRequests(session: BrowserToolSession) {
+    synchronized(session.networkEntries) {
+        session.networkEntries.clear()
+    }
+    notifySessionStateChanged(session)
+}
+
 internal fun StandardBrowserSessionTools.recordNetworkRequest(
     session: BrowserToolSession,
     request: WebResourceRequest
@@ -197,6 +205,12 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
             url = url,
             isMainFrame = request.isForMainFrame,
             isStatic = isStaticRequest(url, acceptHeader),
+            category =
+                classifyBrowserNetworkRequest(
+                    url = url,
+                    acceptHeader = acceptHeader,
+                    isMainFrame = request.isForMainFrame,
+                ),
             headers = headers
         )
     synchronized(session.networkEntries) {

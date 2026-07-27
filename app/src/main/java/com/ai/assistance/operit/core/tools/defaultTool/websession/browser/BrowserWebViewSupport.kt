@@ -689,6 +689,14 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
+        override fun onClearNetworkLog() {
+            val session = getActiveSessionOnMain() ?: return
+            // Network-log clearing is session-scoped so another live window and console evidence
+            // are not erased by a presentation action in the current drawer.
+            clearNetworkRequests(session)
+            refreshSessionUiOnMain(session.id)
+        }
+
         override fun onSelectUserAgentMode(mode: WebSessionUserAgentMode) {
             removeActiveSiteUserAgentRule()
             browserSettingsStore.setUserAgentMode(mode)
@@ -1331,6 +1339,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                             url = entry.url,
                             isMainFrame = entry.isMainFrame,
                             isStatic = entry.isStatic,
+                            category = entry.category,
                             timestamp = entry.timestamp,
                         )
                     }

@@ -127,6 +127,7 @@ internal fun WebSessionBrowserScreen(
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
+    onClearNetworkLog: () -> Unit,
     onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
     onSaveCustomGlobalUserAgent: (String) -> Unit,
     onSaveSiteUserAgentRule: (String, String) -> Unit,
@@ -639,6 +640,7 @@ internal fun WebSessionBrowserScreen(
                             onSelectSessionHistory = onSelectSessionHistory,
                             onOpenUrl = onOpenUrl,
                             onClearHistory = onClearHistory,
+                            onClearNetworkLog = onClearNetworkLog,
                             onOpenPageSource = onOpenPageSource,
                             onCopyPageSource = onCopyPageSource,
                             onHostStateChange = onHostStateChange,
@@ -908,6 +910,7 @@ private fun WebSessionBrowserDrawerContent(
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
+    onClearNetworkLog: () -> Unit,
     onOpenPageSource: () -> Unit,
     onCopyPageSource: () -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
@@ -1013,7 +1016,9 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.NETWORK_LOG ->
             WebSessionBrowserNetworkLog(
                 entries = browserState.networkEntries,
-                onDismiss = onDismiss,
+                currentPageUrl = browserState.currentUrl,
+                onClear = onClearNetworkLog,
+                onStartDownload = onStartManualDownload,
                 modifier = Modifier.fillMaxSize(),
             )
 
