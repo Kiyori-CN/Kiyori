@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import android.net.Uri
 import android.text.format.Formatter
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,6 +54,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkFolder
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkMutation
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
@@ -63,8 +67,10 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
@@ -91,6 +97,7 @@ private fun WebSessionBrowserSheetRoute.isBrowserChildDrawerRoute(): Boolean =
 internal fun WebSessionBrowserScreen(
     hostState: WebSessionBrowserHostState,
     bookmarks: List<WebSessionBookmark>,
+    bookmarkFolders: List<WebSessionBookmarkFolder>,
     globalHistory: List<WebSessionHistoryEntry>,
     searchEngine: WebSessionSearchEngine,
     searchHistory: List<WebSessionSearchRecord>,
@@ -112,8 +119,9 @@ internal fun WebSessionBrowserScreen(
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
     onCloseAllTabs: (WebSessionProfile) -> Unit,
-    onToggleBookmark: (String, String) -> Unit,
     onRemoveBookmark: (String) -> Unit,
+    onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
+    onOpenBookmarkInTab: (String, Boolean) -> Unit,
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
@@ -160,6 +168,7 @@ internal fun WebSessionBrowserScreen(
     homeUrl: String,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val browserState = hostState.browserState
     var totalHeightPx by remember { mutableIntStateOf(0) }
     var browserAreaHeightPx by remember { mutableIntStateOf(0) }
@@ -184,11 +193,20 @@ internal fun WebSessionBrowserScreen(
             }
         }
     }
+    val currentBookmarkUrl =
+        remember(browserState.currentUrl) { normalizeWebSessionBookmarkUrl(browserState.currentUrl) }
     val isBookmarked =
-        remember(browserState.currentUrl, bookmarks) {
-            val normalizedUrl = normalizeLookupUrl(browserState.currentUrl)
-            normalizedUrl != null && bookmarks.any { it.url == normalizedUrl }
+        remember(currentBookmarkUrl, bookmarks) {
+            currentBookmarkUrl != null &&
+                bookmarks.any { bookmark -> !bookmark.secret && bookmark.url == currentBookmarkUrl }
         }
+    val bookmarkFolderOptions =
+        remember(bookmarkFolders) {
+            buildWebSessionBookmarkFolderTree(bookmarkFolders, secret = false).map { entry ->
+                WebSessionBookmarkFolderOption(entry.id, entry.title, entry.depth)
+            }
+        }
+    var addBookmarkDraft by remember { mutableStateOf<WebSessionBookmarkDraft?>(null) }
     val dismissSheet = {
         onHostStateChange { current ->
             current.copy(
@@ -523,9 +541,21 @@ internal fun WebSessionBrowserScreen(
                 WebSessionBrowserMenuDrawer(
                     isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.MENU,
                     isBookmarked = isBookmarked,
-                    canAddBookmark = browserState.activeSessionId != null && browserState.currentUrl != "about:blank",
+                    canAddBookmark = browserState.activeSessionId != null && currentBookmarkUrl != null,
                     onAddBookmark = {
-                        onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
+                        if (isBookmarked) {
+                            onRemoveBookmark(browserState.currentUrl)
+                        } else {
+                            currentBookmarkUrl?.let { url ->
+                                addBookmarkDraft =
+                                    WebSessionBookmarkDraft(
+                                        title = browserState.pageTitle,
+                                        url = url,
+                                        iconUrl = buildWebSessionFaviconUrl(url),
+                                        folderId = null,
+                                    )
+                            }
+                        }
                         dismissSheet()
                     },
                     onOpenBookmarks = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.BOOKMARKS) } },
@@ -596,14 +626,12 @@ internal fun WebSessionBrowserScreen(
                             sheetRoute = drawerRoute,
                             browserState = browserState,
                             bookmarks = bookmarks,
+                            bookmarkFolders = bookmarkFolders,
                             globalHistory = globalHistory,
                             userscriptUiState = userscriptUiState,
-                            isBookmarked = isBookmarked,
-                            onToggleBookmark = {
-                                onToggleBookmark(browserState.currentUrl, browserState.pageTitle)
-                            },
                             onDismiss = dismissSheet,
-                            onRemoveBookmark = onRemoveBookmark,
+                            onBookmarkMutation = onBookmarkMutation,
+                            onOpenBookmarkInTab = onOpenBookmarkInTab,
                             onSelectSessionHistory = onSelectSessionHistory,
                             onOpenUrl = onOpenUrl,
                             onClearHistory = onClearHistory,
@@ -687,6 +715,23 @@ internal fun WebSessionBrowserScreen(
                 }
             )
         }
+        }
+        addBookmarkDraft?.let { draft ->
+            WebSessionBookmarkEditorDialog(
+                title = "新增书签",
+                initialDraft = draft,
+                folderOptions = bookmarkFolderOptions,
+                onDismiss = { addBookmarkDraft = null },
+                onConfirm = { confirmed ->
+                    if (normalizeWebSessionBookmarkUrl(confirmed.url) == null) {
+                        Toast.makeText(context, "请输入有效的 HTTP 或 HTTPS 网址", Toast.LENGTH_SHORT).show()
+                    } else {
+                        onBookmarkMutation(WebSessionBookmarkMutation.SaveBookmark(confirmed, secret = false))
+                        addBookmarkDraft = null
+                        Toast.makeText(context, "书签已保存", Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )
         }
     }
 }
@@ -837,12 +882,12 @@ private fun WebSessionBrowserDrawerContent(
     sheetRoute: WebSessionBrowserSheetRoute,
     browserState: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserState,
     bookmarks: List<WebSessionBookmark>,
+    bookmarkFolders: List<WebSessionBookmarkFolder>,
     globalHistory: List<WebSessionHistoryEntry>,
     userscriptUiState: WebSessionUserscriptUiState,
-    isBookmarked: Boolean,
-    onToggleBookmark: () -> Unit,
     onDismiss: () -> Unit,
-    onRemoveBookmark: (String) -> Unit,
+    onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
+    onOpenBookmarkInTab: (String, Boolean) -> Unit,
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
@@ -923,12 +968,17 @@ private fun WebSessionBrowserDrawerContent(
 
         WebSessionBrowserSheetRoute.BOOKMARKS ->
             WebSessionBookmarkSheet(
+                folders = bookmarkFolders,
                 bookmarks = bookmarks,
+                onMutation = onBookmarkMutation,
                 onOpenBookmark = { url ->
                     onOpenUrl(url)
                     onDismiss()
                 },
-                onRemoveBookmark = onRemoveBookmark,
+                onOpenBookmarkInTab = { url, active ->
+                    onOpenBookmarkInTab(url, active)
+                    if (active) onDismiss()
+                },
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -1071,42 +1121,11 @@ private fun BrowserDownloadSummaryBar(
     }
 }
 
-private fun normalizeLookupUrl(raw: String): String? {
-    val trimmed = raw.trim()
-    if (trimmed.isBlank()) {
-        return null
-    }
-
-    val lower = trimmed.lowercase(Locale.ROOT)
-    if (lower.startsWith("about:") || lower.startsWith("blob:") || lower.startsWith("data:")) {
-        return null
-    }
-    if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
-        return null
-    }
-
-    return runCatching {
-        val uri = Uri.parse(trimmed)
-        val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
-        val host = uri.host?.lowercase(Locale.ROOT) ?: return null
-        val portPart =
-            when {
-                uri.port < 0 -> ""
-                scheme == "http" && uri.port == 80 -> ""
-                scheme == "https" && uri.port == 443 -> ""
-                else -> ":${uri.port}"
-            }
-        val path = uri.encodedPath?.ifBlank { "/" } ?: "/"
-        buildString {
-            append(scheme)
-            append("://")
-            append(host)
-            append(portPart)
-            append(path)
-            uri.encodedQuery?.takeIf { it.isNotBlank() }?.let {
-                append('?')
-                append(it)
-            }
-        }
-    }.getOrElse { trimmed }
-}
+private fun buildWebSessionFaviconUrl(url: String): String =
+    Uri.parse(url)
+        .buildUpon()
+        .encodedPath("/favicon.ico")
+        .encodedQuery(null)
+        .fragment(null)
+        .build()
+        .toString()

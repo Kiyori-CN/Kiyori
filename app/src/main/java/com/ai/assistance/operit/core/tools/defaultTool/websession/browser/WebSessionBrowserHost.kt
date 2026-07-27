@@ -75,8 +75,9 @@ internal class WebSessionBrowserHost(
         fun onOpenDownloadSettings()
         fun onCloseCurrentTab()
         fun onCloseAllTabs(profile: WebSessionProfile)
-        fun onToggleBookmark(url: String, title: String)
         fun onRemoveBookmark(url: String)
+        fun onBookmarkMutation(mutation: WebSessionBookmarkMutation)
+        fun onOpenBookmarkInTab(url: String, active: Boolean)
         fun onSelectSessionHistory(index: Int)
         fun onOpenUrl(url: String)
         fun onClearHistory()
@@ -276,6 +277,7 @@ internal class WebSessionBrowserHost(
         modifier: Modifier = Modifier,
     ) {
         val bookmarks by store.bookmarksFlow.collectAsState(initial = emptyList())
+        val bookmarkFolders by store.bookmarkFoldersFlow.collectAsState(initial = emptyList())
         val history by store.historyFlow.collectAsState(initial = emptyList())
         val searchEngine by store.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
         val searchHistory by store.searchHistoryFlow.collectAsState(initial = emptyList())
@@ -285,6 +287,7 @@ internal class WebSessionBrowserHost(
         WebSessionBrowserScreen(
             hostState = hostState,
             bookmarks = bookmarks,
+            bookmarkFolders = bookmarkFolders,
             globalHistory = history,
             searchEngine = searchEngine,
             searchHistory = searchHistory,
@@ -306,8 +309,9 @@ internal class WebSessionBrowserHost(
             onExitBrowser = onExitBrowser,
             onCloseCurrentTab = callbacks::onCloseCurrentTab,
             onCloseAllTabs = callbacks::onCloseAllTabs,
-            onToggleBookmark = callbacks::onToggleBookmark,
             onRemoveBookmark = callbacks::onRemoveBookmark,
+            onBookmarkMutation = callbacks::onBookmarkMutation,
+            onOpenBookmarkInTab = callbacks::onOpenBookmarkInTab,
             onSelectSessionHistory = callbacks::onSelectSessionHistory,
             onOpenUrl = callbacks::onOpenUrl,
             onClearHistory = callbacks::onClearHistory,

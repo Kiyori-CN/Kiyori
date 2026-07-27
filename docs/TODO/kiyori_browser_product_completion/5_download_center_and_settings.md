@@ -396,7 +396,7 @@ playlist 的本地 URI 指向同目录 companion files。单独复制 playlist �
 - 共享 `WebSessionBrowserBottomDrawer` 过去始终按全展开高度测量内容，仅通过整体向下位移形成半展开效果；位于屏幕下方的区域仍被 `LazyColumn` 计入可见高度，导致半展开状态的末尾条目无法滚入屏幕
 - 抽屉 Surface 继续保持全高以维持既有位移和弹簧动画，内容容器改为按实时露出高度减去 `28dp` 拖动柄计算视口；半展开、完全展开及拖动过程都向子内容发布真实高度，当前下载抽屉和以后复用该宿主的抽屉共用同一自适应合同
 - 下载页签继续由各自的 `LazyColumn` 持有垂直滚动；高度变化只触发重新测量，不引入第二滚动 owner，也不改变页签、排序、批量操作或下载任务状态
-- “已下载”为空时保留纯背景，不再显示“还没有已下载内容”；“下载中”为空时继续显示“当前没有下载任务”
+- “已下载”为空时显示“当前没有已下载文件”；“下载中”为空时显示“当前没有下载任务”
 - `WebSessionBrowserChromeLayoutTest` 覆盖展开、半展开和隐藏三种内容视口高度，当前 `7/7` 通过；目标测试任务同时完成 `:app:compileDebugKotlin`，Formal readiness、`git diff --check` 和主源码旧已下载空态文案零匹配均通过
 - 收尾再次执行 `:app:assembleDebug --no-daemon --console=plain`，结果为 `BUILD SUCCESSFUL in 19s`，`231` 个任务零失败，其中 `22` 个执行、`209` 个为 up-to-date
 - Debug APK：`2026-07-27 13:55:15 +08:00`，`449493090` 字节，SHA-256 `DDC7E85641ADF1F7CE208760513152C8067C93452FDF7C757A0E4DD19CB8DCC5`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过

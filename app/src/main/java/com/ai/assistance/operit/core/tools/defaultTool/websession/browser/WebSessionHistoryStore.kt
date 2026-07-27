@@ -1,20 +1,20 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.content.Context
-import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.net.URI
+import java.net.URISyntaxException
 import java.util.Locale
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.decodeFromString
 
 private val Context.webSessionHistoryDataStore: DataStore<Preferences> by
     preferencesDataStore(name = "web_session_browser_store")
@@ -23,6 +23,7 @@ internal class WebSessionHistoryStore private constructor(private val context: C
 
     companion object {
         private val KEY_BOOKMARKS = stringPreferencesKey("bookmarks_json")
+        private val KEY_BOOKMARK_FOLDERS = stringPreferencesKey("bookmark_folders_json")
         private val KEY_HISTORY = stringPreferencesKey("history_json")
         private val KEY_DESKTOP_MODE = booleanPreferencesKey("desktop_mode")
         private val KEY_SEARCH_ENGINE = stringPreferencesKey("search_engine")
@@ -49,7 +50,13 @@ internal class WebSessionHistoryStore private constructor(private val context: C
     val bookmarksFlow: Flow<List<WebSessionBookmark>> =
         context.webSessionHistoryDataStore.data.map { preferences ->
             decodeBookmarks(preferences[KEY_BOOKMARKS])
-                .sortedByDescending { it.updatedAt }
+                .sortedWith(compareBy<WebSessionBookmark> { it.order }.thenByDescending { it.updatedAt })
+        }
+
+    val bookmarkFoldersFlow: Flow<List<WebSessionBookmarkFolder>> =
+        context.webSessionHistoryDataStore.data.map { preferences ->
+            decodeBookmarkFolders(preferences[KEY_BOOKMARK_FOLDERS])
+                .sortedWith(compareBy<WebSessionBookmarkFolder> { it.order }.thenBy { it.createdAt })
         }
 
     val historyFlow: Flow<List<WebSessionHistoryEntry>> =
@@ -123,69 +130,37 @@ internal class WebSessionHistoryStore private constructor(private val context: C
                     }
                 }
 
-            val bookmarks =
-                decodeBookmarks(preferences[KEY_BOOKMARKS]).map { bookmark ->
-                    if (bookmark.url == normalizedUrl && normalizedTitle.isNotBlank()) {
-                        bookmark.copy(title = normalizedTitle, updatedAt = System.currentTimeMillis())
-                    } else {
-                        bookmark
-                    }
-                }
-
             preferences[KEY_HISTORY] = json.encodeToString(history.take(MAX_HISTORY_ENTRIES))
-            preferences[KEY_BOOKMARKS] = json.encodeToString(bookmarks)
         }
     }
 
-    suspend fun addBookmark(url: String, title: String) {
+    suspend fun removeBookmark(url: String, secret: Boolean) {
         val normalizedUrl = normalizeUrl(url) ?: return
-        val now = System.currentTimeMillis()
-        val normalizedTitle = normalizeTitle(title, normalizedUrl)
-
         context.webSessionHistoryDataStore.edit { preferences ->
-            val current = decodeBookmarks(preferences[KEY_BOOKMARKS])
-            val existing = current.firstOrNull { it.url == normalizedUrl }
             val updated =
-                buildList {
-                    add(
-                        existing?.copy(
-                            title = normalizedTitle.ifBlank { existing.title },
-                            updatedAt = now
-                        ) ?: WebSessionBookmark(
-                            url = normalizedUrl,
-                            title = normalizedTitle,
-                            createdAt = now,
-                            updatedAt = now
-                        )
-                    )
-                    addAll(current.filterNot { it.url == normalizedUrl })
+                decodeBookmarks(preferences[KEY_BOOKMARKS]).filterNot { bookmark ->
+                    bookmark.url == normalizedUrl && bookmark.secret == secret
                 }
             preferences[KEY_BOOKMARKS] = json.encodeToString(updated)
         }
     }
 
-    suspend fun removeBookmark(url: String) {
-        val normalizedUrl = normalizeUrl(url) ?: return
+    suspend fun applyBookmarkMutation(mutation: WebSessionBookmarkMutation) {
         context.webSessionHistoryDataStore.edit { preferences ->
-            val updated = decodeBookmarks(preferences[KEY_BOOKMARKS]).filterNot { it.url == normalizedUrl }
-            preferences[KEY_BOOKMARKS] = json.encodeToString(updated)
+            val current =
+                WebSessionBookmarkCollection(
+                    folders = decodeBookmarkFolders(preferences[KEY_BOOKMARK_FOLDERS]),
+                    bookmarks = decodeBookmarks(preferences[KEY_BOOKMARKS]),
+                )
+            val updated =
+                applyWebSessionBookmarkMutation(
+                    collection = current,
+                    mutation = mutation,
+                    now = System.currentTimeMillis(),
+                )
+            preferences[KEY_BOOKMARK_FOLDERS] = json.encodeToString(updated.folders)
+            preferences[KEY_BOOKMARKS] = json.encodeToString(updated.bookmarks)
         }
-    }
-
-    suspend fun toggleBookmark(url: String, title: String): Boolean {
-        val normalizedUrl = normalizeUrl(url) ?: return false
-        return if (isBookmarked(normalizedUrl)) {
-            removeBookmark(normalizedUrl)
-            false
-        } else {
-            addBookmark(normalizedUrl, title)
-            true
-        }
-    }
-
-    suspend fun isBookmarked(url: String): Boolean {
-        val normalizedUrl = normalizeUrl(url) ?: return false
-        return bookmarksFlow.first().any { it.url == normalizedUrl }
     }
 
     suspend fun clearHistory() {
@@ -267,6 +242,14 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         }
     }
 
+    private fun decodeBookmarkFolders(raw: String?): List<WebSessionBookmarkFolder> {
+        return if (raw.isNullOrBlank()) {
+            emptyList()
+        } else {
+            json.decodeFromString<List<WebSessionBookmarkFolder>>(raw)
+        }
+    }
+
     private fun decodeSearchHistory(raw: String?): List<WebSessionSearchRecord> {
         return if (raw.isNullOrBlank()) {
             emptyList()
@@ -276,47 +259,45 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         }
     }
 
-    private fun normalizeUrl(raw: String): String? {
-        val trimmed = raw.trim()
-        if (trimmed.isBlank()) {
-            return null
-        }
-        val lower = trimmed.lowercase(Locale.ROOT)
-        if (lower.startsWith("about:") || lower.startsWith("blob:") || lower.startsWith("data:")) {
-            return null
-        }
-        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
-            return null
-        }
-
-        return runCatching {
-            val uri = Uri.parse(trimmed)
-            val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
-            val host = uri.host?.lowercase(Locale.ROOT) ?: return null
-            val portPart =
-                when {
-                    uri.port < 0 -> ""
-                    scheme == "http" && uri.port == 80 -> ""
-                    scheme == "https" && uri.port == 443 -> ""
-                    else -> ":${uri.port}"
-                }
-            val path = uri.encodedPath?.ifBlank { "/" } ?: "/"
-            buildString {
-                append(scheme)
-                append("://")
-                append(host)
-                append(portPart)
-                append(path)
-                uri.encodedQuery?.takeIf { it.isNotBlank() }?.let {
-                    append('?')
-                    append(it)
-                }
-            }
-        }.getOrElse { trimmed }
-    }
+    private fun normalizeUrl(raw: String): String? = normalizeWebSessionBookmarkUrl(raw)
 
     private fun normalizeTitle(title: String, fallbackUrl: String): String {
         val trimmed = title.trim()
         return if (trimmed.isBlank()) fallbackUrl else trimmed
+    }
+}
+
+internal fun normalizeWebSessionBookmarkUrl(raw: String): String? {
+    val trimmed = raw.trim()
+    if (trimmed.isBlank()) return null
+    val lower = trimmed.lowercase(Locale.ROOT)
+    if (!lower.startsWith("http://") && !lower.startsWith("https://")) return null
+
+    val uri =
+        try {
+            URI(trimmed)
+        } catch (error: URISyntaxException) {
+            return null
+        }
+    val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
+    val host = uri.host?.lowercase(Locale.ROOT) ?: return null
+    val portPart =
+        when {
+            uri.port < 0 -> ""
+            scheme == "http" && uri.port == 80 -> ""
+            scheme == "https" && uri.port == 443 -> ""
+            else -> ":${uri.port}"
+        }
+    val path = uri.rawPath?.ifBlank { "/" } ?: "/"
+    return buildString {
+        append(scheme)
+        append("://")
+        append(host)
+        append(portPart)
+        append(path)
+        uri.rawQuery?.takeIf { it.isNotBlank() }?.let {
+            append('?')
+            append(it)
+        }
     }
 }

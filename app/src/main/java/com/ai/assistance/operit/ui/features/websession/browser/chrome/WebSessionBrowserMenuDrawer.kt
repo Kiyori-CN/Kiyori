@@ -116,13 +116,15 @@ internal fun WebSessionBrowserMenuDrawer(
                 ) {
                     MenuRow(
                         MenuAction(
-                            title = stringResource(R.string.web_session_add_bookmark_tool),
-                            iconResId =
-                                if (isBookmarked) {
-                                    R.drawable.ic_kiyori_tool_bookmarks
-                                } else {
-                                    R.drawable.ic_kiyori_tool_bookmark_add
-                                },
+                            title =
+                                stringResource(
+                                    if (isBookmarked) {
+                                        R.string.web_session_remove_bookmark
+                                    } else {
+                                        R.string.web_session_add_bookmark_tool
+                                    },
+                                ),
+                            iconResId = R.drawable.ic_kiyori_tool_bookmark_add,
                             onClick = onAddBookmark,
                             enabled = canAddBookmark,
                         ),

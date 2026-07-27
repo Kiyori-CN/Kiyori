@@ -8,7 +8,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,10 +18,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -40,6 +39,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -71,8 +71,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadBatchAction
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadDrawerTab
@@ -228,10 +226,11 @@ internal fun WebSessionDownloadSheet(
         batchAction = null
     }
 
-    Column(
-        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
-    ) {
-        Row(
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+        ) {
+            Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -245,12 +244,51 @@ internal fun WebSessionDownloadSheet(
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            DownloadMenuTrigger(
+            Box(
                 modifier =
                     Modifier
-                        .padding(start = 10.dp, top = 2.dp)
+                        .padding(start = 4.dp)
+                        .size(36.dp)
                         .clickable { showTopMenu = true },
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                DownloadMenuTrigger()
+                DownloadTopMenu(
+                    expanded = showTopMenu,
+                    batchAction = batchAction,
+                    showTime = showTime,
+                    classify = classify,
+                    onDismiss = { showTopMenu = false },
+                    onSort = {
+                        showTopMenu = false
+                        showSortDialog = true
+                    },
+                    onToggleBatch = {
+                        showTopMenu = false
+                        if (batchMode) {
+                            leaveBatchMode()
+                        } else {
+                            enterBatchMode(BrowserDownloadBatchAction.DELETE)
+                        }
+                    },
+                    onOpenFileManager = {
+                        showTopMenu = false
+                        onOpenDownloadFileManager()
+                    },
+                    onToggleTime = {
+                        showTopMenu = false
+                        showTime = !showTime
+                    },
+                    onToggleClassify = {
+                        showTopMenu = false
+                        classify = !classify
+                    },
+                    onOpenSettings = {
+                        showTopMenu = false
+                        onOpenDownloadSettings()
+                    },
+                )
+            }
             Spacer(modifier = Modifier.weight(1f))
             DownloadOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
             Spacer(modifier = Modifier.width(10.dp))
@@ -287,7 +325,7 @@ internal fun WebSessionDownloadSheet(
             )
         }
 
-        Row(
+            Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -301,7 +339,7 @@ internal fun WebSessionDownloadSheet(
             }
         }
 
-        HorizontalPager(
+            HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize().background(pageBackground),
         ) { page ->
@@ -341,44 +379,12 @@ internal fun WebSessionDownloadSheet(
                         )
                 },
             )
+            }
         }
-    }
 
-    if (showTopMenu) {
-        DownloadTopMenuDialog(
-            batchAction = batchAction,
-            showTime = showTime,
-            classify = classify,
-            onDismiss = { showTopMenu = false },
-            onSort = {
-                showTopMenu = false
-                showSortDialog = true
-            },
-            onToggleBatch = {
-                showTopMenu = false
-                if (batchMode) {
-                    leaveBatchMode()
-                } else {
-                    enterBatchMode(BrowserDownloadBatchAction.DELETE)
-                }
-            },
-            onOpenFileManager = {
-                showTopMenu = false
-                onOpenDownloadFileManager()
-            },
-            onToggleTime = {
-                showTopMenu = false
-                showTime = !showTime
-            },
-            onToggleClassify = {
-                showTopMenu = false
-                classify = !classify
-            },
-            onOpenSettings = {
-                showTopMenu = false
-                onOpenDownloadSettings()
-            },
-        )
+        if (showTopMenu) {
+            WebSessionBrowserPopupScrim(onDismissRequest = { showTopMenu = false })
+        }
     }
 
     if (showSortDialog) {
@@ -660,13 +666,16 @@ private fun DownloadRecordsPage(
             modifier = Modifier.fillMaxSize().background(pageBackground),
             contentAlignment = Alignment.Center,
         ) {
-            if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
-                Text(
-                    text = "当前没有下载任务",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                )
-            }
+            Text(
+                text =
+                    if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
+                        "当前没有下载任务"
+                    } else {
+                        "当前没有已下载文件"
+                    },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+            )
         }
         return
     }
@@ -883,7 +892,8 @@ private fun DownloadInlineAction(title: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DownloadTopMenuDialog(
+private fun DownloadTopMenu(
+    expanded: Boolean,
     batchAction: BrowserDownloadBatchAction?,
     showTime: Boolean,
     classify: Boolean,
@@ -895,69 +905,26 @@ private fun DownloadTopMenuDialog(
     onToggleClassify: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismiss,
-                    ),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            Surface(
-                modifier =
-                    Modifier
-                        .width(128.dp)
-                        .offset(y = 72.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {},
-                        ),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(18.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shadowElevation = 8.dp,
-            ) {
-                Column {
-                    DownloadTopMenuItem("排序方式", onSort)
-                    DownloadTopMenuItem(
-                        when (batchAction) {
-                            BrowserDownloadBatchAction.DELETE -> "退出批量删除"
-                            BrowserDownloadBatchAction.CANCEL -> "退出批量取消"
-                            null -> "批量删除"
-                        },
-                        onToggleBatch,
-                    )
-                    DownloadTopMenuItem("文件管理", onOpenFileManager)
-                    DownloadTopMenuItem(if (showTime) "隐藏时间" else "显示时间", onToggleTime)
-                    DownloadTopMenuItem(if (classify) "关闭分类显示" else "分类显示", onToggleClassify)
-                    DownloadTopMenuItem("更多设置", onOpenSettings, drawDivider = false)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DownloadTopMenuItem(
-    title: String,
-    onClick: () -> Unit,
-    drawDivider: Boolean = true,
-) {
-    Column {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(44.dp).clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(text = title, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-        }
-        if (drawDivider) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-        }
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        shape = WebSessionBrowserPopupShape,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shadowElevation = WebSessionBrowserPopupElevation,
+    ) {
+        WebSessionBrowserDropdownItem("排序方式", onSort)
+        WebSessionBrowserDropdownItem(
+            when (batchAction) {
+                BrowserDownloadBatchAction.DELETE -> "退出批量删除"
+                BrowserDownloadBatchAction.CANCEL -> "退出批量取消"
+                null -> "批量删除"
+            },
+            onToggleBatch,
+        )
+        WebSessionBrowserDropdownItem("文件管理", onOpenFileManager)
+        WebSessionBrowserDropdownItem(if (showTime) "隐藏时间" else "显示时间", onToggleTime)
+        WebSessionBrowserDropdownItem(if (classify) "关闭分类显示" else "分类显示", onToggleClassify)
+        WebSessionBrowserDropdownItem("更多设置", onOpenSettings)
     }
 }
 
@@ -967,12 +934,21 @@ private fun DownloadSortDialog(
     onDismiss: () -> Unit,
     onSelect: (BrowserDownloadSortMode) -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 BrowserDownloadSortMode.entries.forEachIndexed { index, mode ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { onSelect(mode) }.padding(16.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(WebSessionBrowserPopupItemHeight)
+                                .clickable { onSelect(mode) }
+                                .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -1006,7 +982,7 @@ private fun AddBrowserDownloadDialog(
     var engine by remember(initialEngine) { mutableStateOf(initialEngine) }
     var errorText by remember { mutableStateOf<String?>(null) }
     var showFullLinkDialog by remember { mutableStateOf(false) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.86f),
             shape = RoundedCornerShape(24.dp),
@@ -1207,7 +1183,7 @@ private fun DownloadFullLinkDialog(
     onConfirm: (String) -> Unit,
 ) {
     var fullLink by remember(initialValue) { mutableStateOf(initialValue) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.86f),
             shape = RoundedCornerShape(24.dp),
@@ -1251,7 +1227,7 @@ private fun DownloadDeleteManyDialog(
     onDeleteRecordsOnly: () -> Unit,
     onDeleteWithFiles: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.86f),
             shape = RoundedCornerShape(24.dp),
@@ -1305,7 +1281,7 @@ private fun DownloadActionDialog(
     columns: Int,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(if (columns == 1) 0.74f else 0.84f),
             shape = RoundedCornerShape(18.dp),
@@ -1320,20 +1296,20 @@ private fun DownloadActionDialog(
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     actions.chunked(columns).forEach { rowActions ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             rowActions.forEach { action ->
                                 Box(
                                     modifier =
                                         Modifier
                                             .weight(1f)
-                                            .height(56.dp)
+                                            .height(WebSessionBrowserPopupItemHeight)
                                             .background(
                                                 MaterialTheme.colorScheme.surfaceContainer,
                                                 RoundedCornerShape(12.dp),
@@ -1364,8 +1340,12 @@ private fun RenameBrowserDownloadDialog(
         mutableStateOf(browserDownloadRenameInput(item.fileName, mode))
     }
     var showError by remember(item.id, mode) { mutableStateOf(false) }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
             Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
                 Text(
                     if (mode == BrowserDownloadRenameMode.SUFFIX) "修改后缀" else "重命名",

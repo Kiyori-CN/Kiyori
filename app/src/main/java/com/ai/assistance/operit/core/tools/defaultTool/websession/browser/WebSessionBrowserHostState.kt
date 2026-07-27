@@ -183,7 +183,22 @@ internal data class WebSessionBookmark(
     val url: String,
     val title: String,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val id: Long = createdAt,
+    val iconUrl: String = "",
+    val folderId: Long? = null,
+    val order: Long = createdAt,
+    val secret: Boolean = false,
+)
+
+@Serializable
+internal data class WebSessionBookmarkFolder(
+    val id: Long,
+    val title: String,
+    val parentId: Long? = null,
+    val createdAt: Long,
+    val order: Long = createdAt,
+    val secret: Boolean = false,
 )
 
 @Serializable

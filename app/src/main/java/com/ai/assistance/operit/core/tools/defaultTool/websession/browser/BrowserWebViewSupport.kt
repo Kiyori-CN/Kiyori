@@ -625,15 +625,30 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             ids.forEach { closeSession(it) }
         }
 
-        override fun onToggleBookmark(url: String, title: String) {
+        override fun onRemoveBookmark(url: String) {
             ioScope.launch {
-                historyStore.toggleBookmark(url, title)
+                historyStore.removeBookmark(url, secret = false)
             }
         }
 
-        override fun onRemoveBookmark(url: String) {
+        override fun onBookmarkMutation(mutation: WebSessionBookmarkMutation) {
             ioScope.launch {
-                historyStore.removeBookmark(url)
+                historyStore.applyBookmarkMutation(mutation)
+            }
+        }
+
+        override fun onOpenBookmarkInTab(url: String, active: Boolean) {
+            runOnMainSync<Unit> {
+                val sourceSession = getActiveSessionOnMain() ?: return@runOnMainSync
+                val sourceSessionId = sourceSession.id
+                createSessionTabOnMain(
+                    appContext = appContext,
+                    initialUrl = url,
+                    profile = sourceSession.profile,
+                )
+                if (!active) {
+                    activateSessionOnMain(sourceSessionId)
+                }
             }
         }
 

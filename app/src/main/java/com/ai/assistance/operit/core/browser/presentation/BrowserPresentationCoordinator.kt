@@ -10,11 +10,13 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.activateSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureOverlayOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureSessionAttachedOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSession
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getActiveSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUrlOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.setDesktopModeEnabled
@@ -102,6 +104,25 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             tools.ensureBrowserPresentationOnMain(appContext)
             tools.openUrlOnMain(appContext, url)
             tools.refreshSessionUiOnMain()
+        }
+    }
+
+    fun openUrlInSiblingSession(url: String, active: Boolean) {
+        tools.runOnMainSync<Unit> {
+            tools.ensureBrowserPresentationOnMain(appContext)
+            val sourceSession = tools.getActiveSessionOnMain()
+            val sourceSessionId = sourceSession?.id
+            val session =
+                tools.createSessionTabOnMain(
+                    appContext = appContext,
+                    initialUrl = url,
+                    profile = sourceSession?.profile ?: tools.defaultSessionProfile,
+                )
+            if (!active && sourceSessionId != null) {
+                tools.activateSessionOnMain(sourceSessionId)
+            } else {
+                tools.refreshSessionUiOnMain(session.id)
+            }
         }
     }
 

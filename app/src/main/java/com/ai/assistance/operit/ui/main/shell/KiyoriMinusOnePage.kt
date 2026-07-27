@@ -42,9 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 
 internal enum class KiyoriMinusOneDataAction {
     NONE,
+    OPEN_BOOKMARK_DRAWER,
     OPEN_DOWNLOAD_DRAWER,
 }
 
@@ -64,7 +67,13 @@ internal data class KiyoriMinusOneQuickTool(
 internal val kiyoriMinusOneDataItems =
     listOf(
         KiyoriMinusOneDataItem("收藏", 0, Color(0xFF39A95F), listOf(Color(0xFFF0FAF2), Color.White)),
-        KiyoriMinusOneDataItem("书签", 0, Color(0xFFE45D65), listOf(Color(0xFFFEF0F1), Color.White)),
+        KiyoriMinusOneDataItem(
+            "书签",
+            0,
+            Color(0xFFE45D65),
+            listOf(Color(0xFFFEF0F1), Color.White),
+            KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER,
+        ),
         KiyoriMinusOneDataItem("历史", 0, Color(0xFF6E48E6), listOf(Color(0xFFF4F0FE), Color.White)),
         KiyoriMinusOneDataItem(
             "下载",
@@ -89,12 +98,15 @@ internal val kiyoriMinusOneQuickTools =
 
 @Composable
 internal fun KiyoriMinusOnePage(
+    onOpenBookmarkDrawer: () -> Unit,
     onOpenDownloadDrawer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val downloadManager = remember(context) { BrowserDownloadManager.getInstance(context) }
+    val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val downloadTasks by downloadManager.taskSnapshots.collectAsState()
+    val bookmarks by historyStore.bookmarksFlow.collectAsState(initial = emptyList<WebSessionBookmark>())
     Column(
         modifier =
             modifier
@@ -108,7 +120,9 @@ internal fun KiyoriMinusOnePage(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             KiyoriMinusOneDataSection(
+                bookmarkCount = bookmarks.count { bookmark -> !bookmark.secret },
                 downloadCount = downloadTasks.size,
+                onOpenBookmarkDrawer = onOpenBookmarkDrawer,
                 onOpenDownloadDrawer = onOpenDownloadDrawer,
             )
             KiyoriMinusOneQuickToolsSection()
@@ -147,7 +161,9 @@ private fun KiyoriMinusOneTopBar() {
 
 @Composable
 private fun KiyoriMinusOneDataSection(
+    bookmarkCount: Int,
     downloadCount: Int,
+    onOpenBookmarkDrawer: () -> Unit,
     onOpenDownloadDrawer: () -> Unit,
 ) {
     Text(
@@ -175,6 +191,8 @@ private fun KiyoriMinusOneDataSection(
                             .clickable {
                                 when (item.action) {
                                     KiyoriMinusOneDataAction.NONE -> Unit
+                                    KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER ->
+                                        onOpenBookmarkDrawer()
                                     KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER ->
                                         onOpenDownloadDrawer()
                                 }
@@ -189,10 +207,10 @@ private fun KiyoriMinusOneDataSection(
                         Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = item.accentColor)
                         Text(
                             text =
-                                if (item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER) {
-                                    downloadCount.toString()
-                                } else {
-                                    item.count.toString()
+                                when (item.action) {
+                                    KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER -> bookmarkCount.toString()
+                                    KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER -> downloadCount.toString()
+                                    KiyoriMinusOneDataAction.NONE -> item.count.toString()
                                 },
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,

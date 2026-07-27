@@ -35,7 +35,7 @@
 
 | 菜单按钮 | 结果 | 真实状态来源或边界 |
 | --- | --- | --- |
-| 加书签 | 接通当前页 toggle | `WebSessionHistoryStore.toggleBookmark` |
+| 加书签 | 未收藏时打开四字段新增书签弹窗，已收藏时移除当前 URL | `WebSessionHistoryStore.applyBookmarkMutation` / `removeBookmark` |
 | 书签 | 接通子页 | `WebSessionBookmarkSheet` |
 | 历史 | 接通子页并使用“历史”文案 | `WebSessionHistorySheet` 与当前 session history |
 | 下载 | 接通子页 | `WebSessionDownloadSheet` |

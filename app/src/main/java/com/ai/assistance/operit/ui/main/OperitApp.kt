@@ -649,6 +649,8 @@ fun OperitApp(
                         shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
                     )
                 },
+                onOpenBookmark = browserCoordinator::openUrl,
+                onOpenBookmarkInTab = browserCoordinator::openUrlInSiblingSession,
                 onOpenAiSettingsFromKiyoriSettings = {
                     replaceAiPrimary(
                         aiSettingsDrawerEntry,

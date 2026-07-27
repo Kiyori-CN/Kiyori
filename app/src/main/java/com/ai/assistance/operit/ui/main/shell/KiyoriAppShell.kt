@@ -60,6 +60,8 @@ internal fun KiyoriAppShell(
     onAiHomeSettled: () -> Unit,
     onWeatherSearch: (String) -> Unit,
     onOpenBrowserWindows: () -> Unit,
+    onOpenBookmark: (String) -> Unit,
+    onOpenBookmarkInTab: (String, Boolean) -> Unit,
     onOpenAiSettingsFromKiyoriSettings: () -> Unit,
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
@@ -109,6 +111,7 @@ internal fun KiyoriAppShell(
         state.primaryDestination,
         state.child,
         state.isAiDrawerOpen,
+        state.isBookmarkDrawerOpen,
         state.isDownloadDrawerOpen,
         aiHostIsRoot,
     ) {
@@ -116,6 +119,7 @@ internal fun KiyoriAppShell(
             state.primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                 state.child != null ||
                 state.isAiDrawerOpen ||
+                state.isBookmarkDrawerOpen ||
                 state.isDownloadDrawerOpen ||
                 !aiHostIsRoot
         ) {
@@ -139,6 +143,7 @@ internal fun KiyoriAppShell(
             shouldEnableKiyoriShellBackHandler(
                 aiHostIsRoot = aiHostIsRoot,
                 isAiDrawerOpen = state.isAiDrawerOpen,
+                isBookmarkDrawerOpen = state.isBookmarkDrawerOpen,
                 isDownloadDrawerOpen = state.isDownloadDrawerOpen,
             ),
     ) {
@@ -177,6 +182,7 @@ internal fun KiyoriAppShell(
                 state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
                 state.child == null &&
                 !state.isAiDrawerOpen &&
+                !state.isBookmarkDrawerOpen &&
                 !state.isDownloadDrawerOpen
 
         HorizontalPager(
@@ -190,6 +196,9 @@ internal fun KiyoriAppShell(
             when (SoftwareHomePage.fromPagerIndex(page)) {
                 SoftwareHomePage.MINUS_ONE ->
                     KiyoriMinusOnePage(
+                        onOpenBookmarkDrawer = {
+                            latestOnStateChange(latestState.openBookmarkDrawer())
+                        },
                         onOpenDownloadDrawer = {
                             latestOnStateChange(latestState.openDownloadDrawer())
                         },
@@ -343,6 +352,32 @@ internal fun KiyoriAppShell(
             modifier = Modifier.fillMaxSize().zIndex(30f),
         )
 
+        KiyoriBookmarkDrawerHost(
+            isVisible =
+                shouldPresentKiyoriBookmarkDrawer(
+                    isBookmarkDrawerOpen = state.isBookmarkDrawerOpen,
+                    aiHostIsRoot = aiHostIsRoot,
+                ),
+            onDismissRequest = {
+                latestOnStateChange(latestState.closeBookmarkDrawer())
+            },
+            onOpenBookmark = { url ->
+                onOpenBookmark(url)
+                latestOnStateChange(
+                    latestState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                )
+            },
+            onOpenBookmarkInTab = { url, active ->
+                onOpenBookmarkInTab(url, active)
+                if (active) {
+                    latestOnStateChange(
+                        latestState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize().zIndex(30f),
+        )
+
         KiyoriModalAiDrawer(
             isOpen = state.isAiDrawerOpen,
             selectedEntryId = selectedAiEntryId,
@@ -383,11 +418,17 @@ internal fun shouldPresentKiyoriDownloadDrawer(
     return isDownloadDrawerOpen
 }
 
+internal fun shouldPresentKiyoriBookmarkDrawer(
+    isBookmarkDrawerOpen: Boolean,
+    aiHostIsRoot: Boolean,
+): Boolean = isBookmarkDrawerOpen
+
 internal fun shouldEnableKiyoriShellBackHandler(
     aiHostIsRoot: Boolean,
     isAiDrawerOpen: Boolean,
+    isBookmarkDrawerOpen: Boolean,
     isDownloadDrawerOpen: Boolean,
-): Boolean = isDownloadDrawerOpen || (aiHostIsRoot && !isAiDrawerOpen)
+): Boolean = isBookmarkDrawerOpen || isDownloadDrawerOpen || (aiHostIsRoot && !isAiDrawerOpen)
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun calculateKiyoriPagerPageOffset(

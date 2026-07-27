@@ -29,12 +29,15 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `saveable Shell owner preserves download drawer and every navigation field`() {
+    fun `saveable Shell owner preserves shared drawers and every navigation field`() {
         val states =
             listOf(
                 KiyoriShellState(
                     softwareHomePage = SoftwareHomePage.MINUS_ONE,
                 ).openDownloadDrawer(),
+                KiyoriShellState(
+                    softwareHomePage = SoftwareHomePage.MINUS_ONE,
+                ).openBookmarkDrawer(),
                 KiyoriShellState(
                     primaryDestination = PrimaryDestination.SETTINGS_HOME,
                     softwareHomePage = SoftwareHomePage.AI_HOME,
@@ -172,6 +175,23 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `shared bookmark drawer is mutually exclusive and Back restores minus one`() {
+        val owner = KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE)
+        val bookmarkDrawer = owner.openDownloadDrawer().openBookmarkDrawer()
+
+        assertTrue(bookmarkDrawer.isBookmarkDrawerOpen)
+        assertFalse(bookmarkDrawer.isDownloadDrawerOpen)
+        assertFalse(bookmarkDrawer.showsBottomBar)
+        assertEquals(
+            KiyoriShellBackTransition(
+                state = owner,
+                result = KiyoriShellBackResult.CONSUMED,
+            ),
+            bookmarkDrawer.handleBack(),
+        )
+    }
+
+    @Test
     fun `hidden download drawer host is absent after its exit animation`() {
         assertFalse(
             shouldComposeKiyoriDownloadDrawer(
@@ -181,6 +201,18 @@ class KiyoriShellStateTest {
         )
         assertTrue(
             shouldComposeKiyoriDownloadDrawer(
+                isVisible = true,
+                keepMountedUntilHidden = false,
+            ),
+        )
+        assertFalse(
+            shouldComposeKiyoriBookmarkDrawer(
+                isVisible = false,
+                keepMountedUntilHidden = false,
+            ),
+        )
+        assertTrue(
+            shouldComposeKiyoriBookmarkDrawer(
                 isVisible = true,
                 keepMountedUntilHidden = false,
             ),
@@ -217,7 +249,14 @@ class KiyoriShellStateTest {
             shouldEnableKiyoriShellBackHandler(
                 aiHostIsRoot = false,
                 isAiDrawerOpen = false,
+                isBookmarkDrawerOpen = false,
                 isDownloadDrawerOpen = true,
+            ),
+        )
+        assertTrue(
+            shouldPresentKiyoriBookmarkDrawer(
+                isBookmarkDrawerOpen = true,
+                aiHostIsRoot = false,
             ),
         )
     }
