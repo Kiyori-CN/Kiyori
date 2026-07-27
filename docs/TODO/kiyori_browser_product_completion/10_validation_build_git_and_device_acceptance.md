@@ -14,11 +14,11 @@ APK 证据至少记录：绝对路径、生成时间、大小、SHA-256、applic
 ## 当前最新本地制品
 
 - 浏览器与负一屏共享下载抽屉切片：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
-- 生成时间 `2026-07-27 12:44:52 +08:00`，大小 `449493010` 字节，SHA-256 `B658EEEB9E854011F58C475321279269E80443C2E3E113E8451E08B75B9269F9`
+- 生成时间 `2026-07-27 13:31:19 +08:00`，大小 `449493090` 字节，SHA-256 `89CADC2171FC9B07202F9CB084CBC87F2A48ECB7AA17BBA830978C38AF5C924C`
 - `applicationId com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`、`compileSdk 36`
 - Android Debug V2 签名通过；`zipalign -c -P 16 -v 4` 为 `Verification successful`
 - 本轮 Shell 回归定向 `KiyoriShellStateTest` 为 `35/35`，覆盖抽屉显示、退出动画、完全隐藏、AI 非根路由下负一屏入口、Back 优先级和完整 Shell 保存恢复；此前下载全链路五组测试基线为 `80/80`。Formal readiness、旧拆分式 Shell 保存变量零匹配与 `git diff --check` 通过
-- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 56s`，230 个任务零失败，其中 25 个执行、205 个为 up-to-date；该制品让 `OperitApp` 直接保存完整 `KiyoriShellState`，不再在顶层桥接中丢弃 `isDownloadDrawerOpen`。软件首页与负一屏实际触摸、抽屉视觉与拖动、菜单周围点击关闭、长按动作、输入法遮挡、SAF 文件与权限、Android `DownloadManager`、真实 M3U8 remux 和 APK 自动清理仍为 `verification_pending`
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 35s`，231 个任务零失败，其中 31 个执行、200 个为 up-to-date。该制品保留下载抽屉切片，并新增 pnpm 完成事件检测修正、悬浮搜索页 Back dispatcher owner 和 Gradle native ripgrep 打包。软件首页与负一屏实际触摸、抽屉视觉与拖动、菜单周围点击关闭、长按动作、输入法遮挡、SAF 文件与权限、Android `DownloadManager`、真实 M3U8 remux、APK 自动清理、PNPM 卡、AI 文件搜索和悬浮搜索 Back 仍为 `verification_pending`
 
 ## Git 门禁
 

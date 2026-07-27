@@ -23,6 +23,9 @@ import android.widget.Toast
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import androidx.annotation.RequiresApi
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -162,7 +165,7 @@ internal class WebSessionBrowserHost(
         }
 
         val lifecycleOwner =
-            WebSessionOverlayLifecycleOwner().apply {
+            WebSessionOverlayLifecycleOwner(onUnhandledBack = { handleBack() }).apply {
                 handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
                 handleLifecycleEvent(Lifecycle.Event.ON_START)
                 handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
@@ -173,7 +176,12 @@ internal class WebSessionBrowserHost(
                 setBackgroundColor(AndroidColor.TRANSPARENT)
                 setOnClickListener {}
                 onLegacyBack = {
-                    isExpanded && !appPresentationActive && handleBack()
+                    if (isExpanded && !appPresentationActive) {
+                        lifecycleOwner.onBackPressedDispatcher.onBackPressed()
+                        true
+                    } else {
+                        false
+                    }
                 }
             }
         installViewTreeOwners(root, lifecycleOwner)
@@ -218,7 +226,10 @@ internal class WebSessionBrowserHost(
             backCallbackRegistrar =
                 BrowserOverlayBackCallbackRegistrar(
                     root = root,
-                    onBack = ::handleBack,
+                    onBack = {
+                        lifecycleOwner.onBackPressedDispatcher.onBackPressed()
+                        true
+                    },
                 )
         }
         setExpanded(expandedAtCreation)
@@ -919,7 +930,7 @@ internal class WebSessionBrowserHost(
         }
 
         val lifecycleOwner =
-            WebSessionOverlayLifecycleOwner().apply {
+            WebSessionOverlayLifecycleOwner(onUnhandledBack = { handleBack() }).apply {
                 handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
                 handleLifecycleEvent(Lifecycle.Event.ON_START)
                 handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
@@ -1010,6 +1021,10 @@ internal class WebSessionBrowserHost(
         view.setViewTreeLifecycleOwner(lifecycleOwner)
         view.setViewTreeViewModelStoreOwner(lifecycleOwner)
         view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+        // Compose BackHandler resolves this owner during composition. Platform Back inputs are
+        // dispatched through the same owner so search and other Compose-local callbacks run before
+        // the host's existing browser state machine.
+        view.setViewTreeOnBackPressedDispatcherOwner(lifecycleOwner)
     }
 
     private fun createOverlayLayoutParams(expanded: Boolean): WindowManager.LayoutParams {
@@ -1098,13 +1113,18 @@ internal class WebSessionBrowserHost(
         (value * appContext.resources.displayMetrics.density).roundToInt()
 }
 
-private class WebSessionOverlayLifecycleOwner :
+private class WebSessionOverlayLifecycleOwner(
+    onUnhandledBack: () -> Unit,
+) :
     LifecycleOwner,
     ViewModelStoreOwner,
-    SavedStateRegistryOwner {
+    SavedStateRegistryOwner,
+    OnBackPressedDispatcherOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val viewModelStoreField = ViewModelStore()
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
+
+    override val onBackPressedDispatcher = OnBackPressedDispatcher(onUnhandledBack)
 
     init {
         if (Looper.myLooper() == Looper.getMainLooper()) {

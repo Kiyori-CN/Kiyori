@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.LocaleList
+import android.view.Choreographer
 import com.ai.assistance.operit.util.AppLogger
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -51,10 +52,11 @@ import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.util.AnrMonitor
 import com.ai.assistance.operit.util.LocaleUtils
 import java.util.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import com.ai.assistance.operit.data.mcp.MCPRepository
+import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.res.stringResource
@@ -83,7 +85,6 @@ class MainActivity : ComponentActivity() {
     // ======== 工具和管理器 ========
     private lateinit var agreementPreferences: AgreementPreferences
     private lateinit var anrMonitor: AnrMonitor
-    private lateinit var mcpRepository: MCPRepository
 
     // ======== MCP插件状态 ========
     private val pluginLoadingState = PluginLoadingState()
@@ -186,19 +187,14 @@ class MainActivity : ComponentActivity() {
         lastOrientation = resources.configuration.orientation
         AppLogger.d(TAG, "onCreate: Android SDK version: ${Build.VERSION.SDK_INT}")
 
-        // Set window background to solid color to prevent system theme leaking through
-        window.setBackgroundDrawableResource(android.R.color.black)
-
         // Handle the intent that started the activity
         handleIntent(intent)
-        restoreRuntimeTaskViewVisibilityIfNeeded()
 
-        (application as OperitApplication).initializeMainApplication()
+        (application as OperitApplication).initializeMainUiPrerequisites()
 
         // 语言设置已在Application中初始化，这里无需重复
 
         initializeComponents()
-        anrMonitor.start()
         configureDisplaySettings()
 
         // 设置上下文以便获取插件元数据
@@ -213,18 +209,37 @@ class MainActivity : ComponentActivity() {
 
         // 设置初始界面
         setAppContent()
-        processPendingGitHubAuth()
-
-        // 初始化并设置更新管理器
-
-        // 只在首次创建时执行检查（非配置变更）
-        if (savedInstanceState == null) {
-            // 进行必要的初始检查
-            performInitialChecks()
-        }
+        scheduleMainApplicationInitialization(
+            performInitialChecks = savedInstanceState == null
+        )
 
         // 设置双击返回退出
         setupBackPressHandler()
+    }
+
+    private fun scheduleMainApplicationInitialization(performInitialChecks: Boolean) {
+        val operitApplication = application as OperitApplication
+
+        // 完整初始化不能占用 Android 系统 Splash 等待的首帧。先提交一帧，再从后台完成
+        // 非首屏职责；否则 PDFBox、编辑器语言和磁盘扫描会延长启动图标停留时间。
+        Choreographer.getInstance().postFrameCallback {
+            window.decorView.post {
+                if (isFinishing || isDestroyed) {
+                    return@post
+                }
+                anrMonitor.start()
+                lifecycleScope.launch {
+                    withContext(Dispatchers.Default) {
+                        operitApplication.initializeMainApplication()
+                    }
+                    restoreRuntimeTaskViewVisibilityIfNeeded()
+                    processPendingGitHubAuth()
+                    if (performInitialChecks) {
+                        performInitialChecks()
+                    }
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -566,9 +581,6 @@ class MainActivity : ComponentActivity() {
 
     // ======== 初始化组件 ========
     private fun initializeComponents() {
-        // 初始化MCP仓库
-        mcpRepository = MCPRepository(this)
-
         anrMonitor = AnrMonitor(this, lifecycleScope)
 
         // 初始化协议偏好管理器

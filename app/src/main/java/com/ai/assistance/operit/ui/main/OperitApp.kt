@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -545,14 +546,13 @@ fun OperitApp(
             .collectAsState(initial = true)
             .value
 
-    // Create an instance of MCPRepository
-    val mcpRepository = remember { MCPRepository(context) }
-
-    // Initialize MCP plugin status
-    LaunchedEffect(Unit) {
-        launch {
-            // First scan local installed plugins
-            mcpRepository.syncInstalledStatus()
+    LaunchedEffect(context.applicationContext) {
+        // LaunchedEffect 会在首帧绘制前启动；等待两个帧信号，确保首页已经独立画出一帧，
+        // 再开始 MCP 配置读取与安装目录扫描，避免磁盘工作与首帧争用资源。
+        withFrameNanos { }
+        withFrameNanos { }
+        withContext(Dispatchers.IO) {
+            MCPRepository(context.applicationContext).syncInstalledStatus()
         }
     }
 

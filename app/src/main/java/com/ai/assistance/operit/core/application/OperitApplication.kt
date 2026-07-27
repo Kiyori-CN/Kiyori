@@ -90,9 +90,9 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         lateinit var instance: OperitApplication
             private set
 
-        // 全局ImageLoader实例，用于高效缓存图片
-        lateinit var globalImageLoader: ImageLoader
-            private set
+        // 全局 ImageLoader 延迟到首次实际使用或首帧后的完整初始化，避免阻塞进程首帧。
+        val globalImageLoader: ImageLoader
+            get() = instance.imageLoader
 
         private const val TAG = "OperitApplication"
     }
@@ -101,8 +101,13 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var memoryAutoSaveScheduler: MemoryAutoSaveScheduler? = null
     private val mainInitializationLock = Any()
+    private var mainUiPrerequisitesInitialized = false
     @Volatile
     private var mainApplicationInitialized = false
+
+    private val imageLoader: ImageLoader by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        createImageLoader()
+    }
 
     // 懒加载数据库实例
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -134,7 +139,13 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             encodeDefaults = true
         }
 
-        globalImageLoader = ImageLoader.Builder(this).build()
+    }
+
+    /** Initializes only state that the first Compose frame can access synchronously. */
+    fun initializeMainUiPrerequisites() {
+        synchronized(mainInitializationLock) {
+            initializeMainUiPrerequisitesLocked()
+        }
     }
 
     fun initializeMainApplication() {
@@ -142,12 +153,17 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             if (mainApplicationInitialized) {
                 return
             }
+            initializeMainUiPrerequisitesLocked()
             initializeMainApplicationLocked()
             mainApplicationInitialized = true
         }
     }
 
-    private fun initializeMainApplicationLocked() {
+    private fun initializeMainUiPrerequisitesLocked() {
+        if (mainUiPrerequisitesInitialized) {
+            return
+        }
+
         val startTime = System.currentTimeMillis()
 
         configureOpenMpEnvironment()
@@ -158,17 +174,12 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.resetLogFile()
         }
 
-        ensureWorkManagerInitialized()
-
         if (isCrashReportRecoveryStartup) {
             AppLogger.w(TAG, "检测到崩溃报告启动，保留上一轮日志供崩溃页导出")
         }
 
-        AppLogger.d(TAG, "【启动计时】应用启动开始")
+        AppLogger.d(TAG, "【启动计时】首屏必需初始化开始")
         AppLogger.d(TAG, "【启动计时】实例初始化完成 - ${System.currentTimeMillis() - startTime}ms")
-
-        launchCleanOnExitCleanup()
-        AppLogger.d(TAG, "【启动计时】cleanOnExit 清理任务已提交（异步IO） - ${System.currentTimeMillis() - startTime}ms")
 
         val defaultProfileName = applicationContext.getString(R.string.default_profile)
         initUserPreferencesManager(applicationContext, applicationScope, defaultProfileName)
@@ -200,39 +211,23 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
                 )
         )
         AppLogger.d(TAG, "【启动计时】AIMessageManager初始化完成 - ${System.currentTimeMillis() - startTime}ms")
-        startGlobalAIForegroundServiceIfNeeded()
-        AppLogger.d(TAG, "【启动计时】AIForegroundService 持久后台职责检查完成 - ${System.currentTimeMillis() - startTime}ms")
-
-        // Initialize ANR monitor
-        // AnrMonitor.start()
-
-        AppLogger.d(TAG, "【启动计时】全局异常处理器设置完成 - ${System.currentTimeMillis() - startTime}ms")
-
-        AppLogger.d(TAG, "【启动计时】JSON序列化器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
-
-        memoryAutoSaveScheduler = MemoryAutoSaveScheduler(applicationContext, applicationScope)
-            .also { it.start() }
-        AppLogger.d(TAG, "【启动计时】长期记忆自动保存轮询器启动完成 - ${System.currentTimeMillis() - startTime}ms")
-
-        // 初始化功能提示词管理器
-        applicationScope.launch {
-            val characterStartTime = System.currentTimeMillis()
-            CharacterCardManager.getInstance(applicationContext).initializeIfNeeded()
-            AppLogger.d(TAG, "【启动计时】功能提示词管理器初始化完成（异步） - ${System.currentTimeMillis() - characterStartTime}ms")
-        }
-
-        // 初始化当前活跃角色目标的自定义表情
-        applicationScope.launch {
-            val emojiStartTime = System.currentTimeMillis()
-            CustomEmojiRepository.getInstance(applicationContext).initializeBuiltinEmojis()
-            AppLogger.d(TAG, "【启动计时】当前角色自定义表情初始化完成（异步） - ${System.currentTimeMillis() - emojiStartTime}ms")
-        }
 
         // 初始化AndroidShellExecutor上下文
         AndroidShellExecutor.setContext(applicationContext)
         AppLogger.d(TAG, "【启动计时】AndroidShellExecutor初始化完成 - ${System.currentTimeMillis() - startTime}ms")
 
-        // 初始化 Shower 虚拟屏客户端的 ShellRunner 环境
+        configureShowerEnvironment()
+        AppLogger.d(TAG, "【启动计时】Shower 运行时引用配置完成 - ${System.currentTimeMillis() - startTime}ms")
+
+        // 首帧中的 AI 输入组件可能立即访问该处理器，因此仅建立轻量单例引用。
+        WaifuMessageProcessor.initialize(applicationContext)
+        AppLogger.d(TAG, "【启动计时】WaifuMessageProcessor初始化完成 - ${System.currentTimeMillis() - startTime}ms")
+
+        mainUiPrerequisitesInitialized = true
+        AppLogger.d(TAG, "【启动计时】首屏必需初始化完成 - 总耗时: ${System.currentTimeMillis() - startTime}ms")
+    }
+
+    private fun configureShowerEnvironment() {
         ShowerEnvironment.shellRunner = OperitShowerShellRunner
         ShowerEnvironment.logSink =
             ShowerLogSink { priority, tag, message, throwable ->
@@ -259,27 +254,51 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             }
         // Shower logs are already mirrored to AppLogger; avoid duplicate system log entries.
         ShowerEnvironment.emitToSystemLog = false
-        AppLogger.d(TAG, "【启动计时】ShowerEnvironment.shellRunner 已配置 - ${System.currentTimeMillis() - startTime}ms")
-        AppLogger.d(TAG, "【启动计时】ShowerEnvironment.logSink 已配置 - ${System.currentTimeMillis() - startTime}ms")
+    }
+
+    private fun initializeMainApplicationLocked() {
+        val startTime = System.currentTimeMillis()
+        AppLogger.d(TAG, "【启动计时】首帧后完整初始化开始")
+
+        ensureWorkManagerInitialized()
+        AppLogger.d(TAG, "【启动计时】WorkManager初始化完成 - ${System.currentTimeMillis() - startTime}ms")
+
+        launchCleanOnExitCleanup()
+        AppLogger.d(TAG, "【启动计时】cleanOnExit 清理任务已提交（异步IO） - ${System.currentTimeMillis() - startTime}ms")
+
+        startGlobalAIForegroundServiceIfNeeded()
+        AppLogger.d(TAG, "【启动计时】AIForegroundService 持久后台职责检查完成 - ${System.currentTimeMillis() - startTime}ms")
+
+        memoryAutoSaveScheduler = MemoryAutoSaveScheduler(applicationContext, applicationScope)
+            .also { it.start() }
+        AppLogger.d(TAG, "【启动计时】长期记忆自动保存轮询器启动完成 - ${System.currentTimeMillis() - startTime}ms")
+
+        applicationScope.launch {
+            val characterStartTime = System.currentTimeMillis()
+            CharacterCardManager.getInstance(applicationContext).initializeIfNeeded()
+            AppLogger.d(TAG, "【启动计时】功能提示词管理器初始化完成（异步） - ${System.currentTimeMillis() - characterStartTime}ms")
+        }
+
+        applicationScope.launch {
+            val emojiStartTime = System.currentTimeMillis()
+            CustomEmojiRepository.getInstance(applicationContext).initializeBuiltinEmojis()
+            AppLogger.d(TAG, "【启动计时】当前角色自定义表情初始化完成（异步） - ${System.currentTimeMillis() - emojiStartTime}ms")
+        }
 
         // 初始化PDFBox资源加载器
-        PDFBoxResourceLoader.init(getApplicationContext());
+        PDFBoxResourceLoader.init(applicationContext)
         AppLogger.d(TAG, "【启动计时】PDFBox资源加载器初始化完成 - ${System.currentTimeMillis() - startTime}ms")
 
         // 初始化语言支持
         LanguageFactory.init()
         AppLogger.d(TAG, "【启动计时】语言工厂初始化完成 - ${System.currentTimeMillis() - startTime}ms")
 
-        // 后台预热 TextSegmenter，避免首次搜索记忆时才触发 Jieba 初始化
+        // 完整初始化由 MainActivity 放到首帧后执行，预热继续留在后台线程。
         applicationScope.launch {
             val segmenterStartTime = System.currentTimeMillis()
             TextSegmenter.initialize(applicationContext)
             AppLogger.d(TAG, "【启动计时】TextSegmenter预热完成（异步） - ${System.currentTimeMillis() - segmenterStartTime}ms")
         }
-        
-        // Initialize WaifuMessageProcessor
-        WaifuMessageProcessor.initialize(applicationContext)
-        AppLogger.d(TAG, "【启动计时】WaifuMessageProcessor初始化完成 - ${System.currentTimeMillis() - startTime}ms")
 
         // 预加载数据库
         applicationScope.launch {
@@ -289,40 +308,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.d(TAG, "【启动计时】数据库预加载完成（异步） - ${System.currentTimeMillis() - dbStartTime}ms")
         }
 
-        // 初始化全局图片加载器，设置强大的缓存策略
-        // 创建自定义 OkHttp 客户端，增加超时时间以支持慢速图片服务器
-        val imageOkHttpClient = OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS) // 连接超时：30秒（默认10秒）
-                .readTimeout(60, TimeUnit.SECONDS)    // 读取超时：60秒（默认10秒）
-                .writeTimeout(30, TimeUnit.SECONDS)   // 写入超时：30秒（默认10秒）
-                .retryOnConnectionFailure(true)       // 连接失败时自动重试
-                .build()
-        
-        globalImageLoader =
-                ImageLoader.Builder(this)
-                        .okHttpClient(imageOkHttpClient) // 使用自定义 OkHttp 客户端
-                        .components {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                add(ImageDecoderDecoder.Factory())
-                            } else {
-                                add(GifDecoder.Factory())
-                            }
-                        }
-                        .crossfade(true)
-                        .respectCacheHeaders(true)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .diskCache {
-                            DiskCache.Builder()
-                                    .directory(filesDir.resolve("image_cache"))
-                                    .maxSizeBytes(50 * 1024 * 1024) // 50MB磁盘缓存上限，比百分比更精确
-                                    .build()
-                        }
-                        .memoryCache {
-                            // 设置内存缓存最大大小为应用可用内存的15%
-                            coil.memory.MemoryCache.Builder(this).maxSizePercent(0.15).build()
-                        }
-                        .build()
+        imageLoader
         AppLogger.d(TAG, "【启动计时】全局图片加载器初始化完成（超时配置：连接30s/读取60s） - ${System.currentTimeMillis() - startTime}ms")
         
         // 初始化图片池管理器，支持本地持久化缓存
@@ -387,7 +373,40 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         }
         
         val totalTime = System.currentTimeMillis() - startTime
-        AppLogger.d(TAG, "【启动计时】应用启动全部完成 - 总耗时: ${totalTime}ms")
+        AppLogger.d(TAG, "【启动计时】首帧后完整初始化已提交 - 总耗时: ${totalTime}ms")
+    }
+
+    private fun createImageLoader(): ImageLoader {
+        val imageOkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+
+        return ImageLoader.Builder(this)
+            .okHttpClient(imageOkHttpClient)
+            .components {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
+            .crossfade(true)
+            .respectCacheHeaders(true)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(filesDir.resolve("image_cache"))
+                    .maxSizeBytes(50 * 1024 * 1024)
+                    .build()
+            }
+            .memoryCache {
+                coil.memory.MemoryCache.Builder(this).maxSizePercent(0.15).build()
+            }
+            .build()
     }
 
     /**
@@ -395,7 +414,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
      * 让 Coil 使用我们配置的全局 ImageLoader（带有自定义超时设置）
      */
     override fun newImageLoader(): ImageLoader {
-        return globalImageLoader
+        return imageLoader
     }
 
     /**

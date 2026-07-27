@@ -72,6 +72,10 @@ overlay 展开时不应该。它的第一退出语义是收缩为悬浮球，网
 - `browser_tabs list` 通过 `BrowserTabDiscoveryFormatter` 输出共享 Browser Runtime 声明、稳定 `session_id`、标题、URL、索引和活动状态；中英文 browser 工具描述要求先发现并选择人工窗口
 - 定向 JVM 测试已覆盖窗口 flags、Android 13 Back 路由边界、旧版 Back 输入和可机器读取的 tab 列表
 
+### 后续搜索页崩溃修正
+
+悬浮 `ComposeView` 原先只安装 Lifecycle、ViewModelStore 与 SavedState owner，搜索页组合 `BackHandler` 时会因缺少 `OnBackPressedDispatcherOwner` 崩溃。`WebSessionOverlayLifecycleOwner` 现已持有真实 `OnBackPressedDispatcher` 并安装到 overlay View tree；Compose callback 未消费时才进入既有 `WebSessionBrowserHost.handleBack()`。Android 13 `OnBackInvokedCallback` 和 Android 12 及以下按键 Back 也通过同一 dispatcher 分发，不再绕过 Compose 搜索页的返回处理。
+
 ## 本地验证证据
 
 - `:app:testDebugUnitTest --tests BrowserOverlayWindowPolicyTest --tests BrowserTabDiscoveryFormatterTest`：PASS
@@ -86,3 +90,11 @@ overlay 展开时不应该。它的第一退出语义是收缩为悬浮球，网
 [DONE]
 
 第一里程碑的代码、文档、自动检查和 Debug 构建已完成。用户完成目标设备验收前，不把本地证据表述为真机行为已经通过。
+
+## 2026-07-27 搜索页 Back owner 修正
+
+- `:app:compileDebugKotlin`：PASS，overlay dispatcher owner 与 Compose `BackHandler` API 接线通过
+- `BrowserOverlayWindowPolicyTest`：PASS
+- `:app:assembleDebug --no-daemon --console=plain`：PASS
+- 最终 APK SHA-256：`89CADC2171FC9B07202F9CB084CBC87F2A48ECB7AA17BBA830978C38AF5C924C`
+- 未操作设备；悬浮搜索页打开、软键盘显示和系统 Back 的现场行为保持 `verification_pending`

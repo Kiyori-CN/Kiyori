@@ -122,6 +122,13 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
+            android:name=".core.tools.defaultTool.websession.browser.WebSessionDirectoryPickerActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:finishOnTaskLaunch="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
             android:name=".core.tools.defaultTool.websession.userscript.install.UserscriptImportPickerActivity"
             android:excludeFromRecents="true"
             android:exported="false"

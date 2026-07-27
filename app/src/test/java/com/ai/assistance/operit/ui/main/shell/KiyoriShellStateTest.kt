@@ -570,4 +570,46 @@ class KiyoriShellStateTest {
         assertTrue(shouldReverseKiyoriPagerDrag(LayoutDirection.Ltr))
         assertFalse(shouldReverseKiyoriPagerDrag(LayoutDirection.Rtl))
     }
+
+    @Test
+    fun `startup first frame composes only the visible home page`() {
+        assertEquals(0, kiyoriStartupBeyondViewportPageCount(startupPreloadReady = false))
+        assertFalse(
+            shouldComposeKiyoriAiHost(
+                aiHostIsRoot = true,
+                softwareHomePage = SoftwareHomePage.HOME,
+                startupPreloadReady = false,
+            )
+        )
+    }
+
+    @Test
+    fun `startup preloading restores adjacent pages and AI host after first frame`() {
+        assertEquals(1, kiyoriStartupBeyondViewportPageCount(startupPreloadReady = true))
+        assertTrue(
+            shouldComposeKiyoriAiHost(
+                aiHostIsRoot = true,
+                softwareHomePage = SoftwareHomePage.HOME,
+                startupPreloadReady = true,
+            )
+        )
+    }
+
+    @Test
+    fun `AI destinations never wait for software home startup preloading`() {
+        assertTrue(
+            shouldComposeKiyoriAiHost(
+                aiHostIsRoot = false,
+                softwareHomePage = SoftwareHomePage.HOME,
+                startupPreloadReady = false,
+            )
+        )
+        assertTrue(
+            shouldComposeKiyoriAiHost(
+                aiHostIsRoot = true,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+                startupPreloadReady = false,
+            )
+        )
+    }
 }

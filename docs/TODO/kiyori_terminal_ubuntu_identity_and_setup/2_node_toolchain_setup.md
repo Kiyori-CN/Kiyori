@@ -20,3 +20,7 @@
 ## 状态 [DONE]
 
 安装页与父应用已共用 `TerminalEnvironmentContract`。npm 在同一全局 bin 中安装 pnpm 与 TypeScript；就绪检查要求 Node.js 主版本至少为 24，并从 `npm prefix -g` 对应的 bin 执行 `pnpm` 与 `tsc`。
+
+## 复测修正 [DONE]
+
+安装页的命令事件会先发送逐行输出，并在结束时发送一次完整输出。旧消费代码把两者直接拼接，导致 pnpm 就绪 marker 变成连续两份；Node.js 正则仍能从重复版本文本中取值，所以只有 PNPM 卡持续显示未安装。页面现在忽略非完成事件的检测结果，只采用完成事件携带的权威完整输出。软链和 `.mjs` 文件类型不是本次误判原因。

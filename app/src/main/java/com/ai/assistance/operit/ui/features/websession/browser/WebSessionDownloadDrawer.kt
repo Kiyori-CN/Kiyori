@@ -3,8 +3,6 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -87,6 +85,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSortMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadUiState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionDirectoryPickerCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadBatchSelectionEligible
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadDrawerActions
@@ -163,7 +162,6 @@ internal fun WebSessionDownloadSheet(
     var actionItem by remember { mutableStateOf<BrowserDownloadItem?>(null) }
     var renameItem by remember { mutableStateOf<BrowserDownloadItem?>(null) }
     var renameMode by remember { mutableStateOf(BrowserDownloadRenameMode.RENAME) }
-    var pendingMoveTaskId by remember { mutableStateOf<String?>(null) }
     val pageBackground =
         if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
             MaterialTheme.colorScheme.surfaceContainer
@@ -186,26 +184,25 @@ internal fun WebSessionDownloadSheet(
                     } != false
             }
         }
-    val folderPickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
-            val taskId = pendingMoveTaskId
-            pendingMoveTaskId = null
-            if (uri == null || taskId == null) {
-                return@rememberLauncherForActivityResult
-            }
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-                )
-                onMoveDownload(taskId, uri.toString())
-            } catch (error: Exception) {
-                BrowserDownloadManager.getInstance(context)
-                    .releasePersistedDirectoryPermissionIfUnused(uri.toString())
-                AppLogger.e(DOWNLOAD_DRAWER_TAG, "Failed to persist selected download directory", error)
-                Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+    fun launchMoveDirectoryPicker(taskId: String) {
+        WebSessionDirectoryPickerCoordinator.launch(context) { treeUriString ->
+            if (treeUriString != null) {
+                val uri = Uri.parse(treeUriString)
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                    onMoveDownload(taskId, treeUriString)
+                } catch (error: Exception) {
+                    BrowserDownloadManager.getInstance(context)
+                        .releasePersistedDirectoryPermissionIfUnused(treeUriString)
+                    AppLogger.e(DOWNLOAD_DRAWER_TAG, "Failed to persist selected download directory", error)
+                    Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                }
             }
         }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
         selectedTaskIds = emptySet()
@@ -484,8 +481,7 @@ internal fun WebSessionDownloadSheet(
                     BrowserDownloadDrawerActionType.MOVE_FOLDER ->
                         BrowserDownloadDrawerAction("修改文件夹") {
                             actionItem = null
-                            pendingMoveTaskId = item.id
-                            folderPickerLauncher.launch(null)
+                            launchMoveDirectoryPicker(item.id)
                         }
                     BrowserDownloadDrawerActionType.COPY_URL ->
                         BrowserDownloadDrawerAction("复制下载链接") {
@@ -664,11 +660,13 @@ private fun DownloadRecordsPage(
             modifier = Modifier.fillMaxSize().background(pageBackground),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = if (tab == BrowserDownloadDrawerTab.DOWNLOADED) "还没有已下载内容" else "当前没有下载任务",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-            )
+            if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
+                Text(
+                    text = "当前没有下载任务",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+            }
         }
         return
     }

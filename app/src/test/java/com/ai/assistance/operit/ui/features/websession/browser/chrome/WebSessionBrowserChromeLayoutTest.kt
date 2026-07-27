@@ -68,4 +68,32 @@ class WebSessionBrowserChromeLayoutTest {
 
         assertTrue(landscape.drawerPartialFraction > portrait.drawerPartialFraction)
     }
+
+    @Test
+    fun `drawer content viewport follows the currently exposed height`() {
+        assertEquals(
+            972f,
+            resolveWebSessionBrowserDrawerContentViewportHeight(
+                drawerHeightDp = 1000f,
+                offsetFraction = 0f,
+            ),
+            0f,
+        )
+        assertEquals(
+            612f,
+            resolveWebSessionBrowserDrawerContentViewportHeight(
+                drawerHeightDp = 1000f,
+                offsetFraction = 0.36f,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            resolveWebSessionBrowserDrawerContentViewportHeight(
+                drawerHeightDp = 1000f,
+                offsetFraction = 1f,
+            ),
+            0f,
+        )
+    }
 }

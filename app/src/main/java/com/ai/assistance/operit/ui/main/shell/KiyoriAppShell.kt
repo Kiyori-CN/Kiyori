@@ -22,9 +22,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
@@ -82,6 +85,15 @@ internal fun KiyoriAppShell(
                     get() = false
             }
         }
+
+    var startupPreloadReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // LaunchedEffect 会在首帧绘制前启动；第二个帧信号到来时，首页首帧已经完成，
+        // 此时再恢复相邻页和屏幕外 AI 页面的常驻预组合。
+        withFrameNanos { }
+        withFrameNanos { }
+        startupPreloadReady = true
+    }
 
     LaunchedEffect(state.primaryDestination, state.softwareHomePage) {
         if (
@@ -172,7 +184,7 @@ internal fun KiyoriAppShell(
             modifier = Modifier.fillMaxSize().zIndex(1f),
             userScrollEnabled = pagerAcceptsInput,
             flingBehavior = pagerFlingBehavior,
-            beyondViewportPageCount = 1,
+            beyondViewportPageCount = kiyoriStartupBeyondViewportPageCount(startupPreloadReady),
             key = { page -> page },
         ) { page ->
             when (SoftwareHomePage.fromPagerIndex(page)) {
@@ -249,7 +261,15 @@ internal fun KiyoriAppShell(
                     )
                     .zIndex(if (forceAiHostFullscreen) 20f else 2f),
         ) {
-            aiHost()
+            if (
+                shouldComposeKiyoriAiHost(
+                    aiHostIsRoot = aiHostIsRoot,
+                    softwareHomePage = state.softwareHomePage,
+                    startupPreloadReady = startupPreloadReady,
+                )
+            ) {
+                aiHost()
+            }
         }
 
         AnimatedVisibility(
@@ -335,6 +355,16 @@ internal fun KiyoriAppShell(
         )
     }
 }
+
+internal fun kiyoriStartupBeyondViewportPageCount(startupPreloadReady: Boolean): Int =
+    if (startupPreloadReady) 1 else 0
+
+internal fun shouldComposeKiyoriAiHost(
+    aiHostIsRoot: Boolean,
+    softwareHomePage: SoftwareHomePage,
+    startupPreloadReady: Boolean,
+): Boolean =
+    startupPreloadReady || !aiHostIsRoot || softwareHomePage == SoftwareHomePage.AI_HOME
 
 internal fun calculateKiyoriAiHostTranslation(
     pageOffset: Float,

@@ -32,3 +32,10 @@
 - APK：`app/build/outputs/apk/debug/app-debug.apk`，时间 `2026-07-27 00:22:43 +08:00`，大小 `449493010` 字节，SHA-256 `7F874786BFC62070D705AB3AF30015DB5BE5FB4B9939A41276FDD706346EE9D2`
 - APK 元数据：`com.kiyori`、versionCode `45`、versionName `0.1.0`、label `Kiyori`、minSdk `26`、targetSdk `34`
 - 未运行安装、设备操作、Release、签名、提交或推送；真机首次安装仍为 `verification_pending`
+
+## 2026-07-27 PNPM 误判修正验证 [DONE]
+
+- `TerminalEnvironmentContractTest`：4 项通过，新增完成事件输出所有权回归
+- `check_formal_readiness.py --repository . --require-main`：通过
+- `:app:assembleDebug --no-daemon --console=plain`：通过，最终 APK SHA-256 `89CADC2171FC9B07202F9CB084CBC87F2A48ECB7AA17BBA830978C38AF5C924C`
+- 未执行目标手机上的环境配置页面复测，PNPM 卡仍为 `verification_pending`

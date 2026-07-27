@@ -55,6 +55,8 @@ internal enum class WebSessionBrowserDrawerValue {
     EXPANDED,
 }
 
+internal const val WEB_SESSION_BROWSER_DRAWER_HANDLE_HEIGHT_DP = 28
+
 private val BrowserDrawerAnimationSpec =
     spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -85,6 +87,11 @@ internal fun WebSessionBrowserBottomDrawer(
         // viewport so the scrim and drawer never leave horizontal seams on phones or tablets.
         val drawerWidth = maxWidth
         val partialOffsetFraction = 1f - layout.drawerPartialFraction
+        val contentViewportHeight =
+            resolveWebSessionBrowserDrawerContentViewportHeight(
+                drawerHeightDp = drawerHeight.value,
+                offsetFraction = offsetFraction.value.coerceIn(0f, 1f),
+            ).dp
 
         LaunchedEffect(isVisible, partialOffsetFraction) {
             if (isVisible) {
@@ -205,7 +212,7 @@ internal fun WebSessionBrowserBottomDrawer(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(28.dp)
+                            .height(WEB_SESSION_BROWSER_DRAWER_HANDLE_HEIGHT_DP.dp)
                             .then(dragModifier)
                             .clickable(role = Role.Button) {
                                 val targetValue =
@@ -245,7 +252,11 @@ internal fun WebSessionBrowserBottomDrawer(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            // The surface keeps its full height so its offset animation remains
+                            // stable. The content viewport must instead track the currently exposed
+                            // height; otherwise a partially raised drawer measures scrollable
+                            // content into the off-screen region and its last rows cannot be reached.
+                            .height(contentViewportHeight)
                             .navigationBarsPadding()
                             .imePadding(),
                     content = content,
@@ -253,6 +264,16 @@ internal fun WebSessionBrowserBottomDrawer(
             }
         }
     }
+}
+
+internal fun resolveWebSessionBrowserDrawerContentViewportHeight(
+    drawerHeightDp: Float,
+    offsetFraction: Float,
+): Float {
+    require(drawerHeightDp > 0f) { "drawerHeightDp must be positive" }
+    require(offsetFraction in 0f..1f) { "offsetFraction must be between 0 and 1" }
+    val visibleDrawerHeightDp = drawerHeightDp * (1f - offsetFraction)
+    return (visibleDrawerHeightDp - WEB_SESSION_BROWSER_DRAWER_HANDLE_HEIGHT_DP).coerceAtLeast(0f)
 }
 
 private fun WebSessionBrowserDrawerValue.offsetFraction(partialOffsetFraction: Float): Float =

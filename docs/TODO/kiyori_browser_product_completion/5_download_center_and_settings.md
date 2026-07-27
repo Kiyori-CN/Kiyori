@@ -391,6 +391,27 @@ playlist 的本地 URI 指向同目录 companion files。单独复制 playlist �
 - Debug APK：`2026-07-27 12:44:52 +08:00`，`449493010` 字节，SHA-256 `B658EEEB9E854011F58C475321279269E80443C2E3E113E8451E08B75B9269F9`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
 - 自动验证证明下载抽屉可见状态已经跨过应用根状态 owner；负一屏实际点击、抽屉进入动画和系统 Back 关闭仍需在目标设备安装该 APK 后复测
 
+### 2026-07-27 下载抽屉内容视口自适应
+
+- 共享 `WebSessionBrowserBottomDrawer` 过去始终按全展开高度测量内容，仅通过整体向下位移形成半展开效果；位于屏幕下方的区域仍被 `LazyColumn` 计入可见高度，导致半展开状态的末尾条目无法滚入屏幕
+- 抽屉 Surface 继续保持全高以维持既有位移和弹簧动画，内容容器改为按实时露出高度减去 `28dp` 拖动柄计算视口；半展开、完全展开及拖动过程都向子内容发布真实高度，当前下载抽屉和以后复用该宿主的抽屉共用同一自适应合同
+- 下载页签继续由各自的 `LazyColumn` 持有垂直滚动；高度变化只触发重新测量，不引入第二滚动 owner，也不改变页签、排序、批量操作或下载任务状态
+- “已下载”为空时保留纯背景，不再显示“还没有已下载内容”；“下载中”为空时继续显示“当前没有下载任务”
+- `WebSessionBrowserChromeLayoutTest` 覆盖展开、半展开和隐藏三种内容视口高度，当前 `7/7` 通过；目标测试任务同时完成 `:app:compileDebugKotlin`，Formal readiness、`git diff --check` 和主源码旧已下载空态文案零匹配均通过
+- 收尾再次执行 `:app:assembleDebug --no-daemon --console=plain`，结果为 `BUILD SUCCESSFUL in 19s`，`231` 个任务零失败，其中 `22` 个执行、`209` 个为 up-to-date
+- Debug APK：`2026-07-27 13:55:15 +08:00`，`449493090` 字节，SHA-256 `DDC7E85641ADF1F7CE208760513152C8067C93452FDF7C757A0E4DD19CB8DCC5`，包名 `com.kiyori`，版本 `45 / 0.1.0`，`minSdk 26`、`targetSdk 34`、`compileSdk 36`，Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
+- 真机仍需验证半展开和完全展开两种稳定状态下首尾条目都能完整滚入视口，并观察拖动过程中高度连续变化是否符合目标视觉
+
+### 2026-07-27 悬浮下载页 Activity Result owner 修正
+
+- 悬浮浏览器下载页组合时会无条件创建 `rememberLauncherForActivityResult(OpenDocumentTree)`，但 `TYPE_APPLICATION_OVERLAY` 的 `ComposeView` 没有 `LocalActivityResultRegistryOwner`，因此下载抽屉在显示阶段直接崩溃
+- 目录选择改由独立透明 `WebSessionDirectoryPickerActivity` 持有真实 `ComponentActivity` registry；一次性协调器只返回本次 tree URI，原有持久化授权、移动任务和未使用授权释放继续由下载 owner 执行
+- 应用内与悬浮下载抽屉共用同一目录选择入口，不依赖当前前台 Activity，也不改变普通文件和 M3U8 离线包的长按动作矩阵
+- `WebSessionDirectoryPickerCoordinatorTest 2/2` 与 `BrowserOverlayWindowPolicyTest 3/3` 通过；定向任务完成 Debug Kotlin 和 Manifest 编译且没有新增编译警告
+- 共享下载页旧 Compose launcher/owner 依赖为零引用，合并 Manifest 与 APK 均包含透明目录选择 Activity；Formal readiness、`git diff --check` 和禁用降级语义扫描通过
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m`；Debug APK 时间 `2026-07-27 14:13:14 +08:00`，`449493090` 字节，SHA-256 `34136CDBA8958FA702E0FEA14476DE4FED226D93B5F224261F618271E7D3BA66`，V2 签名及 16 KB ZIP 对齐通过
+- 目标设备仍需验证悬浮抽屉可以打开、取消及完成系统 SAF 目录选择
+
 ## 历史记录：内部阶段 2 实现
 
 以下内容记录旧全屏中心阶段的本地证据，已经被 2026-07-27 统一入口与下载器复核增量替代，不再描述当前 UI 合同。
