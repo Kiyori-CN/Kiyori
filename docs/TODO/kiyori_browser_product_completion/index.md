@@ -71,7 +71,7 @@ kiyori_browser_product_completion/
 | 新窗口默认 Profile | Browser Runtime | 无痕按钮改变 | `browser_tabs list` 可观察 |
 | 历史、书签和搜索记录 | `WebSessionHistoryStore` | 浏览器、负一屏和全屏页复用 | 浏览器工具不复制存储 |
 | 下载任务 | `BrowserDownloadManager` | 浏览器抽屉和全屏下载中心复用 | 下载事件进入浏览器结果 |
-| 浏览器运行偏好 | 既有搜索、历史、Profile 与 UA owner | 浏览器主流程继续使用；专用设置页待重新设计 | 只通过明确能力读取或修改 |
+| 浏览器运行偏好 | 搜索与历史由 `WebSessionHistoryStore` 持有；Profile 由 Browser Runtime 持有；UA 与浏览器通用设置由 `WebSessionBrowserSettingsStore` 持有 | 浏览器主流程直接使用唯一 owner | 只通过明确能力读取或修改 |
 | 播放会话 | 后续唯一 player session | 全屏、悬浮和浏览器共用 | 后续 capability adapter 操作 |
 
 ## 全局交互合同
@@ -91,7 +91,7 @@ kiyori_browser_product_completion/
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
 4. [DONE] P1：已按旧版 `5/5/2/5/6` 分组重新复刻网页浏览器设置；自定义主页、网页外部应用、网页定位和悬浮嗅探偏好接入唯一 owner，其他旧版未实现项为空占位；根页面已使用无描边分组卡和连续折叠吸顶标题，本地测试与门禁通过，最新 Debug APK 与真机视觉状态见第十阶段
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；完整 `5/3/3/1` 文件下载器设置页与十二项旧版真实 consumer 已接通，并与网页浏览器设置共用无描边卡片和连续折叠吸顶标题；仍待下载中心双筛选/批量操作复刻及真机综合验收
-6. P1：负一屏与四行菜单真实能力
+6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成，其他菜单能力按第七阶段继续串行推进
 7. P2：媒体 Intent、播放器、嗅探和悬浮播放
 
 ## 完成定义

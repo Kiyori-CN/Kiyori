@@ -3,7 +3,6 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -25,7 +24,6 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         private val KEY_BOOKMARKS = stringPreferencesKey("bookmarks_json")
         private val KEY_BOOKMARK_FOLDERS = stringPreferencesKey("bookmark_folders_json")
         private val KEY_HISTORY = stringPreferencesKey("history_json")
-        private val KEY_DESKTOP_MODE = booleanPreferencesKey("desktop_mode")
         private val KEY_SEARCH_ENGINE = stringPreferencesKey("search_engine")
         private val KEY_SEARCH_HISTORY = stringPreferencesKey("search_history_json")
         private const val MAX_HISTORY_ENTRIES = 500
@@ -63,11 +61,6 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         context.webSessionHistoryDataStore.data.map { preferences ->
             decodeHistory(preferences[KEY_HISTORY])
                 .sortedByDescending { it.visitedAt }
-        }
-
-    val desktopModeFlow: Flow<Boolean> =
-        context.webSessionHistoryDataStore.data.map { preferences ->
-            preferences[KEY_DESKTOP_MODE] ?: true
         }
 
     val searchEngineFlow: Flow<WebSessionSearchEngine> =
@@ -166,12 +159,6 @@ internal class WebSessionHistoryStore private constructor(private val context: C
     suspend fun clearHistory() {
         context.webSessionHistoryDataStore.edit { preferences ->
             preferences[KEY_HISTORY] = json.encodeToString(emptyList<WebSessionHistoryEntry>())
-        }
-    }
-
-    suspend fun setDesktopMode(enabled: Boolean) {
-        context.webSessionHistoryDataStore.edit { preferences ->
-            preferences[KEY_DESKTOP_MODE] = enabled
         }
     }
 

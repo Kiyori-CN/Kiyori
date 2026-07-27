@@ -605,25 +605,6 @@ internal fun WebSessionBrowserNetworkLog(
 }
 
 @Composable
-internal fun WebSessionBrowserUserAgent(
-    userAgent: String,
-    isDesktopMode: Boolean,
-    onToggleDesktopMode: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    BrowserInfoPage(title = stringResource(R.string.web_session_user_agent), onBack = onDismiss, modifier = modifier) {
-        Text(text = stringResource(R.string.web_session_current_mode, if (isDesktopMode) stringResource(R.string.web_session_desktop_mode) else stringResource(R.string.web_session_mobile_mode)), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-            Text(text = userAgent, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp))
-        }
-        Surface(modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onToggleDesktopMode), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-            Text(text = if (isDesktopMode) stringResource(R.string.web_session_switch_to_mobile) else stringResource(R.string.web_session_switch_to_desktop), color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(13.dp))
-        }
-    }
-}
-
-@Composable
 internal fun WebSessionBrowserPageSource(
     isLoading: Boolean,
     content: String?,

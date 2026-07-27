@@ -78,13 +78,6 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         private const val TAG = "BrowserSessionTools"
         internal const val DEFAULT_TIMEOUT_MS = 10_000L
         internal const val MAX_EVENT_LOG_ENTRIES = 500
-        internal const val DEFAULT_USER_AGENT =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        internal const val MOBILE_USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-
         internal val mainHandler = Handler(Looper.getMainLooper())
 
         internal val sessions = ConcurrentHashMap<String, WebSession>()
@@ -98,8 +91,6 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
 
         @Volatile internal var browserHost: WebSessionBrowserHost? = null
         @Volatile internal var activeSessionId: String? = null
-        @Volatile internal var desktopModeEnabled: Boolean = true
-        @Volatile internal var desktopModeInitialized: Boolean = false
         @Volatile internal var pendingExternalOpenRequest: PendingExternalOpenRequest? = null
         @Volatile internal var pendingBrowserDownloadRequest: PendingBrowserDownloadRequest? = null
 
@@ -168,7 +159,6 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         runOnMainSync<Unit> {
             profileManager.initialize()
         }
-        ensureDesktopModeInitialized()
         initializeBrowserDownloadSupport()
     }
 
@@ -198,6 +188,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         @Volatile var pendingDialog: PendingDialog? = null
         @Volatile var viewportWidthPx: Int? = null
         @Volatile var viewportHeightPx: Int? = null
+        @Volatile var usesDesktopUserAgentLayout: Boolean = false
         @Volatile var appliedViewportScaleFactor: Float = 1f
         @Volatile var lastSnapshot: BrowserSnapshot? = null
         @Volatile var thumbnail: Bitmap? = null

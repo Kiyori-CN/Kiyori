@@ -38,10 +38,7 @@ import com.ai.assistance.operit.util.AppLogger
 import java.util.LinkedHashSet
 import java.util.Locale
 import java.util.UUID
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
 private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
@@ -71,7 +68,10 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
             profile = profile,
             customUserAgent = customUserAgent
         )
-    configureWebView(session, resolveUserAgent(customUserAgent))
+    configureWebView(
+        session = session,
+        resolvedUserAgent = resolveSessionUserAgent(session, targetUrl = "about:blank"),
+    )
     userscriptManager.attachSession(
         sessionId = session.id,
         webView = session.webView,
@@ -93,7 +93,7 @@ internal fun StandardBrowserSessionTools.resolveWebViewContext(fallbackContext: 
 @SuppressLint("ClickableViewAccessibility")
 internal fun StandardBrowserSessionTools.configureWebView(
     session: BrowserToolSession,
-    userAgent: String
+    resolvedUserAgent: WebSessionResolvedUserAgent,
 ) {
     with(session.webView.settings) {
         javaScriptEnabled = true
@@ -119,7 +119,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
             }
         }
     }
-    applySessionUserAgent(session, userAgent)
+    applySessionUserAgent(session, resolvedUserAgent)
     configureCookiePolicy(session)
 
     session.webView.apply {
@@ -317,6 +317,9 @@ internal fun StandardBrowserSessionTools.configureWebView(
         object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                // Redirects do not pass through navigateSessionOnMain; update before their
+                // subresources inherit the previous page's site-specific identity.
+                applySessionUserAgent(session, resolveSessionUserAgent(session, url))
                 session.currentUrl = url
                 session.pageLoaded = false
                 session.isLoading = true
@@ -378,6 +381,12 @@ internal fun StandardBrowserSessionTools.configureWebView(
                         sourceUrl = uri.toString()
                     )
                     return true
+                }
+                if (scheme == "http" || scheme == "https" || scheme == "about") {
+                    applySessionUserAgent(
+                        session,
+                        resolveSessionUserAgent(session, uri.toString()),
+                    )
                 }
                 return handleNavigationOverrideOnMain(session, uri)
             }
@@ -499,6 +508,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
                 ensureSessionAttachedOnMain(session.id)
                 if (session.webView.canGoBack()) {
+                    applyHistoryTargetUserAgent(session, delta = -1)
                     session.webView.goBack()
                 }
                 refreshNavigationStateAsync(session)
@@ -510,6 +520,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
                 ensureSessionAttachedOnMain(session.id)
                 if (session.webView.canGoForward()) {
+                    applyHistoryTargetUserAgent(session, delta = 1)
                     session.webView.goForward()
                 }
                 refreshNavigationStateAsync(session)
@@ -659,6 +670,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 val historyList = session.webView.copyBackForwardList()
                 val delta = index - historyList.currentIndex
                 if (delta != 0 && session.webView.canGoBackOrForward(delta)) {
+                    applyHistoryTargetUserAgent(session, delta)
                     session.webView.goBackOrForward(delta)
                     refreshNavigationStateAsync(session)
                 }
@@ -677,8 +689,25 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onToggleDesktopMode() {
-            setDesktopModeEnabled(!StandardBrowserSessionTools.desktopModeEnabled)
+        override fun onSelectUserAgentMode(mode: WebSessionUserAgentMode) {
+            removeActiveSiteUserAgentRule()
+            browserSettingsStore.setUserAgentMode(mode)
+            applyBrowserUserAgentSettingsOnMain()
+        }
+
+        override fun onSaveCustomGlobalUserAgent(userAgent: String) {
+            removeActiveSiteUserAgentRule()
+            browserSettingsStore.setCustomGlobalUserAgentAndSelect(userAgent)
+            applyBrowserUserAgentSettingsOnMain()
+        }
+
+        override fun onSaveSiteUserAgentRule(domain: String, userAgent: String) {
+            if (userAgent.isBlank()) {
+                browserSettingsStore.removeSiteUserAgentRule(domain)
+            } else {
+                browserSettingsStore.setSiteUserAgentRule(domain, userAgent)
+            }
+            applyBrowserUserAgentSettingsOnMain()
         }
 
         override fun onSetSearchEngine(engine: WebSessionSearchEngine) {
@@ -1119,6 +1148,7 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
     targetUrl: String,
     headers: Map<String, String> = emptyMap()
 ) {
+    applySessionUserAgent(session, resolveSessionUserAgent(session, targetUrl))
     session.pageLoaded = false
     session.isLoading = true
     session.currentUrl = targetUrl
@@ -1132,6 +1162,17 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
         session.webView.loadUrl(targetUrl)
     }
     refreshNavigationStateAsync(session)
+}
+
+private fun StandardBrowserSessionTools.applyHistoryTargetUserAgent(
+    session: BrowserToolSession,
+    delta: Int,
+) {
+    // Applying after goBackOrForward would send the document request with the page we are
+    // leaving's site rule, which can trigger the version-redirect loop this setting prevents.
+    val history = session.webView.copyBackForwardList()
+    val target = history.getItemAtIndex(history.currentIndex + delta) ?: return
+    applySessionUserAgent(session, resolveSessionUserAgent(session, target.url))
 }
 
 internal fun StandardBrowserSessionTools.openUrlOnMain(appContext: Context, url: String) {
@@ -1240,8 +1281,15 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         canGoForward = activeSession?.canGoForward == true,
         isLoading = activeSession?.isLoading == true,
         hasSslError = activeSession?.hasSslError == true,
-        isDesktopMode = StandardBrowserSessionTools.desktopModeEnabled,
-        userAgent = activeSession?.webView?.settings?.userAgentString.orEmpty(),
+        userAgentMode = browserSettingsStore.current.userAgentMode,
+        customGlobalUserAgent = browserSettingsStore.current.customGlobalUserAgent,
+        activeSiteUserAgentRule =
+            activeSession?.let { session ->
+                resolveWebSessionSiteUserAgentRule(
+                    browserSettingsStore.current.siteUserAgentRules,
+                    session.currentUrl,
+                )
+            },
         activeDownloadCount = downloadSummary.activeCount,
         hasFailedDownloads = downloadSummary.failedCount > 0,
         failedDownloadCount = downloadSummary.failedCount,
@@ -1457,40 +1505,26 @@ internal fun StandardBrowserSessionTools.refreshNavigationStateAsync(session: Br
     }
 }
 
-internal fun StandardBrowserSessionTools.ensureDesktopModeInitialized() {
-    if (StandardBrowserSessionTools.desktopModeInitialized) {
-        return
-    }
-
-    synchronized(StandardBrowserSessionTools.sessionConfigLock) {
-        if (StandardBrowserSessionTools.desktopModeInitialized) {
-            return
-        }
-        StandardBrowserSessionTools.desktopModeEnabled =
-            runBlocking(Dispatchers.IO) {
-                historyStore.desktopModeFlow.first()
-            }
-        StandardBrowserSessionTools.desktopModeInitialized = true
-    }
-}
-
-internal fun StandardBrowserSessionTools.resolveUserAgent(customUserAgent: String?): String =
-    customUserAgent
-        ?: if (StandardBrowserSessionTools.desktopModeEnabled) {
-            StandardBrowserSessionTools.DEFAULT_USER_AGENT
-        } else {
-            StandardBrowserSessionTools.MOBILE_USER_AGENT
-        }
+internal fun StandardBrowserSessionTools.resolveSessionUserAgent(
+    session: BrowserToolSession,
+    targetUrl: String,
+): WebSessionResolvedUserAgent =
+    resolveWebSessionUserAgent(
+        settings = browserSettingsStore.current,
+        targetUrl = targetUrl,
+        sessionUserAgent = session.customUserAgent,
+    )
 
 internal fun StandardBrowserSessionTools.applySessionUserAgent(
     session: BrowserToolSession,
-    userAgent: String
+    resolvedUserAgent: WebSessionResolvedUserAgent,
 ) {
+    session.usesDesktopUserAgentLayout = resolvedUserAgent.usesDesktopLayout
     with(session.webView.settings) {
-        userAgentString = userAgent
-        useWideViewPort = StandardBrowserSessionTools.desktopModeEnabled
+        userAgentString = resolvedUserAgent.userAgent
+        useWideViewPort = resolvedUserAgent.usesDesktopLayout
         loadWithOverviewMode =
-            StandardBrowserSessionTools.desktopModeEnabled && session.viewportWidthPx == null
+            resolvedUserAgent.usesDesktopLayout && session.viewportWidthPx == null
     }
 }
 
@@ -1504,7 +1538,7 @@ internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserT
             ?: context.resources.displayMetrics.widthPixels
 
     session.webView.settings.loadWithOverviewMode =
-        StandardBrowserSessionTools.desktopModeEnabled && requestedWidth == null
+        session.usesDesktopUserAgentLayout && requestedWidth == null
 
     val desiredScaleFactor =
         if (requestedWidth == null || requestedHeight == null || browserAreaWidth <= 0) {
@@ -1795,33 +1829,32 @@ internal fun StandardBrowserSessionTools.showToast(message: String) {
     }
 }
 
-internal fun StandardBrowserSessionTools.setDesktopModeEnabled(enabled: Boolean) {
-    if (StandardBrowserSessionTools.desktopModeEnabled == enabled) {
-        return
-    }
-
-    StandardBrowserSessionTools.desktopModeEnabled = enabled
-    ioScope.launch {
-        historyStore.setDesktopMode(enabled)
-    }
-
-    runOnMainSync<Unit> {
-        StandardBrowserSessionTools.sessions.values.forEach { session ->
-            if (session.customUserAgent == null) {
-                applySessionUserAgent(session, resolveUserAgent(null))
-            }
-        }
-
-        val activeSession = getActiveSessionOnMain()
-        if (activeSession != null && activeSession.customUserAgent == null) {
-            activeSession.pageLoaded = false
-            activeSession.isLoading = true
-            activeSession.webView.reload()
-            refreshNavigationStateAsync(activeSession)
-        } else {
-            refreshSessionUiOnMain(activeSession?.id)
+internal fun StandardBrowserSessionTools.applyBrowserUserAgentSettingsOnMain() {
+    StandardBrowserSessionTools.sessions.values.forEach { session ->
+        if (session.customUserAgent == null) {
+            applySessionUserAgent(session, resolveSessionUserAgent(session, session.currentUrl))
         }
     }
+
+    val activeSession = getActiveSessionOnMain()
+    if (activeSession != null && activeSession.customUserAgent == null) {
+        activeSession.pageLoaded = false
+        activeSession.isLoading = true
+        activeSession.webView.reload()
+        refreshNavigationStateAsync(activeSession)
+    } else {
+        refreshSessionUiOnMain(activeSession?.id)
+    }
+}
+
+private fun StandardBrowserSessionTools.removeActiveSiteUserAgentRule() {
+    val activeUrl = getActiveSessionOnMain()?.currentUrl ?: return
+    val activeRule =
+        resolveWebSessionSiteUserAgentRule(
+            browserSettingsStore.current.siteUserAgentRules,
+            activeUrl,
+        ) ?: return
+    browserSettingsStore.removeSiteUserAgentRule(activeRule.domain)
 }
 
 internal fun StandardBrowserSessionTools.resolvePendingDialogOnMain(

@@ -19,7 +19,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getActiveSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUrlOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.setDesktopModeEnabled
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.showToast
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
 import com.ai.assistance.operit.util.AppLogger

@@ -6449,10 +6449,23 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_no_bookmarks">Tiada penanda buku buat masa ini</string>
     <string name="web_session_menu">Menu</string>
     <string name="web_session_minimize">Minimakan</string>
-    <string name="web_session_desktop_mode">Mod desktop</string>
-    <string name="web_session_mobile_mode">Mod mudah alih</string>
-    <string name="web_session_current_mode">Semasa: %1$s</string>
-    <string name="web_session_switch_to_desktop">Tukar ke mod desktop</string>
+    <string name="web_session_user_agent">Identiti UA</string>
+    <string name="web_session_user_agent_dialog_title">Identiti UA pelayar</string>
+    <string name="web_session_user_agent_android">Android</string>
+    <string name="web_session_user_agent_pc_desktop">Desktop PC</string>
+    <string name="web_session_user_agent_iphone">iPhone</string>
+    <string name="web_session_user_agent_symbian_wap">Symbian Wap</string>
+    <string name="web_session_user_agent_custom_global">Global tersuai</string>
+    <string name="web_session_user_agent_custom_site">Sesuaikan laman ini</string>
+    <string name="web_session_user_agent_custom_global_title">UA global tersuai</string>
+    <string name="web_session_user_agent_custom_site_title">UA laman tersuai</string>
+    <string name="web_session_user_agent_custom_site_description">Jika laman mengubah hala ke versi berbeza berdasarkan UA, tetapkan juga domain sasaran untuk mengelakkan ubah hala berulang antara versi.</string>
+    <string name="web_session_user_agent_domain">Domain laman</string>
+    <string name="web_session_user_agent_input_hint">Masukkan UA</string>
+    <string name="web_session_user_agent_rule_hint">Masukkan peraturan UA</string>
+    <string name="web_session_user_agent_default">Lalai</string>
+    <string name="web_session_user_agent_full_domain">Domain penuh</string>
+    <string name="web_session_user_agent_site_unavailable">Halaman semasa tiada domain untuk peraturan UA</string>
 
     <string name="a11y_wizard_risk_acknowledgment">Saya telah memahami dan mengetahui risiko sekatan akaun atau had fungsi akaun aplikasi lain yang disebabkan oleh kebenaran aksesibilitas, dan saya akan menanggung akibatnya sendiri</string>
     <string name="a11y_wizard_new_version_detected">Versi baru dikesan</string>
@@ -6577,7 +6590,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="attachment_screen_content_formatted">【Kandungan skrin】\n</string>
     <string name="attachment_current_time">【Masa semasa】\n%1$s</string>
 
-    <string name="web_session_switch_to_mobile">Tukar ke mod mudah alih</string>
     <string name="web_session_downloads">Muat turun</string>
     <string name="web_session_downloads_summary">%1$d sedang berjalan / %2$d gagal</string>
     <string name="web_session_downloads_filter_in_progress">Sedang berjalan</string>

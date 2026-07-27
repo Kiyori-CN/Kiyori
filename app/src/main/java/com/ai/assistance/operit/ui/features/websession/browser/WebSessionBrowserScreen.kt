@@ -66,6 +66,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserAgentMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
@@ -82,16 +83,17 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowser
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPlaceholderSheet
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
-import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserUserAgent
 import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private fun WebSessionBrowserSheetRoute.isBrowserDrawerRoute(): Boolean =
-    this != WebSessionBrowserSheetRoute.NONE && this != WebSessionBrowserSheetRoute.TABS
+internal fun WebSessionBrowserSheetRoute.isWebSessionBrowserDrawerRoute(): Boolean =
+    this != WebSessionBrowserSheetRoute.NONE &&
+        this != WebSessionBrowserSheetRoute.TABS &&
+        this != WebSessionBrowserSheetRoute.USER_AGENT
 
 private fun WebSessionBrowserSheetRoute.isBrowserChildDrawerRoute(): Boolean =
-    isBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU
+    isWebSessionBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU
 
 @Composable
 internal fun WebSessionBrowserScreen(
@@ -125,7 +127,9 @@ internal fun WebSessionBrowserScreen(
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
-    onToggleDesktopMode: () -> Unit,
+    onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
+    onSaveCustomGlobalUserAgent: (String) -> Unit,
+    onSaveSiteUserAgentRule: (String, String) -> Unit,
     onSetSearchEngine: (WebSessionSearchEngine) -> Unit,
     onSetDefaultSessionProfile: (WebSessionProfile) -> Boolean,
     onSubmitSearch: (String, WebSessionSearchEngine, WebSessionProfile) -> Unit,
@@ -235,7 +239,7 @@ internal fun WebSessionBrowserScreen(
                 tabOverviewMounted = true
                 onRequestTabThumbnails()
             }
-            activeSheetRoute.isBrowserDrawerRoute() -> mountedDrawerRoute = activeSheetRoute
+            activeSheetRoute.isWebSessionBrowserDrawerRoute() -> mountedDrawerRoute = activeSheetRoute
         }
     }
     LaunchedEffect(profileFeedback) {
@@ -534,7 +538,7 @@ internal fun WebSessionBrowserScreen(
             )
         }
 
-        if (mountedDrawerRoute.isBrowserDrawerRoute()) {
+        if (mountedDrawerRoute.isWebSessionBrowserDrawerRoute()) {
             // This drawer is composed in both the App Shell and TYPE_APPLICATION_OVERLAY host;
             // a dialog-backed Material sheet cannot safely obtain an Activity token there.
             if (mountedDrawerRoute == WebSessionBrowserSheetRoute.MENU) {
@@ -605,7 +609,7 @@ internal fun WebSessionBrowserScreen(
                     layout = chromeLayout,
                     onDismissRequest = dismissSheet,
                     onHidden = {
-                        if (!activeSheetRoute.isBrowserDrawerRoute()) {
+                        if (!activeSheetRoute.isWebSessionBrowserDrawerRoute()) {
                             mountedDrawerRoute = WebSessionBrowserSheetRoute.NONE
                         }
                     },
@@ -635,14 +639,6 @@ internal fun WebSessionBrowserScreen(
                             onSelectSessionHistory = onSelectSessionHistory,
                             onOpenUrl = onOpenUrl,
                             onClearHistory = onClearHistory,
-                            onToggleDesktopMode = onToggleDesktopMode,
-                            onOpenUserAgent = {
-                                onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) }
-                            },
-                            onOpenNetworkLog = {
-                                onHostStateChange { current -> current.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) }
-                            },
-                            onReload = onRefreshOrStop,
                             onOpenPageSource = onOpenPageSource,
                             onCopyPageSource = onCopyPageSource,
                             onHostStateChange = onHostStateChange,
@@ -715,6 +711,27 @@ internal fun WebSessionBrowserScreen(
                 }
             )
         }
+        }
+        if (activeSheetRoute == WebSessionBrowserSheetRoute.USER_AGENT) {
+            WebSessionBrowserUserAgentDialog(
+                globalMode = browserState.userAgentMode,
+                customGlobalUserAgent = browserState.customGlobalUserAgent,
+                currentUrl = browserState.currentUrl,
+                activeSiteRule = browserState.activeSiteUserAgentRule,
+                onSelectGlobalMode = { mode ->
+                    onSelectUserAgentMode(mode)
+                    dismissSheet()
+                },
+                onSaveCustomGlobalUserAgent = { userAgent ->
+                    onSaveCustomGlobalUserAgent(userAgent)
+                    dismissSheet()
+                },
+                onSaveSiteUserAgentRule = { domain, userAgent ->
+                    onSaveSiteUserAgentRule(domain, userAgent)
+                    dismissSheet()
+                },
+                onDismiss = dismissSheet,
+            )
         }
         addBookmarkDraft?.let { draft ->
             WebSessionBookmarkEditorDialog(
@@ -891,10 +908,6 @@ private fun WebSessionBrowserDrawerContent(
     onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
     onClearHistory: () -> Unit,
-    onToggleDesktopMode: () -> Unit,
-    onOpenUserAgent: () -> Unit,
-    onOpenNetworkLog: () -> Unit,
-    onReload: () -> Unit,
     onOpenPageSource: () -> Unit,
     onCopyPageSource: () -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
@@ -997,15 +1010,6 @@ private fun WebSessionBrowserDrawerContent(
                 modifier = Modifier.fillMaxSize(),
             )
 
-        WebSessionBrowserSheetRoute.USER_AGENT ->
-            WebSessionBrowserUserAgent(
-                userAgent = browserState.userAgent,
-                isDesktopMode = browserState.isDesktopMode,
-                onToggleDesktopMode = onToggleDesktopMode,
-                onDismiss = onDismiss,
-                modifier = Modifier.fillMaxSize(),
-            )
-
         WebSessionBrowserSheetRoute.NETWORK_LOG ->
             WebSessionBrowserNetworkLog(
                 entries = browserState.networkEntries,
@@ -1032,7 +1036,8 @@ private fun WebSessionBrowserDrawerContent(
 
         WebSessionBrowserSheetRoute.NONE,
         WebSessionBrowserSheetRoute.TABS,
-        WebSessionBrowserSheetRoute.MENU -> Unit
+        WebSessionBrowserSheetRoute.MENU,
+        WebSessionBrowserSheetRoute.USER_AGENT -> Unit
         }
     }
 

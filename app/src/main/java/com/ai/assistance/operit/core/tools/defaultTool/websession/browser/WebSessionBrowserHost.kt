@@ -81,7 +81,9 @@ internal class WebSessionBrowserHost(
         fun onSelectSessionHistory(index: Int)
         fun onOpenUrl(url: String)
         fun onClearHistory()
-        fun onToggleDesktopMode()
+        fun onSelectUserAgentMode(mode: WebSessionUserAgentMode)
+        fun onSaveCustomGlobalUserAgent(userAgent: String)
+        fun onSaveSiteUserAgentRule(domain: String, userAgent: String)
         fun onSetSearchEngine(engine: WebSessionSearchEngine)
         fun onSetDefaultSessionProfile(profile: WebSessionProfile): Boolean
         fun onSubmitSearch(
@@ -315,7 +317,9 @@ internal class WebSessionBrowserHost(
             onSelectSessionHistory = callbacks::onSelectSessionHistory,
             onOpenUrl = callbacks::onOpenUrl,
             onClearHistory = callbacks::onClearHistory,
-            onToggleDesktopMode = callbacks::onToggleDesktopMode,
+            onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
+            onSaveCustomGlobalUserAgent = callbacks::onSaveCustomGlobalUserAgent,
+            onSaveSiteUserAgentRule = callbacks::onSaveSiteUserAgentRule,
             onSetSearchEngine = callbacks::onSetSearchEngine,
             onSetDefaultSessionProfile = callbacks::onSetDefaultSessionProfile,
             onSubmitSearch = callbacks::onSubmitSearch,
