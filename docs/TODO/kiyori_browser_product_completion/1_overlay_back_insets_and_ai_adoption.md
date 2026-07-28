@@ -7,8 +7,11 @@
 
 - `KiyoriBrowserHome` 和 `WebSessionBrowserHost.BrowserContent(...)` 只在 Activity Compose tree 中挂载
 - `WindowManager` 浏览器控制面固定为同一活动 WebView 的 1×1、不可见、不可触摸、不可聚焦 background anchor
-- 最小 indicator 继续显示下载/外部打开提示；普通点击通过
-  `MainActivity.ACTION_OPEN_KIYORI_BROWSER` 进入现有 Browser Home
+- 最小 indicator 继续显示下载提示；普通点击通过
+  `MainActivity.ACTION_OPEN_KIYORI_BROWSER` 进入现有 Browser Home。长按消费本次进入动作并显示
+  球体右上角外围的独立透明临时关闭层，其中只绘制较小的红色叉号。按住期间叉号窗口不可触摸，
+  松手后允许点击并保留 3 秒；
+  叉号随球体拖动、约束在屏幕内，并复用第 4 行第 1 个菜单按钮的 `onExitBrowser`
 - `WebSessionBrowserHost` 不再创建完整 overlay Compose tree、播放器 Surface、expanded layout、cutout/IME
   策略或 overlay Back owner
 - App Shell 与 background anchor 转换先从旧 host 明确移除 WebView、确认 parent 为空，再把同一实例加入目标 host
@@ -31,6 +34,21 @@
   `zipalign -c -P 16 -v 4` 为 `Verification successful`
 - 未安装 APK，人工与 AI 共用窗口、后台 anchor、indicator、Back 和目标设备崩溃复测仍为
   `verification_pending`
+
+### 2026-07-28 悬浮球长按关闭追加验证
+
+- 单击 indicator 继续进入现有 Browser Home；长按由同一手势 detector 消费，不在松手后穿透单击
+- 长按时创建球体右上角外围的透明 `28dp` 独立关闭窗口，其中只绘制 `16dp` 红色叉号；
+  按住期间窗口不可触摸，松手后由主线程保留 3 秒并允许点击。叉号随球体拖动、约束在屏幕内；新的下载确认、打开浏览器、隐藏
+  indicator 或销毁 host 都会清理该临时窗口
+- 叉号直接调用既有 `callbacks.onExitBrowser()`，与浏览器菜单第 4 行第 1 个按钮共用展示层关闭逻辑
+- indicator 状态、外围窗口 flags / 几何、background anchor 与 presentation release JVM 测试 `16/16`，Kotlin 编译、
+  formal readiness、`git diff --check` 与 `:app:assembleDebug` 通过
+- APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`463722319` 字节，SHA-256
+  `689A7EA123EC0107C7A29E8A82138BE6B383374EBC1365325A3F1816D6BFD463`；包名/版本、
+  Android Debug V2 签名与 16 KB ZIP 对齐通过
+- 未安装 APK；目标设备上的外围视觉、长按不中断、松手后三秒与可点击性、屏幕边缘、
+  拖动同步和关闭结果保持 `verification_pending`
 
 ## 历史旧实现（已由方案 A 删除）
 

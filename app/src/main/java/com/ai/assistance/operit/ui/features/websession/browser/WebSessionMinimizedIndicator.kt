@@ -10,7 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Icon
@@ -32,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +44,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,15 +62,41 @@ internal fun WebSessionMinimizedIndicator(
     downloadPrompt: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState?,
     onOpenBrowser: () -> Unit,
     onDragBy: (dx: Int, dy: Int) -> Unit,
+    onLongPress: () -> Unit,
+    onLongPressGestureFinished: () -> Unit,
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
     val dragModifier =
-        Modifier.pointerInput(Unit) {
+        Modifier.pointerInput(onDragBy) {
             detectDragGestures { _, dragAmount ->
                 onDragBy(dragAmount.x.roundToInt(), dragAmount.y.roundToInt())
             }
+        }
+    // 单击和长按必须由同一个 detector 仲裁，避免长按松手后再穿透执行打开浏览器。
+    val tapModifier =
+        Modifier.pointerInput(
+            onOpenBrowser,
+            onLongPress,
+            onLongPressGestureFinished,
+        ) {
+            var longPressRecognized = false
+            detectTapGestures(
+                onPress = {
+                    longPressRecognized = false
+                    tryAwaitRelease()
+                    if (longPressRecognized) {
+                        onLongPressGestureFinished()
+                    }
+                },
+                onLongPress = {
+                    longPressRecognized = true
+                    onLongPress()
+                },
+                onTap = {
+                    onOpenBrowser()
+                },
+            )
         }
 
     if (downloadPrompt != null) {
@@ -183,14 +211,18 @@ internal fun WebSessionMinimizedIndicator(
                 .fillMaxSize()
                 .clip(CircleShape)
                 .then(dragModifier)
+                .then(tapModifier)
                 .semantics {
                     this.contentDescription = contentDescription
-                }
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null
-                ) {
-                    onOpenBrowser()
+                    this.onClick {
+                        onOpenBrowser()
+                        true
+                    }
+                    this.onLongClick {
+                        onLongPress()
+                        onLongPressGestureFinished()
+                        true
+                    }
                 }
     ) {
         Box(
@@ -240,7 +272,12 @@ internal fun WebSessionMinimizedIndicator(
             if (activeDownloadCount > 0 || hasFailedDownloads) {
                 Surface(
                     shape = CircleShape,
-                    color = if (hasFailedDownloads) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color =
+                        if (hasFailedDownloads) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                     modifier = Modifier.align(Alignment.TopEnd)
                 ) {
                     Box(
@@ -270,5 +307,31 @@ internal fun WebSessionMinimizedIndicator(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun WebSessionMinimizedCloseAction(
+    contentDescription: String,
+    onCloseBrowser: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .clickable(onClick = onCloseBrowser)
+                .semantics {
+                    this.contentDescription = contentDescription
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Close,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }

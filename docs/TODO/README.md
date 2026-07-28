@@ -4,6 +4,42 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-28 浏览器悬浮球长按关闭交互
+
+本轮继续使用 [`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)
+作为浏览器 presentation 的唯一进度载体，不创建第二套悬浮窗、浏览器状态或关闭流程。悬浮球关闭
+动作必须与浏览器下拉抽屉第 4 行第 1 个“退出浏览器”按钮共用 `onExitBrowser`。
+
+细化步骤：
+
+1. [DONE] 单击悬浮球继续打开现有 Browser Home
+2. [DONE] 长按悬浮球时消费本次进入动作，并在球体右上角外围显示透明背景的红色关闭叉号
+3. [DONE] 长按松手后保留叉号 3 秒，超时自动隐藏
+4. [DONE] 点击叉号调用既有 `onExitBrowser`，不复制 Browser Runtime 清理逻辑
+5. [DONE] 补充纯逻辑状态测试，更新语义文档并执行 formal readiness、差异检查与 Debug APK 构建
+6. [PENDING] 目标设备上的长按阈值、松手事件、叉号触控区域、拖动冲突和关闭结果验收
+
+本地证据：
+
+- indicator 状态、外围窗口 flags / 几何、background anchor 与 presentation release 定向 JVM 测试 `16/16`
+- Kotlin 编译、formal readiness、`git diff --check` 与 `:app:assembleDebug` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，`463722319` 字节，SHA-256
+  `689A7EA123EC0107C7A29E8A82138BE6B383374EBC1365325A3F1816D6BFD463`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26/target 34，Android Debug V2 签名与 16 KB ZIP 对齐通过
+
+### 右上角外围迭代
+
+本轮在现有长按状态策略上继续迭代，不扩大常驻 `40dp` indicator 窗口，也不把透明触控区留在
+其他应用上方。
+
+1. [DONE] 删除球体内部叉号，把关闭动作改为同一 host 管理的透明 `28dp` 独立临时 overlay，
+   只绘制 `16dp` 红色叉号
+2. [DONE] 长按期间显示叉号但设置 `FLAG_NOT_TOUCHABLE`，松手后才允许点击
+3. [DONE] 按球体右上角外围计算位置，拖动时同步移动，并约束叉号窗口不超出屏幕
+4. [DONE] 隐藏 indicator、打开浏览器、下载确认、超时和关闭时统一移除临时 overlay
+5. [DONE] 补充几何、flags 和状态测试，更新语义文档并重新生成核验 Debug APK
+6. [PENDING] 目标设备上的外围视觉、长按不中断、松手可点击、屏幕边缘和拖动同步验收
+
 ## 2026-07-28 全屏搜索顶栏与三行输入细化
 
 本轮继续使用 [`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)

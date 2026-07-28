@@ -39,6 +39,7 @@ import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiStateStore
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionFloatingTheme
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimizedCloseAction
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimizedIndicator
 import com.ai.assistance.operit.util.AppLogger
 import kotlin.math.roundToInt
@@ -141,6 +142,11 @@ internal class WebSessionBrowserHost(
     private var indicatorView: ComposeView? = null
     private var indicatorParams: WindowManager.LayoutParams? = null
     private var indicatorLifecycleOwner: WebSessionOverlayLifecycleOwner? = null
+    private var indicatorCloseActionView: ComposeView? = null
+    private var indicatorCloseActionParams: WindowManager.LayoutParams? = null
+    private val indicatorHandler = Handler(Looper.getMainLooper())
+    private var indicatorCloseState = BrowserMinimizedIndicatorCloseState()
+    private var indicatorCloseHideRunnable: Runnable? = null
 
     private var appPresentationActive by mutableStateOf(false)
     private var hostState by mutableStateOf(WebSessionBrowserHostState())
@@ -285,6 +291,9 @@ internal class WebSessionBrowserHost(
         downloadUiState: BrowserDownloadUiState,
         downloadPrompt: BrowserDownloadPromptState?,
     ) {
+        if (downloadPrompt != null) {
+            applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
+        }
         hostState =
             hostState.copy(
                 browserState = browserState,
@@ -782,8 +791,10 @@ internal class WebSessionBrowserHost(
                             activeDownloadCount = hostState.browserState.activeDownloadCount,
                             hasFailedDownloads = hostState.browserState.hasFailedDownloads,
                             downloadPrompt = hostState.downloadPrompt,
-                            onOpenBrowser = callbacks::onOpenAppShellBrowser,
+                            onOpenBrowser = ::openBrowserFromIndicator,
                             onDragBy = { dx, dy -> moveIndicatorBy(dx, dy) },
+                            onLongPress = ::showIndicatorCloseAction,
+                            onLongPressGestureFinished = ::finishIndicatorLongPressGesture,
                             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
                             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
                         )
@@ -797,6 +808,8 @@ internal class WebSessionBrowserHost(
     }
 
     private fun hideIndicator() {
+        applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
+        hideIndicatorCloseActionOverlay()
         val view = indicatorView ?: return
         indicatorLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         indicatorLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
@@ -807,6 +820,152 @@ internal class WebSessionBrowserHost(
         }
         indicatorView = null
         indicatorLifecycleOwner = null
+    }
+
+    private fun openBrowserFromIndicator() {
+        applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
+        callbacks.onOpenAppShellBrowser()
+    }
+
+    private fun showIndicatorCloseAction() {
+        applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.LONG_PRESS_RECOGNIZED)
+        indicatorView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+    }
+
+    private fun finishIndicatorLongPressGesture() {
+        applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.GESTURE_FINISHED)
+    }
+
+    private fun closeBrowserFromIndicator() {
+        applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
+        callbacks.onExitBrowser()
+    }
+
+    private fun applyIndicatorCloseEvent(event: BrowserMinimizedIndicatorCloseEvent) {
+        val previousState = indicatorCloseState
+        val transition =
+            BrowserMinimizedIndicatorClosePolicy.reduce(
+                previousState,
+                event,
+            )
+        if (transition.cancelPendingHide) {
+            cancelIndicatorCloseHide()
+        }
+
+        indicatorCloseState = transition.state
+
+        when (
+            BrowserMinimizedIndicatorCloseOverlayPolicy.resolveUpdate(
+                previousState,
+                indicatorCloseState,
+            )
+        ) {
+            BrowserMinimizedIndicatorCloseOverlayUpdate.SHOW ->
+                showIndicatorCloseActionOverlay()
+
+            BrowserMinimizedIndicatorCloseOverlayUpdate.HIDE ->
+                hideIndicatorCloseActionOverlay()
+
+            BrowserMinimizedIndicatorCloseOverlayUpdate.UPDATE_TOUCHABILITY ->
+                updateIndicatorCloseActionTouchability()
+
+            BrowserMinimizedIndicatorCloseOverlayUpdate.NONE -> Unit
+        }
+
+        transition.scheduleHideAfterMillis?.let { delayMillis ->
+            // 必须从长按手势真正结束后开始计时，否则用户持续按住时叉号会提前消失。
+            val hideRunnable =
+                Runnable {
+                    indicatorCloseHideRunnable = null
+                    applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.HIDE_TIMEOUT)
+                }
+            indicatorCloseHideRunnable = hideRunnable
+            indicatorHandler.postDelayed(hideRunnable, delayMillis)
+        }
+    }
+
+    private fun cancelIndicatorCloseHide() {
+        indicatorCloseHideRunnable?.let(indicatorHandler::removeCallbacks)
+        indicatorCloseHideRunnable = null
+    }
+
+    private fun showIndicatorCloseActionOverlay() {
+        if (
+            appPresentationActive ||
+                indicatorView == null ||
+                indicatorCloseActionView != null
+        ) {
+            return
+        }
+        val lifecycleOwner = indicatorLifecycleOwner ?: return
+        val params = createIndicatorCloseActionLayoutParams()
+        // 单独的 WindowManager 根允许叉号越出 40dp 球体边界，同时不扩大常驻透明触控区域。
+        val closeAction =
+            ComposeView(appContext).apply {
+                setBackgroundColor(AndroidColor.TRANSPARENT)
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                installViewTreeOwners(this, lifecycleOwner)
+                setContent {
+                    WebSessionFloatingTheme {
+                        WebSessionMinimizedCloseAction(
+                            contentDescription =
+                                appContext.getString(R.string.web_session_exit_browser),
+                            onCloseBrowser = ::closeBrowserFromIndicator,
+                        )
+                    }
+                }
+            }
+
+        windowManager.addView(closeAction, params)
+        indicatorCloseActionView = closeAction
+        indicatorCloseActionParams = params
+    }
+
+    private fun hideIndicatorCloseActionOverlay() {
+        val closeAction = indicatorCloseActionView ?: return
+        try {
+            windowManager.removeView(closeAction)
+        } catch (error: Exception) {
+            AppLogger.w(
+                "WebSessionBrowserHost",
+                "Failed to remove minimized browser close action",
+                error,
+            )
+        }
+        indicatorCloseActionView = null
+        indicatorCloseActionParams = null
+    }
+
+    private fun updateIndicatorCloseActionTouchability() {
+        val closeAction = indicatorCloseActionView ?: return
+        val params = indicatorCloseActionParams ?: return
+        val newFlags =
+            BrowserMinimizedIndicatorCloseOverlayPolicy.windowFlags(
+                indicatorCloseState.isLongPressGestureActive,
+            )
+        if (params.flags == newFlags) {
+            return
+        }
+        params.flags = newFlags
+        indicatorCloseActionParams = params
+        if (closeAction.windowToken != null) {
+            windowManager.updateViewLayout(closeAction, params)
+        }
+    }
+
+    private fun updateIndicatorCloseActionPosition() {
+        val closeAction = indicatorCloseActionView ?: return
+        val params = indicatorCloseActionParams ?: return
+        val position = resolveIndicatorCloseActionPosition()
+        if (params.x == position.x && params.y == position.y) {
+            return
+        }
+        params.x = position.x
+        params.y = position.y
+        indicatorCloseActionParams = params
+        if (closeAction.windowToken != null) {
+            windowManager.updateViewLayout(closeAction, params)
+        }
     }
 
     private fun moveIndicatorBy(dx: Int, dy: Int) {
@@ -820,6 +979,7 @@ internal class WebSessionBrowserHost(
         indicatorParams = params
         windowManager.updateViewLayout(indicator, params)
         syncBackgroundAnchorWithIndicator()
+        updateIndicatorCloseActionPosition()
     }
 
     private fun updateIndicatorLayoutForCurrentState() {
@@ -831,6 +991,7 @@ internal class WebSessionBrowserHost(
         val newWidth = indicatorWidthPx()
         val newHeight = indicatorHeightPx()
         if (params.width == newWidth && params.height == newHeight) {
+            updateIndicatorCloseActionPosition()
             return
         }
         params.width = newWidth
@@ -840,6 +1001,7 @@ internal class WebSessionBrowserHost(
             windowManager.updateViewLayout(indicator, params)
         }
         syncBackgroundAnchorWithIndicator()
+        updateIndicatorCloseActionPosition()
     }
 
     private fun installViewTreeOwners(
@@ -873,6 +1035,45 @@ internal class WebSessionBrowserHost(
             x = dp(16)
             y = dp(16)
         }
+    }
+
+    private fun createIndicatorCloseActionLayoutParams(): WindowManager.LayoutParams {
+        val type =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+        val closeActionSize = dp(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_SIZE_DP)
+        val position = resolveIndicatorCloseActionPosition()
+        return WindowManager.LayoutParams(
+            closeActionSize,
+            closeActionSize,
+            type,
+            BrowserMinimizedIndicatorCloseOverlayPolicy.windowFlags(
+                indicatorCloseState.isLongPressGestureActive,
+            ),
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = position.x
+            y = position.y
+        }
+    }
+
+    private fun resolveIndicatorCloseActionPosition(): BrowserMinimizedIndicatorCloseOverlayPosition {
+        val indicator = requireNotNull(indicatorParams)
+        val displayMetrics = appContext.resources.displayMetrics
+        return BrowserMinimizedIndicatorCloseOverlayPolicy.resolvePosition(
+            indicatorX = indicator.x,
+            indicatorY = indicator.y,
+            indicatorWidth = indicator.width,
+            closeActionSize = dp(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_SIZE_DP),
+            overlap = dp(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_OVERLAP_DP),
+            screenWidth = displayMetrics.widthPixels,
+            screenHeight = displayMetrics.heightPixels,
+        )
     }
 
     private fun indicatorWidthPx(): Int =

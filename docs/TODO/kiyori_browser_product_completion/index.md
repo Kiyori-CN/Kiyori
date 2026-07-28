@@ -78,7 +78,7 @@ kiyori_browser_product_completion/
 ## 全局交互合同
 
 - Browser Home、1×1 background anchor 和 AI 只转挂同一个活动 WebView，不在展示切换时调用 `loadUrl`、`reload` 或重建
-- 完整浏览器 UI 只存在于 App Shell Browser Home；系统层最小 indicator 通过显式 action 打开 Browser Home，后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
+- 完整浏览器 UI 只存在于 App Shell Browser Home；系统层最小 indicator 单击时通过显式 action 打开 Browser Home，长按时消费进入动作并创建球体右上角外围的透明 `28dp` 临时关闭窗口，其中只绘制 `16dp` 红色叉号。该窗口按住期间不可触摸，松手后保留 3 秒，随拖动同步且不越出屏幕，点击复用菜单 `onExitBrowser`；后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
 - 软件首页全屏搜索创建新窗口；浏览器顶栏搜索继续导航当前窗口，两者不混用
 - 普通窗口和无痕窗口不能互相转换；关闭窗口后其 Profile 语义不改变
 - AI 可以操作无痕窗口，但无痕仅隔离 WebView 网站数据，不隔离本应用内已经获得授权的 AI；所有相关 UI 必须明确说明
@@ -103,6 +103,17 @@ kiyori_browser_product_completion/
 - 菜单第 4 行采用 `2:1:2` 槽位，两侧按钮向内移动而中间收起按钮保持居中
 - 搜索解析、外部导航与菜单布局定向测试 `15/15`、formal readiness 与 Debug APK 构建已通过；
   真机交互继续保持 `verification_pending`
+
+### 2026-07-28 浏览器悬浮球长按关闭追加小步
+
+- indicator 单击继续打开现有 Browser Home；长按由同一 detector 消费并创建球体右上角外围的
+  透明 `28dp` 独立临时关闭窗口，其中只绘制 `16dp` 红色叉号
+- 按住期间叉号不可触摸，松手后才允许点击并保留 3 秒；叉号随拖动同步并约束在屏幕内
+- 点击叉号复用菜单第 4 行第 1 个按钮的 `onExitBrowser` 展示层关闭流程，临时窗口不持有 Browser Runtime
+- 关联 JVM 测试 `16/16`、Kotlin 编译、formal readiness、`git diff --check` 与 Debug APK 构建通过
+- APK SHA-256 为 `689A7EA123EC0107C7A29E8A82138BE6B383374EBC1365325A3F1816D6BFD463`；
+  真机外围视觉、长按不中断、计时、边缘钳制、拖动同步和关闭结果保持
+  `verification_pending`
 
 ## 2026-07-28 方案 A 正式实现计划
 
