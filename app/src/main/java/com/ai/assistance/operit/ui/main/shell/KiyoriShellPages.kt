@@ -802,6 +802,7 @@ internal fun KiyoriPrimaryRootPage(
     onOpenAiSettings: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
+    onOpenPlayerSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -814,6 +815,7 @@ internal fun KiyoriPrimaryRootPage(
                 onOpenAiSettings = onOpenAiSettings,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
+                onOpenPlayerSettings = onOpenPlayerSettings,
                 modifier = modifier,
             )
             return

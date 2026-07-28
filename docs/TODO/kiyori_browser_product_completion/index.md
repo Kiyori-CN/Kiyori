@@ -44,6 +44,7 @@ kiyori_browser_product_completion/
 	8_media_intent_and_player_foundation.md
 	9_browser_sniffer_and_floating_playback.md
 	10_validation_build_git_and_device_acceptance.md
+	11_player_runtime_ui_and_browser_completion.md
 ```
 
 实施顺序不可交换：播放器和嗅探依赖稳定的 session profile、窗口生命周期、设置 owner、下载 owner 和菜单路由；无痕必须先于缩略图和 AI tab 输出完成，以免后续再次更改窗口模型。
@@ -72,7 +73,7 @@ kiyori_browser_product_completion/
 | 历史、书签和搜索记录 | `WebSessionHistoryStore` | 浏览器、负一屏和全屏页复用 | 浏览器工具不复制存储 |
 | 下载任务 | `BrowserDownloadManager` | 浏览器抽屉和全屏下载中心复用 | 下载事件进入浏览器结果 |
 | 浏览器运行偏好 | 搜索与历史由 `WebSessionHistoryStore` 持有；Profile 由 Browser Runtime 持有；UA 与浏览器通用设置由 `WebSessionBrowserSettingsStore` 持有 | 浏览器主流程直接使用唯一 owner | 只通过明确能力读取或修改 |
-| 播放会话 | 后续唯一 player session | 全屏、悬浮和浏览器共用 | 后续 capability adapter 操作 |
+| 播放会话 | 唯一 `PlayerSession` / mpv core | 全屏、悬浮和浏览器共用同一媒体与 Surface owner 状态 | 后续 capability adapter 只能调用该 owner |
 
 ## 全局交互合同
 
@@ -92,11 +93,12 @@ kiyori_browser_product_completion/
 4. [DONE] P1：已按旧版 `5/5/2/5/6` 分组重新复刻网页浏览器设置；自定义主页、网页外部应用、网页定位和悬浮嗅探偏好接入唯一 owner，其他旧版未实现项为空占位；根页面已使用无描边分组卡和连续折叠吸顶标题，本地测试与门禁通过，最新 Debug APK 与真机视觉状态见第十阶段
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；完整 `5/3/3/1` 文件下载器设置页与十二项旧版真实 consumer 已接通，并与网页浏览器设置共用无描边卡片和连续折叠吸顶标题；仍待下载中心双筛选/批量操作复刻及真机综合验收
 6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成，其他菜单能力按第七阶段继续串行推进
-7. P2：媒体 Intent、播放器、嗅探和悬浮播放
+7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与统一 native 栈，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏交接均已完成本地实现、定向测试和最终 Debug APK 审计；真机解码、手势、转场、性能与站点兼容待用户验收
+8. [DONE] P0：阶段 11 已完成播放器运行时显式 AAR/DEX 门禁、`MPVLib`/JNI 可见错误边界、固定参考控件布局、十项真实设置、浏览器候选数字圆圈、自动小窗与网络日志播放；本地测试、formal readiness、最终 Debug APK/native/许可证审计通过，真机验收保持 `verification_pending`
 
 ## 完成定义
 
-- 十个里程碑均有源码、文档、自动检查和 Debug APK 证据；提交、推送和远端 SHA 仅在另行授权时属于完成证据
+- 十一个里程碑均有源码、文档、自动检查和 Debug APK 证据；提交、推送和远端 SHA 仅在另行授权时属于完成证据
 - 所有已展示入口都有真实实现；仍受硬依赖限制的入口不伪造成功状态
 - 人工和 AI 在普通与无痕窗口中共享唯一 Browser Runtime，并能从工具结果确认窗口 Profile
 - 视频 `ACTION_VIEW` 不再进入 AI 附件链路

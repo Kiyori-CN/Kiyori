@@ -15,12 +15,12 @@ internal enum class WebSessionBrowserSheetRoute {
     USERSCRIPTS,
     USER_AGENT,
     NETWORK_LOG,
+    MEDIA_CANDIDATES,
     PAGE_SOURCE,
     PLACEHOLDER,
 }
 
 internal enum class WebSessionBrowserPlaceholderPage {
-    FLOATING_SNIFFER,
     TOOLBOX,
     READER_MODE,
     AD_MARKING,
@@ -55,6 +55,22 @@ internal data class WebSessionBrowserNetworkEntry(
     val isStatic: Boolean,
     val category: BrowserNetworkRequestCategory,
     val timestamp: Long,
+    val mediaCandidateId: String? = null,
+)
+
+@Immutable
+internal data class WebSessionBrowserMediaCandidate(
+    val id: String,
+    val url: String,
+    val pageUrl: String,
+    val mimeType: String?,
+    val urlEvidence: BrowserMediaCandidateUrlEvidence,
+    val discoverySources: Set<BrowserMediaCandidateDiscoverySource>,
+    val firstDiscoveredAt: Long,
+    val lastDiscoveredAt: Long,
+    val directPlaybackReady: Boolean,
+    val downloadReady: Boolean,
+    val isBlob: Boolean,
 )
 
 @Immutable
@@ -97,6 +113,7 @@ internal data class WebSessionBrowserState(
     val userAgentMode: WebSessionUserAgentMode = WebSessionUserAgentMode.ANDROID,
     val customGlobalUserAgent: String = "",
     val activeSiteUserAgentRule: WebSessionSiteUserAgentRule? = null,
+    val floatingSniffPlaybackEnabled: Boolean = true,
     val activeDownloadCount: Int = 0,
     val hasFailedDownloads: Boolean = false,
     val failedDownloadCount: Int = 0,
@@ -107,6 +124,7 @@ internal data class WebSessionBrowserState(
     val sessionHistory: List<WebSessionSessionHistoryItem> = emptyList(),
     val userscriptMenuCommands: List<UserscriptPageMenuCommand> = emptyList(),
     val networkEntries: List<WebSessionBrowserNetworkEntry> = emptyList(),
+    val mediaCandidates: List<WebSessionBrowserMediaCandidate> = emptyList(),
 )
 
 @Immutable

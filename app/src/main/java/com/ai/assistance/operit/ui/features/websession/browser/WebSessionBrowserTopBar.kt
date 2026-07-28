@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -83,8 +84,10 @@ internal fun WebSessionBrowserTopBar(
     currentUrl: String,
     pageTitle: String,
     isLoading: Boolean,
+    detectedVideoCount: Int,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
+    onShowDetectedVideos: () -> Unit,
     onRefreshOrStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -140,12 +143,32 @@ internal fun WebSessionBrowserTopBar(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                     )
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = stringResource(R.string.web_session_search),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    if (detectedVideoCount > 0) {
+                        val badgeText = if (detectedVideoCount > 99) "99+" else detectedVideoCount.toString()
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(28.dp)
+                                    .background(Color(0xFFFF8A00), CircleShape)
+                                    .clickable(role = Role.Button, onClick = onShowDetectedVideos),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = badgeText,
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = stringResource(R.string.web_session_search),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
             BrowserChromeIconButton(

@@ -235,6 +235,9 @@ internal fun KiyoriAppShell(
                     onOpenDownloadSettings = {
                         onStateChange(state.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS))
                     },
+                    onOpenPlayerSettings = {
+                        onStateChange(state.openChild(KiyoriShellChild.PLAYER_SETTINGS))
+                    },
                     modifier = Modifier.fillMaxSize().zIndex(4f),
                 )
             }
@@ -302,6 +305,11 @@ internal fun KiyoriAppShell(
                         )
                     KiyoriShellChild.DOWNLOAD_SETTINGS ->
                         KiyoriDownloadSettingsPage(
+                            onBack = { onStateChange(state.closeChild()) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    KiyoriShellChild.PLAYER_SETTINGS ->
+                        KiyoriPlayerSettingsPage(
                             onBack = { onStateChange(state.closeChild()) },
                             modifier = Modifier.fillMaxSize(),
                         )

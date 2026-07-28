@@ -50,6 +50,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.player.PlayerMediaSource
+import com.ai.assistance.operit.core.player.PlayerPresentation
+import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
@@ -73,6 +77,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolv
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.selectAutomaticFloatingMediaCandidate
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomBar
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserBottomDrawer
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserMenuDrawer
@@ -149,6 +154,13 @@ internal fun WebSessionBrowserScreen(
     onDeleteUserscript: (Long) -> Unit,
     onCheckUserscriptUpdate: (Long) -> Unit,
     onInvokeUserscriptMenu: (String) -> Unit,
+    playerSession: PlayerSession,
+    playerState: PlayerSessionState,
+    onPlayMediaCandidate: (String) -> Boolean,
+    onDownloadMediaCandidate: (String) -> Boolean,
+    onTogglePlayerPause: () -> Unit,
+    onOpenPlayerFullscreen: () -> Unit,
+    onClosePlayer: () -> Unit,
     onPauseDownload: (String) -> Unit,
     onResumeDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
@@ -175,6 +187,8 @@ internal fun WebSessionBrowserScreen(
 ) {
     val context = LocalContext.current
     val browserState = hostState.browserState
+    val automaticFloatingPageKey = "${browserState.activeSessionId.orEmpty()}|${browserState.currentUrl}"
+    var dismissedAutomaticFloatingPageKey by remember { mutableStateOf<String?>(null) }
     var totalHeightPx by remember { mutableIntStateOf(0) }
     var browserAreaHeightPx by remember { mutableIntStateOf(0) }
     LaunchedEffect(totalHeightPx, browserAreaHeightPx) {
@@ -218,6 +232,24 @@ internal fun WebSessionBrowserScreen(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
                 placeholderPage = null,
             )
+        }
+    }
+    LaunchedEffect(
+        automaticFloatingPageKey,
+        browserState.floatingSniffPlaybackEnabled,
+        browserState.mediaCandidates,
+        playerState.request?.requestId,
+        playerState.presentation,
+    ) {
+        if (!browserState.floatingSniffPlaybackEnabled) return@LaunchedEffect
+        if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
+        if (playerState.hasMedia || playerState.presentation != PlayerPresentation.BROWSER_ONLY) return@LaunchedEffect
+        val selected = selectAutomaticFloatingMediaCandidate(browserState.mediaCandidates) ?: return@LaunchedEffect
+        delay(1_200)
+        if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
+        val stableSelection = selectAutomaticFloatingMediaCandidate(browserState.mediaCandidates)
+        if (stableSelection?.id == selected.id) {
+            onPlayMediaCandidate(selected.id)
         }
     }
     val openPlaceholder: (WebSessionBrowserPlaceholderPage) -> Unit = { page ->
@@ -276,6 +308,7 @@ internal fun WebSessionBrowserScreen(
                 currentUrl = browserState.currentUrl.ifBlank { "about:blank" },
                 pageTitle = browserState.pageTitle,
                 isLoading = browserState.isLoading,
+                detectedVideoCount = browserState.mediaCandidates.size,
                 onBack = onTopBarBack,
                 onOpenSearch = {
                     profileFeedback = null
@@ -288,6 +321,11 @@ internal fun WebSessionBrowserScreen(
                                 browserState.activeProfile
                                     ?: browserState.defaultSessionProfile,
                         )
+                    }
+                },
+                onShowDetectedVideos = {
+                    onHostStateChange { current ->
+                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.MEDIA_CANDIDATES)
                     }
                 },
                 onRefreshOrStop = onRefreshOrStop,
@@ -384,6 +422,22 @@ internal fun WebSessionBrowserScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                }
+                if (
+                    playerState.presentation == PlayerPresentation.FLOATING_PLAYER &&
+                        playerState.request?.source == PlayerMediaSource.BROWSER_CANDIDATE
+                ) {
+                    WebSessionFloatingPlayer(
+                        session = playerSession,
+                        state = playerState,
+                        onTogglePause = onTogglePlayerPause,
+                        onFullscreen = onOpenPlayerFullscreen,
+                        onClose = {
+                            dismissedAutomaticFloatingPageKey = automaticFloatingPageKey
+                            onClosePlayer()
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
 
@@ -570,7 +624,11 @@ internal fun WebSessionBrowserScreen(
                         onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USERSCRIPTS) }
                         onOpenUserscripts()
                     },
-                    onOpenFloatingSniffer = { openPlaceholder(WebSessionBrowserPlaceholderPage.FLOATING_SNIFFER) },
+                    onOpenFloatingSniffer = {
+                        onHostStateChange {
+                            it.copy(sheetRoute = WebSessionBrowserSheetRoute.MEDIA_CANDIDATES)
+                        }
+                    },
                     onOpenUserAgent = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USER_AGENT) } },
                     onOpenNetworkLog = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.NETWORK_LOG) } },
                     onOpenAiDialogue = {
@@ -654,6 +712,8 @@ internal fun WebSessionBrowserScreen(
                             onDeleteUserscript = onDeleteUserscript,
                             onCheckUserscriptUpdate = onCheckUserscriptUpdate,
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
+                            onPlayMediaCandidate = onPlayMediaCandidate,
+                            onDownloadMediaCandidate = onDownloadMediaCandidate,
                             onPauseDownload = onPauseDownload,
                             onResumeDownload = onResumeDownload,
                             onCancelDownload = onCancelDownload,
@@ -924,6 +984,8 @@ private fun WebSessionBrowserDrawerContent(
     onDeleteUserscript: (Long) -> Unit,
     onCheckUserscriptUpdate: (Long) -> Unit,
     onInvokeUserscriptMenu: (String) -> Unit,
+    onPlayMediaCandidate: (String) -> Boolean,
+    onDownloadMediaCandidate: (String) -> Boolean,
     onPauseDownload: (String) -> Unit,
     onResumeDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
@@ -1019,7 +1081,25 @@ private fun WebSessionBrowserDrawerContent(
                 currentPageUrl = browserState.currentUrl,
                 onClear = onClearNetworkLog,
                 onStartDownload = onStartManualDownload,
+                onPlayMediaCandidate = onPlayMediaCandidate,
+                onDownloadMediaCandidate = onDownloadMediaCandidate,
                 modifier = Modifier.fillMaxSize(),
+            )
+
+        WebSessionBrowserSheetRoute.MEDIA_CANDIDATES ->
+            WebSessionMediaCandidateSheet(
+                candidates = browserState.mediaCandidates,
+                onPlay = { candidateId ->
+                    onPlayMediaCandidate(candidateId).also { accepted ->
+                        if (accepted) onDismiss()
+                    }
+                },
+                onDownload = { candidateId ->
+                    onDownloadMediaCandidate(candidateId).also { accepted ->
+                        if (accepted) onDismiss()
+                    }
+                },
+                onDismiss = onDismiss,
             )
 
         WebSessionBrowserSheetRoute.PAGE_SOURCE ->

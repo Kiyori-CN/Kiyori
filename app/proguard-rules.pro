@@ -94,3 +94,9 @@
 # Reactor BlockHound integration with Netty
 -dontwarn reactor.blockhound.integration.BlockHoundIntegration
 -dontwarn io.netty.util.internal.Hidden$NettyBlockHoundIntegration
+# The mpv JNI bridge is referenced from native code and must keep its binary names if a future
+# build enables shrinking. Debug builds do not shrink, but the rule keeps the runtime contract explicit.
+-keep class is.xyz.mpv.MPVLib { *; }
+-keep class is.xyz.mpv.MPVLib$** { *; }
+-keep class is.xyz.mpv.MPVNode { *; }
+-keep class is.xyz.mpv.MPVNode$** { *; }

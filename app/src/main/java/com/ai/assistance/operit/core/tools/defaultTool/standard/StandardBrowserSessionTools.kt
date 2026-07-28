@@ -169,6 +169,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
     internal data class WebSession(
         val id: String,
         val webView: WebView,
+        val cookieManager: CookieManager,
         val sessionName: String?,
         val profile: WebSessionProfile,
         val customUserAgent: String? = null,
@@ -189,6 +190,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         @Volatile var viewportWidthPx: Int? = null
         @Volatile var viewportHeightPx: Int? = null
         @Volatile var usesDesktopUserAgentLayout: Boolean = false
+        @Volatile var appliedUserAgent: String = ""
         @Volatile var appliedViewportScaleFactor: Float = 1f
         @Volatile var lastSnapshot: BrowserSnapshot? = null
         @Volatile var thumbnail: Bitmap? = null
@@ -198,6 +200,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         @Volatile var stateVersion: Long = 0L
         val consoleEntries: MutableList<BrowserConsoleEntry> = mutableListOf()
         val networkEntries: MutableList<BrowserNetworkRequestEntry> = mutableListOf()
+        val mediaCandidates: MutableList<BrowserMediaCandidate> = mutableListOf()
     }
 
     internal data class BrowserActionSettlementPolicy(

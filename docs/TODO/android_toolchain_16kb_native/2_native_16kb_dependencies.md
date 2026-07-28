@@ -7,7 +7,29 @@
 3. 使用 NDK r28 的 `llvm-readelf -lW` 检查每个 ELF 的 `LOAD` segment 对齐
 4. 将源码构建产物、仓库内预置二进制、Maven/AAR 预编译库分别记录
 
-## 最终 APK 证据
+## 2026-07-28 统一播放器 native 栈（当前证据）
+
+播放器接入后已删除旧 `ffmpeg-kit-local.aar` owner，改为两个固定输入生成的确定性 arm64 AAR。
+mpv AAR 持有 `libmpv.so`、`libplayer.so` 与同 Clang 21 工具链的 `libc++_shared.so`；FFmpegKit AAR
+持有 Java/资源/许可证与九个 FFmpeg native 库。
+最终 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，时间 `2026-07-28 10:59:29 +08:00`，大小
+`468740360` 字节，SHA-256
+`44642BF9A4EE713D2566B6FEF2E77865067E7CB2D030F705D139075003B1ED03`。
+
+- `zipalign -c -P 16 -v 4`：`Verification successful`
+- 仅 `arm64-v8a`；46 个 native 文件名无重复
+- 45 个 AArch64 ELF64 的所有 `PT_LOAD` 最小对齐均至少 `0x4000`
+- 唯一非 ELF 仍是 terminal 的 2 字节 `libsudo.so` 占位脚本
+- `libmpv.so`/`libplayer.so` 的版本化 FFmpeg 动态符号去重并集为 256 个，由 APK 内唯一 FFmpeg
+  `n8.1.2` 集合全部提供，缺失 0
+- 依赖 `libc++_shared.so` 的九个 ELF 共需 121 个唯一 C++ 符号，缺失 0；`libmpv.so` 现场缺失的
+  float/double `__from_chars_floating_point` 均由同 Clang 21 runtime 提供
+- 固定输入、薄 AAR、各播放器 native entry 哈希与许可证义务详见
+  `docs/doc-src/dev-core/PLAYER_NATIVE_STACK.md`
+
+以下 `2026-07-24` 内容保留为历史问题证据，不再描述当前 APK。
+
+## 2026-07-24 旧 APK 证据（已被替代）
 
 最终 Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，时间 `2026-07-24 03:29:29 +08:00`，大小 `440002648` 字节，SHA-256 `8208D0284364CDD70AF8CB1B0D6A2CA75056217339AB47645ED41D4A67BD51B0`。
 
@@ -34,13 +56,16 @@ Lint 最终报告为 0 errors、29 warnings 和 1 个 baseline 已应用提示�
 - MediaPipe `0.10.11 → 0.10.35`、ML Kit Text `16.0.0 → 16.0.1`（bundled common `17.0.0`）、ONNX Runtime `1.17.1 → 1.27.0`、android-gif-drawable `1.2.28 → 1.2.32`；候选 AAR 的 arm64 ELF 与最终 APK 均已复核
 - 移除未被源码使用的 TensorFlow Lite 2.10，消除 AGP 9 duplicate namespace 构建错误及其 x86_64 16 KB 告警；未改变实际使用的 MediaPipe 文本嵌入链路
 - 源码 native 模块统一 NDK `28.2.13676358`，最终 APK 中 `libpty.so`、MediaPipe、ML Kit、ONNX Runtime 及其他源码产物均已达到 16KB
-- 依赖准备脚本删除 jniLibs.zip 中旧 GIF native 副本、删除 ffmpeg AAR 内重复的 arm64 `libc++_shared.so`，并以 NDK 28 arm64 runtime 作为唯一提供者；最终 APK 不再含旧 GIF 或旧 libc++
+- 依赖准备脚本删除 jniLibs.zip 中旧 GIF native 副本、旧本地 FFmpeg AAR 与手工 C++ runtime；播放器
+  使用固定 mpv 输入中与 `libmpv.so` 同工具链的唯一 `libc++_shared.so`，构建门禁检查现场暴露的两个
+  `__from_chars_floating_point` 符号
 - ffmpeg-kit 重建入口已固定官方 `v6.0` commit，并拒绝错误 commit 或已有 tracked 修改的源码；导入脚本不再写死旧 `/mnt/d/Code/prog/assistance` 路径，而是把当前仓库目标路径转换为 WSL 路径
 - AAR 导入现在先写入临时文件，并检查 ZIP CRC、Java API、唯一 arm64 ABI、固定 native 库集、AArch64 ELF 和每个 `PT_LOAD` 的 16 KB 对齐；当前旧 AAR 会在 `libavcodec.so (0x1000)` 处被明确拒绝，不会覆盖已知输入
 
-### 暂缓及理由
+### 已解除的旧暂缓项与剩余例外
 
-- ffmpeg-kit local AAR 的 9 个 arm64 `.so` 仍为 `LOAD=0x1000`。源码 commit 与构建入口已经固定，但本机没有 Linux/WSL、Docker 或 Podman，Kiyori 仓库的 GitHub Actions 又处于仓库级禁用状态，因此本轮不能执行或声称完成重建。最短后续动作是在获授权的 Linux/WSL 环境使用固定 commit 与 NDK 28 运行脚本，导入新 AAR 后复核 hash、Java API、运行行为与最终 APK
+- 旧 ffmpeg-kit local AAR 的 9 个 `LOAD=0x1000` ELF 已随统一播放器 native 栈被移除；当前 FFmpegKit
+  `8.1.7` 的九个对应 ELF 均达到至少 `0x4000`
 - terminal `libsudo.so` 是预置的 2 字节 `$@` 文件，不能按 ELF 对齐；保持现有运行时语义，不改名、不删除、不用 suppress 掩盖
 
 ### 工具链待升级项

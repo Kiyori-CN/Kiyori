@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -113,12 +112,6 @@ private data class PlaceholderModel(
 @Composable
 private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderModel =
     when (this) {
-        WebSessionBrowserPlaceholderPage.FLOATING_SNIFFER ->
-            PlaceholderModel(
-                title = stringResource(R.string.web_session_floating_sniffer),
-                description = stringResource(R.string.web_session_placeholder_floating_sniffer),
-                icon = Icons.Filled.Visibility,
-            )
         WebSessionBrowserPlaceholderPage.TOOLBOX ->
             PlaceholderModel(
                 title = stringResource(R.string.web_session_browser_toolbox),

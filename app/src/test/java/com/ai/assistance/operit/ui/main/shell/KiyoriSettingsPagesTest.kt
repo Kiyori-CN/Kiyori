@@ -11,6 +11,7 @@ class KiyoriSettingsPagesTest {
     fun `shared settings header follows the reference start middle and pinned frames`() {
         assertEquals("网页浏览器设置", KIYORI_BROWSER_SETTINGS_PAGE_TITLE)
         assertEquals("文件下载器设置", KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE)
+        assertEquals("视频播放器设置", KIYORI_PLAYER_SETTINGS_PAGE_TITLE)
         assertEquals(
             0f,
             calculateKiyoriSettingsHeaderCollapseProgress(0, 0, 72f),
@@ -95,6 +96,15 @@ class KiyoriSettingsPagesTest {
                 .flatten()
                 .filter { entry ->
                     entry.action == KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("视频播放器"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )

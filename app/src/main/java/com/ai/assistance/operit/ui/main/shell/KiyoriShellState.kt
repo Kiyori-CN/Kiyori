@@ -36,6 +36,7 @@ enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
     BROWSER_SETTINGS,
     DOWNLOAD_SETTINGS,
+    PLAYER_SETTINGS,
 }
 
 enum class AiDrawerSelectionEffect {
@@ -294,6 +295,7 @@ internal fun KiyoriShellState.openExternalChild(
             KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
             KiyoriShellChild.BROWSER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
             KiyoriShellChild.DOWNLOAD_SETTINGS -> PrimaryDestination.SETTINGS_HOME
+            KiyoriShellChild.PLAYER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
         }
     return selectPrimary(owner).openChild(destination)
 }

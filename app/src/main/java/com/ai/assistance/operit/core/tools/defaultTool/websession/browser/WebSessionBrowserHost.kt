@@ -46,6 +46,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiStateStore
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionFloatingTheme
@@ -110,6 +111,11 @@ internal class WebSessionBrowserHost(
         fun onDeleteUserscript(scriptId: Long)
         fun onCheckUserscriptUpdate(scriptId: Long)
         fun onInvokeUserscriptMenu(commandId: String)
+        fun onPlayMediaCandidate(candidateId: String): Boolean
+        fun onDownloadMediaCandidate(candidateId: String): Boolean
+        fun onTogglePlayerPause()
+        fun onOpenPlayerFullscreen()
+        fun onClosePlayer()
         fun onPauseDownload(taskId: String)
         fun onResumeDownload(taskId: String)
         fun onCancelDownload(taskId: String)
@@ -159,6 +165,7 @@ internal class WebSessionBrowserHost(
     private var isExpanded: Boolean = false
     private var appPresentationActive by mutableStateOf(false)
     private var restoreExpandedOverlayAfterAppPresentation: Boolean = false
+    private var restoreExpandedOverlayAfterPlayerFullscreen: Boolean = false
     private var hostState by mutableStateOf(WebSessionBrowserHostState())
     fun ensureCreated(initialExpanded: Boolean = false) {
         if (rootView != null) {
@@ -286,6 +293,8 @@ internal class WebSessionBrowserHost(
         val searchHistory by store.searchHistoryFlow.collectAsState(initial = emptyList())
         val userscriptUiState by userscriptStore.state.collectAsState()
         val browserSettings by browserSettingsStore.state.collectAsState()
+        val playerSession = PlayerSession.getInstance(appContext)
+        val playerState by playerSession.state.collectAsState()
 
         WebSessionBrowserScreen(
             hostState = hostState,
@@ -340,6 +349,13 @@ internal class WebSessionBrowserHost(
             onDeleteUserscript = callbacks::onDeleteUserscript,
             onCheckUserscriptUpdate = callbacks::onCheckUserscriptUpdate,
             onInvokeUserscriptMenu = callbacks::onInvokeUserscriptMenu,
+            playerSession = playerSession,
+            playerState = playerState,
+            onPlayMediaCandidate = callbacks::onPlayMediaCandidate,
+            onDownloadMediaCandidate = callbacks::onDownloadMediaCandidate,
+            onTogglePlayerPause = callbacks::onTogglePlayerPause,
+            onOpenPlayerFullscreen = callbacks::onOpenPlayerFullscreen,
+            onClosePlayer = callbacks::onClosePlayer,
             onPauseDownload = callbacks::onPauseDownload,
             onResumeDownload = callbacks::onResumeDownload,
             onCancelDownload = callbacks::onCancelDownload,
@@ -436,6 +452,36 @@ internal class WebSessionBrowserHost(
     fun hasAppPresentation(): Boolean = appPresentationActive
 
     fun hasOverlayPresentation(): Boolean = rootView != null
+
+    fun prepareForPlayerFullscreen() {
+        restoreExpandedOverlayAfterPlayerFullscreen =
+            rootView != null && !appPresentationActive && isExpanded
+        if (restoreExpandedOverlayAfterPlayerFullscreen) {
+            setExpanded(
+                expanded = false,
+                resetTransientUi = false,
+                showMinimizedIndicator = false,
+            )
+        }
+    }
+
+    fun restoreAfterPlayerFullscreen() {
+        if (
+            restoreExpandedOverlayAfterPlayerFullscreen &&
+                rootView != null &&
+                !appPresentationActive
+        ) {
+            setExpanded(true)
+        }
+        restoreExpandedOverlayAfterPlayerFullscreen = false
+    }
+
+    fun requestMediaCandidateDownload(candidateId: String): Boolean =
+        callbacks.onDownloadMediaCandidate(candidateId)
+
+    fun clearPlayerFullscreenHandoff() {
+        restoreExpandedOverlayAfterPlayerFullscreen = false
+    }
 
     fun handleBack(): Boolean {
         val browserState = hostState.browserState

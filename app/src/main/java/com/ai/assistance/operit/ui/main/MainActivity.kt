@@ -60,6 +60,8 @@ import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.res.stringResource
+import com.ai.assistance.operit.core.player.PlayerPresentation
+import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
@@ -533,6 +535,14 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+
+    override fun onStop() {
+        super.onStop()
+        val playerSession = PlayerSession.getInstance(this)
+        if (playerSession.state.value.presentation == PlayerPresentation.FLOATING_PLAYER) {
+            playerSession.onHostBackgrounded()
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()

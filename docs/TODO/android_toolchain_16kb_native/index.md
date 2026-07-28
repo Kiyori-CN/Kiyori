@@ -46,7 +46,9 @@ status: verification_pending
 ## 当前边界
 
 - native ripgrep 已改由 Gradle 使用 Rust 1.88.0、NDK 28.2.13676358 和 Android API 26 linker 生成；本地 arm64 产物为 AArch64 ELF，四个 `PT_LOAD` 的 `Align` 均为 `0x4000`
-- APK 内 arm64 native 已只剩 ffmpeg-kit 的 9 个未对齐 ELF；构建脚本已固定官方 `v6.0` commit，AAR 导入也会在覆盖前执行结构、API、ABI 与 16 KB ELF 验证，但本机缺少可用 Linux/WSL 构建环境，仍未产出替换 AAR
+- APK 内播放器栈使用 FFmpegKit Maintained `8.1.7` 与确定性 arm64 mpv AAR；mpv AAR 持有与
+  `libmpv.so` 同为 Clang 21 的唯一 `libc++_shared.so`，FFmpegKit AAR 只持有九个 FFmpeg native 库。
+  最终 ELF 的所有 `PT_LOAD` 最小对齐必须至少为 `0x4000`，且 `libmpv.so` 所需 C++ 符号必须全部存在
 - 未被源码使用的 TensorFlow Lite 2.10 已移除，其 duplicate namespace 与 x86_64 `Aligned16KB` 告警不再存在
 - AGP 9.3 已消除 `CXX5304`；OpenFST 显式采用 `CMP0063=NEW` 后 CMake policy warning 也已消失
 - 当前 C/C++ 编译输出仍包含 fetched 或 vendored 第三方代码的废弃 API、未处理枚举和未使用表达式告警，不归为 Kiyori 产品壳源码新增问题

@@ -5,6 +5,8 @@ import sys
 import tempfile
 import unittest
 import zipfile
+import hashlib
+import io
 from pathlib import Path
 
 
@@ -16,6 +18,17 @@ from prepare_android_dependencies import (  # noqa: E402
     synchronize_native_runtime,
     validate_member,
     verify_outputs,
+)
+from prepare_mpv_player_dependency import (  # noqa: E402
+    FFMPEG_NATIVE_LIBRARY_NAMES,
+    FFMPEG_REQUIRED_MEMBERS,
+    MPV_REQUIRED_CLASS_MEMBERS,
+    MPV_THIN_MEMBERS,
+    build_ffmpeg_player_aar,
+    build_thin_aar,
+    remove_retired_player_native_owners,
+    validate_ffmpeg_player_aar,
+    validate_thin_aar,
 )
 
 
@@ -102,56 +115,101 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
             stale_gif.write_bytes(b"old-gif")
 
             android_ndk = root / "android-ndk"
-            ndk_libcxx = (
-                android_ndk
-                / "toolchains"
-                / "llvm"
-                / "prebuilt"
-                / "linux-x86_64"
-                / "sysroot"
-                / "usr"
-                / "lib"
-                / "aarch64-linux-android"
-                / "libc++_shared.so"
-            )
-            ndk_libcxx.parent.mkdir(parents=True)
-            ndk_libcxx.write_bytes(b"ndk-libcxx")
+            android_ndk.mkdir()
+            manual_libcxx = jni_root / "arm64-v8a" / "libc++_shared.so"
+            manual_libcxx.write_bytes(b"manual-libcxx")
 
-            extracted = {ffmpeg_aar, stale_gif}
+            extracted = {ffmpeg_aar, stale_gif, manual_libcxx}
+            for removed in remove_retired_player_native_owners(repository):
+                extracted.discard(removed)
             synchronize_native_runtime(repository, android_ndk, extracted)
 
             self.assertFalse(stale_gif.exists())
-            app_libcxx = jni_root / "arm64-v8a" / "libc++_shared.so"
-            self.assertEqual(app_libcxx.read_bytes(), b"ndk-libcxx")
-            self.assertIn(app_libcxx, extracted)
-            with zipfile.ZipFile(ffmpeg_aar) as stream:
-                self.assertEqual(stream.read("classes.jar"), b"classes")
-                self.assertNotIn("jni/arm64-v8a/libc++_shared.so", stream.namelist())
+            self.assertFalse(manual_libcxx.exists())
+            self.assertFalse(ffmpeg_aar.exists())
+            self.assertNotIn(ffmpeg_aar, extracted)
 
+    def test_thin_mpv_aar_has_exact_deterministic_members(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.aar"
+            first = root / "first.aar"
+            second = root / "second.aar"
+            classes_payload = io.BytesIO()
+            with zipfile.ZipFile(classes_payload, "w") as classes:
+                for name in sorted(MPV_REQUIRED_CLASS_MEMBERS):
+                    classes.writestr(name, b"class")
+            with zipfile.ZipFile(source, "w") as stream:
+                for name in MPV_THIN_MEMBERS:
+                    if name == "R.txt":
+                        payload = b""
+                    elif name == "classes.jar":
+                        payload = classes_payload.getvalue()
+                    else:
+                        payload = f"payload:{name}".encode()
+                    stream.writestr(name, payload)
+                stream.writestr("jni/arm64-v8a/libavcodec.so", b"duplicate-ffmpeg")
+                stream.writestr("jni/x86_64/libc++_shared.so", b"other-abi-libcxx")
 
-class FFmpegBuildScriptTest(unittest.TestCase):
-    def test_ffmpeg_source_commit_is_pinned(self) -> None:
-        script = (REPO_ROOT / "tools" / "ffmpeg" / "build_ffmpeg_kit_wsl.sh").read_text(
-            encoding="utf-8"
-        )
+            build_thin_aar(source, first)
+            build_thin_aar(source, second)
+            validate_thin_aar(first)
 
-        self.assertIn(
-            'FFMPEG_KIT_COMMIT="d6be56d7aec286eb3c292d6b23ff07a6b70d8693"',
-            script,
-        )
-        self.assertIn('rev-parse --verify HEAD', script)
-        self.assertIn('diff --cached --quiet', script)
+            with zipfile.ZipFile(first) as stream:
+                self.assertEqual(tuple(stream.namelist()), MPV_THIN_MEMBERS)
+            self.assertEqual(
+                hashlib.sha256(first.read_bytes()).hexdigest(),
+                hashlib.sha256(second.read_bytes()).hexdigest(),
+            )
 
-    def test_ffmpeg_import_targets_current_repository(self) -> None:
-        script = (
-            REPO_ROOT / "tools" / "ffmpeg" / "import_local_ffmpeg_kit.ps1"
-        ).read_text(encoding="utf-8")
+    def test_ffmpeg_player_aar_has_only_owned_arm64_native_members(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.aar"
+            first = root / "first.aar"
+            second = root / "second.aar"
+            with zipfile.ZipFile(source, "w") as stream:
+                for name in sorted(FFMPEG_REQUIRED_MEMBERS):
+                    stream.writestr(name, f"payload:{name}".encode())
+                stream.writestr("res/raw/license_component.txt", b"license")
+                for library_name in sorted(FFMPEG_NATIVE_LIBRARY_NAMES):
+                    stream.writestr(
+                        f"jni/arm64-v8a/{library_name}",
+                        f"arm64:{library_name}".encode(),
+                    )
+                    stream.writestr(
+                        f"jni/x86_64/{library_name}",
+                        f"x86_64:{library_name}".encode(),
+                    )
+                stream.writestr(
+                    "jni/arm64-v8a/libc++_shared.so",
+                    b"ffmpeg-libcxx",
+                )
+                stream.writestr(
+                    "jni/x86_64/libc++_shared.so",
+                    b"x86_64-libcxx",
+                )
 
-        self.assertNotIn("/mnt/d/Code/prog/assistance", script)
-        self.assertIn("wslpath -a $stagedAar", script)
-        self.assertIn("$targetWslPath", script)
-        self.assertIn("validate_ffmpeg_aar.py", script)
-        self.assertLess(script.index("--aar $stagedAar"), script.index("Move-Item"))
+            build_ffmpeg_player_aar(source, first)
+            build_ffmpeg_player_aar(source, second)
+            validate_ffmpeg_player_aar(first)
+
+            with zipfile.ZipFile(first) as stream:
+                native_members = {
+                    name for name in stream.namelist() if name.startswith("jni/")
+                }
+                self.assertEqual(
+                    {
+                        f"jni/arm64-v8a/{name}"
+                        for name in FFMPEG_NATIVE_LIBRARY_NAMES
+                    },
+                    native_members,
+                )
+                self.assertIn("res/raw/license_component.txt", stream.namelist())
+            self.assertEqual(
+                hashlib.sha256(first.read_bytes()).hexdigest(),
+                hashlib.sha256(second.read_bytes()).hexdigest(),
+            )
 
 
 if __name__ == "__main__":

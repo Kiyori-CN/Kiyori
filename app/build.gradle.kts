@@ -1,10 +1,15 @@
 import java.io.BufferedOutputStream
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.nio.file.Files
+import java.security.MessageDigest
 import java.util.Properties
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -32,6 +37,48 @@ plugins {
     alias(libs.plugins.legacy.kapt)
     alias(libs.plugins.kotlin.parcelize)
     id("io.objectbox")
+}
+
+val playerFfmpegSourceCoordinate =
+    "dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7"
+val playerFfmpegArm64Sha256 =
+    "1a30a94226bf2157927ec6edbb20154f9a1c1c53580f59cf55efe46db87a5ab3"
+val playerMpvThinSha256 =
+    "ecdc87102e7b4a9bb9c9d46af863f7c32b25b9aab7a161614af6646ffd603f70"
+val playerRequiredLibcxxSymbols =
+    listOf(
+        "_ZNSt6__ndk127__from_chars_floating_pointIfEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
+        "_ZNSt6__ndk127__from_chars_floating_pointIdEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
+    )
+
+private fun File.sha256Hex(): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    inputStream().buffered().use { stream ->
+        val buffer = ByteArray(1024 * 1024)
+        while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) break
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+}
+
+private fun InputStream.containsByteSequence(needle: ByteArray): Boolean {
+    require(needle.isNotEmpty()) { "Needle must not be empty" }
+    var matched = 0
+    while (true) {
+        val value = read()
+        if (value < 0) return false
+        val byte = value.toByte()
+        matched =
+            when {
+                byte == needle[matched] -> matched + 1
+                byte == needle[0] -> 1
+                else -> 0
+            }
+        if (matched == needle.size) return true
+    }
 }
 
 @CacheableTask
@@ -420,10 +467,176 @@ android {
             excludes += "META-INF/io.netty.versions.properties"
             excludes += "META-INF/INDEX.LIST"
             
-            // Fix for any other potential duplicate files
-            pickFirsts += "**/*.so"
         }
     }
+val verifyPlayerNativeInputs =
+    tasks.register("verifyPlayerNativeInputs") {
+        description = "Verifies the fixed, non-overlapping FFmpeg/libmpv input artifacts."
+        val mpvThinAar = layout.projectDirectory.file("libs/mpv-player-arm64.aar")
+        val ffmpegArm64Aar = layout.projectDirectory.file("libs/ffmpeg-kit-player-arm64.aar")
+        inputs.file(mpvThinAar)
+        inputs.file(ffmpegArm64Aar)
+        doLast {
+            val mpvAar = mpvThinAar.asFile
+            check(mpvAar.isFile) {
+                "Missing ${mpvAar.path}; run ci/script/prepare_mpv_player_dependency.py"
+            }
+            val mpvSha256 = mpvAar.sha256Hex()
+            check(mpvSha256 == playerMpvThinSha256) {
+                "Unexpected mpv thin AAR SHA-256: $mpvSha256"
+            }
+            val expectedMpvMembers =
+                listOf(
+                    "R.txt",
+                    "AndroidManifest.xml",
+                    "classes.jar",
+                    "assets/cacert.pem",
+                    "assets/subfont.ttf",
+                    "META-INF/com/android/build/gradle/aar-metadata.properties",
+                    "jni/arm64-v8a/libc++_shared.so",
+                    "jni/arm64-v8a/libmpv.so",
+                    "jni/arm64-v8a/libplayer.so",
+                )
+            ZipFile(mpvAar).use { archive ->
+                val members = archive.entries().asSequence().map { it.name }.toList()
+                check(members == expectedMpvMembers) {
+                    "Unexpected mpv thin AAR member list: $members"
+                }
+                val classesEntry = requireNotNull(archive.getEntry("classes.jar")) {
+                    "mpv thin AAR has no classes.jar"
+                }
+                val requiredClasses =
+                    setOf(
+                        "is/xyz/mpv/MPVLib.class",
+                        "is/xyz/mpv/MPVLib\$EventObserver.class",
+                        "is/xyz/mpv/MPVNode.class",
+                    )
+                val packagedClasses = mutableSetOf<String>()
+                ZipInputStream(ByteArrayInputStream(archive.getInputStream(classesEntry).readBytes())).use { classes ->
+                    while (true) {
+                        val entry = classes.nextEntry ?: break
+                        if (!entry.isDirectory && entry.name in requiredClasses) {
+                            packagedClasses += entry.name
+                        }
+                    }
+                }
+                check(packagedClasses == requiredClasses) {
+                    "mpv thin AAR is missing runtime classes: ${requiredClasses - packagedClasses}"
+                }
+                playerRequiredLibcxxSymbols.forEach { symbol ->
+                    val needle = symbol.toByteArray(Charsets.US_ASCII)
+                    val mpvNeedsSymbol =
+                        archive.getInputStream(requireNotNull(archive.getEntry("jni/arm64-v8a/libmpv.so")))
+                            .buffered()
+                            .use { stream -> stream.containsByteSequence(needle) }
+                    check(mpvNeedsSymbol) { "libmpv.so does not reference required C++ symbol $symbol" }
+                    val runtimeExportsSymbol =
+                        archive.getInputStream(requireNotNull(archive.getEntry("jni/arm64-v8a/libc++_shared.so")))
+                            .buffered()
+                            .use { stream -> stream.containsByteSequence(needle) }
+                    check(runtimeExportsSymbol) {
+                        "mpv libc++_shared.so does not provide required C++ symbol $symbol"
+                    }
+                }
+            }
+
+            val ffmpegAar = ffmpegArm64Aar.asFile
+            check(ffmpegAar.isFile) {
+                "Missing ${ffmpegAar.path}, derived from $playerFfmpegSourceCoordinate; " +
+                    "run ci/script/prepare_mpv_player_dependency.py"
+            }
+            val ffmpegSha256 = ffmpegAar.sha256Hex()
+            check(ffmpegSha256 == playerFfmpegArm64Sha256) {
+                "Unexpected player FFmpegKit AAR SHA-256: $ffmpegSha256"
+            }
+            val ffmpegLibraryNames =
+                setOf(
+                    "libavcodec.so",
+                    "libavdevice.so",
+                    "libavfilter.so",
+                    "libavformat.so",
+                    "libavutil.so",
+                    "libffmpegkit.so",
+                    "libffmpegkit_abidetect.so",
+                    "libswresample.so",
+                    "libswscale.so",
+                )
+            val expectedFfmpegMembers =
+                ffmpegLibraryNames.mapTo(mutableSetOf()) { library ->
+                    "jni/arm64-v8a/$library"
+                }
+            ZipFile(ffmpegAar).use { archive ->
+                val nativeMembers =
+                    archive.entries().asSequence()
+                        .map { it.name }
+                        .filter { it.startsWith("jni/") && it.endsWith(".so") }
+                        .toSet()
+                check(nativeMembers == expectedFfmpegMembers) {
+                    "Unexpected player FFmpegKit native member list: $nativeMembers"
+                }
+            }
+        }
+    }
+
+tasks.named("preBuild").configure {
+    dependsOn(verifyPlayerNativeInputs)
+}
+
+val verifyDebugPlayerRuntimePackaging =
+    tasks.register("verifyDebugPlayerRuntimePackaging") {
+        description = "Verifies that the Debug APK contains the mpv Java binding and Kiyori engine classes."
+        val debugApk = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")
+        inputs.file(debugApk)
+        doLast {
+            val apk = debugApk.get().asFile
+            check(apk.isFile) { "Debug APK is missing: $apk" }
+            val requiredDescriptors =
+                listOf(
+                    "Lis/xyz/mpv/MPVLib;",
+                    "Lis/xyz/mpv/MPVNode;",
+                    "Lcom/ai/assistance/operit/core/player/MpvPlayerEngine;",
+                )
+            ZipFile(apk).use { archive ->
+                val dexEntries =
+                    archive.entries().asSequence()
+                        .filter { entry ->
+                            !entry.isDirectory && Regex("classes(\\d+)?\\.dex").matches(entry.name)
+                        }
+                        .toList()
+                check(dexEntries.isNotEmpty()) { "Debug APK contains no classes*.dex entries" }
+                requiredDescriptors.forEach { descriptor ->
+                    val needle = descriptor.toByteArray(Charsets.US_ASCII)
+                    val found =
+                        dexEntries.any { entry ->
+                            archive.getInputStream(entry).buffered().use { stream ->
+                                stream.containsByteSequence(needle)
+                            }
+                        }
+                    check(found) { "Debug APK is missing runtime descriptor $descriptor" }
+                }
+                val libcxxEntries =
+                    archive.entries().asSequence()
+                        .filter { entry -> !entry.isDirectory && entry.name.endsWith("/libc++_shared.so") }
+                        .toList()
+                check(libcxxEntries.map { entry -> entry.name } == listOf("lib/arm64-v8a/libc++_shared.so")) {
+                    "Debug APK must contain one arm64 C++ runtime: ${libcxxEntries.map { it.name }}"
+                }
+                playerRequiredLibcxxSymbols.forEach { symbol ->
+                    val needle = symbol.toByteArray(Charsets.US_ASCII)
+                    val found =
+                        archive.getInputStream(libcxxEntries.single()).buffered().use { stream ->
+                            stream.containsByteSequence(needle)
+                        }
+                    check(found) { "Debug APK C++ runtime is missing required symbol $symbol" }
+                }
+            }
+        }
+    }
+
+tasks.matching { task -> task.name == "assembleDebug" }.configureEach {
+    finalizedBy(verifyDebugPlayerRuntimePackaging)
+}
+
 //    aaptOptions {
 //        noCompress += "tflite"
 //    }
@@ -499,8 +712,11 @@ dependencies {
     implementation("com.google.android.filament:gltfio-android:1.69.2")
     implementation("com.google.android.filament:filament-utils-android:1.69.2")
     implementation(libs.androidx.ui.graphics.android)
-    // Vendored binary dependencies live in app/libs, including ffmpeg-kit and its Java-side deps.
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+    // Fixed vendored JARs remain globbed. The two generated player AARs are explicit and own
+    // disjoint native names, including one C++ runtime built with the same toolchain as libmpv.
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    implementation(files("libs/mpv-player-arm64.aar"))
+    implementation(files("libs/ffmpeg-kit-player-arm64.aar"))
     implementation(libs.androidx.runtime.android)
     implementation(libs.androidx.ui.text.android)
     implementation(libs.androidx.animation.android)

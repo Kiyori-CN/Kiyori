@@ -9,9 +9,54 @@
 5. `\.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`
 6. 核对 `app/build/outputs/apk/debug/app-debug.apk`
 
+阶段 8 与阶段 9 必须分别完成以上六项。阶段 8 的 APK、native 清单和日记事件稳定后才允许开始阶段 9；
+最终构建不得用阶段 8 制品冒充。
+
 APK 证据至少记录：绝对路径、生成时间、大小、SHA-256、application ID、versionCode、versionName、minSdk、targetSdk 和 Android Debug v2 签名。涉及 native 依赖时额外记录 ABI、ZIP 16KB 对齐和每个 arm64 ELF 的 `PT_LOAD` 对齐。
 
+播放器 native 审计还必须核对：
+
+- APK 只包含 `arm64-v8a`，同一 SONAME/文件名只出现一次
+- `libmpv.so`、`libplayer.so`、FFmpegKit 的九个 native 库与唯一 `libc++_shared.so` 均存在
+- 不含旧 FFmpeg `n6.0` 库、第二份 `libav*.so` 或旧手工 C++ runtime
+- `libmpv.so`/`libplayer.so` 的 FFmpeg 未定义符号全部由 APK 内统一 FFmpeg `n8.1.2` 提供
+- `libmpv.so` 所需的 C++ 未定义符号全部由 APK 内唯一 `libc++_shared.so` 提供；至少固定检查 float/double
+  两个 `__from_chars_floating_point` 符号
+- 固定上游输入哈希、薄 AAR 输出哈希和最终 APK 中每个 native entry 哈希可追溯
+- 根 `LICENSE`、`NOTICE`、`PLAYER_NATIVE_STACK.md` 与应用开源许可证列表对同一来源/版本/许可陈述一致
+
 ## 当前最新本地制品
+
+阶段 9 播放器与浏览器嗅探最终制品：
+
+- `D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 时间 `2026-07-28 10:59:29 +08:00`，大小 `468740360` 字节，SHA-256 `44642BF9A4EE713D2566B6FEF2E77865067E7CB2D030F705D139075003B1ED03`
+- `applicationId com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`、`compileSdk 36`
+- Android Debug v2 签名通过，证书 SHA-256 `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`；`zipalign -c -P 16 -v 4` 为 `Verification successful`
+- APK 只含 `arm64-v8a`；46 个 native 文件名无重复，45 个 ELF 的每个 `PT_LOAD` 最小对齐均至少 `0x4000`；既有 2 字节 `libsudo.so` 是唯一非 ELF
+- `libmpv.so` 需要 251 个、`libplayer.so` 需要 34 个版本化 FFmpeg 动态符号，去重并集 256 个；APK 内唯一 `n8.1.2` 库集合全部提供，缺失 0；版本字符串为 mpv `v0.41.0-dev-g2339eb727` 与 FFmpeg `n8.1.2`
+- 九个 arm64 ELF 依赖唯一 `libc++_shared.so`，共 146 个 C++ 引用、121 个唯一 C++ 符号，缺失 0；
+  `libmpv.so` 与 runtime 均为 Android Clang `21.0.0` build `13989888`，现场缺失的 float/double
+  `__from_chars_floating_point` 两个导出均存在
+- mpv AAR 为 `29075301` 字节、SHA-256 `ECDC87102E7B4A9BB9C9D46AF863F7C32B25B9AAB7A161614AF6646FFD603F70`；
+  FFmpegKit arm64 AAR 为 `29989550` 字节、SHA-256 `1A30A94226BF2157927EC6EDBB20154F9A1C1C53580F59CF55EFE46DB87A5AB3`
+- 本轮 native 依赖 Python 测试 `18/18`、输入门禁、构建后 runtime 门禁和 Debug 构建通过；此前全量 JVM
+  `555/555` 与播放器行为测试结论未被本轮二进制所有权修改改变
+- 用户提供的 `ThreadPoolForeg` 崩溃已修正：`shouldInterceptRequest` 只读 `WebSession.appliedUserAgent`，不再从后台线程调用 `WebView.getSettings()`；该修正后的 APK 才是本节制品
+- `MPV_EVENT_END_FILE` 不再把 replace/stop 误判成自然结束；`eof-reached`、JNI `LinkageError` 可见错误、浏览器悬浮后台暂停和 Android 26-28 截图保存路径均已进入本节制品
+- 用户 `2026-07-28 10:06` 真机截图中的 `dlopen` 缺失 C++ 符号已在该制品的输入门禁和 APK 审计中消除；
+  重新安装后的真实播放、硬件解码、Anime4K 性能、手势、悬浮/全屏往返、后台行为和站点兼容仍为
+  `verification_pending`
+
+阶段 8 播放器基础制品：
+
+- `D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 时间 `2026-07-28 01:49:07 +08:00`，大小 `468740920` 字节，SHA-256 `E92FF610D80F9F632EEC3AE08FA857760CD8E65D9FB807DE2829AAE968C2D6C6`
+- `applicationId com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`、`compileSdk 36`
+- Android Debug v2 签名与 `zipalign -c -P 16 -v 4` 通过
+- APK 仅含 `arm64-v8a`；46 个 native 名无重复，45 个 ELF 的最小 `PT_LOAD` 均至少 `0x4000`，既有 `libsudo.so` 为唯一非 ELF
+- `libmpv.so`/`libplayer.so` 所需 254 个 FFmpeg 动态符号由统一 `n8.1.2` 栈全部提供，缺失 0；mpv 字符串为 `v0.41.0-dev-g2339eb727`
+- 该制品只冻结阶段 8 证据；阶段 9 完成后必须以新的最终 APK 替换，不得直接交付此文件
 
 - 浏览器与负一屏共享下载抽屉切片：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
 - 生成时间 `2026-07-27 13:31:19 +08:00`，大小 `449493090` 字节，SHA-256 `89CADC2171FC9B07202F9CB084CBC87F2A48ECB7AA17BBA830978C38AF5C924C`

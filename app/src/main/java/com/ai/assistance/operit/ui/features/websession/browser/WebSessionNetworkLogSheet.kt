@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -96,6 +97,8 @@ internal fun WebSessionBrowserNetworkLog(
     currentPageUrl: String,
     onClear: () -> Unit,
     onStartDownload: (String, String, String, BrowserDownloadEngine) -> Boolean,
+    onPlayMediaCandidate: (String) -> Boolean,
+    onDownloadMediaCandidate: (String) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -237,12 +240,13 @@ internal fun WebSessionBrowserNetworkLog(
             onDownload = {
                 val fileName = resolveManualBrowserDownloadFileName("", entry.url, "")
                 val accepted =
-                    onStartDownload(
-                        fileName,
-                        entry.url,
-                        "",
-                        downloadSettingsStore.current.defaultEngine,
-                    )
+                    entry.mediaCandidateId?.let(onDownloadMediaCandidate)
+                        ?: onStartDownload(
+                            fileName,
+                            entry.url,
+                            "",
+                            downloadSettingsStore.current.defaultEngine,
+                        )
                 if (accepted) {
                     Toast.makeText(
                         context,
@@ -250,6 +254,10 @@ internal fun WebSessionBrowserNetworkLog(
                         Toast.LENGTH_SHORT,
                     ).show()
                 }
+                actionEntry = null
+            },
+            onPlay = {
+                entry.mediaCandidateId?.let(onPlayMediaCandidate)
                 actionEntry = null
             },
             onOpenExternal = {
@@ -461,6 +469,7 @@ private fun BrowserNetworkLogActionDialog(
     entry: WebSessionBrowserNetworkEntry,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
+    onPlay: () -> Unit,
     onDownload: () -> Unit,
     onOpenExternal: () -> Unit,
     onViewDetails: () -> Unit,
@@ -486,6 +495,13 @@ private fun BrowserNetworkLogActionDialog(
                     title = stringResource(R.string.web_session_network_log_copy_link),
                     onClick = onCopy,
                 )
+                if (entry.mediaCandidateId != null) {
+                    BrowserNetworkLogActionRow(
+                        icon = Icons.Filled.PlayArrow,
+                        title = "在线播放",
+                        onClick = onPlay,
+                    )
+                }
                 if (networkUrl) {
                     BrowserNetworkLogActionRow(
                         icon = Icons.Filled.Download,

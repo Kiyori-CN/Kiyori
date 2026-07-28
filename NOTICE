@@ -1,0 +1,71 @@
+Kiyori third-party and player notices
+=====================================
+
+Kiyori is distributed under GPL-3.0-or-later. The complete GNU GPL version 3
+text is in LICENSE. This notice does not replace the license texts shipped by
+individual dependencies.
+
+Player native stack
+-------------------
+
+1. mpv and Android JNI binding
+
+   Source: https://github.com/Riteshp2001/mpvlibAndroid
+   Fixed tag: 2026-06-25
+   Fixed commit: 168e0a5e43b37c85509050cddcb5eaddc2e313c0
+   Binary input: mpv-android-lib-2026-06-25.aar
+   Binary SHA-256: CA0D1C60DDFE5BAD46C369D0D0BF6C2D1A8BB5EC5A3AB916C33F892D0263A75E
+   mpv source: https://github.com/mpv-player/mpv
+
+   Kiyori creates a deterministic arm64 thin AAR from that fixed input. It
+   retains the Java API, required assets, libmpv.so, libplayer.so, and the
+   matching libc++_shared.so, while removing the bundled FFmpeg copies. Kiyori
+   does not modify those native libraries. libmpv is dynamically linked to the
+   FFmpeg shared libraries described below. Distribution must provide the
+   complete corresponding source and build information required by the
+   applicable mpv and GPL licenses.
+
+   Thin AAR SHA-256: ECDC87102E7B4A9BB9C9D46AF863F7C32B25B9AAB7A161614AF6646FFD603F70
+
+   C++ runtime SHA-256: C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B
+   C++ runtime source: https://github.com/llvm/llvm-project/tree/main/libcxx
+   Toolchain identity: Android Clang 21.0.0, build 13989888
+   License: Apache-2.0 WITH LLVM-exception
+   License body: docs/legal/third_party/LLVM-APACHE-2.0-WITH-LLVM-EXCEPTION.txt
+   License body SHA-256: C20FDCFB7F85FD154F13C62587EEA03A514A106A9367EFE5D099149CF0FDBB1D
+
+2. FFmpegKit Maintained and FFmpeg
+
+   Maven coordinate: dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7
+   Source: https://github.com/ffmpegkit-maintained/ffmpeg
+   Fixed tag: v8.1.7
+   Fixed tag object/commit: 62b07bf097baf26b416c815aea514e05c9ad6d63
+   Binary SHA-256: C3CBC81D498175FD2AA69EE2DFE7DAFBF519052A96283C2568FE5B3B16618456
+   FFmpeg version: n8.1.2
+
+   Kiyori creates a deterministic arm64 AAR from this fixed input. It retains
+   the Java API, proguard metadata, embedded res/raw license and source notices,
+   and the nine FFmpegKit/FFmpeg libraries. It removes the x86_64 libraries and
+   the input AAR's C++ runtime so the APK contains the matching mpv runtime
+   described above.
+
+   Player arm64 AAR SHA-256: 1A30A94226BF2157927EC6EDBB20154F9A1C1C53580F59CF55EFE46DB87A5AB3
+
+   FFmpeg and enabled external libraries retain their own licenses.
+   Distribution must provide relinkable/dynamically linked library materials
+   and corresponding source as required by LGPL-3.0 and each enabled library's
+   notice.
+
+3. Anime4K shaders
+
+   Upstream: https://github.com/bloc97/Anime4K
+   Integration reference: https://github.com/azxcvn/mpv-android-anime4k
+   Fixed integration commit: 32f5f16988c1b2d5979eef692695bdef7232b7eb
+   Copyright: 2019-2021 bloc97
+   License: MIT
+
+   The full MIT notice is retained at the beginning of every copied shader.
+
+The exact transformed-artifact hash, packaged ABI list, dynamic dependency
+audit, and 16 KB ELF evidence are maintained in
+docs/doc-src/dev-core/PLAYER_NATIVE_STACK.md.

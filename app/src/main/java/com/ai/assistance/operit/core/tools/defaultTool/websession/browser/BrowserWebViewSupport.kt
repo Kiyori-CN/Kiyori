@@ -64,6 +64,7 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
         BrowserToolSession(
             id = sessionId,
             webView = webView,
+            cookieManager = profileManager.cookieManagerFor(webView, profile),
             sessionName = sessionName,
             profile = profile,
             customUserAgent = customUserAgent
@@ -76,7 +77,7 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
         sessionId = session.id,
         webView = session.webView,
         cookieScope = session.profile.wireName,
-        cookieManager = profileManager.cookieManagerFor(session.webView, session.profile),
+        cookieManager = session.cookieManager,
     )
     return session
 }
@@ -154,6 +155,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
         addJavascriptInterface(BrowserWebDownloadBridge(this@configureWebView, session), "OperitWebDownloadBridge")
         addJavascriptInterface(BrowserAsyncBridge(), "OperitAsyncBridge")
         addJavascriptInterface(BrowserTextSelectionBridge(), "OperitTextSelectionBridge")
+        addJavascriptInterface(
+            BrowserMediaCandidateBridge(this@configureWebView, session),
+            "OperitMediaCandidateBridge",
+        )
         setDownloadListener(createDownloadListener(session))
         setOnLongClickListener { true }
         isLongClickable = false
@@ -329,6 +334,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 // otherwise the window grid could display content captured from the previous URL.
                 clearSessionThumbnail(session)
                 clearEventLogs(session)
+                clearMediaCandidates(session)
                 session.pendingDialog = null
                 notifySessionStateChanged(session)
                 userscriptManager.onPageChanged(session.id, url, forceReset = true)
@@ -356,6 +362,9 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 refreshNavigationStateFromWebView(view, session)
                 injectDownloadHelper(view)
                 injectTextSelectionHelper(view)
+                // This observer only reads video URLs and reports them to the owning WebSession.
+                // Calling webpage media controls here would mutate site state during presentation changes.
+                injectMediaCandidateObserver(view)
                 if (session.profile.shouldPersistBrowserHistory) {
                     ioScope.launch {
                         historyStore.updateTitle(url, session.pageTitle)
@@ -396,8 +405,13 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 request: WebResourceRequest
             ): android.webkit.WebResourceResponse? {
                 recordNetworkRequest(session, request)
-                return userscriptManager.interceptWebRequest(session.id, request)
-                    ?: super.shouldInterceptRequest(view, request)
+                recordRequestMediaCandidate(session, request)
+                val interceptedResponse = userscriptManager.interceptWebRequest(session.id, request)
+                if (interceptedResponse != null) {
+                    recordInterceptedResponseMediaCandidate(session, request, interceptedResponse)
+                    return interceptedResponse
+                }
+                return super.shouldInterceptRequest(view, request)
             }
 
             override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
@@ -879,6 +893,41 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             userscriptManager.invokeMenuCommand(resolvePreferredSessionId(), commandId)
         }
 
+        override fun onPlayMediaCandidate(candidateId: String): Boolean =
+            runCatching { playMediaCandidate(candidateId) }
+                .fold(
+                    onSuccess = { accepted -> accepted },
+                    onFailure = { error ->
+                        AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to play browser media candidate", error)
+                        showToast(error.toString())
+                        false
+                    },
+                )
+
+        override fun onDownloadMediaCandidate(candidateId: String): Boolean =
+            runCatching { downloadMediaCandidate(candidateId) }
+                .fold(
+                    onSuccess = { accepted -> accepted },
+                    onFailure = { error ->
+                        AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to download browser media candidate", error)
+                        showToast(error.toString())
+                        false
+                    },
+                )
+
+        override fun onTogglePlayerPause() {
+            toggleBrowserPlayerPause()
+        }
+
+        override fun onOpenPlayerFullscreen() {
+            openBrowserPlayerFullscreen()
+        }
+
+        override fun onClosePlayer() {
+            closeBrowserPlayer()
+            StandardBrowserSessionTools.browserHost?.clearPlayerFullscreenHandoff()
+        }
+
         override fun onPauseDownload(taskId: String) {
             performBrowserDownloadAction(taskId, BrowserDownloadAction.PAUSE)
         }
@@ -1277,6 +1326,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
     val activeId = registry.activeSessionId
     val activeSession = activeId?.let(::sessionById)
     val orderedIds = registry.orderedSessionIds
+    val activeMediaCandidates = activeSession?.let(::snapshotMediaCandidates).orEmpty()
 
     return WebSessionBrowserState(
         activeSessionId = activeId,
@@ -1298,6 +1348,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     session.currentUrl,
                 )
             },
+        floatingSniffPlaybackEnabled = browserSettingsStore.current.floatingSniffPlaybackEnabled,
         activeDownloadCount = downloadSummary.activeCount,
         hasFailedDownloads = downloadSummary.failedCount > 0,
         failedDownloadCount = downloadSummary.failedCount,
@@ -1341,10 +1392,31 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                             isStatic = entry.isStatic,
                             category = entry.category,
                             timestamp = entry.timestamp,
+                            mediaCandidateId =
+                                findDirectMediaCandidateIdForNetworkEntry(
+                                    activeMediaCandidates,
+                                    entry.url,
+                                ),
                         )
                     }
                 }
-            } ?: emptyList()
+            } ?: emptyList(),
+        mediaCandidates =
+            activeMediaCandidates.map { candidate ->
+                WebSessionBrowserMediaCandidate(
+                    id = candidate.id,
+                    url = candidate.url,
+                    pageUrl = candidate.pageUrl,
+                    mimeType = candidate.displayMimeType,
+                    urlEvidence = candidate.urlEvidence,
+                    discoverySources = candidate.discoverySources,
+                    firstDiscoveredAt = candidate.firstDiscoveredAt,
+                    lastDiscoveredAt = candidate.lastDiscoveredAt,
+                    directPlaybackReady = candidate.directPlaybackReady,
+                    downloadReady = candidate.downloadReady,
+                    isBlob = candidate.isBlob,
+                )
+            },
     )
 }
 
@@ -1535,6 +1607,7 @@ internal fun StandardBrowserSessionTools.applySessionUserAgent(
         loadWithOverviewMode =
             resolvedUserAgent.usesDesktopLayout && session.viewportWidthPx == null
     }
+    session.appliedUserAgent = resolvedUserAgent.userAgent
 }
 
 internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserToolSession) {
@@ -1904,6 +1977,7 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
     removeSessionOrder(sessionId)
 
     runOnMainSync<Unit> {
+        closePlayerOwnedByBrowserSession(sessionId)
         userscriptManager.detachSession(sessionId)
         if (wasActive) {
             StandardBrowserSessionTools.activeSessionId = null

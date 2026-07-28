@@ -207,7 +207,10 @@ git submodule update --init --recursive terminal
 ./app/libs
 ```
 
-下载完成后使用固定 NDK 运行受控解包；该步骤会删除归档中的旧 GIF native 副本、移除 ffmpeg AAR 内重复的旧 arm64 C++ 运行库，并将 app 唯一的 arm64 C++ 运行库同步为 NDK `28.2.13676358` 的版本：
+下载完成后使用固定 NDK 运行受控解包；该步骤会删除归档中的旧 GIF native 副本、旧
+`ffmpeg-kit-local.aar` 和手工 `libc++_shared.so`，并从两个固定 release/hash 生成互不重叠的 arm64
+播放器 AAR。mpv AAR 包含 Java API、`libmpv.so`、`libplayer.so` 及同工具链的 `libc++_shared.so`；
+FFmpegKit AAR 保留 Java/资源/许可证和九个 FFmpeg native 库：
 
 ```bash
 python3 ci/script/prepare_android_dependencies.py \
@@ -217,27 +220,18 @@ python3 ci/script/prepare_android_dependencies.py \
   --android-ndk "$ANDROID_HOME/ndk/28.2.13676358"
 ```
 
-如果需要替换 `app/libs/ffmpeg-kit-local.aar`，必须在 Linux 或 WSL 使用固定源码重建。当前 AAR 对应 FFmpeg `n6.0`，项目固定使用 ffmpeg-kit 官方 `v6.0` commit `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`；构建脚本会拒绝其他 commit 和已有 tracked 修改的源码目录。
-
-```bash
-git clone --branch v6.0 --depth 1 https://github.com/arthenica/ffmpeg-kit.git ~/build/ffmpeg-kit
-git -C ~/build/ffmpeg-kit rev-parse HEAD
-./tools/ffmpeg/build_ffmpeg_kit_wsl.sh ~/build/ffmpeg-kit
-```
-
-`rev-parse` 必须输出 `d6be56d7aec286eb3c292d6b23ff07a6b70d8693`。构建完成后，从 Windows 仓库根目录导入 AAR；脚本会将当前仓库的真实目标路径转换为 WSL 路径，不依赖旧工程目录。导入时先复制到临时文件，只有 ZIP CRC、Java API、唯一 `arm64-v8a` ABI、9 个预期 native 库、AArch64 ELF 和所有 `PT_LOAD >= 0x4000` 同时通过后才覆盖现有 AAR。
+本地只需重新生成播放器 native AAR 时，使用项目虚拟环境：
 
 ```powershell
-.\tools\ffmpeg\import_local_ffmpeg_kit.ps1 -Distro FedoraLinux-43
+.\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py --repository .
 ```
 
-也可以在导入前单独验证候选文件：
-
-```powershell
-.\.venv\Scripts\python.exe -B ci\script\validate_ffmpeg_aar.py --aar <candidate.aar>
-```
-
-导入后必须重新运行依赖准备、Debug 构建、`zipalign -c -P 16 -v 4` 与逐 ELF `llvm-readelf -lW` 审计。不得只凭 AAR 文件名或构建成功宣称支持 16 KB。
+准备脚本固定下载并校验 `dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7` 原始 AAR。Gradle 只消费两份生成
+AAR，`preBuild` 强制核对输出 SHA-256、精确 native member 集，以及 `libmpv.so` 所需的两个
+`__from_chars_floating_point` 符号是否由唯一 `libc++_shared.so` 提供。
+完整来源、哈希、许可证与动态链接边界见 [Player native stack](./PLAYER_NATIVE_STACK.md)。准备后必须重新运行
+Debug 构建、`zipalign -c -P 16 -v 4` 与逐 ELF `llvm-readelf -lW` 审计。不得只凭 AAR 文件名或构建成功
+宣称支持 16 KB。
 
 3. **切换到你的工作分支 (如果需要):**
 ```bash

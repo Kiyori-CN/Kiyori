@@ -7758,7 +7758,6 @@
     <string name="web_session_clear_profile_tabs">关闭当前分组全部窗口</string>
     <string name="web_session_placeholder_status">当前功能尚未接入</string>
     <string name="web_session_placeholder_runtime_unchanged">此页面不会改变当前网页、标签页、Cookie 或 AI 操控状态。</string>
-    <string name="web_session_placeholder_floating_sniffer">悬浮嗅探需要资源候选、播放器交接以及下载/播放归属，目前运行时尚未提供完整链路。</string>
     <string name="web_session_placeholder_toolbox">浏览器菜单已经是唯一菜单入口，独立第二工具箱尚未定义。</string>
     <string name="web_session_placeholder_reader_mode">阅读模式需要正文提取、转换和阅读状态管线，目前尚未接入。</string>
     <string name="web_session_placeholder_ad_marking">标记广告需要页面级规则、注入脚本和持久化标记归属，目前尚未接入。</string>

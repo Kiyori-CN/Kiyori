@@ -2256,6 +2256,40 @@ internal fun StandardBrowserSessionTools.startBrowserManagedDownload(
     }
 }
 
+internal fun StandardBrowserSessionTools.startMediaCandidateDownload(
+    session: StandardBrowserSessionTools.WebSession,
+    candidate: BrowserMediaCandidate,
+): Boolean {
+    require(candidate.downloadReady && isBrowserDownloadNetworkUrl(candidate.url)) {
+        "Media candidate is not an http or https download: ${candidate.url}"
+    }
+    val mimeType = candidate.displayMimeType
+    val fileName = sanitizeFileName(android.webkit.URLUtil.guessFileName(candidate.url, null, mimeType))
+    val settings = BrowserDownloadSettingsStore.getInstance(context).current
+    val request =
+        PendingBrowserDownloadRequest(
+            requestId = UUID.randomUUID().toString(),
+            sessionId = session.id,
+            url = candidate.url,
+            fileName = fileName,
+            mimeType = mimeType,
+            contentLength = -1L,
+            // Candidate headers are the observed request identity. Rebuilding them here would
+            // lose Origin/Range/Accept or widen the captured Cookie scope.
+            headers = candidate.requestHeaders,
+            engine = settings.defaultEngine,
+        )
+    if (settings.skipConfirmation) {
+        return dispatchBrowserDownloadRequest(request)
+    }
+    check(StandardBrowserSessionTools.pendingBrowserDownloadRequest == null) {
+        "A browser download request is already awaiting confirmation."
+    }
+    StandardBrowserSessionTools.pendingBrowserDownloadRequest = request
+    refreshSessionUiOnMain()
+    return true
+}
+
 internal fun StandardBrowserSessionTools.startManualBrowserDownload(
     url: String,
     requestedFileName: String,

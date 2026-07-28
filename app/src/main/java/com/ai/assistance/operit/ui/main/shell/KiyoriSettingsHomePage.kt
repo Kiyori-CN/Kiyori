@@ -62,6 +62,7 @@ internal enum class KiyoriSettingsHomeAction {
     OPEN_AI_SETTINGS,
     OPEN_BROWSER_SETTINGS,
     OPEN_DOWNLOAD_SETTINGS,
+    OPEN_PLAYER_SETTINGS,
 }
 
 internal val kiyoriSettingsHomeGroups =
@@ -84,7 +85,12 @@ internal val kiyoriSettingsHomeGroups =
                 Color(0xFF6A96F2),
                 KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
             ),
-            KiyoriSettingsHomeEntry("视频播放器", Icons.Default.PlayCircle, Color(0xFFF06E71)),
+            KiyoriSettingsHomeEntry(
+                "视频播放器",
+                Icons.Default.PlayCircle,
+                Color(0xFFF06E71),
+                KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS,
+            ),
             KiyoriSettingsHomeEntry("音乐播放器", Icons.Default.Audiotrack, Color(0xFF8A6FF2)),
             KiyoriSettingsHomeEntry("小说阅读器", Icons.AutoMirrored.Filled.MenuBook, Color(0xFFCC935C)),
         ),
@@ -112,6 +118,7 @@ internal fun KiyoriSettingsHomePage(
     onOpenAiSettings: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
+    onOpenPlayerSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -125,6 +132,7 @@ internal fun KiyoriSettingsHomePage(
                 onOpenAiSettings = onOpenAiSettings,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
+                onOpenPlayerSettings = onOpenPlayerSettings,
             )
         }
         item { Spacer(modifier = Modifier.height(96.dp)) }
@@ -181,6 +189,7 @@ private fun KiyoriSettingsHomeGroupCard(
     onOpenAiSettings: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
+    onOpenPlayerSettings: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
@@ -195,6 +204,7 @@ private fun KiyoriSettingsHomeGroupCard(
                     onOpenAiSettings = onOpenAiSettings,
                     onOpenBrowserSettings = onOpenBrowserSettings,
                     onOpenDownloadSettings = onOpenDownloadSettings,
+                    onOpenPlayerSettings = onOpenPlayerSettings,
                 )
                 if (index != entries.lastIndex) {
                     Box(
@@ -216,6 +226,7 @@ private fun KiyoriSettingsHomeRow(
     onOpenAiSettings: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
+    onOpenPlayerSettings: () -> Unit,
 ) {
     Row(
         modifier =
@@ -227,6 +238,7 @@ private fun KiyoriSettingsHomeRow(
                         KiyoriSettingsHomeAction.OPEN_AI_SETTINGS -> onOpenAiSettings()
                         KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
                         KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
+                        KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS -> onOpenPlayerSettings()
                     }
                 }
                 .padding(start = 16.dp, end = 14.dp, top = 16.dp, bottom = 16.dp),

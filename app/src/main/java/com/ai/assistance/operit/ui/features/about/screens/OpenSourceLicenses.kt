@@ -72,7 +72,11 @@ private fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
 
         // Multimedia
         OpenSourceLibrary("ExoPlayer", "Extensible media player for Android", "Apache-2.0", "https://exoplayer.dev/"),
-        OpenSourceLibrary("FFmpegKit", "FFmpeg toolkit for mobile platforms", "LGPL-3.0", "https://github.com/arthenica/ffmpeg-kit"),
+        OpenSourceLibrary("FFmpegKit Maintained", "FFmpeg toolkit for Android", "LGPL-3.0", "https://github.com/ffmpegkit-maintained/ffmpeg"),
+        OpenSourceLibrary("LLVM libc++", "C++ runtime used by Kiyori Player", "Apache-2.0 WITH LLVM-exception", "https://github.com/llvm/llvm-project/tree/main/libcxx"),
+        OpenSourceLibrary("mpv", "Media player core used by Kiyori Player", "GPL-2.0-or-later", "https://github.com/mpv-player/mpv"),
+        OpenSourceLibrary("mpvlibAndroid", "Android JNI bindings and libmpv build", "GPL-2.0-or-later", "https://github.com/Riteshp2001/mpvlibAndroid"),
+        OpenSourceLibrary("Anime4K", "Real-time anime upscaling shaders", "MIT", "https://github.com/bloc97/Anime4K"),
 
         // AI & Machine Learning
         OpenSourceLibrary("ML Kit", "Google's machine learning toolkit for mobile", "Apache-2.0", "https://developers.google.com/ml-kit"),
