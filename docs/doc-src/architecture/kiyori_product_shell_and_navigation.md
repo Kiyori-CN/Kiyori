@@ -150,7 +150,7 @@ AI 设置由模态 AI 抽屉或设置首页进入同一页面与持久状态。�
 
 同一时间存活的无痕窗口共享一个唯一命名的 AndroidX Profile 代际。关闭最后一个无痕窗口后，Browser Runtime 销毁 WebView、清理 Cookie、WebStorage 和定位授权，并立即退休代际；下一段无痕会话创建全新代际。AndroidX 禁止在同一进程删除已加载 Profile，因此启动清理会在下一次冷启动、任何 Kiyori 无痕 Profile 加载前物理删除全部退休代际。窗口总览的缩略图固定为 `320×512`，使用两个方向的最小缩放值居中绘制完整当前 WebView 视口；UI 以 `5:8` 纵向比例和 `ContentScale.Fit` 显示，不裁切网页。
 
-首页右上角窗口按钮的数量由 `StandardBrowserSessionTools.syncProjectedBrowserStateOnMain` 同步发布。首页与浏览器底栏第四项共同使用 `WebSessionBrowserWindowCountIcon` 的 `23×21dp` 方框数字视觉；点击首页按钮后先确保共享 presentation 和活动 session，再在同一个 `WebSessionBrowserHost` 上设置 `WebSessionBrowserSheetRoute.TABS`，因此两处进入完全相同的总览页面。
+首页右上角窗口按钮的数量由 `StandardBrowserSessionTools.syncProjectedBrowserStateOnMain` 同步发布。首页与浏览器底栏第四项共同使用 `WebSessionBrowserWindowCountIcon` 的 `23×21dp` 方框数字视觉；点击首页按钮后先在同一个 `WebSessionBrowserHost` 上设置 `WebSessionBrowserSheetRoute.TABS`，再进入 Browser Home，由 App presentation 获取流程创建或连接活动 session。该入口不先挂一次后台 anchor，因此两处进入完全相同的总览页面且不制造无意义的跨窗口往返。
 
 首页左上角天气只在已有定位授权时自动刷新；未授权时点击请求 Android 定位权限。`LocationManager.NETWORK_PROVIDER` 提供城市级定位，`Geocoder` 的 `locality` 是唯一城市字段；定位、城市解析、网络或响应失败都会显示明确的不可用状态，不展示猜测值。Open-Meteo 当前天气接口接收经纬度并返回摄氏温度与 WMO code，前台每 30 分钟最多刷新一次。免费接口仅限非商业用途并受服务限制，坐标会发送给该第三方；参见 <https://open-meteo.com/en/terms>。
 
@@ -391,15 +391,17 @@ Operit AI 通过 Kiyori Capability API 操作产品能力，不能直接依赖�
 
 浏览器、播放器、文件、下载、阅读器等领域分别拥有自己的合同。一个综合 AI 工具可以编排多个合同，但不越过各领域 owner 写入状态。
 
-浏览器的 App Shell 页面和悬浮窗不是两个浏览器。它们只竞争 `APP_SHELL` 或 `OVERLAY` presentation owner，同一时刻由一个宿主挂载活动 WebView。标签、WebView、Cookie、历史、书签、下载和用户脚本始终只有一个领域 owner。切换 presentation 只能转挂 View，禁止调用 `loadUrl`、`reload`、`destroy` 或创建状态副本。
+浏览器只有一个完整可见宿主：`MainActivity` 中的 App Shell Browser Home。活动 WebView 只在 `APP_SHELL` 与 `BACKGROUND_ANCHOR` presentation owner 之间转挂；后者是系统层 1×1、不可见、不可触摸、不可聚焦的后台 attach 点，不组合浏览器 chrome、抽屉、文本选择操作条或播放器。标签、WebView、Cookie、历史、书签、下载和用户脚本始终只有一个领域 owner。Browser Home 持有一次性 App presentation lease，显式退出后 Compose disposal 的重复 release 不再执行。重复请求当前 owner 直接保持原挂载；真实跨 ViewRoot 切换必须从旧 parent 移除 WebView、移除旧 background window、确认 parent 为空，等待一个 `Choreographer` 渲染帧并确认旧 anchor ViewRoot 已脱离后，才把同一 View 挂入目标 host。Browser Home 活跃期间不保留空 anchor 窗口。整个事务禁止调用 `loadUrl`、`reload`、`destroy` 或创建状态副本。
 
-Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限；Browser Home 不可见且 AI 需要 overlay 展示时，继续遵守 overlay 权限合同。关闭最后标签时，可见的 Browser Home 保留无标签页面；没有 App Shell owner 时才关闭无会话 overlay。
+Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限。Browser Home 不可见时，AI 仍操作同一 session 和 WebView：已有 overlay 权限时挂到后台 anchor；缺少权限时返回明确权限错误，不创建 headless WebView、第二个 session 或覆盖人工页面。最小 indicator 点击后通过显式 action 打开现有 Browser Home。关闭最后标签时，可见的 Browser Home 保留无标签页面；后台 anchor 和 indicator 不拥有会话状态。
 
 Browser Home 是沉浸式根页面。其浏览器专属底栏、全屏标签总览和底部抽屉只观察共享 host projection 并调用现有 runtime 命令。打开或关闭这些覆盖层不能释放 presentation lease、重建 AndroidView、复制标签状态或触发网页导航。详细方案见 [浏览器沉浸式 UI 重构](../../TODO/kiyori_browser_ui_refactor/index.md)。
 
+播放器同样只有一个 `PlayerSession` 和一个 mpv core。floating 与 fullscreen `PlayerSurfaceView` 只是 Surface lease owner：每个 owner 使用明确 role、实例 token 和单调 generation，状态机同时记录 current/pending owner、native detach 是否完成、transfer target 以及一次性 Activity launch/finish request。新 owner 可以先登记为 pending，但旧 owner 未通过 `surfaceDestroyed` 完成 native detach 前不能 attach。Surface 转挂不重新执行 `loadfile`，不改变 request、URL、headers、位置、暂停、速度、轨道、字幕、Anime4K 或 `loadGeneration`。
+
 书签管理同样属于这一个 Browser Runtime。`WebSessionHistoryStore` 在原有 `bookmarks_json` 上兼容增加稳定 ID、图标、文件夹、手动顺序和秘密空间字段，并在同一 DataStore 的 `bookmark_folders_json` 中保存目录树。浏览器菜单的加书签图标固定不变，未收藏页面先打开四字段编辑弹窗，已收藏页面只切换文字并移除普通空间中的当前网址；秘密空间状态不暴露给普通菜单。书签文件夹选择以 `/` 为首行，随后按同级手动顺序深度优先展开，只显示节点名称并按深度缩进。书签子抽屉继续使用下载抽屉的三态 viewport owner；搜索、路径、排序、长按菜单和秘密空间只是同一持久化状态的展示与 mutation 入口。两种抽屉的锚定菜单统一使用 `40dp` 选项、触发点定位和抽屉内遮罩，居中弹窗统一使用全窗口遮罩。负一屏书签卡观察普通空间书签数并挂载同一个书签抽屉。当前标签打开、后台新标签和前台新标签均调用现有 WebSession registry，禁止创建第二个浏览器或书签仓库。
 
-网络日志也属于单个 WebSession，而不是跨窗口持久化诊断库。现有 Android WebView `shouldInterceptRequest` 只记录当前请求能够确认的 method、URL、主框架标记、请求头与时间，并把最多 500 条内存记录投影给 App Shell、悬浮浏览器和 AI 共用的 host。页面导航与用户清空只清该 session；搜索、六类筛选、第三方 host 提示和操作弹窗属于 presentation 状态。列表禁止加载远端缩略图，避免观察行为污染日志。复制和外部打开使用已记录 HTTP/HTTPS URL，下载复用 `BrowserDownloadManager`、当前默认 engine 与活动 Profile 请求身份。Android WebView 没有提供的响应状态、响应 MIME、拦截和播放器状态不得从 URL 猜测或从旧版 X5/hikerView 复制。
+网络日志也属于单个 WebSession，而不是跨窗口持久化诊断库。现有 Android WebView `shouldInterceptRequest` 只记录当前请求能够确认的 method、URL、主框架标记、请求头与时间，并把最多 500 条内存记录投影给 App Shell Browser Home 与 AI 共用的 host；1×1 background anchor 不组合日志 UI。页面导航与用户清空只清该 session；搜索、六类筛选、第三方 host 提示和操作弹窗属于 presentation 状态。列表禁止加载远端缩略图，避免观察行为污染日志。复制和外部打开使用已记录 HTTP/HTTPS URL，下载复用 `BrowserDownloadManager`、当前默认 engine 与活动 Profile 请求身份。Android WebView 没有提供的响应状态、响应 MIME、拦截和播放器状态不得从 URL 猜测或从旧版 X5/hikerView 复制。
 
 AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3 关键操作。风险由具体命令、目标、范围、可逆性、数据敏感度和外部影响共同决定，不能按工具名称固定。`ALLOW` 只能免除 R0 与 R1 的逐次操作确认；R2 默认单次确认，只允许目标与范围固定的显式会话期授权；R3 每次确认，不允许会话期或持久免确认。
 

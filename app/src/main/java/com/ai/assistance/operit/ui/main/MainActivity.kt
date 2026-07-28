@@ -64,13 +64,27 @@ import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
-import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
+import com.ai.assistance.operit.ui.main.shell.KiyoriShellExternalDestination
 import com.ai.assistance.operit.widget.ToolPkgDesktopWidgetHost
 import org.json.JSONObject
+
+internal fun resolveKiyoriShellExternalDestination(
+    action: String?,
+): KiyoriShellExternalDestination? =
+    when (action) {
+        MainActivity.ACTION_OPEN_KIYORI_BROWSER ->
+            KiyoriShellExternalDestination.BROWSER_HOME
+        MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS ->
+            KiyoriShellExternalDestination.BROWSER_SETTINGS
+        MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS ->
+            KiyoriShellExternalDestination.DOWNLOAD_SETTINGS
+        else -> null
+    }
 
 class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_SETTINGS_SHORTCUT = "com.ai.assistance.operit.action.OPEN_SETTINGS_SHORTCUT"
+        const val ACTION_OPEN_KIYORI_BROWSER = "com.kiyori.action.OPEN_BROWSER"
         const val ACTION_OPEN_KIYORI_BROWSER_SETTINGS =
             "com.kiyori.action.OPEN_BROWSER_SETTINGS"
         const val ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS =
@@ -111,7 +125,8 @@ class MainActivity : ComponentActivity() {
     private var pendingRouteId: String? = null
     private var pendingRouteArgs: Map<String, Any?> = emptyMap()
     private var pendingRouteRequestId: Long = 0L
-    private var pendingKiyoriShellChild by mutableStateOf<KiyoriShellChild?>(null)
+    private var pendingKiyoriShellDestination by
+        mutableStateOf<KiyoriShellExternalDestination?>(null)
     private var pendingKiyoriShellRequestId by mutableStateOf(0L)
 
     // 通知权限请求启动器
@@ -268,17 +283,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?): Boolean {
-        if (intent?.action == ACTION_OPEN_KIYORI_BROWSER_SETTINGS) {
-            pendingKiyoriShellChild = KiyoriShellChild.BROWSER_SETTINGS
+        resolveKiyoriShellExternalDestination(intent?.action)?.let { destination ->
+            pendingKiyoriShellDestination = destination
             pendingKiyoriShellRequestId = System.currentTimeMillis()
-            AppLogger.d(TAG, "Requested opening Kiyori browser settings")
-            return true
-        }
-
-        if (intent?.action == ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS) {
-            pendingKiyoriShellChild = KiyoriShellChild.DOWNLOAD_SETTINGS
-            pendingKiyoriShellRequestId = System.currentTimeMillis()
-            AppLogger.d(TAG, "Requested opening Kiyori download settings")
+            AppLogger.d(TAG, "Requested opening Kiyori shell destination: $destination")
             return true
         }
 
@@ -727,7 +735,7 @@ class MainActivity : ComponentActivity() {
                             val routeNavRequestId = pendingRouteRequestId
                             val browserOpenRequest = pendingBrowserUrl
                             val browserOpenRequestId = pendingBrowserRequestId
-                            val kiyoriShellChildRequest = pendingKiyoriShellChild
+                            val kiyoriShellDestinationRequest = pendingKiyoriShellDestination
                             val kiyoriShellRequestId = pendingKiyoriShellRequestId
                             val initialNavItem = when {
                                 shortcutNavItem != null -> shortcutNavItem
@@ -745,7 +753,7 @@ class MainActivity : ComponentActivity() {
                                         routeNavRequestId = routeNavRequestId,
                                         browserOpenRequest = browserOpenRequest,
                                         browserOpenRequestId = browserOpenRequestId,
-                                        kiyoriShellChildRequest = kiyoriShellChildRequest,
+                                        kiyoriShellDestinationRequest = kiyoriShellDestinationRequest,
                                         kiyoriShellRequestId = kiyoriShellRequestId,
                                         onShortcutNavHandled = { handledRequestId ->
                                             if (pendingShortcutRequestId == handledRequestId) {
@@ -771,7 +779,7 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onKiyoriShellRequestHandled = { handledRequestId ->
                                             if (pendingKiyoriShellRequestId == handledRequestId) {
-                                                pendingKiyoriShellChild = null
+                                                pendingKiyoriShellDestination = null
                                                 pendingKiyoriShellRequestId = 0L
                                             }
                                         },

@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.core.browser.presentation
 
 import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
@@ -13,7 +15,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.activateSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureOverlayOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureSessionAttachedOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getActiveSessionOnMain
@@ -24,9 +25,36 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destro
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.flow.StateFlow
 
+internal class BrowserPresentationReleaseGate {
+    private var released = false
+
+    fun runOnce(action: () -> Unit): Boolean {
+        if (released) return false
+        released = true
+        action()
+        return true
+    }
+}
+
+internal class BrowserAppPresentationLease(
+    val presentation: WebSessionBrowserHost,
+    private val onRelease: () -> Unit,
+    private val onReleaseAndDestroy: () -> Unit,
+) {
+    private val releaseGate = BrowserPresentationReleaseGate()
+
+    fun release() {
+        releaseGate.runOnce(onRelease)
+    }
+
+    fun releaseAndDestroy() {
+        releaseGate.runOnce(onReleaseAndDestroy)
+    }
+}
+
 /**
  * Coordinates the one browser presentation lease shared by Kiyori Browser Home and the
- * existing overlay. Keeping this outside the UI prevents a second session registry from
+ * 1x1 background anchor. Keeping this outside the UI prevents a second session registry from
  * appearing when Browser Home is composed.
  */
 internal class BrowserPresentationCoordinator private constructor(context: Context) {
@@ -35,7 +63,7 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
     val browserSettings: StateFlow<WebSessionBrowserSettings> = tools.browserSettingsStore.state
 
-    fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): WebSessionBrowserHost =
+    fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): BrowserAppPresentationLease =
         tools.runOnMainSync {
             val presentation = tools.ensureBrowserPresentationOnMain(appContext)
             presentation.acquireAppPresentation(webViewHost)
@@ -47,53 +75,47 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                 )
             tools.ensureSessionAttachedOnMain(session.id)
             tools.refreshSessionUiOnMain(session.id)
-            presentation
+            BrowserAppPresentationLease(
+                presentation = presentation,
+                onRelease = {
+                    releaseAppPresentation(presentation, webViewHost)
+                },
+                onReleaseAndDestroy = {
+                    releaseAppPresentationAndDestroy(presentation, webViewHost)
+                },
+            )
         }
-
-    fun prepareBrowserForAiHome() {
-        tools.runOnMainSync<Unit> {
-            tools.ensureOverlayOnMain(appContext, initialExpanded = false)
-            val session =
-                tools.getSession(null)
-                    ?: tools.createSessionTabOnMain(
-                        appContext,
-                        initialUrl = tools.browserSettingsStore.current.homeUrl,
-                    )
-            tools.ensureSessionAttachedOnMain(session.id)
-            tools.refreshSessionUiOnMain(session.id)
-        }
-    }
 
     fun openWindowOverview() {
         tools.runOnMainSync<Unit> {
             val presentation = tools.ensureBrowserPresentationOnMain(appContext)
-            val session =
-                tools.getSession(null)
-                    ?: tools.createSessionTabOnMain(
-                        appContext,
-                        initialUrl = tools.browserSettingsStore.current.homeUrl,
-                    )
-            tools.ensureSessionAttachedOnMain(session.id)
-            tools.refreshSessionUiOnMain(session.id)
             presentation.showSheet(WebSessionBrowserSheetRoute.TABS)
         }
     }
 
-    fun releaseAppPresentation(
+    private fun releaseAppPresentation(
         presentation: WebSessionBrowserHost,
         webViewHost: WebSessionWebViewHost,
     ) {
         tools.runOnMainSync<Unit> {
-            presentation.releaseAppPresentation(webViewHost)
+            presentation.releaseAppPresentation(
+                webViewHost = webViewHost,
+                keepInBackgroundAnchor =
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                        Settings.canDrawOverlays(appContext),
+            )
         }
     }
 
-    fun releaseAppPresentationAndDestroy(
+    private fun releaseAppPresentationAndDestroy(
         presentation: WebSessionBrowserHost,
         webViewHost: WebSessionWebViewHost,
     ) {
         tools.runOnMainSync<Unit> {
-            presentation.releaseAppPresentation(webViewHost)
+            presentation.releaseAppPresentation(
+                webViewHost = webViewHost,
+                keepInBackgroundAnchor = false,
+            )
             tools.destroyBrowserPresentationOnMain()
         }
     }

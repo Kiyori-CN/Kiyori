@@ -59,7 +59,7 @@ internal fun WebSessionMinimizedIndicator(
     hasFailedDownloads: Boolean,
     downloadPrompt: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState?,
     externalOpenPrompt: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ExternalOpenPromptState?,
-    onToggleFullscreen: () -> Unit,
+    onOpenBrowser: () -> Unit,
     onDragBy: (dx: Int, dy: Int) -> Unit,
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
@@ -262,7 +262,7 @@ internal fun WebSessionMinimizedIndicator(
                     interactionSource = interactionSource,
                     indication = null
                 ) {
-                    onToggleFullscreen()
+                    onOpenBrowser()
                 }
     ) {
         Box(

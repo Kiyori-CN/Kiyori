@@ -318,12 +318,12 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_close",
-                            description = "Close the current browser tab. Closing the last tab also closes the browser overlay.",
+                            description = "Close the current browser tab. Closing the last tab also detaches the browser presentation.",
                             parametersStructured = emptyList()
                         ),
                         ToolPrompt(
                             name = "browser_close_all",
-                            description = "Close all browser tabs. This also closes the browser overlay.",
+                            description = "Close all browser tabs and detach the browser presentation.",
                             parametersStructured = emptyList()
                         ),
                         ToolPrompt(
@@ -493,7 +493,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_tabs",
-                            description = "List every tab in the shared Browser Runtime, including tabs opened manually in Browser Home or the browser overlay, or create, select, and close tabs using 0-based indexes. List output includes each stable session_id, profile=normal|incognito, and active state. Incognito isolates website data, not Kiyori AI actions already authorized by the user. Select the intended tab before snapshot, click, type, or navigation.",
+                            description = "List every tab in the shared Browser Runtime, including tabs opened manually in Browser Home or operated while attached to the background anchor, or create, select, and close tabs using 0-based indexes. List output includes each stable session_id, profile=normal|incognito, and active state. Incognito isolates website data, not Kiyori AI actions already authorized by the user. Select the intended tab before snapshot, click, type, or navigation.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "action", type = "string", description = "one of: list, create, select, close", required = true),

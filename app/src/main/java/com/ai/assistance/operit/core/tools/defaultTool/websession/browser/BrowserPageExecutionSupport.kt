@@ -1906,7 +1906,9 @@ private fun playwrightLikeInputRuntimeJs(): String =
     })();
     """.trimIndent()
 
-internal fun StandardBrowserSessionTools.ensureOverlayPermission(toolName: String): ToolResult? {
+internal fun StandardBrowserSessionTools.ensureBrowserExecutionPresentation(
+    toolName: String,
+): ToolResult? {
     val appContext = context.applicationContext
     val appPresentationActive = StandardBrowserSessionTools.browserHost?.hasAppPresentation() == true
     if (
@@ -1919,7 +1921,7 @@ internal fun StandardBrowserSessionTools.ensureOverlayPermission(toolName: Strin
 
     if (!appPresentationActive) {
         runOnMainSync<Unit> {
-            ensureOverlayOnMain(appContext)
+            ensureBackgroundAnchorOnMain(appContext)
         }
     }
     return null
@@ -1933,7 +1935,6 @@ internal fun StandardBrowserSessionTools.buildPageRegistry(): BrowserPageRegistr
     return BrowserPageRegistry(
         orderedSessionIds = orderedIds,
         activeSessionId = activeId,
-        overlayExpanded = StandardBrowserSessionTools.browserHost?.isExpanded() == true,
         snapshots = orderedIds.associateWith { id -> sessionById(id)?.lastSnapshot }
     )
 }

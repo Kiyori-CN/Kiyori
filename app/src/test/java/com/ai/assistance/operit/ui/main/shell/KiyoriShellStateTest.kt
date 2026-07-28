@@ -112,6 +112,32 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `external browser action preserves AI home as the return target`() {
+        val browserState =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, browserState.primaryDestination)
+        assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
+        assertEquals(
+            KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+            browserState.exitBrowser(),
+        )
+    }
+
+    @Test
+    fun `repeated external browser action retains the existing browser return target`() {
+        val browserState =
+            KiyoriShellState()
+                .openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+                .openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME)
+
+        assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
+    }
+
+    @Test
     fun `child destination hides bottom navigation and Back restores owner`() {
         val state =
             KiyoriShellState(

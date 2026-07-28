@@ -8,10 +8,23 @@ import org.junit.Test
 
 class PlayerPolicyTest {
     @Test
+    fun unpublishedPlayerBaselineUsesRecommendedFastPreset() {
+        assertEquals(
+            PlayerDecoderPreset.FAST,
+            PlayerSettings().decoderPreset,
+        )
+        assertEquals(
+            PlayerDecoderPreset.FAST,
+            PlayerSessionState().decoderPreset,
+        )
+    }
+
+    @Test
     fun persistedSettingsMapToExactRuntimeValues() {
-        PlayerHardwareDecodingPolicy.entries.forEach { value ->
-            assertEquals(value, PlayerHardwareDecodingPolicy.fromPersistedId(value.persistedId))
-            assertTrue(value.mpvValue.isNotBlank())
+        PlayerDecoderPreset.entries.forEach { value ->
+            assertEquals(value, PlayerDecoderPreset.fromPersistedId(value.persistedId))
+            assertTrue(value.displayName.isNotBlank())
+            assertTrue(value.description.isNotBlank())
         }
         PlayerBackgroundBehavior.entries.forEach { value ->
             assertEquals(value, PlayerBackgroundBehavior.fromPersistedId(value.persistedId))
@@ -39,6 +52,29 @@ class PlayerPolicyTest {
             assertTrue(mode.shaderFiles.isNotEmpty())
             assertTrue(mode.shaderFiles.all { it.startsWith("Anime4K_") && it.endsWith(".glsl") })
         }
+    }
+
+    @Test
+    fun videoFitModesFollowLegacyPlayerOrder() {
+        assertEquals(
+            listOf(PlayerVideoFitMode.FIT, PlayerVideoFitMode.STRETCH, PlayerVideoFitMode.CROP),
+            PlayerVideoFitMode.entries,
+        )
+        assertEquals(PlayerVideoFitMode.STRETCH, PlayerVideoFitMode.FIT.next())
+        assertEquals(PlayerVideoFitMode.CROP, PlayerVideoFitMode.STRETCH.next())
+        assertEquals(PlayerVideoFitMode.FIT, PlayerVideoFitMode.CROP.next())
+    }
+
+    @Test
+    fun playerDebugLogBufferNormalizesAndClearsEntries() {
+        PlayerDebugLogBuffer.clear()
+        PlayerDebugLogBuffer.append("PlayerSession", "line one\nline two")
+
+        val snapshot = PlayerDebugLogBuffer.snapshot()
+
+        assertTrue(snapshot.contains("PlayerSession: line one line two"))
+        PlayerDebugLogBuffer.clear()
+        assertTrue(PlayerDebugLogBuffer.snapshot().isBlank())
     }
 
     @Test
@@ -92,10 +128,29 @@ class PlayerPolicyTest {
                 source = PlayerMediaSource.BROWSER_CANDIDATE,
                 sourceSessionId = "web-session-1",
             )
+        val preparedLease =
+            preparePlayerSurfaceLease(
+                PlayerSurfaceLeaseState(),
+                PlayerSurfaceRole.FLOATING,
+            )
+        val registration =
+            registerPlayerSurfaceOwner(
+                preparedLease,
+                PlayerSurfaceRole.FLOATING,
+                "floating-1",
+            )
+        val surfaceLease =
+            activatePendingPlayerSurface(
+                registration.state,
+                PlayerSurfaceRole.FLOATING,
+                "floating-1",
+                requireNotNull(registration.generation),
+            )
         val floating =
             PlayerSessionState(
                 request = request,
                 presentation = PlayerPresentation.FLOATING_PLAYER,
+                surfaceLease = surfaceLease,
                 positionSeconds = 31.0,
                 paused = false,
                 loadGeneration = 7L,
@@ -121,6 +176,7 @@ class PlayerPolicyTest {
         assertEquals(7L, returnedFloating.state.loadGeneration)
         assertEquals(31.0, returnedFloating.state.positionSeconds, 0.0)
         assertEquals(PlayerPresentation.FLOATING_PLAYER, returnedFloating.state.presentation)
+        assertEquals(surfaceLease, returnedFloating.state.surfaceLease)
     }
 
     @Test
@@ -138,8 +194,9 @@ class PlayerPolicyTest {
         val settings =
             PlayerSettings(
                 defaultSpeed = 1.25,
-                hardwareDecodingPolicy = PlayerHardwareDecodingPolicy.MEDIA_CODEC_COPY,
+                decoderPreset = PlayerDecoderPreset.HIGH_QUALITY,
                 anime4KMode = Anime4KMode.BALANCED,
+                rememberAnime4KMode = true,
             )
 
         val transition =
@@ -154,8 +211,30 @@ class PlayerPolicyTest {
         assertEquals(0.0, transition.state.positionSeconds, 0.0)
         assertEquals(1.25, transition.state.speed, 0.0)
         assertEquals(5L, transition.state.loadGeneration)
-        assertEquals(PlayerHardwareDecodingPolicy.MEDIA_CODEC_COPY, transition.state.hardwareDecodingPolicy)
+        assertEquals(PlayerDecoderPreset.HIGH_QUALITY, transition.state.decoderPreset)
         assertEquals(Anime4KMode.BALANCED, transition.state.anime4KMode)
+    }
+
+    @Test
+    fun mediaStartRespectsSpeedAndAnime4KMemorySwitches() {
+        val remembered =
+            PlayerSettings(
+                defaultSpeed = 1.0,
+                lastPlaybackSpeed = 1.5,
+                rememberPlaybackSpeed = true,
+                anime4KMode = Anime4KMode.QUALITY,
+                rememberAnime4KMode = true,
+            )
+        assertEquals(1.5, resolveInitialPlayerSpeed(remembered), 0.0)
+        assertEquals(Anime4KMode.QUALITY, resolveInitialAnime4KMode(remembered))
+
+        val resetForNewMedia =
+            remembered.copy(
+                rememberPlaybackSpeed = false,
+                rememberAnime4KMode = false,
+            )
+        assertEquals(1.0, resolveInitialPlayerSpeed(resetForNewMedia), 0.0)
+        assertEquals(Anime4KMode.OFF, resolveInitialAnime4KMode(resetForNewMedia))
     }
 
     @Test
@@ -200,6 +279,13 @@ class PlayerPolicyTest {
         assertFalse(isPlayerAtNaturalEnd(positionSeconds = 100.0, durationSeconds = 120.0))
         assertFalse(isPlayerAtNaturalEnd(positionSeconds = 0.0, durationSeconds = 0.0))
         assertFalse(isPlayerAtNaturalEnd(positionSeconds = Double.NaN, durationSeconds = 120.0))
+    }
+
+    @Test
+    fun mediaLoadWaitsForTheAttachedSurface() {
+        assertFalse(isPlayerMediaLoadReady(hasPendingLoad = true, hasAttachedSurface = false))
+        assertFalse(isPlayerMediaLoadReady(hasPendingLoad = false, hasAttachedSurface = true))
+        assertTrue(isPlayerMediaLoadReady(hasPendingLoad = true, hasAttachedSurface = true))
     }
 
     private fun externalRequest(id: String): PlayerMediaRequest =

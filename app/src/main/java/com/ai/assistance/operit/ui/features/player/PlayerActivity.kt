@@ -17,6 +17,7 @@ import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.player.PlayerSurfaceTransferPhase
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import java.util.UUID
@@ -41,6 +42,7 @@ class PlayerActivity : ComponentActivity() {
                 PlayerScreen(
                     session = playerSession,
                     onBack = ::exitPlayer,
+                    onFinishRequested = ::finishPlayerActivity,
                     onRotate = ::rotatePlayer,
                     onScreenshot = ::captureScreenshot,
                     onDownload = ::downloadCurrentMedia,
@@ -57,24 +59,27 @@ class PlayerActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (!isChangingConfigurations && playerSession.state.value.presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
+        if (
+            !isChangingConfigurations &&
+                playerSession.state.value.surfaceLease.phase ==
+                    PlayerSurfaceTransferPhase.FULLSCREEN_ACTIVE
+        ) {
             playerSession.onHostBackgrounded()
         }
     }
 
     override fun onDestroy() {
-        if (isFinishing && playerSession.state.value.presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
-            playerSession.close()
-            StandardBrowserSessionTools.browserHost?.restoreAfterPlayerFullscreen()
-        }
+        playerSession.onFullscreenActivityDestroyed(
+            changingConfigurations = isChangingConfigurations,
+            finishing = isFinishing,
+        )
         super.onDestroy()
     }
 
     private fun handlePlayerIntent(intent: Intent): Boolean {
         if (intent.getBooleanExtra(EXTRA_REUSE_ACTIVE_SESSION, false)) {
-            if (!playerSession.state.value.hasMedia) return false
-            playerSession.enterFullscreen()
-            return true
+            val state = playerSession.state.value
+            return state.hasMedia && state.presentation == PlayerPresentation.FULLSCREEN_PLAYER
         }
         if (intent.action != Intent.ACTION_VIEW) return false
         val uri = intent.data ?: return false
@@ -110,8 +115,13 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun exitPlayer() {
-        playerSession.exitFullscreen()
-        StandardBrowserSessionTools.browserHost?.restoreAfterPlayerFullscreen()
+        if (playerSession.requestExitFullscreen() == null) {
+            finish()
+        }
+    }
+
+    private fun finishPlayerActivity(requestId: Long) {
+        playerSession.acknowledgeFullscreenFinishRequest(requestId)
         finish()
     }
 

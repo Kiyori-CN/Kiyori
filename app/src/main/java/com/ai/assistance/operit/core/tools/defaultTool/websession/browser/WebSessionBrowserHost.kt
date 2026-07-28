@@ -5,27 +5,16 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.view.Choreographer
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
-import android.view.KeyEvent
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.WebView
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
-import androidx.annotation.RequiresApi
-import androidx.activity.OnBackPressedDispatcher
-import androidx.activity.OnBackPressedDispatcherOwner
-import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,7 +59,7 @@ internal class WebSessionBrowserHost(
         fun onCloseTab(sessionId: String)
         fun onNewTab(profile: WebSessionProfile)
         fun onRequestTabThumbnails()
-        fun onMinimize()
+        fun onOpenAppShellBrowser()
         fun onExitBrowser()
         fun onOpenBrowserSettings()
         fun onOpenDownloadSettings()
@@ -115,6 +104,7 @@ internal class WebSessionBrowserHost(
         fun onDownloadMediaCandidate(candidateId: String): Boolean
         fun onTogglePlayerPause()
         fun onOpenPlayerFullscreen()
+        fun onLaunchPlayerFullscreen()
         fun onClosePlayer()
         fun onPauseDownload(taskId: String)
         fun onResumeDownload(taskId: String)
@@ -145,135 +135,43 @@ internal class WebSessionBrowserHost(
     }
 
     private val windowManager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val overlayWebViewHost = WebSessionWebViewHost()
+    private val backgroundAnchor = BrowserBackgroundAnchor(appContext)
     private val browserSettingsStore = WebSessionBrowserSettingsStore.getInstance(appContext)
     private var appWebViewHost: WebSessionWebViewHost? = null
     private var activeWebView: WebView? = null
 
-    private var rootView: DeceptiveMinimizedLayout? = null
-    private var composeView: ComposeView? = null
-    private var overlayParams: WindowManager.LayoutParams? = null
-    private var overlayLifecycleOwner: WebSessionOverlayLifecycleOwner? = null
-    private var backCallbackRegistrar: BrowserOverlayBackCallbackRegistrar? = null
-
     private var indicatorView: ComposeView? = null
     private var indicatorParams: WindowManager.LayoutParams? = null
     private var indicatorLifecycleOwner: WebSessionOverlayLifecycleOwner? = null
-    private var selectionActionsView: View? = null
-    private var selectionActionsParams: WindowManager.LayoutParams? = null
 
-    private var isExpanded: Boolean = false
     private var appPresentationActive by mutableStateOf(false)
-    private var restoreExpandedOverlayAfterAppPresentation: Boolean = false
-    private var restoreExpandedOverlayAfterPlayerFullscreen: Boolean = false
     private var hostState by mutableStateOf(WebSessionBrowserHostState())
-    fun ensureCreated(initialExpanded: Boolean = false) {
-        if (rootView != null) {
-            if (isExpanded != initialExpanded) {
-                setExpanded(initialExpanded)
-            }
-            return
-        }
+    private val choreographer = Choreographer.getInstance()
+    private var requestedPresentationTarget = BrowserPresentationTarget.DETACHED
+    private var attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+    private var pendingPresentationTarget: BrowserPresentationTarget? = null
+    private var pendingPresentationFrameCallback: Choreographer.FrameCallback? = null
+    private var presentationTransferGeneration = 0L
 
-        val lifecycleOwner =
-            WebSessionOverlayLifecycleOwner(onUnhandledBack = { handleBack() }).apply {
-                handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
-                handleLifecycleEvent(Lifecycle.Event.ON_START)
-                handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-            }
-
-        val root =
-            DeceptiveMinimizedLayout(appContext).apply {
-                setBackgroundColor(AndroidColor.TRANSPARENT)
-                setOnClickListener {}
-                onLegacyBack = {
-                    if (isExpanded && !appPresentationActive) {
-                        lifecycleOwner.onBackPressedDispatcher.onBackPressed()
-                        true
-                    } else {
-                        false
-                    }
-                }
-            }
-        installViewTreeOwners(root, lifecycleOwner)
-
-        val compose =
-            ComposeView(appContext).apply {
-                setBackgroundColor(AndroidColor.TRANSPARENT)
-                alpha = 1f
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-                installViewTreeOwners(this, lifecycleOwner)
-                setContent {
-                    if (!appPresentationActive) {
-                        WebSessionFloatingTheme {
-                            BrowserContent(
-                                webViewHost = overlayWebViewHost,
-                                onTopBarBack = callbacks::onMinimize,
-                                onOpenAiDialogue = callbacks::onMinimize,
-                                onOpenBrowserSettings = callbacks::onOpenBrowserSettings,
-                                onOpenDownloadSettings = callbacks::onOpenDownloadSettings,
-                                onExitBrowser = callbacks::onExitBrowser,
-                            )
-                        }
-                    }
-                }
-            }
-
-        root.addView(
-            compose,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        )
-
-        overlayLifecycleOwner = lifecycleOwner
-        rootView = root
-        composeView = compose
-        val expandedAtCreation = initialExpanded && !appPresentationActive
-        overlayParams = createOverlayLayoutParams(expandedAtCreation)
-        windowManager.addView(root, overlayParams)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            backCallbackRegistrar =
-                BrowserOverlayBackCallbackRegistrar(
-                    root = root,
-                    onBack = {
-                        lifecycleOwner.onBackPressedDispatcher.onBackPressed()
-                        true
-                    },
-                )
-        }
-        setExpanded(expandedAtCreation)
+    fun ensureBackgroundAnchorCreated() {
+        if (appPresentationActive) return
+        requestPresentationTarget(BrowserPresentationTarget.BACKGROUND_ANCHOR)
     }
 
     fun destroy() {
         hideTextSelectionActionsOverlay()
         hideIndicator()
-        backCallbackRegistrar?.dispose()
-        backCallbackRegistrar = null
-        rootView?.onLegacyBack = null
-        overlayLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        overlayLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-        overlayLifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-
-        rootView?.let { root ->
-            try {
-                windowManager.removeView(root)
-            } catch (_: Exception) {
-            }
-        }
-
-        overlayLifecycleOwner = null
-        composeView = null
-        rootView = null
-        overlayParams = null
+        cancelPendingPresentationTransfer()
+        detachPresentationWebViews()
+        backgroundAnchor.destroy()
         indicatorParams = null
-        overlayWebViewHost.clear()
         appWebViewHost?.clear()
         appWebViewHost = null
         activeWebView = null
         appPresentationActive = false
-        restoreExpandedOverlayAfterAppPresentation = false
+        requestedPresentationTarget = BrowserPresentationTarget.DETACHED
+        attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+        pendingPresentationTarget = null
     }
 
     @Composable
@@ -355,6 +253,7 @@ internal class WebSessionBrowserHost(
             onDownloadMediaCandidate = callbacks::onDownloadMediaCandidate,
             onTogglePlayerPause = callbacks::onTogglePlayerPause,
             onOpenPlayerFullscreen = callbacks::onOpenPlayerFullscreen,
+            onLaunchPlayerFullscreen = callbacks::onLaunchPlayerFullscreen,
             onClosePlayer = callbacks::onClosePlayer,
             onPauseDownload = callbacks::onPauseDownload,
             onResumeDownload = callbacks::onResumeDownload,
@@ -377,6 +276,9 @@ internal class WebSessionBrowserHost(
             onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
             onCancelExternalOpen = callbacks::onCancelExternalOpen,
             onHandlePendingDialog = callbacks::onHandlePendingDialog,
+            onCopyTextSelection = ::copyActiveWebViewSelection,
+            onSelectAllTextSelection = ::selectAllActiveWebViewText,
+            onDismissTextSelection = ::dismissTextSelectionActions,
             homeUrl = browserSettings.homeUrl,
             modifier = modifier,
         )
@@ -399,91 +301,221 @@ internal class WebSessionBrowserHost(
     }
 
     fun attachActiveWebView(webView: WebView?) {
+        if (activeWebView === webView) {
+            if (pendingPresentationFrameCallback == null) {
+                requestPresentationTarget(requestedPresentationTarget)
+            }
+            return
+        }
+
+        detachPresentationWebViews()
+        attachedPresentationTarget = BrowserPresentationTarget.DETACHED
         activeWebView = webView
-        val appHost = appWebViewHost
-        if (appHost != null) {
-            overlayWebViewHost.setActiveWebView(null)
-            appHost.setActiveWebView(webView)
-        } else {
-            overlayWebViewHost.setActiveWebView(webView)
+        if (pendingPresentationFrameCallback == null) {
+            requestPresentationTarget(requestedPresentationTarget)
         }
     }
 
     fun acquireAppPresentation(webViewHost: WebSessionWebViewHost) {
-        if (appWebViewHost === webViewHost) {
+        if (appWebViewHost === webViewHost && appPresentationActive) {
+            requestPresentationTarget(BrowserPresentationTarget.APP_SHELL)
             return
         }
 
-        restoreExpandedOverlayAfterAppPresentation = rootView != null && isExpanded
-        if (isExpanded) {
-            setExpanded(
-                expanded = false,
-                resetTransientUi = false,
-                showMinimizedIndicator = false,
-            )
+        if (
+            appWebViewHost !== webViewHost &&
+                attachedPresentationTarget == BrowserPresentationTarget.APP_SHELL
+        ) {
+            appWebViewHost?.detachActiveWebView()
+            verifyActiveWebViewDetached()
+            attachedPresentationTarget = BrowserPresentationTarget.DETACHED
         }
-        appWebViewHost?.setActiveWebView(null)
         appWebViewHost = webViewHost
         appPresentationActive = true
         hideIndicator()
-        overlayWebViewHost.setActiveWebView(null)
-        webViewHost.setActiveWebView(activeWebView)
+        requestPresentationTarget(BrowserPresentationTarget.APP_SHELL)
     }
 
-    fun releaseAppPresentation(webViewHost: WebSessionWebViewHost) {
+    fun releaseAppPresentation(
+        webViewHost: WebSessionWebViewHost,
+        keepInBackgroundAnchor: Boolean,
+    ): Boolean {
         if (appWebViewHost !== webViewHost) {
-            return
+            return false
         }
 
-        webViewHost.setActiveWebView(null)
-        appWebViewHost = null
         appPresentationActive = false
-        if (rootView != null) {
-            overlayWebViewHost.setActiveWebView(activeWebView)
-            if (restoreExpandedOverlayAfterAppPresentation) {
-                setExpanded(true)
-            } else if (!isExpanded) {
-                showIndicator()
-            }
-        }
-        restoreExpandedOverlayAfterAppPresentation = false
+        hideTextSelectionActionsOverlay()
+        requestPresentationTarget(
+            if (keepInBackgroundAnchor) {
+                BrowserPresentationTarget.BACKGROUND_ANCHOR
+            } else {
+                BrowserPresentationTarget.DETACHED
+            },
+        )
+        appWebViewHost = null
+        return true
     }
 
     fun hasAppPresentation(): Boolean = appPresentationActive
 
-    fun hasOverlayPresentation(): Boolean = rootView != null
-
-    fun prepareForPlayerFullscreen() {
-        restoreExpandedOverlayAfterPlayerFullscreen =
-            rootView != null && !appPresentationActive && isExpanded
-        if (restoreExpandedOverlayAfterPlayerFullscreen) {
-            setExpanded(
-                expanded = false,
-                resetTransientUi = false,
-                showMinimizedIndicator = false,
-            )
-        }
-    }
-
-    fun restoreAfterPlayerFullscreen() {
-        if (
-            restoreExpandedOverlayAfterPlayerFullscreen &&
-                rootView != null &&
-                !appPresentationActive
-        ) {
-            setExpanded(true)
-        }
-        restoreExpandedOverlayAfterPlayerFullscreen = false
-    }
+    fun hasBackgroundAnchorPresentation(): Boolean =
+        requestedPresentationTarget == BrowserPresentationTarget.BACKGROUND_ANCHOR
 
     fun requestMediaCandidateDownload(candidateId: String): Boolean =
         callbacks.onDownloadMediaCandidate(candidateId)
 
-    fun clearPlayerFullscreenHandoff() {
-        restoreExpandedOverlayAfterPlayerFullscreen = false
+    private fun detachPresentationWebViews() {
+        appWebViewHost?.detachActiveWebView()
+        backgroundAnchor.detachActiveWebView()
+        verifyActiveWebViewDetached()
+    }
+
+    private fun requestPresentationTarget(target: BrowserPresentationTarget) {
+        requestedPresentationTarget = target
+
+        if (pendingPresentationFrameCallback != null) {
+            if (target == BrowserPresentationTarget.DETACHED) {
+                cancelPendingPresentationTransfer()
+                detachPresentationWebViews()
+                backgroundAnchor.detachWindow()
+                attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+                hideIndicator()
+            } else {
+                pendingPresentationTarget = target
+                if (target == BrowserPresentationTarget.APP_SHELL) {
+                    hideIndicator()
+                }
+            }
+            return
+        }
+
+        val plan =
+            BrowserBackgroundAnchorPolicy.resolveTransferPlan(
+                currentTarget = attachedPresentationTarget,
+                requestedTarget = target,
+                requestedTargetAlreadyOwnsActiveWebView =
+                    presentationTargetIsAssignedToActiveWebView(target),
+            )
+        AppLogger.d(
+            "WebSessionBrowserHost",
+            "Browser presentation transfer current=$attachedPresentationTarget requested=$target plan=$plan",
+        )
+        when (plan) {
+            BrowserPresentationTransferPlan.NO_OP -> Unit
+            BrowserPresentationTransferPlan.DETACH_ONLY -> {
+                detachPresentationWebViews()
+                backgroundAnchor.detachWindow()
+                attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+                hideIndicator()
+            }
+            BrowserPresentationTransferPlan.ATTACH_NOW -> {
+                detachPresentationWebViews()
+                attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+                attachPresentationNow(target)
+            }
+            BrowserPresentationTransferPlan.ATTACH_AFTER_FRAME -> {
+                // Moving a hardware-rendered WebView between the Activity ViewRoot and a
+                // WindowManager ViewRoot in one frame can overlap their Surface transactions.
+                // Keep the strict null-parent check, remove the old anchor window, and let one
+                // render frame complete before the target root receives the same WebView.
+                detachPresentationWebViews()
+                backgroundAnchor.detachWindow()
+                attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+                hideIndicator()
+                schedulePresentationAttachAfterFrame(target)
+            }
+        }
+    }
+
+    private fun presentationTargetIsAssignedToActiveWebView(
+        target: BrowserPresentationTarget,
+    ): Boolean =
+        when (target) {
+            BrowserPresentationTarget.APP_SHELL ->
+                appWebViewHost?.isAssignedTo(activeWebView) == true
+            BrowserPresentationTarget.BACKGROUND_ANCHOR ->
+                backgroundAnchor.isAttached && backgroundAnchor.isAssignedTo(activeWebView)
+            BrowserPresentationTarget.DETACHED ->
+                attachedPresentationTarget == BrowserPresentationTarget.DETACHED &&
+                    activeWebView?.parent == null
+        }
+
+    private fun attachPresentationNow(target: BrowserPresentationTarget): Boolean {
+        if (target != requestedPresentationTarget) {
+            return true
+        }
+        verifyActiveWebViewDetached()
+        when (target) {
+            BrowserPresentationTarget.DETACHED -> {
+                attachedPresentationTarget = BrowserPresentationTarget.DETACHED
+                hideIndicator()
+            }
+            BrowserPresentationTarget.APP_SHELL -> {
+                if (backgroundAnchor.isWindowAttachedToRoot) {
+                    return false
+                }
+                val appHost = appWebViewHost ?: return false
+                appHost.setActiveWebView(activeWebView)
+                attachedPresentationTarget = BrowserPresentationTarget.APP_SHELL
+                hideIndicator()
+            }
+            BrowserPresentationTarget.BACKGROUND_ANCHOR -> {
+                val position = indicatorParams?.let { it.x to it.y } ?: (dp(16) to dp(16))
+                if (!backgroundAnchor.ensureAttached(position.first, position.second)) {
+                    return false
+                }
+                backgroundAnchor.setActiveWebView(activeWebView)
+                attachedPresentationTarget = BrowserPresentationTarget.BACKGROUND_ANCHOR
+                showIndicator()
+            }
+        }
+        AppLogger.d(
+            "WebSessionBrowserHost",
+            "Browser presentation attached target=$attachedPresentationTarget",
+        )
+        return true
+    }
+
+    private fun schedulePresentationAttachAfterFrame(target: BrowserPresentationTarget) {
+        pendingPresentationTarget = target
+        val generation = ++presentationTransferGeneration
+        val callback =
+            Choreographer.FrameCallback {
+                if (generation != presentationTransferGeneration) {
+                    return@FrameCallback
+                }
+                pendingPresentationFrameCallback = null
+                val pendingTarget = pendingPresentationTarget ?: return@FrameCallback
+                pendingPresentationTarget = null
+                if (!attachPresentationNow(pendingTarget)) {
+                    schedulePresentationAttachAfterFrame(pendingTarget)
+                }
+            }
+        pendingPresentationFrameCallback = callback
+        choreographer.postFrameCallback(callback)
+    }
+
+    private fun cancelPendingPresentationTransfer() {
+        pendingPresentationFrameCallback?.let(choreographer::removeFrameCallback)
+        pendingPresentationFrameCallback = null
+        pendingPresentationTarget = null
+        presentationTransferGeneration += 1
+    }
+
+    private fun verifyActiveWebViewDetached() {
+        val parent = activeWebView?.parent
+        check(parent == null) {
+            "Active WebView must be detached before browser presentation transfer: $parent"
+        }
     }
 
     fun handleBack(): Boolean {
+        if (hostState.textSelectionActions != null) {
+            hideTextSelectionActionsOverlay()
+            return true
+        }
+
         val browserState = hostState.browserState
         val pendingDialog = browserState.pendingDialog
         if (pendingDialog != null) {
@@ -526,11 +558,6 @@ internal class WebSessionBrowserHost(
             return true
         }
 
-        if (!appPresentationActive && isExpanded) {
-            setExpanded(false)
-            return true
-        }
-
         if (browserState.canGoBack) {
             callbacks.onBack()
             return true
@@ -540,50 +567,30 @@ internal class WebSessionBrowserHost(
     }
 
     fun showTextSelectionActionsOverlay(anchorX: Double, anchorY: Double) {
-        if (!isExpanded) {
-            return
-        }
-
-        val currentView = selectionActionsView
-        if (currentView != null) {
-            updateTextSelectionActionsLayout(currentView, anchorX, anchorY)
-            return
-        }
-
-        val actionsView = createTextSelectionActionsView()
-        val params = createTextSelectionActionsLayoutParams()
-        selectionActionsParams = params
-        try {
-            windowManager.addView(actionsView, params)
-            selectionActionsView = actionsView
-            actionsView.post {
-                updateTextSelectionActionsLayout(actionsView, anchorX, anchorY)
-            }
-        } catch (e: Exception) {
-            selectionActionsParams = null
-            AppLogger.e("WebSessionBrowserHost", "Failed to show WebView text selection actions", e)
-        }
+        if (!appPresentationActive) return
+        val webView = activeWebView ?: return
+        hostState =
+            hostState.copy(
+                textSelectionActions =
+                    WebSessionTextSelectionActionsState(
+                        anchorXPx = (anchorX * webView.scale).roundToInt(),
+                        anchorYPx = (anchorY * webView.scale).roundToInt(),
+                    ),
+            )
     }
 
     fun performTextSelectionHaptic() {
-        rootView?.performHapticFeedback(
+        activeWebView?.performHapticFeedback(
             HapticFeedbackConstants.LONG_PRESS,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
         )
     }
 
     fun hideTextSelectionActionsOverlay() {
-        val view = selectionActionsView ?: return
-        try {
-            windowManager.removeView(view)
-        } catch (e: Exception) {
-            AppLogger.e("WebSessionBrowserHost", "Failed to hide WebView text selection actions", e)
+        if (hostState.textSelectionActions != null) {
+            hostState = hostState.copy(textSelectionActions = null)
         }
-        selectionActionsView = null
-        selectionActionsParams = null
     }
-
-    fun isExpanded(): Boolean = isExpanded
 
     fun setViewportSize(width: Int, height: Int) {
         updateHostState {
@@ -608,104 +615,6 @@ internal class WebSessionBrowserHost(
     fun currentBrowserAreaSize(): Pair<Int, Int> =
         hostState.browserAreaWidthPx.coerceAtLeast(0) to hostState.browserAreaHeightPx.coerceAtLeast(0)
 
-    fun setExpanded(
-        expanded: Boolean,
-        resetTransientUi: Boolean = true,
-        showMinimizedIndicator: Boolean = true,
-    ) {
-        val params = overlayParams ?: return
-        val root = rootView ?: return
-        val compose = composeView ?: return
-
-        if (expanded && appPresentationActive) {
-            hideIndicator()
-            return
-        }
-
-        if (!expanded) {
-            hideTextSelectionActionsOverlay()
-        }
-
-        isExpanded = expanded
-        hostState =
-            if (expanded || !resetTransientUi) {
-                hostState
-            } else {
-                hostState.copy(
-                    sheetRoute = WebSessionBrowserSheetRoute.NONE,
-                    isSearchVisible = false,
-                    isSearchEnginePanelVisible = false,
-                    searchDraft = "",
-                    pageSource = WebSessionPageSourceState(),
-                )
-            }
-
-        if (expanded) {
-            root.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-            root.setMinimizedMeasure(false)
-            root.setBackgroundColor(AndroidColor.TRANSPARENT)
-            compose.alpha = 1f
-
-            applyExpandedLayoutParams(params)
-            hideIndicator()
-        } else {
-            if (showMinimizedIndicator && indicatorView == null) {
-                showIndicator()
-            }
-
-            root.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-            val displayMetrics = appContext.resources.displayMetrics
-            root.setMinimizedMeasure(
-                enabled = true,
-                fakeWidth = displayMetrics.widthPixels,
-                fakeHeight = displayMetrics.heightPixels
-            )
-            root.setBackgroundColor(AndroidColor.TRANSPARENT)
-            compose.alpha = 0.01f
-
-            params.width = 1
-            params.height = 1
-            params.gravity = Gravity.TOP or Gravity.START
-            params.flags = BrowserOverlayWindowPolicy.minimizedFlags()
-
-            indicatorParams?.let {
-                params.x = it.x
-                params.y = it.y
-            }
-        }
-
-        overlayParams = params
-        if (root.windowToken != null) {
-            windowManager.updateViewLayout(root, params)
-        }
-        syncBackInputRegistration()
-        updateIndicatorLayoutForCurrentState()
-    }
-
-    private fun applyExpandedLayoutParams(params: WindowManager.LayoutParams) {
-        params.width = WindowManager.LayoutParams.MATCH_PARENT
-        params.height = WindowManager.LayoutParams.MATCH_PARENT
-        params.gravity = Gravity.CENTER
-        params.x = 0
-        params.y = 0
-        // The overlay must own the physical screen edge. Without this contract Compose starts
-        // below the status bar/cutout and leaves the previous window visible above browser chrome.
-        params.flags = BrowserOverlayWindowPolicy.expandedFlags()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            params.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            params.setFitInsetsTypes(0)
-        }
-        params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-    }
-
-    private fun syncBackInputRegistration() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            backCallbackRegistrar?.setEnabled(isExpanded && !appPresentationActive)
-        }
-    }
 
     fun showSheet(route: WebSessionBrowserSheetRoute) {
         updateHostState { it.copy(sheetRoute = route) }
@@ -853,140 +762,18 @@ internal class WebSessionBrowserHost(
         hideTextSelectionActionsOverlay()
     }
 
-    private fun createTextSelectionActionsView(): View {
-        val density = appContext.resources.displayMetrics.density
-        val cornerRadius = (12f * density)
-        val horizontalPadding = (4f * density).roundToInt()
-        val verticalPadding = (2f * density).roundToInt()
-
-        return LinearLayout(appContext).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-            background =
-                GradientDrawable().apply {
-                    setColor(0xF2242424.toInt())
-                    setCornerRadius(cornerRadius)
-                    setStroke(dp(1), 0x33FFFFFF)
-                }
-            elevation = 10f * density
-
-            addView(
-                createTextSelectionActionButton(appContext.getString(R.string.copy)) {
-                    copyActiveWebViewSelection()
-                }
-            )
-            addView(
-                createTextSelectionActionButton(appContext.getString(android.R.string.selectAll)) {
-                    selectAllActiveWebViewText()
-                }
-            )
-            addView(
-                createTextSelectionActionButton(appContext.getString(R.string.cancel)) {
-                    dismissTextSelectionActions()
-                }
-            )
-        }
-    }
-
-    private fun createTextSelectionActionButton(
-        label: String,
-        onClick: () -> Unit
-    ): TextView =
-        TextView(appContext).apply {
-            text = label
-            setTextColor(AndroidColor.WHITE)
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setIncludeFontPadding(false)
-            setMinWidth(0)
-            setMinHeight(dp(38))
-            setPadding(dp(14), 0, dp(14), 0)
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { onClick() }
-        }
-
-    private fun createTextSelectionActionsLayoutParams(): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = 0
-        }
-
-    private fun updateTextSelectionActionsLayout(
-        actionsView: View,
-        anchorX: Double,
-        anchorY: Double
-    ) {
-        val params = selectionActionsParams ?: return
-        val webView = activeWebView ?: return
-        if (actionsView.measuredWidth == 0 || actionsView.measuredHeight == 0) {
-            actionsView.measure(
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-            )
-        }
-
-        val location = IntArray(2)
-        webView.getLocationOnScreen(location)
-        val scale = webView.scale
-        val width = actionsView.measuredWidth
-        val height = actionsView.measuredHeight
-        val metrics = appContext.resources.displayMetrics
-        val margin = dp(10)
-        val screenX = (location[0] + anchorX * scale).roundToInt()
-        val selectionTop = (location[1] + anchorY * scale).roundToInt()
-        val aboveY = selectionTop - height - margin
-        val belowY = selectionTop + dp(28)
-        val maxX = (metrics.widthPixels - width - margin).coerceAtLeast(margin)
-        val maxY = (metrics.heightPixels - height - margin).coerceAtLeast(margin)
-
-        params.x = (screenX - width / 2).coerceIn(margin, maxX)
-        params.y =
-            if (aboveY >= margin) {
-                aboveY
-            } else {
-                belowY.coerceIn(margin, maxY)
-            }
-
-        selectionActionsParams = params
-        if (actionsView.windowToken != null) {
-            windowManager.updateViewLayout(actionsView, params)
-        }
-    }
-
-    fun syncIndicatorWithMinimizedWindow() {
-        if (isExpanded) {
-            return
-        }
-        val params = overlayParams ?: return
+    private fun syncBackgroundAnchorWithIndicator() {
         val indicator = indicatorParams ?: return
-        val root = rootView ?: return
-
-        params.x = indicator.x
-        params.y = indicator.y
-        overlayParams = params
-
-        if (root.windowToken != null) {
-            windowManager.updateViewLayout(root, params)
-        }
+        backgroundAnchor.moveTo(indicator.x, indicator.y)
     }
 
     private fun showIndicator() {
-        if (appPresentationActive || indicatorView != null) {
+        if (appPresentationActive || !backgroundAnchor.isAttached || indicatorView != null) {
             return
         }
 
         val lifecycleOwner =
-            WebSessionOverlayLifecycleOwner(onUnhandledBack = { handleBack() }).apply {
+            WebSessionOverlayLifecycleOwner().apply {
                 handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
                 handleLifecycleEvent(Lifecycle.Event.ON_START)
                 handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
@@ -1008,7 +795,7 @@ internal class WebSessionBrowserHost(
                             hasFailedDownloads = hostState.browserState.hasFailedDownloads,
                             downloadPrompt = hostState.downloadPrompt,
                             externalOpenPrompt = hostState.externalOpenPrompt,
-                            onToggleFullscreen = { setExpanded(true) },
+                            onOpenBrowser = callbacks::onOpenAppShellBrowser,
                             onDragBy = { dx, dy -> moveIndicatorBy(dx, dy) },
                             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
                             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
@@ -1047,11 +834,11 @@ internal class WebSessionBrowserHost(
         params.y = (params.y + dy).coerceIn(0, maxY)
         indicatorParams = params
         windowManager.updateViewLayout(indicator, params)
-        syncIndicatorWithMinimizedWindow()
+        syncBackgroundAnchorWithIndicator()
     }
 
     private fun updateIndicatorLayoutForCurrentState() {
-        if (isExpanded || appPresentationActive) {
+        if (appPresentationActive) {
             return
         }
         val indicator = indicatorView ?: return
@@ -1067,7 +854,7 @@ internal class WebSessionBrowserHost(
         if (indicator.windowToken != null) {
             windowManager.updateViewLayout(indicator, params)
         }
-        syncIndicatorWithMinimizedWindow()
+        syncBackgroundAnchorWithIndicator()
     }
 
     private fun installViewTreeOwners(
@@ -1077,54 +864,6 @@ internal class WebSessionBrowserHost(
         view.setViewTreeLifecycleOwner(lifecycleOwner)
         view.setViewTreeViewModelStoreOwner(lifecycleOwner)
         view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
-        // Compose BackHandler resolves this owner during composition. Platform Back inputs are
-        // dispatched through the same owner so search and other Compose-local callbacks run before
-        // the host's existing browser state machine.
-        view.setViewTreeOnBackPressedDispatcherOwner(lifecycleOwner)
-    }
-
-    private fun createOverlayLayoutParams(expanded: Boolean): WindowManager.LayoutParams {
-        val type =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
-
-        return if (expanded) {
-            WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                type,
-                BrowserOverlayWindowPolicy.expandedFlags(),
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.CENTER
-                x = 0
-                y = 0
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    setFitInsetsTypes(0)
-                }
-                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            }
-        } else {
-            WindowManager.LayoutParams(
-                1,
-                1,
-                type,
-                BrowserOverlayWindowPolicy.minimizedFlags(),
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-                x = dp(16)
-                y = dp(16)
-            }
-        }
     }
 
     private fun createIndicatorLayoutParams(): WindowManager.LayoutParams {
@@ -1169,18 +908,13 @@ internal class WebSessionBrowserHost(
         (value * appContext.resources.displayMetrics.density).roundToInt()
 }
 
-private class WebSessionOverlayLifecycleOwner(
-    onUnhandledBack: () -> Unit,
-) :
+private class WebSessionOverlayLifecycleOwner :
     LifecycleOwner,
     ViewModelStoreOwner,
-    SavedStateRegistryOwner,
-    OnBackPressedDispatcherOwner {
+    SavedStateRegistryOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val viewModelStoreField = ViewModelStore()
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
-
-    override val onBackPressedDispatcher = OnBackPressedDispatcher(onUnhandledBack)
 
     init {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -1204,126 +938,6 @@ private class WebSessionOverlayLifecycleOwner(
             Handler(Looper.getMainLooper()).post {
                 lifecycleRegistry.handleLifecycleEvent(event)
             }
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private class BrowserOverlayBackCallbackRegistrar(
-    private val root: View,
-    private val onBack: () -> Boolean,
-) : View.OnAttachStateChangeListener {
-    private val callback = OnBackInvokedCallback { onBack() }
-    private var enabled: Boolean = false
-    private var dispatcher: OnBackInvokedDispatcher? = null
-
-    init {
-        root.addOnAttachStateChangeListener(this)
-    }
-
-    fun setEnabled(enabled: Boolean) {
-        this.enabled = enabled
-        syncRegistration()
-    }
-
-    fun dispose() {
-        enabled = false
-        unregister()
-        root.removeOnAttachStateChangeListener(this)
-    }
-
-    override fun onViewAttachedToWindow(view: View) {
-        syncRegistration()
-    }
-
-    override fun onViewDetachedFromWindow(view: View) {
-        unregister()
-    }
-
-    private fun syncRegistration() {
-        if (!enabled || !root.isAttachedToWindow) {
-            unregister()
-            return
-        }
-
-        val nextDispatcher = root.findOnBackInvokedDispatcher() ?: return
-        if (dispatcher === nextDispatcher) {
-            return
-        }
-
-        unregister()
-        nextDispatcher.registerOnBackInvokedCallback(
-            OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-            callback,
-        )
-        dispatcher = nextDispatcher
-    }
-
-    private fun unregister() {
-        val currentDispatcher = dispatcher ?: return
-        currentDispatcher.unregisterOnBackInvokedCallback(callback)
-        dispatcher = null
-    }
-}
-
-private class DeceptiveMinimizedLayout(context: Context) : FrameLayout(context) {
-    var minimizedMeasureEnabled: Boolean = false
-    var fakeWidthPx: Int = 1
-    var fakeHeightPx: Int = 1
-    var onLegacyBack: (() -> Boolean)? = null
-
-    init {
-        clipChildren = false
-        clipToPadding = false
-    }
-
-    fun setMinimizedMeasure(enabled: Boolean, fakeWidth: Int = fakeWidthPx, fakeHeight: Int = fakeHeightPx) {
-        minimizedMeasureEnabled = enabled
-        fakeWidthPx = fakeWidth.coerceAtLeast(1)
-        fakeHeightPx = fakeHeight.coerceAtLeast(1)
-        requestLayout()
-    }
-
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (
-            BrowserOverlayWindowPolicy.shouldHandleLegacyBack(
-                sdkInt = Build.VERSION.SDK_INT,
-                keyCode = event.keyCode,
-                action = event.action,
-                isCanceled = event.isCanceled,
-            ) && onLegacyBack?.invoke() == true
-        ) {
-            return true
-        }
-        return super.dispatchKeyEvent(event)
-    }
-
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        if (!minimizedMeasureEnabled) {
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-            return
-        }
-
-        val childWidthSpec =
-            View.MeasureSpec.makeMeasureSpec(fakeWidthPx, View.MeasureSpec.EXACTLY)
-        val childHeightSpec =
-            View.MeasureSpec.makeMeasureSpec(fakeHeightPx, View.MeasureSpec.EXACTLY)
-
-        for (i in 0 until childCount) {
-            getChildAt(i).measure(childWidthSpec, childHeightSpec)
-        }
-
-        setMeasuredDimension(1, 1)
-    }
-
-    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        if (!minimizedMeasureEnabled) {
-            super.onLayout(changed, left, top, right, bottom)
-            return
-        }
-
-        for (i in 0 until childCount) {
-            getChildAt(i).layout(0, 0, fakeWidthPx, fakeHeightPx)
         }
     }
 }

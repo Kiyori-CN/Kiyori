@@ -4,14 +4,17 @@ import android.content.Context
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.player.PlayerSurfaceRole
 import java.util.UUID
 
 internal class PlayerSurfaceView(
     context: Context,
     private val session: PlayerSession,
+    private val role: PlayerSurfaceRole,
     mediaOverlay: Boolean = false,
 ) : SurfaceView(context), SurfaceHolder.Callback {
     private val ownerToken = "player-surface:${UUID.randomUUID()}"
+    private var generation: Long? = null
 
     init {
         holder.addCallback(this)
@@ -21,7 +24,16 @@ internal class PlayerSurfaceView(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        session.attachSurface(ownerToken, holder.surface, width, height)
+        val registeredGeneration = session.registerSurfaceOwner(role, ownerToken) ?: return
+        generation = registeredGeneration
+        session.attachSurface(
+            role,
+            ownerToken,
+            registeredGeneration,
+            holder.surface,
+            width,
+            height,
+        )
     }
 
     override fun surfaceChanged(
@@ -30,10 +42,20 @@ internal class PlayerSurfaceView(
         width: Int,
         height: Int,
     ) {
-        session.updateSurface(ownerToken, width, height)
+        val registeredGeneration = generation ?: return
+        session.updateSurface(
+            role,
+            ownerToken,
+            registeredGeneration,
+            holder.surface,
+            width,
+            height,
+        )
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        session.detachSurface(ownerToken, holder.surface)
+        val registeredGeneration = generation ?: return
+        generation = null
+        session.detachSurface(role, ownerToken, registeredGeneration, holder.surface)
     }
 }

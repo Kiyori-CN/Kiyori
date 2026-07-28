@@ -43,14 +43,21 @@ internal class MpvPlayerEngine(
     private val appContext = context.applicationContext
     private var initialized = false
     private var attachedSurface: Surface? = null
+    private var videoOutput = VIDEO_OUTPUT_GPU
 
     fun initialize(settings: PlayerSettings): Unit = callMpv("初始化") {
         if (initialized) return
+        PlayerDebugLogBuffer.append("MpvPlayerEngine", "初始化 mpv 内核")
         MPVLib.create(appContext)
         setRequiredOption("config", "no")
-        setRequiredOption("vo", VIDEO_OUTPUT)
-        setRequiredOption("gpu-context", "android")
-        setRequiredOption("hwdec", settings.hardwareDecodingPolicy.mpvValue)
+        setRequiredOption("profile", settings.decoderPreset.persistedId)
+        videoOutput =
+            if (settings.gpuNextEnabled) VIDEO_OUTPUT_GPU_NEXT else VIDEO_OUTPUT_GPU
+        setRequiredOption("vo", videoOutput)
+        setRequiredOption(
+            "gpu-context",
+            if (settings.vulkanEnabled) GPU_CONTEXT_VULKAN else GPU_CONTEXT_OPENGL,
+        )
         setRequiredOption("hwdec-codecs", "all")
         setRequiredOption("ao", "audiotrack")
         setRequiredOption("keep-open", "yes")
@@ -74,6 +81,9 @@ internal class MpvPlayerEngine(
         setPreciseSeekingOptions(settings.preciseSeeking)
         setRequiredOption("sub-scale", settings.subtitleScale.toString())
         setRequiredOption("loop-file", loopFileValue(settings.endBehavior))
+        setVolumeBoostOptions(settings.volumeBoostEnabled)
+        // The packaged mpvlibAndroid binding initializes the core before Surface callbacks.
+        // Attaching a native window here would let VO startup race Android's first Surface frame.
         MPVLib.addObserver(this)
         MPVLib.init()
         MPVLib.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
@@ -83,6 +93,7 @@ internal class MpvPlayerEngine(
         MPVLib.observeProperty("paused-for-cache", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         initialized = true
+        PlayerDebugLogBuffer.append("MpvPlayerEngine", "mpv 内核初始化完成")
     }
 
     fun load(
@@ -90,28 +101,38 @@ internal class MpvPlayerEngine(
         headers: Map<String, String>,
         settings: PlayerSettings,
         shaderFiles: List<String>,
+        initialSpeed: Double,
     ) = callMpv("加载媒体") {
         check(initialized) { "mpv engine is not initialized" }
+        PlayerDebugLogBuffer.append(
+            "MpvPlayerEngine",
+            "加载媒体 uri=${target.substringBefore('?')}",
+        )
         applyRequestHeaders(headers)
-        applyHardwareDecoding(settings.hardwareDecodingPolicy)
+        applyDecoderPreset(settings.decoderPreset)
         applyPreciseSeeking(settings.preciseSeeking)
         applyNetworkCache(settings.networkCachePolicy)
         applySubtitleScale(settings.subtitleScale)
         applyEndBehavior(settings.endBehavior)
+        applyVolumeBoost(settings.volumeBoostEnabled)
         applyShaders(shaderFiles)
-        MPVLib.setPropertyDouble("speed", settings.defaultSpeed)
+        MPVLib.setPropertyDouble("speed", initialSpeed)
         MPVLib.command("loadfile", target, "replace")
         MPVLib.setPropertyBoolean("pause", false)
     }
 
     fun attachSurface(surface: Surface, width: Int, height: Int) = callMpv("连接播放画面") {
         check(initialized) { "mpv engine is not initialized" }
-        detachSurface()
+        check(attachedSurface == null) {
+            "PlayerSession must detach the active Surface before attaching another one"
+        }
+        check(surface.isValid) { "player surface is invalid" }
         MPVLib.attachSurface(surface)
-        MPVLib.setPropertyString("vo", VIDEO_OUTPUT)
+        MPVLib.setPropertyString("vo", videoOutput)
         MPVLib.setPropertyString("force-window", "yes")
         attachedSurface = surface
         updateSurfaceSize(width, height)
+        PlayerDebugLogBuffer.append("MpvPlayerEngine", "连接播放画面 ${width}x$height")
     }
 
     fun updateSurfaceSize(width: Int, height: Int) = callMpv("更新播放画面尺寸") {
@@ -126,6 +147,7 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyString("force-window", "no")
         MPVLib.detachSurface()
         attachedSurface = null
+        PlayerDebugLogBuffer.append("MpvPlayerEngine", "断开播放画面")
     }
 
     fun setPaused(paused: Boolean) = callMpv("设置暂停状态") {
@@ -156,8 +178,8 @@ internal class MpvPlayerEngine(
         }
     }
 
-    fun applyHardwareDecoding(policy: PlayerHardwareDecodingPolicy) = callMpv("应用硬件解码策略") {
-        MPVLib.setPropertyString("hwdec", policy.mpvValue)
+    fun applyDecoderPreset(preset: PlayerDecoderPreset) = callMpv("应用解码器预设") {
+        MPVLib.command("apply-profile", preset.persistedId)
     }
 
     fun applyPreciseSeeking(enabled: Boolean) = callMpv("应用精确跳转设置") {
@@ -179,6 +201,12 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyString("loop-file", loopFileValue(behavior))
     }
 
+    fun applyVolumeBoost(enabled: Boolean) = callMpv("应用音量增强设置") {
+        val targetVolume = if (enabled) BOOSTED_VOLUME_PERCENT else NORMAL_VOLUME_PERCENT
+        MPVLib.setPropertyDouble("volume-max", if (enabled) MAX_BOOSTED_VOLUME_PERCENT else NORMAL_VOLUME_PERCENT)
+        MPVLib.setPropertyDouble("volume", targetVolume)
+    }
+
     fun applyShaders(shaderFiles: List<String>) = callMpv("应用 Anime4K 着色器") {
         MPVLib.setPropertyString("glsl-shaders", shaderFiles.joinToString(":"))
     }
@@ -189,17 +217,15 @@ internal class MpvPlayerEngine(
                 MPVLib.setPropertyDouble("panscan", 0.0)
                 MPVLib.setPropertyDouble("video-aspect-override", -1.0)
             }
+            PlayerVideoFitMode.STRETCH -> {
+                val ratio = appContext.resources.displayMetrics.widthPixels /
+                    appContext.resources.displayMetrics.heightPixels.toDouble()
+                MPVLib.setPropertyDouble("panscan", 0.0)
+                MPVLib.setPropertyDouble("video-aspect-override", ratio)
+            }
             PlayerVideoFitMode.CROP -> {
                 MPVLib.setPropertyDouble("video-aspect-override", -1.0)
                 MPVLib.setPropertyDouble("panscan", 1.0)
-            }
-            PlayerVideoFitMode.RATIO_16_9 -> {
-                MPVLib.setPropertyDouble("panscan", 0.0)
-                MPVLib.setPropertyDouble("video-aspect-override", 16.0 / 9.0)
-            }
-            PlayerVideoFitMode.RATIO_4_3 -> {
-                MPVLib.setPropertyDouble("panscan", 0.0)
-                MPVLib.setPropertyDouble("video-aspect-override", 4.0 / 3.0)
             }
         }
     }
@@ -244,11 +270,14 @@ internal class MpvPlayerEngine(
 
     fun destroy(): Unit = callMpv("销毁内核") {
         if (!initialized) return
-        detachSurface()
+        check(attachedSurface == null) {
+            "PlayerSession must detach the active Surface before destroying mpv"
+        }
         MPVLib.command("stop")
         MPVLib.removeObserver(this)
         MPVLib.destroy()
         initialized = false
+        PlayerDebugLogBuffer.append("MpvPlayerEngine", "销毁 mpv 内核")
     }
 
     private fun setRequiredOption(name: String, value: String) {
@@ -265,6 +294,19 @@ internal class MpvPlayerEngine(
     private fun setPreciseSeekingOptions(enabled: Boolean) {
         setRequiredOption("hr-seek", if (enabled) "yes" else "no")
         setRequiredOption("hr-seek-framedrop", if (enabled) "no" else "yes")
+    }
+
+    private fun setVolumeBoostOptions(enabled: Boolean) {
+        setRequiredOption(
+            "volume-max",
+            if (enabled) MAX_BOOSTED_VOLUME_PERCENT.toInt().toString()
+            else NORMAL_VOLUME_PERCENT.toInt().toString(),
+        )
+        setRequiredOption(
+            "volume",
+            if (enabled) BOOSTED_VOLUME_PERCENT.toInt().toString()
+            else NORMAL_VOLUME_PERCENT.toInt().toString(),
+        )
     }
 
     private fun applyRequestHeaders(headers: Map<String, String>) {
@@ -302,9 +344,13 @@ internal class MpvPlayerEngine(
 
     override fun event(eventId: Int, data: MPVNode) {
         when (eventId) {
-            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> listener.onFileLoaded()
+            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                PlayerDebugLogBuffer.append("MpvPlayerEngine", "媒体文件已加载")
+                listener.onFileLoaded()
+            }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 val reason = data["reason"]?.asInt()
+                PlayerDebugLogBuffer.append("MpvPlayerEngine", "媒体结束 reason=${reason ?: "unknown"}")
                 if (reason == MPV_END_FILE_REASON_ERROR) {
                     val errorCode = data["error"]?.asInt()
                     listener.onRuntimeError(
@@ -319,6 +365,10 @@ internal class MpvPlayerEngine(
         try {
             block()
         } catch (error: LinkageError) {
+            PlayerDebugLogBuffer.append(
+                "MpvPlayerEngine",
+                "$operation 失败：${error.message ?: error.javaClass.simpleName}",
+            )
             throw MpvRuntimeException(operation, error)
         }
 
@@ -326,7 +376,13 @@ internal class MpvPlayerEngine(
         if (behavior == PlayerEndBehavior.LOOP) "inf" else "no"
 
     private companion object {
-        const val VIDEO_OUTPUT = "gpu"
+        const val VIDEO_OUTPUT_GPU = "gpu"
+        const val VIDEO_OUTPUT_GPU_NEXT = "gpu-next"
+        const val GPU_CONTEXT_OPENGL = "android"
+        const val GPU_CONTEXT_VULKAN = "androidvk"
+        const val NORMAL_VOLUME_PERCENT = 100.0
+        const val BOOSTED_VOLUME_PERCENT = 150.0
+        const val MAX_BOOSTED_VOLUME_PERCENT = 300.0
         const val MPV_END_FILE_REASON_ERROR = 4L
     }
 }

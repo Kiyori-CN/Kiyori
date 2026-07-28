@@ -13,6 +13,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -477,12 +478,11 @@ internal fun StandardBrowserSessionTools.configureWebView(
         }
 }
 
-internal fun StandardBrowserSessionTools.ensureOverlayOnMain(
+internal fun StandardBrowserSessionTools.ensureBackgroundAnchorOnMain(
     appContext: Context,
-    initialExpanded: Boolean = false
 ): WebSessionBrowserHost {
     val host = ensureBrowserPresentationOnMain(appContext)
-    host.ensureCreated(initialExpanded = initialExpanded)
+    host.ensureBackgroundAnchorCreated()
     refreshSessionUiOnMain()
     return host
 }
@@ -492,7 +492,7 @@ internal fun StandardBrowserSessionTools.ensureBrowserPresentationOnMain(
 ): WebSessionBrowserHost {
     StandardBrowserSessionTools.browserHost?.let { return it }
 
-    synchronized(StandardBrowserSessionTools.overlayLock) {
+    synchronized(StandardBrowserSessionTools.presentationLock) {
         StandardBrowserSessionTools.browserHost?.let { return it }
 
         val host =
@@ -592,10 +592,17 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onMinimize() {
-            runOnMainSync<Unit> {
-                setExpandedOnMain(false)
-            }
+        override fun onOpenAppShellBrowser() {
+            context.startActivity(
+                Intent(context, MainActivity::class.java).apply {
+                    action = MainActivity.ACTION_OPEN_KIYORI_BROWSER
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    )
+                },
+            )
         }
 
         override fun onExitBrowser() {
@@ -605,11 +612,6 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
         }
 
         override fun onOpenBrowserSettings() {
-            // The overlay must release its expanded presentation before MainActivity displays
-            // settings; otherwise two focusable windows compete while the same WebView stays live.
-            runOnMainSync<Unit> {
-                setExpandedOnMain(false)
-            }
             context.startActivity(
                 Intent(context, MainActivity::class.java).apply {
                     action = MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS
@@ -623,9 +625,6 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
         }
 
         override fun onOpenDownloadSettings() {
-            runOnMainSync<Unit> {
-                setExpandedOnMain(false)
-            }
             context.startActivity(
                 Intent(context, MainActivity::class.java).apply {
                     action = MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS
@@ -923,9 +922,12 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             openBrowserPlayerFullscreen()
         }
 
+        override fun onLaunchPlayerFullscreen() {
+            launchBrowserPlayerFullscreenActivity()
+        }
+
         override fun onClosePlayer() {
             closeBrowserPlayer()
-            StandardBrowserSessionTools.browserHost?.clearPlayerFullscreenHandoff()
         }
 
         override fun onPauseDownload(taskId: String) {
@@ -1106,7 +1108,7 @@ private fun copyBrowserDownloadText(context: Context, label: String, value: Stri
     clipboard.setPrimaryClip(ClipData.newPlainText(label, value))
 }
 
-internal fun StandardBrowserSessionTools.destroyOverlayOnMain() {
+internal fun StandardBrowserSessionTools.destroyBackgroundPresentationOnMain() {
     StandardBrowserSessionTools.browserHost?.destroy()
     StandardBrowserSessionTools.browserHost = null
     StandardBrowserSessionTools.activeSessionId = null
@@ -1114,48 +1116,23 @@ internal fun StandardBrowserSessionTools.destroyOverlayOnMain() {
 
 /**
  * Removes only the browser presentation. Sessions remain available to AI browser tools and can
- * be mounted again by a later Browser Home or overlay request.
+ * be mounted again by a later Browser Home or background-anchor request.
  */
 internal fun StandardBrowserSessionTools.destroyBrowserPresentationOnMain() {
     StandardBrowserSessionTools.browserHost?.destroy()
     StandardBrowserSessionTools.browserHost = null
 }
 
-internal fun StandardBrowserSessionTools.setExpandedOnMain(expanded: Boolean) {
-    StandardBrowserSessionTools.browserHost?.setExpanded(expanded)
-    keepActiveWebViewRunningOnMain(expanded)
-    if (expanded) {
-        refreshSessionUiOnMain()
-    }
-}
-
 internal fun StandardBrowserSessionTools.openUserscriptSheetOnMain() {
     val host = ensureBrowserPresentationOnMain(context.applicationContext)
     if (!host.hasAppPresentation()) {
-        ensureOverlayOnMain(context.applicationContext, initialExpanded = true)
-        setExpandedOnMain(true)
+        host.showSheet(WebSessionBrowserSheetRoute.USERSCRIPTS)
+        createBrowserHostCallbacks(context.applicationContext).onOpenAppShellBrowser()
+        refreshSessionUiOnMain()
+        return
     }
     host.showSheet(WebSessionBrowserSheetRoute.USERSCRIPTS)
     refreshSessionUiOnMain()
-}
-
-internal fun StandardBrowserSessionTools.keepActiveWebViewRunningOnMain(expanded: Boolean) {
-    val session = getActiveSessionOnMain() ?: return
-    try {
-        session.webView.onResume()
-        session.webView.resumeTimers()
-        session.webView.visibility = View.VISIBLE
-        session.webView.alpha = 1f
-        if (expanded) {
-            if (!session.webView.hasFocus()) {
-                session.webView.requestFocus()
-            }
-        } else {
-            session.webView.clearFocus()
-        }
-    } catch (e: Exception) {
-        AppLogger.w(WEBVIEW_SUPPORT_TAG, "Failed to keep active WebView running: ${e.message}")
-    }
 }
 
 internal fun StandardBrowserSessionTools.createSessionTabOnMain(
@@ -1276,7 +1253,17 @@ internal fun StandardBrowserSessionTools.activateSessionOnMain(sessionId: String
 
 internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: String) {
     val session = sessionById(sessionId) ?: return
-    ensureBrowserPresentationOnMain(context.applicationContext)
+    val appContext = context.applicationContext
+    val host = ensureBrowserPresentationOnMain(appContext)
+    if (!host.hasAppPresentation() && !host.hasBackgroundAnchorPresentation()) {
+        check(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                Settings.canDrawOverlays(appContext),
+        ) {
+            "Overlay permission is required for browser tools while Browser Home is not mounted."
+        }
+        ensureBackgroundAnchorOnMain(appContext)
+    }
     StandardBrowserSessionTools.activeSessionId
         ?.takeIf { activeId -> activeId != sessionId }
         ?.let(::sessionById)
@@ -2025,7 +2012,7 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
             if (host?.hasAppPresentation() == true) {
                 host.attachActiveWebView(null)
             } else {
-                destroyOverlayOnMain()
+                destroyBackgroundPresentationOnMain()
             }
         }
         refreshSessionUiOnMain()

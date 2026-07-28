@@ -98,6 +98,12 @@ internal data class WebSessionPageSourceState(
 )
 
 @Immutable
+internal data class WebSessionTextSelectionActionsState(
+    val anchorXPx: Int,
+    val anchorYPx: Int,
+)
+
+@Immutable
 internal data class WebSessionBrowserState(
     val activeSessionId: String? = null,
     val activeProfile: WebSessionProfile? = null,
@@ -188,6 +194,7 @@ internal data class WebSessionBrowserHostState(
     val searchDraft: String = "",
     val searchProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
+    val textSelectionActions: WebSessionTextSelectionActionsState? = null,
     val externalOpenPrompt: ExternalOpenPromptState? = null,
     val downloadPrompt: BrowserDownloadPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),

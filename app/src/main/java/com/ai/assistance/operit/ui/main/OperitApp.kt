@@ -48,6 +48,7 @@ import com.ai.assistance.operit.ui.main.shell.AiDrawerSelectionEffect
 import com.ai.assistance.operit.ui.main.shell.AiTopBarMode
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
+import com.ai.assistance.operit.ui.main.shell.KiyoriShellExternalDestination
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserReturnTarget
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellState
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellStateSaver
@@ -61,6 +62,7 @@ import com.ai.assistance.operit.ui.main.shell.resolveKiyoriWebSearchRequest
 import com.ai.assistance.operit.ui.main.shell.buildAiPrimaryStack
 import com.ai.assistance.operit.ui.main.shell.hasSameAiSettingsSourceFamily
 import com.ai.assistance.operit.ui.main.shell.openExternalChild
+import com.ai.assistance.operit.ui.main.shell.openExternalDestination
 import com.ai.assistance.operit.ui.main.shell.preservesAiPrimaryStack
 import com.ai.assistance.operit.ui.main.shell.toAiPrimaryRouteEntry
 import com.ai.assistance.operit.R
@@ -119,7 +121,7 @@ fun OperitApp(
     routeNavRequestId: Long = 0L,
     browserOpenRequest: String? = null,
     browserOpenRequestId: Long = 0L,
-    kiyoriShellChildRequest: KiyoriShellChild? = null,
+    kiyoriShellDestinationRequest: KiyoriShellExternalDestination? = null,
     kiyoriShellRequestId: Long = 0L,
     onShortcutNavHandled: (Long) -> Unit = {},
     onCurrentNavItemChanged: (NavItem) -> Unit = {},
@@ -276,8 +278,8 @@ fun OperitApp(
         onBrowserOpenHandled(browserOpenRequestId)
     }
 
-    LaunchedEffect(kiyoriShellRequestId, kiyoriShellChildRequest) {
-        val destination = kiyoriShellChildRequest ?: return@LaunchedEffect
+    LaunchedEffect(kiyoriShellRequestId, kiyoriShellDestinationRequest) {
+        val destination = kiyoriShellDestinationRequest ?: return@LaunchedEffect
         if (
             kiyoriShellRequestId == 0L ||
                 kiyoriShellRequestId == lastHandledKiyoriShellRequestId
@@ -288,7 +290,7 @@ fun OperitApp(
         routerState.resetTo(
             aiChatDrawerEntry.toAiPrimaryRouteEntry(RouteEntrySource.DEFAULT),
         )
-        updateShellState(shellState.openExternalChild(destination))
+        updateShellState(shellState.openExternalDestination(destination))
         lastHandledKiyoriShellRequestId = kiyoriShellRequestId
         onKiyoriShellRequestHandled(kiyoriShellRequestId)
     }
@@ -614,7 +616,6 @@ fun OperitApp(
                 topBarTitleContent = titleContent
             },
             LocalOpenBrowser provides {
-                browserCoordinator.prepareBrowserForAiHome()
                 updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.AI_HOME))
             },
         ) {

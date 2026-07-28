@@ -39,6 +39,12 @@ enum class KiyoriShellChild {
     PLAYER_SETTINGS,
 }
 
+enum class KiyoriShellExternalDestination {
+    BROWSER_HOME,
+    BROWSER_SETTINGS,
+    DOWNLOAD_SETTINGS,
+}
+
 enum class AiDrawerSelectionEffect {
     CLOSE_ONLY,
     REPLACE_PRIMARY,
@@ -299,6 +305,28 @@ internal fun KiyoriShellState.openExternalChild(
         }
     return selectPrimary(owner).openChild(destination)
 }
+
+internal fun KiyoriShellState.openExternalDestination(
+    destination: KiyoriShellExternalDestination,
+): KiyoriShellState =
+    when (destination) {
+        KiyoriShellExternalDestination.BROWSER_HOME ->
+            openBrowser(resolveExternalBrowserReturnTarget())
+        KiyoriShellExternalDestination.BROWSER_SETTINGS ->
+            openExternalChild(KiyoriShellChild.BROWSER_SETTINGS)
+        KiyoriShellExternalDestination.DOWNLOAD_SETTINGS ->
+            openExternalChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+    }
+
+internal fun KiyoriShellState.resolveExternalBrowserReturnTarget(): KiyoriBrowserReturnTarget =
+    when {
+        primaryDestination == PrimaryDestination.BROWSER_HOME ->
+            browserReturnTarget ?: KiyoriBrowserReturnTarget.SOFTWARE_HOME
+        primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
+            softwareHomePage == SoftwareHomePage.AI_HOME ->
+            KiyoriBrowserReturnTarget.AI_HOME
+        else -> KiyoriBrowserReturnTarget.SOFTWARE_HOME
+    }
 
 internal fun resolveAiDrawerSelection(
     currentEntryId: String?,

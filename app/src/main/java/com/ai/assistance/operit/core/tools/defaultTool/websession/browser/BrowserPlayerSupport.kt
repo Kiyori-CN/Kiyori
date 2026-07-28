@@ -32,7 +32,7 @@ internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String)
             presentation = presentation,
         )
         if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
-            launchFullscreenPlayerActivity()
+            PlayerSession.getInstance(context).requestFullscreenActivityLaunchWhenReady()
         }
         true
     }
@@ -56,8 +56,7 @@ internal fun StandardBrowserSessionTools.openBrowserPlayerFullscreen() {
         check(playerSession.state.value.presentation == PlayerPresentation.FLOATING_PLAYER) {
             "Only a floating player can enter browser fullscreen presentation"
         }
-        playerSession.enterFullscreen()
-        launchFullscreenPlayerActivity()
+        playerSession.requestFullscreenFromFloating()
     }
 }
 
@@ -74,8 +73,7 @@ internal fun StandardBrowserSessionTools.closePlayerOwnedByBrowserSession(sessio
     }
 }
 
-private fun StandardBrowserSessionTools.launchFullscreenPlayerActivity() {
-    StandardBrowserSessionTools.browserHost?.prepareForPlayerFullscreen()
+internal fun StandardBrowserSessionTools.launchBrowserPlayerFullscreenActivity() {
     context.startActivity(
         PlayerActivity.createReuseSessionIntent(context).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

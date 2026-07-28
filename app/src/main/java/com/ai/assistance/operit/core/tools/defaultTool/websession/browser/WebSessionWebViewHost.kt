@@ -15,16 +15,31 @@ internal class WebSessionWebViewHost {
 
     fun detachContainer(target: FrameLayout) {
         if (container === target) {
+            target.removeAllViews()
             container = null
         }
     }
 
     fun setActiveWebView(webView: WebView?) {
+        if (activeWebView !== webView) {
+            detachActiveWebView()
+        }
         activeWebView = webView
         reattach()
     }
 
     fun currentWebView(): WebView? = activeWebView
+
+    fun isAssignedTo(webView: WebView?): Boolean = activeWebView === webView
+
+    fun detachActiveWebView(): WebView? {
+        val detached = activeWebView
+        if (detached != null && detached.parent === container) {
+            container?.removeView(detached)
+        }
+        activeWebView = null
+        return detached
+    }
 
     fun clear() {
         container?.removeAllViews()
@@ -44,6 +59,9 @@ internal class WebSessionWebViewHost {
         val parent = webView.parent
         if (parent is ViewGroup && parent !== target) {
             parent.removeView(webView)
+            check(webView.parent == null) {
+                "Active WebView still has a parent after presentation detach"
+            }
         }
 
         if (target.childCount == 1 && target.getChildAt(0) === webView) {

@@ -12,7 +12,6 @@ import org.json.JSONObject
 internal data class BrowserPageRegistry(
     val orderedSessionIds: List<String>,
     val activeSessionId: String?,
-    val overlayExpanded: Boolean,
     val snapshots: Map<String, BrowserSnapshot?>
 )
 

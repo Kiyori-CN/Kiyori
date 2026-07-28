@@ -13,6 +13,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -21,10 +22,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
@@ -36,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,10 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
@@ -90,6 +97,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowser
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
 import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import java.util.Locale
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 internal fun WebSessionBrowserSheetRoute.isWebSessionBrowserDrawerRoute(): Boolean =
@@ -160,6 +168,7 @@ internal fun WebSessionBrowserScreen(
     onDownloadMediaCandidate: (String) -> Boolean,
     onTogglePlayerPause: () -> Unit,
     onOpenPlayerFullscreen: () -> Unit,
+    onLaunchPlayerFullscreen: () -> Unit,
     onClosePlayer: () -> Unit,
     onPauseDownload: (String) -> Unit,
     onResumeDownload: (String) -> Unit,
@@ -182,15 +191,20 @@ internal fun WebSessionBrowserScreen(
     onConfirmExternalOpen: (String) -> Unit,
     onCancelExternalOpen: (String) -> Unit,
     onHandlePendingDialog: (Boolean, String?) -> Unit,
+    onCopyTextSelection: () -> Unit,
+    onSelectAllTextSelection: () -> Unit,
+    onDismissTextSelection: () -> Unit,
     homeUrl: String,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val browserState = hostState.browserState
     val automaticFloatingPageKey = "${browserState.activeSessionId.orEmpty()}|${browserState.currentUrl}"
     var dismissedAutomaticFloatingPageKey by remember { mutableStateOf<String?>(null) }
     var totalHeightPx by remember { mutableIntStateOf(0) }
     var browserAreaHeightPx by remember { mutableIntStateOf(0) }
+    var floatingOffsetYPx by remember(playerState.request?.requestId) { mutableFloatStateOf(0f) }
     LaunchedEffect(totalHeightPx, browserAreaHeightPx) {
         val chromeHeightPx = (totalHeightPx - browserAreaHeightPx).coerceAtLeast(0)
         if (
@@ -252,6 +266,14 @@ internal fun WebSessionBrowserScreen(
             onPlayMediaCandidate(selected.id)
         }
     }
+    val fullscreenLaunchRequestId = playerState.surfaceLease.fullscreenLaunchRequestId
+    LaunchedEffect(fullscreenLaunchRequestId) {
+        val requestId = fullscreenLaunchRequestId ?: return@LaunchedEffect
+        // The floating Surface has already reported surfaceDestroyed and native detach has
+        // completed before this one-shot request is emitted.
+        onLaunchPlayerFullscreen()
+        playerSession.acknowledgeFullscreenLaunchRequest(requestId)
+    }
     val openPlaceholder: (WebSessionBrowserPlaceholderPage) -> Unit = { page ->
         onHostStateChange { current ->
             current.copy(
@@ -297,6 +319,12 @@ internal fun WebSessionBrowserScreen(
                 widthDp = maxWidth.value,
                 heightDp = maxHeight.value,
             )
+        val floatingPlayerHeightPx = with(density) { maxWidth.toPx() * 9f / 16f }
+        val floatingMinOffsetYPx =
+            -(browserAreaHeightPx.toFloat() - floatingPlayerHeightPx).coerceAtLeast(0f)
+        LaunchedEffect(floatingMinOffsetYPx, playerState.request?.requestId) {
+            floatingOffsetYPx = floatingOffsetYPx.coerceIn(floatingMinOffsetYPx, 0f)
+        }
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier =
@@ -432,12 +460,84 @@ internal fun WebSessionBrowserScreen(
                         state = playerState,
                         onTogglePause = onTogglePlayerPause,
                         onFullscreen = onOpenPlayerFullscreen,
+                        onDownload = onDownloadMediaCandidate,
                         onClose = {
                             dismissedAutomaticFloatingPageKey = automaticFloatingPageKey
                             onClosePlayer()
                         },
-                        modifier = Modifier.fillMaxSize(),
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .offset {
+                                    IntOffset(
+                                        x = 0,
+                                        y = floatingOffsetYPx.roundToInt(),
+                                    )
+                                }
+                                .pointerInput(
+                                    playerState.request.requestId,
+                                    floatingMinOffsetYPx,
+                                ) {
+                                    detectVerticalDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        floatingOffsetYPx =
+                                            (floatingOffsetYPx + dragAmount)
+                                                .coerceIn(floatingMinOffsetYPx, 0f)
+                                    }
+                                }
+                                .fillMaxWidth(),
                     )
+                }
+                hostState.textSelectionActions?.let { selection ->
+                    val actionWidthPx = with(density) { 220.dp.roundToPx() }
+                    val actionHeightPx = with(density) { 46.dp.roundToPx() }
+                    val marginPx = with(density) { 10.dp.roundToPx() }
+                    val maximumX =
+                        (hostState.browserAreaWidthPx - actionWidthPx - marginPx)
+                            .coerceAtLeast(marginPx)
+                    val maximumY =
+                        (hostState.browserAreaHeightPx - actionHeightPx - marginPx)
+                            .coerceAtLeast(marginPx)
+                    val targetX =
+                        (selection.anchorXPx - actionWidthPx / 2)
+                            .coerceIn(marginPx, maximumX)
+                    val targetY =
+                        (selection.anchorYPx - actionHeightPx - marginPx)
+                            .takeIf { it >= marginPx }
+                            ?: (selection.anchorYPx + marginPx).coerceIn(marginPx, maximumY)
+
+                    Surface(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopStart)
+                                .offset { IntOffset(targetX, targetY) }
+                                .widthIn(max = 280.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.inverseSurface,
+                        tonalElevation = 3.dp,
+                        shadowElevation = 8.dp,
+                    ) {
+                        Row {
+                            TextButton(onClick = onCopyTextSelection) {
+                                Text(
+                                    text = stringResource(R.string.copy),
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                )
+                            }
+                            TextButton(onClick = onSelectAllTextSelection) {
+                                Text(
+                                    text = stringResource(android.R.string.selectAll),
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                )
+                            }
+                            TextButton(onClick = onDismissTextSelection) {
+                                Text(
+                                    text = stringResource(R.string.cancel),
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -594,8 +694,8 @@ internal fun WebSessionBrowserScreen(
         }
 
         if (mountedDrawerRoute.isWebSessionBrowserDrawerRoute()) {
-            // This drawer is composed in both the App Shell and TYPE_APPLICATION_OVERLAY host;
-            // a dialog-backed Material sheet cannot safely obtain an Activity token there.
+            // BrowserContent now exists only in the App Shell. The custom drawer keeps the
+            // browser-owned drag and viewport contract shared by its child routes.
             if (mountedDrawerRoute == WebSessionBrowserSheetRoute.MENU) {
                 WebSessionBrowserMenuDrawer(
                     isVisible = activeSheetRoute == WebSessionBrowserSheetRoute.MENU,

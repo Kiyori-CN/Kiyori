@@ -172,6 +172,71 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
+    fun `player settings preserve hikerView groups and expose the new runtime settings`() {
+        assertEquals(
+            listOf(4, 5, 8, 4, 3, 1, 6),
+            kiyoriPlayerSettingsGroups.map { group -> group.size },
+        )
+        assertEquals(
+            listOf(
+                "极速播放模式2.0",
+                "自定义播放器",
+                "备用播放器",
+                "跳过片头片尾",
+                "小窗模式",
+                "AI全屏显示",
+                "直接全屏播放/返回",
+                "重力感应自动横屏",
+                "双指捏合缩放",
+                "与其他应用同时播放",
+                "流量网络下自动播放",
+                "蓝牙断开自动暂停",
+                "非Wifi网络提示",
+                "音乐失败自动下一曲",
+                "视频播放跳转",
+                "视频播放完自动返回",
+                "投屏复制链接",
+                "倍速记忆设置",
+                "长按倍速设置",
+                "双击快进快退",
+                "全局底部进度条",
+                "隧道播放模式",
+                "清除播放进度",
+                "自定义投屏",
+                "M3U8广告清除",
+                "解码器预设",
+                "GPU Next 渲染",
+                "Vulkan 渲染上下文",
+                "记忆超分模式",
+                "记忆播放倍速",
+                "音量增强",
+            ),
+            kiyoriPlayerSettingsGroups.flatten().map(KiyoriPlayerSettingsEntrySpec::title),
+        )
+        assertEquals(
+            mapOf(
+                "直接全屏播放/返回" to
+                    KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR,
+                "视频播放完自动返回" to
+                    KiyoriPlayerSettingsAction.TOGGLE_END_AUTO_RETURN,
+                "倍速记忆设置" to KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED,
+                "双击快进快退" to KiyoriPlayerSettingsAction.SELECT_SEEK_STEP,
+                "解码器预设" to KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET,
+                "GPU Next 渲染" to KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT,
+                "Vulkan 渲染上下文" to KiyoriPlayerSettingsAction.TOGGLE_VULKAN,
+                "记忆超分模式" to KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K,
+                "记忆播放倍速" to
+                    KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED,
+                "音量增强" to KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST,
+            ),
+            kiyoriPlayerSettingsGroups
+                .flatten()
+                .filter { entry -> entry.action != KiyoriPlayerSettingsAction.NONE }
+                .associate { entry -> entry.title to entry.action },
+        )
+    }
+
+    @Test
     fun `browser settings preserve legacy groups and only connect verified capabilities`() {
         assertEquals(
             listOf(5, 5, 2, 5, 6),

@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.player
 import android.content.Context
 import android.media.AudioManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,12 +27,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
+import com.ai.assistance.operit.R
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -62,6 +66,8 @@ internal fun PlayerGestureLayer(
     var feedback by remember { mutableStateOf<String?>(null) }
     var verticalProgress by remember { mutableStateOf<Float?>(null) }
     var verticalOnRight by remember { mutableStateOf(false) }
+    var verticalIsBrightness by remember { mutableStateOf(false) }
+    var verticalPercent by remember { mutableStateOf(0) }
 
     LaunchedEffect(feedback) {
         if (feedback != null) {
@@ -146,8 +152,10 @@ internal fun PlayerGestureLayer(
                                     attributes.screenBrightness = next
                                     activity.window.attributes = attributes
                                     verticalProgress = next
-                                    verticalOnRight = false
-                                    feedback = "亮度 ${(next * 100).toInt()}"
+                                    verticalOnRight = true
+                                    verticalIsBrightness = true
+                                    verticalPercent = (next * 100).toInt()
+                                    feedback = "亮度"
                                 }
                                 PlayerGestureMode.VOLUME -> {
                                     val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -160,8 +168,10 @@ internal fun PlayerGestureLayer(
                                     val next = (baseVolume + delta).coerceIn(0, maximum)
                                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, next, 0)
                                     verticalProgress = next.toFloat() / maximum.coerceAtLeast(1)
-                                    verticalOnRight = true
-                                    feedback = "音量 ${(next * 100 / maximum.coerceAtLeast(1))}"
+                                    verticalOnRight = false
+                                    verticalIsBrightness = false
+                                    verticalPercent = next * 100 / maximum.coerceAtLeast(1)
+                                    feedback = "音量"
                                 }
                                 null -> Unit
                             }
@@ -172,7 +182,8 @@ internal fun PlayerGestureLayer(
         if (verticalProgress != null) {
             PlayerVerticalIndicator(
                 value = verticalProgress ?: 0f,
-                label = feedback.orEmpty(),
+                percent = verticalPercent,
+                isBrightness = verticalIsBrightness,
                 modifier =
                     if (verticalOnRight) {
                         Modifier.align(Alignment.CenterEnd).padding(end = 32.dp)
@@ -197,14 +208,30 @@ internal fun PlayerGestureLayer(
 }
 
 @Composable
-private fun PlayerVerticalIndicator(value: Float, label: String, modifier: Modifier) {
+private fun PlayerVerticalIndicator(
+    value: Float,
+    percent: Int,
+    isBrightness: Boolean,
+    modifier: Modifier,
+) {
     Column(
         modifier = modifier.width(58.dp).height(170.dp).padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Image(
+            painter = painterResource(if (isBrightness) R.drawable.ic_brightness else R.drawable.ic_volume),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = percent.toString(),
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 6.dp),
+        )
         Box(
-            modifier = Modifier.padding(top = 8.dp).width(4.dp).weight(1f).background(Color(0x55FFFFFF)),
+            modifier = Modifier.padding(top = 6.dp).width(4.dp).height(96.dp).background(Color(0x40FFFFFF)),
             contentAlignment = Alignment.BottomCenter,
         ) {
             Box(
@@ -212,7 +239,7 @@ private fun PlayerVerticalIndicator(value: Float, label: String, modifier: Modif
                     Modifier
                         .width(4.dp)
                         .fillMaxHeight(value.coerceIn(0f, 1f))
-                        .background(Color.White),
+                        .background(Color(0xFF2196F3)),
             )
         }
     }

@@ -86,7 +86,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         private val snapshotGenerationSeed = AtomicLong(0L)
 
         internal val sessionOrderLock = Any()
-        internal val overlayLock = Any()
+        internal val presentationLock = Any()
         internal val sessionConfigLock = Any()
 
         @Volatile internal var browserHost: WebSessionBrowserHost? = null
@@ -270,7 +270,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         if (targetUrl.isNullOrBlank()) {
             return error(tool.name, "url is required")
         }
-        ensureOverlayPermission(tool.name)?.let { return it }
+        ensureBrowserExecutionPresentation(tool.name)?.let { return it }
         val headers = parseHeaders(param(tool, "headers"))
         val session =
             runOnMainSync {
@@ -1416,7 +1416,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
     }
 
     private fun browserResize(tool: AITool): ToolResult {
-        ensureOverlayPermission(tool.name)?.let { return it }
+        ensureBrowserExecutionPresentation(tool.name)?.let { return it }
         val width = intParam(tool, "width", -1)
         val height = intParam(tool, "height", -1)
         if (width <= 0 || height <= 0) {
@@ -1527,7 +1527,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                     buildBrowserResponse(
                         openTabs = renderOpenTabs(registry),
                         pageState = session?.let { activeSession -> renderPageState(activeSession) } ?: "No active page.",
-                        snapshot = session?.let { activeSession -> captureSnapshotText(activeSession) },
+                        snapshot = session?.lastSnapshot?.yaml,
                         result =
                             "Listed every tab in the shared Browser Runtime, including tabs opened manually in Kiyori. " +
                                 "Incognito isolates website data, not Kiyori AI actions already authorized by the user."
@@ -1536,7 +1536,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
             }
 
             "create" -> {
-                ensureOverlayPermission(tool.name)?.let { return it }
+                ensureBrowserExecutionPresentation(tool.name)?.let { return it }
                 val profile =
                     when (
                         val resolution =
@@ -1730,7 +1730,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                     if (active != null) {
                         "Closed the current tab."
                     } else {
-                        "Closed the last tab and browser overlay."
+                        "Closed the last tab and detached the browser presentation."
                     }
             )
         )

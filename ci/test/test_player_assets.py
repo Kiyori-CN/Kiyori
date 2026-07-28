@@ -168,6 +168,34 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn("session.webView.settings", candidate_source)
         self.assertNotIn("webView.settings", candidate_source)
 
+    def test_mpv_core_initializes_before_android_surface_attach(self) -> None:
+        player_root = (
+            REPO_ROOT
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "player"
+        )
+        engine_source = (player_root / "MpvPlayerEngine.kt").read_text(encoding="utf-8")
+        session_source = (player_root / "PlayerSession.kt").read_text(encoding="utf-8")
+        initialize_body = engine_source[
+            engine_source.index("fun initialize("):
+            engine_source.index("fun load(")
+        ]
+
+        self.assertIn("MPVLib.init()", initialize_body)
+        self.assertNotIn("MPVLib.attachSurface", initialize_body)
+        self.assertNotIn('setRequiredOption("force-window", "yes")', initialize_body)
+        self.assertIn("val activeEngine = ensureEngine(settings)", session_source)
+        self.assertIn("activeEngine.attachSurface(surface", session_source)
+        self.assertIn("startPendingMediaLoad(activeEngine)", session_source)
+
 
 if __name__ == "__main__":
     unittest.main()
