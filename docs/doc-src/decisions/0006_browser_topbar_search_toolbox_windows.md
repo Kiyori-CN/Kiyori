@@ -41,7 +41,11 @@ reference: D:/10_Project/kiyori-android@24a2dfa91f0a4166dc58e5c4732d11861173f766
 
 ## 全屏搜索
 
-搜索页是 host presentation overlay，不改变活动 WebView。它复刻参考版的自动聚焦 URI 输入、九个搜索引擎、当前 URL 操作、两列搜索记录、单条删除、一键清空、引擎面板和短转场。搜索提交通过 `BrowserAddressResolver` 和 `openUrlOnMain` 进入共享 runtime，搜索引擎与记录继续由 `WebSessionHistoryStore` 持久化。
+搜索页是 host presentation overlay，不改变活动 WebView。它复刻参考版的自动聚焦 URI 输入和九个搜索引擎，并以当前引擎图标、覆盖式淡蓝引擎面板、页面标题/网址双行操作区和自适应历史标签呈现现代化布局。历史删除由垃圾桶显式进入编辑模式，标签叉号只暂存单条删除，点击“完成”后再写入 `WebSessionHistoryStore`；“清空”显示底部确认框，确认后直接清空同一 store 并退出编辑模式。搜索提交通过 `BrowserAddressResolver` 和 `openUrlOnMain` 进入共享 runtime，搜索引擎与记录继续由 `WebSessionHistoryStore` 持久化。
+
+搜索页内部尺寸对齐浏览器下拉抽屉菜单，而不是内容页面大标题：普通操作图标约 `19–21dp`、历史垃圾桶
+`23dp`、标签文字约 `10–12sp`，引擎卡与所有垂直间距保持紧凑。点击引擎面板周围区域会关闭面板；
+点击当前网页标题与网址区域只返回已存在的活动 WebView，不重新导航。
 
 ## 验收边界
 

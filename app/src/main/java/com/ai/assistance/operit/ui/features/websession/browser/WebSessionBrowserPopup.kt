@@ -61,6 +61,7 @@ internal fun WebSessionBrowserDropdownItem(
 @Composable
 internal fun WebSessionBrowserModalDialog(
     onDismissRequest: () -> Unit,
+    contentAlignment: Alignment = Alignment.Center,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Dialog(
@@ -83,7 +84,7 @@ internal fun WebSessionBrowserModalDialog(
                     )
                     .safeDrawingPadding()
                     .padding(20.dp),
-            contentAlignment = Alignment.Center,
+            contentAlignment = contentAlignment,
         ) {
             Box(
                 modifier =

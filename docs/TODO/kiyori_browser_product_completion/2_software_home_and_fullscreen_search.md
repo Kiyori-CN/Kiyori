@@ -1,6 +1,117 @@
 # 软件首页与全屏网页搜索
 
-> 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；提交和推送在本轮交付阶段执行，真机视觉、输入法和转场保持待验收。
+> 状态：本地实现、定向 JVM 测试、正式开发门禁与 Debug APK 已验证；本轮不提交、不推送，真机视觉、输入法和转场保持待验收。
+
+## 2026-07-28 全屏搜索页现代化完善计划
+
+本轮沿用现有 `WebSessionBrowserSearchScreen`、`WebSessionHistoryStore`、Browser Runtime 和
+Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态。Kiyori 尚未发布，被替代且不再使用的
+搜索页旧布局直接删除，不保留并行界面、兼容开关或回退路径。
+
+### 视觉与交互目标
+
+- 搜索框左侧只显示当前搜索引擎图标和展开箭头，不再显示引擎名称
+- 搜索引擎选择器使用淡蓝背景、白色选项卡、黑色文字和真实品牌图标；展开时覆盖下方内容，不改变
+  当前网页与搜索记录的位置
+- 当前网页区域显示页面标题和网址两行；右侧只保留复制链接、编辑链接两个纵向图文动作，编辑链接
+  将网址回填到输入框
+- 搜索记录使用 `FlowRow` 自适应标签，标签内容保留用户原始输入，因此普通文字和网址都能按同一规则
+  展示与打开
+- 搜索记录标题右侧默认只显示垃圾桶；点击后切换为“清空 / 完成”，标签右上角显示删除叉号
+- 标签删除先进入当前页面的待提交集合，点击“完成”后才写入 `WebSessionHistoryStore`；退出编辑模式前
+  返回不会误删持久记录
+- “清空”不加入标签待删除集合；它显示底部确认框，确认后直接调用现有历史 owner 清空记录并退出
+  编辑模式，不再要求点击“完成”
+- 无痕按钮继续固定在搜索框右侧并使用现有真实 Profile 支持判断，不改变普通与无痕窗口语义
+
+### 美学门禁
+
+- 浏览器中性主题保持不变，蓝色只用于选择态和语义动作
+- 页面通过一致的圆角、留白、图标比例、黑灰文字层级和克制阴影建立现代感，不使用厚重描边、
+  高饱和大色块或无意义装饰
+- 手机、平板和横屏继续复用同一共享搜索页；引擎面板与历史标签在受限宽度内容区内稳定排版
+- 所有点击目标保留清晰的无障碍说明和不低于现有浏览器 chrome 的可操作面积
+
+### 实施与验证
+
+1. 复用 legacy Kiyori 已有的九个 `64×64` 搜索引擎图标，并把资源 ID 接入
+   `WebSessionSearchEngine`
+2. 重构 `WebSessionBrowserSearchScreen` 的覆盖层、当前网页卡和标签式历史编辑状态
+3. 让 Browser Home 传入真实页面标题；Software Home 没有活动网页时不伪造当前网页信息
+4. 更新 `README.md`、`CONTEXT.md`、浏览器架构文档和本计划的完成证据
+5. 执行定向测试、Kotlin 编译、formal readiness、`git diff --check`，最后串行构建并核验
+   `app/build/outputs/apk/debug/app-debug.apk`
+
+真机视觉、键盘、旋转、触控反馈和 AndroidX Multi-Profile 现场行为仍由设备验收决定。本轮不安装、
+不使用 ADB 或 MuMu，不创建提交，不推送远端。
+
+## 本轮现代化实现证据
+
+- 九个搜索引擎图标来自 legacy Kiyori 的既有 `64×64` PNG，逐文件 SHA-256 一致
+- `WebSessionSearchUiPolicyTest`、`KiyoriSoftwareHomeSearchTest`、
+  `WebSessionBrowserChromeLayoutTest` 共 `18/18` 通过
+- `:app:compileDebugKotlin` 通过
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main` 通过
+- `git diff --check` 通过
+- `:app:assembleDebug --no-daemon --console=plain` 通过，`233` 个任务中 `27` 个执行、
+  `206` 个 `UP-TO-DATE`；`verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`
+- 构建时间：`2026-07-28 21:59:30 +08:00`
+- 大小：`463723827` bytes
+- SHA-256：`72B83A4A80B98D6F5582D0F68913F86FC7C4D172752C2DD84359C54A2F6D45B5`
+- 包名与版本：`com.kiyori`，`45 / 0.1.0`
+- `apksigner verify --verbose` 的 APK v2 签名验证通过
+- `zipalign -c -P 16 -v 4` 验证通过
+
+## 2026-07-28 紧凑化修订
+
+首轮真机观感反馈确认全屏搜索页整体尺寸偏大。本轮以浏览器下拉抽屉菜单为统一基准重新压缩：
+
+- 顶栏搜索框高 `38dp`，返回与无痕动作区为 `34dp`，当前引擎图标为 `18dp`
+- 搜索引擎卡高 `42dp`，图标 `19dp`，名称使用菜单 `11sp` 文字基准
+- 当前网页操作宽 `46dp`，蓝色图标使用菜单 `21dp` 基准；左侧标题与网址分别为 `13sp` 和
+  `11sp`，点击整个信息区直接返回活动网页
+- 搜索历史标题改用紧凑标题尺度；“清空 / 完成”为小型文字动作，“完成”固定使用蓝色
+- 历史标签为 `12sp`、`7dp` 垂直内边距、最大 `250dp`；用户输入为网址时继续记录原始网址，
+  通过单行省略和 `FlowRow` 自适应宽度展示
+- 引擎面板后方增加透明点击层，点击面板周围会收起；面板仍覆盖下方内容，不改变页面布局
+
+紧凑化最终证据：
+
+- `WebSessionSearchUiPolicyTest`、`KiyoriSoftwareHomeSearchTest`、
+  `WebSessionBrowserChromeLayoutTest` 共 `19/19` 通过
+- `:app:compileDebugKotlin`、formal readiness 与 `git diff --check` 通过
+- `:app:assembleDebug --no-daemon --console=plain` 通过，`233` 个任务中 `27` 个执行、
+  `206` 个 `UP-TO-DATE`；`verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`
+- 构建时间：`2026-07-28 22:33:10 +08:00`
+- 大小：`463723827` bytes
+- SHA-256：`6036895FBDDD0B0DED5D44E4ED92629C4CE0E22AA28456944FED1DFEF99449FF`
+- 包名与版本：`com.kiyori`，`45 / 0.1.0`
+- APK v2 签名与 `zipalign -c -P 16 -v 4` 验证通过
+
+## 2026-07-28 历史清理流程与当前网页行二次压缩
+
+- 搜索历史标题固定为 `13sp`；空状态、“清空”和“完成”固定为 `11sp`
+- 垃圾桶图标由 `19dp` 放大为 `23dp`，点击目标保持 `34dp`
+- “清空”显示带遮罩的底部白色圆角确认框；确认按钮使用红色描边，确认后立即清空并退出编辑模式
+- 标签右上角叉号只暂存单条删除，仍必须点击“完成”才提交
+- 当前网页标题与网址缩小为 `12sp / 10sp`，外层和信息区垂直内边距均压缩为 `4dp`
+- 复制链接、编辑链接图标缩小为 `19dp`，图标与文字间距压缩为 `1dp`
+
+二次压缩与清理流程证据：
+
+- `WebSessionSearchUiPolicyTest`、`KiyoriSoftwareHomeSearchTest`、
+  `WebSessionBrowserChromeLayoutTest` 共 `19/19` 通过
+- `:app:compileDebugKotlin`、formal readiness 与 `git diff --check` 通过
+- `:app:assembleDebug --no-daemon --console=plain` 通过，`233` 个任务中 `31` 个执行、
+  `202` 个 `UP-TO-DATE`；`verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`
+- 构建时间：`2026-07-28 22:53:51 +08:00`
+- 大小：`463724743` bytes
+- SHA-256：`84F8CF960BC03CEDBE021AF0656DDC528EE210C636B8277FC9C94D321F57B516`
+- 包名与版本：`com.kiyori`，`45 / 0.1.0`
+- APK v2 签名与 `zipalign -c -P 16 -v 4` 验证通过
 
 ## 实现记录
 
@@ -11,7 +122,8 @@
 - 搜索框右下角附件入口使用 AI 首页默认 Agent 输入栏同一 `Icons.Default.Add` 与 `24dp` 图标尺寸；点击仍通过既有一次性动作进入同一附件面板
 - 搜索页进入时自动聚焦；返回会先关闭搜索引擎面板；空输入不产生窗口或记录；提交后 Shell 以 Software Home 为返回目标进入 Browser Home
 - App Shell 使用淡入与轻微上移动画显示搜索页，Home Pager 和 AI Home 保持原有 composition/state
-- 无痕按钮不在本阶段伪造；它将在第三里程碑与 AndroidX WebKit Multi-Profile、默认新窗口 Profile 和设备支持判断同时启用
+- 无痕按钮继续使用第三里程碑接入的 AndroidX WebKit Multi-Profile、默认新窗口 Profile 和设备支持判断，
+  本轮只调整其在搜索框右侧的布局位置与视觉相邻关系
 
 ## 本地验证
 

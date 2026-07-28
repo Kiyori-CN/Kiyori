@@ -570,6 +570,7 @@ internal fun WebSessionBrowserScreen(
         if (hostState.isSearchVisible) {
             WebSessionBrowserSearchScreen(
                 currentUrl = browserState.currentUrl,
+                currentTitle = browserState.pageTitle,
                 searchEngine = searchEngine,
                 searchHistory = searchHistory,
                 draft = hostState.searchDraft,
@@ -604,11 +605,16 @@ internal fun WebSessionBrowserScreen(
                 onClearSearchHistory = onClearSearchHistory,
                 onCopyCurrentUrl = onCopyCurrentUrl,
                 onOpenCurrentUrl = {
-                    onOpenUrl(browserState.currentUrl)
                     profileFeedback = null
-                    onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
+                    onHostStateChange { current ->
+                        current.copy(
+                            isSearchVisible = false,
+                            isSearchEnginePanelVisible = false,
+                            searchDraft = "",
+                        )
+                    }
                 },
-                onUseCurrentUrl = {
+                onEditCurrentUrl = {
                     onHostStateChange { current -> current.copy(searchDraft = browserState.currentUrl) }
                 },
                 selectedProfile = hostState.searchProfile,

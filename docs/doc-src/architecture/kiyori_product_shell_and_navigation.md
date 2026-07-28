@@ -146,7 +146,12 @@ AI 设置由模态 AI 抽屉或设置首页进入同一页面与持久状态。�
 
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
-软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openUrlInNewSession` 在唯一 Browser Runtime 中创建并激活新 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openUrlInNewSession` 在唯一 Browser Runtime 中创建并激活新 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession。全屏搜索框只显示选中引擎图标；引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+
+全屏搜索页的尺寸遵循浏览器下拉抽屉菜单的紧凑基准：普通操作图标约 `19–21dp`，历史垃圾桶为
+`23dp`，标签文字约 `10–12sp`；引擎卡、当前网页双行信息、历史标题、标签和上下留白同步缩小。
+引擎面板的透明后置点击层负责周围区域收起，面板本身仍覆盖内容而不改变下方布局。当前网页信息区只
+关闭搜索页并返回已挂载的活动 WebView，不调用 `loadUrl` 或 `reload`。
 
 同一时间存活的无痕窗口共享一个唯一命名的 AndroidX Profile 代际。关闭最后一个无痕窗口后，Browser Runtime 销毁 WebView、清理 Cookie、WebStorage 和定位授权，并立即退休代际；下一段无痕会话创建全新代际。AndroidX 禁止在同一进程删除已加载 Profile，因此启动清理会在下一次冷启动、任何 Kiyori 无痕 Profile 加载前物理删除全部退休代际。窗口总览的缩略图固定为 `320×512`，使用两个方向的最小缩放值居中绘制完整当前 WebView 视口；UI 以 `5:8` 纵向比例和 `ContentScale.Fit` 显示，不裁切网页。
 

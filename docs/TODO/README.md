@@ -4,6 +4,27 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-28 全屏搜索页现代化完善
+
+本轮继续使用 [`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)
+作为浏览器产品能力的唯一进度载体，不创建平行 TODO 目录。目标是参考
+`D:\03_Default\图片\Kiyori\全屏搜索页` 完善共享全屏搜索页；Kiyori 尚未发布，旧的搜索页布局可直接
+替换，不保留兼容开关或回退路径。
+
+细化步骤：
+
+1. [DONE] 接入九个真实搜索引擎图标，搜索框只显示图标与箭头
+2. [DONE] 把引擎选择器改成淡蓝背景的覆盖式浮层，选项使用白底黑字和图标
+3. [DONE] 把当前网页改成标题/网址双行，并保留复制链接与编辑链接两个纵向图文动作
+4. [DONE] 把搜索历史改成自适应标签；垃圾桶进入删除模式，标签删除暂存到“完成”后提交
+5. [DONE] 按浏览器下拉抽屉菜单基准大幅缩小全部图标、字体、卡片与上下间距
+6. [DONE] 点击引擎面板周围收起；点击当前网页标题/网址区域返回现有网页
+7. [DONE] 缩小历史标题与文字、放大垃圾桶；清空改为底部确认后立即执行，标签叉号仍由“完成”提交
+8. [PENDING] 真机视觉、键盘、旋转、触控反馈和无痕 Profile 交互验收
+
+实现与证据详见
+[`2_software_home_and_fullscreen_search.md`](kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md)。
+
 ## 无组织无纪律是谓乌合
 
 如果你想做一个消费一定时间、有一定规模的改动：

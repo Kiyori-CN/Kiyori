@@ -884,6 +884,7 @@ internal fun KiyoriFullScreenWebSearchPage(
     ) {
         WebSessionBrowserSearchScreen(
             currentUrl = "",
+            currentTitle = "",
             searchEngine = searchEngine,
             searchHistory = searchHistory,
             draft = query,
@@ -927,7 +928,7 @@ internal fun KiyoriFullScreenWebSearchPage(
             },
             onCopyCurrentUrl = {},
             onOpenCurrentUrl = {},
-            onUseCurrentUrl = {},
+            onEditCurrentUrl = {},
             selectedProfile = selectedProfile,
             incognitoAvailability = profileState.incognitoAvailability,
             onToggleProfile = {
