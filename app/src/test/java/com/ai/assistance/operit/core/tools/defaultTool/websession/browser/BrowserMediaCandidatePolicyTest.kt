@@ -37,6 +37,99 @@ class BrowserMediaCandidatePolicyTest {
     }
 
     @Test
+    fun exactVideoFormatsResolveFromUrlOrMimeWithoutInventingAnAudioCandidate() {
+        assertEquals(
+            BrowserMediaCandidateVideoFormat.MP4,
+            candidate(observation(url = "https://media.example/movie.MP4?token=exact")).videoFormat,
+        )
+        assertEquals(
+            BrowserMediaCandidateVideoFormat.M3U8,
+            candidate(observation(url = "https://media.example/master.m3u8")).videoFormat,
+        )
+        assertEquals(
+            BrowserMediaCandidateVideoFormat.MPD,
+            candidate(observation(url = "https://media.example/manifest.mpd")).videoFormat,
+        )
+        assertEquals(
+            BrowserMediaCandidateVideoFormat.WEBM,
+            candidate(
+                observation(
+                    url = "https://media.example/opaque",
+                    source = BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC,
+                    declaredMimeType = "video/webm",
+                ),
+            ).videoFormat,
+        )
+        assertNull(
+            mergeBrowserMediaCandidate(
+                current = null,
+                observation =
+                    observation(
+                        url = "https://media.example/audio.mp3",
+                        source = BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC,
+                        declaredMimeType = "audio/mpeg",
+                    ),
+                newCandidateId = "audio",
+            ),
+        )
+    }
+
+    @Test
+    fun segmentedMediaFragmentsAreNeverActionableResults() {
+        listOf(
+            "https://media.example/init.mp4",
+            "https://media.example/segment-001.m4s",
+            "https://media.example/chunk-0001.ts",
+        ).forEach { url ->
+            val candidate =
+                candidate(
+                    observation(
+                        url = url,
+                        source = BrowserMediaCandidateDiscoverySource.DOM_SOURCE,
+                    ),
+                )
+            assertTrue(candidate.isLikelyMediaFragment)
+            assertFalse(candidate.isActionableVideo)
+            assertFalse(candidate.downloadReady)
+        }
+    }
+
+    @Test
+    fun durationUsesPassiveMetadataAndKeepsTheLongestKnownValue() {
+        val headerCandidate =
+            candidate(
+                observation(
+                    url = "https://media.example/movie.mp4",
+                    requestHeaders = mapOf("X-Content-Duration" to "02:03"),
+                ),
+            )
+        val merged =
+            requireNotNull(
+                mergeBrowserMediaCandidate(
+                    current = headerCandidate,
+                    observation =
+                        observation(
+                            url = headerCandidate.url,
+                            source = BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC,
+                            durationMillis = 150_000L,
+                            discoveredAt = 200L,
+                        ),
+                    newCandidateId = "must-not-replace",
+                ),
+            )
+        val queryCandidate =
+            candidate(
+                observation(
+                    url = "https://media.example/clip.mp4?duration_ms=90500",
+                ),
+            )
+
+        assertEquals(123_000L, headerCandidate.durationMillis)
+        assertEquals(150_000L, merged.durationMillis)
+        assertEquals(90_500L, queryCandidate.durationMillis)
+    }
+
+    @Test
     fun domCurrentSourceIsDirectEvidenceButBlobRemainsOnlyAClue() {
         val opaqueHttp =
             candidate(
@@ -168,6 +261,8 @@ class BrowserMediaCandidatePolicyTest {
                 url = "https://media.example/opaque-stream",
                 sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT),
                 lastDiscoveredAt = 100L,
+                rankingScore = 820,
+                automaticFloatingEligible = true,
             )
         val newerManifest =
             uiCandidate(
@@ -175,6 +270,9 @@ class BrowserMediaCandidatePolicyTest {
                 url = "https://media.example/master.m3u8",
                 sources = setOf(BrowserMediaCandidateDiscoverySource.NETWORK_REQUEST),
                 lastDiscoveredAt = 200L,
+                videoFormat = BrowserMediaCandidateVideoFormat.M3U8,
+                rankingScore = 200,
+                automaticFloatingEligible = true,
             )
 
         assertEquals(activeVideo, selectAutomaticFloatingMediaCandidate(listOf(newerManifest, activeVideo)))
@@ -188,6 +286,7 @@ class BrowserMediaCandidatePolicyTest {
                 url = "https://api.example/video?id=42",
                 sources = setOf(BrowserMediaCandidateDiscoverySource.INTERCEPTED_RESPONSE),
                 directPlaybackReady = false,
+                automaticFloatingEligible = false,
             )
         val blob =
             uiCandidate(
@@ -196,9 +295,77 @@ class BrowserMediaCandidatePolicyTest {
                 sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT),
                 directPlaybackReady = false,
                 isBlob = true,
+                automaticFloatingEligible = false,
             )
 
         assertNull(selectAutomaticFloatingMediaCandidate(listOf(mimeOnly, blob)))
+    }
+
+    @Test
+    fun recommendationRankingPrefersActiveMainVideoAndPenalizesSmallMutedLoops() {
+        val activeMainVideo =
+            candidate(
+                observation(
+                    url = "https://media.example/episode.mp4",
+                    source = BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT,
+                    durationMillis = 25L * 60L * 1_000L,
+                    videoWidth = 1920,
+                    videoHeight = 1080,
+                    viewportAreaRatio = 0.75,
+                ),
+            )
+        val backgroundLoop =
+            candidate(
+                observation(
+                    url = "https://media.example/preview.mp4",
+                    source = BrowserMediaCandidateDiscoverySource.DOM_SRC,
+                    durationMillis = 8_000L,
+                    viewportAreaRatio = 0.03,
+                    muted = true,
+                    looping = true,
+                    autoplay = true,
+                ),
+            )
+
+        val activeRanking = rankBrowserMediaCandidate(activeMainVideo)
+        val backgroundRanking = rankBrowserMediaCandidate(backgroundLoop)
+
+        assertTrue(activeRanking.isRecommended)
+        assertTrue(activeRanking.automaticFloatingEligible)
+        assertFalse(backgroundRanking.isRecommended)
+        assertFalse(backgroundRanking.automaticFloatingEligible)
+        assertTrue(activeRanking.score > backgroundRanking.score)
+        assertEquals(
+            listOf(activeMainVideo, backgroundLoop),
+            sortBrowserMediaCandidates(listOf(backgroundLoop, activeMainVideo)),
+        )
+    }
+
+    @Test
+    fun recommendedCandidateSortsAheadOfHigherScoringRejectedPreview() {
+        val rejectedPreview =
+            candidate(
+                observation(
+                    url = "https://media.example/preview.mp4",
+                    source = BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT,
+                    viewportAreaRatio = 0.8,
+                ),
+            )
+        val recommendedManifest =
+            candidate(
+                observation(
+                    url = "https://media.example/master.m3u8",
+                    source = BrowserMediaCandidateDiscoverySource.NETWORK_REQUEST,
+                ),
+            )
+
+        assertTrue(rankBrowserMediaCandidate(rejectedPreview).score > rankBrowserMediaCandidate(recommendedManifest).score)
+        assertFalse(rankBrowserMediaCandidate(rejectedPreview).isRecommended)
+        assertTrue(rankBrowserMediaCandidate(recommendedManifest).isRecommended)
+        assertEquals(
+            listOf(recommendedManifest, rejectedPreview),
+            sortBrowserMediaCandidates(listOf(rejectedPreview, recommendedManifest)),
+        )
     }
 
     @Test
@@ -235,6 +402,8 @@ class BrowserMediaCandidatePolicyTest {
     fun domObserverNeverChangesPageMediaState() {
         assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("MutationObserver"))
         assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('play'"))
+        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('loadedmetadata'"))
+        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('durationchange'"))
         assertFalse(Regex("\\.(pause|play|load)\\s*\\(", RegexOption.IGNORE_CASE)
             .containsMatchIn(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT))
     }
@@ -247,6 +416,15 @@ class BrowserMediaCandidatePolicyTest {
         requestHeaders: Map<String, String> = emptyMap(),
         source: BrowserMediaCandidateDiscoverySource = BrowserMediaCandidateDiscoverySource.NETWORK_REQUEST,
         responseMimeType: String? = null,
+        declaredMimeType: String? = null,
+        durationMillis: Long? = null,
+        isLive: Boolean = false,
+        videoWidth: Int? = null,
+        videoHeight: Int? = null,
+        viewportAreaRatio: Double? = null,
+        muted: Boolean = false,
+        looping: Boolean = false,
+        autoplay: Boolean = false,
         discoveredAt: Long = 100L,
     ): BrowserMediaCandidateObservation =
         BrowserMediaCandidateObservation(
@@ -260,6 +438,15 @@ class BrowserMediaCandidatePolicyTest {
             cookieScopeUrl = url,
             source = source,
             responseMimeType = responseMimeType,
+            declaredMimeType = declaredMimeType,
+            durationMillis = durationMillis,
+            isLive = isLive,
+            videoWidth = videoWidth,
+            videoHeight = videoHeight,
+            viewportAreaRatio = viewportAreaRatio,
+            muted = muted,
+            looping = looping,
+            autoplay = autoplay,
             discoveredAt = discoveredAt,
         )
 
@@ -270,6 +457,9 @@ class BrowserMediaCandidatePolicyTest {
         lastDiscoveredAt: Long = 100L,
         directPlaybackReady: Boolean = true,
         isBlob: Boolean = false,
+        videoFormat: BrowserMediaCandidateVideoFormat = BrowserMediaCandidateVideoFormat.OTHER_VIDEO,
+        rankingScore: Int = 0,
+        automaticFloatingEligible: Boolean = false,
     ): WebSessionBrowserMediaCandidate =
         WebSessionBrowserMediaCandidate(
             id = id,
@@ -277,9 +467,16 @@ class BrowserMediaCandidatePolicyTest {
             pageUrl = "https://page.example/watch",
             mimeType = null,
             urlEvidence = classifyBrowserMediaCandidateUrl(url),
+            videoFormat = videoFormat,
             discoverySources = sources,
             firstDiscoveredAt = 50L,
             lastDiscoveredAt = lastDiscoveredAt,
+            durationMillis = null,
+            isLive = false,
+            rankingScore = rankingScore,
+            rankingSummary = "",
+            isRecommended = rankingScore >= 200,
+            automaticFloatingEligible = automaticFloatingEligible,
             directPlaybackReady = directPlaybackReady,
             downloadReady = directPlaybackReady,
             isBlob = isBlob,

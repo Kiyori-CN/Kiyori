@@ -102,6 +102,7 @@ internal class WebSessionBrowserHost(
         fun onCheckUserscriptUpdate(scriptId: Long)
         fun onInvokeUserscriptMenu(commandId: String)
         fun onPlayMediaCandidate(candidateId: String): Boolean
+        fun onPlayMediaCandidateFloating(candidateId: String): Boolean
         fun onDownloadMediaCandidate(candidateId: String): Boolean
         fun onTogglePlayerPause()
         fun onOpenPlayerFullscreen()
@@ -254,6 +255,7 @@ internal class WebSessionBrowserHost(
             playerSession = playerSession,
             playerState = playerState,
             onPlayMediaCandidate = callbacks::onPlayMediaCandidate,
+            onPlayMediaCandidateFloating = callbacks::onPlayMediaCandidateFloating,
             onDownloadMediaCandidate = callbacks::onDownloadMediaCandidate,
             onTogglePlayerPause = callbacks::onTogglePlayerPause,
             onOpenPlayerFullscreen = callbacks::onOpenPlayerFullscreen,
@@ -278,6 +280,12 @@ internal class WebSessionBrowserHost(
             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
             onHandlePendingDialog = callbacks::onHandlePendingDialog,
+            showMediaCandidateBadge = browserSettings.showMediaCandidateBadge,
+            automaticFloatingPlaybackEnabled =
+                browserSettings.automaticFloatingPlaybackEnabled,
+            onSetShowMediaCandidateBadge = browserSettingsStore::setShowMediaCandidateBadge,
+            onSetAutomaticFloatingPlaybackEnabled =
+                browserSettingsStore::setAutomaticFloatingPlaybackEnabled,
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
             onDismissTextSelection = ::dismissTextSelectionActions,

@@ -898,6 +898,21 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     },
                 )
 
+        override fun onPlayMediaCandidateFloating(candidateId: String): Boolean =
+            runCatching { playMediaCandidateFloating(candidateId) }
+                .fold(
+                    onSuccess = { accepted -> accepted },
+                    onFailure = { error ->
+                        AppLogger.e(
+                            WEBVIEW_SUPPORT_TAG,
+                            "Failed to open floating browser media candidate",
+                            error,
+                        )
+                        showToast(error.toString())
+                        false
+                    },
+                )
+
         override fun onDownloadMediaCandidate(candidateId: String): Boolean =
             runCatching { downloadMediaCandidate(candidateId) }
                 .fold(
@@ -1317,7 +1332,6 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     session.currentUrl,
                 )
             },
-        floatingSniffPlaybackEnabled = browserSettingsStore.current.floatingSniffPlaybackEnabled,
         activeDownloadCount = downloadSummary.activeCount,
         hasFailedDownloads = downloadSummary.failedCount > 0,
         failedDownloadCount = downloadSummary.failedCount,
@@ -1371,16 +1385,24 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                 }
             } ?: emptyList(),
         mediaCandidates =
-            activeMediaCandidates.map { candidate ->
+            activeMediaCandidates.filter(BrowserMediaCandidate::isActionableVideo).map { candidate ->
+                val ranking = rankBrowserMediaCandidate(candidate)
                 WebSessionBrowserMediaCandidate(
                     id = candidate.id,
                     url = candidate.url,
                     pageUrl = candidate.pageUrl,
                     mimeType = candidate.displayMimeType,
                     urlEvidence = candidate.urlEvidence,
+                    videoFormat = requireNotNull(candidate.videoFormat),
                     discoverySources = candidate.discoverySources,
                     firstDiscoveredAt = candidate.firstDiscoveredAt,
                     lastDiscoveredAt = candidate.lastDiscoveredAt,
+                    durationMillis = candidate.durationMillis,
+                    isLive = candidate.isLive,
+                    rankingScore = ranking.score,
+                    rankingSummary = ranking.summary,
+                    isRecommended = ranking.isRecommended,
+                    automaticFloatingEligible = ranking.automaticFloatingEligible,
                     directPlaybackReady = candidate.directPlaybackReady,
                     downloadReady = candidate.downloadReady,
                     isBlob = candidate.isBlob,

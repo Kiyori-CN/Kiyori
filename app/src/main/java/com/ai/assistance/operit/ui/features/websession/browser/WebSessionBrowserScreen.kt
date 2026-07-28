@@ -166,6 +166,7 @@ internal fun WebSessionBrowserScreen(
     playerSession: PlayerSession,
     playerState: PlayerSessionState,
     onPlayMediaCandidate: (String) -> Boolean,
+    onPlayMediaCandidateFloating: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
     onTogglePlayerPause: () -> Unit,
     onOpenPlayerFullscreen: () -> Unit,
@@ -190,6 +191,10 @@ internal fun WebSessionBrowserScreen(
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
     onHandlePendingDialog: (Boolean, String?) -> Unit,
+    showMediaCandidateBadge: Boolean,
+    automaticFloatingPlaybackEnabled: Boolean,
+    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
+    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onCopyTextSelection: () -> Unit,
     onSelectAllTextSelection: () -> Unit,
     onDismissTextSelection: () -> Unit,
@@ -249,12 +254,12 @@ internal fun WebSessionBrowserScreen(
     }
     LaunchedEffect(
         automaticFloatingPageKey,
-        browserState.floatingSniffPlaybackEnabled,
+        automaticFloatingPlaybackEnabled,
         browserState.mediaCandidates,
         playerState.request?.requestId,
         playerState.presentation,
     ) {
-        if (!browserState.floatingSniffPlaybackEnabled) return@LaunchedEffect
+        if (!automaticFloatingPlaybackEnabled) return@LaunchedEffect
         if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
         if (playerState.hasMedia || playerState.presentation != PlayerPresentation.BROWSER_ONLY) return@LaunchedEffect
         val selected = selectAutomaticFloatingMediaCandidate(browserState.mediaCandidates) ?: return@LaunchedEffect
@@ -262,7 +267,7 @@ internal fun WebSessionBrowserScreen(
         if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
         val stableSelection = selectAutomaticFloatingMediaCandidate(browserState.mediaCandidates)
         if (stableSelection?.id == selected.id) {
-            onPlayMediaCandidate(selected.id)
+            onPlayMediaCandidateFloating(selected.id)
         }
     }
     val fullscreenLaunchRequestId = playerState.surfaceLease.fullscreenLaunchRequestId
@@ -335,6 +340,7 @@ internal fun WebSessionBrowserScreen(
                 currentUrl = browserState.currentUrl.ifBlank { "about:blank" },
                 pageTitle = browserState.pageTitle,
                 detectedVideoCount = browserState.mediaCandidates.size,
+                showDetectedVideoBadge = showMediaCandidateBadge,
                 searchEngine = searchEngine,
                 lastSearchQuery = hostState.lastSearchQuery,
                 isSearchEngineQuickSwitchBarVisible =
@@ -856,6 +862,12 @@ internal fun WebSessionBrowserScreen(
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
                             onPlayMediaCandidate = onPlayMediaCandidate,
                             onDownloadMediaCandidate = onDownloadMediaCandidate,
+                            showMediaCandidateBadge = showMediaCandidateBadge,
+                            automaticFloatingPlaybackEnabled =
+                                automaticFloatingPlaybackEnabled,
+                            onSetShowMediaCandidateBadge = onSetShowMediaCandidateBadge,
+                            onSetAutomaticFloatingPlaybackEnabled =
+                                onSetAutomaticFloatingPlaybackEnabled,
                             onPauseDownload = onPauseDownload,
                             onResumeDownload = onResumeDownload,
                             onCancelDownload = onCancelDownload,
@@ -1116,6 +1128,10 @@ private fun WebSessionBrowserDrawerContent(
     onInvokeUserscriptMenu: (String) -> Unit,
     onPlayMediaCandidate: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
+    showMediaCandidateBadge: Boolean,
+    automaticFloatingPlaybackEnabled: Boolean,
+    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
+    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onPauseDownload: (String) -> Unit,
     onResumeDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
@@ -1219,6 +1235,11 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.MEDIA_CANDIDATES ->
             WebSessionMediaCandidateSheet(
                 candidates = browserState.mediaCandidates,
+                showMediaCandidateBadge = showMediaCandidateBadge,
+                automaticFloatingPlaybackEnabled = automaticFloatingPlaybackEnabled,
+                onSetShowMediaCandidateBadge = onSetShowMediaCandidateBadge,
+                onSetAutomaticFloatingPlaybackEnabled =
+                    onSetAutomaticFloatingPlaybackEnabled,
                 onPlay = { candidateId ->
                     onPlayMediaCandidate(candidateId).also { accepted ->
                         if (accepted) onDismiss()

@@ -126,6 +126,7 @@ internal fun WebSessionBrowserTopBar(
     currentUrl: String,
     pageTitle: String,
     detectedVideoCount: Int,
+    showDetectedVideoBadge: Boolean,
     searchEngine: WebSessionSearchEngine,
     lastSearchQuery: String,
     isSearchEngineQuickSwitchBarVisible: Boolean,
@@ -190,7 +191,7 @@ internal fun WebSessionBrowserTopBar(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                         )
-                        if (detectedVideoCount > 0) {
+                        if (showDetectedVideoBadge && detectedVideoCount > 0) {
                             val badgeText = if (detectedVideoCount > 99) "99+" else detectedVideoCount.toString()
                             Box(
                                 modifier =

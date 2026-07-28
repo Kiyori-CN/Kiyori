@@ -65,7 +65,7 @@ internal enum class KiyoriBrowserSettingsAction {
     NONE,
     OPEN_PLACEHOLDER,
     OPEN_HOME_CUSTOMIZATION,
-    TOGGLE_FLOATING_SNIFF_PLAYBACK,
+    TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
     TOGGLE_WEB_PAGE_OPEN_APP,
     TOGGLE_WEB_PAGE_GEOLOCATION,
 }
@@ -85,9 +85,9 @@ internal val kiyoriBrowserSettingsGroups =
         listOf(
             navigationSpec("网页插件管理"),
             toggleSpec(
-                title = "悬浮嗅探播放",
+                title = "自动悬浮播放",
                 staticToggleValue = true,
-                action = KiyoriBrowserSettingsAction.TOGGLE_FLOATING_SNIFF_PLAYBACK,
+                action = KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
             ),
             navigationSpec("悬浮嗅探模式"),
             toggleSpec("返回不重载", staticToggleValue = false),
@@ -202,8 +202,8 @@ internal fun KiyoriBrowserSettingsPage(
                     placeholderTitle = title
                     subPageName = KiyoriBrowserSettingsSubPage.PLACEHOLDER.name
                 },
-                onSetFloatingSniffPlaybackEnabled =
-                    coordinator::setFloatingSniffPlaybackEnabled,
+                onSetAutomaticFloatingPlaybackEnabled =
+                    coordinator::setAutomaticFloatingPlaybackEnabled,
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
                 onSetAllowWebPageGeolocation = coordinator::setAllowWebPageGeolocation,
                 modifier = modifier,
@@ -329,7 +329,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     onBack: () -> Unit,
     onOpenHomeCustomization: () -> Unit,
     onOpenPlaceholder: (String) -> Unit,
-    onSetFloatingSniffPlaybackEnabled: (Boolean) -> Unit,
+    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -349,8 +349,8 @@ private fun KiyoriBrowserSettingsDetailPage(
                         settings = settings,
                         onOpenHomeCustomization = onOpenHomeCustomization,
                         onOpenPlaceholder = onOpenPlaceholder,
-                        onSetFloatingSniffPlaybackEnabled =
-                            onSetFloatingSniffPlaybackEnabled,
+                        onSetAutomaticFloatingPlaybackEnabled =
+                            onSetAutomaticFloatingPlaybackEnabled,
                         onSetAllowWebPageOpenApp = onSetAllowWebPageOpenApp,
                         onSetAllowWebPageGeolocation = onSetAllowWebPageGeolocation,
                     )
@@ -375,14 +375,14 @@ private fun KiyoriBrowserSettingsRow(
     settings: WebSessionBrowserSettings,
     onOpenHomeCustomization: () -> Unit,
     onOpenPlaceholder: (String) -> Unit,
-    onSetFloatingSniffPlaybackEnabled: (Boolean) -> Unit,
+    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
 ) {
     val toggleValue =
         when (entry.action) {
-            KiyoriBrowserSettingsAction.TOGGLE_FLOATING_SNIFF_PLAYBACK ->
-                settings.floatingSniffPlaybackEnabled
+            KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
+                settings.automaticFloatingPlaybackEnabled
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
                 settings.allowWebPageOpenApp
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
@@ -394,8 +394,8 @@ private fun KiyoriBrowserSettingsRow(
             KiyoriBrowserSettingsAction.OPEN_PLACEHOLDER ->
                 ({ onOpenPlaceholder(entry.title) })
             KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION -> onOpenHomeCustomization
-            KiyoriBrowserSettingsAction.TOGGLE_FLOATING_SNIFF_PLAYBACK ->
-                ({ onSetFloatingSniffPlaybackEnabled(!toggleValue) })
+            KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
+                ({ onSetAutomaticFloatingPlaybackEnabled(!toggleValue) })
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
                 ({ onSetAllowWebPageOpenApp(!toggleValue) })
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->

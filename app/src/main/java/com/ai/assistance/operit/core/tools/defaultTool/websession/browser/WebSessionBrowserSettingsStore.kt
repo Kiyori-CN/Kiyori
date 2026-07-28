@@ -10,7 +10,8 @@ internal data class WebSessionBrowserSettings(
     val homeUrl: String = DEFAULT_BROWSER_HOME_URL,
     val allowWebPageOpenApp: Boolean = true,
     val allowWebPageGeolocation: Boolean = true,
-    val floatingSniffPlaybackEnabled: Boolean = true,
+    val showMediaCandidateBadge: Boolean = true,
+    val automaticFloatingPlaybackEnabled: Boolean = true,
     val userAgentMode: WebSessionUserAgentMode = WebSessionUserAgentMode.ANDROID,
     val customGlobalUserAgent: String = "",
     val siteUserAgentRules: List<WebSessionSiteUserAgentRule> = emptyList(),
@@ -44,9 +45,14 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         _state.value = _state.value.copy(allowWebPageGeolocation = enabled)
     }
 
-    fun setFloatingSniffPlaybackEnabled(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_FLOATING_SNIFF_PLAYBACK, enabled).apply()
-        _state.value = _state.value.copy(floatingSniffPlaybackEnabled = enabled)
+    fun setShowMediaCandidateBadge(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, enabled).apply()
+        _state.value = _state.value.copy(showMediaCandidateBadge = enabled)
+    }
+
+    fun setAutomaticFloatingPlaybackEnabled(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_AUTOMATIC_FLOATING_PLAYBACK, enabled).apply()
+        _state.value = _state.value.copy(automaticFloatingPlaybackEnabled = enabled)
     }
 
     fun setUserAgentMode(mode: WebSessionUserAgentMode) {
@@ -122,8 +128,10 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
             allowWebPageOpenApp = preferences.getBoolean(KEY_ALLOW_WEB_PAGE_OPEN_APP, true),
             allowWebPageGeolocation =
                 preferences.getBoolean(KEY_ALLOW_WEB_PAGE_GEOLOCATION, true),
-            floatingSniffPlaybackEnabled =
-                preferences.getBoolean(KEY_FLOATING_SNIFF_PLAYBACK, true),
+            showMediaCandidateBadge =
+                preferences.getBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, true),
+            automaticFloatingPlaybackEnabled =
+                preferences.getBoolean(KEY_AUTOMATIC_FLOATING_PLAYBACK, true),
             userAgentMode = userAgentMode,
             customGlobalUserAgent = customGlobalUserAgent,
             siteUserAgentRules = decodeSiteUserAgentRules(preferences.getString(KEY_SITE_USER_AGENTS, "")),
@@ -169,7 +177,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_HOME_URL = "home_url"
         private const val KEY_ALLOW_WEB_PAGE_OPEN_APP = "allow_web_page_open_app"
         private const val KEY_ALLOW_WEB_PAGE_GEOLOCATION = "allow_web_page_geolocation"
-        private const val KEY_FLOATING_SNIFF_PLAYBACK = "floating_sniff_playback"
+        private const val KEY_SHOW_MEDIA_CANDIDATE_BADGE = "show_media_candidate_badge"
+        private const val KEY_AUTOMATIC_FLOATING_PLAYBACK = "automatic_floating_playback"
         private const val KEY_USER_AGENT_MODE = "user_agent_mode"
         private const val KEY_CUSTOM_GLOBAL_USER_AGENT = "custom_global_user_agent"
         private const val KEY_SITE_USER_AGENTS = "site_user_agents"

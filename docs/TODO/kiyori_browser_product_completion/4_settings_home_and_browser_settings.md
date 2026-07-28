@@ -10,7 +10,7 @@
 
 | 旧版项目 | Kiyori owner | 当前作用 |
 | --- | --- | --- |
-| 悬浮嗅探播放 | `WebSessionBrowserSettingsStore` | 持久化真实偏好；第九里程碑的 media candidate/player consumer 接入前不宣称嗅探可用 |
+| 自动悬浮播放 | `WebSessionBrowserSettingsStore` | 只控制推荐视频候选是否自动进入现有悬浮播放器；不改变人工点击结果的横向全屏语义 |
 | 网页主页自定义 | `WebSessionBrowserSettingsStore` + `StandardBrowserSessionTools` | 约束浏览器主页按钮、人工新窗口和 AI `browser_tabs create` |
 | 允许网页打开应用 | `WebSessionBrowserSettingsStore` + WebView navigation override | 关闭后直接拒绝外部 scheme，不创建外部打开确认请求 |
 | 允许网页获取位置 | `WebSessionBrowserSettingsStore` + WebChromeClient geolocation request | 关闭后直接拒绝网页定位；开启后继续使用现有 Android 权限协调器 |
@@ -54,6 +54,13 @@
 - 签名：Android Debug certificate，APK Signature Scheme v2 通过
 - 对齐：`zipalign -c -P 16 4` 通过
 - 手机/平板视觉、真实网页外部 scheme、定位权限、overlay Intent 拉起、WebView 保活和 Browser Home 返回仍为 `verification_pending`
+
+### 2026-07-28 视频嗅探设置职责拆分
+
+- 浏览器设置中的旧“悬浮嗅探播放”更名为“自动悬浮播放”，只持久化自动悬浮播放器开关
+- 媒体候选抽屉顶部另设“搜索栏嗅探入口”，只控制搜索框右侧已发现视频资源球
+- 两个设置由同一个 `WebSessionBrowserSettingsStore` 持有，但没有互相覆盖或并行状态 owner
+- Kiyori 尚未发布，因此旧混合字段和 DataStore key 直接删除，不保留兼容别名或迁移分支
 
 ## 历史决策记录
 

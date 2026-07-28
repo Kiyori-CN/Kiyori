@@ -10,19 +10,23 @@ import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserS
 import com.ai.assistance.operit.ui.features.player.PlayerActivity
 
 internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String): Boolean =
+    openMediaCandidate(candidateId, PlayerPresentation.FULLSCREEN_PLAYER)
+
+internal fun StandardBrowserSessionTools.playMediaCandidateFloating(candidateId: String): Boolean =
+    openMediaCandidate(candidateId, PlayerPresentation.FLOATING_PLAYER)
+
+private fun StandardBrowserSessionTools.openMediaCandidate(
+    candidateId: String,
+    presentation: PlayerPresentation,
+): Boolean =
     runOnMainSync {
         val browserSession = getActiveSessionOnMain() ?: return@runOnMainSync false
         val candidate = findMediaCandidate(browserSession, candidateId) ?: return@runOnMainSync false
-        require(candidate.directPlaybackReady) {
-            "Media candidate does not have direct playback evidence: ${candidate.url}"
+        require(candidate.isActionableVideo) {
+            "Media candidate is not an actionable video: ${candidate.url}"
         }
-        val presentation =
-            if (browserSettingsStore.current.floatingSniffPlaybackEnabled) {
-                PlayerPresentation.FLOATING_PLAYER
-            } else {
-                PlayerPresentation.FULLSCREEN_PLAYER
-            }
-        PlayerSession.getInstance(context).open(
+        val playerSession = PlayerSession.getInstance(context)
+        playerSession.open(
             request =
                 createBrowserPlayerMediaRequest(
                     sessionId = browserSession.id,
@@ -32,7 +36,7 @@ internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String)
             presentation = presentation,
         )
         if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
-            PlayerSession.getInstance(context).requestFullscreenActivityLaunchWhenReady()
+            playerSession.requestFullscreenActivityLaunchWhenReady()
         }
         true
     }

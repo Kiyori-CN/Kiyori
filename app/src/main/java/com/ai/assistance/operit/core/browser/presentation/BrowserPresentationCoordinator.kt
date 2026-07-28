@@ -190,8 +190,8 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserSettingsStore.setAllowWebPageGeolocation(enabled)
     }
 
-    fun setFloatingSniffPlaybackEnabled(enabled: Boolean) {
-        tools.browserSettingsStore.setFloatingSniffPlaybackEnabled(enabled)
+    fun setAutomaticFloatingPlaybackEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setAutomaticFloatingPlaybackEnabled(enabled)
     }
 
     fun openUrlInNewSession(

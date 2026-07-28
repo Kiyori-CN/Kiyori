@@ -245,7 +245,7 @@ class KiyoriSettingsPagesTest {
         assertEquals(
             listOf(
                 "网页插件管理",
-                "悬浮嗅探播放",
+                "自动悬浮播放",
                 "悬浮嗅探模式",
                 "返回不重载",
                 "启动时恢复标签",
@@ -272,8 +272,8 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             mapOf(
-                "悬浮嗅探播放" to
-                    KiyoriBrowserSettingsAction.TOGGLE_FLOATING_SNIFF_PLAYBACK,
+                "自动悬浮播放" to
+                    KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
                 "网页主页自定义" to
                     KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                 "允许网页打开应用" to
