@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.websession.browser
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,6 +12,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +70,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -95,34 +99,42 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSIO
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP
 
-internal const val WEB_SESSION_SEARCH_SCREEN_HEADER_VERTICAL_PADDING_DP = 5
-internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_HEIGHT_DP = 38
-internal const val WEB_SESSION_SEARCH_SCREEN_ACTION_SIZE_DP = 34
+internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES = 3
+internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP = 18
+internal const val WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP = 7
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_ICON_SIZE_DP = 18
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_HEIGHT_DP = 42
 internal const val WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_ICON_SIZE_DP = 19
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_WIDTH_DP = 46
-internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP = 19
+internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP = 16
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_OUTER_VERTICAL_PADDING_DP = 4
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_INFO_VERTICAL_PADDING_DP = 4
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_TITLE_SIZE_SP = 12
 internal const val WEB_SESSION_SEARCH_SCREEN_CURRENT_URL_SIZE_SP = 10
-internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP = 13
-internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP = 11
-internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 11
-internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 23
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP = 18
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP = 14
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP = 15
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP = 34
+internal const val WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP = 26
 internal const val WEB_SESSION_SEARCH_SCREEN_TAG_MAX_WIDTH_DP = 250
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP = 28
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_ICON_SIZE_DP = 12
+internal const val WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP = 22
 
 @Composable
 internal fun WebSessionBrowserTopBar(
     currentUrl: String,
     pageTitle: String,
-    isLoading: Boolean,
     detectedVideoCount: Int,
+    searchEngine: WebSessionSearchEngine,
+    lastSearchQuery: String,
+    isSearchEngineQuickSwitchBarVisible: Boolean,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
     onShowDetectedVideos: () -> Unit,
-    onRefreshOrStop: () -> Unit,
+    onRefresh: () -> Unit,
+    onSelectQuickSearchEngine: (WebSessionSearchEngine) -> Unit,
+    onDismissQuickSearchEngineBar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -132,85 +144,196 @@ internal fun WebSessionBrowserTopBar(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP.dp,
-                        vertical = WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP.dp,
-                    ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(WEB_SESSION_BROWSER_TOP_GAP_DP.dp),
-        ) {
-            BrowserChromeIconButton(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.web_session_back),
-                onClick = onBack,
-            )
-            Surface(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .height(WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp)
-                        .clickable(role = Role.Button, onClick = onOpenSearch),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.background,
-                border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP.dp,
+                            vertical = WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP.dp,
+                        ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(WEB_SESSION_BROWSER_TOP_GAP_DP.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                BrowserChromeIconButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.web_session_back),
+                    onClick = onBack,
+                )
+                Surface(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp)
+                            .clickable(role = Role.Button, onClick = onOpenSearch),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.background,
+                    border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
                 ) {
-                    Icon(
-                        imageVector = if (currentUrl.startsWith("https://")) Icons.Filled.Language else Icons.Filled.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = pageTitle.ifBlank { currentUrl.ifBlank { "about:blank" } },
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    if (detectedVideoCount > 0) {
-                        val badgeText = if (detectedVideoCount > 99) "99+" else detectedVideoCount.toString()
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(28.dp)
-                                    .background(Color(0xFFFF8A00), CircleShape)
-                                    .clickable(role = Role.Button, onClick = onShowDetectedVideos),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = badgeText,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                            )
-                        }
-                    } else {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = stringResource(R.string.web_session_search),
+                            imageVector = if (currentUrl.startsWith("https://")) Icons.Filled.Language else Icons.Filled.Search,
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
                         )
+                        Text(
+                            text = pageTitle.ifBlank { currentUrl.ifBlank { "about:blank" } },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        if (detectedVideoCount > 0) {
+                            val badgeText = if (detectedVideoCount > 99) "99+" else detectedVideoCount.toString()
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(28.dp)
+                                        .background(Color(0xFFFF8A00), CircleShape)
+                                        .clickable(role = Role.Button, onClick = onShowDetectedVideos),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = stringResource(R.string.web_session_search),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
+                BrowserChromeIconButton(
+                    icon = Icons.Filled.Refresh,
+                    contentDescription = stringResource(R.string.web_session_refresh),
+                    onClick = onRefresh,
+                )
             }
-            BrowserChromeIconButton(
-                icon = if (isLoading) Icons.Filled.Close else Icons.Filled.Refresh,
-                contentDescription = stringResource(if (isLoading) R.string.web_session_stop else R.string.web_session_refresh),
-                onClick = onRefreshOrStop,
+
+            if (isSearchEngineQuickSwitchBarVisible && lastSearchQuery.isNotBlank()) {
+                WebSessionSearchEngineQuickSwitchBar(
+                    currentEngine = searchEngine,
+                    onSelectEngine = onSelectQuickSearchEngine,
+                    onClose = onDismissQuickSearchEngineBar,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WebSessionSearchEngineQuickSwitchBar(
+    currentEngine: WebSessionSearchEngine,
+    onSelectEngine: (WebSessionSearchEngine) -> Unit,
+    onClose: () -> Unit,
+) {
+    val closeDescription = stringResource(R.string.close)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 6.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            WebSessionSearchEngine.entries.forEach { engine ->
+                WebSessionQuickSearchEngineChip(
+                    engine = engine,
+                    selected = engine == currentEngine,
+                    onClick = {
+                        if (engine != currentEngine) {
+                            onSelectEngine(engine)
+                        }
+                    },
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Box(
+            modifier =
+                Modifier
+                    .size(WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP.dp)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button, onClick = onClose)
+                    .semantics {
+                        contentDescription = closeDescription
+                        role = Role.Button
+                    },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(15.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun WebSessionQuickSearchEngineChip(
+    engine: WebSessionSearchEngine,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .height(WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainer
+                    },
+                )
+                .clickable(role = Role.Button, onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = engine.displayName
+                    role = Role.Button
+                },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Image(
+            painter = painterResource(engine.iconResId),
+            contentDescription = null,
+            modifier =
+                Modifier
+                    .size(WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_ICON_SIZE_DP.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+        )
+        Text(
+            text = engine.displayName,
+            color =
+                if (selected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            fontSize = 9.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+        )
     }
 }
 
@@ -223,11 +346,19 @@ private fun BrowserChromeIconButton(
     actionSizeDp: Int = WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP,
     iconSizeDp: Int = 21,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     Box(
         modifier = Modifier
             .size(actionSizeDp.dp)
+            .clip(CircleShape)
             .alpha(if (enabled) 1f else 0.38f)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                role = Role.Button,
+                onClick = onClick,
+            )
             .semantics {
                 this.contentDescription = contentDescription
                 role = Role.Button
@@ -270,17 +401,22 @@ internal fun WebSessionBrowserSearchScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
     val panelDismissInteractionSource = remember { MutableInteractionSource() }
     var isHistoryEditing by remember { mutableStateOf(false) }
     var showClearHistoryConfirmation by remember { mutableStateOf(false) }
     var pendingDeletionIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var searchHeaderHeight by
+        remember {
+            mutableStateOf(
+                (
+                    WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP +
+                        WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP * 2
+                ).dp,
+            )
+        }
     val visibleSearchHistory =
         searchHistory.filterNot { record -> record.id in pendingDeletionIds }
-    val searchHeaderHeight =
-        (
-            WEB_SESSION_SEARCH_SCREEN_INPUT_HEIGHT_DP +
-                WEB_SESSION_SEARCH_SCREEN_HEADER_VERTICAL_PADDING_DP * 2
-        ).dp
 
     fun submitSearch() {
         focusManager.clearFocus(force = true)
@@ -351,31 +487,50 @@ internal fun WebSessionBrowserSearchScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .onSizeChanged { size ->
+                                searchHeaderHeight = with(density) { size.height.toDp() }
+                            }
                             .padding(
                                 horizontal = WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP.dp,
-                                vertical = WEB_SESSION_SEARCH_SCREEN_HEADER_VERTICAL_PADDING_DP.dp,
+                                vertical = WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP.dp,
                             ),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement =
+                        Arrangement.spacedBy(WEB_SESSION_BROWSER_TOP_GAP_DP.dp),
                 ) {
                     BrowserChromeIconButton(
                         icon = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.web_session_back),
                         onClick = ::closeSearch,
-                        actionSizeDp = WEB_SESSION_SEARCH_SCREEN_ACTION_SIZE_DP,
-                        iconSizeDp = 19,
                     )
                     Surface(
                         modifier =
                             Modifier
                                 .weight(1f)
-                                .height(WEB_SESSION_SEARCH_SCREEN_INPUT_HEIGHT_DP.dp),
-                        shape = RoundedCornerShape(14.dp),
+                                // 顶边保持不动，新增文本行只推动底边和下方内容。
+                                .animateContentSize(
+                                    animationSpec = tween(durationMillis = 150),
+                                    alignment = Alignment.TopCenter,
+                                )
+                                .heightIn(
+                                    min = WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP.dp,
+                                ),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.background,
                         border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxSize().padding(start = 8.dp, end = 2.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = 8.dp,
+                                        top =
+                                            WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP.dp,
+                                        end = 2.dp,
+                                        bottom =
+                                            WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP.dp,
+                                    ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Row(
@@ -412,22 +567,20 @@ internal fun WebSessionBrowserSearchScreen(
                                 value = draft,
                                 onValueChange = onDraftChange,
                                 modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                                singleLine = true,
+                                singleLine = false,
+                                minLines = 1,
+                                maxLines = WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES,
                                 textStyle =
                                     MaterialTheme.typography.bodySmall.copy(
                                         color = MaterialTheme.colorScheme.onSurface,
+                                        lineHeight =
+                                            WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP.sp,
                                     ),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
                                 decorationBox = { innerTextField ->
                                     Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .heightIn(
-                                                    min =
-                                                        WEB_SESSION_SEARCH_SCREEN_INPUT_HEIGHT_DP.dp,
-                                                ),
+                                        modifier = Modifier.fillMaxWidth(),
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
                                         if (draft.isBlank()) {
@@ -496,13 +649,18 @@ internal fun WebSessionBrowserSearchScreen(
                         verticalArrangement = Arrangement.spacedBy(7.dp),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(
+                                        WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP.dp,
+                                    ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = stringResource(R.string.web_session_search_history),
                                 fontSize = WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP.sp,
-                                lineHeight = 17.sp,
+                                lineHeight = 22.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f),
                             )
@@ -555,7 +713,7 @@ internal fun WebSessionBrowserSearchScreen(
                             Text(
                                 text = stringResource(R.string.web_session_no_search_history),
                                 fontSize = WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP.sp,
-                                lineHeight = 15.sp,
+                                lineHeight = 18.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 2.dp),
                             )
@@ -696,28 +854,17 @@ private fun WebSessionSearchProfileAction(
             incognitoSelected -> stringResource(R.string.web_session_incognito_mode)
             else -> stringResource(R.string.web_session_normal_mode)
         }
-    IconButton(
+    BrowserChromeIconButton(
+        icon =
+            if (incognitoSelected) {
+                Icons.Filled.VisibilityOff
+            } else {
+                Icons.Filled.Visibility
+            },
+        contentDescription = contentDescription,
         onClick = onToggle,
         enabled = enabled,
-        modifier = Modifier.size(WEB_SESSION_SEARCH_SCREEN_ACTION_SIZE_DP.dp),
-    ) {
-        Icon(
-            imageVector =
-                if (incognitoSelected) {
-                    Icons.Filled.VisibilityOff
-                } else {
-                    Icons.Filled.Visibility
-                },
-            contentDescription = contentDescription,
-            tint =
-                if (enabled) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                },
-            modifier = Modifier.size(18.dp),
-        )
-    }
+    )
 }
 
 @Composable
@@ -910,15 +1057,18 @@ private fun UrlActionButton(
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(1.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier =
-                Modifier.size(
-                    WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP.dp,
-                ),
+                Modifier
+                    // 图标向文字靠近，避免纵向动作看起来上下分离。
+                    .offset(y = 1.dp)
+                    .size(
+                        WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP.dp,
+                    ),
             tint = Color(0xFF4F6FEA),
         )
         Text(
@@ -941,7 +1091,7 @@ private fun CompactHistoryAction(
         text = text,
         color = color,
         fontSize = WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP.sp,
-        lineHeight = 14.sp,
+        lineHeight = 19.sp,
         fontWeight = FontWeight.Medium,
         modifier =
             Modifier

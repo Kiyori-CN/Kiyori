@@ -6429,7 +6429,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_back">Kembali</string>
     <string name="web_session_forward">Maju</string>
     <string name="web_session_refresh">Muat semula</string>
-    <string name="web_session_stop">Hentikan</string>
     <string name="web_session_address_bar">Bar alamat</string>
     <string name="web_session_address_input">Edit alamat</string>
     <string name="web_session_open_address">Buka alamat</string>
@@ -6627,9 +6626,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_download_confirm_engine">Pemuat turun: %1$s</string>
     <string name="web_session_download_confirm_cancel">Batal</string>
     <string name="web_session_download_confirm_action">Muat turun</string>
-    <string name="web_session_external_open_title">Buka aplikasi luaran</string>
-    <string name="web_session_external_open_allow_once">Benarkan sekali</string>
-    <string name="web_session_external_open_cancel">Batal</string>
     <string name="web_session_external_open_failed">Tidak dapat membuka pautan atau aplikasi luaran: %1$s</string>
     <string name="web_session_permission_denied">Permintaan kebenaran halaman web ditolak, fungsi berkaitan tidak tersedia</string>
     <string name="web_session_location_permission_denied">Kebenaran lokasi ditolak, penentuan lokasi halaman web tidak tersedia</string>

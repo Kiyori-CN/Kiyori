@@ -4,6 +4,40 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-28 全屏搜索顶栏与三行输入细化
+
+本轮继续使用 [`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)
+作为全屏搜索与浏览器顶栏的唯一进度载体，不创建平行 TODO 目录。实现继续复用同一个
+`WebSessionBrowserSearchScreen`、Browser Runtime、搜索引擎 owner 和 Profile owner。
+
+细化步骤：
+
+1. [DONE] 缩小搜索历史垃圾桶，并锁定标题行高度，避免进入编辑态时标题上下移动
+2. [DONE] 把复制链接、编辑链接图标稍微下移，使图标与下方文字更紧密
+3. [DONE] 让全屏搜索页直接复用浏览器顶栏的左右边距、三槽间距、动作区和搜索框宽度
+4. [DONE] 搜索框保持固定宽度和顶部位置，输入在 `1..3` 行内自动换行并平滑向下增高
+5. [DONE] 超过三行后只允许输入内容纵向滚动，左右按钮和内部引擎按钮始终垂直居中
+6. [DONE] 浏览器顶栏右侧固定为刷新动作，不切换叉号，并使用与无痕按钮一致的圆形点击反馈
+7. [DONE] 更新语义文档，执行定向测试、formal readiness、差异检查与 Debug APK 构建核验
+8. [PENDING] 目标设备上的多行输入、输入法、动画、触控反馈、旋转与浏览器刷新验收
+
+## 2026-07-28 浏览器搜索引擎切换条与外部跳转提示清理
+
+本轮继续使用 [`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)
+作为浏览器产品能力的唯一进度载体，不创建平行 TODO 目录。搜索引擎切换条严格参考
+`D:\10_Project\kiyori-android` 的既有交互，并接入当前唯一 Browser Runtime。
+
+细化步骤：
+
+1. [DONE] 在浏览器顶栏下方增加可横向滑动的搜索引擎切换条，只在用户提交文本搜索后显示
+2. [DONE] 点击引擎后使用同一搜索文本重新解析并跳转，当前引擎同步写入既有搜索设置 owner
+3. [DONE] 提供右侧关闭按钮，并在地址导航、空输入或用户关闭后隐藏切换条
+4. [DONE] 删除 `pendingExternalOpenRequest` 一次性确认状态及 Browser Home、悬浮提示中的对应 UI
+5. [DONE] 保留“允许网页打开应用”作为唯一权限 owner：启用时仅显式主框架手势执行外部 Intent
+6. [DONE] 把浏览器菜单第 4 行退出与设置按钮向内移动，收起按钮保持水平居中
+7. [DONE] 更新浏览器语义文档，执行定向测试、formal readiness、差异检查与 Debug APK 构建核验
+8. [PENDING] 目标设备上的引擎切换、外部 scheme、菜单位置与触控反馈验收
+
 ## 2026-07-28 全屏搜索页现代化完善
 
 本轮继续使用 [`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)

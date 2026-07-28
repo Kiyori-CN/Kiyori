@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
@@ -122,7 +123,7 @@ internal fun WebSessionBrowserScreen(
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
     onForward: () -> Unit,
-    onRefreshOrStop: () -> Unit,
+    onRefresh: () -> Unit,
     onSelectTab: (String) -> Unit,
     onCloseTab: (String) -> Unit,
     onNewTab: (WebSessionProfile) -> Unit,
@@ -188,8 +189,6 @@ internal fun WebSessionBrowserScreen(
     onMergeDownloadToMp4: (String) -> Unit,
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
-    onConfirmExternalOpen: (String) -> Unit,
-    onCancelExternalOpen: (String) -> Unit,
     onHandlePendingDialog: (Boolean, String?) -> Unit,
     onCopyTextSelection: () -> Unit,
     onSelectAllTextSelection: () -> Unit,
@@ -335,8 +334,11 @@ internal fun WebSessionBrowserScreen(
             WebSessionBrowserTopBar(
                 currentUrl = browserState.currentUrl.ifBlank { "about:blank" },
                 pageTitle = browserState.pageTitle,
-                isLoading = browserState.isLoading,
                 detectedVideoCount = browserState.mediaCandidates.size,
+                searchEngine = searchEngine,
+                lastSearchQuery = hostState.lastSearchQuery,
+                isSearchEngineQuickSwitchBarVisible =
+                    hostState.isSearchEngineQuickSwitchBarVisible,
                 onBack = onTopBarBack,
                 onOpenSearch = {
                     profileFeedback = null
@@ -356,7 +358,23 @@ internal fun WebSessionBrowserScreen(
                         current.copy(sheetRoute = WebSessionBrowserSheetRoute.MEDIA_CANDIDATES)
                     }
                 },
-                onRefreshOrStop = onRefreshOrStop,
+                onRefresh = onRefresh,
+                onSelectQuickSearchEngine = { engine ->
+                    val query = hostState.lastSearchQuery.trim()
+                    if (query.isNotBlank()) {
+                        onSetSearchEngine(engine)
+                        onSubmitSearch(
+                            query,
+                            engine,
+                            browserState.activeProfile ?: browserState.defaultSessionProfile,
+                        )
+                    }
+                },
+                onDismissQuickSearchEngineBar = {
+                    onHostStateChange { current ->
+                        current.copy(isSearchEngineQuickSwitchBarVisible = false)
+                    }
+                },
                 modifier = Modifier
             )
 
@@ -590,16 +608,34 @@ internal fun WebSessionBrowserScreen(
                 onSubmit = {
                     val query = hostState.searchDraft.trim()
                     if (query.isNotBlank()) {
+                        val isTextSearch = BrowserAddressResolver.isSearchQuery(query)
                         onSubmitSearch(query, searchEngine, hostState.searchProfile)
                         profileFeedback = null
-                        onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
+                        onHostStateChange { current ->
+                            current.copy(
+                                isSearchVisible = false,
+                                isSearchEnginePanelVisible = false,
+                                searchDraft = "",
+                                lastSearchQuery = if (isTextSearch) query else "",
+                                isSearchEngineQuickSwitchBarVisible = isTextSearch,
+                            )
+                        }
                     }
                 },
                 onSelectEngine = onSetSearchEngine,
                 onOpenSearchRecord = { record ->
                     onOpenSearchRecord(record, hostState.searchProfile)
                     profileFeedback = null
-                    onHostStateChange { current -> current.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "") }
+                    val isTextSearch = BrowserAddressResolver.isSearchQuery(record.query)
+                    onHostStateChange { current ->
+                        current.copy(
+                            isSearchVisible = false,
+                            isSearchEnginePanelVisible = false,
+                            searchDraft = "",
+                            lastSearchQuery = if (isTextSearch) record.query else "",
+                            isSearchEngineQuickSwitchBarVisible = isTextSearch,
+                        )
+                    }
                 },
                 onDeleteSearchRecord = onDeleteSearchHistory,
                 onClearSearchHistory = onClearSearchHistory,
@@ -851,18 +887,6 @@ internal fun WebSessionBrowserScreen(
                 prompt = prompt,
                 onConfirm = { onConfirmBrowserDownload(prompt.requestId) },
                 onCancel = { onCancelBrowserDownload(prompt.requestId) },
-            )
-        } ?: hostState.externalOpenPrompt?.let { prompt ->
-            ExternalOpenPromptBar(
-                title = prompt.title,
-                target = prompt.target,
-                onConfirm = { onConfirmExternalOpen(prompt.requestId) },
-                onCancel = { onCancelExternalOpen(prompt.requestId) },
-                modifier =
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = 58.dp),
             )
         }
 
@@ -1231,52 +1255,6 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.USER_AGENT -> Unit
         }
     }
-
-@Composable
-private fun ExternalOpenPromptBar(
-    title: String,
-    target: String,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = target,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onCancel) {
-                    Text(text = stringResource(R.string.web_session_external_open_cancel))
-                }
-                TextButton(onClick = onConfirm) {
-                    Text(text = stringResource(R.string.web_session_external_open_allow_once))
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun BrowserDownloadSummaryBar(

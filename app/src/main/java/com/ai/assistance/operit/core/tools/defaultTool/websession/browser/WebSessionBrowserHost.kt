@@ -54,7 +54,7 @@ internal class WebSessionBrowserHost(
         fun onNavigate(url: String)
         fun onBack()
         fun onForward()
-        fun onRefreshOrStop()
+        fun onRefresh()
         fun onSelectTab(sessionId: String)
         fun onCloseTab(sessionId: String)
         fun onNewTab(profile: WebSessionProfile)
@@ -129,8 +129,6 @@ internal class WebSessionBrowserHost(
         fun onMergeDownloadToMp4(taskId: String)
         fun onConfirmBrowserDownload(requestId: String)
         fun onCancelBrowserDownload(requestId: String)
-        fun onConfirmExternalOpen(requestId: String)
-        fun onCancelExternalOpen(requestId: String)
         fun onHandlePendingDialog(accept: Boolean, promptText: String?)
     }
 
@@ -207,7 +205,7 @@ internal class WebSessionBrowserHost(
             onNavigate = callbacks::onNavigate,
             onBack = callbacks::onBack,
             onForward = callbacks::onForward,
-            onRefreshOrStop = callbacks::onRefreshOrStop,
+            onRefresh = callbacks::onRefresh,
             onSelectTab = callbacks::onSelectTab,
             onCloseTab = callbacks::onCloseTab,
             onNewTab = callbacks::onNewTab,
@@ -273,8 +271,6 @@ internal class WebSessionBrowserHost(
             onMergeDownloadToMp4 = callbacks::onMergeDownloadToMp4,
             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
-            onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
-            onCancelExternalOpen = callbacks::onCancelExternalOpen,
             onHandlePendingDialog = callbacks::onHandlePendingDialog,
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
@@ -287,14 +283,12 @@ internal class WebSessionBrowserHost(
     fun updateHostProjection(
         browserState: WebSessionBrowserState,
         downloadUiState: BrowserDownloadUiState,
-        externalOpenPrompt: ExternalOpenPromptState?,
         downloadPrompt: BrowserDownloadPromptState?,
     ) {
         hostState =
             hostState.copy(
                 browserState = browserState,
                 downloadUiState = downloadUiState,
-                externalOpenPrompt = externalOpenPrompt,
                 downloadPrompt = downloadPrompt,
             )
         updateIndicatorLayoutForCurrentState()
@@ -526,12 +520,6 @@ internal class WebSessionBrowserHost(
         val downloadPrompt = hostState.downloadPrompt
         if (downloadPrompt != null) {
             callbacks.onCancelBrowserDownload(downloadPrompt.requestId)
-            return true
-        }
-
-        val externalPrompt = hostState.externalOpenPrompt
-        if (externalPrompt != null) {
-            callbacks.onCancelExternalOpen(externalPrompt.requestId)
             return true
         }
 
@@ -794,13 +782,10 @@ internal class WebSessionBrowserHost(
                             activeDownloadCount = hostState.browserState.activeDownloadCount,
                             hasFailedDownloads = hostState.browserState.hasFailedDownloads,
                             downloadPrompt = hostState.downloadPrompt,
-                            externalOpenPrompt = hostState.externalOpenPrompt,
                             onOpenBrowser = callbacks::onOpenAppShellBrowser,
                             onDragBy = { dx, dy -> moveIndicatorBy(dx, dy) },
                             onConfirmBrowserDownload = callbacks::onConfirmBrowserDownload,
                             onCancelBrowserDownload = callbacks::onCancelBrowserDownload,
-                            onConfirmExternalOpen = callbacks::onConfirmExternalOpen,
-                            onCancelExternalOpen = callbacks::onCancelExternalOpen
                         )
                     }
                 }
@@ -891,14 +876,14 @@ internal class WebSessionBrowserHost(
     }
 
     private fun indicatorWidthPx(): Int =
-        if (hostState.downloadPrompt != null || hostState.externalOpenPrompt != null) {
+        if (hostState.downloadPrompt != null) {
             dp(248)
         } else {
             dp(40).coerceAtLeast(1)
         }
 
     private fun indicatorHeightPx(): Int =
-        if (hostState.downloadPrompt != null || hostState.externalOpenPrompt != null) {
+        if (hostState.downloadPrompt != null) {
             dp(86)
         } else {
             dp(40).coerceAtLeast(1)

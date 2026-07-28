@@ -6330,7 +6330,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_back">Kembali</string>
     <string name="web_session_forward">Maju</string>
     <string name="web_session_refresh">Muat ulang</string>
-    <string name="web_session_stop">Berhenti</string>
     <string name="web_session_address_bar">Bilah alamat</string>
     <string name="web_session_address_input">Edit alamat</string>
     <string name="web_session_open_address">Buka alamat</string>
@@ -6649,9 +6648,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_download_confirm_engine">Pengunduh: %1$s</string>
     <string name="web_session_download_confirm_cancel">Batal</string>
     <string name="web_session_download_confirm_action">Unduh</string>
-    <string name="web_session_external_open_title">Buka Aplikasi Eksternal</string>
-    <string name="web_session_external_open_allow_once">Izinkan Sekali</string>
-    <string name="web_session_external_open_cancel">Batal</string>
     <string name="web_session_external_open_failed">Tidak dapat membuka tautan atau aplikasi eksternal: %1$s</string>
     <string name="web_session_permission_denied">Izin yang diminta halaman web ditolak, fungsi terkait tidak tersedia</string>
     <string name="web_session_location_permission_denied">Izin lokasi ditolak, penentuan lokasi halaman web tidak tersedia</string>

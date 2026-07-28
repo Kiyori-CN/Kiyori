@@ -58,13 +58,10 @@ internal fun WebSessionMinimizedIndicator(
     activeDownloadCount: Int,
     hasFailedDownloads: Boolean,
     downloadPrompt: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState?,
-    externalOpenPrompt: com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ExternalOpenPromptState?,
     onOpenBrowser: () -> Unit,
     onDragBy: (dx: Int, dy: Int) -> Unit,
     onConfirmBrowserDownload: (String) -> Unit,
     onCancelBrowserDownload: (String) -> Unit,
-    onConfirmExternalOpen: (String) -> Unit,
-    onCancelExternalOpen: (String) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val dragModifier =
@@ -130,75 +127,6 @@ internal fun WebSessionMinimizedIndicator(
                     }
                     TextButton(onClick = { onConfirmBrowserDownload(downloadPrompt.requestId) }) {
                         Text(stringResource(R.string.web_session_download_confirm_action))
-                    }
-                }
-            }
-        }
-        return
-    }
-
-    if (externalOpenPrompt != null) {
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .semantics { this.contentDescription = contentDescription }
-                    .then(dragModifier)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                    ) {
-                        Box(
-                            modifier = Modifier.size(28.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Language,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = externalOpenPrompt.title,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = externalOpenPrompt.target,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = { onCancelExternalOpen(externalOpenPrompt.requestId) }) {
-                        Text(stringResource(R.string.web_session_external_open_cancel))
-                    }
-                    TextButton(onClick = { onConfirmExternalOpen(externalOpenPrompt.requestId) }) {
-                        Text(stringResource(R.string.web_session_external_open_allow_once))
                     }
                 }
             }

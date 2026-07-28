@@ -78,3 +78,20 @@
 - `BrowserNetworkLogPolicyTest`、`WebSessionBrowserUserAgentRoutingTest`、`WebSessionBrowserChromeLayoutTest`、`WebSessionBookmarkPolicyTest` 和 `BrowserDownloadDrawerPolicyTest` 合计 `27/27`，零失败、零错误、零跳过；正式开发准备门禁、7 份 `strings.xml` 解析与 `git diff --check` 通过
 - `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`。Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`2026-07-27 23:43:42 +08:00`，`449513873` 字节，`com.kiyori`，`45 / 0.1.0`，SHA-256 `2A32681AC44E53E1C898C5C1E8C1F24F49257EB8EC01216DCE49DA01F3C82577`，V2 Debug 签名且 `zipalign -P 16` 通过
 - 真机上的菜单到抽屉转场、半展开/全展开拖动、500 条实时请求滚动、系统 Back、复制/下载/外部打开、普通/无痕窗口隔离和真实网页请求分类仍待用户验收，不由 JVM 测试或 APK 构建替代
+
+## 2026-07-28 外部应用提示与菜单第 4 行修正
+
+- 删除 `PendingExternalOpenRequest`、host projection、Browser Home 提示条和 minimized indicator 提示，
+  不再显示“打开外部应用 / 取消 / 允许一次”
+- `allowWebPageOpenApp` 继续是唯一权限 owner；只有设置开启、主框架且带用户手势时直接执行外部 Intent，
+  自动触发和设置关闭状态均被消费
+- 菜单第 4 行从全宽 `SpaceBetween` 改为 `2:1:2` 三槽权重，退出和设置向内移动，收起保持居中
+- `BrowserExternalNavigationPolicyTest` 与 `WebSessionBrowserChromeLayoutTest` 锁定外部导航和槽位合同；
+  真机上的实际 Intent、网站自动跳转、按钮位置与触控仍待验收
+- 四组定向 JVM 合计 `15/15`，零失败、零错误、零跳过；formal readiness、7 份 `strings.xml` 解析、
+  一次性外部提示零引用和 `git diff --check` 均通过
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`，233 个任务零失败。Debug APK：
+  `app/build/outputs/apk/debug/app-debug.apk`，`2026-07-28 23:32:13 +08:00`，`463722827` 字节，
+  `com.kiyori`，`45 / 0.1.0`，SHA-256
+  `EC13E49350D5A3DB84571082F892A77D24A847B993DA6A3CE6A50E82A6B12678`，V2 Debug 签名且
+  `zipalign -c -P 16 -v 4` 通过

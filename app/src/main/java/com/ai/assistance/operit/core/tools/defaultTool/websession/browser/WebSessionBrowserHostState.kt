@@ -168,13 +168,6 @@ internal data class BrowserDownloadUiState(
 )
 
 @Immutable
-internal data class ExternalOpenPromptState(
-    val requestId: String,
-    val title: String,
-    val target: String
-)
-
-@Immutable
 internal data class BrowserDownloadPromptState(
     val requestId: String,
     val fileName: String,
@@ -193,9 +186,10 @@ internal data class WebSessionBrowserHostState(
     val isSearchEnginePanelVisible: Boolean = false,
     val searchDraft: String = "",
     val searchProfile: WebSessionProfile = WebSessionProfile.NORMAL,
+    val lastSearchQuery: String = "",
+    val isSearchEngineQuickSwitchBarVisible: Boolean = false,
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val textSelectionActions: WebSessionTextSelectionActionsState? = null,
-    val externalOpenPrompt: ExternalOpenPromptState? = null,
     val downloadPrompt: BrowserDownloadPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),
     val viewportWidthPx: Int? = null,

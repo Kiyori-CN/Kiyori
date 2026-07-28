@@ -183,10 +183,6 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     fun setAllowWebPageOpenApp(enabled: Boolean) {
         tools.runOnMainSync<Unit> {
             tools.browserSettingsStore.setAllowWebPageOpenApp(enabled)
-            if (!enabled) {
-                StandardBrowserSessionTools.pendingExternalOpenRequest = null
-                tools.refreshSessionUiOnMain()
-            }
         }
     }
 

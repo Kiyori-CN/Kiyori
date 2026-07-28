@@ -156,24 +156,47 @@ internal fun WebSessionBrowserMenuDrawer(
                                     top = WEB_SESSION_BROWSER_MENU_BOTTOM_ROW_TOP_PADDING_DP.dp,
                                     end = WEB_SESSION_BROWSER_MENU_BOTTOM_ROW_HORIZONTAL_PADDING_DP.dp,
                                 ),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        BottomMenuAction(
-                            title = stringResource(R.string.web_session_exit_browser),
-                            iconResId = R.drawable.ic_kiyori_tool_power,
-                            onClick = onExitBrowser,
-                        )
-                        BottomMenuAction(
-                            title = stringResource(R.string.collapse_verb),
-                            iconResId = R.drawable.ic_kiyori_tool_collapse,
-                            onClick = onCollapse,
-                        )
-                        BottomMenuAction(
-                            title = stringResource(R.string.web_session_browser_settings),
-                            iconResId = R.drawable.ic_kiyori_tool_settings,
-                            onClick = onOpenBrowserSettings,
-                        )
+                        Box(
+                            modifier =
+                                Modifier.weight(
+                                    WEB_SESSION_BROWSER_MENU_BOTTOM_SIDE_SLOT_WEIGHT.toFloat(),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            BottomMenuAction(
+                                title = stringResource(R.string.web_session_exit_browser),
+                                iconResId = R.drawable.ic_kiyori_tool_power,
+                                onClick = onExitBrowser,
+                            )
+                        }
+                        Box(
+                            modifier =
+                                Modifier.weight(
+                                    WEB_SESSION_BROWSER_MENU_BOTTOM_CENTER_SLOT_WEIGHT.toFloat(),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            BottomMenuAction(
+                                title = stringResource(R.string.collapse_verb),
+                                iconResId = R.drawable.ic_kiyori_tool_collapse,
+                                onClick = onCollapse,
+                            )
+                        }
+                        Box(
+                            modifier =
+                                Modifier.weight(
+                                    WEB_SESSION_BROWSER_MENU_BOTTOM_SIDE_SLOT_WEIGHT.toFloat(),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            BottomMenuAction(
+                                title = stringResource(R.string.web_session_browser_settings),
+                                iconResId = R.drawable.ic_kiyori_tool_settings,
+                                onClick = onOpenBrowserSettings,
+                            )
+                        }
                     }
                 }
             }

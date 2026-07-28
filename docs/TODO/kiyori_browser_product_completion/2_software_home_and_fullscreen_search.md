@@ -92,14 +92,16 @@ Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态�
 
 ## 2026-07-28 历史清理流程与当前网页行二次压缩
 
-- 搜索历史标题固定为 `13sp`；空状态、“清空”和“完成”固定为 `11sp`
-- 垃圾桶图标由 `19dp` 放大为 `23dp`，点击目标保持 `34dp`
+- 用户现场纠正后，搜索历史标题放大为 `18sp`，空状态放大为 `14sp`，“清空”和“完成”放大为
+  `15sp`
+- 垃圾桶图标进一步放大为 `28dp`，点击目标保持 `34dp`
 - “清空”显示带遮罩的底部白色圆角确认框；确认按钮使用红色描边，确认后立即清空并退出编辑模式
 - 标签右上角叉号只暂存单条删除，仍必须点击“完成”才提交
 - 当前网页标题与网址缩小为 `12sp / 10sp`，外层和信息区垂直内边距均压缩为 `4dp`
-- 复制链接、编辑链接图标缩小为 `19dp`，图标与文字间距压缩为 `1dp`
+- 复制链接、编辑链接图标进一步缩小为 `16dp`，图标与文字间距保持 `1dp`
 
-二次压缩与清理流程证据：
+本次尺寸方向纠正按用户要求不运行 Gradle、测试或 APK 构建。以下证据只对应此前已经完成构建的
+清理流程和旧尺寸，不覆盖本次 `18sp / 14sp / 15sp / 28dp / 16dp` 调整：
 
 - `WebSessionSearchUiPolicyTest`、`KiyoriSoftwareHomeSearchTest`、
   `WebSessionBrowserChromeLayoutTest` 共 `19/19` 通过
@@ -112,6 +114,36 @@ Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态�
 - SHA-256：`84F8CF960BC03CEDBE021AF0656DDC528EE210C636B8277FC9C94D321F57B516`
 - 包名与版本：`com.kiyori`，`45 / 0.1.0`
 - APK v2 签名与 `zipalign -c -P 16 -v 4` 验证通过
+
+## 2026-07-28 顶栏共享几何与三行自适应输入
+
+本轮覆盖前述 `38dp / 34dp / 28dp` 的临时顶栏和垃圾桶尺寸：
+
+- 全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和
+  `42dp` 单行搜索框基准，因此返回、搜索框、无痕按钮的绝对位置和中间宽度保持一致
+- 搜索输入由单行改为最多三行的软换行输入，不产生水平滚动；输入框顶部和左右宽度不变，
+  `animateContentSize` 只推动底边与下方内容，超过三行后由 `BasicTextField` 保持三行视口并纵向滚动
+- 左右动作、引擎按钮、清除和搜索动作都位于同一垂直居中 Row，随搜索框增高同步下移
+- 搜索历史标题行固定为 `34dp`，垃圾桶缩为 `26dp`，进入“清空 / 完成”状态不再改变标题纵向位置
+- 复制与编辑图标保持 `16dp`，并向下偏移 `1dp`、取消图文间额外间距
+- Browser Home 右侧固定为刷新动作；加载期间不切换叉号，回调始终执行活动 WebView `reload`
+- Browser Home 返回/刷新与全屏搜索无痕动作共用 `40dp` 圆形裁剪按压区域，不再显示方形水波纹
+
+本轮本地证据：
+
+- `:app:compileDebugKotlin` 通过
+- `WebSessionSearchUiPolicyTest`、`WebSessionBrowserChromeLayoutTest` 与
+  `KiyoriSoftwareHomeSearchTest` 合计 `19/19`，零失败、零错误、零跳过
+- formal readiness、`git diff --check`、7 份 `strings.xml` 解析和旧刷新/停止引用清理检查通过
+- `:app:assembleDebug --no-daemon --console=plain` 通过，`233` 个任务中 `39` 个执行、
+  `194` 个 `UP-TO-DATE`；`verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`
+- 大小：`463722319` bytes
+- SHA-256：`26BC4B4ED56BD735AE7F89EA3EF6C9FD316E29EEA9F221DA35934475075347BF`
+- 包名与版本：`com.kiyori`，`45 / 0.1.0`，min SDK `26`，target SDK `34`
+- Android Debug APK v2 签名和 `zipalign -c -P 16 -v 4` 验证通过
+
+真机多行输入、输入法、动画、触控反馈、旋转和刷新行为仍为待验收。
 
 ## 实现记录
 
@@ -189,6 +221,17 @@ Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态�
 ### 为什么本里程碑不先显示无痕按钮？
 
 窗口 Profile 必须在 WebView 创建前确定，转换已存在 WebView 会破坏数据隔离。在 AndroidX WebKit Multi-Profile 支持判断、Profile runtime 和默认新窗口 Profile 尚未成为同一个真实 owner 前显示按钮，只会产生无作用入口或共享 Cookie 的伪无痕，因此按钮与实现一起留到第三里程碑。
+
+## 2026-07-28 搜索后的引擎快速切换条
+
+- 仅 `BrowserAddressResolver` 判定为文本搜索的提交会保存 `lastSearchQuery` 并显示顶栏下方切换条
+- 切换条复用九个 `WebSessionSearchEngine` 图标和既有 `WebSessionHistoryStore` 引擎 owner，不创建新 store
+- 点击其他引擎以当前活动 Profile 和同一 query 重新提交；网址提交、空输入和右侧关闭按钮隐藏该栏
+- 视觉严格参考 legacy Kiyori：`28dp` chip、`12dp` 图标、右侧 `22dp` 关闭目标与水平滚动列表
+- `BrowserAddressResolverTest` 与 `WebSessionSearchUiPolicyTest` 覆盖文本/地址判定和几何常量；真机滑动、
+  长文本、旋转、触控反馈与实际搜索站点仍待验收
+- 本轮四组浏览器定向 JVM 合计 `15/15`，formal readiness、7 份 `strings.xml` 解析和
+  `git diff --check` 通过；最终 Debug APK 证据与第七阶段的同轮记录一致
 
 ## 预计文件
 

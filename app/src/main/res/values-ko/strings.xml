@@ -6683,7 +6683,6 @@
     <string name="web_session_back">뒤로</string>
     <string name="web_session_forward">앞으로</string>
     <string name="web_session_refresh">새로 고침</string>
-    <string name="web_session_stop">중지</string>
     <string name="web_session_address_bar">주소 표시줄</string>
     <string name="web_session_address_input">주소 수정</string>
     <string name="web_session_open_address">주소 열기</string>
@@ -6757,9 +6756,6 @@
     <string name="web_session_download_confirm_engine">다운로더: %1$s</string>
     <string name="web_session_download_confirm_cancel">취소</string>
     <string name="web_session_download_confirm_action">다운로드</string>
-    <string name="web_session_external_open_title">외부 앱 열기</string>
-    <string name="web_session_external_open_allow_once">한 번만 허용</string>
-    <string name="web_session_external_open_cancel">취소</string>
     <string name="web_session_external_open_failed">외부 링크 또는 앱을 열 수 없습니다: %1$s</string>
     <string name="web_session_permission_denied">웹페이지 권한 요청이 거부되어 이 기능을 사용할 수 없습니다.</string>
     <string name="web_session_location_permission_denied">위치 권한이 거부되어 웹 위치정보를 사용할 수 없습니다.</string>

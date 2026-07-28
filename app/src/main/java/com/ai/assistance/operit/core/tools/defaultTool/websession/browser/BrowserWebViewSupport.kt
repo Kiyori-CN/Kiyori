@@ -398,7 +398,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                         resolveSessionUserAgent(session, uri.toString()),
                     )
                 }
-                return handleNavigationOverrideOnMain(session, uri)
+                return handleNavigationOverrideOnMain(request)
             }
 
             override fun shouldInterceptRequest(
@@ -541,18 +541,13 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onRefreshOrStop() {
+        override fun onRefresh() {
             runOnMainSync<Unit> {
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
                 ensureSessionAttachedOnMain(session.id)
-                if (session.isLoading) {
-                    session.webView.stopLoading()
-                    session.isLoading = false
-                } else {
-                    session.pageLoaded = false
-                    session.isLoading = true
-                    session.webView.reload()
-                }
+                session.pageLoaded = false
+                session.isLoading = true
+                session.webView.reload()
                 refreshNavigationStateAsync(session)
             }
         }
@@ -1079,18 +1074,6 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onConfirmExternalOpen(requestId: String) {
-            runOnMainSync<Unit> {
-                confirmExternalOpenRequest(requestId)
-            }
-        }
-
-        override fun onCancelExternalOpen(requestId: String) {
-            runOnMainSync<Unit> {
-                cancelExternalOpenRequest(requestId)
-            }
-        }
-
         override fun onHandlePendingDialog(accept: Boolean, promptText: String?) {
             runOnMainSync<Unit> {
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
@@ -1301,7 +1284,6 @@ internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
     StandardBrowserSessionTools.browserHost?.updateHostProjection(
         browserState = buildBrowserState(registry, buildBrowserDownloadSummary()),
         downloadUiState = buildBrowserDownloadUiState(),
-        externalOpenPrompt = StandardBrowserSessionTools.pendingExternalOpenRequest?.toUiState(),
         downloadPrompt = StandardBrowserSessionTools.pendingBrowserDownloadRequest?.toUiState(),
     )
 }
@@ -1667,9 +1649,9 @@ internal fun StandardBrowserSessionTools.findSessionByWebView(
 ): BrowserToolSession? = StandardBrowserSessionTools.sessions.values.firstOrNull { it.webView === webView }
 
 internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
-    session: BrowserToolSession,
-    uri: Uri
+    request: WebResourceRequest
 ): Boolean {
+    val uri = request.url
     val rawUrl = uri.toString()
     val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return false
     if (
@@ -1680,6 +1662,19 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
     ) {
         // Disabling this setting is an explicit deny policy. Consuming the navigation here keeps
         // WebView from attempting an unsupported external scheme or creating an external prompt.
+        return true
+    }
+    if (
+        scheme != "http" &&
+            scheme != "https" &&
+            scheme != "about" &&
+            !shouldLaunchBrowserExternalNavigation(
+                isMainFrame = request.isForMainFrame,
+                hasUserGesture = request.hasGesture(),
+            )
+    ) {
+        // Automatic redirects must not be able to pull the user out of the browser. Consuming the
+        // request here also removes the repeated prompt without weakening the saved permission.
         return true
     }
     return when (scheme) {
@@ -1693,25 +1688,31 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
             }
         }
         "about" -> false
-        "intent" -> handleIntentSchemeOnMain(session, rawUrl)
+        "intent" -> handleIntentSchemeOnMain(rawUrl)
         else -> {
-            queueExternalOpenRequest(
+            val externalIntent =
                 Intent(Intent.ACTION_VIEW, uri).apply {
                     addCategory(Intent.CATEGORY_BROWSABLE)
-                },
-                title = context.getString(R.string.web_session_external_open_title),
-                target = rawUrl
-            )
+                }
+            // The persistent browser setting is the only authorization owner. A second one-shot
+            // prompt repeatedly interrupts normal browsing and can disagree with that saved choice.
+            if (!launchBrowserExternalIntent(externalIntent)) {
+                showToast(context.getString(R.string.web_session_external_open_failed, rawUrl))
+            }
             true
         }
     }
 }
 
+internal fun shouldLaunchBrowserExternalNavigation(
+    isMainFrame: Boolean,
+    hasUserGesture: Boolean,
+): Boolean = isMainFrame && hasUserGesture
+
 internal fun StandardBrowserSessionTools.isUserscriptInstallUri(uri: Uri): Boolean =
     uri.path?.endsWith(".user.js", ignoreCase = true) == true
 
 internal fun StandardBrowserSessionTools.handleIntentSchemeOnMain(
-    session: BrowserToolSession,
     rawUrl: String
 ): Boolean {
     val intent =
@@ -1727,59 +1728,12 @@ internal fun StandardBrowserSessionTools.handleIntentSchemeOnMain(
             component = null
             selector = null
         }
-    queueExternalOpenRequest(
-        sanitizedIntent,
-        title = context.getString(R.string.web_session_external_open_title),
-        target = sanitizedIntent.`package`?.takeIf { it.isNotBlank() } ?: rawUrl
-    )
+    val target = sanitizedIntent.`package`?.takeIf { it.isNotBlank() } ?: rawUrl
+    if (!launchBrowserExternalIntent(sanitizedIntent)) {
+        showToast(context.getString(R.string.web_session_external_open_failed, target))
+    }
     return true
 }
-
-internal fun StandardBrowserSessionTools.queueExternalOpenRequest(
-    intent: Intent,
-    title: String,
-    target: String
-) {
-    StandardBrowserSessionTools.pendingExternalOpenRequest =
-        PendingExternalOpenRequest(
-            requestId = UUID.randomUUID().toString(),
-            intent =
-                Intent(intent).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                },
-            title = title,
-            target = target
-        )
-    refreshSessionUiOnMain()
-}
-
-internal fun StandardBrowserSessionTools.confirmExternalOpenRequest(requestId: String) {
-    val request = StandardBrowserSessionTools.pendingExternalOpenRequest ?: return
-    if (request.requestId != requestId) {
-        return
-    }
-    StandardBrowserSessionTools.pendingExternalOpenRequest = null
-    refreshSessionUiOnMain()
-    if (!launchBrowserExternalIntent(request.intent)) {
-        showToast(context.getString(R.string.web_session_external_open_failed, request.target))
-    }
-}
-
-internal fun StandardBrowserSessionTools.cancelExternalOpenRequest(requestId: String) {
-    val request = StandardBrowserSessionTools.pendingExternalOpenRequest ?: return
-    if (request.requestId != requestId) {
-        return
-    }
-    StandardBrowserSessionTools.pendingExternalOpenRequest = null
-    refreshSessionUiOnMain()
-}
-
-private fun PendingExternalOpenRequest.toUiState(): ExternalOpenPromptState =
-    ExternalOpenPromptState(
-        requestId = requestId,
-        title = title,
-        target = target
-    )
 
 internal fun StandardBrowserSessionTools.handleWebPermissionRequest(request: PermissionRequest) {
     val requestedResources = request.resources?.distinct().orEmpty()

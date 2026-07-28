@@ -7705,7 +7705,6 @@
     <string name="web_session_back">后退</string>
     <string name="web_session_forward">前进</string>
     <string name="web_session_refresh">刷新</string>
-    <string name="web_session_stop">停止</string>
     <string name="web_session_address_bar">地址栏</string>
     <string name="web_session_address_input">编辑地址</string>
     <string name="web_session_open_address">打开地址</string>
@@ -7859,9 +7858,6 @@
     <string name="web_session_download_confirm_engine">下载器：%1$s</string>
     <string name="web_session_download_confirm_cancel">取消</string>
     <string name="web_session_download_confirm_action">下载</string>
-    <string name="web_session_external_open_title">打开外部应用</string>
-    <string name="web_session_external_open_allow_once">允许一次</string>
-    <string name="web_session_external_open_cancel">取消</string>
     <string name="web_session_external_open_failed">无法打开外部链接或应用：%1$s</string>
     <string name="web_session_permission_denied">网页请求的权限被拒绝，相关功能不可用</string>
     <string name="web_session_location_permission_denied">位置权限被拒绝，网页定位不可用</string>

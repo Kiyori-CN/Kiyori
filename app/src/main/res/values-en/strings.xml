@@ -7193,7 +7193,6 @@
     <string name="web_session_back">Back</string>
     <string name="web_session_forward">Forward</string>
     <string name="web_session_refresh">Refresh</string>
-    <string name="web_session_stop">Stop</string>
     <string name="web_session_address_bar">Address bar</string>
     <string name="web_session_address_input">Edit address</string>
     <string name="web_session_open_address">Open address</string>
@@ -7267,9 +7266,6 @@
     <string name="web_session_download_confirm_engine">Downloader: %1$s</string>
     <string name="web_session_download_confirm_cancel">Cancel</string>
     <string name="web_session_download_confirm_action">Download</string>
-    <string name="web_session_external_open_title">Open external app</string>
-    <string name="web_session_external_open_allow_once">Allow once</string>
-    <string name="web_session_external_open_cancel">Cancel</string>
     <string name="web_session_external_open_failed">Unable to open external link or app: %1$s</string>
     <string name="web_session_permission_denied">The web page permission request was denied, so this feature is unavailable</string>
     <string name="web_session_location_permission_denied">Location permission was denied, so web geolocation is unavailable</string>

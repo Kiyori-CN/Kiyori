@@ -4,6 +4,11 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_MENU_ICON_SIZE_DP
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_GAP_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -67,23 +72,32 @@ class WebSessionSearchUiPolicyTest {
 
     @Test
     fun `full screen search uses the compact browser menu scale`() {
-        assertEquals(5, WEB_SESSION_SEARCH_SCREEN_HEADER_VERTICAL_PADDING_DP)
-        assertEquals(38, WEB_SESSION_SEARCH_SCREEN_INPUT_HEIGHT_DP)
-        assertEquals(34, WEB_SESSION_SEARCH_SCREEN_ACTION_SIZE_DP)
+        assertEquals(8, WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP)
+        assertEquals(8, WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP)
+        assertEquals(40, WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP)
+        assertEquals(42, WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP)
+        assertEquals(6, WEB_SESSION_BROWSER_TOP_GAP_DP)
+        assertEquals(3, WEB_SESSION_SEARCH_SCREEN_INPUT_MAX_LINES)
+        assertEquals(18, WEB_SESSION_SEARCH_SCREEN_INPUT_LINE_HEIGHT_SP)
+        assertEquals(7, WEB_SESSION_SEARCH_SCREEN_INPUT_VERTICAL_PADDING_DP)
         assertEquals(18, WEB_SESSION_SEARCH_SCREEN_ENGINE_ICON_SIZE_DP)
         assertEquals(42, WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_HEIGHT_DP)
         assertEquals(19, WEB_SESSION_SEARCH_SCREEN_ENGINE_CARD_ICON_SIZE_DP)
         assertEquals(46, WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_WIDTH_DP)
-        assertEquals(19, WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP)
+        assertEquals(16, WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP)
         assertEquals(4, WEB_SESSION_SEARCH_SCREEN_CURRENT_OUTER_VERTICAL_PADDING_DP)
         assertEquals(4, WEB_SESSION_SEARCH_SCREEN_CURRENT_INFO_VERTICAL_PADDING_DP)
         assertEquals(12, WEB_SESSION_SEARCH_SCREEN_CURRENT_TITLE_SIZE_SP)
         assertEquals(10, WEB_SESSION_SEARCH_SCREEN_CURRENT_URL_SIZE_SP)
-        assertEquals(13, WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP)
-        assertEquals(11, WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP)
-        assertEquals(11, WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP)
-        assertEquals(23, WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP)
+        assertEquals(18, WEB_SESSION_SEARCH_SCREEN_HISTORY_TITLE_SIZE_SP)
+        assertEquals(14, WEB_SESSION_SEARCH_SCREEN_HISTORY_EMPTY_SIZE_SP)
+        assertEquals(15, WEB_SESSION_SEARCH_SCREEN_HISTORY_ACTION_SIZE_SP)
+        assertEquals(34, WEB_SESSION_SEARCH_SCREEN_HISTORY_HEADER_HEIGHT_DP)
+        assertEquals(26, WEB_SESSION_SEARCH_SCREEN_HISTORY_DELETE_ICON_SIZE_DP)
         assertEquals(250, WEB_SESSION_SEARCH_SCREEN_TAG_MAX_WIDTH_DP)
+        assertEquals(28, WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CHIP_HEIGHT_DP)
+        assertEquals(12, WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_ICON_SIZE_DP)
+        assertEquals(22, WEB_SESSION_SEARCH_ENGINE_SWITCH_BAR_CLOSE_SIZE_DP)
         assertEquals(21, WEB_SESSION_BROWSER_MENU_ICON_SIZE_DP)
         assertEquals(11, WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP)
         assertTrue(

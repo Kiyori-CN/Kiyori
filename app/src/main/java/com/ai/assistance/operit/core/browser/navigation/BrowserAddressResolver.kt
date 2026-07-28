@@ -19,11 +19,7 @@ internal object BrowserAddressResolver {
         }
 
         val lower = value.lowercase(Locale.ROOT)
-        if (
-            lower.startsWith("http://") ||
-                lower.startsWith("https://") ||
-                lower.startsWith("about:")
-        ) {
+        if (isExplicitAddress(lower)) {
             return value
         }
 
@@ -33,6 +29,21 @@ internal object BrowserAddressResolver {
 
         return searchEngine.buildSearchUrl(value)
     }
+
+    fun isSearchQuery(raw: String): Boolean {
+        val value = raw.trim()
+        if (value.isBlank()) {
+            return false
+        }
+
+        val lower = value.lowercase(Locale.ROOT)
+        return !isExplicitAddress(lower) && !looksLikeHost(value, lower)
+    }
+
+    private fun isExplicitAddress(lower: String): Boolean =
+        lower.startsWith("http://") ||
+            lower.startsWith("https://") ||
+            lower.startsWith("about:")
 
     private fun looksLikeHost(value: String, lower: String): Boolean {
         if (value.any(Char::isWhitespace) || value.contains("://")) {

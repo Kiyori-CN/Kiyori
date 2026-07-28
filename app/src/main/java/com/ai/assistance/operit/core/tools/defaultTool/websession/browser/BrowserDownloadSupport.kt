@@ -2150,14 +2150,6 @@ internal data class BrowserDownloadSummary(
     val latestCompletedFileName: String? = null
 )
 
-internal data class PendingExternalOpenRequest(
-    val requestId: String,
-    val intent: Intent,
-    val title: String,
-    val target: String,
-    val createdAt: Long = System.currentTimeMillis()
-)
-
 internal data class PendingBrowserDownloadRequest(
     val requestId: String,
     val sessionId: String,

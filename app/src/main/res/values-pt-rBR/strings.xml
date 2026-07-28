@@ -6207,7 +6207,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_back">Voltar</string>
     <string name="web_session_forward">vá em frente</string>
     <string name="web_session_refresh">atualizar</string>
-    <string name="web_session_stop">parar</string>
     <string name="web_session_address_bar">barra de endereço</string>
     <string name="web_session_address_input">Editar endereço</string>
     <string name="web_session_open_address">Endereço aberto</string>
@@ -6281,9 +6280,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_download_confirm_engine">Downloader: %1$s</string>
     <string name="web_session_download_confirm_cancel">Cancelar</string>
     <string name="web_session_download_confirm_action">Baixar</string>
-    <string name="web_session_external_open_title">Abra o aplicativo externo</string>
-    <string name="web_session_external_open_allow_once">permitido uma vez</string>
-    <string name="web_session_external_open_cancel">Cancelar</string>
     <string name="web_session_external_open_failed">Não foi possível abrir o link externo ou aplicativo: %1$s</string>
     <string name="web_session_permission_denied">A permissão solicitada pela página web é negada e as funções relacionadas ficam indisponíveis.</string>
     <string name="web_session_location_permission_denied">Permissão de localização negada, localização da página da web indisponível</string>
