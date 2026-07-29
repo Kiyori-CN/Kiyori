@@ -53,7 +53,7 @@ class BrowserDownloadM3u8RuntimeTest {
                         playlistUrl = server.url("/master.m3u8"),
                         headers = emptyMap(),
                         transport = transport,
-                        autoMerge = true,
+                        packageOffline = true,
                         m3u8ThreadCount = 3,
                         outputPlaylistFile = output,
                         packageDirectory = packageDirectory,
@@ -66,6 +66,17 @@ class BrowserDownloadM3u8RuntimeTest {
                 assertTrue(packageDirectory.resolve("resource_0.bin").exists())
                 assertTrue(packageDirectory.resolve("resource_1.mp4").exists())
                 assertTrue(output.readText().contains(packageDirectoryUri(packageDirectory)))
+                assertTrue(
+                    isCompleteBrowserM3u8Package(
+                        rewrite =
+                            rewriteBrowserM3u8MediaPlaylist(
+                                content = serverContentForPackageIntegrity(),
+                                baseUrl = server.url("/high/index.m3u8"),
+                                packageDirectoryUri = packageDirectoryUri(packageDirectory),
+                            ),
+                        packageDirectory = packageDirectory,
+                    ),
+                )
                 assertEquals(result.storedBytes, output.length() + browserM3u8DirectorySizeBytes(packageDirectory))
                 assertEquals(result.storedBytes.toInt(), reported.get())
                 assertFalse(output.readText().contains("low/index.m3u8"))
@@ -88,7 +99,7 @@ class BrowserDownloadM3u8RuntimeTest {
                         playlistUrl = server.url("/master.m3u8"),
                         headers = emptyMap(),
                         transport = transport,
-                        autoMerge = false,
+                        packageOffline = false,
                         m3u8ThreadCount = 3,
                         outputPlaylistFile = output,
                         packageDirectory = packageDirectory,
@@ -118,7 +129,7 @@ class BrowserDownloadM3u8RuntimeTest {
                             playlistUrl = server.url("/playlist.m3u8"),
                             headers = emptyMap(),
                             transport = transport,
-                            autoMerge = true,
+                            packageOffline = true,
                             m3u8ThreadCount = 3,
                             outputPlaylistFile = output,
                             packageDirectory = packageDirectory,
@@ -131,6 +142,72 @@ class BrowserDownloadM3u8RuntimeTest {
             assertFalse(output.exists())
             assertFalse(packageDirectory.exists())
             assertEquals(0L, reported)
+        }
+    }
+
+    @Test
+    fun `invalid playlist content never creates a completed artifact`() = runBlocking {
+        LoopbackServer().use { server ->
+            server.text("/invalid.m3u8", "<html>login required</html>")
+            server.start()
+            val output = temporaryFolder.newFile("invalid.m3u8.part").also { it.delete() }
+            val packageDirectory = temporaryFolder.root.resolve("invalid.m3u8.files")
+
+            newTransport(retryDelay = {}).use { transport ->
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        downloadBrowserM3u8(
+                            playlistUrl = server.url("/invalid.m3u8"),
+                            headers = emptyMap(),
+                            transport = transport,
+                            packageOffline = true,
+                            m3u8ThreadCount = 3,
+                            outputPlaylistFile = output,
+                            packageDirectory = packageDirectory,
+                        )
+                    }
+                }
+            }
+
+            assertFalse(output.exists())
+            assertFalse(packageDirectory.exists())
+        }
+    }
+
+    @Test
+    fun `external rendition master is rejected instead of producing a silent package`() = runBlocking {
+        LoopbackServer().use { server ->
+            server.text(
+                "/master.m3u8",
+                """
+                #EXTM3U
+                #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Main",URI="audio.m3u8"
+                #EXT-X-STREAM-INF:BANDWIDTH=800000,AUDIO="aac"
+                video.m3u8
+                """.trimIndent(),
+            )
+            server.start()
+            val output = temporaryFolder.newFile("external-audio.m3u8.part").also { it.delete() }
+            val packageDirectory = temporaryFolder.root.resolve("external-audio.m3u8.files")
+
+            newTransport(retryDelay = {}).use { transport ->
+                assertThrows(IOException::class.java) {
+                    runBlocking {
+                        downloadBrowserM3u8(
+                            playlistUrl = server.url("/master.m3u8"),
+                            headers = emptyMap(),
+                            transport = transport,
+                            packageOffline = true,
+                            m3u8ThreadCount = 3,
+                            outputPlaylistFile = output,
+                            packageDirectory = packageDirectory,
+                        )
+                    }
+                }
+            }
+
+            assertFalse(output.exists())
+            assertFalse(packageDirectory.exists())
         }
     }
 
@@ -155,7 +232,7 @@ class BrowserDownloadM3u8RuntimeTest {
                             playlistUrl = server.url("/level0.m3u8"),
                             headers = emptyMap(),
                             transport = transport,
-                            autoMerge = true,
+                            packageOffline = true,
                             m3u8ThreadCount = 3,
                             outputPlaylistFile = output,
                             packageDirectory = packageDirectory,
@@ -200,6 +277,15 @@ class BrowserDownloadM3u8RuntimeTest {
             ),
             retryDelay = retryDelay,
         )
+
+    private fun serverContentForPackageIntegrity(): String =
+        """
+        #EXTM3U
+        #EXT-X-KEY:METHOD=AES-128,URI="keys/key.bin"
+        #EXT-X-MAP:URI="init.mp4"
+        #EXTINF:4,
+        segments/one.ts
+        """.trimIndent()
 
     private class LoopbackServer : Closeable {
         private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)

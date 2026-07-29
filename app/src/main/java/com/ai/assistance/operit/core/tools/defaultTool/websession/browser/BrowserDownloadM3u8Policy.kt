@@ -4,6 +4,8 @@ import java.net.URI
 import java.util.Locale
 
 internal const val MAX_BROWSER_M3U8_VARIANT_DEPTH = 4
+internal const val MAX_BROWSER_M3U8_RESOURCE_COUNT = 50_000
+internal const val BROWSER_M3U8_RESOURCE_BATCH_SIZE = 256
 
 internal data class BrowserDownloadByteRange(
     val index: Int,
@@ -14,6 +16,9 @@ internal data class BrowserDownloadByteRange(
 internal data class BrowserM3u8Variant(
     val bandwidth: Long,
     val url: String,
+    val audioGroupId: String?,
+    val videoGroupId: String?,
+    val subtitlesGroupId: String?,
 )
 
 internal data class BrowserM3u8ResourcePlan(
@@ -104,6 +109,7 @@ internal fun selectHighestBandwidthBrowserM3u8Variant(
 ): BrowserM3u8Variant? {
     require(baseUrl.isNotBlank()) { "Browser M3U8 base URL is blank" }
     var pendingBandwidth = -1L
+    var pendingVariantLine = ""
     var hasPendingVariant = false
     var selected: BrowserM3u8Variant? = null
     content.lineSequence().forEach { rawLine ->
@@ -111,22 +117,40 @@ internal fun selectHighestBandwidthBrowserM3u8Variant(
         when {
             line.startsWith("#EXT-X-STREAM-INF", ignoreCase = true) -> {
                 hasPendingVariant = true
+                pendingVariantLine = line
                 pendingBandwidth = extractBrowserM3u8LongAttribute(line, "BANDWIDTH") ?: -1L
             }
             hasPendingVariant && line.isNotBlank() && !line.startsWith("#") -> {
                 val candidate =
                     BrowserM3u8Variant(
                         bandwidth = pendingBandwidth,
-                        url = resolveBrowserM3u8Url(baseUrl, line),
+                        url = resolveBrowserM3u8NetworkUrl(baseUrl, line),
+                        audioGroupId =
+                            extractBrowserM3u8StringAttribute(
+                                pendingVariantLine,
+                                "AUDIO",
+                            ),
+                        videoGroupId =
+                            extractBrowserM3u8StringAttribute(
+                                pendingVariantLine,
+                                "VIDEO",
+                            ),
+                        subtitlesGroupId =
+                            extractBrowserM3u8StringAttribute(
+                                pendingVariantLine,
+                                "SUBTITLES",
+                            ),
                     )
                 if (selected == null || candidate.bandwidth > selected.bandwidth) {
                     selected = candidate
                 }
                 hasPendingVariant = false
+                pendingVariantLine = ""
                 pendingBandwidth = -1L
             }
             line.isNotBlank() && !line.startsWith("#") -> {
                 hasPendingVariant = false
+                pendingVariantLine = ""
                 pendingBandwidth = -1L
             }
         }
@@ -136,6 +160,16 @@ internal fun selectHighestBandwidthBrowserM3u8Variant(
 
 internal fun extractBrowserM3u8UriAttribute(line: String): String? =
     BROWSER_M3U8_URI_ATTRIBUTE_PATTERN.find(line)?.groupValues?.getOrNull(1)
+
+internal fun extractBrowserM3u8StringAttribute(line: String, name: String): String? {
+    val pattern =
+        Regex(
+            "(?:^|[:,])\\s*${Regex.escape(name)}=(?:\"([^\"]*)\"|([^,]*))",
+            RegexOption.IGNORE_CASE,
+        )
+    val match = pattern.find(line) ?: return null
+    return match.groupValues.drop(1).firstOrNull(String::isNotBlank)?.trim()
+}
 
 internal fun extractBrowserM3u8LongAttribute(line: String, name: String): Long? {
     // HLS attributes follow the tag's colon and subsequent attributes use commas.
@@ -152,6 +186,58 @@ internal fun resolveBrowserM3u8Url(baseUrl: String, value: String): String {
     require(baseUrl.isNotBlank()) { "Browser M3U8 base URL is blank" }
     require(value.isNotBlank()) { "Browser M3U8 URL value is blank" }
     return URI(baseUrl).resolve(value).toString()
+}
+
+internal fun resolveBrowserM3u8NetworkUrl(baseUrl: String, value: String): String {
+    val resolved = resolveBrowserM3u8Url(baseUrl, value)
+    require(isBrowserDownloadNetworkUrl(resolved)) {
+        "Browser M3U8 resource must use HTTP or HTTPS"
+    }
+    return resolved
+}
+
+internal fun isValidBrowserM3u8Playlist(content: String): Boolean =
+    content
+        .lineSequence()
+        .map { line -> line.trim().removePrefix("\uFEFF") }
+        .firstOrNull(String::isNotBlank)
+        ?.equals("#EXTM3U", ignoreCase = true) == true
+
+internal fun browserM3u8ExternalRenditionUrls(
+    content: String,
+    baseUrl: String,
+    variant: BrowserM3u8Variant,
+): List<String> {
+    val selectedGroups =
+        mapOf(
+            "AUDIO" to variant.audioGroupId,
+            "VIDEO" to variant.videoGroupId,
+            "SUBTITLES" to variant.subtitlesGroupId,
+        ).filterValues { groupId -> !groupId.isNullOrBlank() }
+    if (selectedGroups.isEmpty()) {
+        return emptyList()
+    }
+    return content
+        .lineSequence()
+        .map(String::trim)
+        .filter { line -> line.startsWith("#EXT-X-MEDIA:", ignoreCase = true) }
+        .mapNotNull { line ->
+            val type = extractBrowserM3u8StringAttribute(line, "TYPE")?.uppercase(Locale.ROOT)
+            val groupId = extractBrowserM3u8StringAttribute(line, "GROUP-ID")
+            val uri = extractBrowserM3u8UriAttribute(line)
+            if (
+                type != null &&
+                    groupId != null &&
+                    uri != null &&
+                    selectedGroups[type] == groupId
+            ) {
+                resolveBrowserM3u8NetworkUrl(baseUrl, uri)
+            } else {
+                null
+            }
+        }
+        .distinct()
+        .toList()
 }
 
 internal fun browserM3u8ResourceExtension(value: String): String {
@@ -182,43 +268,50 @@ internal fun rewriteBrowserM3u8MediaPlaylist(
     val directoryUri =
         if (packageDirectoryUri.endsWith('/')) packageDirectoryUri else "$packageDirectoryUri/"
     val resources = mutableListOf<BrowserM3u8ResourcePlan>()
+    val resourcesBySourceUrl = linkedMapOf<String, BrowserM3u8ResourcePlan>()
     val rewrittenLines = mutableListOf<String>()
     var mediaIndex = 0
     var sidecarIndex = 0
+    fun resourcePlan(sourceValue: String, media: Boolean): BrowserM3u8ResourcePlan {
+        val sourceUrl = resolveBrowserM3u8NetworkUrl(baseUrl, sourceValue)
+        return resourcesBySourceUrl.getOrPut(sourceUrl) {
+            require(resources.size < MAX_BROWSER_M3U8_RESOURCE_COUNT) {
+                "Browser M3U8 playlist exceeds $MAX_BROWSER_M3U8_RESOURCE_COUNT unique resources"
+            }
+            val localFileName =
+                if (media) {
+                    "segment_${mediaIndex++}${browserM3u8ResourceExtension(sourceValue)}"
+                } else {
+                    "resource_${sidecarIndex++}${browserM3u8ResourceExtension(sourceValue)}"
+                }
+            BrowserM3u8ResourcePlan(
+                sourceUrl = sourceUrl,
+                localFileName = localFileName,
+                localUri = resolveBrowserM3u8Url(directoryUri, localFileName),
+            ).also(resources::add)
+        }
+    }
     content.lineSequence().forEach { rawLine ->
         val line = rawLine.trim()
         when {
             line.isBlank() -> rewrittenLines += rawLine
             line.startsWith("#EXT-X-KEY:", ignoreCase = true) ||
-                line.startsWith("#EXT-X-MAP:", ignoreCase = true) -> {
+                line.startsWith("#EXT-X-MAP:", ignoreCase = true) ||
+                line.startsWith("#EXT-X-PART:", ignoreCase = true) -> {
                 val sourceUri = extractBrowserM3u8UriAttribute(line)
                 if (sourceUri.isNullOrBlank()) {
                     rewrittenLines += rawLine
                 } else {
-                    val localFileName =
-                        "resource_${sidecarIndex++}${browserM3u8ResourceExtension(sourceUri)}"
-                    val localUri = resolveBrowserM3u8Url(directoryUri, localFileName)
-                    resources +=
-                        BrowserM3u8ResourcePlan(
-                            sourceUrl = resolveBrowserM3u8Url(baseUrl, sourceUri),
-                            localFileName = localFileName,
-                            localUri = localUri,
-                        )
-                    rewrittenLines += rewriteBrowserM3u8UriAttribute(line, localUri)
+                    val plan = resourcePlan(sourceUri, media = false)
+                    rewrittenLines += rewriteBrowserM3u8UriAttribute(line, plan.localUri)
                 }
             }
+            line.startsWith("#EXT-X-PRELOAD-HINT:", ignoreCase = true) ||
+                line.startsWith("#EXT-X-RENDITION-REPORT:", ignoreCase = true) -> Unit
             line.startsWith("#") -> rewrittenLines += rawLine
             else -> {
-                val localFileName =
-                    "segment_${mediaIndex++}${browserM3u8ResourceExtension(line)}"
-                val localUri = resolveBrowserM3u8Url(directoryUri, localFileName)
-                resources +=
-                    BrowserM3u8ResourcePlan(
-                        sourceUrl = resolveBrowserM3u8Url(baseUrl, line),
-                        localFileName = localFileName,
-                        localUri = localUri,
-                    )
-                rewrittenLines += localUri
+                val plan = resourcePlan(line, media = true)
+                rewrittenLines += plan.localUri
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.main.shell
 
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
@@ -122,7 +123,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `download settings use player style groups and expose every download consumer`() {
         assertEquals(
-            listOf(5, 2, 3, 1),
+            listOf(5, 4, 2, 2, 1),
             kiyoriDownloadSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -132,11 +133,14 @@ class KiyoriSettingsPagesTest {
                 "并行下载任务",
                 "普通文件线程数",
                 "M3U8 线程数",
+                "网络条件",
+                "允许漫游下载",
+                "完成与失败通知",
+                "系统通知设置",
                 "M3U8 离线包",
                 "下载分块大小",
                 "安装包自动清理",
                 "跳过下载确认",
-                "下载完成提示",
                 "HTTP 协议",
             ),
             kiyoriDownloadSettingsGroups
@@ -153,16 +157,22 @@ class KiyoriSettingsPagesTest {
                     KiyoriDownloadSettingsAction.SELECT_NORMAL_THREAD_COUNT,
                 "M3U8 线程数" to
                     KiyoriDownloadSettingsAction.SELECT_M3U8_THREAD_COUNT,
+                "网络条件" to
+                    KiyoriDownloadSettingsAction.SELECT_NETWORK_POLICY,
+                "允许漫游下载" to
+                    KiyoriDownloadSettingsAction.TOGGLE_ALLOW_ROAMING,
+                "完成与失败通知" to
+                    KiyoriDownloadSettingsAction.TOGGLE_RESULT_NOTIFICATIONS,
+                "系统通知设置" to
+                    KiyoriDownloadSettingsAction.OPEN_NOTIFICATION_SETTINGS,
                 "M3U8 离线包" to
-                    KiyoriDownloadSettingsAction.TOGGLE_AUTO_MERGE_M3U8,
+                    KiyoriDownloadSettingsAction.TOGGLE_M3U8_OFFLINE_PACKAGE,
                 "下载分块大小" to
                     KiyoriDownloadSettingsAction.SELECT_CHUNK_SIZE,
                 "安装包自动清理" to
                     KiyoriDownloadSettingsAction.TOGGLE_AUTO_CLEAN_APK,
                 "跳过下载确认" to
                     KiyoriDownloadSettingsAction.TOGGLE_SKIP_CONFIRMATION,
-                "下载完成提示" to
-                    KiyoriDownloadSettingsAction.TOGGLE_COMPLETION_TIP,
                 "HTTP 协议" to
                     KiyoriDownloadSettingsAction.SELECT_DOWNLOAD_PROTOCOL,
             ),
@@ -171,7 +181,13 @@ class KiyoriSettingsPagesTest {
                 .associate { entry -> entry.title to entry.action },
         )
         assertEquals(
-            listOf("下载器与性能", "M3U8 与存储", "安装与通知", "网络协议"),
+            listOf(
+                "下载器与性能",
+                "网络与后台",
+                "M3U8 与存储",
+                "安装与确认",
+                "网络协议",
+            ),
             kiyoriDownloadSettingsGroups.map(KiyoriDownloadSettingsGroupSpec::title),
         )
         assertTrue(
@@ -183,7 +199,13 @@ class KiyoriSettingsPagesTest {
         assertEquals("12MB", formatBrowserDownloadChunkSize(12288))
         assertEquals("256KB", formatBrowserDownloadChunkSize(256))
         assertEquals(
-            listOf("默认下载器", "跳过下载确认"),
+            listOf(
+                "默认下载器",
+                "网络条件",
+                "允许漫游下载",
+                "系统通知设置",
+                "跳过下载确认",
+            ),
             kiyoriDownloadSettingsGroups
                 .flatMap(KiyoriDownloadSettingsGroupSpec::entries)
                 .filter { entry ->
@@ -220,6 +242,22 @@ class KiyoriSettingsPagesTest {
             ),
         )
         assertEquals("系统下载目录", downloadDirectoryLabel(systemSettings))
+        assertEquals("任意网络", downloadNetworkPolicyLabel(BrowserDownloadNetworkPolicy.ANY))
+        assertEquals(
+            "仅非计费网络",
+            downloadNetworkPolicyLabel(BrowserDownloadNetworkPolicy.UNMETERED),
+        )
+        val networkEntry =
+            kiyoriDownloadSettingsGroups
+                .flatMap(KiyoriDownloadSettingsGroupSpec::entries)
+                .single { entry -> entry.action == KiyoriDownloadSettingsAction.SELECT_NETWORK_POLICY }
+        assertEquals(
+            "仅非计费网络",
+            downloadSettingValue(
+                networkEntry,
+                internalSettings.copy(networkPolicy = BrowserDownloadNetworkPolicy.UNMETERED),
+            ),
+        )
     }
 
     @Test

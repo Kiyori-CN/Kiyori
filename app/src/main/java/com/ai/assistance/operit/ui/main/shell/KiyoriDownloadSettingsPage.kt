@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.main.shell
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSE
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveBrowserDownloadMaxConcurrentTasksLimit
@@ -37,11 +39,14 @@ internal enum class KiyoriDownloadSettingsAction {
     SELECT_MAX_CONCURRENT_TASKS,
     SELECT_NORMAL_THREAD_COUNT,
     SELECT_M3U8_THREAD_COUNT,
-    TOGGLE_AUTO_MERGE_M3U8,
+    SELECT_NETWORK_POLICY,
+    TOGGLE_M3U8_OFFLINE_PACKAGE,
     SELECT_CHUNK_SIZE,
     TOGGLE_AUTO_CLEAN_APK,
     TOGGLE_SKIP_CONFIRMATION,
-    TOGGLE_COMPLETION_TIP,
+    TOGGLE_RESULT_NOTIFICATIONS,
+    TOGGLE_ALLOW_ROAMING,
+    OPEN_NOTIFICATION_SETTINGS,
     SELECT_DOWNLOAD_PROTOCOL,
 }
 
@@ -101,6 +106,36 @@ internal val kiyoriDownloadSettingsGroups =
                 ),
         ),
         KiyoriDownloadSettingsGroupSpec(
+            title = "网络与后台",
+            description =
+                "Android 14 及以上使用用户发起数据传输任务，旧版本使用前台服务；" +
+                    "网络条件同时应用于内置和系统下载器",
+            entries =
+                listOf(
+                    downloadNavigation(
+                        title = "网络条件",
+                        description = "允许任意网络，或只在系统判定为非计费网络时下载",
+                        action = KiyoriDownloadSettingsAction.SELECT_NETWORK_POLICY,
+                    ),
+                    downloadToggle(
+                        title = "允许漫游下载",
+                        description = "关闭后，内置和系统下载器都不会在漫游网络开始新任务",
+                        action = KiyoriDownloadSettingsAction.TOGGLE_ALLOW_ROAMING,
+                    ),
+                    downloadToggle(
+                        title = "完成与失败通知",
+                        description = "内置任务结束时发送系统通知；受系统通知权限和渠道设置控制",
+                        action = KiyoriDownloadSettingsAction.TOGGLE_RESULT_NOTIFICATIONS,
+                        dependency = KiyoriDownloadSettingsDependency.INTERNAL_ENGINE,
+                    ),
+                    downloadNavigation(
+                        title = "系统通知设置",
+                        description = "管理文件下载器进行中通知与下载结果通知渠道",
+                        action = KiyoriDownloadSettingsAction.OPEN_NOTIFICATION_SETTINGS,
+                    ),
+                ),
+        ),
+        KiyoriDownloadSettingsGroupSpec(
             title = "M3U8 与存储",
             description = "控制流媒体离线包和普通文件的单次读写分块",
             entries =
@@ -108,7 +143,7 @@ internal val kiyoriDownloadSettingsGroups =
                     downloadToggle(
                         title = "M3U8 离线包",
                         description = "下载媒体分片并生成本地可播放列表；关闭时只保存远程播放列表",
-                        action = KiyoriDownloadSettingsAction.TOGGLE_AUTO_MERGE_M3U8,
+                        action = KiyoriDownloadSettingsAction.TOGGLE_M3U8_OFFLINE_PACKAGE,
                         dependency = KiyoriDownloadSettingsDependency.INTERNAL_ENGINE,
                     ),
                     downloadNavigation(
@@ -120,8 +155,8 @@ internal val kiyoriDownloadSettingsGroups =
                 ),
         ),
         KiyoriDownloadSettingsGroupSpec(
-            title = "安装与通知",
-            description = "管理安装包清理、下载确认和内置任务完成提示",
+            title = "安装与确认",
+            description = "管理安装包生命周期和网页下载请求的确认方式",
             entries =
                 listOf(
                     downloadToggle(
@@ -134,12 +169,6 @@ internal val kiyoriDownloadSettingsGroups =
                         title = "跳过下载确认",
                         description = "识别到下载请求后直接交给当前默认下载器",
                         action = KiyoriDownloadSettingsAction.TOGGLE_SKIP_CONFIRMATION,
-                    ),
-                    downloadToggle(
-                        title = "下载完成提示",
-                        description = "内置下载任务完成或失败时显示醒目提示",
-                        action = KiyoriDownloadSettingsAction.TOGGLE_COMPLETION_TIP,
-                        dependency = KiyoriDownloadSettingsDependency.INTERNAL_ENGINE,
                     ),
                 ),
         ),
@@ -249,20 +278,28 @@ internal fun KiyoriDownloadSettingsPage(
                         enabled = enabled,
                         onClick = {
                             when (entry.kind) {
-                                KiyoriSettingsRowKind.NAVIGATION ->
-                                    selection =
-                                        downloadSettingSelection(
-                                            entry = entry,
-                                            settings = settings,
-                                            settingsStore = settingsStore,
-                                            onRequestDirectory = {
-                                                folderPickerLauncher.launch(
-                                                    settings.customDirectoryUri
-                                                        .takeIf(String::isNotBlank)
-                                                        ?.let(Uri::parse),
-                                                )
-                                            },
-                                        )
+                                KiyoriSettingsRowKind.NAVIGATION -> {
+                                    if (
+                                        entry.action ==
+                                            KiyoriDownloadSettingsAction.OPEN_NOTIFICATION_SETTINGS
+                                    ) {
+                                        openDownloadNotificationSettings(context)
+                                    } else {
+                                        selection =
+                                            downloadSettingSelection(
+                                                entry = entry,
+                                                settings = settings,
+                                                settingsStore = settingsStore,
+                                                onRequestDirectory = {
+                                                    folderPickerLauncher.launch(
+                                                        settings.customDirectoryUri
+                                                            .takeIf(String::isNotBlank)
+                                                            ?.let(Uri::parse),
+                                                    )
+                                                },
+                                            )
+                                    }
+                                }
                                 KiyoriSettingsRowKind.TOGGLE ->
                                     toggleDownloadSetting(entry.action, settings, settingsStore)
                             }
@@ -313,10 +350,13 @@ internal fun downloadSettingValue(
             settings.segmentThreadCount.toString()
         KiyoriDownloadSettingsAction.SELECT_M3U8_THREAD_COUNT ->
             settings.m3u8ThreadCount.toString()
+        KiyoriDownloadSettingsAction.SELECT_NETWORK_POLICY ->
+            downloadNetworkPolicyLabel(settings.networkPolicy)
         KiyoriDownloadSettingsAction.SELECT_CHUNK_SIZE ->
             formatBrowserDownloadChunkSize(settings.chunkSizeKb)
         KiyoriDownloadSettingsAction.SELECT_DOWNLOAD_PROTOCOL ->
             downloadProtocolLabel(settings.enableHttp2)
+        KiyoriDownloadSettingsAction.OPEN_NOTIFICATION_SETTINGS -> "系统设置"
         else -> null
     }
 
@@ -325,10 +365,13 @@ private fun downloadSettingToggleValue(
     settings: BrowserDownloadSettings,
 ): Boolean =
     when (entry.action) {
-        KiyoriDownloadSettingsAction.TOGGLE_AUTO_MERGE_M3U8 -> settings.autoMergeM3u8
+        KiyoriDownloadSettingsAction.TOGGLE_M3U8_OFFLINE_PACKAGE ->
+            settings.packageM3u8Offline
         KiyoriDownloadSettingsAction.TOGGLE_AUTO_CLEAN_APK -> settings.autoCleanApk
         KiyoriDownloadSettingsAction.TOGGLE_SKIP_CONFIRMATION -> settings.skipConfirmation
-        KiyoriDownloadSettingsAction.TOGGLE_COMPLETION_TIP -> settings.showCompletionTip
+        KiyoriDownloadSettingsAction.TOGGLE_RESULT_NOTIFICATIONS ->
+            settings.showResultNotifications
+        KiyoriDownloadSettingsAction.TOGGLE_ALLOW_ROAMING -> settings.allowRoaming
         else -> false
     }
 
@@ -338,14 +381,16 @@ private fun toggleDownloadSetting(
     settingsStore: BrowserDownloadSettingsStore,
 ) {
     when (action) {
-        KiyoriDownloadSettingsAction.TOGGLE_AUTO_MERGE_M3U8 ->
-            settingsStore.setAutoMergeM3u8(!settings.autoMergeM3u8)
+        KiyoriDownloadSettingsAction.TOGGLE_M3U8_OFFLINE_PACKAGE ->
+            settingsStore.setPackageM3u8Offline(!settings.packageM3u8Offline)
         KiyoriDownloadSettingsAction.TOGGLE_AUTO_CLEAN_APK ->
             settingsStore.setAutoCleanApk(!settings.autoCleanApk)
         KiyoriDownloadSettingsAction.TOGGLE_SKIP_CONFIRMATION ->
             settingsStore.setSkipConfirmation(!settings.skipConfirmation)
-        KiyoriDownloadSettingsAction.TOGGLE_COMPLETION_TIP ->
-            settingsStore.setShowCompletionTip(!settings.showCompletionTip)
+        KiyoriDownloadSettingsAction.TOGGLE_RESULT_NOTIFICATIONS ->
+            settingsStore.setShowResultNotifications(!settings.showResultNotifications)
+        KiyoriDownloadSettingsAction.TOGGLE_ALLOW_ROAMING ->
+            settingsStore.setAllowRoaming(!settings.allowRoaming)
         else -> error("Download setting action is not a toggle: $action")
     }
 }
@@ -445,6 +490,21 @@ private fun downloadSettingSelection(
                         onSelect = { settingsStore.setM3u8ThreadCount(value) },
                     )
                 }
+            KiyoriDownloadSettingsAction.SELECT_NETWORK_POLICY ->
+                BrowserDownloadNetworkPolicy.entries.map { policy ->
+                    KiyoriSettingsSelectionOption(
+                        label = downloadNetworkPolicyLabel(policy),
+                        description =
+                            when (policy) {
+                                BrowserDownloadNetworkPolicy.ANY ->
+                                    "Wi-Fi、以太网和移动数据均可开始下载"
+                                BrowserDownloadNetworkPolicy.UNMETERED ->
+                                    "只在 Android 判定为非计费网络时开始或继续下载"
+                            },
+                        selected = settings.networkPolicy == policy,
+                        onSelect = { settingsStore.setNetworkPolicy(policy) },
+                    )
+                }
             KiyoriDownloadSettingsAction.SELECT_CHUNK_SIZE ->
                 BROWSER_DOWNLOAD_CHUNK_SIZE_KB_OPTIONS.map { value ->
                     KiyoriSettingsSelectionOption(
@@ -495,6 +555,33 @@ internal fun downloadDirectoryLabel(settings: BrowserDownloadSettings): String =
 
 internal fun downloadProtocolLabel(enableHttp2: Boolean): String =
     if (enableHttp2) "优先 HTTP/2" else "仅 HTTP/1.1"
+
+internal fun downloadNetworkPolicyLabel(policy: BrowserDownloadNetworkPolicy): String =
+    when (policy) {
+        BrowserDownloadNetworkPolicy.ANY -> "任意网络"
+        BrowserDownloadNetworkPolicy.UNMETERED -> "仅非计费网络"
+    }
+
+private fun openDownloadNotificationSettings(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            },
+        )
+    }.onFailure { error ->
+        AppLogger.e(
+            "KiyoriDownloadSettings",
+            "Failed to open download notification settings",
+            error,
+        )
+        Toast.makeText(
+            context,
+            error.message ?: "无法打开系统通知设置",
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+}
 
 internal fun formatBrowserDownloadChunkSize(valueKb: Int): String =
     if (valueKb >= 1024 && valueKb % 1024 == 0) {

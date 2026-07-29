@@ -8,6 +8,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
+import android.util.AtomicFile
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -20,8 +21,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserS
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.charset.StandardCharsets
+import java.net.URI
+import java.util.ArrayDeque
 import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.UUID
@@ -37,7 +42,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,9 +56,10 @@ import org.json.JSONObject
 
 private const val DOWNLOAD_SUPPORT_TAG = "BrowserDownloadSupport"
 private const val BROWSER_DOWNLOAD_STATE_FILE = "browser_download_tasks.json"
-private const val DOWNLOAD_TYPE_HTTP = "http"
+internal const val BROWSER_DOWNLOAD_TYPE_HTTP = "http"
+private const val MAX_BROWSER_DOWNLOAD_FILE_NAME_LENGTH = 180
+internal const val MAX_PENDING_BROWSER_DOWNLOAD_REQUESTS = 32
 internal const val MIN_BROWSER_DOWNLOAD_SEGMENT_BYTES = 1024L * 1024L
-internal const val BROWSER_DOWNLOAD_APK_AUTO_CLEAN_DELAY_MILLIS = 90_000L
 
 internal enum class BrowserDownloadStatus(val wireName: String) {
     QUEUED("queued"),
@@ -261,12 +266,19 @@ internal data class BrowserDownloadTaskRecord(
     var downloadedBytes: Long,
     var speedBytesPerSecond: Long,
     var supportsResume: Boolean,
+    var resourceEtag: String? = null,
+    var resourceLastModified: String? = null,
     var threadCount: Int,
     val m3u8ThreadCount: Int = DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT,
-    val autoMergeM3u8: Boolean = false,
+    val packageM3u8Offline: Boolean = false,
     val autoTransferToPublicDirectory: Boolean = false,
     val chunkSizeKb: Int = DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB,
     val enableHttp2: Boolean = true,
+    val networkPolicy: BrowserDownloadNetworkPolicy = BrowserDownloadNetworkPolicy.ANY,
+    val allowRoaming: Boolean = false,
+    var pendingInstallPackageName: String? = null,
+    var pendingInstallVersionCode: Long? = null,
+    var pendingInstallPreviousVersionCode: Long? = null,
     var isM3u8Package: Boolean = false,
     var errorMessage: String?,
     var completedAt: Long?,
@@ -306,12 +318,19 @@ internal data class BrowserDownloadTaskRecord(
             .put("downloaded_bytes", downloadedBytes)
             .put("speed_bytes_per_second", speedBytesPerSecond)
             .put("supports_resume", supportsResume)
+            .put("resource_etag", resourceEtag)
+            .put("resource_last_modified", resourceLastModified)
             .put("thread_count", threadCount)
             .put("m3u8_thread_count", m3u8ThreadCount)
-            .put("auto_merge_m3u8", autoMergeM3u8)
+            .put("auto_merge_m3u8", packageM3u8Offline)
             .put("auto_transfer_to_public_directory", autoTransferToPublicDirectory)
             .put("chunk_size_kb", chunkSizeKb)
             .put("enable_http2", enableHttp2)
+            .put("network_policy", networkPolicy.persistedId)
+            .put("allow_roaming", allowRoaming)
+            .put("pending_install_package_name", pendingInstallPackageName)
+            .put("pending_install_version_code", pendingInstallVersionCode)
+            .put("pending_install_previous_version_code", pendingInstallPreviousVersionCode)
             .put("is_m3u8_package", isM3u8Package)
             .put("error_message", errorMessage)
             .put("completed_at", completedAt)
@@ -346,7 +365,7 @@ internal data class BrowserDownloadTaskRecord(
             return BrowserDownloadTaskRecord(
                 id = json.optString("id"),
                 sessionId = json.optString("session_id").ifBlank { null },
-                type = json.optString("type", DOWNLOAD_TYPE_HTTP),
+                type = json.optString("type", BROWSER_DOWNLOAD_TYPE_HTTP),
                 sourceUrl = json.optString("source_url").ifBlank { null },
                 destinationPath = json.optString("destination_path"),
                 destinationUri = json.optString("destination_uri").ifBlank { null },
@@ -361,6 +380,8 @@ internal data class BrowserDownloadTaskRecord(
                 downloadedBytes = json.optLong("downloaded_bytes"),
                 speedBytesPerSecond = json.optLong("speed_bytes_per_second"),
                 supportsResume = json.optBoolean("supports_resume"),
+                resourceEtag = json.optString("resource_etag").ifBlank { null },
+                resourceLastModified = json.optString("resource_last_modified").ifBlank { null },
                 threadCount =
                     json.optInt(
                         "thread_count",
@@ -371,7 +392,7 @@ internal data class BrowserDownloadTaskRecord(
                         "m3u8_thread_count",
                         DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT,
                     ),
-                autoMergeM3u8 = json.optBoolean("auto_merge_m3u8", false),
+                packageM3u8Offline = json.optBoolean("auto_merge_m3u8", false),
                 autoTransferToPublicDirectory =
                     json.optBoolean("auto_transfer_to_public_directory", false),
                 chunkSizeKb =
@@ -380,6 +401,28 @@ internal data class BrowserDownloadTaskRecord(
                         DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB,
                     ),
                 enableHttp2 = json.optBoolean("enable_http2", true),
+                networkPolicy =
+                    BrowserDownloadNetworkPolicy.fromPersistedId(
+                        json.optString(
+                            "network_policy",
+                            BrowserDownloadNetworkPolicy.ANY.persistedId,
+                        ),
+                    ),
+                allowRoaming = json.optBoolean("allow_roaming", false),
+                pendingInstallPackageName =
+                    json.optString("pending_install_package_name").ifBlank { null },
+                pendingInstallVersionCode =
+                    json.optLong("pending_install_version_code")
+                        .takeIf {
+                            json.has("pending_install_version_code") &&
+                                !json.isNull("pending_install_version_code")
+                        },
+                pendingInstallPreviousVersionCode =
+                    json.optLong("pending_install_previous_version_code")
+                        .takeIf {
+                            json.has("pending_install_previous_version_code") &&
+                                !json.isNull("pending_install_previous_version_code")
+                        },
                 isM3u8Package = json.optBoolean("is_m3u8_package", false),
                 errorMessage = json.optString("error_message").ifBlank { null },
                 completedAt = json.optLong("completed_at").takeIf { it > 0L },
@@ -389,9 +432,17 @@ internal data class BrowserDownloadTaskRecord(
     }
 }
 
+private enum class BrowserDownloadWorkerStopAction {
+    PAUSE,
+    CANCEL,
+    DELETE_RECORD,
+    DELETE_WITH_FILE,
+    RUNTIME_SUSPEND,
+}
+
 private data class BrowserDownloadActiveControl(
     val job: Job,
-    @Volatile var stopAction: BrowserDownloadAction? = null
+    @Volatile var stopAction: BrowserDownloadWorkerStopAction? = null,
 )
 
 private data class BrowserDownloadInlinePayload(
@@ -416,10 +467,12 @@ internal class BrowserDownloadManager private constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val settingsStore = BrowserDownloadSettingsStore.getInstance(appContext)
     private val schedulerLock = Any()
+    private val persistenceLock = Any()
     private val tasks = LinkedHashMap<String, BrowserDownloadTaskRecord>()
+    private val transientReservedDestinationPaths = mutableSetOf<String>()
     private val activeControls = ConcurrentHashMap<String, BrowserDownloadActiveControl>()
     private val inlinePayloads = ConcurrentHashMap<String, BrowserDownloadInlinePayload>()
-    private val stateFile = File(appContext.filesDir, BROWSER_DOWNLOAD_STATE_FILE)
+    private val stateFile = AtomicFile(File(appContext.filesDir, BROWSER_DOWNLOAD_STATE_FILE))
     private val _taskSnapshots = MutableStateFlow<List<BrowserDownloadTaskRecord>>(emptyList())
 
     val taskSnapshots: StateFlow<List<BrowserDownloadTaskRecord>> = _taskSnapshots.asStateFlow()
@@ -430,14 +483,25 @@ internal class BrowserDownloadManager private constructor(
     @Volatile private var lastPersistAt: Long = 0L
     @Volatile private var lastEventAt: Long = 0L
     @Volatile private var lastEvent: WebDownloadEvent? = null
+    @Volatile private var runtimeExecutionEnabled = false
 
     init {
         loadState()
-        normalizeRestoredTasks()
+        normalizeRestoredTasks(
+            resumeInterruptedTasks =
+                BrowserDownloadRuntimeCoordinator.shouldResumeRestoredTasks(appContext),
+        )
         publishTaskSnapshots()
+        deleteBrowserDownloadApkMetadataStaging(appContext)
         scope.launch {
-            settingsStore.state.collect {
+            reconcilePendingInstalledPackages()
+        }
+        scope.launch {
+            settingsStore.state.collect { settings ->
                 scheduleQueuedTasks()
+                if (!settings.autoCleanApk) {
+                    clearAllPendingInstallRequests()
+                }
             }
         }
     }
@@ -452,6 +516,197 @@ internal class BrowserDownloadManager private constructor(
 
     fun snapshotTasks(): List<BrowserDownloadTaskRecord> =
         _taskSnapshots.value.map { task -> task.snapshot() }
+
+    internal fun acquireRuntimeExecution() {
+        synchronized(schedulerLock) {
+            runtimeExecutionEnabled = true
+        }
+        scheduleQueuedTasks()
+    }
+
+    internal fun isRuntimeExecutionEnabled(): Boolean = runtimeExecutionEnabled
+
+    internal fun releaseRuntimeExecutionIfIdle(): Boolean =
+        synchronized(schedulerLock) {
+            val hasRunnableTasks =
+                synchronized(tasks) {
+                    tasks.values.any { task ->
+                        task.type == BROWSER_DOWNLOAD_TYPE_HTTP && task.activeOrPending()
+                    }
+                }
+            if (hasRunnableTasks) {
+                false
+            } else {
+                runtimeExecutionEnabled = false
+                true
+            }
+        }
+
+    internal fun suspendRuntimeExecutionForSystemStop(): Boolean {
+        val controls =
+            synchronized(schedulerLock) {
+                runtimeExecutionEnabled = false
+                val runtimeTaskIds =
+                    synchronized(tasks) {
+                        tasks.values
+                            .filter { task -> task.type == BROWSER_DOWNLOAD_TYPE_HTTP }
+                            .map { task -> task.id }
+                            .toSet()
+                    }
+                activeControls
+                    .filterKeys { taskId -> taskId in runtimeTaskIds }
+                    .values
+                    .toList()
+                    .also { currentControls ->
+                    currentControls.forEach { control ->
+                        control.stopAction = BrowserDownloadWorkerStopAction.RUNTIME_SUSPEND
+                    }
+                }
+            }
+        controls.forEach { control ->
+            control.job.cancel(CancellationException("download runtime stopped"))
+        }
+        val now = System.currentTimeMillis()
+        synchronized(tasks) {
+            tasks.values.forEach { task ->
+                if (
+                    task.type == BROWSER_DOWNLOAD_TYPE_HTTP &&
+                        (
+                            task.status == BrowserDownloadStatus.CONNECTING ||
+                                task.status == BrowserDownloadStatus.DOWNLOADING
+                        )
+                ) {
+                    task.status = BrowserDownloadStatus.QUEUED
+                    task.updatedAt = now
+                    task.speedBytesPerSecond = 0L
+                    task.downloadedBytes = computeDownloadedBytes(task)
+                }
+            }
+        }
+        publishTaskSnapshots()
+        persistState(force = true)
+        dispatchUiRefresh(force = true)
+        return synchronized(tasks) {
+            tasks.values.any { task ->
+                task.type == BROWSER_DOWNLOAD_TYPE_HTTP &&
+                    task.status == BrowserDownloadStatus.QUEUED
+            }
+        }
+    }
+
+    internal fun pauseAllForUser() {
+        val controls =
+            synchronized(schedulerLock) {
+                runtimeExecutionEnabled = false
+                activeControls.values.toList().also { currentControls ->
+                    currentControls.forEach { control ->
+                        control.stopAction = BrowserDownloadWorkerStopAction.PAUSE
+                    }
+                }
+            }
+        controls.forEach { control ->
+            control.job.cancel(CancellationException("pause all requested"))
+        }
+        val now = System.currentTimeMillis()
+        synchronized(tasks) {
+            tasks.values.forEach { task ->
+                if (task.activeOrPending()) {
+                    task.status = BrowserDownloadStatus.PAUSED
+                    task.updatedAt = now
+                    task.speedBytesPerSecond = 0L
+                    task.errorMessage = null
+                    task.downloadedBytes = computeDownloadedBytes(task)
+                }
+            }
+        }
+        publishTaskSnapshots()
+        persistState(force = true)
+        dispatchUiRefresh(force = true)
+    }
+
+    internal fun hasRunnableTasks(): Boolean =
+        synchronized(tasks) {
+            tasks.values.any { task ->
+                task.type == BROWSER_DOWNLOAD_TYPE_HTTP && task.activeOrPending()
+            }
+        }
+
+    internal fun requiresUnmeteredRuntimeNetwork(): Boolean =
+        browserDownloadRuntimeRequiresUnmeteredNetwork(snapshotTasks())
+
+    internal fun refreshRuntimeNetworkPolicy() {
+        val blockedTaskIds =
+            snapshotTasks()
+                .filter { task ->
+                    task.type == BROWSER_DOWNLOAD_TYPE_HTTP &&
+                        (
+                            task.status == BrowserDownloadStatus.CONNECTING ||
+                                task.status == BrowserDownloadStatus.DOWNLOADING
+                        ) &&
+                        !isRuntimeNetworkAllowed(task)
+                }
+                .map { task -> task.id }
+                .toSet()
+        if (blockedTaskIds.isNotEmpty()) {
+            val controls =
+                synchronized(schedulerLock) {
+                    activeControls
+                        .filterKeys { taskId -> taskId in blockedTaskIds }
+                        .values
+                        .toList()
+                        .also { blockedControls ->
+                            blockedControls.forEach { control ->
+                                control.stopAction =
+                                    BrowserDownloadWorkerStopAction.RUNTIME_SUSPEND
+                            }
+                        }
+                }
+            controls.forEach { control ->
+                control.job.cancel(CancellationException("download network policy changed"))
+            }
+            val now = System.currentTimeMillis()
+            synchronized(tasks) {
+                blockedTaskIds.forEach { taskId ->
+                    tasks[taskId]?.let { task ->
+                        task.status = BrowserDownloadStatus.QUEUED
+                        task.updatedAt = now
+                        task.speedBytesPerSecond = 0L
+                        task.downloadedBytes = computeDownloadedBytes(task)
+                    }
+                }
+            }
+            publishTaskSnapshots()
+            persistState(force = true)
+            dispatchUiRefresh(force = true)
+        }
+        scheduleQueuedTasks()
+    }
+
+    internal fun estimatedRemainingNetworkBytes(): Long {
+        val remaining =
+            synchronized(tasks) {
+                tasks.values
+                    .filter { task ->
+                        task.type == BROWSER_DOWNLOAD_TYPE_HTTP && task.activeOrPending()
+                    }
+                    .map { task ->
+                        task.totalBytes
+                            .takeIf { total -> total > 0L }
+                            ?.minus(task.downloadedBytes.coerceAtLeast(0L))
+                            ?.coerceAtLeast(0L)
+                    }
+            }
+        if (remaining.isEmpty() || remaining.any { bytes -> bytes == null }) {
+            return -1L
+        }
+        return remaining.filterNotNull().fold(0L) { total, bytes ->
+            if (Long.MAX_VALUE - total < bytes) {
+                Long.MAX_VALUE
+            } else {
+                total + bytes
+            }
+        }
+    }
 
     fun releasePersistedDirectoryPermissionIfUnused(treeUriString: String?) {
         val normalizedUri = treeUriString?.trim().orEmpty()
@@ -491,9 +746,10 @@ internal class BrowserDownloadManager private constructor(
         runCatching {
             appContext.contentResolver.releasePersistableUriPermission(treeUri, releaseFlags)
         }.onFailure { error ->
-            AppLogger.w(
-                DOWNLOAD_SUPPORT_TAG,
-                "Failed to release unused browser download directory permission: ${error.message}",
+            logBrowserDownloadOperationFailure(
+                operation = "Failed to release unused browser download directory permission",
+                error = error,
+                sensitiveValues = listOf(normalizedUri),
             )
         }
     }
@@ -516,6 +772,24 @@ internal class BrowserDownloadManager private constructor(
             null
         }
 
+    private fun resolveUniqueApplicationDestinationFileLocked(
+        suggestedFileName: String,
+    ): File {
+        val reservedPaths =
+            tasks.values
+                .asSequence()
+                .map { task -> task.destinationPath }
+                .filter { path -> path.isNotBlank() }
+                .map { path -> File(path).absolutePath }
+                .toMutableSet()
+                .apply { addAll(transientReservedDestinationPaths) }
+        return resolveUniqueBrowserDownloadFile(
+            directory = browserDownloadApplicationDirectory(appContext),
+            suggestedFileName = suggestedFileName,
+            reservedPaths = reservedPaths,
+        )
+    }
+
     fun startHttpDownload(
         sessionId: String?,
         url: String,
@@ -525,7 +799,6 @@ internal class BrowserDownloadManager private constructor(
         destinationPolicy: BrowserDownloadDestination = BrowserDownloadDestination.FollowSettings,
     ): BrowserDownloadTaskRecord {
         val settings = settingsStore.current
-        val destination = resolveUniqueApplicationDestinationFile(appContext, suggestedFileName)
         val targetDirectoryUri =
             when (destinationPolicy) {
                 BrowserDownloadDestination.FollowSettings ->
@@ -540,37 +813,45 @@ internal class BrowserDownloadManager private constructor(
             }
         val now = System.currentTimeMillis()
         val task =
-            BrowserDownloadTaskRecord(
-                id = UUID.randomUUID().toString(),
-                sessionId = sessionId,
-                type = DOWNLOAD_TYPE_HTTP,
-                sourceUrl = url,
-                destinationPath = destination.absolutePath,
-                targetDirectoryUri = targetDirectoryUri,
-                fileName = destination.name,
-                headers = LinkedHashMap(headers),
-                createdAt = now,
-                updatedAt = now,
-                mimeType = mimeType,
-                status = BrowserDownloadStatus.QUEUED,
-                totalBytes = -1L,
-                downloadedBytes = 0L,
-                speedBytesPerSecond = 0L,
-                supportsResume = false,
-                threadCount = settings.segmentThreadCount,
-                m3u8ThreadCount = settings.m3u8ThreadCount,
-                autoMergeM3u8 = settings.autoMergeM3u8,
-                autoTransferToPublicDirectory = autoTransferToPublicDirectory,
-                chunkSizeKb = settings.chunkSizeKb,
-                enableHttp2 = settings.enableHttp2,
-                errorMessage = null,
-                completedAt = null
-            )
-        synchronized(tasks) {
-            tasks[task.id] = task
-        }
+            synchronized(tasks) {
+                val destination = resolveUniqueApplicationDestinationFileLocked(suggestedFileName)
+                val reservedTask =
+                    BrowserDownloadTaskRecord(
+                        id = UUID.randomUUID().toString(),
+                        sessionId = sessionId,
+                        type = BROWSER_DOWNLOAD_TYPE_HTTP,
+                        sourceUrl = url,
+                        destinationPath = destination.absolutePath,
+                        targetDirectoryUri = targetDirectoryUri,
+                        fileName = destination.name,
+                        headers = LinkedHashMap(headers),
+                        createdAt = now,
+                        updatedAt = now,
+                        mimeType = mimeType,
+                        status = BrowserDownloadStatus.QUEUED,
+                        totalBytes = -1L,
+                        downloadedBytes = 0L,
+                        speedBytesPerSecond = 0L,
+                        supportsResume = false,
+                        threadCount = settings.segmentThreadCount,
+                        m3u8ThreadCount = settings.m3u8ThreadCount,
+                        packageM3u8Offline = settings.packageM3u8Offline,
+                        autoTransferToPublicDirectory = autoTransferToPublicDirectory,
+                        chunkSizeKb = settings.chunkSizeKb,
+                        enableHttp2 = settings.enableHttp2,
+                        networkPolicy = settings.networkPolicy,
+                        allowRoaming = settings.allowRoaming,
+                        errorMessage = null,
+                        completedAt = null,
+                    )
+                tasks[reservedTask.id] = reservedTask
+                reservedTask
+            }
         persistState(force = true)
         notifyTaskChanged(task, buildTaskEvent(task, "started"), forceUi = true)
+        check(requestRuntimeExecution(task.id)) {
+            "系统未允许启动后台下载，请保持应用在前台并重试"
+        }
         scheduleQueuedTasks()
         return task.snapshot()
     }
@@ -584,48 +865,52 @@ internal class BrowserDownloadManager private constructor(
         sourceUrl: String? = null
     ): BrowserDownloadTaskRecord {
         val settings = settingsStore.current
-        val destination = resolveUniqueApplicationDestinationFile(appContext, suggestedFileName)
         val now = System.currentTimeMillis()
         val task =
-            BrowserDownloadTaskRecord(
-                id = UUID.randomUUID().toString(),
-                sessionId = sessionId,
-                type = type,
-                sourceUrl = sourceUrl,
-                destinationPath = destination.absolutePath,
-                targetDirectoryUri = settings.customDirectoryUri.takeIf { it.isNotBlank() },
-                fileName = destination.name,
-                headers = emptyMap(),
-                createdAt = now,
-                updatedAt = now,
-                mimeType = mimeType,
-                status = BrowserDownloadStatus.QUEUED,
-                totalBytes = bytes.size.toLong(),
-                downloadedBytes = 0L,
-                speedBytesPerSecond = 0L,
-                supportsResume = false,
-                threadCount = 1,
-                m3u8ThreadCount = settings.m3u8ThreadCount,
-                autoMergeM3u8 = settings.autoMergeM3u8,
-                autoTransferToPublicDirectory = settings.autoTransferToPublicDirectory,
-                chunkSizeKb = settings.chunkSizeKb,
-                enableHttp2 = settings.enableHttp2,
-                errorMessage = null,
-                completedAt = null,
-                segments =
-                    mutableListOf(
-                        BrowserDownloadSegmentRecord(
-                            index = 0,
-                            startInclusive = 0L,
-                            endInclusive = bytes.size.toLong() - 1L,
-                            tempPath = buildSinglePartPath(destination).absolutePath
-                        )
+            synchronized(tasks) {
+                val destination = resolveUniqueApplicationDestinationFileLocked(suggestedFileName)
+                val reservedTask =
+                    BrowserDownloadTaskRecord(
+                        id = UUID.randomUUID().toString(),
+                        sessionId = sessionId,
+                        type = type,
+                        sourceUrl = sourceUrl,
+                        destinationPath = destination.absolutePath,
+                        targetDirectoryUri = settings.customDirectoryUri.takeIf { it.isNotBlank() },
+                        fileName = destination.name,
+                        headers = emptyMap(),
+                        createdAt = now,
+                        updatedAt = now,
+                        mimeType = mimeType,
+                        status = BrowserDownloadStatus.QUEUED,
+                        totalBytes = bytes.size.toLong(),
+                        downloadedBytes = 0L,
+                        speedBytesPerSecond = 0L,
+                        supportsResume = false,
+                        threadCount = 1,
+                        m3u8ThreadCount = settings.m3u8ThreadCount,
+                        packageM3u8Offline = settings.packageM3u8Offline,
+                        autoTransferToPublicDirectory = settings.autoTransferToPublicDirectory,
+                        chunkSizeKb = settings.chunkSizeKb,
+                        enableHttp2 = settings.enableHttp2,
+                        networkPolicy = settings.networkPolicy,
+                        allowRoaming = settings.allowRoaming,
+                        errorMessage = null,
+                        completedAt = null,
+                        segments =
+                            mutableListOf(
+                                BrowserDownloadSegmentRecord(
+                                    index = 0,
+                                    startInclusive = 0L,
+                                    endInclusive = bytes.size.toLong() - 1L,
+                                    tempPath = buildSinglePartPath(destination).absolutePath,
+                                ),
+                            ),
                     )
-            )
-        inlinePayloads[task.id] = BrowserDownloadInlinePayload(bytes)
-        synchronized(tasks) {
-            tasks[task.id] = task
-        }
+                inlinePayloads[reservedTask.id] = BrowserDownloadInlinePayload(bytes)
+                tasks[reservedTask.id] = reservedTask
+                reservedTask
+            }
         persistState(force = true)
         notifyTaskChanged(task, buildTaskEvent(task, "started"), forceUi = true)
         scheduleQueuedTasks()
@@ -656,7 +941,7 @@ internal class BrowserDownloadManager private constructor(
                 appendLine("- Status: ${task.status.wireName}")
                 appendLine("- Type: ${task.type}")
                 if (!task.sourceUrl.isNullOrBlank()) {
-                    appendLine("- URL: ${task.sourceUrl}")
+                    appendLine("- URL: ${browserDownloadDisplayUrl(task.sourceUrl)}")
                 }
                 if (task.totalBytes > 0L) {
                     appendLine("- Progress: ${formatTaskProgress(task)}")
@@ -680,33 +965,119 @@ internal class BrowserDownloadManager private constructor(
         if (task.status != BrowserDownloadStatus.COMPLETED) {
             return false
         }
-        val uri = resolveTaskOpenUri(task) ?: return false
+        val mimeType = resolveTaskMimeType(task)
+        val isApkPackage =
+            isBrowserDownloadApkPackage(
+                mimeType = mimeType,
+                fileName = task.fileName,
+            )
+        val preparedInstall =
+            if (isApkPackage && settingsStore.current.autoCleanApk) {
+                runCatching {
+                    prepareBrowserDownloadApkInstall(appContext, task)
+                }.onFailure { error ->
+                    AppLogger.e(
+                        DOWNLOAD_SUPPORT_TAG,
+                        "Failed to prepare browser download APK installation",
+                        error,
+                    )
+                }.getOrNull() ?: return false
+            } else {
+                null
+            }
+        if (preparedInstall != null) {
+            mutateTask(taskId, forcePersist = true, forceUi = true) { current ->
+                current.pendingInstallPackageName = preparedInstall.packageName
+                current.pendingInstallVersionCode = preparedInstall.versionCode
+                current.pendingInstallPreviousVersionCode =
+                    preparedInstall.previouslyInstalledVersionCode
+            }
+        }
+        val uri = preparedInstall?.installUri ?: resolveTaskOpenUri(task) ?: return false
         val intent =
             Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, resolveTaskMimeType(task))
+                setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         val launched = launchBrowserExternalIntent(appContext, intent)
-        if (
-            launched &&
-            isBrowserDownloadApkPackage(
-                mimeType = resolveTaskMimeType(task),
-                fileName = task.fileName,
-            )
-        ) {
-            scheduleAutoCleanApk(task.id)
+        if (!launched && preparedInstall != null) {
+            clearPendingInstallRequest(taskId)
         }
         return launched
     }
 
-    private fun scheduleAutoCleanApk(taskId: String) {
+    internal fun handleInstalledPackage(
+        packageName: String,
+        installedVersionCode: Long,
+    ) {
+        val matchingTasks =
+            snapshotTasks().filter { task ->
+                matchesBrowserDownloadInstalledPackage(
+                    pendingPackageName = task.pendingInstallPackageName,
+                    pendingVersionCode = task.pendingInstallVersionCode,
+                    installedPackageName = packageName,
+                    installedVersionCode = installedVersionCode,
+                )
+            }
         if (!settingsStore.current.autoCleanApk) {
+            matchingTasks.forEach { task -> clearPendingInstallRequest(task.id) }
             return
         }
-        scope.launch {
-            delay(BROWSER_DOWNLOAD_APK_AUTO_CLEAN_DELAY_MILLIS)
-            deleteTask(taskId, deleteFile = true)
+        matchingTasks.forEach(::deleteInstalledPackageTask)
+    }
+
+    private fun reconcilePendingInstalledPackages() {
+        val pendingTasks =
+            snapshotTasks().filter { task -> !task.pendingInstallPackageName.isNullOrBlank() }
+        if (!settingsStore.current.autoCleanApk) {
+            pendingTasks.forEach { task -> clearPendingInstallRequest(task.id) }
+            return
+        }
+        pendingTasks.forEach { task ->
+            val packageName = requireNotNull(task.pendingInstallPackageName)
+            val installedVersionCode =
+                readInstalledBrowserDownloadPackageVersion(appContext, packageName)
+                    ?: return@forEach
+            if (
+                shouldReconcileBrowserDownloadInstalledPackage(
+                    pendingPackageName = packageName,
+                    pendingVersionCode = task.pendingInstallVersionCode,
+                    previouslyInstalledVersionCode = task.pendingInstallPreviousVersionCode,
+                    installedPackageName = packageName,
+                    installedVersionCode = installedVersionCode,
+                )
+            ) {
+                deleteInstalledPackageTask(task)
+            }
+        }
+    }
+
+    private fun deleteInstalledPackageTask(task: BrowserDownloadTaskRecord) {
+        runCatching {
+            deleteTaskLocation(task)
+        }.onSuccess {
+            deleteTaskArtifacts(task.id, deleteFile = false)
+        }.onFailure { error ->
+            AppLogger.e(
+                DOWNLOAD_SUPPORT_TAG,
+                "Failed to clean installed browser download APK",
+                error,
+            )
+        }
+    }
+
+    private fun clearAllPendingInstallRequests() {
+        snapshotTasks()
+            .filter { task -> !task.pendingInstallPackageName.isNullOrBlank() }
+            .forEach { task -> clearPendingInstallRequest(task.id) }
+    }
+
+    private fun clearPendingInstallRequest(taskId: String) {
+        mutateTask(taskId, forcePersist = true, forceUi = true) { task ->
+            task.pendingInstallPackageName = null
+            task.pendingInstallVersionCode = null
+            task.pendingInstallPreviousVersionCode = null
         }
     }
 
@@ -730,7 +1101,11 @@ internal class BrowserDownloadManager private constructor(
                 headers = task.headers,
             )
         }.onFailure { error ->
-            AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to redownload browser task: ${error.message}")
+            logBrowserDownloadOperationFailure(
+                operation = "Failed to redownload browser task",
+                error = error,
+                taskId = taskId,
+            )
         }
 
     fun copyDownloadLocation(taskId: String): String? =
@@ -757,17 +1132,22 @@ internal class BrowserDownloadManager private constructor(
                 Intent.createChooser(intent, "分享本地文件"),
             )
         } catch (error: Exception) {
-            AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to share browser download: ${error.message}")
+            logBrowserDownloadOperationFailure(
+                operation = "Failed to share browser download",
+                error = error,
+                task = task,
+            )
             false
         }
     }
 
     suspend fun renameDownloadedFile(taskId: String, targetFileName: String): Result<BrowserDownloadTaskRecord> =
         withContext(Dispatchers.IO) {
+            var reservedRenamePath: String? = null
             runCatching {
                 val task = requireCompletedTask(taskId)
                 require(targetFileName.trim().isNotBlank()) { "文件名不能为空" }
-                val safeFileName = sanitizeBrowserDownloadFileName(targetFileName)
+                val safeFileName = normalizeBrowserDownloadFileName(targetFileName)
                 val currentUri = task.destinationUri?.takeIf { it.isNotBlank() }?.toUri()
                 if (currentUri != null) {
                     val renamedUri =
@@ -787,6 +1167,20 @@ internal class BrowserDownloadManager private constructor(
                     val currentFile = File(task.destinationPath)
                     require(currentFile.exists()) { "当前文件不存在" }
                     val renamedFile = File(currentFile.parentFile, safeFileName)
+                    synchronized(tasks) {
+                        val normalizedPath = renamedFile.absolutePath
+                        val ownedByAnotherTask =
+                            tasks.values.any { current ->
+                                current.id != taskId &&
+                                    current.destinationPath.isNotBlank() &&
+                                    File(current.destinationPath).absolutePath == normalizedPath
+                            }
+                        require(!ownedByAnotherTask) { "目标文件名已由其他下载任务预留" }
+                        require(transientReservedDestinationPaths.add(normalizedPath)) {
+                            "目标文件名正在被其他文件操作使用"
+                        }
+                        reservedRenamePath = normalizedPath
+                    }
                     if (task.isM3u8Package) {
                         renameBrowserM3u8Package(currentFile, renamedFile)
                     } else {
@@ -804,7 +1198,17 @@ internal class BrowserDownloadManager private constructor(
                 }
                 snapshotTask(taskId)
             }.onFailure { error ->
-                AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to rename browser download: ${error.message}")
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to rename browser download",
+                    error = error,
+                    taskId = taskId,
+                )
+            }.also {
+                reservedRenamePath?.let { path ->
+                    synchronized(tasks) {
+                        transientReservedDestinationPaths.remove(path)
+                    }
+                }
             }
         }
 
@@ -823,9 +1227,12 @@ internal class BrowserDownloadManager private constructor(
                 } catch (error: Throwable) {
                     runCatching { appContext.contentResolver.delete(targetUri, null, null) }
                         .onFailure { cleanupError ->
-                            AppLogger.w(
-                                DOWNLOAD_SUPPORT_TAG,
-                                "Failed to remove copied download after source deletion failed: ${cleanupError.message}",
+                            logBrowserDownloadOperationFailure(
+                                operation =
+                                    "Failed to remove copied download after source deletion failed",
+                                error = cleanupError,
+                                taskId = taskId,
+                                sensitiveValues = listOf(treeUriString),
                             )
                         }
                     throw error
@@ -843,7 +1250,12 @@ internal class BrowserDownloadManager private constructor(
                 // release that grant once no setting or retained task owns it, or repeated failures
                 // would permanently accumulate unrelated SAF permissions.
                 releasePersistedDirectoryPermissionIfUnused(treeUriString)
-                AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to move browser download: ${error.message}")
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to move browser download",
+                    error = error,
+                    taskId = taskId,
+                    sensitiveValues = listOf(treeUriString),
+                )
             }
         }
 
@@ -859,10 +1271,18 @@ internal class BrowserDownloadManager private constructor(
                     task.destinationPath.isBlank() ||
                         File(task.destinationPath).parentFile?.canonicalFile != publicDirectory.canonicalFile,
                 ) { "当前文件已位于公开下载目录" }
-                val targetFile = resolveUniquePublicDestinationFile(task.fileName)
-                openTaskInputStream(task)?.use { input ->
-                    targetFile.outputStream().use { output -> input.copyTo(output) }
-                } ?: throw IOException("当前文件不存在")
+                val targetFile = reserveUniquePublicDestinationFile(task.fileName)
+                try {
+                    openTaskInputStream(task)?.use { input ->
+                        targetFile.outputStream().use { output ->
+                            input.copyTo(output)
+                            output.flush()
+                        }
+                    } ?: throw IOException("当前文件不存在")
+                } catch (error: Throwable) {
+                    targetFile.delete()
+                    throw error
+                }
                 try {
                     deleteTaskLocation(task)
                 } catch (error: Throwable) {
@@ -878,7 +1298,11 @@ internal class BrowserDownloadManager private constructor(
                 updateCompletedTaskLocation(taskId, targetFile.name, targetFile.absolutePath, null, null)
                 snapshotTask(taskId)
             }.onFailure { error ->
-                AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to transfer browser download: ${error.message}")
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to transfer browser download",
+                    error = error,
+                    taskId = taskId,
+                )
             }
         }
 
@@ -886,6 +1310,7 @@ internal class BrowserDownloadManager private constructor(
         withContext(Dispatchers.IO) {
             var temporaryOutput: File? = null
             var completedOutput: File? = null
+            var reservedOutputPath: String? = null
             var taskUpdated = false
             runCatching {
                 val task = requireCompletedTask(taskId)
@@ -897,10 +1322,15 @@ internal class BrowserDownloadManager private constructor(
                     "M3U8离线包资源目录不存在"
                 }
                 val outputFile =
-                    resolveUniqueBrowserDownloadFile(
-                        directory = requireNotNull(playlistFile.parentFile),
-                        suggestedFileName = resolveBrowserDownloadMp4FileName(task.fileName),
-                    )
+                    synchronized(tasks) {
+                        val resolved =
+                            resolveUniqueApplicationDestinationFileLocked(
+                            resolveBrowserDownloadMp4FileName(task.fileName),
+                        )
+                        check(transientReservedDestinationPaths.add(resolved.absolutePath))
+                        reservedOutputPath = resolved.absolutePath
+                        resolved
+                    }
                 temporaryOutput =
                     File(
                         outputFile.parentFile,
@@ -959,9 +1389,10 @@ internal class BrowserDownloadManager private constructor(
                 taskUpdated = true
                 runCatching { deleteTaskLocation(task) }
                     .onFailure { cleanupError ->
-                        AppLogger.w(
-                            DOWNLOAD_SUPPORT_TAG,
-                            "M3U8 source cleanup failed after MP4 commit: ${cleanupError.message}",
+                        logBrowserDownloadOperationFailure(
+                            operation = "M3U8 source cleanup failed after MP4 commit",
+                            error = cleanupError,
+                            task = task,
                         )
                     }
                 MediaScannerConnection.scanFile(
@@ -976,7 +1407,17 @@ internal class BrowserDownloadManager private constructor(
                 if (!taskUpdated) {
                     completedOutput?.takeIf { file -> file.exists() }?.delete()
                 }
-                AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to merge browser M3U8 package: ${error.message}")
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to merge browser M3U8 package",
+                    error = error,
+                    taskId = taskId,
+                )
+            }.also {
+                reservedOutputPath?.let { path ->
+                    synchronized(tasks) {
+                        transientReservedDestinationPaths.remove(path)
+                    }
+                }
             }
         }
 
@@ -1122,7 +1563,7 @@ internal class BrowserDownloadManager private constructor(
     private fun pauseTask(taskId: String) {
         val control = activeControls[taskId]
         if (control != null) {
-            control.stopAction = BrowserDownloadAction.PAUSE
+            control.stopAction = BrowserDownloadWorkerStopAction.PAUSE
             control.job.cancel(CancellationException("pause requested"))
             return
         }
@@ -1139,7 +1580,7 @@ internal class BrowserDownloadManager private constructor(
     private fun cancelTask(taskId: String) {
         val control = activeControls[taskId]
         if (control != null) {
-            control.stopAction = BrowserDownloadAction.CANCEL
+            control.stopAction = BrowserDownloadWorkerStopAction.CANCEL
             control.job.cancel(CancellationException("cancel requested"))
             return
         }
@@ -1169,7 +1610,12 @@ internal class BrowserDownloadManager private constructor(
             current.downloadedBytes = if (current.supportsResume) current.downloadedBytes else 0L
             resetSegmentsForRestart(current)
         }
-        scheduleQueuedTasks()
+        if (
+            task.type != BROWSER_DOWNLOAD_TYPE_HTTP ||
+                requestRuntimeExecution(taskId)
+        ) {
+            scheduleQueuedTasks()
+        }
     }
 
     private fun retryTask(taskId: String) {
@@ -1188,7 +1634,31 @@ internal class BrowserDownloadManager private constructor(
             current.downloadedBytes = if (current.supportsResume) current.downloadedBytes else 0L
             resetSegmentsForRestart(current)
         }
-        scheduleQueuedTasks()
+        if (
+            task.type != BROWSER_DOWNLOAD_TYPE_HTTP ||
+                requestRuntimeExecution(taskId)
+        ) {
+            scheduleQueuedTasks()
+        }
+    }
+
+    private fun requestRuntimeExecution(taskId: String): Boolean {
+        if (
+            BrowserDownloadRuntimeCoordinator.requestExecution(
+                context = appContext,
+                estimatedDownloadBytes = estimatedRemainingNetworkBytes(),
+                runtimeExecutionEnabled = isRuntimeExecutionEnabled(),
+                requiresUnmeteredNetwork = requiresUnmeteredRuntimeNetwork(),
+            )
+        ) {
+            return true
+        }
+        val error =
+            IllegalStateException(
+                "系统未允许启动后台下载，请保持应用在前台并重试",
+            )
+        failTask(taskId, error)
+        return false
     }
 
     private fun deleteTask(taskId: String, deleteFile: Boolean) {
@@ -1196,9 +1666,9 @@ internal class BrowserDownloadManager private constructor(
         if (control != null) {
             control.stopAction =
                 if (deleteFile) {
-                    BrowserDownloadAction.DELETE_WITH_FILE
+                    BrowserDownloadWorkerStopAction.DELETE_WITH_FILE
                 } else {
-                    BrowserDownloadAction.DELETE_RECORD
+                    BrowserDownloadWorkerStopAction.DELETE_RECORD
                 }
             scope.launch {
                 runCatching {
@@ -1219,14 +1689,22 @@ internal class BrowserDownloadManager private constructor(
                     (settingsStore.current.maxConcurrentTasks - activeControls.size).coerceAtLeast(0)
                 val queueEntries =
                     synchronized(tasks) {
-                        tasks.values.map { task ->
-                            BrowserDownloadQueueEntry(
-                                taskId = task.id,
-                                status = task.status,
-                                queuedAt = task.updatedAt,
-                                createdAt = task.createdAt,
-                            )
-                        }
+                        tasks.values
+                            .filter { task ->
+                                task.type != BROWSER_DOWNLOAD_TYPE_HTTP ||
+                                    (
+                                        runtimeExecutionEnabled &&
+                                            isRuntimeNetworkAllowed(task)
+                                    )
+                            }
+                            .map { task ->
+                                BrowserDownloadQueueEntry(
+                                    taskId = task.id,
+                                    status = task.status,
+                                    queuedAt = task.updatedAt,
+                                    createdAt = task.createdAt,
+                                )
+                            }
                     }
                 selectQueuedBrowserDownloadTaskIds(
                     entries = queueEntries,
@@ -1242,7 +1720,7 @@ internal class BrowserDownloadManager private constructor(
                                         ?.snapshot()
                                 } ?: return@launch
                             when (task.type) {
-                                DOWNLOAD_TYPE_HTTP -> runHttpTask(taskId)
+                                BROWSER_DOWNLOAD_TYPE_HTTP -> runHttpTask(taskId)
                                 else -> runInlineTask(taskId)
                             }
                         }
@@ -1255,6 +1733,13 @@ internal class BrowserDownloadManager private constructor(
             }
         jobsToStart.forEach { job -> job.start() }
     }
+
+    private fun isRuntimeNetworkAllowed(task: BrowserDownloadTaskRecord): Boolean =
+        BrowserDownloadRuntimeCoordinator.isNetworkAllowed(
+            context = appContext,
+            policy = task.networkPolicy,
+            allowRoaming = task.allowRoaming,
+        )
 
     private fun onWorkerCompleted(taskId: String, completedJob: Job) {
         synchronized(schedulerLock) {
@@ -1323,8 +1808,7 @@ internal class BrowserDownloadManager private constructor(
                     )
                     return@use
                 }
-                val supportsResume = probe.acceptsRanges && probe.contentLength > 0L
-                configureTaskSegments(taskId, probe.contentLength, supportsResume)
+                configureTaskSegments(taskId, probe)
                 initializeDownloadedBytes(taskId)
                 updateTaskStatus(taskId, BrowserDownloadStatus.DOWNLOADING)
 
@@ -1443,6 +1927,11 @@ internal class BrowserDownloadManager private constructor(
                 destination = segmentFile,
                 append = append,
                 expectedTotalBytes = currentTask.totalBytes.takeIf { it > 0L },
+                ifRangeValidator =
+                    resolveBrowserDownloadIfRangeValidator(
+                        etag = currentTask.resourceEtag,
+                        lastModified = currentTask.resourceLastModified,
+                    ),
                 onChunk = onChunk,
                 isCancelled = isCancelled,
             )
@@ -1466,8 +1955,8 @@ internal class BrowserDownloadManager private constructor(
         probe: BrowserDownloadProbeResult,
         transport: BrowserDownloadTransport,
     ) {
-        val autoMerge = task.autoMergeM3u8
-        configureTaskForM3u8(taskId, autoMerge)
+        val packageOffline = task.packageM3u8Offline
+        configureTaskForM3u8(taskId, packageOffline)
         initializeDownloadedBytes(taskId)
         updateTaskStatus(taskId, BrowserDownloadStatus.DOWNLOADING)
         val preparedTask = synchronized(tasks) { tasks[taskId]?.snapshot() } ?: return
@@ -1499,7 +1988,7 @@ internal class BrowserDownloadManager private constructor(
                     playlistUrl = probe.finalUrl,
                     headers = preparedTask.headers,
                     transport = transport,
-                    autoMerge = autoMerge,
+                    packageOffline = packageOffline,
                     m3u8ThreadCount = preparedTask.m3u8ThreadCount,
                     outputPlaylistFile = playlistPart,
                     packageDirectory = packageDirectory,
@@ -1530,7 +2019,7 @@ internal class BrowserDownloadManager private constructor(
         }
     }
 
-    private fun configureTaskForM3u8(taskId: String, autoMerge: Boolean) {
+    private fun configureTaskForM3u8(taskId: String, packageOffline: Boolean) {
         val previous = synchronized(tasks) { tasks[taskId]?.snapshot() } ?: return
         val destination = File(previous.destinationPath)
         previous.segments.forEach { segment ->
@@ -1549,8 +2038,8 @@ internal class BrowserDownloadManager private constructor(
             current.totalBytes = 0L
             current.downloadedBytes = 0L
             current.supportsResume = false
-            current.isM3u8Package = autoMerge
-            if (autoMerge) {
+            current.isM3u8Package = packageOffline
+            if (packageOffline) {
                 current.targetDirectoryUri = null
             }
             current.segments.clear()
@@ -1597,6 +2086,7 @@ internal class BrowserDownloadManager private constructor(
                 chunkSizeKb = task.chunkSizeKb,
                 enableHttp2 = task.enableHttp2,
             ),
+            network = BrowserDownloadRuntimeCoordinator.currentJobNetwork(),
         )
 
     private fun updateTaskProbeMimeType(taskId: String, mimeType: String) {
@@ -1610,15 +2100,47 @@ internal class BrowserDownloadManager private constructor(
         }
     }
 
-    private fun configureTaskSegments(taskId: String, totalBytes: Long, supportsResume: Boolean) {
+    private fun configureTaskSegments(
+        taskId: String,
+        probe: BrowserDownloadProbeResult,
+    ) {
+        val ifRangeValidator =
+            resolveBrowserDownloadIfRangeValidator(
+                etag = probe.etag,
+                lastModified = probe.lastModified,
+            )
+        val supportsResume =
+            probe.acceptsRanges &&
+                probe.contentLength > 0L &&
+                ifRangeValidator != null
+        val previous = synchronized(tasks) { tasks[taskId]?.snapshot() } ?: return
+        val existingBytes = computeDownloadedBytes(previous)
+        val previousIfRangeValidator =
+            resolveBrowserDownloadIfRangeValidator(
+                etag = previous.resourceEtag,
+                lastModified = previous.resourceLastModified,
+            )
+        if (
+            existingBytes > 0L &&
+                (
+                    !previous.supportsResume ||
+                        !supportsResume ||
+                        previous.totalBytes != probe.contentLength ||
+                        previousIfRangeValidator != ifRangeValidator
+                )
+        ) {
+            throw BrowserDownloadRepresentationChangedException()
+        }
         mutateTask(taskId, forcePersist = true, forceUi = true) { task ->
-            task.totalBytes = totalBytes
+            task.totalBytes = probe.contentLength
             task.supportsResume = supportsResume
+            task.resourceEtag = probe.etag
+            task.resourceLastModified = probe.lastModified
             task.errorMessage = null
             task.completedAt = null
             task.isM3u8Package = false
             val destination = File(task.destinationPath)
-            if (!supportsResume || totalBytes <= 0L) {
+            if (!supportsResume || probe.contentLength <= 0L) {
                 task.segments.clear()
                 task.segments +=
                     BrowserDownloadSegmentRecord(
@@ -1630,15 +2152,17 @@ internal class BrowserDownloadManager private constructor(
                 return@mutateTask
             }
 
-            if (task.segments.isNotEmpty()) {
-                require(isCompleteBrowserDownloadSegmentPlan(task.segments, totalBytes)) {
-                    "Stored download segment plan no longer matches the remote content length."
-                }
+            if (
+                task.segments.isNotEmpty() &&
+                    isCompleteBrowserDownloadSegmentPlan(task.segments, probe.contentLength)
+            ) {
                 return@mutateTask
             }
-
+            if (existingBytes > 0L) {
+                throw BrowserDownloadRepresentationChangedException()
+            }
             task.segments.clear()
-            buildBrowserDownloadRangePlan(totalBytes, task.chunkSizeKb).forEach { plan ->
+            buildBrowserDownloadRangePlan(probe.contentLength, task.chunkSizeKb).forEach { plan ->
                 task.segments +=
                     BrowserDownloadSegmentRecord(
                         index = plan.index,
@@ -1646,7 +2170,7 @@ internal class BrowserDownloadManager private constructor(
                         endInclusive = plan.endInclusive,
                         tempPath = buildSegmentPartPath(destination, plan.index).absolutePath,
                     )
-            }
+                }
         }
     }
 
@@ -1735,7 +2259,7 @@ internal class BrowserDownloadManager private constructor(
         }
         val sourceFile = File(sourceLocation.absolutePath)
         require(sourceFile.exists()) { "Completed browser download is missing" }
-        val targetFile = resolveUniquePublicDestinationFile(sourceLocation.displayName)
+        val targetFile = reserveUniquePublicDestinationFile(sourceLocation.displayName)
         try {
             sourceFile.inputStream().use { input ->
                 targetFile.outputStream().use { output ->
@@ -1868,11 +2392,54 @@ internal class BrowserDownloadManager private constructor(
         }
     }
 
+    private fun logBrowserDownloadOperationFailure(
+        operation: String,
+        error: Throwable,
+        taskId: String? = null,
+        task: BrowserDownloadTaskRecord? = null,
+        sensitiveValues: Collection<String> = emptyList(),
+    ) {
+        val resolvedTask =
+            task
+                ?: taskId?.let { id ->
+                    synchronized(tasks) {
+                        tasks[id]?.snapshot()
+                    }
+                }
+        val safeMessage =
+            browserDownloadSafeErrorMessage(
+                error = error,
+                sensitiveValues =
+                    buildList {
+                        addAll(sensitiveValues)
+                        resolvedTask?.sourceUrl?.let(::add)
+                        resolvedTask?.headers?.values?.let(::addAll)
+                    },
+            )
+        AppLogger.w(
+            DOWNLOAD_SUPPORT_TAG,
+            "$operation (${error::class.java.simpleName}): $safeMessage",
+        )
+    }
+
     private fun failTask(taskId: String, error: Throwable) {
-        AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Browser download failed: ${error.message}")
+        val task = synchronized(tasks) { tasks[taskId]?.snapshot() }
+        val safeMessage =
+            browserDownloadSafeErrorMessage(
+                error = error,
+                sensitiveValues =
+                    buildList {
+                        task?.sourceUrl?.let(::add)
+                        task?.headers?.values?.let(::addAll)
+                    },
+            )
+        AppLogger.w(
+            DOWNLOAD_SUPPORT_TAG,
+            "Browser download failed (${error::class.java.simpleName}): $safeMessage",
+        )
         mutateTask(taskId, eventStatus = "failed") { task ->
             task.status = BrowserDownloadStatus.FAILED
-            task.errorMessage = error.message ?: error::class.java.simpleName
+            task.errorMessage = safeMessage
             task.speedBytesPerSecond = 0L
         }
     }
@@ -1880,6 +2447,10 @@ internal class BrowserDownloadManager private constructor(
     private suspend fun handleTaskError(taskId: String, error: Throwable) {
         if (error is CancellationException) {
             handleTaskCancellation(taskId, error)
+            return
+        }
+        if (error is BrowserDownloadRepresentationChangedException) {
+            failTaskAfterRepresentationChange(taskId)
             return
         }
 
@@ -1893,26 +2464,52 @@ internal class BrowserDownloadManager private constructor(
         failTask(taskId, error)
     }
 
+    private fun failTaskAfterRepresentationChange(taskId: String) {
+        val task = synchronized(tasks) { tasks[taskId]?.snapshot() } ?: return
+        clearTemporaryArtifacts(task)
+        val message = "远程文件已更新，旧分片已清理，请重新下载"
+        AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Browser download representation changed")
+        mutateTask(taskId, eventStatus = "failed") { current ->
+            current.status = BrowserDownloadStatus.FAILED
+            current.totalBytes = -1L
+            current.downloadedBytes = 0L
+            current.speedBytesPerSecond = 0L
+            current.supportsResume = false
+            current.resourceEtag = null
+            current.resourceLastModified = null
+            current.errorMessage = message
+            current.completedAt = null
+            current.segments.clear()
+            resetSegmentsForRestart(current)
+        }
+    }
+
     private fun handleTaskCancellation(taskId: String, error: CancellationException) {
         when (activeControls[taskId]?.stopAction) {
-            BrowserDownloadAction.PAUSE ->
+            BrowserDownloadWorkerStopAction.PAUSE ->
                 mutateTask(taskId, eventStatus = "paused") { task ->
                     task.status = BrowserDownloadStatus.PAUSED
                     task.errorMessage = null
                     task.speedBytesPerSecond = 0L
                 }
 
-            BrowserDownloadAction.CANCEL ->
+            BrowserDownloadWorkerStopAction.CANCEL ->
                 mutateTask(taskId, eventStatus = "canceled") { task ->
                     task.status = BrowserDownloadStatus.CANCELED
                     task.errorMessage = null
                     task.speedBytesPerSecond = 0L
                 }
 
-            BrowserDownloadAction.DELETE_RECORD,
-            BrowserDownloadAction.DELETE_WITH_FILE -> Unit
-            BrowserDownloadAction.RESUME,
-            BrowserDownloadAction.RETRY -> Unit
+            BrowserDownloadWorkerStopAction.RUNTIME_SUSPEND ->
+                mutateTask(taskId, eventStatus = "queued") { task ->
+                    task.status = BrowserDownloadStatus.QUEUED
+                    task.errorMessage = null
+                    task.speedBytesPerSecond = 0L
+                    task.downloadedBytes = computeDownloadedBytes(task)
+                }
+
+            BrowserDownloadWorkerStopAction.DELETE_RECORD,
+            BrowserDownloadWorkerStopAction.DELETE_WITH_FILE -> Unit
             null -> failTask(taskId, error)
         }
     }
@@ -1952,16 +2549,21 @@ internal class BrowserDownloadManager private constructor(
                     }
                 } ?: File(task.destinationPath).delete()
             }.onFailure { error ->
-                AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to delete browser download file: ${error.message}")
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to delete browser download file",
+                    error = error,
+                    task = task,
+                )
             }
         }
         if (task.isM3u8Package && (includeDestinationFile || task.status != BrowserDownloadStatus.COMPLETED)) {
             runCatching {
                 deleteBrowserM3u8PackageDirectory(browserM3u8PackageDirectoryFor(File(task.destinationPath)))
             }.onFailure { error ->
-                AppLogger.w(
-                    DOWNLOAD_SUPPORT_TAG,
-                    "Failed to delete browser M3U8 package directory: ${error.message}",
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to delete browser M3U8 package directory",
+                    error = error,
+                    task = task,
                 )
             }
         }
@@ -1984,7 +2586,7 @@ internal class BrowserDownloadManager private constructor(
 
     private fun resetSegmentsForRestart(task: BrowserDownloadTaskRecord) {
         val destination = File(task.destinationPath)
-        if (task.type != DOWNLOAD_TYPE_HTTP) {
+        if (task.type != BROWSER_DOWNLOAD_TYPE_HTTP) {
             task.segments.clear()
             task.segments +=
                 BrowserDownloadSegmentRecord(
@@ -2044,6 +2646,15 @@ internal class BrowserDownloadManager private constructor(
             lastEvent = event
             lastEventAt = System.currentTimeMillis()
             taskListener?.invoke(task.snapshot(), event)
+            if (
+                task.status == BrowserDownloadStatus.COMPLETED ||
+                    task.status == BrowserDownloadStatus.FAILED
+            ) {
+                BrowserDownloadRuntimeCoordinator.notifyTerminalTask(
+                    context = appContext,
+                    task = task,
+                )
+            }
         }
         dispatchUiRefresh(
             force =
@@ -2092,34 +2703,46 @@ internal class BrowserDownloadManager private constructor(
         )
 
     private fun persistState(force: Boolean) {
-        val now = System.currentTimeMillis()
-        if (!force && now - lastPersistAt < 500L) {
-            return
-        }
-        lastPersistAt = now
-        val payload =
-            JSONArray().also { array ->
-                synchronized(tasks) {
-                    tasks.values.forEach { task ->
-                        array.put(task.toJson())
+        synchronized(persistenceLock) {
+            val now = System.currentTimeMillis()
+            if (!force && now - lastPersistAt < 500L) {
+                return
+            }
+            val payload =
+                JSONArray().also { array ->
+                    synchronized(tasks) {
+                        tasks.values.forEach { task ->
+                            array.put(task.toJson())
+                        }
                     }
                 }
+            var output: FileOutputStream? = null
+            try {
+                val stream = stateFile.startWrite()
+                output = stream
+                stream.write(payload.toString().toByteArray(StandardCharsets.UTF_8))
+                stream.flush()
+                stateFile.finishWrite(stream)
+                output = null
+                lastPersistAt = now
+            } catch (error: Throwable) {
+                output?.let(stateFile::failWrite)
+                logBrowserDownloadOperationFailure(
+                    operation = "Failed to persist browser downloads",
+                    error = error,
+                )
             }
-        runCatching {
-            stateFile.writeText(payload.toString())
-        }.onFailure {
-            AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to persist browser downloads: ${it.message}")
         }
     }
 
     private fun loadState() {
-        if (!stateFile.exists()) {
-            return
-        }
-        runCatching {
-            val raw = stateFile.readText()
+        try {
+            val raw =
+                stateFile.openRead().bufferedReader(StandardCharsets.UTF_8).use { reader ->
+                    reader.readText()
+                }
             if (raw.isBlank()) {
-                return@runCatching
+                return
             }
             val array = JSONArray(raw)
             synchronized(tasks) {
@@ -2129,17 +2752,25 @@ internal class BrowserDownloadManager private constructor(
                     tasks[task.id] = task
                 }
             }
-        }.onFailure {
-            AppLogger.w(DOWNLOAD_SUPPORT_TAG, "Failed to load browser downloads: ${it.message}")
+        } catch (_: FileNotFoundException) {
+            return
+        } catch (error: Throwable) {
+            logBrowserDownloadOperationFailure(
+                operation = "Failed to load browser downloads",
+                error = error,
+            )
         }
     }
 
-    private fun normalizeRestoredTasks() {
+    private fun normalizeRestoredTasks(resumeInterruptedTasks: Boolean) {
         val now = System.currentTimeMillis()
         var changed = false
         synchronized(tasks) {
             tasks.values.forEach { task ->
-                if (task.type != DOWNLOAD_TYPE_HTTP && task.status != BrowserDownloadStatus.COMPLETED) {
+                if (
+                    task.type != BROWSER_DOWNLOAD_TYPE_HTTP &&
+                        task.status != BrowserDownloadStatus.COMPLETED
+                ) {
                     task.status = BrowserDownloadStatus.FAILED
                     task.errorMessage = "Inline download could not be resumed after app restart."
                     task.updatedAt = now
@@ -2148,7 +2779,12 @@ internal class BrowserDownloadManager private constructor(
                     return@forEach
                 }
                 if (task.activeOrPending()) {
-                    task.status = BrowserDownloadStatus.PAUSED
+                    task.status =
+                        if (resumeInterruptedTasks) {
+                            BrowserDownloadStatus.QUEUED
+                        } else {
+                            BrowserDownloadStatus.PAUSED
+                        }
                     task.errorMessage = null
                     task.speedBytesPerSecond = 0L
                     task.updatedAt = now
@@ -2183,6 +2819,85 @@ internal data class PendingBrowserDownloadRequest(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
+internal class BrowserDownloadConfirmationQueue(
+    private val capacity: Int = MAX_PENDING_BROWSER_DOWNLOAD_REQUESTS,
+) {
+    init {
+        require(capacity > 0) { "Browser download confirmation queue capacity must be positive" }
+    }
+
+    private val lock = Any()
+    private val requests = ArrayDeque<PendingBrowserDownloadRequest>()
+
+    fun enqueue(request: PendingBrowserDownloadRequest): Boolean =
+        synchronized(lock) {
+            if (requests.size >= capacity) {
+                false
+            } else {
+                requests.addLast(request)
+                true
+            }
+        }
+
+    fun peek(): PendingBrowserDownloadRequest? =
+        synchronized(lock) {
+            requests.peekFirst()
+        }
+
+    fun removeHead(requestId: String): PendingBrowserDownloadRequest? =
+        synchronized(lock) {
+            requests.peekFirst()
+                ?.takeIf { request -> request.requestId == requestId }
+                ?.also { requests.removeFirst() }
+        }
+
+    fun size(): Int = synchronized(lock) { requests.size }
+}
+
+internal fun browserDownloadSafeErrorMessage(
+    error: Throwable,
+    sensitiveValues: Collection<String> = emptyList(),
+): String {
+    var message =
+        error.message
+            ?.trim()
+            ?.takeIf { value -> value.isNotBlank() }
+            ?: error::class.java.simpleName
+    sensitiveValues
+        .asSequence()
+        .map { value -> value.trim() }
+        .filter { value -> value.length >= 4 }
+        .distinct()
+        .sortedByDescending { value -> value.length }
+        .forEach { value ->
+            message = message.replace(value, "[已隐藏]")
+        }
+    message = BROWSER_DOWNLOAD_ERROR_URL_PATTERN.replace(message, "[下载地址已隐藏]")
+    return message.take(500)
+}
+
+private val BROWSER_DOWNLOAD_ERROR_URL_PATTERN =
+    Regex("https?://\\S+", RegexOption.IGNORE_CASE)
+
+internal fun browserDownloadDisplayUrl(url: String): String {
+    if (!isBrowserDownloadNetworkUrl(url)) {
+        return "[下载地址已隐藏]"
+    }
+    return runCatching {
+        val parsed = URI(url)
+        require(!parsed.host.isNullOrBlank()) { "Download URL host is blank" }
+        URI(
+            parsed.scheme,
+            null,
+            parsed.host,
+            parsed.port,
+            parsed.path,
+            null,
+            null,
+        ).toString()
+    }.getOrDefault("[下载地址已隐藏]")
+}
+
 internal fun isBrowserDownloadNetworkUrl(url: String): Boolean {
     val scheme = url.substringBefore(':', missingDelimiterValue = "").lowercase(Locale.ROOT)
     return scheme == "http" || scheme == "https"
@@ -2197,18 +2912,6 @@ internal fun StandardBrowserSessionTools.initializeBrowserDownloadSupport() {
             sessionById(sessionId)?.let { session ->
                 session.lastDownloadEvent = event
                 session.lastDownloadEventAt = System.currentTimeMillis()
-            }
-        }
-        if (BrowserDownloadSettingsStore.getInstance(context).current.showCompletionTip) {
-            when (event.status) {
-                "completed" -> showToast(context.getString(com.ai.assistance.operit.R.string.download_success, task.fileName))
-                "failed" ->
-                    showToast(
-                        context.getString(
-                            com.ai.assistance.operit.R.string.download_failed,
-                            task.errorMessage ?: task.fileName,
-                        ),
-                    )
             }
         }
     }
@@ -2261,11 +2964,7 @@ internal fun StandardBrowserSessionTools.startBrowserManagedDownload(
         return
     }
     runOnMainSync<Unit> {
-        check(StandardBrowserSessionTools.pendingBrowserDownloadRequest == null) {
-            "A browser download request is already awaiting confirmation."
-        }
-        StandardBrowserSessionTools.pendingBrowserDownloadRequest = request
-        refreshSessionUiOnMain()
+        enqueueBrowserDownloadConfirmationOnMain(request)
     }
 }
 
@@ -2301,12 +3000,9 @@ internal fun StandardBrowserSessionTools.startMediaCandidateDownload(
     if (settings.skipConfirmation) {
         return dispatchBrowserDownloadRequest(request)
     }
-    check(StandardBrowserSessionTools.pendingBrowserDownloadRequest == null) {
-        "A browser download request is already awaiting confirmation."
+    return runOnMainSync {
+        enqueueBrowserDownloadConfirmationOnMain(request)
     }
-    StandardBrowserSessionTools.pendingBrowserDownloadRequest = request
-    refreshSessionUiOnMain()
-    return true
 }
 
 internal fun StandardBrowserSessionTools.startManualBrowserDownload(
@@ -2366,22 +3062,33 @@ private const val BROWSER_STANDALONE_MANUAL_DOWNLOAD_SESSION_ID =
     "kiyori-standalone-manual-download"
 
 internal fun StandardBrowserSessionTools.confirmBrowserDownloadRequest(requestId: String) {
-    val request = StandardBrowserSessionTools.pendingBrowserDownloadRequest ?: return
-    if (request.requestId != requestId) {
-        return
-    }
-    StandardBrowserSessionTools.pendingBrowserDownloadRequest = null
+    val request =
+        StandardBrowserSessionTools.browserDownloadConfirmationQueue.removeHead(requestId)
+            ?: return
     refreshSessionUiOnMain()
     dispatchBrowserDownloadRequest(request)
 }
 
 internal fun StandardBrowserSessionTools.cancelBrowserDownloadRequest(requestId: String) {
-    val request = StandardBrowserSessionTools.pendingBrowserDownloadRequest ?: return
-    if (request.requestId != requestId) {
-        return
-    }
-    StandardBrowserSessionTools.pendingBrowserDownloadRequest = null
+    StandardBrowserSessionTools.browserDownloadConfirmationQueue.removeHead(requestId)
+        ?: return
     refreshSessionUiOnMain()
+}
+
+private fun StandardBrowserSessionTools.enqueueBrowserDownloadConfirmationOnMain(
+    request: PendingBrowserDownloadRequest,
+): Boolean {
+    val accepted = StandardBrowserSessionTools.browserDownloadConfirmationQueue.enqueue(request)
+    if (!accepted) {
+        showToast(
+            context.getString(
+                com.ai.assistance.operit.R.string.web_session_download_confirmation_queue_full,
+            ),
+        )
+        return false
+    }
+    refreshSessionUiOnMain()
+    return true
 }
 
 private fun StandardBrowserSessionTools.dispatchBrowserDownloadRequest(
@@ -2416,15 +3123,24 @@ private fun StandardBrowserSessionTools.dispatchBrowserDownloadRequest(
     return result.fold(
         onSuccess = { true },
         onFailure = { error ->
+            val safeMessage =
+                browserDownloadSafeErrorMessage(
+                    error = error,
+                    sensitiveValues =
+                        buildList {
+                            add(request.url)
+                            addAll(request.headers.values)
+                        },
+                )
             AppLogger.e(
                 DOWNLOAD_SUPPORT_TAG,
-                "Unable to dispatch ${request.engine.persistedId} browser download: ${error.message}",
-                error,
+                "Unable to dispatch ${request.engine.persistedId} browser download " +
+                    "(${error::class.java.simpleName}): $safeMessage",
             )
             showToast(
                 context.getString(
                     com.ai.assistance.operit.R.string.download_failed,
-                    error.toString(),
+                    safeMessage,
                 ),
             )
             false
@@ -2439,13 +3155,16 @@ private fun StandardBrowserSessionTools.enqueueSystemBrowserDownload(
         "Android system downloads cannot target a SAF document tree"
     }
     require(isBrowserDownloadNetworkUrl(request.url)) {
-        "System downloads require an http or https URL: ${request.url}"
+        "System downloads require an http or https URL"
     }
+    val settings = BrowserDownloadSettingsStore.getInstance(context).current
     val systemRequest =
         DownloadManager.Request(Uri.parse(request.url)).apply {
             request.mimeType?.takeIf { value -> value.isNotBlank() }?.let(::setMimeType)
-            setAllowedOverMetered(true)
-            setAllowedOverRoaming(true)
+            setAllowedOverMetered(
+                settings.networkPolicy == BrowserDownloadNetworkPolicy.ANY,
+            )
+            setAllowedOverRoaming(settings.allowRoaming)
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setTitle(request.fileName)
             setDescription(context.getString(com.ai.assistance.operit.R.string.web_session_system_download_description))
@@ -2648,20 +3367,22 @@ private fun launchBrowserExternalIntent(context: Context, intent: Intent): Boole
     }
 }
 
-private fun resolveUniqueApplicationDestinationFile(
-    context: Context,
-    suggestedFileName: String,
-): File =
-    resolveUniqueBrowserDownloadFile(
-        directory = browserDownloadApplicationDirectory(context),
-        suggestedFileName = suggestedFileName,
-    )
-
-private fun resolveUniquePublicDestinationFile(suggestedFileName: String): File =
-    resolveUniqueBrowserDownloadFile(
-        directory = OperitPaths.browserDownloadsDir(),
-        suggestedFileName = suggestedFileName,
-    )
+private fun reserveUniquePublicDestinationFile(suggestedFileName: String): File {
+    val directory = OperitPaths.browserDownloadsDir()
+    require(directory.isDirectory || directory.mkdirs()) {
+        "Unable to create public browser download directory: ${directory.absolutePath}"
+    }
+    while (true) {
+        val candidate =
+            resolveUniqueBrowserDownloadFile(
+                directory = directory,
+                suggestedFileName = suggestedFileName,
+            )
+        if (candidate.createNewFile()) {
+            return candidate
+        }
+    }
+}
 
 internal fun browserDownloadApplicationDirectory(context: Context): File {
     val externalDownloads =
@@ -2680,22 +3401,22 @@ internal fun browserDownloadPublicDirectory(): File = OperitPaths.browserDownloa
 private fun resolveUniqueBrowserDownloadFile(
     directory: File,
     suggestedFileName: String,
+    reservedPaths: Set<String> = emptySet(),
 ): File {
-    val sanitized = suggestedFileName.trim().ifBlank { "download" }
-    val dotIndex = sanitized.lastIndexOf('.')
-    val base = if (dotIndex > 0) sanitized.substring(0, dotIndex) else sanitized
-    val ext = if (dotIndex > 0) sanitized.substring(dotIndex) else ""
-    var candidate = File(directory, sanitized)
-    var index = 1
-    while (
-        candidate.exists() ||
-            File(candidate.absolutePath + ".part").exists() ||
-            File(candidate.absolutePath + ".part.0").exists()
-    ) {
-        candidate = File(directory, "$base ($index)$ext")
-        index += 1
+    require(directory.isDirectory || directory.mkdirs()) {
+        "Unable to create browser download directory: ${directory.absolutePath}"
     }
-    return candidate
+    val availableName =
+        resolveAvailableBrowserDownloadFileName(suggestedFileName) { candidateName ->
+            val candidate = File(directory, candidateName)
+            candidate.absolutePath in reservedPaths ||
+                candidate.exists() ||
+                directory.list()?.any { entryName ->
+                    entryName == "$candidateName.part" ||
+                        entryName.startsWith("$candidateName.part.")
+                } == true
+        }
+    return File(directory, availableName)
 }
 
 private data class BrowserDownloadSavedLocation(
@@ -2713,8 +3434,49 @@ internal fun resolveBrowserDownloadSavedLocation(
     destinationUri: String?,
 ): String = destinationUri?.takeIf { it.isNotBlank() } ?: destinationPath
 
-private fun sanitizeBrowserDownloadFileName(fileName: String): String =
-    fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
+internal fun normalizeBrowserDownloadFileName(fileName: String): String {
+    val sanitized =
+        fileName
+            .replace(Regex("[\\x00-\\x1F\\x7F\\\\/:*?\"<>|]"), "_")
+            .trim()
+            .trimEnd(' ', '.')
+            .ifBlank { "download" }
+    if (sanitized.length <= MAX_BROWSER_DOWNLOAD_FILE_NAME_LENGTH) {
+        return sanitized
+    }
+    val extension =
+        sanitized.substringAfterLast('.', "")
+            .takeIf { value -> value.isNotBlank() }
+            ?.let { value -> ".$value" }
+            .orEmpty()
+    val base = sanitized.removeSuffix(extension)
+    val maximumBaseLength =
+        (MAX_BROWSER_DOWNLOAD_FILE_NAME_LENGTH - extension.length).coerceAtLeast(1)
+    return base.take(maximumBaseLength).trimEnd(' ', '.') + extension
+}
+
+internal fun resolveAvailableBrowserDownloadFileName(
+    suggestedFileName: String,
+    isUnavailable: (String) -> Boolean,
+): String {
+    val normalized = normalizeBrowserDownloadFileName(suggestedFileName)
+    val dotIndex = normalized.lastIndexOf('.')
+    val base = if (dotIndex > 0) normalized.substring(0, dotIndex) else normalized
+    val extension = if (dotIndex > 0) normalized.substring(dotIndex) else ""
+    var index = 0
+    while (true) {
+        val suffix = if (index == 0) "" else " ($index)"
+        val maximumBaseLength =
+            (MAX_BROWSER_DOWNLOAD_FILE_NAME_LENGTH - extension.length - suffix.length)
+                .coerceAtLeast(1)
+        val candidate =
+            base.take(maximumBaseLength).trimEnd(' ', '.') + suffix + extension
+        if (!isUnavailable(candidate)) {
+            return candidate
+        }
+        index += 1
+    }
+}
 
 private fun resolveAvailableDocumentName(directory: DocumentFile, displayName: String): String {
     val baseName = displayName.substringBeforeLast('.', displayName)

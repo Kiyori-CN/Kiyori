@@ -1,7 +1,10 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import java.io.IOException
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -89,10 +92,10 @@ class BrowserDownloadPolicyTest {
     fun `download settings defaults and dynamic task limit match the refined contract`() {
         val settings = BrowserDownloadSettings()
 
-        assertEquals(1, settings.version)
+        assertEquals(BROWSER_DOWNLOAD_SETTINGS_VERSION, settings.version)
         assertEquals(DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT, settings.segmentThreadCount)
         assertEquals(DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT, settings.m3u8ThreadCount)
-        assertTrue(settings.autoMergeM3u8)
+        assertTrue(settings.packageM3u8Offline)
         assertFalse(settings.autoTransferToPublicDirectory)
         assertEquals(DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB, settings.chunkSizeKb)
         assertFalse(settings.autoCleanApk)
@@ -152,25 +155,48 @@ class BrowserDownloadPolicyTest {
     }
 
     @Test
-    fun `download request policy defaults match the legacy consumers`() {
+    fun `download request policy defaults are explicit and stable`() {
         val settings = BrowserDownloadSettings()
 
+        assertEquals(BROWSER_DOWNLOAD_SETTINGS_VERSION, settings.version)
+        assertEquals(2, settings.version)
         assertEquals(BrowserDownloadEngine.INTERNAL, settings.defaultEngine)
         assertEquals("", settings.customDirectoryUri)
         assertEquals("", settings.customDirectoryName)
+        assertEquals(BrowserDownloadNetworkPolicy.ANY, settings.networkPolicy)
+        assertFalse(settings.allowRoaming)
         assertFalse(settings.skipConfirmation)
-        assertTrue(settings.showCompletionTip)
+        assertTrue(settings.showResultNotifications)
         assertEquals(BrowserDownloadEngine.INTERNAL, BrowserDownloadEngine.fromPersistedId("internal"))
         assertEquals(BrowserDownloadEngine.SYSTEM, BrowserDownloadEngine.fromPersistedId("system"))
+        assertEquals(
+            BrowserDownloadNetworkPolicy.ANY,
+            BrowserDownloadNetworkPolicy.fromPersistedId("any"),
+        )
+        assertEquals(
+            BrowserDownloadNetworkPolicy.UNMETERED,
+            BrowserDownloadNetworkPolicy.fromPersistedId("unmetered"),
+        )
         assertTrue(isBrowserDownloadNetworkUrl("https://example.com/video.mp4"))
         assertTrue(isBrowserDownloadNetworkUrl("HTTP://example.com/file.bin"))
         assertFalse(isBrowserDownloadNetworkUrl("blob:https://example.com/id"))
         assertFalse(isBrowserDownloadNetworkUrl("data:text/plain;base64,QQ=="))
         assertFalse(isBrowserDownloadNetworkUrl("file:///sdcard/file.bin"))
+        assertEquals(
+            "https://cdn.example.com:8443/path/app.apk",
+            browserDownloadDisplayUrl(
+                "https://user:secret@cdn.example.com:8443/path/app.apk" +
+                    "?token=signed-value#fragment",
+            ),
+        )
+        assertEquals(
+            "[下载地址已隐藏]",
+            browserDownloadDisplayUrl("data:text/plain;base64,QQ=="),
+        )
     }
 
     @Test
-    fun `public transfer and apk cleanup match the legacy runtime contract`() {
+    fun `public transfer and apk cleanup require exact installed package identity`() {
         assertFalse(
             shouldAutoTransferBrowserDownload(
                 autoTransferEnabled = false,
@@ -209,7 +235,86 @@ class BrowserDownloadPolicyTest {
         )
         assertTrue(isBrowserDownloadApkPackage(mimeType = "application/octet-stream", fileName = "App.APK"))
         assertFalse(isBrowserDownloadApkPackage(mimeType = "application/zip", fileName = "app.zip"))
-        assertEquals(90_000L, BROWSER_DOWNLOAD_APK_AUTO_CLEAN_DELAY_MILLIS)
+        assertTrue(
+            matchesBrowserDownloadInstalledPackage(
+                pendingPackageName = "com.example.app",
+                pendingVersionCode = 42L,
+                installedPackageName = "com.example.app",
+                installedVersionCode = 42L,
+            ),
+        )
+        assertFalse(
+            matchesBrowserDownloadInstalledPackage(
+                pendingPackageName = "com.example.app",
+                pendingVersionCode = 42L,
+                installedPackageName = "com.example.other",
+                installedVersionCode = 42L,
+            ),
+        )
+        assertFalse(
+            matchesBrowserDownloadInstalledPackage(
+                pendingPackageName = "com.example.app",
+                pendingVersionCode = 42L,
+                installedPackageName = "com.example.app",
+                installedVersionCode = 43L,
+            ),
+        )
+        assertTrue(
+            shouldReconcileBrowserDownloadInstalledPackage(
+                pendingPackageName = "com.example.app",
+                pendingVersionCode = 42L,
+                previouslyInstalledVersionCode = 41L,
+                installedPackageName = "com.example.app",
+                installedVersionCode = 42L,
+            ),
+        )
+        assertFalse(
+            shouldReconcileBrowserDownloadInstalledPackage(
+                pendingPackageName = "com.example.app",
+                pendingVersionCode = 42L,
+                previouslyInstalledVersionCode = 42L,
+                installedPackageName = "com.example.app",
+                installedVersionCode = 42L,
+            ),
+        )
+    }
+
+    @Test
+    fun `M3U8 rewrite deduplicates byte range resources and removes live-only hints`() {
+        val rewrite =
+            rewriteBrowserM3u8MediaPlaylist(
+                content =
+                    """
+                    #EXTM3U
+                    #EXT-X-BYTERANGE:4@0
+                    media.bin
+                    #EXT-X-BYTERANGE:4
+                    media.bin
+                    #EXT-X-PRELOAD-HINT:TYPE=PART,URI="future.m4s"
+                    #EXT-X-RENDITION-REPORT:URI="other.m3u8"
+                    """.trimIndent(),
+                baseUrl = "https://media.example.com/path/playlist.m3u8",
+                packageDirectoryUri = "file:/tmp/video.m3u8.files/",
+            )
+
+        assertEquals(1, rewrite.resources.size)
+        val localUri = rewrite.resources.single().localUri
+        assertEquals(2, rewrite.playlistContent.lineSequence().count { line -> line == localUri })
+        assertFalse(rewrite.playlistContent.contains("PRELOAD-HINT"))
+        assertFalse(rewrite.playlistContent.contains("RENDITION-REPORT"))
+        assertTrue(isValidBrowserM3u8Playlist("\uFEFF#EXTM3U\n#EXTINF:1,\na.ts"))
+        assertFalse(isValidBrowserM3u8Playlist("<html>not a playlist</html>"))
+    }
+
+    @Test
+    fun `M3U8 rewrite rejects non-network resources`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            rewriteBrowserM3u8MediaPlaylist(
+                content = "#EXTM3U\n#EXTINF:1,\nfile:///sdcard/private.ts",
+                baseUrl = "https://media.example.com/playlist.m3u8",
+                packageDirectoryUri = "file:/tmp/video.m3u8.files/",
+            )
+        }
     }
 
     @Test
@@ -286,6 +391,73 @@ class BrowserDownloadPolicyTest {
             ),
             request.toUiState(),
         )
+    }
+
+    @Test
+    fun `download confirmations are FIFO and bounded without replacing the visible request`() {
+        val queue = BrowserDownloadConfirmationQueue(capacity = 2)
+        val first = pendingRequest("request-1")
+        val second = pendingRequest("request-2")
+        val rejected = pendingRequest("request-3")
+
+        assertTrue(queue.enqueue(first))
+        assertTrue(queue.enqueue(second))
+        assertFalse(queue.enqueue(rejected))
+        assertEquals(2, queue.size())
+        assertEquals(first, queue.peek())
+        assertEquals(null, queue.removeHead(second.requestId))
+        assertEquals(first, queue.removeHead(first.requestId))
+        assertEquals(second, queue.peek())
+        assertEquals(second, queue.removeHead(second.requestId))
+        assertEquals(0, queue.size())
+    }
+
+    @Test
+    fun `download file names are sanitized length bounded and avoid reserved queue names`() {
+        assertEquals(
+            "report_2026_.pdf",
+            normalizeBrowserDownloadFileName(" report/2026?.pdf. "),
+        )
+        assertEquals("download", normalizeBrowserDownloadFileName(" ... "))
+        assertTrue(
+            normalizeBrowserDownloadFileName("a".repeat(240) + ".mp4").length <= 180,
+        )
+
+        val unavailable = setOf("video.mp4", "video (1).mp4")
+        assertEquals(
+            "video (2).mp4",
+            resolveAvailableBrowserDownloadFileName("video.mp4") { candidate ->
+                candidate in unavailable
+            },
+        )
+    }
+
+    @Test
+    fun `download error projection removes URLs and frozen credentials`() {
+        val url = "https://cdn.example.com/file.bin?token=secret"
+        val authorization = "Bearer private-token"
+
+        val message =
+            browserDownloadSafeErrorMessage(
+                error = IOException("Request $url failed with $authorization"),
+                sensitiveValues = listOf(url, authorization),
+            )
+
+        assertFalse(message.contains("secret"))
+        assertFalse(message.contains("private-token"))
+        assertFalse(message.contains("https://"))
+        assertTrue(message.contains("[已隐藏]"))
+    }
+
+    @Test
+    fun `download task credentials are excluded from backup and device transfer`() {
+        val backupRules = repositoryFile("app/src/main/res/xml/backup_rules.xml").readText()
+        val extractionRules =
+            repositoryFile("app/src/main/res/xml/data_extraction_rules.xml").readText()
+        val exclusion = """<exclude domain="file" path="browser_download_tasks.json"/>"""
+
+        assertTrue(backupRules.contains(exclusion))
+        assertEquals(2, extractionRules.windowed(exclusion.length).count { value -> value == exclusion })
     }
 
     @Test
@@ -379,7 +551,7 @@ class BrowserDownloadPolicyTest {
                         #EXTM3U
                         #EXT-X-STREAM-INF:BANDWIDTH=120000
                         low/index.m3u8
-                        #EXT-X-STREAM-INF:BANDWIDTH=900000
+                        #EXT-X-STREAM-INF:BANDWIDTH=900000,AUDIO="aac-main",SUBTITLES="subs"
                         ../high/index.m3u8
                         """.trimIndent(),
                     baseUrl = "https://cdn.example.com/video/master.m3u8",
@@ -387,6 +559,24 @@ class BrowserDownloadPolicyTest {
             )
         assertEquals(900000L, selected.bandwidth)
         assertEquals("https://cdn.example.com/high/index.m3u8", selected.url)
+        assertEquals("aac-main", selected.audioGroupId)
+        assertEquals("subs", selected.subtitlesGroupId)
+        assertEquals(
+            listOf(
+                "https://cdn.example.com/video/audio/main.m3u8",
+                "https://cdn.example.com/video/subtitles/zh.m3u8",
+            ),
+            browserM3u8ExternalRenditionUrls(
+                content =
+                    """
+                    #EXTM3U
+                    #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-main",NAME="Main",URI="audio/main.m3u8"
+                    #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="中文",URI="subtitles/zh.m3u8"
+                    """.trimIndent(),
+                baseUrl = "https://cdn.example.com/video/master.m3u8",
+                variant = selected,
+            ),
+        )
     }
 
     @Test
@@ -446,5 +636,30 @@ class BrowserDownloadPolicyTest {
             endInclusive = end,
             tempPath = "segment-$index.part",
         )
+
+    private fun pendingRequest(requestId: String): PendingBrowserDownloadRequest =
+        PendingBrowserDownloadRequest(
+            requestId = requestId,
+            sessionId = "session-1",
+            url = "https://example.com/$requestId.bin",
+            fileName = "$requestId.bin",
+            mimeType = "application/octet-stream",
+            contentLength = -1L,
+            headers = emptyMap(),
+            engine = BrowserDownloadEngine.INTERNAL,
+        )
+
+    private fun repositoryFile(relativePath: String): File {
+        var current: File? =
+            File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(4) {
+            val candidate = current?.let { directory -> File(directory, relativePath) }
+            if (candidate?.isFile == true) {
+                return candidate
+            }
+            current = current?.parentFile
+        }
+        throw AssertionError("Repository file not found: $relativePath")
+    }
 
 }

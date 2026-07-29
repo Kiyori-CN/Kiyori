@@ -128,12 +128,12 @@ internal fun KiyoriDownloadDrawerHost(
                     }.fold(
                         onSuccess = { accepted -> accepted },
                         onFailure = { error ->
-                            AppLogger.e(
-                                KIYORI_DOWNLOAD_DRAWER_TAG,
-                                "Failed to start a manual browser download",
-                                error,
+                            showKiyoriDownloadFailure(
+                                context = context,
+                                logMessage = "Failed to start a manual browser download",
+                                userMessage = "无法添加下载任务，请检查链接和文件名",
+                                error = error,
                             )
-                            Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
                             false
                         },
                     )
@@ -148,7 +148,12 @@ internal fun KiyoriDownloadDrawerHost(
                             ).show()
                         }
                         .onFailure { error ->
-                            Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                            showKiyoriDownloadFailure(
+                                context = context,
+                                logMessage = "Failed to redownload completed task",
+                                userMessage = "无法重新下载该文件",
+                                error = error,
+                            )
                         }
                 },
                 onRenameDownload = { taskId, targetFileName, renameMode ->
@@ -166,7 +171,12 @@ internal fun KiyoriDownloadDrawerHost(
                                 ).show()
                             }
                             .onFailure { error ->
-                                Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                                showKiyoriDownloadFailure(
+                                    context = context,
+                                    logMessage = "Failed to rename downloaded file",
+                                    userMessage = "无法修改文件名",
+                                    error = error,
+                                )
                             }
                     }
                 },
@@ -174,10 +184,15 @@ internal fun KiyoriDownloadDrawerHost(
                     scope.launch {
                         manager.moveDownloadedFileToDirectory(taskId, treeUriString)
                             .onSuccess {
-                                Toast.makeText(context, "文件夹修改成功", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "文件移动成功", Toast.LENGTH_SHORT).show()
                             }
                             .onFailure { error ->
-                                Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                                showKiyoriDownloadFailure(
+                                    context = context,
+                                    logMessage = "Failed to move downloaded file",
+                                    userMessage = "无法移动到所选文件夹",
+                                    error = error,
+                                )
                             }
                     }
                 },
@@ -211,23 +226,33 @@ internal fun KiyoriDownloadDrawerHost(
                                 Toast.makeText(context, "已转存到公开目录", Toast.LENGTH_SHORT).show()
                             }
                             .onFailure { error ->
-                                Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                                showKiyoriDownloadFailure(
+                                    context = context,
+                                    logMessage = "Failed to transfer downloaded file",
+                                    userMessage = "无法转存到公开目录",
+                                    error = error,
+                                )
                             }
                     }
                 },
                 onMergeDownloadToMp4 = { taskId ->
-                    Toast.makeText(context, "正在合并MP4", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "正在合并为 MP4", Toast.LENGTH_SHORT).show()
                     scope.launch {
                         manager.mergeM3u8PackageToMp4(taskId)
                             .onSuccess { task ->
                                 Toast.makeText(
                                     context,
-                                    "已合并为${task.fileName}",
+                                    "已合并为 ${task.fileName}",
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
                             .onFailure { error ->
-                                Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                                showKiyoriDownloadFailure(
+                                    context = context,
+                                    logMessage = "Failed to merge M3U8 package to MP4",
+                                    userMessage = "无法合并为 MP4",
+                                    error = error,
+                                )
                             }
                     }
                 },
@@ -246,4 +271,14 @@ internal fun shouldComposeKiyoriDownloadDrawer(
 private fun copyKiyoriDownloadText(context: Context, label: String, value: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText(label, value))
+}
+
+private fun showKiyoriDownloadFailure(
+    context: Context,
+    logMessage: String,
+    userMessage: String,
+    error: Throwable,
+) {
+    AppLogger.e(KIYORI_DOWNLOAD_DRAWER_TAG, logMessage, error)
+    Toast.makeText(context, userMessage, Toast.LENGTH_SHORT).show()
 }

@@ -13,6 +13,15 @@ internal enum class BrowserDownloadSortMode {
     NAME,
 }
 
+internal enum class BrowserDownloadStatusFilter {
+    ALL,
+    ACTIVE,
+    QUEUED,
+    PAUSED,
+    FAILED,
+    CANCELED,
+}
+
 internal enum class BrowserDownloadCategory {
     VIDEO,
     AUDIO,
@@ -55,21 +64,66 @@ internal data class BrowserDownloadSection(
 internal fun filterBrowserDownloadDrawerItems(
     items: List<BrowserDownloadItem>,
     tab: BrowserDownloadDrawerTab,
-): List<BrowserDownloadItem> =
-    items.filter { item ->
-        when (tab) {
-            BrowserDownloadDrawerTab.DOWNLOADED -> item.status == "completed"
-            BrowserDownloadDrawerTab.DOWNLOADING ->
-                item.status in
-                    setOf(
-                        "queued",
-                        "connecting",
-                        "downloading",
-                        "paused",
-                        "failed",
-                        "canceled",
-                    )
-        }
+    statusFilter: BrowserDownloadStatusFilter = BrowserDownloadStatusFilter.ALL,
+    query: String = "",
+): List<BrowserDownloadItem> {
+    val normalizedQuery = query.trim().lowercase(Locale.ROOT)
+    return items.filter { item ->
+        val tabMatches =
+            when (tab) {
+                BrowserDownloadDrawerTab.DOWNLOADED -> item.status == "completed"
+                BrowserDownloadDrawerTab.DOWNLOADING ->
+                    item.status in
+                        setOf(
+                            "queued",
+                            "connecting",
+                            "downloading",
+                            "paused",
+                            "failed",
+                            "canceled",
+                        )
+            }
+        val statusMatches =
+            tab == BrowserDownloadDrawerTab.DOWNLOADED ||
+                when (statusFilter) {
+                    BrowserDownloadStatusFilter.ALL -> true
+                    BrowserDownloadStatusFilter.ACTIVE ->
+                        item.status == "connecting" || item.status == "downloading"
+                    BrowserDownloadStatusFilter.QUEUED -> item.status == "queued"
+                    BrowserDownloadStatusFilter.PAUSED -> item.status == "paused"
+                    BrowserDownloadStatusFilter.FAILED -> item.status == "failed"
+                    BrowserDownloadStatusFilter.CANCELED -> item.status == "canceled"
+                }
+        val queryMatches =
+            normalizedQuery.isBlank() ||
+                sequenceOf(
+                    item.fileName,
+                    item.sourceUrl.orEmpty(),
+                    item.mimeType.orEmpty(),
+                    item.errorMessage.orEmpty(),
+                ).any { value -> value.lowercase(Locale.ROOT).contains(normalizedQuery) }
+        tabMatches && statusMatches && queryMatches
+    }
+}
+
+internal fun browserDownloadBatchEligibleTaskIds(
+    items: List<BrowserDownloadItem>,
+    action: BrowserDownloadBatchAction,
+): Set<String> =
+    items
+        .asSequence()
+        .filter { item -> browserDownloadBatchSelectionEligible(item, action) }
+        .map { item -> item.id }
+        .toSet()
+
+internal fun toggleAllBrowserDownloadSelections(
+    selectedTaskIds: Set<String>,
+    eligibleTaskIds: Set<String>,
+): Set<String> =
+    if (eligibleTaskIds.isNotEmpty() && eligibleTaskIds.all(selectedTaskIds::contains)) {
+        selectedTaskIds - eligibleTaskIds
+    } else {
+        selectedTaskIds + eligibleTaskIds
     }
 
 internal fun sortBrowserDownloadDrawerItems(

@@ -4,6 +4,123 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-29 文件下载器全链路深度优化与阶段封板
+
+本阶段以现有 `BrowserDownloadManager` 为唯一任务、调度和状态所有者，对浏览器下载、播放器
+下载、网页下载确认、Shell/浏览器共享下载抽屉、文件下载器设置、系统下载器桥接、M3U8
+离线包、SAF/公开目录交付和 APK 安装清理进行一次封板级审计与闭环。项目尚未发布，因此允许
+直接清理未对外形成兼容合同的旧内部方案；不得新建第二下载队列、第二任务数据库、平行状态
+owner 或回退逻辑。
+
+审计确认的优先级与失败边界：
+
+- 同名任务必须在进入队列时原子预留最终文件和临时文件，不能让快速连续任务写入同一路径
+- 任务快照必须串行、原子落盘，进程终止或并发进度更新不能破坏整个任务历史
+- 多个网页下载请求必须排队确认，不能因全局单槽 `check` 触发崩溃或覆盖前一请求
+- 断点续传必须使用资源校验器确认服务端表示未变化；不能把不同版本的同名资源拼接到一起
+- 错误、日志和用户文案不得泄露带签名参数、Cookie 或授权信息的完整 URL
+- 后台下载继续复用唯一 Manager；Android 14 及以上使用用户发起数据传输任务宿主，旧版本使用
+  `dataSync` 前台服务宿主，不用第二套 WorkManager 下载数据库
+- 下载抽屉和设置页只呈现有真实执行链路的能力；搜索、筛选、批量操作、状态说明、通知与目录
+  语义必须一致且可访问
+- M3U8、安装包清理和系统下载器能力按真实平台边界实现；不使用计时删除、伪成功或隐式降级
+
+串行实施与验收门禁：
+
+1. [DONE] 数据正确性与安全：
+   - 原子化任务状态文件，集中序列化持久化入口
+   - 原子预留任务文件名，覆盖队列中尚未创建文件的同名任务
+   - 下载确认请求改为 FIFO，逐项确认或取消
+   - 传输错误统一脱敏；补充 ETag、Last-Modified 与 `If-Range` 安全续传合同
+   - 增加相关单元测试、formal readiness、`git diff --check` 和 Debug APK 构建核验
+2. [DONE] 后台运行与通知：
+   - 为唯一 Manager 增加平台调度宿主和明确的系统停止/重启状态
+   - 建立进行中通知、完成/失败通知、点击进入共享下载抽屉和可解释操作
+   - 核验应用重建、进程终止、用户暂停与系统中断不会相互混淆
+3. [DONE] 下载抽屉、设置和文案：
+   - 增加搜索、状态筛选、全选和批量操作闭环，统一点击热区、空态、错误与进度表达
+   - 补充有真实执行链路的网络策略、后台运行与通知设置，删除误导或重复入口
+   - 统一资源文案、类型命名和文件命名，删除不再使用的旧 UI/策略代码
+4. [DONE-local] 格式能力与最终封板：
+   - 完成 M3U8 边界、字节范围、资源规模和离线包完整性审计
+   - 把 APK 清理改为基于真实安装结果的持久化闭环，或删除无法兑现的旧选项
+   - 同步 `README.md`、`CONTEXT.md` 和下载中心完成度文档
+   - 执行风险相称的定向测试、Kotlin 编译、formal readiness、差异/敏感内容审计以及最终
+     `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`
+   - 核验最终 Debug APK 的时间、大小、SHA-256、包信息、签名和 zipalign；设备视觉与真实网络
+     验收在未安装 APK 前保持 `verification_pending`
+
+里程碑 1 本地证据：
+
+- `BrowserDownloadPolicyTest 24/24`、`BrowserDownloadTransportTest 18/18`、
+  `BrowserDownloadM3u8RuntimeTest 5/5`、`BrowserDownloadDrawerPolicyTest 8/8`，合计
+  `55/55`，零失败、零错误、零跳过
+- `:app:compileDebugKotlin`、formal readiness 和 `git diff --check` 通过；差异检查只有既有
+  CRLF 到 LF 提示，没有 whitespace error
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 15s`，233 个任务零失败，末尾
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-29 20:32:39 +08:00`，大小 `482591403` 字节，SHA-256
+  `475E1F5E1BDF800549F5902918E3231F0E2C0A867636D78F7925258B399A0260`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26/target 34；Android Debug v2 签名和
+  `zipalign -c -P 16 -v 4` 均通过
+- 未安装 APK、未操作设备；真实断点续传、资源变化、快速同名任务和进程终止仍需在后续设备/
+  后台运行里程碑统一验收
+
+里程碑 2 本地证据：
+
+- `BrowserDownloadRuntimePolicyTest 5/5`、`BrowserDownloadPolicyTest 24/24`、
+  `BrowserDownloadTransportTest 18/18`、`BrowserDownloadM3u8RuntimeTest 5/5`、
+  `BrowserDownloadDrawerPolicyTest 8/8`、`MainActivityBrowserActionTest 1/1`、
+  `KiyoriShellStateTest 42/42`，合计 `103/103`，零失败、零错误、零跳过
+- `:app:compileDebugKotlin`、formal readiness 和 `git diff --check` 通过；差异检查仍只有
+  CRLF 到 LF 提示，没有 whitespace error
+- APK 内 Manifest 已由 `aapt dump xmltree` 核验：
+  `RUN_USER_INITIATED_JOBS`、受 `BIND_JOB_SERVICE` 保护的 `BrowserDownloadJobService`、
+  `dataSync` 类型的 `BrowserDownloadForegroundService`、私有运行时 Action Receiver 和
+  Boot Receiver 均存在，导出边界符合设计
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 3m 26s`，233 个任务零失败，末尾
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-29 21:20:59 +08:00`，大小 `482597303` 字节，SHA-256
+  `D81A5C2865A265C0C9E37394401F9A9E32190B05A74BCECD031F35D45F1921A9`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26/target 34；Android Debug v2 签名和
+  `zipalign -c -P 16 -v 4` 均通过
+- 未安装 APK、未操作设备；Android 14+ UIDT 调度、Android 13- dataSync 通知、网络切换、
+  Task Manager 停止、进程重建、重启恢复和通知动作保持 `verification_pending`
+
+里程碑 3 与最终封板本地证据：
+
+- 设置模型升级为 version 2，下载设置固定为 `5/4/2/2/1` 共 14 行；下载抽屉接入搜索、状态
+  筛选、可见目标全选、独立批量取消/删除、筛选空态和可访问性说明
+- M3U8 离线包增加 4 MiB 文本上限、`#EXTM3U` 校验、master 循环检测、重复/字节范围资源
+  去重、256 项有界批次、KEY/MAP/PART 资源完整性校验，以及独立音轨/画面/字幕 playlist 的
+  明确拒绝
+- APK 自动清理已删除 90 秒计时路径；任务记录持久化包名、版本和安装前版本，SAF 暂存只用于
+  包信息解析并立即清理，最终删除严格依赖 `PACKAGE_ADDED` / `PACKAGE_REPLACED` 的精确包名与
+  版本匹配。完成通知的“打开”动作也通过 `MainActivity` 回到唯一 Manager
+- `BrowserDownloadPolicyTest 26/26`、`BrowserDownloadTransportTest 19/19`、
+  `BrowserDownloadM3u8RuntimeTest 7/7`、`BrowserDownloadDrawerPolicyTest 10/10`、
+  `BrowserDownloadRuntimePolicyTest 8/8`、`KiyoriSettingsPagesTest 8/8`、
+  `MainActivityBrowserActionTest 1/1`、`KiyoriShellStateTest 42/42`，合计 `121/121`，
+  零失败、零错误、零跳过
+- `:app:compileDebugKotlin`、formal readiness 和 `git diff --check` 通过；敏感内容审计无凭据
+  文件或常见密钥模式，唯一 `secret` 命中是既有布尔参数 `secret = false`
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 10s`，233 个任务零失败，末尾
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-29 22:26:17 +08:00`，大小 `482597303` 字节，SHA-256
+  `A1ECBF2DCE6301445ECD544885BDA9F467FD28E8503AED84DD9E6C930B651B18`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、compile 36；Android Debug v2
+  签名有效，`zipalign -c -P 16 -v 4` 通过。APK Manifest 已核验 UIDT 权限、JobService、
+  dataSync 前台服务、运行时/启动接收器和安装结果接收器
+- 本阶段本地代码与制品封板完成；未安装 APK、未操作设备。真实 UIDT/dataSync 生命周期、
+  网络切换与漫游、服务端表示变化、SAF 写入、系统安装成功/取消广播、抽屉视觉与触摸仍为
+  `verification_pending`
+
 ## 2026-07-29 浏览器与文件下载器设置页统一
 
 本轮以当前 `KiyoriPlayerSettingsPage` 为唯一设置页视觉和交互基线，把浏览器与文件下载器设置页

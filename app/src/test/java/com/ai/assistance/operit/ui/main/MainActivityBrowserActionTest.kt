@@ -19,6 +19,10 @@ class MainActivityBrowserActionTest {
             ),
         )
         assertEquals(
+            KiyoriShellExternalDestination.DOWNLOADS,
+            resolveKiyoriShellExternalDestination(MainActivity.ACTION_OPEN_KIYORI_DOWNLOADS),
+        )
+        assertEquals(
             KiyoriShellExternalDestination.DOWNLOAD_SETTINGS,
             resolveKiyoriShellExternalDestination(
                 MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS,
@@ -26,5 +30,24 @@ class MainActivityBrowserActionTest {
         )
         assertNull(resolveKiyoriShellExternalDestination(null))
         assertNull(resolveKiyoriShellExternalDestination("com.kiyori.action.UNKNOWN"))
+        assertEquals(
+            "task-1",
+            resolveKiyoriDownloadTaskId(
+                MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_TASK,
+                " task-1 ",
+            ),
+        )
+        assertNull(
+            resolveKiyoriDownloadTaskId(
+                MainActivity.ACTION_OPEN_KIYORI_DOWNLOADS,
+                "task-1",
+            ),
+        )
+        assertNull(
+            resolveKiyoriDownloadTaskId(
+                MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_TASK,
+                " ",
+            ),
+        )
     }
 }

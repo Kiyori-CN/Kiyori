@@ -62,6 +62,7 @@ import android.net.Uri
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import com.ai.assistance.operit.ui.features.player.PlayerActivity
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
@@ -75,6 +76,8 @@ internal fun resolveKiyoriShellExternalDestination(
     when (action) {
         MainActivity.ACTION_OPEN_KIYORI_BROWSER ->
             KiyoriShellExternalDestination.BROWSER_HOME
+        MainActivity.ACTION_OPEN_KIYORI_DOWNLOADS ->
+            KiyoriShellExternalDestination.DOWNLOADS
         MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS ->
             KiyoriShellExternalDestination.BROWSER_SETTINGS
         MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS ->
@@ -82,10 +85,25 @@ internal fun resolveKiyoriShellExternalDestination(
         else -> null
     }
 
+internal fun resolveKiyoriDownloadTaskId(
+    action: String?,
+    taskId: String?,
+): String? =
+    taskId
+        ?.trim()
+        ?.takeIf { value ->
+            action == MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_TASK && value.isNotBlank()
+        }
+
 class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_SETTINGS_SHORTCUT = "com.ai.assistance.operit.action.OPEN_SETTINGS_SHORTCUT"
         const val ACTION_OPEN_KIYORI_BROWSER = "com.kiyori.action.OPEN_BROWSER"
+        const val ACTION_OPEN_KIYORI_DOWNLOADS = "com.kiyori.action.OPEN_DOWNLOADS"
+        const val ACTION_OPEN_KIYORI_DOWNLOAD_TASK =
+            "com.kiyori.action.OPEN_DOWNLOAD_TASK"
+        const val EXTRA_KIYORI_DOWNLOAD_TASK_ID =
+            "com.kiyori.extra.DOWNLOAD_TASK_ID"
         const val ACTION_OPEN_KIYORI_BROWSER_SETTINGS =
             "com.kiyori.action.OPEN_BROWSER_SETTINGS"
         const val ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS =
@@ -298,6 +316,23 @@ class MainActivity : ComponentActivity() {
                 startActivity(PlayerActivity.createReuseSessionIntent(this))
             }
             return presentation != null
+        }
+
+        resolveKiyoriDownloadTaskId(
+            action = intent?.action,
+            taskId = intent?.getStringExtra(EXTRA_KIYORI_DOWNLOAD_TASK_ID),
+        )?.let { taskId ->
+            intent?.action = null
+            if (!BrowserDownloadManager.getInstance(this).openDownloadedFile(taskId)) {
+                pendingKiyoriShellDestination = KiyoriShellExternalDestination.DOWNLOADS
+                pendingKiyoriShellRequestId = System.currentTimeMillis()
+                Toast.makeText(
+                    this,
+                    R.string.web_session_download_open_failed,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            return true
         }
 
         resolveKiyoriShellExternalDestination(intent?.action)?.let { destination ->

@@ -1,6 +1,53 @@
 # 下载中心与下载设置
 
-[IN PROGRESS]
+[VERIFICATION PENDING]
+
+## 2026-07-29 文件下载器阶段封板
+
+本阶段以现有 `BrowserDownloadManager` 为唯一任务、队列、调度、持久化和文件 owner，完成数据
+正确性、后台运行、设置、共享下载抽屉、M3U8、安全与安装包生命周期的封板级整理。未引入
+WorkManager 下载数据库、第二下载队列、平行状态投影或失败后的下载器切换。
+
+当前完成合同：
+
+- 任务快照使用 `AtomicFile` 串行提交；同名目标、分片和离线包目录在入队前统一预留
+- 网页下载确认由单槽改为容量 32 的 FIFO；队列满时明确拒绝新请求
+- 普通文件以强 ETag 或 Last-Modified 建立 `If-Range` 续传合同；远端表示变化时清理旧分片并
+  失败，不拼接不同版本资源
+- Android 14 及以上使用用户发起数据传输 Job，Android 8 至 13 使用 `dataSync` 前台服务；
+  进行中通知显示聚合进度、速度与全部暂停，结果通知可独立关闭
+- 设置模型升级到 version 2，固定为 `5/4/2/2/1` 共 14 行，新增任意/非计费网络、漫游控制、
+  结果通知和系统通知设置；内置与 Android 系统下载器共同消费网络策略
+- 共享下载抽屉增加搜索、状态筛选、当前可见任务全选、独立批量删除/取消、筛选空态、明确
+  点击热区与可访问性说明
+- M3U8 当前统一称为“离线包”；文本受 4 MiB 上限和 `#EXTM3U` 校验，最高带宽 master 最多
+  四层且拒绝循环，重复或字节范围 URL 只下载一份，资源按 256 项批次创建协程并在提交前逐项
+  验证。独立音轨、画面或字幕 playlist 会明确失败，不生成缺轨离线包
+- APK 自动清理不再使用 90 秒计时。任务持久化目标包名、目标版本和安装前版本；SAF APK
+  的短生命周期缓存副本只用于读取包信息，安装器仍读取原始授权 URI。只有 Android
+  `PACKAGE_ADDED` / `PACKAGE_REPLACED` 报告精确包名和版本后
+  才删除原文件和记录。取消安装、安装失败或关闭设置都不会删除原文件
+- 状态输出与错误日志对 URL、Cookie、授权值和签名查询进行脱敏；显式“复制下载链接”仍返回
+  用户请求的原始地址
+
+本地封板证据：
+
+- 8 个专项测试套件共 `121/121` 通过，零失败、零错误、零跳过；主源码 Kotlin 编译通过
+- formal readiness 为 PASS；`git diff --check` 无 whitespace error；敏感内容审计未发现
+  凭据文件或常见密钥模式
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 10s`，233 个任务零失败，末尾
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-07-29 22:26:17 +08:00`，大小 `482597303` 字节，SHA-256
+  `A1ECBF2DCE6301445ECD544885BDA9F467FD28E8503AED84DD9E6C930B651B18`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、compile 36；Android Debug v2
+  签名与 `zipalign -c -P 16 -v 4` 通过
+- APK Manifest 已核验 `RUN_USER_INITIATED_JOBS`、`BrowserDownloadJobService`、
+  `BrowserDownloadForegroundService`、运行时 Action Receiver、Boot Receiver 和
+  `BrowserDownloadInstallResultReceiver`，后者包含 `PACKAGE_ADDED` 与 `PACKAGE_REPLACED`
+- 本地实现和制品已封板。未安装 APK、未操作设备；真实网络、后台调度、系统安装广播、SAF、
+  系统下载器和抽屉视觉触摸保持 `verification_pending`
 
 ## 2026-07-26 旧版真实消费者矩阵
 
@@ -13,12 +60,12 @@
 | 同时下载任务数 | `InternalDownloadManager.schedulePendingDownloads` | 第一内部阶段接入现有 `BrowserDownloadManager` |
 | 普通格式下载线程数 | HTTP Range 分段调度 | 已按用户确认收敛为 `3/6/12/20/32` 五档，默认 `6`；实际并发继续受文件大小与每段至少 `1 MiB` 约束 |
 | M3U8 下载线程数 | M3U8 分片 semaphore | 已接入同一 manager 的资源 semaphore 与设置 UI |
-| M3U8 自动合并 | M3U8 manifest 与本地包生成 | 已接入 playlist/companion runtime 与设置 UI |
+| M3U8 离线包 | M3U8 manifest 与本地包生成 | 已接入 playlist/companion runtime、边界校验与设置 UI |
 | 自动转存公开目录 | 下载完成转存 | 内置下载默认落应用下载目录；新任务启用后完成时转存 `Download/Kiyori/browser/downloads/`，与 SAF 目录互斥 |
 | 自定义下载分块大小 | 单流 buffer、Range 切片阈值 | 已由 manager 冻结并用于单流 buffer 与严格 Range 计划，设置 UI 已接入 |
-| 安装包自动清理 | 完成 APK 清理 | 内置 APK 安装器成功唤起后按 90 秒延迟清理任务与文件，设置 UI 已接入 |
+| 安装包自动清理 | 完成 APK 清理 | 精确包名和版本安装成功后清理任务与原文件；包信息暂存解析后立即删除 |
 | 下载无需弹窗确认 | `DownloadRequestDispatcher` | 第三内部阶段接入唯一 pending-download request owner |
-| 下载完成强提示 | `InternalDownloadManager` 完成/失败通知 | 第三内部阶段接入现有 manager 的完成/失败事件 |
+| 完成与失败通知 | `InternalDownloadManager` 完成/失败通知 | 接入 manager 结果通知，并提供系统通知设置入口 |
 | 切换下载协议 | OkHttp protocol 列表 | manager 按任务冻结值创建 Browser transport，设置 UI 已接入 |
 
 旧下载中心“暂停下载”只显示“暂不支持暂停下载” Toast，不是真实能力；当前 `BrowserDownloadManager` 已有真实暂停/恢复，因此迁移后使用当前真实状态机。
@@ -31,8 +78,8 @@
 2. [DONE-local] 下载 UI 基础：浏览器紧凑抽屉继续复用现有任务；新增同 owner 下载中心、删除确认和 `5/3/3/1` 设置页面骨架，只让已有真实 consumer 的行可交互
 3. [DONE-local] 下载请求策略：下载确认、完成提示、内置/系统下载器选择及系统任务边界
 4. [DONE-local] 目标目录与文件操作：SAF 自定义目录、公开目录、重命名、移动、分享、复制地址与路径
-5. [DONE-local] M3U8、transport 与完整下载设置页：5-A 至 5-D runtime、四项设置 UI、自动转存公开目录和 APK 自动清理均已接入，仍只使用现有 JSON record；真机与真实站点验收待完成
-6. APK 清理与综合验收：明确目标集合、二次确认、恢复/并发/进度/文件动作全链路验证
+5. [DONE-local] M3U8、transport 与完整下载设置页：5-A 至 5-D runtime、网络与通知设置、自动转存公开目录和 APK 自动清理均已接入，仍只使用现有 JSON record
+6. [DONE-local] 后台运行、真实安装结果、抽屉与综合封板：实现、测试、正式门禁、最终构建与制品核验已完成；设备验收保持待验证
 
 ## 旧实现
 
@@ -186,7 +233,7 @@
 
 ### 内部阶段 5-A 实现：设置 owner 与纯策略
 
-- `BrowserDownloadSettingsStore` 保持 schema version `1`，新增七档 `m3u8ThreadCount`、默认开启的 `autoMergeM3u8`、七档 `chunkSizeKb` 和默认开启的 `enableHttp2`；这些字段当前只完成持久化 owner，不提前开放设置页交互
+- `BrowserDownloadSettingsStore` 当时保持 schema version `1`，新增七档 `m3u8ThreadCount`、默认开启的离线包设置、七档 `chunkSizeKb` 和默认开启的 `enableHttp2`；当前 Kotlin 字段已统一为 `packageM3u8Offline`，持久化键继续兼容 `auto_merge_m3u8`
 - `setM3u8ThreadCount` 与 `setMaxConcurrentTasks` 共同执行 `min(4, 128 / max(normalThreads, m3u8Threads))` 上限；M3U8 线程提高导致上限收窄时，同一次 preference editor 写入线程数和新的任务并发值，不取消已经运行的任务
 - 新增纯策略 `BrowserDownloadM3u8Policy.kt`：chunk Range 计划把所选块大小与 `1 MiB` 取较大值，生成连续 inclusive ranges；M3U8 检测复用 URL、建议文件名和响应 MIME 三类信号
 - master playlist 选择器解析标准 `#EXT-X-STREAM-INF:` 冒号与后续逗号属性，选择最高 `BANDWIDTH` variant 并使用 `URI.resolve` 解析相对地址；无效 URI 直接失败，不生成替代地址
@@ -245,11 +292,11 @@
 
 - 本切片只接入“`M3U8自动合并`”，继续保持分块大小、下载协议、自动转存公开目录和安装包自动清理的现有占位状态
 - 设置行复用旧版同语义的整行点击和 `17dp` 方形勾选框，不新增 Material Switch、说明弹窗或第二份 UI 状态
-- 勾选状态直接读取 `BrowserDownloadSettings.autoMergeM3u8`；点击只调用 `BrowserDownloadSettingsStore.setAutoMergeM3u8(!current)`，由同一 `StateFlow` 刷新界面
+- 勾选状态当前读取 `BrowserDownloadSettings.packageM3u8Offline`；点击只调用 `BrowserDownloadSettingsStore.setPackageM3u8Offline(!current)`，由同一 `StateFlow` 刷新界面
 - 默认值保持旧版与当前 store 的 `true`；不修改 schema、偏好 key、任务 JSON 解析或旧任务缺字段时的 `false` 语义
 - 设置变化只影响之后创建的任务。新任务冻结该值；已排队、暂停、下载中和完成任务都不被重写、不取消、不重新调度
 - 关闭时新 M3U8 任务只保存服务端 playlist 文本；开启时新任务继续使用已经验收的最高带宽 variant、KEY/MAP/媒体资源和 companion package 运行时
-- UI contract 测试锁定该行从 `NONE` 变为 `TOGGLE_AUTO_MERGE_M3U8`；现有 policy 测试继续锁定默认开启，runtime 测试继续覆盖开启和关闭两条真实执行路径
+- UI contract 测试锁定该行真实 action 为 `TOGGLE_M3U8_OFFLINE_PACKAGE`；policy 测试继续锁定默认开启，runtime 测试继续覆盖开启和关闭两条真实执行路径
 
 ### 内部阶段 5-E3 完整文件下载器设置页切片
 
@@ -257,9 +304,9 @@
 - `BrowserDownloadSettingsStore` 新增 `autoTransferToPublicDirectory` 与 `autoCleanApk` 两个 owner 字段，schema 继续为 `1`。选择 SAF 目录会原子关闭自动公开转存；开启自动公开转存会清除 SAF 目录，两者不可同时存在。
 - 内置普通下载和未自动合并的 M3U8 playlist 默认写入应用下载目录；自动公开转存只对非 M3U8 离线包的新任务生效，完整文件复制到 `Download/Kiyori/browser/downloads/` 后才删除应用目录源文件。M3U8 离线包及系统 DownloadManager 任务不消费该开关。
 - 新 HTTP/内联任务冻结自动转存、分块大小和 HTTP 协议；既有 JSON 缺少自动转存字段时使用 `false`，已运行、已排队或已完成任务不因设置变化改写目标。
-- 打开 Kiyori 内置 APK 且自动清理开启时，manager 在安装器成功唤起后等待 `90s`，再删除当前任务记录和当前文件；系统下载器不进入该生命周期。
+- 打开 Kiyori 内置 APK 且自动清理开启时，manager 先持久化安装包包名、版本和安装前版本；SAF 文件复制到受控缓存后交给系统安装器。只有系统安装广播与目标包名、版本完全匹配时才删除任务记录和原文件；系统下载器不进入该生命周期。
 - UI 复刻旧版选择面板：分块大小为 `12MB/8MB/4MB/2MB/1MB/512KB/256KB`，协议为“优先 HTTP/2/仅 HTTP/1.1”；四个 toggle 复用旧版整行点击与 `17dp` 方形勾选框。
-- `KiyoriSettingsPagesTest` 锁定 `5/3/3/1` 组结构与十二项 action 全部接通；`BrowserDownloadPolicyTest` 锁定新默认值、互斥目标、APK 识别和 `90s` 生命周期常量。
+- `KiyoriSettingsPagesTest` 当前锁定 `5/4/2/2/1` 组结构与十四项 action；`BrowserDownloadPolicyTest` 锁定设置默认值、互斥目标、APK 识别和精确安装包名/版本匹配。
 
 ### 内部阶段 5-E4 设置子页面视觉统一
 

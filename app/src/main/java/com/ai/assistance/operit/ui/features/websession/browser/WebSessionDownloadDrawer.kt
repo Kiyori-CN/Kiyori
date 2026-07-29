@@ -8,6 +8,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,7 +37,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -65,6 +68,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -82,10 +87,13 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSection
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSortMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadStatusFilter
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadUiState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionDirectoryPickerCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadBatchSelectionEligible
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadBatchEligibleTaskIds
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadDisplayUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadDrawerActions
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadRenameInput
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildBrowserDownloadRenameTarget
@@ -96,6 +104,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.format
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isBrowserDownloadNetworkUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.sortBrowserDownloadDrawerItems
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.toggleBrowserDownloadSelection
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.toggleAllBrowserDownloadSelections
 import com.ai.assistance.operit.util.AppLogger
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -151,6 +160,8 @@ internal fun WebSessionDownloadSheet(
     val batchMode = batchAction != null
     var showTime by remember { mutableStateOf(false) }
     var classify by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var statusFilter by remember { mutableStateOf(BrowserDownloadStatusFilter.ALL) }
     var selectedTaskIds by remember { mutableStateOf(emptySet<String>()) }
     var showTopMenu by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
@@ -167,12 +178,28 @@ internal fun WebSessionDownloadSheet(
             DownloadPageLightColor
         }
     val visibleItems =
-        remember(uiState.tasks, selectedTab, sortMode) {
+        remember(uiState.tasks, selectedTab, sortMode, statusFilter, searchQuery) {
             sortBrowserDownloadDrawerItems(
-                filterBrowserDownloadDrawerItems(uiState.tasks, selectedTab),
+                filterBrowserDownloadDrawerItems(
+                    items = uiState.tasks,
+                    tab = selectedTab,
+                    statusFilter = statusFilter,
+                    query = searchQuery,
+                ),
                 sortMode,
             )
         }
+    val eligibleVisibleTaskIds =
+        remember(visibleItems, batchAction) {
+            batchAction
+                ?.let { action ->
+                    browserDownloadBatchEligibleTaskIds(visibleItems, action)
+                }
+                .orEmpty()
+        }
+    val allEligibleVisibleItemsSelected =
+        eligibleVisibleTaskIds.isNotEmpty() &&
+            eligibleVisibleTaskIds.all(selectedTaskIds::contains)
     val selectedVisibleItems =
         remember(visibleItems, selectedTaskIds, batchAction) {
             visibleItems.filter { item ->
@@ -196,7 +223,11 @@ internal fun WebSessionDownloadSheet(
                     BrowserDownloadManager.getInstance(context)
                         .releasePersistedDirectoryPermissionIfUnused(treeUriString)
                     AppLogger.e(DOWNLOAD_DRAWER_TAG, "Failed to persist selected download directory", error)
-                    Toast.makeText(context, error.toString(), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        error.message ?: "无法使用所选目录",
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 }
             }
         }
@@ -205,6 +236,19 @@ internal fun WebSessionDownloadSheet(
     LaunchedEffect(pagerState.currentPage) {
         selectedTaskIds = emptySet()
         batchAction = null
+        if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
+            statusFilter = BrowserDownloadStatusFilter.ALL
+        }
+    }
+
+    LaunchedEffect(visibleItems, batchAction) {
+        selectedTaskIds =
+            selectedTaskIds.intersect(
+                browserDownloadBatchEligibleTaskIds(
+                    items = visibleItems,
+                    action = batchAction ?: return@LaunchedEffect,
+                ),
+            )
     }
 
     fun enterBatchMode(
@@ -239,7 +283,7 @@ internal fun WebSessionDownloadSheet(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "我的下载",
+                text = if (batchMode) "已选 ${selectedVisibleItems.size} 项" else "我的下载",
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -249,12 +293,14 @@ internal fun WebSessionDownloadSheet(
                     Modifier
                         .padding(start = 4.dp)
                         .size(36.dp)
+                        .semantics { contentDescription = "下载管理菜单" }
                         .clickable { showTopMenu = true },
                 contentAlignment = Alignment.Center,
             ) {
                 DownloadMenuTrigger()
                 DownloadTopMenu(
                     expanded = showTopMenu,
+                    tab = selectedTab,
                     batchAction = batchAction,
                     showTime = showTime,
                     classify = classify,
@@ -263,13 +309,17 @@ internal fun WebSessionDownloadSheet(
                         showTopMenu = false
                         showSortDialog = true
                     },
-                    onToggleBatch = {
+                    onStartBatchDelete = {
                         showTopMenu = false
-                        if (batchMode) {
-                            leaveBatchMode()
-                        } else {
-                            enterBatchMode(BrowserDownloadBatchAction.DELETE)
-                        }
+                        enterBatchMode(BrowserDownloadBatchAction.DELETE)
+                    },
+                    onStartBatchCancel = {
+                        showTopMenu = false
+                        enterBatchMode(BrowserDownloadBatchAction.CANCEL)
+                    },
+                    onExitBatch = {
+                        showTopMenu = false
+                        leaveBatchMode()
                     },
                     onOpenFileManager = {
                         showTopMenu = false
@@ -290,18 +340,50 @@ internal fun WebSessionDownloadSheet(
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
-            DownloadOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
-            Spacer(modifier = Modifier.width(10.dp))
+            if (batchMode) {
+                DownloadOutlinedActionButton(
+                    title = if (allEligibleVisibleItemsSelected) "取消全选" else "全选",
+                    enabled = eligibleVisibleTaskIds.isNotEmpty(),
+                    onClick = {
+                        selectedTaskIds =
+                            toggleAllBrowserDownloadSelections(
+                                selectedTaskIds = selectedTaskIds,
+                                eligibleTaskIds = eligibleVisibleTaskIds,
+                            )
+                    },
+                )
+            } else {
+                DownloadOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             DownloadOutlinedActionButton(
                 title =
                     when (batchAction) {
                         BrowserDownloadBatchAction.DELETE -> "删除"
                         BrowserDownloadBatchAction.CANCEL -> "取消"
-                        null -> "清空"
+                        null -> "清理"
                     },
-                enabled = !batchMode || selectedVisibleItems.isNotEmpty(),
+                enabled =
+                    if (batchMode) {
+                        selectedVisibleItems.isNotEmpty()
+                    } else {
+                        visibleItems.any { item ->
+                            selectedTab == BrowserDownloadDrawerTab.DOWNLOADED ||
+                                item.status == "failed" ||
+                                item.status == "canceled"
+                        }
+                    },
                 onClick = {
-                    val targets = if (batchMode) selectedVisibleItems else visibleItems
+                    val targets =
+                        if (batchMode) {
+                            selectedVisibleItems
+                        } else if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
+                            visibleItems
+                        } else {
+                            visibleItems.filter { item ->
+                                item.status == "failed" || item.status == "canceled"
+                            }
+                        }
                     if (targets.isNotEmpty()) {
                         when (batchAction) {
                             BrowserDownloadBatchAction.CANCEL -> cancelRequest = targets
@@ -314,9 +396,9 @@ internal fun WebSessionDownloadSheet(
                                             if (batchMode) {
                                                 "确认删除已选择的 ${targets.size} 项下载吗？"
                                             } else if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
-                                                "确认要清空已下载的所有内容吗？"
+                                                "确认清理当前列表中的 ${targets.size} 个已下载文件吗？"
                                             } else {
-                                                "确认要清空下载中的所有任务吗？"
+                                                "确认清理 ${targets.size} 条失败或已取消任务吗？"
                                             },
                                     )
                         }
@@ -339,15 +421,28 @@ internal fun WebSessionDownloadSheet(
             }
         }
 
+            DownloadSearchAndFilterBar(
+                query = searchQuery,
+                onQueryChange = { value -> searchQuery = value },
+                tab = selectedTab,
+                statusFilter = statusFilter,
+                onStatusFilterChange = { value -> statusFilter = value },
+            )
+
             HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize().background(pageBackground),
         ) { page ->
             val tab = tabs[page]
             val pageItems =
-                remember(uiState.tasks, tab, sortMode) {
+                remember(uiState.tasks, tab, sortMode, statusFilter, searchQuery) {
                     sortBrowserDownloadDrawerItems(
-                        filterBrowserDownloadDrawerItems(uiState.tasks, tab),
+                        filterBrowserDownloadDrawerItems(
+                            items = uiState.tasks,
+                            tab = tab,
+                            statusFilter = statusFilter,
+                            query = searchQuery,
+                        ),
                         sortMode,
                     )
                 }
@@ -361,6 +456,12 @@ internal fun WebSessionDownloadSheet(
                 batchAction = batchAction,
                 selectedTaskIds = selectedTaskIds,
                 showTime = showTime,
+                hasActiveFilters =
+                    searchQuery.isNotBlank() ||
+                        (
+                            tab == BrowserDownloadDrawerTab.DOWNLOADING &&
+                                statusFilter != BrowserDownloadStatusFilter.ALL
+                        ),
                 pageBackground = pageBackground,
                 onToggleSelection = { item ->
                     selectedTaskIds = toggleBrowserDownloadSelection(selectedTaskIds, item.id)
@@ -485,7 +586,7 @@ internal fun WebSessionDownloadSheet(
                             renameMode = BrowserDownloadRenameMode.SUFFIX
                         }
                     BrowserDownloadDrawerActionType.MOVE_FOLDER ->
-                        BrowserDownloadDrawerAction("修改文件夹") {
+                        BrowserDownloadDrawerAction("移动到文件夹") {
                             actionItem = null
                             launchMoveDirectoryPicker(item.id)
                         }
@@ -510,7 +611,7 @@ internal fun WebSessionDownloadSheet(
                             onTransferDownload(item.id)
                         }
                     BrowserDownloadDrawerActionType.MERGE_TO_MP4 ->
-                        BrowserDownloadDrawerAction("合并为MP4格式") {
+                        BrowserDownloadDrawerAction("合并为 MP4") {
                             actionItem = null
                             onMergeDownloadToMp4(item.id)
                         }
@@ -530,7 +631,7 @@ internal fun WebSessionDownloadSheet(
                             onCancelDownload(item.id)
                         }
                     BrowserDownloadDrawerActionType.RETRY ->
-                        BrowserDownloadDrawerAction("恢复下载") {
+                        BrowserDownloadDrawerAction("重试下载") {
                             actionItem = null
                             onRetryDownload(item.id)
                         }
@@ -643,12 +744,134 @@ private fun DownloadTab(
 }
 
 @Composable
+private fun DownloadSearchAndFilterBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    tab: BrowserDownloadDrawerTab,
+    statusFilter: BrowserDownloadStatusFilter,
+    onStatusFilterChange: (BrowserDownloadStatusFilter) -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(40.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(start = 11.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(19.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    if (query.isBlank()) {
+                        Text(
+                            text = "搜索文件名、来源或错误",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                        )
+                    }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        singleLine = true,
+                        textStyle =
+                            TextStyle(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                            ),
+                        cursorBrush = SolidColor(DownloadAccentColor),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (query.isNotBlank()) {
+                    Box(
+                        modifier = Modifier.size(36.dp).clickable { onQueryChange("") },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "清除搜索",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+        if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
+            Spacer(modifier = Modifier.height(7.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                BrowserDownloadStatusFilter.entries.forEach { filter ->
+                    val selected = statusFilter == filter
+                    Surface(
+                        color =
+                            if (selected) {
+                                DownloadAccentColor.copy(alpha = 0.12f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainer
+                            },
+                        shape = RoundedCornerShape(999.dp),
+                        border =
+                            BorderStroke(
+                                1.dp,
+                                if (selected) {
+                                    DownloadAccentColor.copy(alpha = 0.55f)
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                },
+                            ),
+                        modifier =
+                            Modifier
+                                .height(32.dp)
+                                .clickable { onStatusFilterChange(filter) },
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = downloadStatusFilterLabel(filter),
+                                color =
+                                    if (selected) {
+                                        DownloadAccentColor
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                fontSize = 12.sp,
+                                fontWeight =
+                                    if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DownloadRecordsPage(
     tab: BrowserDownloadDrawerTab,
     sections: List<BrowserDownloadSection>,
     batchAction: BrowserDownloadBatchAction?,
     selectedTaskIds: Set<String>,
     showTime: Boolean,
+    hasActiveFilters: Boolean,
     pageBackground: Color,
     onToggleSelection: (BrowserDownloadItem) -> Unit,
     onOpenItem: (String) -> Unit,
@@ -668,7 +891,9 @@ private fun DownloadRecordsPage(
         ) {
             Text(
                 text =
-                    if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
+                    if (hasActiveFilters) {
+                        "没有匹配的下载任务"
+                    } else if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
                         "当前没有下载任务"
                     } else {
                         "当前没有已下载文件"
@@ -721,6 +946,7 @@ private fun DownloadRecordsPage(
                             onShowActions(item)
                         }
                     },
+                    onShowActions = { onShowActions(item) },
                     onPause = { onPauseDownload(item.id) },
                     onResume = { onResumeDownload(item.id) },
                     onCancel = { onCancelDownload(item.id) },
@@ -743,6 +969,7 @@ private fun DownloadDrawerTaskCard(
     showTime: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onShowActions: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onCancel: () -> Unit,
@@ -767,7 +994,7 @@ private fun DownloadDrawerTaskCard(
                 if (batchMode) {
                     Icon(
                         imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                        contentDescription = null,
+                        contentDescription = if (selected) "已选择" else "未选择",
                         tint =
                             when {
                                 selected -> DownloadAccentColor
@@ -781,7 +1008,7 @@ private fun DownloadDrawerTaskCard(
                 Text(
                     text = item.fileName,
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -791,15 +1018,15 @@ private fun DownloadDrawerTaskCard(
                     Text(
                         text = drawerStatusLabel(item.status),
                         color = drawerStatusColor(item.status),
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                     )
                 }
             }
             item.sourceUrl?.takeIf { value -> value.isNotBlank() }?.let { sourceUrl ->
                 Text(
-                    text = sourceUrl,
+                    text = browserDownloadDisplayUrl(sourceUrl),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp),
@@ -810,7 +1037,7 @@ private fun DownloadDrawerTaskCard(
                 Text(
                     text = meta,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     modifier = Modifier.padding(top = 3.dp),
                 )
             }
@@ -818,7 +1045,7 @@ private fun DownloadDrawerTaskCard(
                 Text(
                     text = item.errorMessage,
                     color = MaterialTheme.colorScheme.error,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp),
@@ -842,7 +1069,7 @@ private fun DownloadDrawerTaskCard(
                 Text(
                     text = drawerProgressText(item),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -854,26 +1081,23 @@ private fun DownloadDrawerTaskCard(
                     when {
                         item.status == "completed" -> {
                             DownloadInlineAction("打开", onClick)
-                            Spacer(modifier = Modifier.width(12.dp))
                             DownloadInlineAction("删除", onDelete)
                         }
                         item.canPause -> {
                             DownloadInlineAction("暂停", onPause)
-                            Spacer(modifier = Modifier.width(12.dp))
                             DownloadInlineAction("取消", onCancel)
                         }
                         item.canResume -> {
                             DownloadInlineAction("继续", onResume)
-                            Spacer(modifier = Modifier.width(12.dp))
                             DownloadInlineAction("取消", onCancel)
                         }
                         item.canRetry -> {
                             DownloadInlineAction("重试", onRetry)
-                            Spacer(modifier = Modifier.width(12.dp))
                             DownloadInlineAction("删除", onDelete)
                         }
                         else -> DownloadInlineAction("删除", onDelete)
                     }
+                    DownloadInlineAction("更多", onShowActions)
                 }
             }
         }
@@ -882,24 +1106,34 @@ private fun DownloadDrawerTaskCard(
 
 @Composable
 private fun DownloadInlineAction(title: String, onClick: () -> Unit) {
-    Text(
-        text = title,
-        color = DownloadAccentColor,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = Modifier.clickable(onClick = onClick),
-    )
+    Box(
+        modifier =
+            Modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 36.dp)
+                .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = title,
+            color = DownloadAccentColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
 }
 
 @Composable
 private fun DownloadTopMenu(
     expanded: Boolean,
+    tab: BrowserDownloadDrawerTab,
     batchAction: BrowserDownloadBatchAction?,
     showTime: Boolean,
     classify: Boolean,
     onDismiss: () -> Unit,
     onSort: () -> Unit,
-    onToggleBatch: () -> Unit,
+    onStartBatchDelete: () -> Unit,
+    onStartBatchCancel: () -> Unit,
+    onExitBatch: () -> Unit,
     onOpenFileManager: () -> Unit,
     onToggleTime: () -> Unit,
     onToggleClassify: () -> Unit,
@@ -913,14 +1147,14 @@ private fun DownloadTopMenu(
         shadowElevation = WebSessionBrowserPopupElevation,
     ) {
         WebSessionBrowserDropdownItem("排序方式", onSort)
-        WebSessionBrowserDropdownItem(
-            when (batchAction) {
-                BrowserDownloadBatchAction.DELETE -> "退出批量删除"
-                BrowserDownloadBatchAction.CANCEL -> "退出批量取消"
-                null -> "批量删除"
-            },
-            onToggleBatch,
-        )
+        if (batchAction == null) {
+            WebSessionBrowserDropdownItem("批量删除", onStartBatchDelete)
+            if (tab == BrowserDownloadDrawerTab.DOWNLOADING) {
+                WebSessionBrowserDropdownItem("批量取消", onStartBatchCancel)
+            }
+        } else {
+            WebSessionBrowserDropdownItem("退出批量操作", onExitBatch)
+        }
         WebSessionBrowserDropdownItem("文件管理", onOpenFileManager)
         WebSessionBrowserDropdownItem(if (showTime) "隐藏时间" else "显示时间", onToggleTime)
         WebSessionBrowserDropdownItem(if (classify) "关闭分类显示" else "分类显示", onToggleClassify)
@@ -995,7 +1229,7 @@ private fun AddBrowserDownloadDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 DownloadDialogField(
                     value = url,
-                    label = "文件所在网址，支持m3u8",
+                    label = "文件所在网址，支持 M3U8",
                     onValueChange = {
                         url = it
                         errorText = null
@@ -1388,6 +1622,16 @@ private fun downloadSortModeLabel(mode: BrowserDownloadSortMode): String =
         BrowserDownloadSortMode.NEWEST -> "最新优先"
         BrowserDownloadSortMode.OLDEST -> "最早优先"
         BrowserDownloadSortMode.NAME -> "按名称"
+    }
+
+private fun downloadStatusFilterLabel(filter: BrowserDownloadStatusFilter): String =
+    when (filter) {
+        BrowserDownloadStatusFilter.ALL -> "全部"
+        BrowserDownloadStatusFilter.ACTIVE -> "进行中"
+        BrowserDownloadStatusFilter.QUEUED -> "等待中"
+        BrowserDownloadStatusFilter.PAUSED -> "已暂停"
+        BrowserDownloadStatusFilter.FAILED -> "失败"
+        BrowserDownloadStatusFilter.CANCELED -> "已取消"
     }
 
 private fun downloadCategoryLabel(category: BrowserDownloadCategory): String =

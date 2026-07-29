@@ -928,8 +928,11 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 .fold(
                     onSuccess = { accepted -> accepted },
                     onFailure = { error ->
-                        AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to download browser media candidate", error)
-                        showToast(error.toString())
+                        showBrowserDownloadFailure(
+                            logMessage = "Failed to download browser media candidate",
+                            userMessage = "无法添加媒体下载任务",
+                            error = error,
+                        )
                         false
                     },
                 )
@@ -1001,8 +1004,11 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             return result.fold(
                 onSuccess = { accepted -> accepted },
                 onFailure = { error ->
-                    AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to start manual browser download", error)
-                    showToast(error.toString())
+                    showBrowserDownloadFailure(
+                        logMessage = "Failed to start manual browser download",
+                        userMessage = "无法添加下载任务，请检查链接和文件名",
+                        error = error,
+                    )
                     false
                 },
             )
@@ -1013,7 +1019,13 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 .onSuccess { task ->
                     showToast(context.getString(R.string.download_started, task.fileName))
                 }
-                .onFailure { error -> showToast(error.toString()) }
+                .onFailure { error ->
+                    showBrowserDownloadFailure(
+                        logMessage = "Failed to redownload completed task",
+                        userMessage = "无法重新下载该文件",
+                        error = error,
+                    )
+                }
         }
 
         override fun onRenameDownload(
@@ -1032,15 +1044,27 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                             },
                         )
                     }
-                    .onFailure { error -> showToast(error.toString()) }
+                    .onFailure { error ->
+                        showBrowserDownloadFailure(
+                            logMessage = "Failed to rename downloaded file",
+                            userMessage = "无法修改文件名",
+                            error = error,
+                        )
+                    }
             }
         }
 
         override fun onMoveDownload(taskId: String, treeUriString: String) {
             ioScope.launch {
                 browserDownloadManager().moveDownloadedFileToDirectory(taskId, treeUriString)
-                    .onSuccess { showToast("文件夹修改成功") }
-                    .onFailure { error -> showToast(error.toString()) }
+                    .onSuccess { showToast("文件移动成功") }
+                    .onFailure { error ->
+                        showBrowserDownloadFailure(
+                            logMessage = "Failed to move downloaded file",
+                            userMessage = "无法移动到所选文件夹",
+                            error = error,
+                        )
+                    }
             }
         }
 
@@ -1074,16 +1098,28 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             ioScope.launch {
                 browserDownloadManager().transferDownloadedFileToPublicDirectory(taskId)
                     .onSuccess { showToast("已转存到公开目录") }
-                    .onFailure { error -> showToast(error.toString()) }
+                    .onFailure { error ->
+                        showBrowserDownloadFailure(
+                            logMessage = "Failed to transfer downloaded file",
+                            userMessage = "无法转存到公开目录",
+                            error = error,
+                        )
+                    }
             }
         }
 
         override fun onMergeDownloadToMp4(taskId: String) {
-            showToast("正在合并MP4")
+            showToast("正在合并为 MP4")
             ioScope.launch {
                 browserDownloadManager().mergeM3u8PackageToMp4(taskId)
-                    .onSuccess { task -> showToast("已合并为${task.fileName}") }
-                    .onFailure { error -> showToast(error.toString()) }
+                    .onSuccess { task -> showToast("已合并为 ${task.fileName}") }
+                    .onFailure { error ->
+                        showBrowserDownloadFailure(
+                            logMessage = "Failed to merge M3U8 package to MP4",
+                            userMessage = "无法合并为 MP4",
+                            error = error,
+                        )
+                    }
             }
         }
 
@@ -1309,7 +1345,8 @@ internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
     StandardBrowserSessionTools.browserHost?.updateHostProjection(
         browserState = buildBrowserState(registry, buildBrowserDownloadSummary()),
         downloadUiState = buildBrowserDownloadUiState(),
-        downloadPrompt = StandardBrowserSessionTools.pendingBrowserDownloadRequest?.toUiState(),
+        downloadPrompt =
+            StandardBrowserSessionTools.browserDownloadConfirmationQueue.peek()?.toUiState(),
     )
 }
 
@@ -2022,4 +2059,13 @@ internal fun StandardBrowserSessionTools.cleanupWebViewOnMain(webView: WebView) 
             AppLogger.w(WEBVIEW_SUPPORT_TAG, "Failed to $operation during WebView cleanup", error)
         }
     }
+}
+
+private fun StandardBrowserSessionTools.showBrowserDownloadFailure(
+    logMessage: String,
+    userMessage: String,
+    error: Throwable,
+) {
+    AppLogger.e(WEBVIEW_SUPPORT_TAG, logMessage, error)
+    showToast(userMessage)
 }

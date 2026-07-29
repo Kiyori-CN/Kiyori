@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal const val BROWSER_DOWNLOAD_SETTINGS_VERSION = 1
+internal const val BROWSER_DOWNLOAD_SETTINGS_VERSION = 2
 internal val BROWSER_DOWNLOAD_MAX_CONCURRENT_TASK_OPTIONS = (1..8).toList()
 internal val BROWSER_DOWNLOAD_SEGMENT_THREAD_OPTIONS = listOf(3, 6, 12, 20, 32)
 internal val BROWSER_DOWNLOAD_M3U8_THREAD_OPTIONS = listOf(3, 8, 16, 20, 32, 48, 64)
@@ -23,6 +23,18 @@ internal enum class BrowserDownloadEngine(val persistedId: String) {
         fun fromPersistedId(value: String): BrowserDownloadEngine =
             requireNotNull(entries.singleOrNull { engine -> engine.persistedId == value }) {
                 "Unsupported browser download engine: $value"
+            }
+    }
+}
+
+internal enum class BrowserDownloadNetworkPolicy(val persistedId: String) {
+    ANY("any"),
+    UNMETERED("unmetered");
+
+    companion object {
+        fun fromPersistedId(value: String): BrowserDownloadNetworkPolicy =
+            requireNotNull(entries.singleOrNull { policy -> policy.persistedId == value }) {
+                "Unsupported browser download network policy: $value"
             }
     }
 }
@@ -53,13 +65,15 @@ internal data class BrowserDownloadSettings(
     val maxConcurrentTasks: Int = 3,
     val segmentThreadCount: Int = DEFAULT_BROWSER_DOWNLOAD_SEGMENT_THREAD_COUNT,
     val m3u8ThreadCount: Int = DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT,
-    val autoMergeM3u8: Boolean = true,
+    val packageM3u8Offline: Boolean = true,
     val autoTransferToPublicDirectory: Boolean = false,
     val chunkSizeKb: Int = DEFAULT_BROWSER_DOWNLOAD_CHUNK_SIZE_KB,
     val autoCleanApk: Boolean = false,
     val enableHttp2: Boolean = true,
+    val networkPolicy: BrowserDownloadNetworkPolicy = BrowserDownloadNetworkPolicy.ANY,
+    val allowRoaming: Boolean = false,
     val skipConfirmation: Boolean = false,
-    val showCompletionTip: Boolean = true,
+    val showResultNotifications: Boolean = true,
 )
 
 internal class BrowserDownloadSettingsStore private constructor(context: Context) {
@@ -197,13 +211,13 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
             )
     }
 
-    fun setAutoMergeM3u8(enabled: Boolean) {
+    fun setPackageM3u8Offline(enabled: Boolean) {
         preferences
             .edit()
             .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_AUTO_MERGE_M3U8, enabled)
+            .putBoolean(KEY_PACKAGE_M3U8_OFFLINE, enabled)
             .apply()
-        _state.value = _state.value.copy(autoMergeM3u8 = enabled)
+        _state.value = _state.value.copy(packageM3u8Offline = enabled)
     }
 
     fun setAutoTransferToPublicDirectory(enabled: Boolean) {
@@ -261,6 +275,24 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         _state.value = _state.value.copy(enableHttp2 = enabled)
     }
 
+    fun setNetworkPolicy(value: BrowserDownloadNetworkPolicy) {
+        preferences
+            .edit()
+            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            .putString(KEY_NETWORK_POLICY, value.persistedId)
+            .apply()
+        _state.value = _state.value.copy(networkPolicy = value)
+    }
+
+    fun setAllowRoaming(enabled: Boolean) {
+        preferences
+            .edit()
+            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            .putBoolean(KEY_ALLOW_ROAMING, enabled)
+            .apply()
+        _state.value = _state.value.copy(allowRoaming = enabled)
+    }
+
     fun setSkipConfirmation(enabled: Boolean) {
         preferences
             .edit()
@@ -270,19 +302,24 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         _state.value = _state.value.copy(skipConfirmation = enabled)
     }
 
-    fun setShowCompletionTip(enabled: Boolean) {
+    fun setShowResultNotifications(enabled: Boolean) {
         preferences
             .edit()
             .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_SHOW_COMPLETION_TIP, enabled)
+            .putBoolean(KEY_SHOW_RESULT_NOTIFICATIONS, enabled)
             .apply()
-        _state.value = _state.value.copy(showCompletionTip = enabled)
+        _state.value = _state.value.copy(showResultNotifications = enabled)
     }
 
     private fun readSettings(): BrowserDownloadSettings {
+        val storedVersion =
+            preferences.getInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+        require(storedVersion in 1..BROWSER_DOWNLOAD_SETTINGS_VERSION) {
+            "Unsupported browser download settings version: $storedVersion"
+        }
         val settings =
             BrowserDownloadSettings(
-                version = preferences.getInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION),
+                version = BROWSER_DOWNLOAD_SETTINGS_VERSION,
                 defaultEngine =
                     BrowserDownloadEngine.fromPersistedId(
                         requireNotNull(
@@ -311,7 +348,8 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                         KEY_M3U8_THREAD_COUNT,
                         DEFAULT_BROWSER_DOWNLOAD_M3U8_THREAD_COUNT,
                     ),
-                autoMergeM3u8 = preferences.getBoolean(KEY_AUTO_MERGE_M3U8, true),
+                packageM3u8Offline =
+                    preferences.getBoolean(KEY_PACKAGE_M3U8_OFFLINE, true),
                 autoTransferToPublicDirectory =
                     preferences.getBoolean(KEY_AUTO_TRANSFER_TO_PUBLIC_DIRECTORY, false),
                 chunkSizeKb =
@@ -321,11 +359,27 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                     ),
                 autoCleanApk = preferences.getBoolean(KEY_AUTO_CLEAN_APK, false),
                 enableHttp2 = preferences.getBoolean(KEY_ENABLE_HTTP2, true),
+                networkPolicy =
+                    BrowserDownloadNetworkPolicy.fromPersistedId(
+                        requireNotNull(
+                            preferences.getString(
+                                KEY_NETWORK_POLICY,
+                                BrowserDownloadNetworkPolicy.ANY.persistedId,
+                            ),
+                        ) { "Browser download network policy preference is null" },
+                    ),
+                allowRoaming = preferences.getBoolean(KEY_ALLOW_ROAMING, false),
                 skipConfirmation = preferences.getBoolean(KEY_SKIP_CONFIRMATION, false),
-                showCompletionTip = preferences.getBoolean(KEY_SHOW_COMPLETION_TIP, true),
+                showResultNotifications =
+                    preferences.getBoolean(KEY_SHOW_RESULT_NOTIFICATIONS, true),
             )
-        require(settings.version == BROWSER_DOWNLOAD_SETTINGS_VERSION) {
-            "Unsupported browser download settings version: ${settings.version}"
+        if (storedVersion < BROWSER_DOWNLOAD_SETTINGS_VERSION) {
+            preferences
+                .edit()
+                .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+                .putString(KEY_NETWORK_POLICY, settings.networkPolicy.persistedId)
+                .putBoolean(KEY_ALLOW_ROAMING, settings.allowRoaming)
+                .apply()
         }
         require(isSupportedBrowserDownloadConcurrency(settings.maxConcurrentTasks)) {
             "Invalid persisted browser download concurrency: ${settings.maxConcurrentTasks}"
@@ -368,14 +422,20 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         private const val KEY_MAX_CONCURRENT_TASKS = "max_concurrent_tasks"
         private const val KEY_SEGMENT_THREAD_COUNT = "segment_thread_count"
         private const val KEY_M3U8_THREAD_COUNT = "m3u8_thread_count"
-        private const val KEY_AUTO_MERGE_M3U8 = "auto_merge_m3u8"
+        // The stored key predates the offline-package wording; retain it to migrate existing
+        // development data without keeping a second setting field.
+        private const val KEY_PACKAGE_M3U8_OFFLINE = "auto_merge_m3u8"
         private const val KEY_AUTO_TRANSFER_TO_PUBLIC_DIRECTORY =
             "auto_transfer_to_public_directory"
         private const val KEY_CHUNK_SIZE_KB = "chunk_size_kb"
         private const val KEY_AUTO_CLEAN_APK = "auto_clean_apk"
         private const val KEY_ENABLE_HTTP2 = "enable_http2"
+        private const val KEY_NETWORK_POLICY = "network_policy"
+        private const val KEY_ALLOW_ROAMING = "allow_roaming"
         private const val KEY_SKIP_CONFIRMATION = "skip_confirmation"
-        private const val KEY_SHOW_COMPLETION_TIP = "show_completion_tip"
+        // Keep the persisted key stable so existing local development data migrates without a
+        // second setting source; only the Kotlin name changes to match completion and failure.
+        private const val KEY_SHOW_RESULT_NOTIFICATIONS = "show_completion_tip"
 
         @Volatile private var instance: BrowserDownloadSettingsStore? = null
 

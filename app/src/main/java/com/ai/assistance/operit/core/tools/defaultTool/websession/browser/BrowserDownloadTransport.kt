@@ -1,14 +1,17 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import android.net.Network
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -16,6 +19,7 @@ import okhttp3.Response
 
 internal const val BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT = 5
 internal const val BROWSER_DOWNLOAD_TRANSPORT_RESOURCE_BUFFER_BYTES = 64 * 1024
+internal const val BROWSER_DOWNLOAD_MAX_TEXT_RESPONSE_BYTES = 4L * 1024L * 1024L
 
 internal data class BrowserDownloadTransportConfig(
     val maxConcurrentTasks: Int,
@@ -30,7 +34,34 @@ internal data class BrowserDownloadProbeResult(
     val contentLength: Long,
     val acceptsRanges: Boolean,
     val mimeType: String,
+    val etag: String?,
+    val lastModified: String?,
 )
+
+internal fun resolveBrowserDownloadIfRangeValidator(
+    etag: String?,
+    lastModified: String?,
+): String? {
+    val normalizedEtag = etag?.trim().orEmpty()
+    if (
+        normalizedEtag.length >= 2 &&
+            normalizedEtag.startsWith("\"") &&
+            normalizedEtag.endsWith("\"") &&
+            !normalizedEtag.startsWith("W/", ignoreCase = true)
+    ) {
+        return normalizedEtag
+    }
+    return lastModified?.trim()?.takeIf { value -> value.isNotBlank() }
+}
+
+internal open class BrowserDownloadNonRetryableException(
+    message: String,
+) : IOException(message)
+
+internal class BrowserDownloadRepresentationChangedException :
+    BrowserDownloadNonRetryableException(
+        "The remote download resource changed while ranged data was being retrieved.",
+    )
 
 internal data class BrowserDownloadTextResult(
     val finalUrl: String,
@@ -67,6 +98,7 @@ private fun validateBrowserDownloadTransportConfig(
 
 internal class BrowserDownloadTransport(
     config: BrowserDownloadTransportConfig,
+    network: Network? = null,
     private val retryDelay: (Long) -> Unit = { delayMillis -> Thread.sleep(delayMillis) },
 ) : Closeable {
     private val config = validateBrowserDownloadTransportConfig(config)
@@ -77,7 +109,7 @@ internal class BrowserDownloadTransport(
         }
     private val connectionPool =
         ConnectionPool(dispatcher.maxRequests, 30L, TimeUnit.SECONDS)
-    private val client =
+    private val clientBuilder =
         OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
@@ -94,7 +126,18 @@ internal class BrowserDownloadTransport(
                     listOf(Protocol.HTTP_1_1)
                 },
             )
-            .build()
+            .apply {
+                network?.let { assignedNetwork ->
+                    socketFactory(assignedNetwork.socketFactory)
+                    dns(
+                        object : Dns {
+                            override fun lookup(hostname: String): List<java.net.InetAddress> =
+                                assignedNetwork.getAllByName(hostname).toList()
+                        },
+                    )
+                }
+            }
+    private val client = clientBuilder.build()
 
     internal val protocols: List<Protocol>
         get() = client.protocols
@@ -116,7 +159,7 @@ internal class BrowserDownloadTransport(
         if (!head.isSuccessful) {
             val code = head.code
             head.close()
-            throw IOException("HTTP $code while probing $url")
+            throw browserDownloadHttpException(code, "probing download metadata")
         }
 
         val headResult =
@@ -125,6 +168,8 @@ internal class BrowserDownloadTransport(
                 contentLength = head.header("Content-Length")?.toLongOrNull() ?: -1L,
                 acceptsRanges = head.header("Accept-Ranges").equals("bytes", ignoreCase = true),
                 mimeType = head.header("Content-Type").orEmpty(),
+                etag = head.header("ETag"),
+                lastModified = head.header("Last-Modified"),
             )
         head.close()
         if (headResult.contentLength > 0L && headResult.acceptsRanges) {
@@ -141,6 +186,7 @@ internal class BrowserDownloadTransport(
         destination: File,
         append: Boolean,
         expectedTotalBytes: Long? = null,
+        ifRangeValidator: String? = null,
         onChunk: (Int) -> Unit = {},
         isCancelled: () -> Boolean = { false },
     ): Long {
@@ -165,6 +211,7 @@ internal class BrowserDownloadTransport(
                 destination = destination,
                 append = append,
                 expectedTotalBytes = expectedTotalBytes,
+                ifRangeValidator = ifRangeValidator,
                 onChunk = { bytes ->
                     attemptBytes += bytes.toLong()
                     onChunk(bytes)
@@ -229,18 +276,38 @@ internal class BrowserDownloadTransport(
     internal fun readTextWithRetry(
         url: String,
         headers: Map<String, String> = emptyMap(),
+        maxBytes: Long = BROWSER_DOWNLOAD_MAX_TEXT_RESPONSE_BYTES,
     ): BrowserDownloadTextResult =
         executeWithRetry {
+            require(maxBytes > 0L) { "Browser download text limit must be positive" }
             val request = buildRequest(url, headers, range = null)
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code} while reading $url")
+                    throw browserDownloadHttpException(response.code, "reading download content")
                 }
-                val body = response.body ?: throw IOException("Empty response body while reading $url")
+                val body =
+                    response.body
+                        ?: throw BrowserDownloadNonRetryableException(
+                            "The download response did not contain a body.",
+                        )
+                if (body.contentLength() > maxBytes) {
+                    throw BrowserDownloadNonRetryableException(
+                        "The download text response exceeded $maxBytes bytes.",
+                    )
+                }
+                val source = body.source()
+                if (source.request(maxBytes + 1L)) {
+                    throw BrowserDownloadNonRetryableException(
+                        "The download text response exceeded $maxBytes bytes.",
+                    )
+                }
+                val charset =
+                    body.contentType()?.charset(StandardCharsets.UTF_8)
+                        ?: StandardCharsets.UTF_8
                 BrowserDownloadTextResult(
                     finalUrl = response.request.url.toString(),
                     mimeType = response.header("Content-Type") ?: body.contentType()?.toString().orEmpty(),
-                    content = body.string(),
+                    content = String(source.readByteArray(), charset),
                 )
             }
         }
@@ -274,6 +341,8 @@ internal class BrowserDownloadTransport(
                         contentLength = contentRange.totalBytes,
                         acceptsRanges = true,
                         mimeType = response.header("Content-Type") ?: headResult?.mimeType.orEmpty(),
+                        etag = response.header("ETag") ?: headResult?.etag,
+                        lastModified = response.header("Last-Modified") ?: headResult?.lastModified,
                     )
                 }
                 200 -> {
@@ -285,9 +354,11 @@ internal class BrowserDownloadTransport(
                                 ?: -1L,
                         acceptsRanges = false,
                         mimeType = response.header("Content-Type") ?: headResult?.mimeType.orEmpty(),
+                        etag = response.header("ETag") ?: headResult?.etag,
+                        lastModified = response.header("Last-Modified") ?: headResult?.lastModified,
                     )
                 }
-                else -> throw IOException("HTTP ${response.code} while probing range for $url")
+                else -> throw browserDownloadHttpException(response.code, "probing byte-range support")
             }
         }
     }
@@ -300,6 +371,7 @@ internal class BrowserDownloadTransport(
         destination: File,
         append: Boolean,
         expectedTotalBytes: Long?,
+        ifRangeValidator: String?,
         onChunk: (Int) -> Unit,
         isCancelled: () -> Boolean,
     ): Long {
@@ -308,28 +380,41 @@ internal class BrowserDownloadTransport(
                 url = url,
                 headers = headers,
                 range = startInclusive to endInclusive,
+                ifRangeValidator = ifRangeValidator,
             ),
         ).execute().use { response ->
+            if (response.code == 200 && !ifRangeValidator.isNullOrBlank()) {
+                throw BrowserDownloadRepresentationChangedException()
+            }
             if (response.code != 206) {
-                throw IOException("Expected HTTP 206 for range $startInclusive-$endInclusive, received ${response.code}")
+                throw BrowserDownloadNonRetryableException(
+                    "Expected HTTP 206 for range $startInclusive-$endInclusive, received ${response.code}",
+                )
+            }
+            if (
+                !ifRangeValidator.isNullOrBlank() &&
+                    !responseMatchesIfRangeValidator(response, ifRangeValidator)
+            ) {
+                throw BrowserDownloadRepresentationChangedException()
             }
             val contentRange = parseContentRange(response.header("Content-Range"))
             if (
                 contentRange.startInclusive != startInclusive ||
                     contentRange.endInclusive != endInclusive
             ) {
-                throw IOException(
+                throw BrowserDownloadNonRetryableException(
                     "Range response does not match requested bytes: ${response.header("Content-Range")}",
                 )
             }
             if (expectedTotalBytes != null && contentRange.totalBytes != expectedTotalBytes) {
-                throw IOException(
-                    "Range response total length does not match the probed resource: " +
-                        "${contentRange.totalBytes} != $expectedTotalBytes",
-                )
+                throw BrowserDownloadRepresentationChangedException()
             }
             val expectedLength = endInclusive - startInclusive + 1L
-            val body = response.body ?: throw IOException("Empty range response body for $url")
+            val body =
+                response.body
+                    ?: throw BrowserDownloadNonRetryableException(
+                        "The ranged download response did not contain a body.",
+                    )
             return writeBody(
                 body = body,
                 destination = destination,
@@ -340,6 +425,19 @@ internal class BrowserDownloadTransport(
                 isCancelled = isCancelled,
             )
         }
+    }
+
+    private fun responseMatchesIfRangeValidator(
+        response: Response,
+        expectedValidator: String,
+    ): Boolean {
+        val actualValidator =
+            if (expectedValidator.startsWith("\"")) {
+                response.header("ETag")
+            } else {
+                response.header("Last-Modified")
+            }
+        return actualValidator.isNullOrBlank() || actualValidator.trim() == expectedValidator
     }
 
     private fun executeStreamOnce(
@@ -354,9 +452,13 @@ internal class BrowserDownloadTransport(
     ): Long {
         client.newCall(buildRequest(url, headers, range = null)).execute().use { response ->
             if (!response.isSuccessful) {
-                throw IOException("HTTP ${response.code} while downloading $url")
+                throw browserDownloadHttpException(response.code, "downloading content")
             }
-            val body = response.body ?: throw IOException("Empty download response body for $url")
+            val body =
+                response.body
+                    ?: throw BrowserDownloadNonRetryableException(
+                        "The download response did not contain a body.",
+                    )
             return writeBody(
                 body = body,
                 destination = destination,
@@ -418,17 +520,27 @@ internal class BrowserDownloadTransport(
         url: String,
         headers: Map<String, String>,
         range: Pair<Long, Long>?,
+        ifRangeValidator: String? = null,
         method: String = "GET",
     ): Request {
         val builder = Request.Builder().url(url)
         headers.forEach { (name, value) ->
-            if (name.isNotBlank() && value.isNotBlank() && !name.equals("Range", ignoreCase = true)) {
+            if (
+                name.isNotBlank() &&
+                    value.isNotBlank() &&
+                    !name.equals("Range", ignoreCase = true) &&
+                    !name.equals("If-Range", ignoreCase = true) &&
+                    !name.equals("Accept-Encoding", ignoreCase = true)
+            ) {
                 builder.header(name, value)
             }
         }
         builder.header("Accept-Encoding", "identity")
         if (range != null) {
             builder.header("Range", "bytes=${range.first}-${range.second}")
+            ifRangeValidator?.takeIf { value -> value.isNotBlank() }?.let { value ->
+                builder.header("If-Range", value)
+            }
         }
         return when (method) {
             "GET" -> builder.get().build()
@@ -447,6 +559,9 @@ internal class BrowserDownloadTransport(
             try {
                 return operation()
             } catch (error: CancellationException) {
+                onAttemptFailure()
+                throw error
+            } catch (error: BrowserDownloadNonRetryableException) {
                 onAttemptFailure()
                 throw error
             } catch (error: IOException) {
@@ -488,14 +603,22 @@ internal class BrowserDownloadTransport(
     )
 
     private fun parseContentRange(value: String?): ContentRange {
-        val match = CONTENT_RANGE_PATTERN.matchEntire(value?.trim().orEmpty())
-            ?: throw IOException("Missing or invalid Content-Range: $value")
-        val totalBytes = match.groups[3]?.value?.toLongOrNull()
-            ?: throw IOException("Content-Range total length is unknown: $value")
+        val match =
+            CONTENT_RANGE_PATTERN.matchEntire(value?.trim().orEmpty())
+                ?: throw BrowserDownloadNonRetryableException(
+                    "Missing or invalid Content-Range: $value",
+                )
+        val totalBytes =
+            match.groups[3]?.value?.toLongOrNull()
+                ?: throw BrowserDownloadNonRetryableException(
+                    "Content-Range total length is unknown: $value",
+                )
         val startInclusive = match.groups[1]!!.value.toLong()
         val endInclusive = match.groups[2]!!.value.toLong()
         if (endInclusive < startInclusive || totalBytes <= endInclusive) {
-            throw IOException("Content-Range bounds are invalid: $value")
+            throw BrowserDownloadNonRetryableException(
+                "Content-Range bounds are invalid: $value",
+            )
         }
         return ContentRange(
             startInclusive = startInclusive,
@@ -508,3 +631,18 @@ internal class BrowserDownloadTransport(
         private val CONTENT_RANGE_PATTERN = Regex("bytes\\s+(\\d+)-(\\d+)/(\\d+)", RegexOption.IGNORE_CASE)
     }
 }
+
+private fun browserDownloadHttpException(
+    statusCode: Int,
+    operation: String,
+): IOException {
+    val message = "HTTP $statusCode while $operation"
+    return if (statusCode in RETRYABLE_BROWSER_DOWNLOAD_HTTP_STATUS_CODES) {
+        IOException(message)
+    } else {
+        BrowserDownloadNonRetryableException(message)
+    }
+}
+
+private val RETRYABLE_BROWSER_DOWNLOAD_HTTP_STATUS_CODES =
+    setOf(408, 425, 429, 500, 502, 503, 504)

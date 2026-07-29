@@ -31,6 +31,69 @@ class BrowserDownloadDrawerPolicyTest {
     }
 
     @Test
+    fun `downloading status filters and search query compose without leaking other tabs`() {
+        val items =
+            listOf(
+                item("completed", "completed", fileName = "archive.zip"),
+                item("queued", "queued", fileName = "Episode-01.mp4"),
+                item("connecting", "connecting", fileName = "episode-02.mp4"),
+                item("active", "downloading", sourceUrl = "https://cdn.example.com/Season-2.bin"),
+                item("paused", "paused", mimeType = "video/MP2T"),
+                item("failed", "failed", errorMessage = "HTTP 503 Service Unavailable"),
+                item("canceled", "canceled"),
+            )
+
+        assertEquals(
+            listOf("connecting", "active"),
+            filterBrowserDownloadDrawerItems(
+                items = items,
+                tab = BrowserDownloadDrawerTab.DOWNLOADING,
+                statusFilter = BrowserDownloadStatusFilter.ACTIVE,
+            ).map(BrowserDownloadItem::id),
+        )
+        assertEquals(
+            listOf("queued", "connecting"),
+            filterBrowserDownloadDrawerItems(
+                items = items,
+                tab = BrowserDownloadDrawerTab.DOWNLOADING,
+                query = "EPISODE",
+            ).map(BrowserDownloadItem::id),
+        )
+        assertEquals(
+            listOf("active"),
+            filterBrowserDownloadDrawerItems(
+                items = items,
+                tab = BrowserDownloadDrawerTab.DOWNLOADING,
+                query = "season-2",
+            ).map(BrowserDownloadItem::id),
+        )
+        assertEquals(
+            listOf("paused"),
+            filterBrowserDownloadDrawerItems(
+                items = items,
+                tab = BrowserDownloadDrawerTab.DOWNLOADING,
+                query = "mp2t",
+            ).map(BrowserDownloadItem::id),
+        )
+        assertEquals(
+            listOf("failed"),
+            filterBrowserDownloadDrawerItems(
+                items = items,
+                tab = BrowserDownloadDrawerTab.DOWNLOADING,
+                statusFilter = BrowserDownloadStatusFilter.FAILED,
+                query = "service unavailable",
+            ).map(BrowserDownloadItem::id),
+        )
+        assertTrue(
+            filterBrowserDownloadDrawerItems(
+                items = items,
+                tab = BrowserDownloadDrawerTab.DOWNLOADED,
+                query = "503",
+            ).isEmpty(),
+        )
+    }
+
+    @Test
     fun `drawer sort modes use completion time and stable file names`() {
         val items =
             listOf(
@@ -124,6 +187,45 @@ class BrowserDownloadDrawerPolicyTest {
         )
         assertTrue(
             browserDownloadBatchSelectionEligible(failed, BrowserDownloadBatchAction.DELETE),
+        )
+        assertEquals(
+            setOf("active"),
+            browserDownloadBatchEligibleTaskIds(
+                items = listOf(active, failed),
+                action = BrowserDownloadBatchAction.CANCEL,
+            ),
+        )
+        assertEquals(
+            setOf("active", "failed"),
+            browserDownloadBatchEligibleTaskIds(
+                items = listOf(active, failed),
+                action = BrowserDownloadBatchAction.DELETE,
+            ),
+        )
+    }
+
+    @Test
+    fun `select all toggles only visible eligible ids and preserves hidden selections`() {
+        assertEquals(
+            setOf("hidden", "one", "two"),
+            toggleAllBrowserDownloadSelections(
+                selectedTaskIds = setOf("hidden"),
+                eligibleTaskIds = setOf("one", "two"),
+            ),
+        )
+        assertEquals(
+            setOf("hidden"),
+            toggleAllBrowserDownloadSelections(
+                selectedTaskIds = setOf("hidden", "one", "two"),
+                eligibleTaskIds = setOf("one", "two"),
+            ),
+        )
+        assertEquals(
+            setOf("hidden"),
+            toggleAllBrowserDownloadSelections(
+                selectedTaskIds = setOf("hidden"),
+                eligibleTaskIds = emptySet(),
+            ),
         )
     }
 
@@ -227,7 +329,9 @@ class BrowserDownloadDrawerPolicyTest {
         id: String,
         status: String,
         fileName: String = "$id.bin",
+        sourceUrl: String = "https://example.com/$fileName",
         mimeType: String? = null,
+        errorMessage: String? = null,
         createdAt: Long = 1L,
         completedAt: Long? = null,
         isM3u8Package: Boolean = false,
@@ -241,7 +345,7 @@ class BrowserDownloadDrawerPolicyTest {
         BrowserDownloadItem(
             id = id,
             fileName = fileName,
-            sourceUrl = "https://example.com/$fileName",
+            sourceUrl = sourceUrl,
             mimeType = mimeType,
             status = status,
             type = "http",
@@ -253,7 +357,7 @@ class BrowserDownloadDrawerPolicyTest {
             createdAt = createdAt,
             completedAt = completedAt,
             isM3u8Package = isM3u8Package,
-            errorMessage = null,
+            errorMessage = errorMessage,
             canPause = canPause,
             canResume = canResume,
             canCancel = canCancel,

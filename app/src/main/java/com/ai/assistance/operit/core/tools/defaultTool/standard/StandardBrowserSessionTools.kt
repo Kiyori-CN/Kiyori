@@ -91,7 +91,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
 
         @Volatile internal var browserHost: WebSessionBrowserHost? = null
         @Volatile internal var activeSessionId: String? = null
-        @Volatile internal var pendingBrowserDownloadRequest: PendingBrowserDownloadRequest? = null
+        internal val browserDownloadConfirmationQueue = BrowserDownloadConfirmationQueue()
 
         @Volatile private var sharedInstance: StandardBrowserSessionTools? = null
 

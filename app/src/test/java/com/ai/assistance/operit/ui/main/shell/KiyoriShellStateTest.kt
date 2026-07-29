@@ -128,6 +128,21 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `external downloads action opens the shared drawer over the current owner`() {
+        val state =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.BROWSER_HOME,
+                browserReturnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+            ).openExternalDestination(KiyoriShellExternalDestination.DOWNLOADS)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, state.primaryDestination)
+        assertEquals(KiyoriBrowserReturnTarget.AI_HOME, state.browserReturnTarget)
+        assertTrue(state.isDownloadDrawerOpen)
+        assertFalse(state.isBookmarkDrawerOpen)
+        assertFalse(state.isAiDrawerOpen)
+    }
+
+    @Test
     fun `repeated external browser action retains the existing browser return target`() {
         val browserState =
             KiyoriShellState()

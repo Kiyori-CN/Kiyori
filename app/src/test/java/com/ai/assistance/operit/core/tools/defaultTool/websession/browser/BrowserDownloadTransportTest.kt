@@ -44,6 +44,8 @@ class BrowserDownloadTransportTest {
                             "Content-Length" to "12",
                             "Accept-Ranges" to "bytes",
                             "Content-Type" to "video/mp4",
+                            "ETag" to "\"metadata-v1\"",
+                            "Last-Modified" to "Wed, 29 Jul 2026 09:00:00 GMT",
                         ),
                 )
             }
@@ -56,9 +58,36 @@ class BrowserDownloadTransportTest {
                 assertEquals(12L, result.contentLength)
                 assertTrue(result.acceptsRanges)
                 assertEquals("video/mp4", result.mimeType)
+                assertEquals("\"metadata-v1\"", result.etag)
+                assertEquals("Wed, 29 Jul 2026 09:00:00 GMT", result.lastModified)
                 assertEquals(1, requestCount.get())
             }
         }
+    }
+
+    @Test
+    fun `If-Range validator prefers a strong ETag and rejects a weak ETag`() {
+        assertEquals(
+            "\"resource-v2\"",
+            resolveBrowserDownloadIfRangeValidator(
+                etag = "\"resource-v2\"",
+                lastModified = "Wed, 29 Jul 2026 09:00:00 GMT",
+            ),
+        )
+        assertEquals(
+            "Wed, 29 Jul 2026 09:00:00 GMT",
+            resolveBrowserDownloadIfRangeValidator(
+                etag = "W/\"resource-v2\"",
+                lastModified = "Wed, 29 Jul 2026 09:00:00 GMT",
+            ),
+        )
+        assertEquals(
+            null,
+            resolveBrowserDownloadIfRangeValidator(
+                etag = "W/\"resource-v2\"",
+                lastModified = null,
+            ),
+        )
     }
 
     @Test
@@ -228,6 +257,88 @@ class BrowserDownloadTransportTest {
     }
 
     @Test
+    fun `range download sends the frozen If-Range validator`() {
+        val source = "0123456789".toByteArray(StandardCharsets.UTF_8)
+        val validator = "\"range-v1\""
+        LoopbackServer().use { server ->
+            server.handle("/if-range") { exchange ->
+                if (
+                    exchange.requestHeaders.getFirst("Range") != "bytes=2-6" ||
+                        exchange.requestHeaders.getFirst("If-Range") != validator
+                ) {
+                    exchange.respond(status = 400)
+                } else {
+                    exchange.respond(
+                        status = 206,
+                        body = source.copyOfRange(2, 7),
+                        headers =
+                            mapOf(
+                                "Content-Range" to "bytes 2-6/${source.size}",
+                                "ETag" to validator,
+                            ),
+                    )
+                }
+            }
+            server.start()
+            val destination = temporaryFolder.newFile("if-range.part")
+            destination.delete()
+
+            newTransport().use { transport ->
+                val downloaded =
+                    transport.downloadRangeWithRetry(
+                        url = server.url("/if-range"),
+                        headers =
+                            mapOf(
+                                "Range" to "bytes=0-1",
+                                "If-Range" to "\"stale\"",
+                                "Accept-Encoding" to "gzip",
+                            ),
+                        startInclusive = 2L,
+                        endInclusive = 6L,
+                        destination = destination,
+                        append = false,
+                        expectedTotalBytes = source.size.toLong(),
+                        ifRangeValidator = validator,
+                    )
+
+                assertEquals(5L, downloaded)
+                assertArrayEquals(source.copyOfRange(2, 7), destination.readBytes())
+            }
+        }
+    }
+
+    @Test
+    fun `changed If-Range representation stops after one request and removes partial output`() {
+        val requestCount = AtomicInteger()
+        LoopbackServer().use { server ->
+            server.handle("/changed-resource") { exchange ->
+                requestCount.incrementAndGet()
+                exchange.respond(status = 200, body = "new-resource".toByteArray())
+            }
+            server.start()
+            val destination = temporaryFolder.newFile("changed-resource.part")
+            destination.delete()
+
+            newTransport(retryDelay = {}).use { transport ->
+                assertThrows(BrowserDownloadRepresentationChangedException::class.java) {
+                    transport.downloadRangeWithRetry(
+                        url = server.url("/changed-resource"),
+                        headers = emptyMap(),
+                        startInclusive = 0L,
+                        endInclusive = 3L,
+                        destination = destination,
+                        append = false,
+                        ifRangeValidator = "\"old-resource\"",
+                    )
+                }
+            }
+
+            assertEquals(1, requestCount.get())
+            assertFalse(destination.exists())
+        }
+    }
+
+    @Test
     fun `range download rejects servers that ignore Range`() {
         val requestCount = AtomicInteger()
         LoopbackServer().use { server ->
@@ -252,8 +363,33 @@ class BrowserDownloadTransportTest {
                 }
             }
 
-            assertEquals(BROWSER_DOWNLOAD_TRANSPORT_RETRY_COUNT, requestCount.get())
+            assertEquals(1, requestCount.get())
             assertFalse(destination.exists())
+        }
+    }
+
+    @Test
+    fun `transport errors do not expose signed download URLs`() {
+        val requestCount = AtomicInteger()
+        LoopbackServer().use { server ->
+            server.handle("/private-download") { exchange ->
+                requestCount.incrementAndGet()
+                exchange.respond(status = 404)
+            }
+            server.start()
+            val signedUrl = server.url("/private-download?token=secret-value")
+
+            newTransport(retryDelay = {}).use { transport ->
+                val error =
+                    assertThrows(BrowserDownloadNonRetryableException::class.java) {
+                        transport.readTextWithRetry(signedUrl)
+                    }
+
+                assertFalse(error.message.orEmpty().contains("secret-value"))
+                assertFalse(error.message.orEmpty().contains(signedUrl))
+            }
+
+            assertEquals(1, requestCount.get())
         }
     }
 
@@ -433,6 +569,29 @@ class BrowserDownloadTransportTest {
                 assertEquals("application/vnd.apple.mpegurl", textResult.mimeType)
                 assertEquals(segment.size.toLong(), resourceBytes)
                 assertArrayEquals(segment, destination.readBytes())
+            }
+        }
+    }
+
+    @Test
+    fun `text responses stop at the configured byte limit`() {
+        LoopbackServer().use { server ->
+            server.handle("/oversized.txt") { exchange ->
+                exchange.respond(
+                    status = 200,
+                    body = "123456789".toByteArray(StandardCharsets.UTF_8),
+                    headers = mapOf("Content-Type" to "text/plain"),
+                )
+            }
+            server.start()
+
+            newTransport(retryDelay = {}).use { transport ->
+                assertThrows(BrowserDownloadNonRetryableException::class.java) {
+                    transport.readTextWithRetry(
+                        url = server.url("/oversized.txt"),
+                        maxBytes = 8L,
+                    )
+                }
             }
         }
     }

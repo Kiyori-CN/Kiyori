@@ -41,6 +41,7 @@ enum class KiyoriShellChild {
 
 enum class KiyoriShellExternalDestination {
     BROWSER_HOME,
+    DOWNLOADS,
     BROWSER_SETTINGS,
     DOWNLOAD_SETTINGS,
 }
@@ -312,6 +313,8 @@ internal fun KiyoriShellState.openExternalDestination(
     when (destination) {
         KiyoriShellExternalDestination.BROWSER_HOME ->
             openBrowser(resolveExternalBrowserReturnTarget())
+        KiyoriShellExternalDestination.DOWNLOADS ->
+            openDownloadDrawer()
         KiyoriShellExternalDestination.BROWSER_SETTINGS ->
             openExternalChild(KiyoriShellChild.BROWSER_SETTINGS)
         KiyoriShellExternalDestination.DOWNLOAD_SETTINGS ->
