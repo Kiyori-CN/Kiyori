@@ -1,13 +1,11 @@
 package com.ai.assistance.operit.core.player
 
-import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
-import android.os.Build
-import android.os.Environment
 import android.os.Looper
-import android.provider.MediaStore
 import android.view.Surface
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeCommandType
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConfig
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnection
@@ -15,9 +13,14 @@ import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnectionListe
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeLoadRequest
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimePlaybackSnapshot
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeTrackSnapshot
+import com.ai.assistance.operit.core.player.runtime.toPlayerChapter
 import com.ai.assistance.operit.core.player.runtime.toPlayerTrack
 import com.ai.assistance.operit.core.player.runtime.toRuntimeConfig
 import com.ai.assistance.operit.core.player.runtime.toRuntimeId
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadApplicationDirectory
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadPublicDirectory
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.crash.PlayerCrashCoordinator
 import com.ai.assistance.operit.util.crash.PlayerCrashEventType
@@ -51,6 +54,9 @@ internal class PlayerSession private constructor(context: Context) {
     private var closeRequested = false
     private var failedSession: FailedPlayerSession? = null
     private var pendingRestartSeekSeconds: Double? = null
+    private var activeQueue: List<PlayerMediaRequest> = emptyList()
+    private var activeQueueIndex: Int = 0
+    private var pendingThumbnailCommandId: Long? = null
     private val pendingScreenshots = LinkedHashMap<Long, PendingScreenshot>()
 
     private val runtimeListener =
@@ -71,7 +77,7 @@ internal class PlayerSession private constructor(context: Context) {
                     )
                 PlayerDebugLogBuffer.append(
                     TAG,
-                    "播放器运行时就绪 generation=$runtimeGeneration",
+                    "播放器运行时就绪 generation=$runtimeGeneration pid=$processId",
                 )
                 PlayerCrashJournal.record(
                     appContext,
@@ -88,6 +94,11 @@ internal class PlayerSession private constructor(context: Context) {
                 commandType: PlayerRuntimeCommandType,
             ) {
                 if (!isCurrentRuntime(runtimeGeneration)) return
+                PlayerDebugLogBuffer.append(
+                    PlayerDebugLogLevel.DEBUG,
+                    TAG,
+                    "命令完成 type=$commandType command=$commandId generation=$runtimeGeneration",
+                )
                 if (
                     commandType == PlayerRuntimeCommandType.CLOSE &&
                         closeCommandId == commandId
@@ -105,6 +116,12 @@ internal class PlayerSession private constructor(context: Context) {
                 message: String,
             ) {
                 if (!isCurrentRuntime(runtimeGeneration)) return
+                PlayerDebugLogBuffer.append(
+                    PlayerDebugLogLevel.ERROR,
+                    TAG,
+                    "命令失败 type=${commandType ?: "unknown"} command=$commandId " +
+                        "operation=$operation message=$message",
+                )
                 when (commandType) {
                     PlayerRuntimeCommandType.ATTACH_SURFACE ->
                         handleSurfaceAttachFailure(commandId)
@@ -112,6 +129,22 @@ internal class PlayerSession private constructor(context: Context) {
                         handleSurfaceDetachFailure(commandId)
                     PlayerRuntimeCommandType.SCREENSHOT -> {
                         failScreenshot(commandId, IllegalStateException(message))
+                        return
+                    }
+                    PlayerRuntimeCommandType.THUMBNAIL -> {
+                        if (pendingThumbnailCommandId == commandId) {
+                            pendingThumbnailCommandId = null
+                            _state.value =
+                                _state.value.copy(
+                                    seekPreview =
+                                        _state.value.seekPreview?.copy(loading = false),
+                                )
+                        }
+                        PlayerDebugLogBuffer.append(
+                            PlayerDebugLogLevel.WARN,
+                            TAG,
+                            "进度缩略图提取失败：$message",
+                        )
                         return
                     }
                     PlayerRuntimeCommandType.CLOSE -> {
@@ -257,6 +290,7 @@ internal class PlayerSession private constructor(context: Context) {
                 }
                 val audioTracks = tracks.audioTracks.map { track -> track.toPlayerTrack() }
                 val subtitleTracks = tracks.subtitleTracks.map { track -> track.toPlayerTrack() }
+                val chapters = tracks.chapters.map { chapter -> chapter.toPlayerChapter() }
                 _state.value =
                     _state.value.copy(
                         loading = false,
@@ -267,22 +301,45 @@ internal class PlayerSession private constructor(context: Context) {
                         selectedAudioTrackId = audioTracks.singleOrNull { it.selected }?.id,
                         selectedSubtitleTrackId =
                             subtitleTracks.singleOrNull { it.selected }?.id,
+                        chapters = chapters,
                     )
                 pendingRestartSeekSeconds?.let { position ->
                     pendingRestartSeekSeconds = null
                     if (position > 0.0) seekTo(position)
                 }
+                PlayerDebugLogBuffer.append(
+                    TAG,
+                    "媒体文件加载完成 command=$loadCommandId " +
+                        "audioTracks=${audioTracks.size} subtitleTracks=${subtitleTracks.size} " +
+                        "chapters=${chapters.size}",
+                )
             }
 
             override fun onNaturalEnd(runtimeGeneration: Long) {
                 if (isCurrentRuntime(runtimeGeneration)) {
+                    PlayerDebugLogBuffer.append(TAG, "媒体自然播放结束")
                     handleNaturalEndOfFile()
                 }
             }
 
             override fun onRuntimeError(runtimeGeneration: Long, message: String) {
                 if (!isCurrentRuntime(runtimeGeneration)) return
+                PlayerDebugLogBuffer.append(
+                    PlayerDebugLogLevel.ERROR,
+                    TAG,
+                    "播放器运行时错误：$message",
+                )
                 setError(message, IllegalStateException(message))
+            }
+
+            override fun onDiagnosticLog(
+                runtimeGeneration: Long,
+                level: PlayerDebugLogLevel,
+                tag: String,
+                message: String,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                PlayerDebugLogBuffer.append(level, tag, message)
             }
 
             override fun onScreenshotCompleted(
@@ -304,8 +361,38 @@ internal class PlayerSession private constructor(context: Context) {
                 completeScreenshot(pending)
             }
 
+            override fun onThumbnailReady(
+                runtimeGeneration: Long,
+                commandId: Long,
+                positionSeconds: Double,
+                bitmap: android.graphics.Bitmap?,
+            ) {
+                if (
+                    !isCurrentRuntime(runtimeGeneration) ||
+                        pendingThumbnailCommandId != commandId
+                ) {
+                    return
+                }
+                pendingThumbnailCommandId = null
+                val preview = _state.value.seekPreview ?: return
+                _state.value =
+                    _state.value.copy(
+                        seekPreview =
+                            preview.copy(
+                                positionSeconds = positionSeconds,
+                                bitmap = bitmap,
+                                loading = false,
+                            ),
+                    )
+            }
+
             override fun onRuntimeDisconnected(runtimeGeneration: Long, expected: Boolean) {
                 if (!isCurrentRuntime(runtimeGeneration)) return
+                PlayerDebugLogBuffer.append(
+                    if (expected) PlayerDebugLogLevel.INFO else PlayerDebugLogLevel.ERROR,
+                    TAG,
+                    "播放器运行时连接断开 expected=$expected generation=$runtimeGeneration",
+                )
                 if (expected || closeRequested || _state.value.runtimeState == PlayerRuntimeState.CLOSING) {
                     finalizeClosedSession()
                     return
@@ -315,6 +402,11 @@ internal class PlayerSession private constructor(context: Context) {
 
             override fun onRuntimeConnectionError(runtimeGeneration: Long, message: String) {
                 if (!isCurrentRuntime(runtimeGeneration)) return
+                PlayerDebugLogBuffer.append(
+                    PlayerDebugLogLevel.ERROR,
+                    TAG,
+                    "播放器运行时连接错误：$message",
+                )
                 runtimeConnection.disconnect()
                 handleUnexpectedRuntimeStop(message)
             }
@@ -366,6 +458,30 @@ internal class PlayerSession private constructor(context: Context) {
 
     fun open(request: PlayerMediaRequest, presentation: PlayerPresentation) {
         requireMainThread()
+        activeQueue = listOf(request)
+        activeQueueIndex = 0
+        openInternal(request, presentation, clearDiagnostics = true)
+    }
+
+    fun openQueue(
+        queue: List<PlayerMediaRequest>,
+        currentIndex: Int,
+        presentation: PlayerPresentation,
+    ) {
+        requireMainThread()
+        require(queue.isNotEmpty()) { "Player queue cannot be empty" }
+        require(currentIndex in queue.indices) { "Player queue index is out of bounds" }
+        activeQueue = queue.toList()
+        activeQueueIndex = currentIndex
+        openInternal(queue[currentIndex], presentation, clearDiagnostics = true)
+    }
+
+    private fun openInternal(
+        request: PlayerMediaRequest,
+        presentation: PlayerPresentation,
+        clearDiagnostics: Boolean,
+    ) {
+        requireMainThread()
         if (_state.value.runtimeState == PlayerRuntimeState.CLOSING) {
             setError(
                 "播放器正在关闭，无法接收新的媒体请求",
@@ -374,22 +490,34 @@ internal class PlayerSession private constructor(context: Context) {
             return
         }
         val settings = settingsStore.current
-        val transition = resolvePlayerOpenTransition(_state.value, request, presentation, settings)
+        val queueAwareState =
+            _state.value.copy(
+                queueIndex = activeQueueIndex,
+                queueSize = activeQueue.size,
+                seekPreview = null,
+            )
+        val transition =
+            resolvePlayerOpenTransition(queueAwareState, request, presentation, settings)
         if (!transition.shouldLoad) {
             _state.value = transition.state
             return
         }
 
-        PlayerDebugLogBuffer.clear()
+        if (clearDiagnostics) {
+            PlayerDebugLogBuffer.clear()
+        }
         PlayerCrashJournal.clear(appContext)
         PlayerDebugLogBuffer.append(
             TAG,
-            "打开媒体 request=${request.requestId} source=${request.source} " +
-                "decoder=${settings.decoderPreset.persistedId}",
+            "打开媒体 request=${shortPlayerDiagnosticId(request.requestId)} source=${request.source} " +
+                "decoder=${settings.decoderPreset.persistedId} " +
+                "media=${describePlayerMediaUriForDiagnostics(request.uri)} " +
+                "headerCount=${request.headers.size}",
         )
         _state.value = transition.state
         prepareSurfaceLeaseForPresentation(presentation)
         pendingMediaLoad = null
+        pendingThumbnailCommandId = null
         try {
             val shaderFiles = shaderManager.resolveShaderFiles(transition.state.anime4KMode)
             val config = settings.toRuntimeConfig(shaderFiles)
@@ -444,6 +572,10 @@ internal class PlayerSession private constructor(context: Context) {
                 presentation = PlayerPresentation.FULLSCREEN_PLAYER,
                 surfaceLease = nextLease,
             )
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "请求悬浮转全屏 phase=${nextLease.phase}",
+        )
     }
 
     fun requestFullscreenActivityLaunchWhenReady() {
@@ -493,6 +625,10 @@ internal class PlayerSession private constructor(context: Context) {
                     },
                 surfaceLease = nextLease,
             )
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "请求退出全屏 nextPresentation=${_state.value.presentation} phase=${nextLease.phase}",
+        )
         return nextLease.fullscreenFinishRequestId
     }
 
@@ -656,6 +792,11 @@ internal class PlayerSession private constructor(context: Context) {
         if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
         if (runtimeConnection.setPaused(paused) != null) {
             _state.value = _state.value.copy(paused = paused)
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.DEBUG,
+                TAG,
+                "发送暂停命令 paused=$paused",
+            )
         }
     }
 
@@ -671,6 +812,11 @@ internal class PlayerSession private constructor(context: Context) {
             }
         if (runtimeConnection.seekTo(target, settingsStore.current.preciseSeeking) != null) {
             _state.value = _state.value.copy(positionSeconds = target)
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.DEBUG,
+                TAG,
+                "发送跳转命令 position=$target precise=${settingsStore.current.preciseSeeking}",
+            )
         }
     }
 
@@ -682,12 +828,22 @@ internal class PlayerSession private constructor(context: Context) {
         seekTo(_state.value.positionSeconds + settingsStore.current.seekStepSeconds)
     }
 
+    fun seekBy(seconds: Int) {
+        requireMainThread()
+        seekTo(_state.value.positionSeconds + seconds)
+    }
+
     fun setSpeed(speed: Double) {
         requireMainThread()
         require(speed in PLAYER_SPEED_OPTIONS) { "Unsupported player speed: $speed" }
         if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
         if (runtimeConnection.setSpeed(speed) != null) {
             _state.value = _state.value.copy(speed = speed)
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.DEBUG,
+                TAG,
+                "发送倍速命令 speed=$speed",
+            )
             if (settingsStore.current.rememberPlaybackSpeed) {
                 settingsStore.setLastPlaybackSpeed(speed)
             }
@@ -699,6 +855,11 @@ internal class PlayerSession private constructor(context: Context) {
         val snapshot = _state.value
         if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) return
         if (runtimeConnection.setAudioTrack(trackId) != null) {
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.DEBUG,
+                TAG,
+                "发送音轨切换命令 track=$trackId",
+            )
             _state.value =
                 snapshot.copy(
                     selectedAudioTrackId = trackId,
@@ -715,6 +876,11 @@ internal class PlayerSession private constructor(context: Context) {
         val snapshot = _state.value
         if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) return
         if (runtimeConnection.setSubtitleTrack(trackId) != null) {
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.DEBUG,
+                TAG,
+                "发送字幕切换命令 track=${trackId ?: "off"}",
+            )
             _state.value =
                 snapshot.copy(
                     selectedSubtitleTrackId = trackId,
@@ -731,6 +897,11 @@ internal class PlayerSession private constructor(context: Context) {
         if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
         if (runtimeConnection.applyVideoFitMode(mode.toRuntimeId()) != null) {
             _state.value = _state.value.copy(videoFitMode = mode)
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.DEBUG,
+                TAG,
+                "发送画面模式命令 mode=$mode",
+            )
         }
     }
 
@@ -773,18 +944,28 @@ internal class PlayerSession private constructor(context: Context) {
         requireMainThread()
         val current = _state.value.anime4KMode
         val next = Anime4KMode.entries[(current.ordinal + 1) % Anime4KMode.entries.size]
+        setAnime4KMode(next)
+    }
+
+    fun setAnime4KMode(mode: Anime4KMode) {
+        requireMainThread()
         if (settingsStore.current.rememberAnime4KMode) {
-            settingsStore.setAnime4KMode(next)
+            settingsStore.setAnime4KMode(mode)
             return
         }
         if (!_state.value.runtimeState.acceptsCommands()) return
         try {
-            val shaderFiles = shaderManager.resolveShaderFiles(next)
+            val shaderFiles = shaderManager.resolveShaderFiles(mode)
             val config = settingsStore.current.toRuntimeConfig(shaderFiles)
             if (runtimeConnection.applySettings(config) != null) {
+                PlayerDebugLogBuffer.append(
+                    PlayerDebugLogLevel.DEBUG,
+                    TAG,
+                    "发送 Anime4K 设置命令 mode=$mode shaderCount=${shaderFiles.size}",
+                )
                 _state.value =
                     _state.value.copy(
-                        anime4KMode = next,
+                        anime4KMode = mode,
                         activeShaderFiles = shaderFiles,
                     )
             }
@@ -793,6 +974,99 @@ internal class PlayerSession private constructor(context: Context) {
                 "无法切换 Anime4K 模式：${error.message ?: error.javaClass.simpleName}",
                 error,
             )
+        }
+    }
+
+    fun replaceQueueForCurrent(
+        requestId: String,
+        queue: List<PlayerMediaRequest>,
+    ) {
+        requireMainThread()
+        val currentRequest = _state.value.request ?: return
+        if (currentRequest.requestId != requestId || queue.isEmpty()) return
+        val currentIndex =
+            queue.indexOfFirst { candidate ->
+                candidate.requestId == requestId || candidate.uri == currentRequest.uri
+            }
+        if (currentIndex < 0) return
+        activeQueue = queue.toList()
+        activeQueueIndex = currentIndex
+        _state.value =
+            _state.value.copy(
+                queueIndex = currentIndex,
+                queueSize = activeQueue.size,
+            )
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "更新播放队列 index=$currentIndex size=${activeQueue.size}",
+        )
+    }
+
+    fun playPrevious(): Boolean {
+        requireMainThread()
+        if (activeQueue.isEmpty() || activeQueueIndex <= 0) return false
+        openQueueItem(activeQueueIndex - 1)
+        return true
+    }
+
+    fun playNext(): Boolean {
+        requireMainThread()
+        if (activeQueue.isEmpty() || activeQueueIndex >= activeQueue.lastIndex) return false
+        openQueueItem(activeQueueIndex + 1)
+        return true
+    }
+
+    fun requestSeekPreview(positionSeconds: Double) {
+        requireMainThread()
+        val snapshot = _state.value
+        val loadCommandId = lastLoadCommandId ?: return
+        if (
+            !settingsStore.current.seekbarThumbnailEnabled ||
+                !snapshot.hasMedia ||
+                !snapshot.runtimeState.acceptsCommands() ||
+                snapshot.durationSeconds <= 0.0
+        ) {
+            return
+        }
+        val target = positionSeconds.coerceIn(0.0, snapshot.durationSeconds)
+        val previous = snapshot.seekPreview
+        if (
+            previous != null &&
+                kotlin.math.abs(previous.positionSeconds - target) < 0.25 &&
+                (previous.loading || previous.bitmap != null)
+        ) {
+            return
+        }
+        _state.value =
+            snapshot.copy(
+                seekPreview =
+                    PlayerSeekPreview(
+                        positionSeconds = target,
+                        bitmap = previous?.bitmap,
+                        loading = true,
+                    ),
+            )
+        val commandId =
+            runtimeConnection.requestThumbnail(
+                loadCommandId = loadCommandId,
+                positionSeconds = target,
+                maxSize = SEEK_PREVIEW_MAX_SIZE,
+            )
+        if (commandId == null) {
+            _state.value =
+                _state.value.copy(
+                    seekPreview = _state.value.seekPreview?.copy(loading = false),
+                )
+            return
+        }
+        pendingThumbnailCommandId = commandId
+    }
+
+    fun clearSeekPreview() {
+        requireMainThread()
+        pendingThumbnailCommandId = null
+        if (_state.value.seekPreview != null) {
+            _state.value = _state.value.copy(seekPreview = null)
         }
     }
 
@@ -838,8 +1112,13 @@ internal class PlayerSession private constructor(context: Context) {
         closeCommandId = null
         pendingMediaLoad = null
         lastLoadCommandId = null
+        pendingThumbnailCommandId = null
         failAllScreenshots(IllegalStateException("播放器已关闭"))
         val previousRuntimeState = snapshot.runtimeState
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "请求关闭播放器 runtime=$previousRuntimeState presentation=${snapshot.presentation}",
+        )
         PlayerCrashJournal.record(
             appContext,
             PlayerCrashEventType.RUNTIME_CLOSE,
@@ -1106,11 +1385,21 @@ internal class PlayerSession private constructor(context: Context) {
         if (closeCommandId != null) return
         val commandId = runtimeConnection.close()
         if (commandId == null) {
+            PlayerDebugLogBuffer.append(
+                PlayerDebugLogLevel.ERROR,
+                TAG,
+                "无法发送关闭播放器运行时命令",
+            )
             runtimeConnection.disconnect()
             finalizeClosedSession()
             return
         }
         closeCommandId = commandId
+        PlayerDebugLogBuffer.append(
+            PlayerDebugLogLevel.DEBUG,
+            TAG,
+            "发送关闭播放器运行时命令 command=$commandId",
+        )
     }
 
     private fun finalizeClosedSession() {
@@ -1124,8 +1413,11 @@ internal class PlayerSession private constructor(context: Context) {
         activeSurfaceLease = null
         pendingMediaLoad = null
         lastLoadCommandId = null
+        pendingThumbnailCommandId = null
         closeCommandId = null
         closeRequested = false
+        activeQueue = emptyList()
+        activeQueueIndex = 0
         _state.value =
             PlayerSessionState(
                 loadGeneration = snapshot.loadGeneration,
@@ -1164,6 +1456,7 @@ internal class PlayerSession private constructor(context: Context) {
         }
         failAllScreenshots(IllegalStateException(message))
         pendingMediaLoad = null
+        pendingThumbnailCommandId = null
         pendingSurfaceLease = null
         activeSurfaceLease = null
         closeCommandId = null
@@ -1182,7 +1475,7 @@ internal class PlayerSession private constructor(context: Context) {
                 paused = true,
                 error = message,
             )
-        PlayerDebugLogBuffer.append(TAG, message)
+        PlayerDebugLogBuffer.append(PlayerDebugLogLevel.ERROR, TAG, message)
     }
 
     fun restartAfterCrash(runtimeGeneration: Long): PlayerPresentation? {
@@ -1258,64 +1551,161 @@ internal class PlayerSession private constructor(context: Context) {
 
     private fun saveScreenshot(source: File): String {
         val displayName = "Kiyori_${System.currentTimeMillis()}.png"
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            val directory =
-                File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                    "Kiyori",
+        val playerSettings = settingsStore.current
+        val browserSettings = BrowserDownloadSettingsStore.getInstance(appContext).current
+        val destination =
+            resolvePlayerScreenshotDestination(
+                playerDirectoryUri = playerSettings.screenshotDirectoryUri,
+                browserUsesSystemDownloader =
+                    browserSettings.defaultEngine == BrowserDownloadEngine.SYSTEM,
+                browserDirectoryUri = browserSettings.customDirectoryUri,
+                browserAutoTransferToPublicDirectory =
+                    browserSettings.autoTransferToPublicDirectory,
+            )
+        return when (destination.kind) {
+            PlayerScreenshotDestinationKind.DOCUMENT_TREE ->
+                saveScreenshotToDocumentTree(
+                    source = source,
+                    treeUri = destination.treeUri,
+                    displayName = displayName,
                 )
-            check(directory.isDirectory || directory.mkdirs()) {
-                "Unable to create screenshot directory: $directory"
+            PlayerScreenshotDestinationKind.PUBLIC_DOWNLOAD_DIRECTORY ->
+                saveScreenshotToFileDirectory(
+                    source = source,
+                    directory = browserDownloadPublicDirectory(),
+                    displayName = displayName,
+                    scanMedia = true,
+                )
+            PlayerScreenshotDestinationKind.APPLICATION_DOWNLOAD_DIRECTORY ->
+                saveScreenshotToFileDirectory(
+                    source = source,
+                    directory = browserDownloadApplicationDirectory(appContext),
+                    displayName = displayName,
+                    scanMedia = false,
+                )
+        }
+    }
+
+    private fun saveScreenshotToDocumentTree(
+        source: File,
+        treeUri: String,
+        displayName: String,
+    ): String {
+        val tree =
+            requireNotNull(DocumentFile.fromTreeUri(appContext, treeUri.toUri())) {
+                "Unable to open screenshot document tree"
             }
-            val destination = File(directory, displayName)
-            source.copyTo(destination, overwrite = false)
+        require(tree.isDirectory && tree.canWrite()) {
+            "Screenshot document tree is not writable"
+        }
+        val uniqueName = resolveUniqueScreenshotName(displayName) { name -> tree.findFile(name) != null }
+        val document =
+            requireNotNull(tree.createFile("image/png", uniqueName)) {
+                "Unable to create screenshot document"
+            }
+        try {
+            appContext.contentResolver.openOutputStream(document.uri, "w").use { output ->
+                requireNotNull(output) { "Unable to open screenshot document output" }
+                source.inputStream().use { input -> input.copyTo(output) }
+            }
+        } catch (error: Throwable) {
+            runCatching { document.delete() }
+            throw error
+        }
+        return document.name ?: uniqueName
+    }
+
+    private fun saveScreenshotToFileDirectory(
+        source: File,
+        directory: File,
+        displayName: String,
+        scanMedia: Boolean,
+    ): String {
+        require(directory.isDirectory || directory.mkdirs()) {
+            "Unable to create screenshot directory: ${directory.absolutePath}"
+        }
+        val uniqueName = resolveUniqueScreenshotName(displayName) { name -> File(directory, name).exists() }
+        val destination = File(directory, uniqueName)
+        source.copyTo(destination, overwrite = false)
+        if (scanMedia) {
             MediaScannerConnection.scanFile(
                 appContext,
                 arrayOf(destination.absolutePath),
                 arrayOf("image/png"),
                 null,
             )
-            return displayName
         }
-        val values =
-            ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
-                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-                put(
-                    MediaStore.Images.Media.RELATIVE_PATH,
-                    "${Environment.DIRECTORY_PICTURES}/Kiyori",
-                )
+        return destination.name
+    }
+
+    private fun resolveUniqueScreenshotName(
+        requestedName: String,
+        exists: (String) -> Boolean,
+    ): String {
+        val dotIndex = requestedName.lastIndexOf('.')
+        val baseName =
+            if (dotIndex > 0) {
+                requestedName.substring(0, dotIndex)
+            } else {
+                requestedName
             }
-        val uri =
-            requireNotNull(
-                appContext.contentResolver.insert(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    values,
-                ),
-            ) { "Unable to create screenshot in MediaStore" }
-        appContext.contentResolver.openOutputStream(uri).use { output ->
-            requireNotNull(output) { "Unable to open screenshot output" }
-            source.inputStream().use { input -> input.copyTo(output) }
+        val extension =
+            if (dotIndex > 0) {
+                requestedName.substring(dotIndex)
+            } else {
+                ""
+            }
+        var candidate = requestedName
+        var index = 1
+        while (exists(candidate)) {
+            candidate = "$baseName ($index)$extension"
+            index += 1
         }
-        return displayName
+        return candidate
     }
 
     private fun setError(message: String, error: Throwable) {
         AppLogger.e(TAG, message, error)
-        PlayerDebugLogBuffer.append(TAG, message)
+        PlayerDebugLogBuffer.append(
+            PlayerDebugLogLevel.ERROR,
+            TAG,
+            "$message cause=${error.javaClass.simpleName}: ${error.message.orEmpty()}",
+        )
         _state.value = _state.value.copy(loading = false, buffering = false, error = message)
     }
 
     private fun handleNaturalEndOfFile() {
         val snapshot = _state.value
         if (!snapshot.hasMedia) return
-        if (!isPlayerAtNaturalEnd(snapshot.positionSeconds, snapshot.durationSeconds)) return
-        when (settingsStore.current.endBehavior) {
-            PlayerEndBehavior.PAUSE ->
-                _state.value = snapshot.copy(paused = true, buffering = false)
-            PlayerEndBehavior.CLOSE -> close()
-            PlayerEndBehavior.LOOP -> Unit
+        val settings = settingsStore.current
+        if (settings.autoPlayNext && snapshot.hasNextQueueItem && playNext()) {
+            return
         }
+        when (settings.queueEndBehavior) {
+            PlayerQueueEndBehavior.STAY ->
+                _state.value = snapshot.copy(paused = true, buffering = false)
+            PlayerQueueEndBehavior.CLOSE -> close()
+            PlayerQueueEndBehavior.LOOP_CURRENT -> {
+                seekTo(0.0)
+                setPaused(false)
+            }
+        }
+    }
+
+    private fun openQueueItem(index: Int) {
+        check(index in activeQueue.indices) { "Player queue index is out of bounds" }
+        activeQueueIndex = index
+        val request = activeQueue[index]
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "切换播放队列 index=$index size=${activeQueue.size} " +
+                "request=${shortPlayerDiagnosticId(request.requestId)}",
+        )
+        openInternal(
+            request = request,
+            presentation = _state.value.presentation,
+            clearDiagnostics = false,
+        )
     }
 
     private fun isCurrentRuntime(runtimeGeneration: Long): Boolean =
@@ -1442,6 +1832,7 @@ internal class PlayerSession private constructor(context: Context) {
         private const val TAG = "PlayerSession"
         private const val SCREENSHOT_WAIT_ATTEMPTS = 20
         private const val SCREENSHOT_WAIT_INTERVAL_MS = 50L
+        private const val SEEK_PREVIEW_MAX_SIZE = 320
 
         @Volatile private var instance: PlayerSession? = null
 

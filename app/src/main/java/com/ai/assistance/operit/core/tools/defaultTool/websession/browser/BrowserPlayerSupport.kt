@@ -41,11 +41,20 @@ private fun StandardBrowserSessionTools.openMediaCandidate(
         true
     }
 
-internal fun StandardBrowserSessionTools.downloadMediaCandidate(candidateId: String): Boolean =
+internal fun StandardBrowserSessionTools.downloadMediaCandidate(
+    candidateId: String,
+    sourceSessionId: String? = null,
+    destination: BrowserDownloadDestination = BrowserDownloadDestination.FollowSettings,
+): Boolean =
     runOnMainSync {
-        val browserSession = getActiveSessionOnMain() ?: return@runOnMainSync false
+        val browserSession =
+            if (sourceSessionId == null) {
+                getActiveSessionOnMain()
+            } else {
+                sessionById(sourceSessionId)
+            } ?: return@runOnMainSync false
         val candidate = findMediaCandidate(browserSession, candidateId) ?: return@runOnMainSync false
-        startMediaCandidateDownload(browserSession, candidate)
+        startMediaCandidateDownload(browserSession, candidate, destination)
     }
 
 internal fun StandardBrowserSessionTools.toggleBrowserPlayerPause() {

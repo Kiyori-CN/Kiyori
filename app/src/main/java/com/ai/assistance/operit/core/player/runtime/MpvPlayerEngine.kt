@@ -1,16 +1,20 @@
 package com.ai.assistance.operit.core.player.runtime
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
 import android.view.Surface
+import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
 import com.ai.assistance.operit.core.player.PlayerDecoderPreset
-import com.ai.assistance.operit.core.player.PlayerEndBehavior
+import com.ai.assistance.operit.core.player.PlayerChapter
 import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerTrack
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
+import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
+import `is`.xyz.mpv.Utils
 
 internal data class MpvPlayerProgress(
     val positionSeconds: Double?,
@@ -24,6 +28,7 @@ internal data class MpvPlayerProgress(
 internal data class MpvPlayerTrackSnapshot(
     val audioTracks: List<PlayerTrack>,
     val subtitleTracks: List<PlayerTrack>,
+    val chapters: List<PlayerChapter>,
 )
 
 internal interface MpvPlayerEngineListener {
@@ -34,6 +39,12 @@ internal interface MpvPlayerEngineListener {
     fun onFileLoaded()
 
     fun onRuntimeError(message: String)
+
+    fun onDiagnosticLog(
+        level: PlayerDebugLogLevel,
+        tag: String,
+        message: String,
+    )
 }
 
 internal class MpvRuntimeException(
@@ -47,7 +58,7 @@ internal class MpvRuntimeException(
 internal class MpvPlayerEngine(
     context: Context,
     private val listener: MpvPlayerEngineListener,
-) : MPVLib.EventObserver {
+) : MPVLib.EventObserver, MPVLib.LogObserver {
     private val appContext = context.applicationContext
     private var initialized = false
     private var attachedSurface: Surface? = null
@@ -55,9 +66,24 @@ internal class MpvPlayerEngine(
 
     fun initialize(settings: PlayerSettings): Unit = callMpv("初始化") {
         if (initialized) return
-        Log.d(TAG, "初始化 mpv 内核")
+        diagnostic(
+            PlayerDebugLogLevel.INFO,
+            TAG,
+            "初始化 mpv 内核 decoder=${settings.decoderPreset.persistedId} " +
+                "gpuNext=${settings.gpuNextEnabled} vulkan=${settings.vulkanEnabled} " +
+                "cache=${settings.networkCachePolicy.persistedId}",
+        )
+        // mbedTLS does not use Android's platform trust store directly. The fixed mpv
+        // input ships the CA bundle it was designed to use, so make that exact asset
+        // available before enabling certificate verification.
+        Utils.copyAssets(appContext)
+        val tlsCaFile = appContext.filesDir.resolve("cacert.pem")
+        check(tlsCaFile.isFile && tlsCaFile.length() > 0L) {
+            "mpv TLS CA bundle is missing"
+        }
         MPVLib.create(appContext)
         setRequiredOption("config", "no")
+        setRequiredOption("msg-level", "all=v")
         setRequiredOption("profile", settings.decoderPreset.persistedId)
         videoOutput =
             if (settings.gpuNextEnabled) VIDEO_OUTPUT_GPU_NEXT else VIDEO_OUTPUT_GPU
@@ -82,17 +108,29 @@ internal class MpvPlayerEngine(
         setRequiredOption("sub-ass-force-margins", "yes")
         setRequiredOption("blend-subtitles", "video")
         setRequiredOption("slang", "zh,chi,zho,chs,cht,zh-CN,zh-TW,en,eng")
+        setRequiredOption("tls-ca-file", tlsCaFile.absolutePath)
         setRequiredOption("tls-verify", "yes")
+        // Browser media candidates are already direct executable media requests.
+        // No yt-dlp binary is distributed, so the ytdl hook must not turn a native
+        // HTTP error into unrelated subprocess lookup failures.
+        setRequiredOption("ytdl", "no")
+        diagnostic(
+            PlayerDebugLogLevel.INFO,
+            TAG,
+            "网络媒体协议配置 tlsBackend=mbedTLS tlsVerify=true caBundle=packaged ytdl=false",
+        )
         setRequiredOption("gpu-shader-cache-dir", appContext.cacheDir.absolutePath)
         setRequiredOption("icc-cache-dir", appContext.cacheDir.absolutePath)
         setNetworkCacheOptions(settings.networkCachePolicy)
         setPreciseSeekingOptions(settings.preciseSeeking)
         setRequiredOption("sub-scale", settings.subtitleScale.toString())
-        setRequiredOption("loop-file", loopFileValue(settings.endBehavior))
+        // 自然 EOF 必须交给唯一 PlayerSession 处理，MPV 自循环会吞掉“下一集/最后一集”语义。
+        setRequiredOption("loop-file", "no")
         setVolumeBoostOptions(settings.volumeBoostEnabled)
         // The packaged mpvlibAndroid binding initializes the core before Surface callbacks.
         // Attaching a native window here would let VO startup race Android's first Surface frame.
         MPVLib.addObserver(this)
+        MPVLib.addLogObserver(this)
         MPVLib.init()
         MPVLib.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("time-pos", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
@@ -101,7 +139,7 @@ internal class MpvPlayerEngine(
         MPVLib.observeProperty("paused-for-cache", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         initialized = true
-        Log.d(TAG, "mpv 内核初始化完成")
+        diagnostic(PlayerDebugLogLevel.INFO, TAG, "mpv 内核初始化完成")
     }
 
     fun load(
@@ -112,13 +150,23 @@ internal class MpvPlayerEngine(
         initialSpeed: Double,
     ) = callMpv("加载媒体") {
         check(initialized) { "mpv engine is not initialized" }
-        Log.d(TAG, "加载媒体")
-        applyRequestHeaders(headers)
+        val headerPlan = buildPlayerMpvHttpHeaderPlan(headers)
+        val requestFields =
+            headerPlan.forwardedHeaders.keys.joinToString("|").ifEmpty { "none" }
+        diagnostic(
+            PlayerDebugLogLevel.INFO,
+            TAG,
+            "加载媒体 inputHeaderCount=${headers.size} " +
+                "forwardedHeaderCount=${headerPlan.forwardedHeaders.size} " +
+                "requestFields=$requestFields rangeInput=${headerPlan.rangeHeaderObserved} " +
+                "rangeOwner=mpv decoder=${settings.decoderPreset.persistedId} " +
+                "shaderCount=${shaderFiles.size} initialSpeed=$initialSpeed",
+        )
+        applyRequestHeaders(headerPlan.forwardedHeaders)
         applyDecoderPreset(settings.decoderPreset)
         applyPreciseSeeking(settings.preciseSeeking)
         applyNetworkCache(settings.networkCachePolicy)
         applySubtitleScale(settings.subtitleScale)
-        applyEndBehavior(settings.endBehavior)
         applyVolumeBoost(settings.volumeBoostEnabled)
         applyShaders(shaderFiles)
         MPVLib.setPropertyDouble("speed", initialSpeed)
@@ -137,7 +185,7 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyString("force-window", "yes")
         attachedSurface = surface
         updateSurfaceSize(width, height)
-        Log.d(TAG, "连接播放画面 ${width}x$height")
+        diagnostic(PlayerDebugLogLevel.INFO, TAG, "连接播放画面 ${width}x$height")
     }
 
     fun updateSurfaceSize(width: Int, height: Int) = callMpv("更新播放画面尺寸") {
@@ -152,7 +200,7 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyString("force-window", "no")
         MPVLib.detachSurface()
         attachedSurface = null
-        Log.d(TAG, "断开播放画面")
+        diagnostic(PlayerDebugLogLevel.INFO, TAG, "断开播放画面")
     }
 
     fun setPaused(paused: Boolean) = callMpv("设置暂停状态") {
@@ -202,10 +250,6 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyDouble("sub-scale", scale)
     }
 
-    fun applyEndBehavior(behavior: PlayerEndBehavior) = callMpv("应用播放结束行为") {
-        MPVLib.setPropertyString("loop-file", loopFileValue(behavior))
-    }
-
     fun applyVolumeBoost(enabled: Boolean) = callMpv("应用音量增强设置") {
         val targetVolume = if (enabled) BOOSTED_VOLUME_PERCENT else NORMAL_VOLUME_PERCENT
         MPVLib.setPropertyDouble("volume-max", if (enabled) MAX_BOOSTED_VOLUME_PERCENT else NORMAL_VOLUME_PERCENT)
@@ -237,6 +281,19 @@ internal class MpvPlayerEngine(
 
     fun captureScreenshot(path: String) = callMpv("截取视频画面") {
         MPVLib.command("screenshot-to-file", path, "video")
+    }
+
+    fun grabThumbnail(
+        source: String,
+        positionSeconds: Double,
+        maxSize: Int,
+    ): Bitmap? = callMpv("提取进度缩略图") {
+        check(source.isNotBlank()) { "Player thumbnail source is blank" }
+        require(positionSeconds.isFinite() && positionSeconds >= 0.0) {
+            "Player thumbnail position is invalid"
+        }
+        require(maxSize in 64..512) { "Player thumbnail size is invalid" }
+        MPVLib.grabThumbnailFast(source, positionSeconds, maxSize)
     }
 
     fun readProgress(): MpvPlayerProgress = callMpv("读取播放状态") {
@@ -271,7 +328,24 @@ internal class MpvPlayerEngine(
                 "sub" -> subtitleTracks += track
             }
         }
-        return MpvPlayerTrackSnapshot(audioTracks, subtitleTracks)
+        val chapters = mutableListOf<PlayerChapter>()
+        val chapterCount = MPVLib.getPropertyInt("chapter-list/count") ?: 0
+        repeat(chapterCount) { index ->
+            val startSeconds =
+                MPVLib.getPropertyDouble("chapter-list/$index/time")
+                    ?.takeIf { value -> value.isFinite() && value >= 0.0 }
+                    ?: return@repeat
+            val title =
+                MPVLib.getPropertyString("chapter-list/$index/title")
+                    ?.takeIf(String::isNotBlank)
+                    ?: "章节 ${index + 1}"
+            chapters += PlayerChapter(title = title, startSeconds = startSeconds)
+        }
+        return MpvPlayerTrackSnapshot(
+            audioTracks = audioTracks,
+            subtitleTracks = subtitleTracks,
+            chapters = chapters.sortedBy(PlayerChapter::startSeconds),
+        )
     }
 
     fun destroy(): Unit = callMpv("销毁内核") {
@@ -281,9 +355,10 @@ internal class MpvPlayerEngine(
         }
         MPVLib.command("stop")
         MPVLib.removeObserver(this)
+        MPVLib.removeLogObserver(this)
         MPVLib.destroy()
         initialized = false
-        Log.d(TAG, "销毁 mpv 内核")
+        diagnostic(PlayerDebugLogLevel.INFO, TAG, "销毁 mpv 内核")
     }
 
     private fun setRequiredOption(name: String, value: String) {
@@ -318,12 +393,6 @@ internal class MpvPlayerEngine(
     private fun applyRequestHeaders(headers: Map<String, String>) {
         val serialized =
             headers.entries.joinToString(",") { (name, value) ->
-                require(name.isNotBlank() && !name.contains(':') && !name.contains('\n') && !name.contains('\r')) {
-                    "Invalid player request header name"
-                }
-                require(!value.contains('\n') && !value.contains('\r')) {
-                    "Invalid player request header value"
-                }
                 "$name: ${escapeMpvListValue(value)}"
             }
         MPVLib.setPropertyString("http-header-fields", serialized)
@@ -350,33 +419,120 @@ internal class MpvPlayerEngine(
 
     override fun event(eventId: Int, data: MPVNode) {
         when (eventId) {
+            MPVLib.MpvEvent.MPV_EVENT_START_FILE,
+            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED,
+            MPVLib.MpvEvent.MPV_EVENT_VIDEO_RECONFIG,
+            MPVLib.MpvEvent.MPV_EVENT_AUDIO_RECONFIG,
+            MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART,
+            MPVLib.MpvEvent.MPV_EVENT_END_FILE,
+            MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN,
+            ->
+                diagnostic(
+                    PlayerDebugLogLevel.DEBUG,
+                    TAG,
+                    "mpv event=${mpvEventName(eventId)} id=$eventId",
+                )
+        }
+        when (eventId) {
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
-                Log.d(TAG, "媒体文件已加载")
+                diagnostic(PlayerDebugLogLevel.INFO, TAG, "媒体文件已加载")
                 listener.onFileLoaded()
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
-                val reason = data["reason"]?.asInt()
-                Log.d(TAG, "媒体结束 reason=${reason ?: "unknown"}")
-                if (reason == MPV_END_FILE_REASON_ERROR) {
-                    val errorCode = data["error"]?.asInt()
+                val endFile =
+                    resolvePlayerMpvEndFileState(
+                        reason = data["reason"]?.asString(),
+                        fileError = data["file_error"]?.asString(),
+                    )
+                diagnostic(
+                    if (endFile.failed) {
+                        PlayerDebugLogLevel.ERROR
+                    } else {
+                        PlayerDebugLogLevel.INFO
+                    },
+                    TAG,
+                    "媒体结束 reason=${endFile.reason ?: "unknown"} " +
+                        "fileError=${endFile.fileError ?: "none"}",
+                )
+                if (endFile.failed) {
                     listener.onRuntimeError(
-                        "mpv 无法继续播放，错误码 ${errorCode ?: "unknown"}",
+                        "mpv 无法继续播放：${endFile.fileError ?: "unknown"}",
                     )
                 }
             }
         }
     }
 
+    override fun logMessage(prefix: String, level: Int, text: String) {
+        val message = text.trim().takeIf(String::isNotEmpty) ?: return
+        diagnostic(
+            level = mpvLogLevel(level),
+            tag = "mpv.${prefix.ifBlank { "core" }}",
+            message = "[${mpvLogLevelName(level)}] $message",
+        )
+    }
+
     private inline fun <T> callMpv(operation: String, block: () -> T): T =
         try {
             block()
         } catch (error: LinkageError) {
+            diagnostic(
+                PlayerDebugLogLevel.ERROR,
+                TAG,
+                "$operation 失败：${error.javaClass.simpleName}: ${error.message.orEmpty()}",
+            )
             Log.e(TAG, "$operation 失败", error)
             throw MpvRuntimeException(operation, error)
         }
 
-    private fun loopFileValue(behavior: PlayerEndBehavior): String =
-        if (behavior == PlayerEndBehavior.LOOP) "inf" else "no"
+    private fun diagnostic(
+        level: PlayerDebugLogLevel,
+        tag: String,
+        message: String,
+    ) {
+        val sanitized = sanitizePlayerDiagnosticMessage(message)
+        if (sanitized.isBlank()) return
+        when (level) {
+            PlayerDebugLogLevel.DEBUG -> Log.d(tag, sanitized)
+            PlayerDebugLogLevel.INFO -> Log.i(tag, sanitized)
+            PlayerDebugLogLevel.WARN -> Log.w(tag, sanitized)
+            PlayerDebugLogLevel.ERROR -> Log.e(tag, sanitized)
+        }
+        listener.onDiagnosticLog(level, tag, sanitized)
+    }
+
+    private fun mpvLogLevel(level: Int): PlayerDebugLogLevel =
+        when {
+            level <= MPV_LOG_LEVEL_ERROR -> PlayerDebugLogLevel.ERROR
+            level <= MPV_LOG_LEVEL_WARN -> PlayerDebugLogLevel.WARN
+            level <= MPV_LOG_LEVEL_INFO -> PlayerDebugLogLevel.INFO
+            else -> PlayerDebugLogLevel.DEBUG
+        }
+
+    private fun mpvLogLevelName(level: Int): String =
+        when (level) {
+            0 -> "none"
+            10 -> "fatal"
+            20 -> "error"
+            30 -> "warn"
+            40 -> "info"
+            50 -> "verbose"
+            60 -> "debug"
+            70 -> "trace"
+            else -> level.toString()
+        }
+
+    private fun mpvEventName(eventId: Int): String =
+        when (eventId) {
+            MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN -> "SHUTDOWN"
+            MPVLib.MpvEvent.MPV_EVENT_START_FILE -> "START_FILE"
+            MPVLib.MpvEvent.MPV_EVENT_END_FILE -> "END_FILE"
+            MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> "FILE_LOADED"
+            MPVLib.MpvEvent.MPV_EVENT_VIDEO_RECONFIG -> "VIDEO_RECONFIG"
+            MPVLib.MpvEvent.MPV_EVENT_AUDIO_RECONFIG -> "AUDIO_RECONFIG"
+            MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> "PLAYBACK_RESTART"
+            else -> "UNKNOWN"
+        }
 
     private companion object {
         const val TAG = "MpvPlayerEngine"
@@ -387,6 +543,8 @@ internal class MpvPlayerEngine(
         const val NORMAL_VOLUME_PERCENT = 100.0
         const val BOOSTED_VOLUME_PERCENT = 150.0
         const val MAX_BOOSTED_VOLUME_PERCENT = 300.0
-        const val MPV_END_FILE_REASON_ERROR = 4L
+        const val MPV_LOG_LEVEL_ERROR = 20
+        const val MPV_LOG_LEVEL_WARN = 30
+        const val MPV_LOG_LEVEL_INFO = 40
     }
 }

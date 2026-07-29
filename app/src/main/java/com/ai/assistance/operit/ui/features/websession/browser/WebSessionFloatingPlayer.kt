@@ -35,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,6 +61,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.player.PLAYER_SPEED_OPTIONS
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
+import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
 import com.ai.assistance.operit.ui.features.player.PlayerSurfaceView
 import java.text.SimpleDateFormat
@@ -85,6 +87,8 @@ internal fun WebSessionFloatingPlayer(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val playerSettingsStore = remember(context) { PlayerSettingsStore.getInstance(context) }
+    val playerSettings by playerSettingsStore.state.collectAsState()
     val requestId = state.request?.requestId.orEmpty()
     var controlsVisible by remember(requestId) { mutableStateOf(true) }
     var controlsLocked by remember(requestId) { mutableStateOf(false) }
@@ -139,7 +143,7 @@ internal fun WebSessionFloatingPlayer(
 
     val durationSeconds = state.durationSeconds.coerceAtLeast(0.0)
     val positionSeconds = state.positionSeconds.coerceIn(0.0, durationSeconds.coerceAtLeast(0.0))
-    val seekStepSeconds = 10
+    val seekStepSeconds = playerSettings.seekStepSeconds
     val featureAction = onFullscreen
 
     Surface(

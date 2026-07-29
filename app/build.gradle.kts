@@ -44,7 +44,41 @@ val playerFfmpegSourceCoordinate =
 val playerFfmpegArm64Sha256 =
     "1a30a94226bf2157927ec6edbb20154f9a1c1c53580f59cf55efe46db87a5ab3"
 val playerMpvThinSha256 =
-    "ecdc87102e7b4a9bb9c9d46af863f7c32b25b9aab7a161614af6646ffd603f70"
+    "fc983b7ed0c8b8be1938283fe94108dfdc593aa31608d55dd1ce119ae201c32c"
+val playerMpvFfmpegNamespace =
+    linkedMapOf(
+        "libavcodec.so" to "libmpcodec.so",
+        "libavdevice.so" to "libmpdevice.so",
+        "libavfilter.so" to "libmpfilter.so",
+        "libavformat.so" to "libmpformat.so",
+        "libavutil.so" to "libmputil.so",
+        "libswresample.so" to "libmpresample.so",
+        "libswscale.so" to "libmpscale.so",
+    )
+val playerMpvRequiredTlsMarkers =
+    listOf(
+        "--enable-mbedtls",
+        "mbedtls_ssl_handshake",
+    )
+val playerFfmpegKitLibraryNames =
+    setOf(
+        "libavcodec.so",
+        "libavdevice.so",
+        "libavfilter.so",
+        "libavformat.so",
+        "libavutil.so",
+        "libffmpegkit.so",
+        "libffmpegkit_abidetect.so",
+        "libswresample.so",
+        "libswscale.so",
+    )
+val playerMpvNativeLibraryNames =
+    setOf(
+        "libc++_shared.so",
+        "libmpv.so",
+        "libplayer.so",
+        *playerMpvFfmpegNamespace.values.toTypedArray(),
+    )
 val playerRequiredLibcxxSymbols =
     listOf(
         "_ZNSt6__ndk127__from_chars_floating_pointIfEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
@@ -79,6 +113,22 @@ private fun InputStream.containsByteSequence(needle: ByteArray): Boolean {
             }
         if (matched == needle.size) return true
     }
+}
+
+private fun ByteArray.containsByteSequence(needle: ByteArray): Boolean {
+    require(needle.isNotEmpty()) { "Needle must not be empty" }
+    if (needle.size > size) return false
+    for (start in 0..size - needle.size) {
+        var matches = true
+        for (offset in needle.indices) {
+            if (this[start + offset] != needle[offset]) {
+                matches = false
+                break
+            }
+        }
+        if (matches) return true
+    }
+    return false
 }
 
 @CacheableTask
@@ -471,7 +521,7 @@ android {
     }
 val verifyPlayerNativeInputs =
     tasks.register("verifyPlayerNativeInputs") {
-        description = "Verifies the fixed, non-overlapping FFmpeg/libmpv input artifacts."
+        description = "Verifies the fixed FFmpegKit and namespaced HTTPS-capable libmpv inputs."
         val mpvThinAar = layout.projectDirectory.file("libs/mpv-player-arm64.aar")
         val ffmpegArm64Aar = layout.projectDirectory.file("libs/ffmpeg-kit-player-arm64.aar")
         inputs.file(mpvThinAar)
@@ -494,6 +544,9 @@ val verifyPlayerNativeInputs =
                     "assets/subfont.ttf",
                     "META-INF/com/android/build/gradle/aar-metadata.properties",
                     "jni/arm64-v8a/libc++_shared.so",
+                    *playerMpvFfmpegNamespace.values
+                        .map { library -> "jni/arm64-v8a/$library" }
+                        .toTypedArray(),
                     "jni/arm64-v8a/libmpv.so",
                     "jni/arm64-v8a/libplayer.so",
                 )
@@ -509,7 +562,9 @@ val verifyPlayerNativeInputs =
                     setOf(
                         "is/xyz/mpv/MPVLib.class",
                         "is/xyz/mpv/MPVLib\$EventObserver.class",
+                        "is/xyz/mpv/MPVLib\$LogObserver.class",
                         "is/xyz/mpv/MPVNode.class",
+                        "is/xyz/mpv/Utils.class",
                     )
                 val packagedClasses = mutableSetOf<String>()
                 ZipInputStream(ByteArrayInputStream(archive.getInputStream(classesEntry).readBytes())).use { classes ->
@@ -523,17 +578,64 @@ val verifyPlayerNativeInputs =
                 check(packagedClasses == requiredClasses) {
                     "mpv thin AAR is missing runtime classes: ${requiredClasses - packagedClasses}"
                 }
+                val mpvNativePayloads =
+                    expectedMpvMembers
+                        .filter { member -> member.startsWith("jni/") }
+                        .associateWith { member ->
+                            archive.getInputStream(requireNotNull(archive.getEntry(member))).use { stream ->
+                                stream.readBytes()
+                            }
+                        }
+                playerMpvFfmpegNamespace.keys.forEach { sourceName ->
+                    val sourceNeedle = sourceName.toByteArray(Charsets.US_ASCII)
+                    val owners =
+                        mpvNativePayloads
+                            .filterValues { payload -> payload.containsByteSequence(sourceNeedle) }
+                            .keys
+                    check(owners.isEmpty()) {
+                        "mpv native namespace still references $sourceName in $owners"
+                    }
+                }
+                playerMpvFfmpegNamespace.values.forEach { namespacedName ->
+                    val member = "jni/arm64-v8a/$namespacedName"
+                    val payload = requireNotNull(mpvNativePayloads[member])
+                    check(payload.containsByteSequence(namespacedName.toByteArray(Charsets.US_ASCII))) {
+                        "$member has no matching namespaced SONAME"
+                    }
+                }
+                val libmpvPayload =
+                    requireNotNull(mpvNativePayloads["jni/arm64-v8a/libmpv.so"])
+                playerMpvFfmpegNamespace.values.forEach { namespacedName ->
+                    check(libmpvPayload.containsByteSequence(namespacedName.toByteArray(Charsets.US_ASCII))) {
+                        "libmpv.so does not reference namespaced dependency $namespacedName"
+                    }
+                }
+                val libplayerPayload =
+                    requireNotNull(mpvNativePayloads["jni/arm64-v8a/libplayer.so"])
+                setOf(
+                    "libmpcodec.so",
+                    "libmpformat.so",
+                    "libmputil.so",
+                    "libmpscale.so",
+                ).forEach { namespacedName ->
+                    check(libplayerPayload.containsByteSequence(namespacedName.toByteArray(Charsets.US_ASCII))) {
+                        "libplayer.so does not reference namespaced dependency $namespacedName"
+                    }
+                }
+                val mpvAvformatPayload =
+                    requireNotNull(mpvNativePayloads["jni/arm64-v8a/libmpformat.so"])
+                playerMpvRequiredTlsMarkers.forEach { marker ->
+                    check(mpvAvformatPayload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "namespaced mpv libavformat lacks TLS marker $marker"
+                    }
+                }
                 playerRequiredLibcxxSymbols.forEach { symbol ->
                     val needle = symbol.toByteArray(Charsets.US_ASCII)
-                    val mpvNeedsSymbol =
-                        archive.getInputStream(requireNotNull(archive.getEntry("jni/arm64-v8a/libmpv.so")))
-                            .buffered()
-                            .use { stream -> stream.containsByteSequence(needle) }
+                    val mpvNeedsSymbol = libmpvPayload.containsByteSequence(needle)
                     check(mpvNeedsSymbol) { "libmpv.so does not reference required C++ symbol $symbol" }
                     val runtimeExportsSymbol =
-                        archive.getInputStream(requireNotNull(archive.getEntry("jni/arm64-v8a/libc++_shared.so")))
-                            .buffered()
-                            .use { stream -> stream.containsByteSequence(needle) }
+                        requireNotNull(mpvNativePayloads["jni/arm64-v8a/libc++_shared.so"])
+                            .containsByteSequence(needle)
                     check(runtimeExportsSymbol) {
                         "mpv libc++_shared.so does not provide required C++ symbol $symbol"
                     }
@@ -549,20 +651,8 @@ val verifyPlayerNativeInputs =
             check(ffmpegSha256 == playerFfmpegArm64Sha256) {
                 "Unexpected player FFmpegKit AAR SHA-256: $ffmpegSha256"
             }
-            val ffmpegLibraryNames =
-                setOf(
-                    "libavcodec.so",
-                    "libavdevice.so",
-                    "libavfilter.so",
-                    "libavformat.so",
-                    "libavutil.so",
-                    "libffmpegkit.so",
-                    "libffmpegkit_abidetect.so",
-                    "libswresample.so",
-                    "libswscale.so",
-                )
             val expectedFfmpegMembers =
-                ffmpegLibraryNames.mapTo(mutableSetOf()) { library ->
+                playerFfmpegKitLibraryNames.mapTo(mutableSetOf()) { library ->
                     "jni/arm64-v8a/$library"
                 }
             ZipFile(ffmpegAar).use { archive ->
@@ -584,7 +674,7 @@ tasks.named("preBuild").configure {
 
 val verifyDebugPlayerRuntimePackaging =
     tasks.register("verifyDebugPlayerRuntimePackaging") {
-        description = "Verifies that the Debug APK contains the mpv Java binding and Kiyori engine classes."
+        description = "Verifies the Debug APK player classes and isolated HTTPS-capable native closure."
         val debugApk = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")
         inputs.file(debugApk)
         doLast {
@@ -614,6 +704,39 @@ val verifyDebugPlayerRuntimePackaging =
                             }
                         }
                     check(found) { "Debug APK is missing runtime descriptor $descriptor" }
+                }
+                val requiredPlayerNativeNames =
+                    playerFfmpegKitLibraryNames + playerMpvNativeLibraryNames
+                requiredPlayerNativeNames.forEach { libraryName ->
+                    val expectedPath = "lib/arm64-v8a/$libraryName"
+                    val matches =
+                        archive.entries().asSequence()
+                            .filter { entry -> !entry.isDirectory && entry.name == expectedPath }
+                            .toList()
+                    check(matches.size == 1) {
+                        "Debug APK must contain exactly one $expectedPath, found ${matches.size}"
+                    }
+                }
+                val apkLibmpv =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libmpv.so")),
+                    ).use { stream -> stream.readBytes() }
+                playerMpvFfmpegNamespace.forEach { (sourceName, namespacedName) ->
+                    check(!apkLibmpv.containsByteSequence(sourceName.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK libmpv.so still references non-namespaced $sourceName"
+                    }
+                    check(apkLibmpv.containsByteSequence(namespacedName.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK libmpv.so is missing namespaced $namespacedName"
+                    }
+                }
+                val apkMpvAvformat =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libmpformat.so")),
+                    ).use { stream -> stream.readBytes() }
+                playerMpvRequiredTlsMarkers.forEach { marker ->
+                    check(apkMpvAvformat.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK namespaced mpv libavformat lacks TLS marker $marker"
+                    }
                 }
                 val libcxxEntries =
                     archive.entries().asSequence()

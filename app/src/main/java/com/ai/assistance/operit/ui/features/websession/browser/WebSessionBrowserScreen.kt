@@ -193,8 +193,6 @@ internal fun WebSessionBrowserScreen(
     onHandlePendingDialog: (Boolean, String?) -> Unit,
     showMediaCandidateBadge: Boolean,
     automaticFloatingPlaybackEnabled: Boolean,
-    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
-    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onCopyTextSelection: () -> Unit,
     onSelectAllTextSelection: () -> Unit,
     onDismissTextSelection: () -> Unit,
@@ -862,12 +860,6 @@ internal fun WebSessionBrowserScreen(
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
                             onPlayMediaCandidate = onPlayMediaCandidate,
                             onDownloadMediaCandidate = onDownloadMediaCandidate,
-                            showMediaCandidateBadge = showMediaCandidateBadge,
-                            automaticFloatingPlaybackEnabled =
-                                automaticFloatingPlaybackEnabled,
-                            onSetShowMediaCandidateBadge = onSetShowMediaCandidateBadge,
-                            onSetAutomaticFloatingPlaybackEnabled =
-                                onSetAutomaticFloatingPlaybackEnabled,
                             onPauseDownload = onPauseDownload,
                             onResumeDownload = onResumeDownload,
                             onCancelDownload = onCancelDownload,
@@ -1016,6 +1008,16 @@ private fun BrowserDownloadConfirmationOverlay(
                     text = stringResource(R.string.web_session_download_confirm_engine, engineLabel),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                prompt.destinationName?.let { destinationName ->
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.web_session_download_confirm_destination,
+                                destinationName,
+                            ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -1128,10 +1130,6 @@ private fun WebSessionBrowserDrawerContent(
     onInvokeUserscriptMenu: (String) -> Unit,
     onPlayMediaCandidate: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
-    showMediaCandidateBadge: Boolean,
-    automaticFloatingPlaybackEnabled: Boolean,
-    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
-    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onPauseDownload: (String) -> Unit,
     onResumeDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
@@ -1235,11 +1233,6 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.MEDIA_CANDIDATES ->
             WebSessionMediaCandidateSheet(
                 candidates = browserState.mediaCandidates,
-                showMediaCandidateBadge = showMediaCandidateBadge,
-                automaticFloatingPlaybackEnabled = automaticFloatingPlaybackEnabled,
-                onSetShowMediaCandidateBadge = onSetShowMediaCandidateBadge,
-                onSetAutomaticFloatingPlaybackEnabled =
-                    onSetAutomaticFloatingPlaybackEnabled,
                 onPlay = { candidateId ->
                     onPlayMediaCandidate(candidateId).also { accepted ->
                         if (accepted) onDismiss()

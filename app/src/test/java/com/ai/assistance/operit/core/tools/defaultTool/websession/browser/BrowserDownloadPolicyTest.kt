@@ -110,21 +110,28 @@ class BrowserDownloadPolicyTest {
         assertFalse(
             shouldReleaseBrowserDownloadDirectoryPermission(
                 candidateUri = directoryUri,
-                settingsDirectoryUri = directoryUri,
+                settingsDirectoryUris = listOf(directoryUri),
                 taskDirectoryUris = emptyList(),
             ),
         )
         assertFalse(
             shouldReleaseBrowserDownloadDirectoryPermission(
                 candidateUri = directoryUri,
-                settingsDirectoryUri = "",
+                settingsDirectoryUris = listOf("", directoryUri),
+                taskDirectoryUris = emptyList(),
+            ),
+        )
+        assertFalse(
+            shouldReleaseBrowserDownloadDirectoryPermission(
+                candidateUri = directoryUri,
+                settingsDirectoryUris = emptyList(),
                 taskDirectoryUris = listOf(directoryUri),
             ),
         )
         assertTrue(
             shouldReleaseBrowserDownloadDirectoryPermission(
                 candidateUri = directoryUri,
-                settingsDirectoryUri = "",
+                settingsDirectoryUris = emptyList(),
                 taskDirectoryUris = emptyList(),
             ),
         )
@@ -275,9 +282,33 @@ class BrowserDownloadPolicyTest {
                 mimeType = "video/mp4",
                 contentLength = 4096L,
                 engine = BrowserDownloadEngine.SYSTEM,
+                destinationName = null,
             ),
             request.toUiState(),
         )
+    }
+
+    @Test
+    fun `player document-tree download projection freezes destination and internal engine`() {
+        val request =
+            PendingBrowserDownloadRequest(
+                requestId = "request-player-1",
+                sessionId = "session-1",
+                url = "https://example.com/video.mp4",
+                fileName = "video.mp4",
+                mimeType = "video/mp4",
+                contentLength = -1L,
+                headers = emptyMap(),
+                engine = BrowserDownloadEngine.INTERNAL,
+                destination =
+                    BrowserDownloadDestination.DocumentTree(
+                        treeUri = "content://downloads/tree/primary%3APlayer",
+                        displayName = "播放器视频",
+                    ),
+            )
+
+        assertEquals("播放器视频", request.toUiState().destinationName)
+        assertEquals(BrowserDownloadEngine.INTERNAL, request.toUiState().engine)
     }
 
     @Test

@@ -13,9 +13,9 @@
   现有 `PendingBrowserDownloadRequest` 与 `BrowserDownloadManager`。
 - 浏览器内容区已实现 16:9 悬浮 `PlayerSurfaceView`、边界拖动、双指缩放、播放/暂停、全屏与关闭；
   `PlayerActivity` 往返只切 presentation 和 surface owner。
-- 顶部搜索框候选圆圈和自动悬浮播放已拆分为两个独立开关；候选抽屉按确定性推荐分数排序，只显示
-  当前实际发现的具体视频格式筛选项、原始链接和视频时长/直播/未知状态。点击或长按结果打开播放、
-  下载、复制链接和查看链接动作弹窗。
+- 顶部搜索框候选圆圈和自动悬浮播放由两个独立设置值控制，并统一放在浏览器设置的“音视频嗅探”
+  分组；候选抽屉不再承载设置开关，只按确定性推荐分数显示具体视频格式筛选项、原始链接和
+  视频时长/直播/未知状态。点击或长按结果打开播放、下载、复制链接和查看链接动作弹窗。
 - 人工播放固定进入既有横向 `PlayerActivity` 全屏 presentation；只有自动推荐候选进入浏览器悬浮
   presentation。播放器运行时当前仍存在无法播放视频的问题，本里程碑只保证候选和入口合同，不把
   播放器修复计入完成状态。
@@ -50,7 +50,8 @@ JavaScript。全屏返回直接 finish `PlayerActivity`；当前唯一 WebSessio
 - 可信度证据、`isActionableVideo` 与确定性推荐分数，而不是只有一个猜测格式
 
 Cookie 和 headers 只在内存中交给 player/download owner，不进入普通日志、Compose 文本、任务日记或
-外部服务。
+外部服务。candidate 和 download 保留捕获的 `Range`；player runtime 不把该静态分段值写入
+`http-header-fields`，由 mpv/FFmpeg 持有播放偏移。
 
 ## 被动收集
 
@@ -69,8 +70,8 @@ Cookie 和 headers 只在内存中交给 player/download owner，不进入普通
 
 ## candidate 选择与下载
 
-- 浏览器菜单“悬浮嗅探”进入真实 `MEDIA_CANDIDATES` drawer。顶部两个紧凑设置行分别控制搜索栏
-  视频资源球与自动悬浮播放器；格式筛选使用横向滚动的“全部 + 本页已发现具体格式”。
+- 浏览器菜单“悬浮嗅探”进入真实 `MEDIA_CANDIDATES` drawer。抽屉从标题后直接进入横向滚动的
+  “全部 + 本页已发现具体格式”筛选；搜索栏视频资源球与自动悬浮播放器只在浏览器设置页配置。
 - 列表按统一推荐分数降序排列：网页实际播放/当前 `video`、主视口占比、清单/直链、分辨率、时长、
   直播和多来源证据加分；广告/预览关键词和小型静音自动循环视频扣分。分数相同再按已知时长、
   最近发现时间和稳定 ID 排序。

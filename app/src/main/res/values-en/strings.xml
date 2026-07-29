@@ -7268,6 +7268,7 @@
     <string name="web_session_download_confirm_type">Type: %1$s</string>
     <string name="web_session_download_confirm_size">Size: %1$s</string>
     <string name="web_session_download_confirm_engine">Downloader: %1$s</string>
+    <string name="web_session_download_confirm_destination">Save to: %1$s</string>
     <string name="web_session_download_confirm_cancel">Cancel</string>
     <string name="web_session_download_confirm_action">Download</string>
     <string name="web_session_external_open_failed">Unable to open external link or app: %1$s</string>

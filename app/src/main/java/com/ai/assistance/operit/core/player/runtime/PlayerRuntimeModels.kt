@@ -2,8 +2,8 @@ package com.ai.assistance.operit.core.player.runtime
 
 import android.os.Parcelable
 import com.ai.assistance.operit.core.player.PlayerDecoderPreset
-import com.ai.assistance.operit.core.player.PlayerEndBehavior
 import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
+import com.ai.assistance.operit.core.player.PlayerChapter
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerTrack
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
@@ -18,14 +18,12 @@ internal data class PlayerRuntimeConfig(
     val preciseSeeking: Boolean,
     val networkCachePolicyId: String,
     val subtitleScale: Double,
-    val endBehaviorId: String,
     val volumeBoostEnabled: Boolean,
     val shaderFiles: List<String>,
 ) : Parcelable {
     init {
         PlayerDecoderPreset.fromPersistedId(decoderPresetId)
         PlayerNetworkCachePolicy.fromPersistedId(networkCachePolicyId)
-        PlayerEndBehavior.fromPersistedId(endBehaviorId)
         require(subtitleScale.isFinite() && subtitleScale > 0.0) {
             "Player runtime subtitle scale is invalid"
         }
@@ -86,7 +84,21 @@ internal data class PlayerRuntimeTrack(
 internal data class PlayerRuntimeTrackSnapshot(
     val audioTracks: List<PlayerRuntimeTrack>,
     val subtitleTracks: List<PlayerRuntimeTrack>,
+    val chapters: List<PlayerRuntimeChapter>,
 ) : Parcelable
+
+@Parcelize
+internal data class PlayerRuntimeChapter(
+    val title: String,
+    val startSeconds: Double,
+) : Parcelable {
+    init {
+        require(title.isNotBlank()) { "Player runtime chapter title is blank" }
+        require(startSeconds.isFinite() && startSeconds >= 0.0) {
+            "Player runtime chapter start time is invalid"
+        }
+    }
+}
 
 internal fun PlayerSettings.toRuntimeConfig(shaderFiles: List<String>): PlayerRuntimeConfig =
     PlayerRuntimeConfig(
@@ -96,7 +108,6 @@ internal fun PlayerSettings.toRuntimeConfig(shaderFiles: List<String>): PlayerRu
         preciseSeeking = preciseSeeking,
         networkCachePolicyId = networkCachePolicy.persistedId,
         subtitleScale = subtitleScale,
-        endBehaviorId = endBehavior.persistedId,
         volumeBoostEnabled = volumeBoostEnabled,
         shaderFiles = shaderFiles.toList(),
     )
@@ -109,7 +120,6 @@ internal fun PlayerRuntimeConfig.toPlayerSettings(): PlayerSettings =
         preciseSeeking = preciseSeeking,
         networkCachePolicy = PlayerNetworkCachePolicy.fromPersistedId(networkCachePolicyId),
         subtitleScale = subtitleScale,
-        endBehavior = PlayerEndBehavior.fromPersistedId(endBehaviorId),
         volumeBoostEnabled = volumeBoostEnabled,
     )
 
@@ -128,6 +138,12 @@ internal fun PlayerRuntimeTrack.toPlayerTrack(): PlayerTrack =
         language = language,
         selected = selected,
     )
+
+internal fun PlayerChapter.toRuntimeChapter(): PlayerRuntimeChapter =
+    PlayerRuntimeChapter(title = title, startSeconds = startSeconds)
+
+internal fun PlayerRuntimeChapter.toPlayerChapter(): PlayerChapter =
+    PlayerChapter(title = title, startSeconds = startSeconds)
 
 internal fun PlayerVideoFitMode.toRuntimeId(): String = name
 

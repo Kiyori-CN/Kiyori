@@ -10,20 +10,33 @@ import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
+import com.ai.assistance.operit.core.player.PlayerDebugLogBuffer
+import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
+import com.ai.assistance.operit.core.player.PlayerQueueResolver
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceTransferPhase
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadDestination
 import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlayerActivity : ComponentActivity() {
     private lateinit var playerSession: PlayerSession
+    private lateinit var settingsStore: PlayerSettingsStore
+    private var appliedGravityRotation: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +46,13 @@ class PlayerActivity : ComponentActivity() {
             hide(WindowInsetsCompat.Type.systemBars())
         }
         playerSession = PlayerSession.getInstance(this)
+        settingsStore = PlayerSettingsStore.getInstance(this)
+        lifecycleScope.launch {
+            settingsStore.state
+                .map { settings -> settings.followGravityRotation }
+                .distinctUntilChanged()
+                .collect(::applyGravityRotationPolicy)
+        }
         if (!handlePlayerIntent(intent)) {
             finish()
             return
@@ -86,16 +106,36 @@ class PlayerActivity : ComponentActivity() {
         val requestId =
             intent.getStringExtra(EXTRA_REQUEST_ID)?.takeIf(String::isNotBlank)
                 ?: UUID.randomUUID().toString().also { intent.putExtra(EXTRA_REQUEST_ID, it) }
+        val request =
+            PlayerMediaRequest(
+                requestId = requestId,
+                uri = uri.toString(),
+                title = resolveDisplayName(uri),
+                source = PlayerMediaSource.EXTERNAL_INTENT,
+            )
         playerSession.open(
-            request =
-                PlayerMediaRequest(
-                    requestId = requestId,
-                    uri = uri.toString(),
-                    title = resolveDisplayName(uri),
-                    source = PlayerMediaSource.EXTERNAL_INTENT,
-                ),
+            request = request,
             presentation = PlayerPresentation.FULLSCREEN_PLAYER,
         )
+        lifecycleScope.launch(Dispatchers.IO) {
+            val queueResult =
+                runCatching {
+                    PlayerQueueResolver.resolve(applicationContext, request)
+                }
+            withContext(Dispatchers.Main.immediate) {
+                queueResult
+                    .onSuccess { queue ->
+                        playerSession.replaceQueueForCurrent(request.requestId, queue)
+                    }
+                    .onFailure { error ->
+                        PlayerDebugLogBuffer.append(
+                            PlayerDebugLogLevel.WARN,
+                            "PlayerActivity",
+                            "无法建立本地系列队列：${error.message ?: error.javaClass.simpleName}",
+                        )
+                    }
+            }
+        }
         return true
     }
 
@@ -126,12 +166,26 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun rotatePlayer() {
+        if (settingsStore.current.followGravityRotation) {
+            return
+        }
         requestedOrientation =
             if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             } else {
                 ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             }
+    }
+
+    private fun applyGravityRotationPolicy(enabled: Boolean) {
+        val previous = appliedGravityRotation
+        if (previous == enabled) {
+            return
+        }
+        appliedGravityRotation = enabled
+        resolvePlayerGravityOrientationRequest(previous, enabled)?.let { orientation ->
+            requestedOrientation = orientation
+        }
     }
 
     private fun captureScreenshot() {
@@ -150,13 +204,35 @@ class PlayerActivity : ComponentActivity() {
 
     private fun downloadCurrentMedia() {
         val request = playerSession.state.value.request
+        val settings = settingsStore.current
+        val destination =
+            if (settings.videoDownloadDirectoryUri.isBlank()) {
+                BrowserDownloadDestination.FollowSettings
+            } else {
+                BrowserDownloadDestination.DocumentTree(
+                    treeUri = settings.videoDownloadDirectoryUri,
+                    displayName = settings.videoDownloadDirectoryName,
+                )
+            }
         val accepted =
             request?.source == PlayerMediaSource.BROWSER_CANDIDATE &&
                 StandardBrowserSessionTools.browserHost
-                    ?.requestMediaCandidateDownload(request.requestId) == true
+                    ?.requestMediaCandidateDownload(
+                        candidateId = request.requestId,
+                        sourceSessionId = request.sourceSessionId,
+                        destination = destination,
+                    ) == true
         Toast.makeText(
                 this,
-                if (accepted) "已交给文件下载器" else "当前视频没有可用的浏览器下载请求",
+                if (accepted) {
+                    when (destination) {
+                        BrowserDownloadDestination.FollowSettings -> "已交给文件下载器"
+                        is BrowserDownloadDestination.DocumentTree ->
+                            "已交给内置下载器：${destination.displayName}"
+                    }
+                } else {
+                    "当前视频没有可用的浏览器下载请求"
+                },
                 Toast.LENGTH_SHORT,
             )
             .show()

@@ -37,6 +37,13 @@ oneway interface IPlayerRuntime {
     );
     void applySettings(long runtimeGeneration, long commandId, in PlayerRuntimeConfig config);
     void applyVideoFitMode(long runtimeGeneration, long commandId, String mode);
+    void requestThumbnail(
+        long runtimeGeneration,
+        long commandId,
+        long loadCommandId,
+        double positionSeconds,
+        int maxSize
+    );
     void captureScreenshot(long runtimeGeneration, long commandId, String path);
     void close(long runtimeGeneration, long commandId);
 }

@@ -17,15 +17,19 @@ Player native stack
    Binary SHA-256: CA0D1C60DDFE5BAD46C369D0D0BF6C2D1A8BB5EC5A3AB916C33F892D0263A75E
    mpv source: https://github.com/mpv-player/mpv
 
-   Kiyori creates a deterministic arm64 thin AAR from that fixed input. It
-   retains the Java API, required assets, libmpv.so, libplayer.so, and the
-   matching libc++_shared.so, while removing the bundled FFmpeg copies. Kiyori
-   does not modify those native libraries. libmpv is dynamically linked to the
-   FFmpeg shared libraries described below. Distribution must provide the
-   complete corresponding source and build information required by the
-   applicable mpv and GPL licenses.
+   Kiyori creates a deterministic arm64 player AAR from that fixed input. It
+   retains the Java API, required assets, libmpv.so, libplayer.so, the matching
+   libc++_shared.so, and the seven FFmpeg libraries built with mpv. To keep
+   those HTTPS-capable FFmpeg libraries isolated from the application's
+   FFmpegKit tools, Kiyori rewrites only their equal-length ELF SONAME and
+   DT_NEEDED strings and stores them as libmpcodec.so, libmpdevice.so,
+   libmpfilter.so, libmpformat.so, libmputil.so, libmpresample.so, and
+   libmpscale.so. The native machine code and symbol implementations are not
+   replaced. Distribution must provide the complete corresponding source,
+   transformation script, and build information required by the applicable
+   mpv, FFmpeg, Mbed TLS, and GPL licenses.
 
-   Thin AAR SHA-256: ECDC87102E7B4A9BB9C9D46AF863F7C32B25B9AAB7A161614AF6646FFD603F70
+   Player AAR SHA-256: FC983B7ED0C8B8BE1938283FE94108DFDC593AA31608D55DD1CE119AE201C32C
 
    C++ runtime SHA-256: C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B
    C++ runtime source: https://github.com/llvm/llvm-project/tree/main/libcxx
@@ -34,7 +38,18 @@ Player native stack
    License body: docs/legal/third_party/LLVM-APACHE-2.0-WITH-LLVM-EXCEPTION.txt
    License body SHA-256: C20FDCFB7F85FD154F13C62587EEA03A514A106A9367EFE5D099149CF0FDBB1D
 
-2. FFmpegKit Maintained and FFmpeg
+2. Mbed TLS
+
+   Source: https://github.com/Mbed-TLS/mbedtls
+   Version embedded by the fixed mpv input: 3.6.6
+   License: Apache-2.0 OR GPL-2.0-or-later
+
+   The mpv-built libmpformat.so statically includes Mbed TLS as its HTTPS/TLS
+   backend. Kiyori distributes the combined player under GPL-3.0-or-later and
+   preserves the fixed upstream build identity and corresponding-source
+   obligation.
+
+3. FFmpegKit Maintained and FFmpeg
 
    Maven coordinate: dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7
    Source: https://github.com/ffmpegkit-maintained/ffmpeg
@@ -43,20 +58,22 @@ Player native stack
    Binary SHA-256: C3CBC81D498175FD2AA69EE2DFE7DAFBF519052A96283C2568FE5B3B16618456
    FFmpeg version: n8.1.2
 
-   Kiyori creates a deterministic arm64 AAR from this fixed input. It retains
+   Kiyori creates a deterministic arm64 tools AAR from this fixed input. It retains
    the Java API, proguard metadata, embedded res/raw license and source notices,
    and the nine FFmpegKit/FFmpeg libraries. It removes the x86_64 libraries and
    the input AAR's C++ runtime so the APK contains the matching mpv runtime
-   described above.
+   described above. These normal libav*.so names remain owned by FFmpegKit
+   utilities in the main process; the :player process resolves only the
+   namespaced mpv FFmpeg closure.
 
-   Player arm64 AAR SHA-256: 1A30A94226BF2157927EC6EDBB20154F9A1C1C53580F59CF55EFE46DB87A5AB3
+   Tools arm64 AAR SHA-256: 1A30A94226BF2157927EC6EDBB20154F9A1C1C53580F59CF55EFE46DB87A5AB3
 
    FFmpeg and enabled external libraries retain their own licenses.
    Distribution must provide relinkable/dynamically linked library materials
    and corresponding source as required by LGPL-3.0 and each enabled library's
    notice.
 
-3. Anime4K shaders
+4. Anime4K shaders
 
    Upstream: https://github.com/bloc97/Anime4K
    Integration reference: https://github.com/azxcvn/mpv-android-anime4k

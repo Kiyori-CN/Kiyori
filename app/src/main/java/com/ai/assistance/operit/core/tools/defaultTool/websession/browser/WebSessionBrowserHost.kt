@@ -103,7 +103,11 @@ internal class WebSessionBrowserHost(
         fun onInvokeUserscriptMenu(commandId: String)
         fun onPlayMediaCandidate(candidateId: String): Boolean
         fun onPlayMediaCandidateFloating(candidateId: String): Boolean
-        fun onDownloadMediaCandidate(candidateId: String): Boolean
+        fun onDownloadMediaCandidate(
+            candidateId: String,
+            sourceSessionId: String?,
+            destination: BrowserDownloadDestination,
+        ): Boolean
         fun onTogglePlayerPause()
         fun onOpenPlayerFullscreen()
         fun onLaunchPlayerFullscreen()
@@ -256,7 +260,13 @@ internal class WebSessionBrowserHost(
             playerState = playerState,
             onPlayMediaCandidate = callbacks::onPlayMediaCandidate,
             onPlayMediaCandidateFloating = callbacks::onPlayMediaCandidateFloating,
-            onDownloadMediaCandidate = callbacks::onDownloadMediaCandidate,
+            onDownloadMediaCandidate = { candidateId ->
+                callbacks.onDownloadMediaCandidate(
+                    candidateId,
+                    null,
+                    BrowserDownloadDestination.FollowSettings,
+                )
+            },
             onTogglePlayerPause = callbacks::onTogglePlayerPause,
             onOpenPlayerFullscreen = callbacks::onOpenPlayerFullscreen,
             onLaunchPlayerFullscreen = callbacks::onLaunchPlayerFullscreen,
@@ -283,9 +293,6 @@ internal class WebSessionBrowserHost(
             showMediaCandidateBadge = browserSettings.showMediaCandidateBadge,
             automaticFloatingPlaybackEnabled =
                 browserSettings.automaticFloatingPlaybackEnabled,
-            onSetShowMediaCandidateBadge = browserSettingsStore::setShowMediaCandidateBadge,
-            onSetAutomaticFloatingPlaybackEnabled =
-                browserSettingsStore::setAutomaticFloatingPlaybackEnabled,
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
             onDismissTextSelection = ::dismissTextSelectionActions,
@@ -373,8 +380,12 @@ internal class WebSessionBrowserHost(
     fun hasBackgroundAnchorPresentation(): Boolean =
         requestedPresentationTarget == BrowserPresentationTarget.BACKGROUND_ANCHOR
 
-    fun requestMediaCandidateDownload(candidateId: String): Boolean =
-        callbacks.onDownloadMediaCandidate(candidateId)
+    fun requestMediaCandidateDownload(
+        candidateId: String,
+        sourceSessionId: String?,
+        destination: BrowserDownloadDestination,
+    ): Boolean =
+        callbacks.onDownloadMediaCandidate(candidateId, sourceSessionId, destination)
 
     private fun detachPresentationWebViews() {
         appWebViewHost?.detachActiveWebView()

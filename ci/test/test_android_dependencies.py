@@ -22,10 +22,14 @@ from prepare_android_dependencies import (  # noqa: E402
 from prepare_mpv_player_dependency import (  # noqa: E402
     FFMPEG_NATIVE_LIBRARY_NAMES,
     FFMPEG_REQUIRED_MEMBERS,
+    MPV_FFMPEG_NAMESPACE_RENAMES,
     MPV_REQUIRED_CLASS_MEMBERS,
+    MPV_REQUIRED_TLS_MARKERS,
+    MPV_THIN_MEMBER_SOURCES,
     MPV_THIN_MEMBERS,
     build_ffmpeg_player_aar,
     build_thin_aar,
+    namespace_mpv_native_payload,
     remove_retired_player_native_owners,
     validate_ffmpeg_player_aar,
     validate_thin_aar,
@@ -140,15 +144,31 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 for name in sorted(MPV_REQUIRED_CLASS_MEMBERS):
                     classes.writestr(name, b"class")
             with zipfile.ZipFile(source, "w") as stream:
-                for name in MPV_THIN_MEMBERS:
-                    if name == "R.txt":
+                for source_name, _ in MPV_THIN_MEMBER_SOURCES:
+                    if source_name == "R.txt":
                         payload = b""
-                    elif name == "classes.jar":
+                    elif source_name == "classes.jar":
                         payload = classes_payload.getvalue()
                     else:
-                        payload = f"payload:{name}".encode()
-                    stream.writestr(name, payload)
-                stream.writestr("jni/arm64-v8a/libavcodec.so", b"duplicate-ffmpeg")
+                        payload = f"payload:{source_name}".encode()
+                        if source_name.endswith("/libmpv.so"):
+                            payload += b"".join(
+                                name.encode("ascii")
+                                for name in MPV_FFMPEG_NAMESPACE_RENAMES
+                            )
+                        elif source_name.endswith("/libplayer.so"):
+                            payload += b"".join(
+                                name.encode("ascii")
+                                for name in (
+                                    "libavcodec.so",
+                                    "libavformat.so",
+                                    "libavutil.so",
+                                    "libswscale.so",
+                                )
+                            )
+                        elif source_name.endswith("/libavformat.so"):
+                            payload += b"".join(MPV_REQUIRED_TLS_MARKERS)
+                    stream.writestr(source_name, payload)
                 stream.writestr("jni/x86_64/libc++_shared.so", b"other-abi-libcxx")
 
             build_thin_aar(source, first)
@@ -161,6 +181,18 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 hashlib.sha256(first.read_bytes()).hexdigest(),
                 hashlib.sha256(second.read_bytes()).hexdigest(),
             )
+
+    def test_mpv_namespace_rewrite_preserves_payload_size(self) -> None:
+        source_payload = b"|".join(
+            name.encode("ascii")
+            for name in MPV_FFMPEG_NAMESPACE_RENAMES
+        )
+        namespaced_payload = namespace_mpv_native_payload(source_payload)
+
+        self.assertEqual(len(source_payload), len(namespaced_payload))
+        for source_name, namespaced_name in MPV_FFMPEG_NAMESPACE_RENAMES.items():
+            self.assertNotIn(source_name.encode("ascii"), namespaced_payload)
+            self.assertIn(namespaced_name.encode("ascii"), namespaced_payload)
 
     def test_ffmpeg_player_aar_has_only_owned_arm64_native_members(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -76,6 +76,7 @@ private fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
         OpenSourceLibrary("LLVM libc++", "C++ runtime used by Kiyori Player", "Apache-2.0 WITH LLVM-exception", "https://github.com/llvm/llvm-project/tree/main/libcxx"),
         OpenSourceLibrary("mpv", "Media player core used by Kiyori Player", "GPL-2.0-or-later", "https://github.com/mpv-player/mpv"),
         OpenSourceLibrary("mpvlibAndroid", "Android JNI bindings and libmpv build", "GPL-2.0-or-later", "https://github.com/Riteshp2001/mpvlibAndroid"),
+        OpenSourceLibrary("Mbed TLS", "TLS backend statically linked into the Kiyori Player FFmpeg build", "Apache-2.0 OR GPL-2.0-or-later", "https://github.com/Mbed-TLS/mbedtls"),
         OpenSourceLibrary("Anime4K", "Real-time anime upscaling shaders", "MIT", "https://github.com/bloc97/Anime4K"),
 
         // AI & Machine Learning

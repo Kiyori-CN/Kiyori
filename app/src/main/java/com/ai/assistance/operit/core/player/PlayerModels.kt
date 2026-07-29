@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.player
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 
 internal enum class PlayerPresentation {
@@ -112,16 +113,29 @@ internal enum class PlayerNetworkCachePolicy(
     }
 }
 
-internal enum class PlayerEndBehavior(val persistedId: String) {
-    PAUSE("pause"),
-    CLOSE("close"),
-    LOOP("loop"),
+internal enum class PlayerDoubleTapAction(val persistedId: String) {
+    PLAY_PAUSE("play_pause"),
+    SEEK("seek"),
     ;
 
     companion object {
-        fun fromPersistedId(value: String): PlayerEndBehavior =
+        fun fromPersistedId(value: String): PlayerDoubleTapAction =
             requireNotNull(entries.singleOrNull { it.persistedId == value }) {
-                "Unsupported player end behavior: $value"
+                "Unsupported player double tap action: $value"
+            }
+    }
+}
+
+internal enum class PlayerQueueEndBehavior(val persistedId: String) {
+    STAY("stay"),
+    CLOSE("close"),
+    LOOP_CURRENT("loop_current"),
+    ;
+
+    companion object {
+        fun fromPersistedId(value: String): PlayerQueueEndBehavior =
+            requireNotNull(entries.singleOrNull { it.persistedId == value }) {
+                "Unsupported player queue end behavior: $value"
             }
     }
 }
@@ -175,6 +189,7 @@ internal enum class Anime4KMode(
 
 internal val PLAYER_SPEED_OPTIONS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 internal val PLAYER_SEEK_STEP_OPTIONS = listOf(5, 10, 15, 20, 30, 45, 60)
+internal val PLAYER_DOUBLE_TAP_SEEK_OPTIONS = listOf(5, 10, 15, 20, 30)
 internal val PLAYER_SUBTITLE_SCALE_OPTIONS = listOf(0.8, 1.0, 1.2, 1.5)
 
 @Immutable
@@ -188,14 +203,24 @@ internal data class PlayerSettings(
     val backgroundBehavior: PlayerBackgroundBehavior = PlayerBackgroundBehavior.PAUSE,
     val fullscreenExitBehavior: PlayerFullscreenExitBehavior =
         PlayerFullscreenExitBehavior.RETURN_TO_FLOATING,
+    val followGravityRotation: Boolean = false,
     val anime4KMode: Anime4KMode = Anime4KMode.OFF,
     val rememberAnime4KMode: Boolean = false,
     val volumeBoostEnabled: Boolean = false,
     val preciseSeeking: Boolean = true,
     val seekStepSeconds: Int = 10,
+    val doubleTapAction: PlayerDoubleTapAction = PlayerDoubleTapAction.SEEK,
+    val doubleTapSeekSeconds: Int = 10,
+    val chapterBarEnabled: Boolean = true,
+    val seekbarThumbnailEnabled: Boolean = true,
+    val autoPlayNext: Boolean = true,
+    val queueEndBehavior: PlayerQueueEndBehavior = PlayerQueueEndBehavior.CLOSE,
     val networkCachePolicy: PlayerNetworkCachePolicy = PlayerNetworkCachePolicy.BALANCED,
     val subtitleScale: Double = 1.0,
-    val endBehavior: PlayerEndBehavior = PlayerEndBehavior.CLOSE,
+    val screenshotDirectoryUri: String = "",
+    val screenshotDirectoryName: String = "",
+    val videoDownloadDirectoryUri: String = "",
+    val videoDownloadDirectoryName: String = "",
 )
 
 @Immutable
@@ -226,6 +251,32 @@ internal data class PlayerTrack(
 )
 
 @Immutable
+internal data class PlayerChapter(
+    val title: String,
+    val startSeconds: Double,
+) {
+    init {
+        require(title.isNotBlank()) { "Player chapter title is blank" }
+        require(startSeconds.isFinite() && startSeconds >= 0.0) {
+            "Player chapter start time is invalid"
+        }
+    }
+}
+
+@Immutable
+internal data class PlayerSeekPreview(
+    val positionSeconds: Double,
+    val bitmap: Bitmap?,
+    val loading: Boolean,
+) {
+    init {
+        require(positionSeconds.isFinite() && positionSeconds >= 0.0) {
+            "Player seek preview position is invalid"
+        }
+    }
+}
+
+@Immutable
 internal data class PlayerSessionState(
     val request: PlayerMediaRequest? = null,
     val presentation: PlayerPresentation = PlayerPresentation.BROWSER_ONLY,
@@ -241,6 +292,10 @@ internal data class PlayerSessionState(
     val subtitleTracks: List<PlayerTrack> = emptyList(),
     val selectedAudioTrackId: Int? = null,
     val selectedSubtitleTrackId: Int? = null,
+    val chapters: List<PlayerChapter> = emptyList(),
+    val seekPreview: PlayerSeekPreview? = null,
+    val queueIndex: Int = 0,
+    val queueSize: Int = 0,
     val decoderPreset: PlayerDecoderPreset = PlayerDecoderPreset.FAST,
     val anime4KMode: Anime4KMode = Anime4KMode.OFF,
     val activeShaderFiles: List<String> = emptyList(),
@@ -251,8 +306,30 @@ internal data class PlayerSessionState(
     val runtimeState: PlayerRuntimeState = PlayerRuntimeState.STOPPED,
     val runtimeProcessId: Int? = null,
 ) {
+    init {
+        require(queueSize >= 0) { "Player queue size cannot be negative" }
+        require(
+            (queueSize == 0 && queueIndex == 0) ||
+                (queueSize > 0 && queueIndex in 0 until queueSize),
+        ) {
+            "Player queue index is invalid"
+        }
+    }
+
     val hasMedia: Boolean
         get() = request != null
+
+    val hasPreviousQueueItem: Boolean
+        get() = queueSize > 0 && queueIndex > 0
+
+    val hasNextQueueItem: Boolean
+        get() = queueSize > 0 && queueIndex < queueSize - 1
+
+    val currentChapter: PlayerChapter?
+        get() =
+            chapters.lastOrNull { chapter ->
+                chapter.startSeconds <= positionSeconds
+            }
 }
 
 @Immutable
@@ -291,6 +368,8 @@ internal fun resolvePlayerOpenTransition(
                 anime4KMode = resolveInitialAnime4KMode(settings),
                 videoFitMode = PlayerVideoFitMode.FIT,
                 surfaceLease = current.surfaceLease,
+                queueIndex = current.queueIndex,
+                queueSize = current.queueSize,
                 loadGeneration = current.loadGeneration + 1L,
                 runtimeGeneration = current.runtimeGeneration,
                 runtimeState = current.runtimeState,

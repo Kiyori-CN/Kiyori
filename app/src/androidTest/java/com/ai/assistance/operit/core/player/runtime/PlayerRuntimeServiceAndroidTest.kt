@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Bitmap
 import android.os.IBinder
 import android.os.Process
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -100,6 +101,22 @@ class PlayerRuntimeServiceAndroidTest {
                     message: String?,
                 ) = Unit
 
+                override fun onDiagnosticLog(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    level: Int,
+                    tag: String?,
+                    message: String?,
+                ) = Unit
+
+                override fun onThumbnailReady(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    commandId: Long,
+                    positionSeconds: Double,
+                    bitmap: Bitmap?,
+                ) = Unit
+
                 override fun onScreenshotCompleted(
                     runtimeGeneration: Long,
                     eventSequence: Long,
@@ -139,7 +156,6 @@ class PlayerRuntimeServiceAndroidTest {
                     preciseSeeking = true,
                     networkCachePolicyId = "balanced",
                     subtitleScale = 1.0,
-                    endBehaviorId = "pause",
                     volumeBoostEnabled = false,
                     shaderFiles = emptyList(),
                 ),

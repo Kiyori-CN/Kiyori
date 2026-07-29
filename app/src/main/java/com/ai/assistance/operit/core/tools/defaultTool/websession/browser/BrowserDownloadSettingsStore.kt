@@ -27,6 +27,24 @@ internal enum class BrowserDownloadEngine(val persistedId: String) {
     }
 }
 
+internal sealed interface BrowserDownloadDestination {
+    data object FollowSettings : BrowserDownloadDestination
+
+    data class DocumentTree(
+        val treeUri: String,
+        val displayName: String,
+    ) : BrowserDownloadDestination {
+        init {
+            require(treeUri.isNotBlank() && treeUri == treeUri.trim()) {
+                "Browser download document-tree URI must be normalized"
+            }
+            require(displayName.isNotBlank() && displayName == displayName.trim()) {
+                "Browser download document-tree name must be normalized"
+            }
+        }
+    }
+}
+
 internal data class BrowserDownloadSettings(
     val version: Int = BROWSER_DOWNLOAD_SETTINGS_VERSION,
     val defaultEngine: BrowserDownloadEngine = BrowserDownloadEngine.INTERNAL,
@@ -401,9 +419,9 @@ internal fun resolveBrowserDownloadMaxConcurrentTasksLimit(
 
 internal fun shouldReleaseBrowserDownloadDirectoryPermission(
     candidateUri: String,
-    settingsDirectoryUri: String,
+    settingsDirectoryUris: Collection<String>,
     taskDirectoryUris: Collection<String>,
 ): Boolean =
     candidateUri.isNotBlank() &&
-        candidateUri != settingsDirectoryUri &&
+        candidateUri !in settingsDirectoryUris &&
         candidateUri !in taskDirectoryUris

@@ -2,34 +2,11 @@ package com.ai.assistance.operit.ui.main.shell
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Check
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,15 +16,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
@@ -56,15 +31,10 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
 
-internal enum class KiyoriBrowserSettingsEntryKind {
-    NAVIGATION,
-    TOGGLE,
-}
-
 internal enum class KiyoriBrowserSettingsAction {
     NONE,
-    OPEN_PLACEHOLDER,
     OPEN_HOME_CUSTOMIZATION,
+    TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
     TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
     TOGGLE_WEB_PAGE_OPEN_APP,
     TOGGLE_WEB_PAGE_GEOLOCATION,
@@ -74,91 +44,200 @@ internal const val KIYORI_BROWSER_SETTINGS_PAGE_TITLE = "网页浏览器设置"
 
 internal data class KiyoriBrowserSettingsEntrySpec(
     val title: String,
-    val kind: KiyoriBrowserSettingsEntryKind,
+    val description: String,
+    val kind: KiyoriSettingsRowKind,
     val value: String? = null,
     val staticToggleValue: Boolean = false,
     val action: KiyoriBrowserSettingsAction = KiyoriBrowserSettingsAction.NONE,
 )
 
+internal data class KiyoriBrowserSettingsGroupSpec(
+    val title: String,
+    val description: String,
+    val entries: List<KiyoriBrowserSettingsEntrySpec>,
+)
+
 internal val kiyoriBrowserSettingsGroups =
     listOf(
-        listOf(
-            navigationSpec("网页插件管理"),
-            toggleSpec(
-                title = "自动悬浮播放",
-                staticToggleValue = true,
-                action = KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
-            ),
-            navigationSpec("悬浮嗅探模式"),
-            toggleSpec("返回不重载", staticToggleValue = false),
-            navigationSpec("启动时恢复标签", value = "不恢复"),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "插件与会话",
+            description = "管理网页扩展以及标签返回、启动恢复等会话行为",
+            entries =
+                listOf(
+                    browserNavigation(
+                        title = "网页插件管理",
+                        description = "管理已安装的网页脚本与扩展能力",
+                    ),
+                    browserToggle(
+                        title = "返回不重载",
+                        description = "返回标签时保留页面状态，避免重新加载",
+                        staticToggleValue = false,
+                    ),
+                    browserNavigation(
+                        title = "启动时恢复标签",
+                        description = "选择启动浏览器时恢复标签的策略",
+                        value = "不恢复",
+                    ),
+                ),
         ),
-        listOf(
-            navigationSpec(
-                title = "网页主页自定义",
-                action = KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
-            ),
-            navigationSpec("标签栏样式设置", value = "图文卡片"),
-            toggleSpec("手势前进后退", staticToggleValue = true),
-            toggleSpec("底部上滑手势", staticToggleValue = true),
-            toggleSpec("搜索引擎切换条", staticToggleValue = true),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "主页、标签与手势",
+            description = "调整主页入口、标签展示和浏览器导航手势",
+            entries =
+                listOf(
+                    browserNavigation(
+                        title = "网页主页自定义",
+                        description = "设置浏览器主页按钮和新会话使用的入口地址",
+                        action = KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
+                    ),
+                    browserNavigation(
+                        title = "标签栏样式",
+                        description = "选择网页标签在浏览器中的展示方式",
+                        value = "图文卡片",
+                    ),
+                    browserToggle(
+                        title = "手势前进后退",
+                        description = "在网页内容区通过横向手势切换历史记录",
+                        staticToggleValue = true,
+                    ),
+                    browserToggle(
+                        title = "底部上滑手势",
+                        description = "从浏览器底部上滑打开快捷操作",
+                        staticToggleValue = true,
+                    ),
+                    browserToggle(
+                        title = "搜索引擎切换条",
+                        description = "文本搜索后显示可横向切换的搜索引擎条",
+                        staticToggleValue = true,
+                    ),
+                ),
         ),
-        listOf(
-            toggleSpec("音视频嗅探提示", staticToggleValue = true),
-            navigationSpec("嗅探规则管理"),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "音视频嗅探",
+            description = "控制视频资源入口、自动悬浮播放和候选识别策略",
+            entries =
+                listOf(
+                    browserToggle(
+                        title = "搜索栏嗅探入口",
+                        description = "发现可播放视频后，在搜索栏右侧显示视频资源球",
+                        staticToggleValue = true,
+                        action = KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
+                    ),
+                    browserToggle(
+                        title = "自动悬浮播放",
+                        description = "发现推荐视频后自动打开浏览器悬浮播放器",
+                        staticToggleValue = true,
+                        action =
+                            KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
+                    ),
+                    browserNavigation(
+                        title = "悬浮嗅探模式",
+                        description = "配置候选视频的自动识别与展示策略",
+                    ),
+                    browserNavigation(
+                        title = "嗅探规则管理",
+                        description = "管理视频格式、地址与站点识别规则",
+                    ),
+                ),
         ),
-        listOf(
-            toggleSpec(
-                title = "允许网页打开应用",
-                staticToggleValue = true,
-                action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
-            ),
-            toggleSpec(
-                title = "允许网页获取位置",
-                staticToggleValue = true,
-                action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
-            ),
-            navigationSpec("网页翻译接口", value = "百度翻译"),
-            navigationSpec("网站配置管理"),
-            navigationSpec("网站密码管理"),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "网站权限与数据",
+            description = "管理网页调用外部能力、位置服务和站点数据",
+            entries =
+                listOf(
+                    browserToggle(
+                        title = "允许网页打开应用",
+                        description = "允许网页通过外部链接唤起已安装应用",
+                        staticToggleValue = true,
+                        action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
+                    ),
+                    browserToggle(
+                        title = "允许网页获取位置",
+                        description = "允许网页在系统授权后请求设备位置",
+                        staticToggleValue = true,
+                        action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
+                    ),
+                    browserNavigation(
+                        title = "网页翻译接口",
+                        description = "选择网页翻译请求使用的服务",
+                        value = "百度翻译",
+                    ),
+                    browserNavigation(
+                        title = "网站配置管理",
+                        description = "按站点查看和管理浏览器配置",
+                    ),
+                    browserNavigation(
+                        title = "网站密码管理",
+                        description = "查看浏览器保存的网站登录信息",
+                    ),
+                ),
         ),
-        listOf(
-            navigationSpec("网页字体大小"),
-            toggleSpec("强制页面缩放", staticToggleValue = false),
-            navigationSpec("腾讯X5调试"),
-            navigationSpec("自定义UA设置"),
-            navigationSpec("浏览器代理替换"),
-            toggleSpec("强制新窗口打开", staticToggleValue = false),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "显示与高级",
+            description = "调整网页显示、User-Agent、代理和调试能力",
+            entries =
+                listOf(
+                    browserNavigation(
+                        title = "网页字体大小",
+                        description = "调整网页内容的默认文字缩放比例",
+                    ),
+                    browserToggle(
+                        title = "强制页面缩放",
+                        description = "允许缩放网页明确禁止缩放的页面",
+                        staticToggleValue = false,
+                    ),
+                    browserNavigation(
+                        title = "腾讯 X5 调试",
+                        description = "查看腾讯 X5 内核的调试与诊断入口",
+                    ),
+                    browserNavigation(
+                        title = "User-Agent 设置",
+                        description = "设置全局或指定网站使用的浏览器标识",
+                        value = "浏览器内设置",
+                    ),
+                    browserNavigation(
+                        title = "浏览器代理",
+                        description = "管理网页请求使用的网络代理",
+                    ),
+                    browserToggle(
+                        title = "强制新窗口打开",
+                        description = "将网页弹出的新窗口固定为独立标签",
+                        staticToggleValue = false,
+                    ),
+                ),
         ),
     )
 
-private fun navigationSpec(
+private fun browserNavigation(
     title: String,
+    description: String,
     value: String? = null,
-    action: KiyoriBrowserSettingsAction = KiyoriBrowserSettingsAction.OPEN_PLACEHOLDER,
+    action: KiyoriBrowserSettingsAction = KiyoriBrowserSettingsAction.NONE,
 ): KiyoriBrowserSettingsEntrySpec =
     KiyoriBrowserSettingsEntrySpec(
         title = title,
-        kind = KiyoriBrowserSettingsEntryKind.NAVIGATION,
+        description = description,
+        kind = KiyoriSettingsRowKind.NAVIGATION,
         value = value,
         action = action,
     )
 
-private fun toggleSpec(
+private fun browserToggle(
     title: String,
+    description: String,
     staticToggleValue: Boolean,
     action: KiyoriBrowserSettingsAction = KiyoriBrowserSettingsAction.NONE,
 ): KiyoriBrowserSettingsEntrySpec =
     KiyoriBrowserSettingsEntrySpec(
         title = title,
-        kind = KiyoriBrowserSettingsEntryKind.TOGGLE,
+        description = description,
+        kind = KiyoriSettingsRowKind.TOGGLE,
         staticToggleValue = staticToggleValue,
         action = action,
     )
 
 private enum class KiyoriBrowserSettingsSubPage {
     HOME_CUSTOMIZATION,
-    PLACEHOLDER,
 }
 
 @Composable
@@ -176,7 +255,6 @@ internal fun KiyoriBrowserSettingsPage(
     val searchEngine by
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
     var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
-    var placeholderTitle by rememberSaveable { mutableStateOf("") }
     val subPage = subPageName?.let(KiyoriBrowserSettingsSubPage::valueOf)
 
     fun closeCurrentPage() {
@@ -184,7 +262,6 @@ internal fun KiyoriBrowserSettingsPage(
             onBack()
         } else {
             subPageName = null
-            placeholderTitle = ""
         }
     }
 
@@ -198,10 +275,7 @@ internal fun KiyoriBrowserSettingsPage(
                 onOpenHomeCustomization = {
                     subPageName = KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION.name
                 },
-                onOpenPlaceholder = { title ->
-                    placeholderTitle = title
-                    subPageName = KiyoriBrowserSettingsSubPage.PLACEHOLDER.name
-                },
+                onSetShowMediaCandidateBadge = coordinator::setShowMediaCandidateBadge,
                 onSetAutomaticFloatingPlaybackEnabled =
                     coordinator::setAutomaticFloatingPlaybackEnabled,
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
@@ -209,117 +283,37 @@ internal fun KiyoriBrowserSettingsPage(
                 modifier = modifier,
             )
         KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION ->
-            KiyoriBrowserSettingsSubPageScaffold(
-                title = "网页主页自定义",
+            KiyoriBrowserHomepageCustomizationPage(
+                currentHomeUrl = settings.homeUrl,
                 onBack = ::closeCurrentPage,
-                modifier = modifier,
-            ) {
-                KiyoriBrowserHomepageCustomizationPage(
-                    currentHomeUrl = settings.homeUrl,
-                    onSave = { value ->
-                        val resolvedUrl = BrowserAddressResolver.resolve(value, searchEngine)
-                        if (!isSupportedBrowserHomeUrl(resolvedUrl)) {
-                            Toast.makeText(
-                                context,
-                                "自定义主页入口格式无效",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            return@KiyoriBrowserHomepageCustomizationPage false
-                        }
-                        coordinator.setBrowserHomeUrl(resolvedUrl)
+                onSave = { value ->
+                    val resolvedUrl = BrowserAddressResolver.resolve(value, searchEngine)
+                    if (!isSupportedBrowserHomeUrl(resolvedUrl)) {
                         Toast.makeText(
                             context,
-                            "自定义主页入口已保存",
+                            "自定义主页入口格式无效",
                             Toast.LENGTH_SHORT,
                         ).show()
-                        true
-                    },
-                    onReset = {
-                        coordinator.setBrowserHomeUrl(DEFAULT_BROWSER_HOME_URL)
-                        Toast.makeText(
-                            context,
-                            "已恢复为空白页",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    },
-                )
-            }
-        KiyoriBrowserSettingsSubPage.PLACEHOLDER ->
-            KiyoriBrowserSettingsSubPageScaffold(
-                title = placeholderTitle,
-                onBack = ::closeCurrentPage,
+                        return@KiyoriBrowserHomepageCustomizationPage false
+                    }
+                    coordinator.setBrowserHomeUrl(resolvedUrl)
+                    Toast.makeText(
+                        context,
+                        "自定义主页入口已保存",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    true
+                },
+                onReset = {
+                    coordinator.setBrowserHomeUrl(DEFAULT_BROWSER_HOME_URL)
+                    Toast.makeText(
+                        context,
+                        "已恢复为空白页",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
                 modifier = modifier,
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(KIYORI_SETTINGS_PAGE_BACKGROUND),
-                )
-            }
-    }
-}
-
-@Composable
-private fun KiyoriBrowserSettingsSubPageScaffold(
-    title: String,
-    onBack: () -> Unit,
-    modifier: Modifier,
-    content: @Composable () -> Unit,
-) {
-    Scaffold(
-        modifier = modifier,
-        containerColor = KIYORI_SETTINGS_PAGE_BACKGROUND,
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-        topBar = {
-            KiyoriBrowserSettingsHeader(
-                title = title,
-                onBack = onBack,
             )
-        },
-    ) { paddingValues ->
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(KIYORI_SETTINGS_PAGE_BACKGROUND)
-                    .padding(paddingValues),
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun KiyoriBrowserSettingsHeader(
-    title: String,
-    onBack: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(KIYORI_SETTINGS_PAGE_BACKGROUND)
-                .statusBarsPadding()
-                .padding(start = 12.dp, end = 12.dp, top = 5.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "返回",
-                tint = Color(0xFF2B2B2B),
-                modifier = Modifier.size(21.dp),
-            )
-        }
-        Spacer(modifier = Modifier.width(2.dp))
-        Text(
-            text = title,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF202020),
-            modifier = Modifier.weight(1f),
-        )
     }
 }
 
@@ -328,7 +322,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     settings: WebSessionBrowserSettings,
     onBack: () -> Unit,
     onOpenHomeCustomization: () -> Unit,
-    onOpenPlaceholder: (String) -> Unit,
+    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
     onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
@@ -339,29 +333,40 @@ private fun KiyoriBrowserSettingsDetailPage(
         onBack = onBack,
         modifier = modifier,
     ) {
-        itemsIndexed(kiyoriBrowserSettingsGroups) { _, group ->
-            KiyoriSettingsGroupCard(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
+        items(kiyoriBrowserSettingsGroups, key = KiyoriBrowserSettingsGroupSpec::title) { group ->
+            KiyoriSettingsGroupSection(
+                title = group.title,
+                description = group.description,
             ) {
-                group.forEachIndexed { index, entry ->
-                    KiyoriBrowserSettingsRow(
-                        entry = entry,
-                        settings = settings,
-                        onOpenHomeCustomization = onOpenHomeCustomization,
-                        onOpenPlaceholder = onOpenPlaceholder,
-                        onSetAutomaticFloatingPlaybackEnabled =
-                            onSetAutomaticFloatingPlaybackEnabled,
-                        onSetAllowWebPageOpenApp = onSetAllowWebPageOpenApp,
-                        onSetAllowWebPageGeolocation = onSetAllowWebPageGeolocation,
+                group.entries.forEachIndexed { index, entry ->
+                    val enabled = isBrowserSettingEnabled(entry)
+                    val checked = browserSettingToggleValue(entry, settings)
+                    KiyoriSettingsRow(
+                        title = entry.title,
+                        description = entry.description,
+                        kind = entry.kind,
+                        value = browserSettingValue(entry, settings),
+                        checked = checked,
+                        enabled = enabled,
+                        onClick = {
+                            when (entry.action) {
+                                KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
+                                    onOpenHomeCustomization()
+                                KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
+                                    onSetShowMediaCandidateBadge(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
+                                    onSetAutomaticFloatingPlaybackEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
+                                    onSetAllowWebPageOpenApp(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
+                                    onSetAllowWebPageGeolocation(!checked)
+                                KiyoriBrowserSettingsAction.NONE ->
+                                    error("Disabled browser setting must not receive clicks")
+                            }
+                        },
                     )
-                    if (index != group.lastIndex) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(0.6.dp)
-                                    .background(Color(0xFFF2F2EE)),
-                        )
+                    if (index != group.entries.lastIndex) {
+                        KiyoriSettingsDivider()
                     }
                 }
             }
@@ -369,153 +374,80 @@ private fun KiyoriBrowserSettingsDetailPage(
     }
 }
 
-@Composable
-private fun KiyoriBrowserSettingsRow(
+internal fun isBrowserSettingEnabled(entry: KiyoriBrowserSettingsEntrySpec): Boolean =
+    entry.action != KiyoriBrowserSettingsAction.NONE
+
+internal fun browserSettingValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
-    onOpenHomeCustomization: () -> Unit,
-    onOpenPlaceholder: (String) -> Unit,
-    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
-    onSetAllowWebPageOpenApp: (Boolean) -> Unit,
-    onSetAllowWebPageGeolocation: (Boolean) -> Unit,
-) {
-    val toggleValue =
+): String? =
+    if (entry.kind != KiyoriSettingsRowKind.NAVIGATION) {
+        null
+    } else {
         when (entry.action) {
-            KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
-                settings.automaticFloatingPlaybackEnabled
-            KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
-                settings.allowWebPageOpenApp
-            KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
-                settings.allowWebPageGeolocation
-            else -> entry.staticToggleValue
-        }
-    val onClick: (() -> Unit)? =
-        when (entry.action) {
-            KiyoriBrowserSettingsAction.OPEN_PLACEHOLDER ->
-                ({ onOpenPlaceholder(entry.title) })
-            KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION -> onOpenHomeCustomization
-            KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
-                ({ onSetAutomaticFloatingPlaybackEnabled(!toggleValue) })
-            KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
-                ({ onSetAllowWebPageOpenApp(!toggleValue) })
-            KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
-                ({ onSetAllowWebPageGeolocation(!toggleValue) })
-            KiyoriBrowserSettingsAction.NONE -> null
-        }
-    val rowModifier =
-        if (onClick == null) {
-            Modifier
-        } else {
-            Modifier.clickable(onClick = onClick)
-        }
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .then(rowModifier)
-                .padding(start = 18.dp, end = 14.dp, top = 18.dp, bottom = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = entry.title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF2B2B2B),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-
-        when (entry.kind) {
-            KiyoriBrowserSettingsEntryKind.NAVIGATION -> {
-                entry.value?.let { value ->
-                    Text(
-                        text = value,
-                        fontSize = 13.sp,
-                        color = Color(0xFF9A9895),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 12.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.width(7.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color(0xFFBDBDB8),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            KiyoriBrowserSettingsEntryKind.TOGGLE ->
-                KiyoriBrowserSettingsCheckIndicator(enabled = toggleValue)
+            KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
+                formatBrowserHomeUrl(settings.homeUrl)
+            KiyoriBrowserSettingsAction.NONE -> entry.value ?: "未接入"
+            else -> entry.value
         }
     }
-}
 
-@Composable
-private fun KiyoriBrowserSettingsCheckIndicator(enabled: Boolean) {
-    Box(
-        modifier =
-            Modifier
-                .size(17.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(if (enabled) Color(0xFFCBBEFF) else Color.White)
-                .border(
-                    width = if (enabled) 0.dp else 1.dp,
-                    color = if (enabled) Color.Transparent else Color(0xFFBAB4AE),
-                    shape = RoundedCornerShape(3.dp),
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (enabled) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(12.dp),
-            )
-        }
+private fun browserSettingToggleValue(
+    entry: KiyoriBrowserSettingsEntrySpec,
+    settings: WebSessionBrowserSettings,
+): Boolean =
+    when (entry.action) {
+        KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
+            settings.showMediaCandidateBadge
+        KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
+            settings.automaticFloatingPlaybackEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
+            settings.allowWebPageOpenApp
+        KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
+            settings.allowWebPageGeolocation
+        else -> entry.staticToggleValue
     }
-}
+
+internal fun formatBrowserHomeUrl(url: String): String =
+    if (url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)) "空白页" else url
 
 @Composable
 private fun KiyoriBrowserHomepageCustomizationPage(
     currentHomeUrl: String,
+    onBack: () -> Unit,
     onSave: (String) -> Boolean,
     onReset: () -> Unit,
+    modifier: Modifier,
 ) {
     var showEditDialog by rememberSaveable { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    KiyoriCollapsingSettingsPage(
+        title = "网页主页自定义",
+        onBack = onBack,
+        modifier = modifier,
     ) {
-        item { Spacer(modifier = Modifier.height(6.dp)) }
         item {
-            KiyoriSettingsGroupCard(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
+            KiyoriSettingsGroupSection(
+                title = "主页入口",
+                description = "浏览器主页按钮和新会话会使用这里保存的地址",
             ) {
-                KiyoriBrowserSettingsValueRow(
-                    title = "自定义主页入口",
-                    value = currentHomeUrl,
+                KiyoriSettingsRow(
+                    title = "当前主页",
+                    description = "支持完整 HTTP/HTTPS 地址或 about:blank 空白页",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = formatBrowserHomeUrl(currentHomeUrl),
                     onClick = { showEditDialog = true },
                 )
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(0.6.dp)
-                            .background(Color(0xFFF2F2EE)),
-                )
-                KiyoriBrowserSettingsValueRow(
+                KiyoriSettingsDivider()
+                KiyoriSettingsRow(
                     title = "恢复为空白页",
-                    value = DEFAULT_BROWSER_HOME_URL,
+                    description = "清除自定义主页，并将入口恢复为 about:blank",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = "about:blank",
                     onClick = onReset,
                 )
             }
         }
-        item { Spacer(modifier = Modifier.height(32.dp)) }
     }
 
     if (showEditDialog) {
@@ -532,47 +464,6 @@ private fun KiyoriBrowserHomepageCustomizationPage(
 }
 
 @Composable
-private fun KiyoriBrowserSettingsValueRow(
-    title: String,
-    value: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(start = 18.dp, end = 15.dp, top = 17.dp, bottom = 17.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            fontSize = 15.5.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF2B2B2B),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = value,
-            fontSize = 12.5.sp,
-            color = Color(0xFF94948F),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 12.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = Color(0xFFBDBDB8),
-            modifier = Modifier.size(18.dp),
-        )
-    }
-}
-
-@Composable
 private fun KiyoriBrowserHomepageEditDialog(
     initialValue: String,
     onDismiss: () -> Unit,
@@ -584,66 +475,40 @@ private fun KiyoriBrowserHomepageEditDialog(
         onDismissRequest = onDismiss,
         containerColor = Color.White,
         title = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "自定义主页入口",
-                    color = Color(0xFF111111),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                )
-                Text(
-                    text = "设置后，浏览器点击主页会直接打开这里配置的地址。",
-                    color = Color(0xFF666666),
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                )
-            }
+            Text(
+                text = "自定义主页入口",
+                color = Color(0xFF292825),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+            )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = "入口地址",
-                    color = Color(0xFF111111),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                OutlinedTextField(
-                    value = inputValue,
-                    onValueChange = { inputValue = it },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    label = { Text("自定义主页入口") },
-                    placeholder = { Text("输入网址或 about:blank") },
-                    colors =
-                        OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color(0xFF111111),
-                            unfocusedBorderColor = Color(0xFFD6D6D6),
-                            focusedLabelColor = Color(0xFF111111),
-                            unfocusedLabelColor = Color(0xFF666666),
-                            cursorColor = Color(0xFF111111),
-                            focusedTextColor = Color(0xFF111111),
-                            unfocusedTextColor = Color(0xFF111111),
-                            focusedPlaceholderColor = Color(0xFF9B9B9B),
-                            unfocusedPlaceholderColor = Color(0xFF9B9B9B),
-                        ),
-                )
-                Text(
-                    text = "支持完整网址，也可以直接填写 about:blank 作为空白页。",
-                    fontSize = 12.sp,
-                    color = Color(0xFF666666),
-                    lineHeight = 18.sp,
-                )
-            }
+            OutlinedTextField(
+                value = inputValue,
+                onValueChange = { inputValue = it },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                label = { Text("入口地址") },
+                placeholder = { Text("输入网址或 about:blank") },
+                supportingText = {
+                    Text("支持完整 HTTP/HTTPS 地址，也可以填写 about:blank。")
+                },
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = Color(0xFF667EEA),
+                        focusedLabelColor = Color(0xFF667EEA),
+                        cursorColor = Color(0xFF667EEA),
+                    ),
+            )
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(inputValue.trim()) }) {
                 Text(
                     text = "保存",
-                    color = Color(0xFF111111),
+                    color = Color(0xFF667EEA),
                     fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -652,11 +517,11 @@ private fun KiyoriBrowserHomepageEditDialog(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = "取消",
-                    color = Color(0xFF777777),
+                    color = Color(0xFF77736E),
                     fontWeight = FontWeight.Medium,
                 )
             }
         },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
     )
 }

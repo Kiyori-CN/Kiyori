@@ -1,204 +1,279 @@
 package com.ai.assistance.operit.ui.main.shell
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.documentfile.provider.DocumentFile
+import com.ai.assistance.operit.core.player.Anime4KMode
+import com.ai.assistance.operit.core.player.PLAYER_DOUBLE_TAP_SEEK_OPTIONS
 import com.ai.assistance.operit.core.player.PLAYER_SEEK_STEP_OPTIONS
 import com.ai.assistance.operit.core.player.PLAYER_SPEED_OPTIONS
+import com.ai.assistance.operit.core.player.PLAYER_SUBTITLE_SCALE_OPTIONS
+import com.ai.assistance.operit.core.player.PlayerBackgroundBehavior
 import com.ai.assistance.operit.core.player.PlayerDecoderPreset
-import com.ai.assistance.operit.core.player.PlayerEndBehavior
+import com.ai.assistance.operit.core.player.PlayerDoubleTapAction
 import com.ai.assistance.operit.core.player.PlayerFullscreenExitBehavior
+import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
+import com.ai.assistance.operit.core.player.PlayerQueueEndBehavior
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
+import com.ai.assistance.operit.util.AppLogger
 import java.util.Locale
 
 internal const val KIYORI_PLAYER_SETTINGS_PAGE_TITLE = "视频播放器设置"
 
-internal enum class KiyoriPlayerSettingsEntryKind {
-    NAVIGATION,
-    TOGGLE,
+internal enum class KiyoriPlayerSettingsDependency {
+    ALWAYS,
+    DOUBLE_TAP_SEEK,
+    REMEMBER_ANIME4K,
 }
 
 internal enum class KiyoriPlayerSettingsAction {
-    NONE,
-    SELECT_DECODER_PRESET,
     SELECT_DEFAULT_SPEED,
-    SELECT_FULLSCREEN_EXIT_BEHAVIOR,
+    TOGGLE_REMEMBER_PLAYBACK_SPEED,
+    TOGGLE_AUTO_PLAY_NEXT,
+    SELECT_QUEUE_END_BEHAVIOR,
+    SELECT_DOUBLE_TAP_ACTION,
+    SELECT_DOUBLE_TAP_SEEK_STEP,
     SELECT_SEEK_STEP,
-    TOGGLE_END_AUTO_RETURN,
+    TOGGLE_PRECISE_SEEKING,
+    TOGGLE_CHAPTER_BAR,
+    TOGGLE_SEEKBAR_THUMBNAIL,
+    TOGGLE_REMEMBER_ANIME4K,
+    SELECT_DEFAULT_ANIME4K,
+    SELECT_DECODER_PRESET,
     TOGGLE_GPU_NEXT,
     TOGGLE_VULKAN,
-    TOGGLE_REMEMBER_ANIME4K,
-    TOGGLE_REMEMBER_PLAYBACK_SPEED,
     TOGGLE_VOLUME_BOOST,
+    SELECT_SUBTITLE_SCALE,
+    SELECT_SCREENSHOT_DIRECTORY,
+    SELECT_VIDEO_DOWNLOAD_DIRECTORY,
+    TOGGLE_FOLLOW_GRAVITY_ROTATION,
+    SELECT_NETWORK_CACHE_POLICY,
+    SELECT_FULLSCREEN_EXIT_BEHAVIOR,
+    SELECT_BACKGROUND_BEHAVIOR,
 }
 
 internal data class KiyoriPlayerSettingsEntrySpec(
     val title: String,
-    val kind: KiyoriPlayerSettingsEntryKind,
-    val value: String? = null,
-    val staticToggleValue: Boolean = false,
-    val action: KiyoriPlayerSettingsAction = KiyoriPlayerSettingsAction.NONE,
+    val description: String,
+    val kind: KiyoriSettingsRowKind,
+    val action: KiyoriPlayerSettingsAction,
+    val dependency: KiyoriPlayerSettingsDependency = KiyoriPlayerSettingsDependency.ALWAYS,
+)
+
+internal data class KiyoriPlayerSettingsGroupSpec(
+    val title: String,
+    val description: String,
+    val entries: List<KiyoriPlayerSettingsEntrySpec>,
 )
 
 private fun playerNavigationSpec(
     title: String,
-    value: String? = null,
-    action: KiyoriPlayerSettingsAction = KiyoriPlayerSettingsAction.NONE,
-): KiyoriPlayerSettingsEntrySpec =
-    KiyoriPlayerSettingsEntrySpec(
-        title = title,
-        kind = KiyoriPlayerSettingsEntryKind.NAVIGATION,
-        value = value,
-        action = action,
-    )
+    description: String,
+    action: KiyoriPlayerSettingsAction,
+    dependency: KiyoriPlayerSettingsDependency = KiyoriPlayerSettingsDependency.ALWAYS,
+) = KiyoriPlayerSettingsEntrySpec(
+    title = title,
+    description = description,
+    kind = KiyoriSettingsRowKind.NAVIGATION,
+    action = action,
+    dependency = dependency,
+)
 
 private fun playerToggleSpec(
     title: String,
-    staticToggleValue: Boolean,
-    action: KiyoriPlayerSettingsAction = KiyoriPlayerSettingsAction.NONE,
-): KiyoriPlayerSettingsEntrySpec =
-    KiyoriPlayerSettingsEntrySpec(
-        title = title,
-        kind = KiyoriPlayerSettingsEntryKind.TOGGLE,
-        staticToggleValue = staticToggleValue,
-        action = action,
-    )
+    description: String,
+    action: KiyoriPlayerSettingsAction,
+) = KiyoriPlayerSettingsEntrySpec(
+    title = title,
+    description = description,
+    kind = KiyoriSettingsRowKind.TOGGLE,
+    action = action,
+)
 
 internal val kiyoriPlayerSettingsGroups =
     listOf(
-        listOf(
-            playerNavigationSpec("极速播放模式2.0"),
-            playerNavigationSpec("自定义播放器"),
-            playerNavigationSpec("备用播放器"),
-            playerNavigationSpec("跳过片头片尾"),
+        KiyoriPlayerSettingsGroupSpec(
+            title = "播放与连播",
+            description = "控制新视频的播放速度，以及真实播放队列到达结尾后的行为",
+            entries =
+                listOf(
+                    playerNavigationSpec(
+                        "默认播放倍速",
+                        "未开启倍速记忆时，新视频从此倍速开始",
+                        KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED,
+                    ),
+                    playerToggleSpec(
+                        "记忆播放倍速",
+                        "保存播放器中最后一次实际选择的倍速",
+                        KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED,
+                    ),
+                    playerToggleSpec(
+                        "自动播放下一集",
+                        "当前视频自然结束后播放队列中的下一项",
+                        KiyoriPlayerSettingsAction.TOGGLE_AUTO_PLAY_NEXT,
+                    ),
+                    playerNavigationSpec(
+                        "队列播完后",
+                        "最后一项播放结束时停留、关闭播放器或循环当前项",
+                        KiyoriPlayerSettingsAction.SELECT_QUEUE_END_BEHAVIOR,
+                    ),
+                ),
         ),
-        listOf(
-            playerNavigationSpec("小窗模式"),
-            playerToggleSpec("AI全屏显示", staticToggleValue = true),
-            playerNavigationSpec(
-                "直接全屏播放/返回",
-                action = KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR,
-            ),
-            playerToggleSpec("重力感应自动横屏", staticToggleValue = false),
-            playerToggleSpec("双指捏合缩放", staticToggleValue = true),
+        KiyoriPlayerSettingsGroupSpec(
+            title = "手势与进度",
+            description = "调整双击、跳转精度、章节信息和拖动预览",
+            entries =
+                listOf(
+                    playerNavigationSpec(
+                        "双击手势",
+                        "双击任意位置暂停/播放，或按左右半屏快退/快进",
+                        KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_ACTION,
+                    ),
+                    playerNavigationSpec(
+                        "双击跳转时长",
+                        "仅在左右双击快退/快进模式下使用",
+                        KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_SEEK_STEP,
+                        KiyoriPlayerSettingsDependency.DOUBLE_TAP_SEEK,
+                    ),
+                    playerNavigationSpec(
+                        "按钮跳转时长",
+                        "播放器快退和快进按钮每次跳转的秒数",
+                        KiyoriPlayerSettingsAction.SELECT_SEEK_STEP,
+                    ),
+                    playerToggleSpec(
+                        "精确进度定位",
+                        "定位到更准确的画面；在线流和长视频可能需要更多解码时间",
+                        KiyoriPlayerSettingsAction.TOGGLE_PRECISE_SEEKING,
+                    ),
+                    playerToggleSpec(
+                        "显示章节进度条",
+                        "在进度条绘制章节节点，并显示当前章节名称",
+                        KiyoriPlayerSettingsAction.TOGGLE_CHAPTER_BAR,
+                    ),
+                    playerToggleSpec(
+                        "进度条缩略图预览",
+                        "拖动进度条时由 MPV 提取目标位置的视频画面",
+                        KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL,
+                    ),
+                ),
         ),
-        listOf(
-            playerToggleSpec("与其他应用同时播放", staticToggleValue = true),
-            playerToggleSpec("流量网络下自动播放", staticToggleValue = false),
-            playerNavigationSpec("蓝牙断开自动暂停", value = "仅音乐"),
-            playerToggleSpec("非Wifi网络提示", staticToggleValue = true),
-            playerToggleSpec("音乐失败自动下一曲", staticToggleValue = false),
-            playerNavigationSpec("视频播放跳转"),
-            playerToggleSpec(
-                "视频播放完自动返回",
-                staticToggleValue = true,
-                action = KiyoriPlayerSettingsAction.TOGGLE_END_AUTO_RETURN,
-            ),
-            playerNavigationSpec("投屏复制链接"),
+        KiyoriPlayerSettingsGroupSpec(
+            title = "画面与超分",
+            description = "Anime4K 可实时切换；渲染内核选项在下次创建播放器时完整生效",
+            entries =
+                listOf(
+                    playerToggleSpec(
+                        "记忆超分模式",
+                        "新视频自动使用设定的 Anime4K 默认模式",
+                        KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K,
+                    ),
+                    playerNavigationSpec(
+                        "默认超分模式",
+                        "选择关闭、流畅、均衡或高清 Anime4K 着色器组合",
+                        KiyoriPlayerSettingsAction.SELECT_DEFAULT_ANIME4K,
+                        KiyoriPlayerSettingsDependency.REMEMBER_ANIME4K,
+                    ),
+                    playerNavigationSpec(
+                        "解码器预设",
+                        "切换 MPV 解码和缩放 profile",
+                        KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET,
+                    ),
+                    playerToggleSpec(
+                        "GPU Next 渲染",
+                        "下次创建播放器内核时使用 gpu-next 视频输出",
+                        KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT,
+                    ),
+                    playerToggleSpec(
+                        "Vulkan 渲染上下文",
+                        "下次创建播放器内核时使用 Android Vulkan context",
+                        KiyoriPlayerSettingsAction.TOGGLE_VULKAN,
+                    ),
+                ),
         ),
-        listOf(
-            playerNavigationSpec(
-                "倍速记忆设置",
-                action = KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED,
-            ),
-            playerNavigationSpec("长按倍速设置"),
-            playerNavigationSpec(
-                "双击快进快退",
-                value = "10s",
-                action = KiyoriPlayerSettingsAction.SELECT_SEEK_STEP,
-            ),
-            playerToggleSpec("全局底部进度条", staticToggleValue = false),
+        KiyoriPlayerSettingsGroupSpec(
+            title = "音频与字幕",
+            description = "直接作用于 MPV 的软件音量和字幕渲染",
+            entries =
+                listOf(
+                    playerToggleSpec(
+                        "音量增强",
+                        "允许 MPV 软件音量超过普通 100% 上限",
+                        KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST,
+                    ),
+                    playerNavigationSpec(
+                        "字幕缩放",
+                        "调整内嵌和外挂字幕的显示比例",
+                        KiyoriPlayerSettingsAction.SELECT_SUBTITLE_SCALE,
+                    ),
+                ),
         ),
-        listOf(
-            playerToggleSpec("隧道播放模式", staticToggleValue = true),
-            playerNavigationSpec("清除播放进度"),
-            playerNavigationSpec("自定义投屏"),
+        KiyoriPlayerSettingsGroupSpec(
+            title = "保存与下载",
+            description = "默认跟随文件下载器，也可以为播放器分别指定独立目录",
+            entries =
+                listOf(
+                    playerNavigationSpec(
+                        "截图保存位置",
+                        "保存右侧截图按钮生成的 PNG 图片",
+                        KiyoriPlayerSettingsAction.SELECT_SCREENSHOT_DIRECTORY,
+                    ),
+                    playerNavigationSpec(
+                        "视频下载位置",
+                        "保存右侧下载按钮获取的在线视频",
+                        KiyoriPlayerSettingsAction.SELECT_VIDEO_DOWNLOAD_DIRECTORY,
+                    ),
+                ),
         ),
-        listOf(playerNavigationSpec("M3U8广告清除")),
-        listOf(
-            playerNavigationSpec(
-                "解码器预设",
-                value = PlayerDecoderPreset.FAST.displayName,
-                action = KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET,
-            ),
-            playerToggleSpec(
-                "GPU Next 渲染",
-                staticToggleValue = false,
-                action = KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT,
-            ),
-            playerToggleSpec(
-                "Vulkan 渲染上下文",
-                staticToggleValue = false,
-                action = KiyoriPlayerSettingsAction.TOGGLE_VULKAN,
-            ),
-            playerToggleSpec(
-                "记忆超分模式",
-                staticToggleValue = false,
-                action = KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K,
-            ),
-            playerToggleSpec(
-                "记忆播放倍速",
-                staticToggleValue = false,
-                action = KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED,
-            ),
-            playerToggleSpec(
-                "音量增强",
-                staticToggleValue = false,
-                action = KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST,
-            ),
+        KiyoriPlayerSettingsGroupSpec(
+            title = "窗口与在线",
+            description = "协调屏幕方向、全屏退出、后台播放和在线播放缓存",
+            entries =
+                listOf(
+                    playerToggleSpec(
+                        "跟随重力自动旋转",
+                        "根据设备方向自动切换横屏或竖屏；开启后停用手动旋转按钮",
+                        KiyoriPlayerSettingsAction.TOGGLE_FOLLOW_GRAVITY_ROTATION,
+                    ),
+                    playerNavigationSpec(
+                        "退出全屏后",
+                        "浏览器视频可返回同一会话悬浮窗，本地视频会关闭",
+                        KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR,
+                    ),
+                    playerNavigationSpec(
+                        "切到后台时",
+                        "决定全屏播放器进入后台时暂停还是继续播放",
+                        KiyoriPlayerSettingsAction.SELECT_BACKGROUND_BEHAVIOR,
+                    ),
+                    playerNavigationSpec(
+                        "在线播放缓存",
+                        "设置 MPV 前向、后向缓存大小与缓存时长",
+                        KiyoriPlayerSettingsAction.SELECT_NETWORK_CACHE_POLICY,
+                    ),
+                ),
         ),
     )
 
-private data class PlayerSettingOption(
-    val label: String,
-    val description: String? = null,
-    val selected: Boolean,
-    val onSelect: () -> Unit,
-)
-
-private data class PlayerSettingSelection(
-    val title: String,
-    val currentValue: String,
-    val options: List<PlayerSettingOption>,
-)
+private enum class PlayerDirectoryPickerTarget {
+    SCREENSHOT,
+    VIDEO_DOWNLOAD,
+}
 
 @Composable
 internal fun KiyoriPlayerSettingsPage(
@@ -208,52 +283,101 @@ internal fun KiyoriPlayerSettingsPage(
     val context = LocalContext.current
     val store = remember(context) { PlayerSettingsStore.getInstance(context) }
     val settings by store.state.collectAsState()
-    var selection by remember { mutableStateOf<PlayerSettingSelection?>(null) }
+    val browserDownloadSettingsStore =
+        remember(context) { BrowserDownloadSettingsStore.getInstance(context) }
+    val browserDownloadSettings by browserDownloadSettingsStore.state.collectAsState()
+    var selection by remember { mutableStateOf<KiyoriSettingsSelection?>(null) }
+    var directoryPickerTarget by remember { mutableStateOf<PlayerDirectoryPickerTarget?>(null) }
+    val directoryPickerLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocumentTree(),
+        ) { uri: Uri? ->
+            val target = directoryPickerTarget
+            directoryPickerTarget = null
+            if (uri == null || target == null) {
+                return@rememberLauncherForActivityResult
+            }
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+                val displayName =
+                    DocumentFile.fromTreeUri(context, uri)?.name
+                        ?: throw IllegalStateException("无法读取所选目录名称")
+                when (target) {
+                    PlayerDirectoryPickerTarget.SCREENSHOT ->
+                        store.setScreenshotDirectory(uri.toString(), displayName)
+                    PlayerDirectoryPickerTarget.VIDEO_DOWNLOAD ->
+                        store.setVideoDownloadDirectory(uri.toString(), displayName)
+                }
+            } catch (error: Exception) {
+                BrowserDownloadManager.getInstance(context)
+                    .releasePersistedDirectoryPermissionIfUnused(uri.toString())
+                AppLogger.e(
+                    "KiyoriPlayerSettings",
+                    "Failed to persist player storage directory",
+                    error,
+                )
+                Toast.makeText(
+                        context,
+                        "保存目录失败：${error.message ?: error.javaClass.simpleName}",
+                        Toast.LENGTH_SHORT,
+                    )
+                    .show()
+            }
+        }
 
     KiyoriCollapsingSettingsPage(
         title = KIYORI_PLAYER_SETTINGS_PAGE_TITLE,
         onBack = onBack,
         modifier = modifier,
     ) {
-        itemsIndexed(kiyoriPlayerSettingsGroups) { _, group ->
-            KiyoriSettingsGroupCard(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
+        items(kiyoriPlayerSettingsGroups, key = KiyoriPlayerSettingsGroupSpec::title) { group ->
+            KiyoriSettingsGroupSection(
+                title = group.title,
+                description = group.description,
             ) {
-                group.forEachIndexed { index, entry ->
-                    KiyoriPlayerSettingsRow(
-                        entry = entry,
-                        settings = settings,
+                group.entries.forEachIndexed { index, entry ->
+                    val enabled = isPlayerSettingEnabled(entry, settings)
+                    KiyoriSettingsRow(
+                        title = entry.title,
+                        description = entry.description,
+                        kind = entry.kind,
+                        value =
+                            if (entry.kind == KiyoriSettingsRowKind.NAVIGATION) {
+                                playerSettingValue(entry.action, settings)
+                            } else {
+                                null
+                            },
+                        checked =
+                            if (entry.kind == KiyoriSettingsRowKind.TOGGLE) {
+                                playerSettingToggleValue(entry.action, settings)
+                            } else {
+                                false
+                            },
+                        enabled = enabled,
                         onClick = {
-                            when (entry.action) {
-                                KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET,
-                                KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED,
-                                KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR,
-                                KiyoriPlayerSettingsAction.SELECT_SEEK_STEP ->
-                                    selection = playerSettingSelection(entry, settings, store)
-                                KiyoriPlayerSettingsAction.TOGGLE_END_AUTO_RETURN ->
-                                    store.setEndBehavior(
-                                        if (settings.endBehavior == PlayerEndBehavior.CLOSE) {
-                                            PlayerEndBehavior.PAUSE
-                                        } else {
-                                            PlayerEndBehavior.CLOSE
+                            if (entry.kind == KiyoriSettingsRowKind.NAVIGATION) {
+                                selection =
+                                    playerSettingSelection(
+                                        entry = entry,
+                                        settings = settings,
+                                        browserDownloadSettings = browserDownloadSettings,
+                                        store = store,
+                                        onRequestDirectory = { target ->
+                                            directoryPickerTarget = target
+                                            directoryPickerLauncher.launch(null)
                                         },
                                     )
-                                KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT ->
-                                    store.setGpuNextEnabled(!settings.gpuNextEnabled)
-                                KiyoriPlayerSettingsAction.TOGGLE_VULKAN ->
-                                    store.setVulkanEnabled(!settings.vulkanEnabled)
-                                KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K ->
-                                    store.setRememberAnime4KMode(!settings.rememberAnime4KMode)
-                                KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED ->
-                                    store.setRememberPlaybackSpeed(!settings.rememberPlaybackSpeed)
-                                KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST ->
-                                    store.setVolumeBoostEnabled(!settings.volumeBoostEnabled)
-                                KiyoriPlayerSettingsAction.NONE -> Unit
+                            } else {
+                                togglePlayerSetting(entry.action, settings, store)
                             }
                         },
                     )
-                    if (index != group.lastIndex) {
-                        HorizontalDivider(color = Color(0xFFF2F2EE), thickness = 0.6.dp)
+                    if (index != group.entries.lastIndex) {
+                        KiyoriSettingsDivider()
                     }
                 }
             }
@@ -261,7 +385,7 @@ internal fun KiyoriPlayerSettingsPage(
     }
 
     selection?.let { current ->
-        PlayerSettingSelectionSheet(
+        KiyoriSettingsSelectionSheet(
             selection = current,
             onDismiss = { selection = null },
             onSelect = { option ->
@@ -272,253 +396,351 @@ internal fun KiyoriPlayerSettingsPage(
     }
 }
 
-@Composable
-private fun KiyoriPlayerSettingsRow(
+private fun isPlayerSettingEnabled(
     entry: KiyoriPlayerSettingsEntrySpec,
     settings: PlayerSettings,
-    onClick: () -> Unit,
+): Boolean =
+    when (entry.dependency) {
+        KiyoriPlayerSettingsDependency.ALWAYS -> true
+        KiyoriPlayerSettingsDependency.DOUBLE_TAP_SEEK ->
+            settings.doubleTapAction == PlayerDoubleTapAction.SEEK
+        KiyoriPlayerSettingsDependency.REMEMBER_ANIME4K -> settings.rememberAnime4KMode
+    }
+
+private fun togglePlayerSetting(
+    action: KiyoriPlayerSettingsAction,
+    settings: PlayerSettings,
+    store: PlayerSettingsStore,
 ) {
-    val value =
-        when (entry.action) {
-            KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET ->
-                settings.decoderPreset.displayName
-            KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
-                formatPlayerSettingSpeed(settings.defaultSpeed)
-            KiyoriPlayerSettingsAction.SELECT_SEEK_STEP -> "${settings.seekStepSeconds}s"
-            else -> entry.value
-        }
-    val toggleValue =
-        when (entry.action) {
-            KiyoriPlayerSettingsAction.TOGGLE_END_AUTO_RETURN ->
-                settings.endBehavior == PlayerEndBehavior.CLOSE
-            KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT -> settings.gpuNextEnabled
-            KiyoriPlayerSettingsAction.TOGGLE_VULKAN -> settings.vulkanEnabled
-            KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K ->
-                settings.rememberAnime4KMode
-            KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED ->
-                settings.rememberPlaybackSpeed
-            KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST -> settings.volumeBoostEnabled
-            else -> entry.staticToggleValue
-        }
-    val clickableModifier =
-        if (entry.action == KiyoriPlayerSettingsAction.NONE) {
-            Modifier
-        } else {
-            Modifier.clickable(onClick = onClick)
-        }
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .then(clickableModifier)
-                .padding(start = 18.dp, end = 14.dp, top = 18.dp, bottom = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = entry.title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF2B2B2B),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-
-        when (entry.kind) {
-            KiyoriPlayerSettingsEntryKind.NAVIGATION -> {
-                value?.let {
-                    Text(
-                        text = it,
-                        fontSize = 13.sp,
-                        color = Color(0xFF9A9895),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 12.dp),
-                    )
-                }
-                Spacer(Modifier.width(7.dp))
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color(0xFFBDBDB8),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            KiyoriPlayerSettingsEntryKind.TOGGLE ->
-                KiyoriPlayerSettingsCheckIndicator(enabled = toggleValue)
-        }
+    when (action) {
+        KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED ->
+            store.setRememberPlaybackSpeed(!settings.rememberPlaybackSpeed)
+        KiyoriPlayerSettingsAction.TOGGLE_AUTO_PLAY_NEXT ->
+            store.setAutoPlayNext(!settings.autoPlayNext)
+        KiyoriPlayerSettingsAction.TOGGLE_PRECISE_SEEKING ->
+            store.setPreciseSeeking(!settings.preciseSeeking)
+        KiyoriPlayerSettingsAction.TOGGLE_CHAPTER_BAR ->
+            store.setChapterBarEnabled(!settings.chapterBarEnabled)
+        KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL ->
+            store.setSeekbarThumbnailEnabled(!settings.seekbarThumbnailEnabled)
+        KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K ->
+            store.setRememberAnime4KMode(!settings.rememberAnime4KMode)
+        KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT ->
+            store.setGpuNextEnabled(!settings.gpuNextEnabled)
+        KiyoriPlayerSettingsAction.TOGGLE_VULKAN ->
+            store.setVulkanEnabled(!settings.vulkanEnabled)
+        KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST ->
+            store.setVolumeBoostEnabled(!settings.volumeBoostEnabled)
+        KiyoriPlayerSettingsAction.TOGGLE_FOLLOW_GRAVITY_ROTATION ->
+            store.setFollowGravityRotation(!settings.followGravityRotation)
+        else -> error("Player setting action is not a toggle: $action")
     }
 }
 
-@Composable
-private fun KiyoriPlayerSettingsCheckIndicator(enabled: Boolean) {
-    Box(
-        modifier =
-            Modifier
-                .size(17.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(if (enabled) Color(0xFFCBBEFF) else Color.White)
-                .border(
-                    width = if (enabled) 0.dp else 1.dp,
-                    color = if (enabled) Color.Transparent else Color(0xFFBAB4AE),
-                    shape = RoundedCornerShape(3.dp),
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (enabled) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(12.dp),
+private fun playerSettingValue(
+    action: KiyoriPlayerSettingsAction,
+    settings: PlayerSettings,
+): String =
+    when (action) {
+        KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
+            formatPlayerSettingSpeed(settings.defaultSpeed)
+        KiyoriPlayerSettingsAction.SELECT_QUEUE_END_BEHAVIOR ->
+            formatQueueEndBehavior(settings.queueEndBehavior)
+        KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_ACTION ->
+            formatDoubleTapAction(settings.doubleTapAction)
+        KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_SEEK_STEP ->
+            "${settings.doubleTapSeekSeconds}s"
+        KiyoriPlayerSettingsAction.SELECT_SEEK_STEP -> "${settings.seekStepSeconds}s"
+        KiyoriPlayerSettingsAction.SELECT_DEFAULT_ANIME4K ->
+            formatAnime4KMode(settings.anime4KMode)
+        KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET -> settings.decoderPreset.displayName
+        KiyoriPlayerSettingsAction.SELECT_SUBTITLE_SCALE ->
+            formatSubtitleScale(settings.subtitleScale)
+        KiyoriPlayerSettingsAction.SELECT_SCREENSHOT_DIRECTORY ->
+            formatPlayerDirectoryValue(
+                settings.screenshotDirectoryUri,
+                settings.screenshotDirectoryName,
             )
-        }
+        KiyoriPlayerSettingsAction.SELECT_VIDEO_DOWNLOAD_DIRECTORY ->
+            formatPlayerDirectoryValue(
+                settings.videoDownloadDirectoryUri,
+                settings.videoDownloadDirectoryName,
+            )
+        KiyoriPlayerSettingsAction.SELECT_NETWORK_CACHE_POLICY ->
+            formatNetworkCachePolicy(settings.networkCachePolicy)
+        KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR ->
+            formatFullscreenExitBehavior(settings.fullscreenExitBehavior)
+        KiyoriPlayerSettingsAction.SELECT_BACKGROUND_BEHAVIOR ->
+            formatBackgroundBehavior(settings.backgroundBehavior)
+        else -> ""
     }
-}
+
+private fun playerSettingToggleValue(
+    action: KiyoriPlayerSettingsAction,
+    settings: PlayerSettings,
+): Boolean =
+    when (action) {
+        KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_PLAYBACK_SPEED ->
+            settings.rememberPlaybackSpeed
+        KiyoriPlayerSettingsAction.TOGGLE_AUTO_PLAY_NEXT -> settings.autoPlayNext
+        KiyoriPlayerSettingsAction.TOGGLE_PRECISE_SEEKING -> settings.preciseSeeking
+        KiyoriPlayerSettingsAction.TOGGLE_CHAPTER_BAR -> settings.chapterBarEnabled
+        KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL ->
+            settings.seekbarThumbnailEnabled
+        KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K -> settings.rememberAnime4KMode
+        KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT -> settings.gpuNextEnabled
+        KiyoriPlayerSettingsAction.TOGGLE_VULKAN -> settings.vulkanEnabled
+        KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST -> settings.volumeBoostEnabled
+        KiyoriPlayerSettingsAction.TOGGLE_FOLLOW_GRAVITY_ROTATION ->
+            settings.followGravityRotation
+        else -> false
+    }
 
 private fun playerSettingSelection(
     entry: KiyoriPlayerSettingsEntrySpec,
     settings: PlayerSettings,
+    browserDownloadSettings: BrowserDownloadSettings,
     store: PlayerSettingsStore,
-): PlayerSettingSelection {
+    onRequestDirectory: (PlayerDirectoryPickerTarget) -> Unit,
+): KiyoriSettingsSelection {
     val options =
         when (entry.action) {
+            KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
+                PLAYER_SPEED_OPTIONS.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatPlayerSettingSpeed(value),
+                        selected = value == settings.defaultSpeed,
+                    ) { store.setDefaultSpeed(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_QUEUE_END_BEHAVIOR ->
+                PlayerQueueEndBehavior.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatQueueEndBehavior(value),
+                        description =
+                            when (value) {
+                                PlayerQueueEndBehavior.STAY -> "停留在最后一帧并保持播放器"
+                                PlayerQueueEndBehavior.CLOSE -> "关闭当前播放会话"
+                                PlayerQueueEndBehavior.LOOP_CURRENT -> "从头重新播放当前视频"
+                            },
+                        selected = value == settings.queueEndBehavior,
+                    ) { store.setQueueEndBehavior(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_ACTION ->
+                PlayerDoubleTapAction.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatDoubleTapAction(value),
+                        description =
+                            when (value) {
+                                PlayerDoubleTapAction.PLAY_PAUSE ->
+                                    "双击屏幕任意位置暂停或继续播放"
+                                PlayerDoubleTapAction.SEEK ->
+                                    "双击左半屏快退，双击右半屏快进"
+                            },
+                        selected = value == settings.doubleTapAction,
+                    ) { store.setDoubleTapAction(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_SEEK_STEP ->
+                PLAYER_DOUBLE_TAP_SEEK_OPTIONS.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = "${value}s",
+                        selected = value == settings.doubleTapSeekSeconds,
+                    ) { store.setDoubleTapSeekSeconds(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_SEEK_STEP ->
+                PLAYER_SEEK_STEP_OPTIONS.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = "${value}s",
+                        selected = value == settings.seekStepSeconds,
+                    ) { store.setSeekStepSeconds(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_DEFAULT_ANIME4K ->
+                Anime4KMode.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatAnime4KMode(value),
+                        description = anime4KModeDescription(value),
+                        selected = value == settings.anime4KMode,
+                    ) { store.setAnime4KMode(value) }
+                }
             KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET ->
                 PlayerDecoderPreset.entries.map { value ->
-                    PlayerSettingOption(
+                    KiyoriSettingsSelectionOption(
                         label = value.displayName,
                         description = value.description,
                         selected = value == settings.decoderPreset,
                     ) { store.setDecoderPreset(value) }
                 }
-            KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
-                PLAYER_SPEED_OPTIONS.map { value ->
-                    PlayerSettingOption(
-                        label = formatPlayerSettingSpeed(value),
-                        selected = value == settings.defaultSpeed,
-                    ) { store.setDefaultSpeed(value) }
+            KiyoriPlayerSettingsAction.SELECT_SUBTITLE_SCALE ->
+                PLAYER_SUBTITLE_SCALE_OPTIONS.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatSubtitleScale(value),
+                        selected = value == settings.subtitleScale,
+                    ) { store.setSubtitleScale(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_SCREENSHOT_DIRECTORY ->
+                playerDirectoryOptions(
+                    currentUri = settings.screenshotDirectoryUri,
+                    currentName = settings.screenshotDirectoryName,
+                    inheritedDescription =
+                        formatInheritedDownloadDirectory(browserDownloadSettings),
+                    onFollowSettings = store::clearScreenshotDirectory,
+                    onRequestDirectory = {
+                        onRequestDirectory(PlayerDirectoryPickerTarget.SCREENSHOT)
+                    },
+                    independentDescription =
+                        "直接将 PNG 写入所选目录，不改变文件下载器主设置",
+                )
+            KiyoriPlayerSettingsAction.SELECT_VIDEO_DOWNLOAD_DIRECTORY ->
+                playerDirectoryOptions(
+                    currentUri = settings.videoDownloadDirectoryUri,
+                    currentName = settings.videoDownloadDirectoryName,
+                    inheritedDescription =
+                        formatInheritedDownloadDirectory(browserDownloadSettings),
+                    onFollowSettings = store::clearVideoDownloadDirectory,
+                    onRequestDirectory = {
+                        onRequestDirectory(PlayerDirectoryPickerTarget.VIDEO_DOWNLOAD)
+                    },
+                    independentDescription =
+                        "普通视频由现有内置下载器写入；M3U8 离线包按下载器规则保留在应用目录",
+                )
+            KiyoriPlayerSettingsAction.SELECT_NETWORK_CACHE_POLICY ->
+                PlayerNetworkCachePolicy.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatNetworkCachePolicy(value),
+                        description =
+                            "前向 ${value.forwardBytes / (1024L * 1024L)} MB / " +
+                                "后向 ${value.backwardBytes / (1024L * 1024L)} MB / " +
+                                "${value.cacheSeconds}s",
+                        selected = value == settings.networkCachePolicy,
+                    ) { store.setNetworkCachePolicy(value) }
                 }
             KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR ->
                 PlayerFullscreenExitBehavior.entries.map { value ->
-                    PlayerSettingOption(
-                        label =
+                    KiyoriSettingsSelectionOption(
+                        label = formatFullscreenExitBehavior(value),
+                        description =
                             when (value) {
                                 PlayerFullscreenExitBehavior.RETURN_TO_FLOATING ->
-                                    "返回浏览器悬浮窗"
-                                PlayerFullscreenExitBehavior.CLOSE -> "关闭播放器"
+                                    "浏览器候选返回同一会话悬浮窗；本地视频关闭"
+                                PlayerFullscreenExitBehavior.CLOSE ->
+                                    "退出全屏时关闭当前播放会话"
                             },
                         selected = value == settings.fullscreenExitBehavior,
                     ) { store.setFullscreenExitBehavior(value) }
                 }
-            KiyoriPlayerSettingsAction.SELECT_SEEK_STEP ->
-                PLAYER_SEEK_STEP_OPTIONS.map { value ->
-                    PlayerSettingOption(
-                        label = "${value}s",
-                        selected = value == settings.seekStepSeconds,
-                    ) { store.setSeekStepSeconds(value) }
+            KiyoriPlayerSettingsAction.SELECT_BACKGROUND_BEHAVIOR ->
+                PlayerBackgroundBehavior.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = formatBackgroundBehavior(value),
+                        description =
+                            when (value) {
+                                PlayerBackgroundBehavior.PAUSE -> "进入后台时暂停"
+                                PlayerBackgroundBehavior.CONTINUE -> "进入后台后保持播放状态"
+                            },
+                        selected = value == settings.backgroundBehavior,
+                    ) { store.setBackgroundBehavior(value) }
                 }
             else -> error("Player setting action does not own a selection sheet: ${entry.action}")
         }
-    val currentValue =
-        when (entry.action) {
-            KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET ->
-                settings.decoderPreset.displayName
-            KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
-                formatPlayerSettingSpeed(settings.defaultSpeed)
-            KiyoriPlayerSettingsAction.SELECT_FULLSCREEN_EXIT_BEHAVIOR ->
-                if (
-                    settings.fullscreenExitBehavior ==
-                    PlayerFullscreenExitBehavior.RETURN_TO_FLOATING
-                ) {
-                    "返回浏览器悬浮窗"
-                } else {
-                    "关闭播放器"
-                }
-            KiyoriPlayerSettingsAction.SELECT_SEEK_STEP -> "${settings.seekStepSeconds}s"
-        }
-    return PlayerSettingSelection(
+    return KiyoriSettingsSelection(
         title = entry.title,
-        currentValue = currentValue,
+        currentValue = playerSettingValue(entry.action, settings),
         options = options,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PlayerSettingSelectionSheet(
-    selection: PlayerSettingSelection,
-    onDismiss: () -> Unit,
-    onSelect: (PlayerSettingOption) -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = Color.White,
-        scrimColor = Color(0x73000000),
-        tonalElevation = 0.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
-            Text(
-                text = "${selection.title}，当前：${selection.currentValue}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
-            )
-            HorizontalDivider(color = Color(0xFFEFEFEF))
-            selection.options.forEach { option ->
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 52.dp)
-                            .clickable { onSelect(option) }
-                            .padding(horizontal = 22.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 14.dp)) {
-                        Text(option.label, fontSize = 14.sp)
-                        option.description?.let { description ->
-                            Text(
-                                text = description,
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp,
-                                color = Color(0xFF777570),
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
-                    if (option.selected) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                HorizontalDivider(color = Color(0xFFEFEFEF))
-            }
-            Text(
-                text = "取消",
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onDismiss)
-                        .padding(vertical = 17.dp),
-            )
-        }
-    }
-}
+private fun playerDirectoryOptions(
+    currentUri: String,
+    currentName: String,
+    inheritedDescription: String,
+    onFollowSettings: () -> Unit,
+    onRequestDirectory: () -> Unit,
+    independentDescription: String,
+): List<KiyoriSettingsSelectionOption> =
+    listOf(
+        KiyoriSettingsSelectionOption(
+            label = "跟随文件下载器",
+            description = inheritedDescription,
+            selected = currentUri.isBlank(),
+            onSelect = onFollowSettings,
+        ),
+        KiyoriSettingsSelectionOption(
+            label = "使用独立目录",
+            description =
+                if (currentUri.isBlank()) {
+                    independentDescription
+                } else {
+                    "$currentName · $independentDescription"
+                },
+            selected = currentUri.isNotBlank(),
+            onSelect = onRequestDirectory,
+        ),
+    )
 
 private fun formatPlayerSettingSpeed(value: Double): String =
-    if (value % 1.0 == 0.0) {
-        "${value.toInt()}x"
-    } else {
-        String.format(Locale.US, "%.2gx", value)
+    if (value % 1.0 == 0.0) "${value.toInt()}x"
+    else String.format(Locale.US, "%.2gx", value)
+
+private fun formatQueueEndBehavior(value: PlayerQueueEndBehavior): String =
+    when (value) {
+        PlayerQueueEndBehavior.STAY -> "停在结尾"
+        PlayerQueueEndBehavior.CLOSE -> "关闭播放器"
+        PlayerQueueEndBehavior.LOOP_CURRENT -> "循环当前视频"
+    }
+
+private fun formatDoubleTapAction(value: PlayerDoubleTapAction): String =
+    when (value) {
+        PlayerDoubleTapAction.PLAY_PAUSE -> "暂停/播放"
+        PlayerDoubleTapAction.SEEK -> "左退右进"
+    }
+
+internal fun formatAnime4KMode(value: Anime4KMode): String =
+    when (value) {
+        Anime4KMode.OFF -> "关闭"
+        Anime4KMode.FAST -> "流畅"
+        Anime4KMode.BALANCED -> "均衡"
+        Anime4KMode.QUALITY -> "高清"
+    }
+
+internal fun anime4KModeDescription(value: Anime4KMode): String =
+    when (value) {
+        Anime4KMode.OFF -> "显示原始画面，不加载 Anime4K 着色器"
+        Anime4KMode.FAST -> "轻量放大，适合低功耗或高分辨率视频"
+        Anime4KMode.BALANCED -> "恢复与放大兼顾，适合多数设备"
+        Anime4KMode.QUALITY -> "使用高质量恢复和放大，对 GPU 要求最高"
+    }
+
+private fun formatFullscreenExitBehavior(value: PlayerFullscreenExitBehavior): String =
+    when (value) {
+        PlayerFullscreenExitBehavior.RETURN_TO_FLOATING -> "返回浏览器悬浮窗"
+        PlayerFullscreenExitBehavior.CLOSE -> "关闭播放器"
+    }
+
+private fun formatBackgroundBehavior(value: PlayerBackgroundBehavior): String =
+    when (value) {
+        PlayerBackgroundBehavior.PAUSE -> "暂停播放"
+        PlayerBackgroundBehavior.CONTINUE -> "继续播放"
+    }
+
+private fun formatNetworkCachePolicy(value: PlayerNetworkCachePolicy): String =
+    when (value) {
+        PlayerNetworkCachePolicy.COMPACT -> "节省内存"
+        PlayerNetworkCachePolicy.BALANCED -> "均衡"
+        PlayerNetworkCachePolicy.LARGE -> "大缓存"
+    }
+
+private fun formatSubtitleScale(value: Double): String = "${(value * 100).toInt()}%"
+
+private fun formatPlayerDirectoryValue(uri: String, name: String): String =
+    if (uri.isBlank()) "跟随文件下载器" else name
+
+private fun formatInheritedDownloadDirectory(settings: BrowserDownloadSettings): String =
+    when {
+        settings.defaultEngine == BrowserDownloadEngine.SYSTEM ->
+            "当前主设置：Android 系统下载目录"
+        settings.customDirectoryUri.isNotBlank() ->
+            "当前主设置：${settings.customDirectoryName}"
+        settings.autoTransferToPublicDirectory ->
+            "当前主设置：公开下载目录"
+        else ->
+            "当前主设置：应用下载目录"
     }

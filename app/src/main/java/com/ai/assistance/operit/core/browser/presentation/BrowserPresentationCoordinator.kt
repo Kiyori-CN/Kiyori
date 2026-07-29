@@ -190,6 +190,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserSettingsStore.setAllowWebPageGeolocation(enabled)
     }
 
+    fun setShowMediaCandidateBadge(enabled: Boolean) {
+        tools.browserSettingsStore.setShowMediaCandidateBadge(enabled)
+    }
+
     fun setAutomaticFloatingPlaybackEnabled(enabled: Boolean) {
         tools.browserSettingsStore.setAutomaticFloatingPlaybackEnabled(enabled)
     }

@@ -17,15 +17,45 @@ APK 证据至少记录：绝对路径、生成时间、大小、SHA-256、applic
 播放器 native 审计还必须核对：
 
 - APK 只包含 `arm64-v8a`，同一 SONAME/文件名只出现一次
-- `libmpv.so`、`libplayer.so`、FFmpegKit 的九个 native 库与唯一 `libc++_shared.so` 均存在
-- 不含旧 FFmpeg `n6.0` 库、第二份 `libav*.so` 或旧手工 C++ runtime
-- `libmpv.so`/`libplayer.so` 的 FFmpeg 未定义符号全部由 APK 内统一 FFmpeg `n8.1.2` 提供
+- `libmpv.so`、`libplayer.so`、七个 `libmp*.so` 播放器 FFmpeg、FFmpegKit 的九个 native 库与唯一
+  `libc++_shared.so` 均存在
+- 不含旧 FFmpeg `n6.0` 库、未命名空间化的 mpv FFmpeg 依赖或旧手工 C++ runtime
+- `libmpv.so`/`libplayer.so` 的 FFmpeg 未定义符号全部由 APK 内隔离的 `libmp*.so` FFmpeg `n8.1.2`
+  提供；FFmpegKit 继续只解析正常 `libav*.so` 名称
+- `libmpformat.so` 必须保留 `--enable-mbedtls`、Mbed TLS 3.6.6 和 HTTPS 协议证据；播放器初始化必须
+  设置固定 `tls-ca-file`、`tls-verify=yes` 和 `ytdl=no`
 - `libmpv.so` 所需的 C++ 未定义符号全部由 APK 内唯一 `libc++_shared.so` 提供；至少固定检查 float/double
   两个 `__from_chars_floating_point` 符号
 - 固定上游输入哈希、薄 AAR 输出哈希和最终 APK 中每个 native entry 哈希可追溯
 - 根 `LICENSE`、`NOTICE`、`PLAYER_NATIVE_STACK.md` 与应用开源许可证列表对同一来源/版本/许可陈述一致
 
 ## 当前最新本地制品
+
+### 2026-07-29 原生 HTTP/HTTPS 在线播放修复
+
+- Debug APK：`D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 时间 `2026-07-29 14:22:10 +08:00`，大小 `474822245` 字节，SHA-256
+  `969C20C2FC6E1A401CFF51812EC1936AB674ECF5B2F51D0A7AB1589FBB35A6A7`
+- `applicationId com.kiyori`、`versionCode 45`、`versionName 0.1.0`、min 26、target 34、compile 36；
+  Android Debug v2 与证书 SHA-256
+  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902` 验证通过
+- APK 只含 `arm64-v8a`；53 个 native entry 无重复 basename，52 个 AArch64 ELF 的全部
+  `PT_LOAD >= 0x4000`，唯一非 ELF 为既有 2 字节 `libsudo.so`
+- 正常名称 FFmpegKit 九库与播放器七个 `libmp*.so` FFmpeg 同时存在且文件名互斥；
+  `libmpv.so` / `libplayer.so` 对正常 `libav*.so` 的 `DT_NEEDED` 为零
+- `libmpv.so` 需要 251 个、`libplayer.so` 需要 34 个版本化 FFmpeg 符号，去重并集 256 个；
+  namespaced mpv FFmpeg 提供全部定义，缺失 0
+- `libmpv.so` / `libplayer.so` 的 99 个唯一 C++ 引用在隔离 FFmpeg 与唯一
+  `libc++_shared.so` 中缺失 0；float/double `__from_chars_floating_point` 均存在
+- `libmpformat.so` 包含 FFmpeg `n8.1.2`、`--enable-mbedtls`、Mbed TLS `3.6.6`、
+  `mbedtls_ssl_handshake` 和 HTTPS 证据；`zipalign -c -P 16 -v 4` 为
+  `Verification successful`
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 46s`，233 个任务零失败，构建末尾
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- 未安装 APK、未操作设备；真实 HTTPS MP4、HLS、Referer/Cookie、重定向、证书失败与网速/缓冲状态
+  保持 `verification_pending`
+
+### 2026-07-28 阶段 9 播放器与浏览器嗅探
 
 阶段 9 播放器与浏览器嗅探最终制品：
 

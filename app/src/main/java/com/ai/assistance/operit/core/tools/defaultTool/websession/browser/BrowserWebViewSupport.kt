@@ -913,8 +913,18 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     },
                 )
 
-        override fun onDownloadMediaCandidate(candidateId: String): Boolean =
-            runCatching { downloadMediaCandidate(candidateId) }
+        override fun onDownloadMediaCandidate(
+            candidateId: String,
+            sourceSessionId: String?,
+            destination: BrowserDownloadDestination,
+        ): Boolean =
+            runCatching {
+                downloadMediaCandidate(
+                    candidateId = candidateId,
+                    sourceSessionId = sourceSessionId,
+                    destination = destination,
+                )
+            }
                 .fold(
                     onSuccess = { accepted -> accepted },
                     onFailure = { error ->

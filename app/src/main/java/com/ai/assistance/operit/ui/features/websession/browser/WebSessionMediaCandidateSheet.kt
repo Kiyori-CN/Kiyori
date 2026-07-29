@@ -43,7 +43,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,10 +70,6 @@ private const val ALL_VIDEO_FORMATS = "ALL"
 @Composable
 internal fun WebSessionMediaCandidateSheet(
     candidates: List<WebSessionBrowserMediaCandidate>,
-    showMediaCandidateBadge: Boolean,
-    automaticFloatingPlaybackEnabled: Boolean,
-    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
-    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onPlay: (String) -> Boolean,
     onDownload: (String) -> Boolean,
     onDismiss: () -> Unit,
@@ -114,13 +109,6 @@ internal fun WebSessionMediaCandidateSheet(
         BrowserMediaCandidateHeader(
             candidateCount = candidates.size,
             onDismiss = onDismiss,
-        )
-        BrowserMediaCandidateSettings(
-            showMediaCandidateBadge = showMediaCandidateBadge,
-            automaticFloatingPlaybackEnabled = automaticFloatingPlaybackEnabled,
-            onSetShowMediaCandidateBadge = onSetShowMediaCandidateBadge,
-            onSetAutomaticFloatingPlaybackEnabled = onSetAutomaticFloatingPlaybackEnabled,
-            modifier = Modifier.padding(horizontal = 12.dp),
         )
         BrowserMediaFormatFilters(
             candidates = candidates,
@@ -220,77 +208,6 @@ private fun BrowserMediaCandidateHeader(
                 modifier = Modifier.size(19.dp),
             )
         }
-    }
-}
-
-@Composable
-private fun BrowserMediaCandidateSettings(
-    showMediaCandidateBadge: Boolean,
-    automaticFloatingPlaybackEnabled: Boolean,
-    onSetShowMediaCandidateBadge: (Boolean) -> Unit,
-    onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            BrowserMediaCandidateSettingRow(
-                title = "搜索栏嗅探入口",
-                subtitle = "显示搜索栏右侧的视频资源球",
-                checked = showMediaCandidateBadge,
-                onCheckedChange = onSetShowMediaCandidateBadge,
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 12.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-            )
-            BrowserMediaCandidateSettingRow(
-                title = "自动悬浮播放",
-                subtitle = "发现推荐视频后自动打开悬浮播放器",
-                checked = automaticFloatingPlaybackEnabled,
-                onCheckedChange = onSetAutomaticFloatingPlaybackEnabled,
-            )
-        }
-    }
-}
-
-@Composable
-private fun BrowserMediaCandidateSettingRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(58.dp).padding(start = 13.dp, end = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.height(30.dp),
-        )
     }
 }
 

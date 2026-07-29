@@ -24,8 +24,17 @@ EXPECTED_SHADER_HASHES = {
     "Anime4K_Upscale_CNN_x2_S.glsl":
         "90b65a4f36950852a34e5f12beb179fafed59fa8d911887e0f5f184337998edf",
 }
-EXPECTED_MPV_AAR_SHA256 = "ecdc87102e7b4a9bb9c9d46af863f7c32b25b9aab7a161614af6646ffd603f70"
+EXPECTED_MPV_AAR_SHA256 = "fc983b7ed0c8b8be1938283fe94108dfdc593aa31608d55dd1ce119ae201c32c"
 EXPECTED_FFMPEG_AAR_SHA256 = "1a30a94226bf2157927ec6edbb20154f9a1c1c53580f59cf55efe46db87a5ab3"
+MPV_FFMPEG_NAMESPACE = {
+    "libavcodec.so": "libmpcodec.so",
+    "libavdevice.so": "libmpdevice.so",
+    "libavfilter.so": "libmpfilter.so",
+    "libavformat.so": "libmpformat.so",
+    "libavutil.so": "libmputil.so",
+    "libswresample.so": "libmpresample.so",
+    "libswscale.so": "libmpscale.so",
+}
 REQUIRED_LIBCXX_SYMBOLS = {
     b"_ZNSt6__ndk127__from_chars_floating_pointIfEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
     b"_ZNSt6__ndk127__from_chars_floating_pointIdEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
@@ -108,22 +117,34 @@ class PlayerAssetsTest(unittest.TestCase):
                 name for name in aar.namelist() if name.startswith("jni/")
             }
             mpv_payload = aar.read("jni/arm64-v8a/libmpv.so")
+            mpv_avformat_payload = aar.read("jni/arm64-v8a/libmpformat.so")
             libcxx_payload = aar.read("jni/arm64-v8a/libc++_shared.so")
         self.assertTrue(
             {
                 "is/xyz/mpv/MPVLib.class",
                 "is/xyz/mpv/MPVLib$EventObserver.class",
+                "is/xyz/mpv/MPVLib$LogObserver.class",
                 "is/xyz/mpv/MPVNode.class",
+                "is/xyz/mpv/Utils.class",
             }.issubset(names)
         )
         self.assertEqual(
             {
                 "jni/arm64-v8a/libc++_shared.so",
+                *{
+                    f"jni/arm64-v8a/{name}"
+                    for name in MPV_FFMPEG_NAMESPACE.values()
+                },
                 "jni/arm64-v8a/libmpv.so",
                 "jni/arm64-v8a/libplayer.so",
             },
             mpv_native_names,
         )
+        for source_name, namespaced_name in MPV_FFMPEG_NAMESPACE.items():
+            self.assertNotIn(source_name.encode("ascii"), mpv_payload)
+            self.assertIn(namespaced_name.encode("ascii"), mpv_payload)
+        self.assertIn(b"--enable-mbedtls", mpv_avformat_payload)
+        self.assertIn(b"mbedtls_ssl_handshake", mpv_avformat_payload)
         for symbol in REQUIRED_LIBCXX_SYMBOLS:
             self.assertIn(symbol, mpv_payload)
             self.assertIn(symbol, libcxx_payload)
@@ -187,6 +208,9 @@ class PlayerAssetsTest(unittest.TestCase):
         )
         runtime_root = player_root / "runtime"
         engine_source = (runtime_root / "MpvPlayerEngine.kt").read_text(encoding="utf-8")
+        protocol_source = (runtime_root / "PlayerRuntimeProtocolPolicy.kt").read_text(
+            encoding="utf-8"
+        )
         service_source = (runtime_root / "PlayerRuntimeService.kt").read_text(
             encoding="utf-8"
         )
@@ -197,8 +221,20 @@ class PlayerAssetsTest(unittest.TestCase):
         ]
 
         self.assertIn("MPVLib.init()", initialize_body)
+        self.assertIn('setRequiredOption("msg-level", "all=v")', initialize_body)
+        self.assertIn("Utils.copyAssets(appContext)", initialize_body)
+        self.assertIn('setRequiredOption("tls-ca-file", tlsCaFile.absolutePath)', initialize_body)
+        self.assertIn('setRequiredOption("tls-verify", "yes")', initialize_body)
+        self.assertIn('setRequiredOption("ytdl", "no")', initialize_body)
+        self.assertIn("MPVLib.addLogObserver(this)", initialize_body)
         self.assertNotIn("MPVLib.attachSurface", initialize_body)
         self.assertNotIn('setRequiredOption("force-window", "yes")', initialize_body)
+        self.assertIn("buildPlayerMpvHttpHeaderPlan(headers)", engine_source)
+        self.assertIn("rangeOwner=mpv", engine_source)
+        self.assertIn('data["reason"]?.asString()', engine_source)
+        self.assertIn('data["file_error"]?.asString()', engine_source)
+        self.assertNotIn('data["reason"]?.asInt()', engine_source)
+        self.assertIn('name.equals("Range", ignoreCase = true)', protocol_source)
         self.assertIn(
             "val created = MpvPlayerEngine(applicationContext, engineListener)",
             service_source,
@@ -209,6 +245,117 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn("MPVLib", session_source)
         self.assertIn("beginPendingPlayerSurfaceAttach", session_source)
         self.assertIn("onSurfaceAttached", session_source)
+
+        controls_source = (
+            REPO_ROOT
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "ui"
+            / "features"
+            / "player"
+            / "PlayerControls.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn(".heightIn(min = 32.dp)", controls_source)
+        self.assertGreaterEqual(controls_source.count("padding = 2.dp"), 4)
+        self.assertGreaterEqual(controls_source.count("softWrap = false"), 2)
+        self.assertGreaterEqual(controls_source.count("fontWeight = FontWeight.Bold"), 2)
+        self.assertIn('val items = listOf("查看日志")', controls_source)
+        self.assertNotIn(
+            'listOf("解码", "投屏", "听视频", "片头片尾", "自动旋转", "查看日志")',
+            controls_source,
+        )
+        self.assertGreaterEqual(
+            controls_source.count('description = "弹幕（当前资源不支持）"'),
+            2,
+        )
+
+        player_screen_source = (
+            REPO_ROOT
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "ui"
+            / "features"
+            / "player"
+            / "PlayerScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("DialogProperties(usePlatformDefaultWidth = false)", player_screen_source)
+        self.assertIn(".fillMaxHeight(0.9f)", player_screen_source)
+        self.assertIn(".horizontalScroll(rememberScrollState())", player_screen_source)
+        self.assertIn("PlayerLogFilterChip", player_screen_source)
+        self.assertIn("LazyColumn(", player_screen_source)
+        self.assertIn('"复制日志"', player_screen_source)
+        self.assertIn('"导出文件"', player_screen_source)
+        self.assertIn('"确认清空"', player_screen_source)
+
+        gesture_source = (
+            REPO_ROOT
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "ui"
+            / "features"
+            / "player"
+            / "PlayerGestureLayer.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("awaitEachGesture", gesture_source)
+        self.assertIn(".pointerInput(Unit)", gesture_source)
+        self.assertNotIn("pointerInput(enabled, state.positionSeconds)", gesture_source)
+        self.assertNotIn(
+            "pointerInput(enabled, state.positionSeconds, state.durationSeconds",
+            gesture_source,
+        )
+
+        log_buffer_source = (
+            REPO_ROOT
+            / "app"
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "player"
+            / "PlayerDebugLogBuffer.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn('NETWORK_AND_LOADING("网络与加载")', log_buffer_source)
+        self.assertIn('SURFACE_AND_RENDER("画面与 Surface")', log_buffer_source)
+        self.assertIn("MutableStateFlow(0L)", log_buffer_source)
+
+        callback_source = (
+            REPO_ROOT
+            / "app"
+            / "src"
+            / "main"
+            / "aidl"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "player"
+            / "runtime"
+            / "IPlayerRuntimeCallback.aidl"
+        ).read_text(encoding="utf-8")
+        self.assertIn("onDiagnosticLog", callback_source)
 
 
 if __name__ == "__main__":

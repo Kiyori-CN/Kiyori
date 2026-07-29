@@ -2,16 +2,26 @@ package com.ai.assistance.operit.core.player.runtime
 
 import android.app.Service
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Process
 import android.util.Log
+import android.util.LruCache
 import android.view.Surface
+import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
+import com.ai.assistance.operit.core.player.describePlayerMediaUriForDiagnostics
+import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
+import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 internal class PlayerRuntimeService : Service() {
     private lateinit var runtimeThread: HandlerThread
     private lateinit var runtimeHandler: Handler
+    private lateinit var thumbnailExecutor: ExecutorService
 
     private var callback: IPlayerRuntimeCallback? = null
     private var callbackGeneration: Long = 0L
@@ -22,13 +32,26 @@ internal class PlayerRuntimeService : Service() {
     private var remoteSurface: Surface? = null
     private var remoteSurfaceGeneration: Long? = null
     private var currentLoadCommandId: Long = 0L
+    private var currentMediaSource: String? = null
     private var progressRunning = false
+    private var thumbnailWorkerRunning = false
+    private var pendingThumbnailRequest: PendingThumbnailRequest? = null
+    private val thumbnailCache =
+        object : LruCache<String, Bitmap>(THUMBNAIL_CACHE_MAX_KB) {
+            override fun sizeOf(key: String, value: Bitmap): Int =
+                (value.allocationByteCount / 1024).coerceAtLeast(1)
+        }
 
     private val engineListener =
         object : MpvPlayerEngineListener {
             override fun onBooleanProperty(name: String, value: Boolean) {
                 if (name == "eof-reached" && value) {
                     runtimeHandler.post {
+                        emitDiagnostic(
+                            PlayerDebugLogLevel.INFO,
+                            TAG,
+                            "收到自然播放结束属性 eof-reached=true",
+                        )
                         emit { currentCallback, generation, sequence ->
                             currentCallback.onNaturalEnd(generation, sequence)
                         }
@@ -49,7 +72,18 @@ internal class PlayerRuntimeService : Service() {
                                         tracks.audioTracks.map { track -> track.toRuntimeTrack() },
                                     subtitleTracks =
                                         tracks.subtitleTracks.map { track -> track.toRuntimeTrack() },
+                                    chapters =
+                                        tracks.chapters.map { chapter ->
+                                            chapter.toRuntimeChapter()
+                                        },
                                 )
+                            emitDiagnostic(
+                                PlayerDebugLogLevel.INFO,
+                                TAG,
+                                    "媒体文件加载完成 audioTracks=${snapshot.audioTracks.size} " +
+                                    "subtitleTracks=${snapshot.subtitleTracks.size} " +
+                                    "chapters=${snapshot.chapters.size}",
+                            )
                             emit { currentCallback, generation, sequence ->
                                 currentCallback.onFileLoaded(
                                     generation,
@@ -69,6 +103,14 @@ internal class PlayerRuntimeService : Service() {
 
             override fun onRuntimeError(message: String) {
                 runtimeHandler.post { emitRuntimeError(message) }
+            }
+
+            override fun onDiagnosticLog(
+                level: PlayerDebugLogLevel,
+                tag: String,
+                message: String,
+            ) {
+                runtimeHandler.post { emitDiagnostic(level, tag, message) }
             }
         }
 
@@ -137,6 +179,13 @@ internal class PlayerRuntimeService : Service() {
                         operation = "初始化播放器运行时",
                         onSuccess = {
                             closeRuntimeResources()
+                            emitDiagnostic(
+                                PlayerDebugLogLevel.INFO,
+                                TAG,
+                                "创建 mpv runtime decoder=${config.decoderPresetId} " +
+                                    "gpuNext=${config.gpuNextEnabled} vulkan=${config.vulkanEnabled} " +
+                                    "shaderCount=${config.shaderFiles.size}",
+                            )
                             val created = MpvPlayerEngine(applicationContext, engineListener)
                             created.initialize(config.toPlayerSettings())
                             engine = created
@@ -166,10 +215,21 @@ internal class PlayerRuntimeService : Service() {
             ) {
                 if (!isValidCommand(runtimeGeneration, commandId) || request == null) return
                 postCommand(runtimeGeneration, commandId, "加载媒体") {
+                    emitDiagnostic(
+                        PlayerDebugLogLevel.INFO,
+                        TAG,
+                        "接收媒体加载 command=$commandId " +
+                            "request=${shortPlayerDiagnosticId(request.requestId)} " +
+                            "media=${describePlayerMediaUriForDiagnostics(request.uri)} " +
+                            "headerCount=${request.headers.size}",
+                    )
                     val activeEngine = requireNotNull(engine) { "播放器运行时尚未初始化" }
                     val resolver = requireNotNull(mediaResolver) { "媒体解析器尚未初始化" }
                     val target = resolver.resolve(request.uri)
                     currentLoadCommandId = commandId
+                    currentMediaSource = target
+                    pendingThumbnailRequest = null
+                    thumbnailCache.evictAll()
                     PlayerRuntimeProcessState.update(
                         applicationContext,
                         phase = "LOAD",
@@ -215,6 +275,12 @@ internal class PlayerRuntimeService : Service() {
                         operation = "连接播放画面",
                         onFailure = { surface.release() },
                         onSuccess = {
+                            emitDiagnostic(
+                                PlayerDebugLogLevel.INFO,
+                                TAG,
+                                "接收 Surface attach command=$commandId generation=$surfaceGeneration " +
+                                    "size=${width}x$height",
+                            )
                             check(remoteSurface == null) { "播放器仍持有旧 Surface" }
                             requireNotNull(engine) { "播放器运行时尚未初始化" }
                                 .attachSurface(surface, width, height)
@@ -271,6 +337,11 @@ internal class PlayerRuntimeService : Service() {
             ) {
                 if (!isValidCommand(runtimeGeneration, commandId) || surfaceGeneration <= 0L) return
                 postCommand(runtimeGeneration, commandId, "断开播放画面") {
+                    emitDiagnostic(
+                        PlayerDebugLogLevel.INFO,
+                        TAG,
+                        "接收 Surface detach command=$commandId generation=$surfaceGeneration",
+                    )
                     check(remoteSurfaceGeneration == surfaceGeneration) {
                         "Surface generation 已过期"
                     }
@@ -360,7 +431,6 @@ internal class PlayerRuntimeService : Service() {
                     activeEngine.applyPreciseSeeking(settings.preciseSeeking)
                     activeEngine.applyNetworkCache(settings.networkCachePolicy)
                     activeEngine.applySubtitleScale(settings.subtitleScale)
-                    activeEngine.applyEndBehavior(settings.endBehavior)
                     activeEngine.applyVolumeBoost(settings.volumeBoostEnabled)
                     activeEngine.applyShaders(config.shaderFiles)
                     emitCommandCompleted(commandId)
@@ -375,6 +445,74 @@ internal class PlayerRuntimeService : Service() {
                 if (mode == null) return
                 postSimpleCommand(runtimeGeneration, commandId, "切换画面比例") {
                     applyVideoFitMode(playerVideoFitModeFromRuntimeId(mode))
+                }
+            }
+
+            override fun requestThumbnail(
+                runtimeGeneration: Long,
+                commandId: Long,
+                loadCommandId: Long,
+                positionSeconds: Double,
+                maxSize: Int,
+            ) {
+                if (
+                    !isValidCommand(runtimeGeneration, commandId) ||
+                        loadCommandId <= 0L ||
+                        !positionSeconds.isFinite() ||
+                        positionSeconds < 0.0 ||
+                        maxSize !in 64..512
+                ) {
+                    return
+                }
+                runtimeHandler.post {
+                    if (
+                        runtimeGeneration != this@PlayerRuntimeService.runtimeGeneration ||
+                            loadCommandId != currentLoadCommandId
+                    ) {
+                        emitCommandFailure(
+                            commandId = commandId,
+                            operation = "提取进度缩略图",
+                            message = "缩略图请求对应的媒体已经切换",
+                        )
+                        return@post
+                    }
+                    val source =
+                        currentMediaSource
+                            ?: run {
+                                emitCommandFailure(
+                                    commandId = commandId,
+                                    operation = "提取进度缩略图",
+                                    message = "播放器尚未加载可预览的媒体",
+                                )
+                                return@post
+                            }
+                    val bucketPosition =
+                        (positionSeconds * THUMBNAIL_BUCKETS_PER_SECOND)
+                            .roundToInt()
+                            .coerceAtLeast(0) / THUMBNAIL_BUCKETS_PER_SECOND
+                    val cacheKey = "$source|$bucketPosition|$maxSize"
+                    thumbnailCache.get(cacheKey)?.let { bitmap ->
+                        emitThumbnailReady(commandId, bucketPosition, bitmap)
+                        return@post
+                    }
+                    pendingThumbnailRequest?.let { superseded ->
+                        emitThumbnailReady(
+                            superseded.commandId,
+                            superseded.positionSeconds,
+                            null,
+                        )
+                    }
+                    pendingThumbnailRequest =
+                        PendingThumbnailRequest(
+                            runtimeGeneration = runtimeGeneration,
+                            commandId = commandId,
+                            loadCommandId = loadCommandId,
+                            source = source,
+                            positionSeconds = bucketPosition,
+                            maxSize = maxSize,
+                            cacheKey = cacheKey,
+                        )
+                    startNextThumbnailRequest()
                 }
             }
 
@@ -420,6 +558,10 @@ internal class PlayerRuntimeService : Service() {
         runtimeThread = HandlerThread(RUNTIME_THREAD_NAME)
         runtimeThread.start()
         runtimeHandler = Handler(runtimeThread.looper)
+        thumbnailExecutor =
+            Executors.newSingleThreadExecutor { runnable ->
+                Thread(runnable, THUMBNAIL_THREAD_NAME).apply { isDaemon = true }
+            }
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -430,6 +572,7 @@ internal class PlayerRuntimeService : Service() {
                 closeRuntimeResources()
                 callback = null
                 callbackGeneration = 0L
+                thumbnailExecutor.shutdownNow()
                 runtimeThread.quitSafely()
             }
         }
@@ -467,12 +610,22 @@ internal class PlayerRuntimeService : Service() {
         onFailure: () -> Unit = {},
         onSuccess: () -> Unit,
     ) {
+        emitDiagnostic(
+            PlayerDebugLogLevel.DEBUG,
+            TAG,
+            "开始命令 command=$commandId operation=$operation",
+        )
         try {
             onSuccess()
         } catch (error: Exception) {
             onFailure()
             val message = error.message ?: error.javaClass.simpleName
             Log.e(TAG, "$operation failed", error)
+            emitDiagnostic(
+                PlayerDebugLogLevel.ERROR,
+                TAG,
+                "命令失败 command=$commandId operation=$operation ${formatDiagnosticError(error)}",
+            )
             emit { currentCallback, generation, sequence ->
                 currentCallback.onCommandFailed(
                     generation,
@@ -491,9 +644,65 @@ internal class PlayerRuntimeService : Service() {
         }
     }
 
+    private fun emitCommandFailure(
+        commandId: Long,
+        operation: String,
+        message: String,
+    ) {
+        emitDiagnostic(
+            PlayerDebugLogLevel.WARN,
+            TAG,
+            "命令失败 command=$commandId operation=$operation message=$message",
+        )
+        emit { currentCallback, generation, sequence ->
+            currentCallback.onCommandFailed(
+                generation,
+                sequence,
+                commandId,
+                operation,
+                message,
+            )
+        }
+    }
+
+    private fun emitThumbnailReady(
+        commandId: Long,
+        positionSeconds: Double,
+        bitmap: Bitmap?,
+    ) {
+        emit { currentCallback, generation, sequence ->
+            currentCallback.onThumbnailReady(
+                generation,
+                sequence,
+                commandId,
+                positionSeconds,
+                bitmap,
+            )
+        }
+    }
+
     private fun emitRuntimeError(message: String) {
+        emitDiagnostic(PlayerDebugLogLevel.ERROR, TAG, message)
         emit { currentCallback, generation, sequence ->
             currentCallback.onRuntimeError(generation, sequence, message)
+        }
+    }
+
+    private fun emitDiagnostic(
+        level: PlayerDebugLogLevel,
+        tag: String,
+        message: String,
+    ) {
+        val sanitized = sanitizePlayerDiagnosticMessage(message)
+        if (sanitized.isBlank()) return
+        emit { currentCallback, generation, sequence ->
+            currentCallback.onDiagnosticLog(
+                generation,
+                sequence,
+                level.wireValue,
+                tag,
+                sanitized,
+            )
         }
     }
 
@@ -524,6 +733,8 @@ internal class PlayerRuntimeService : Service() {
 
     private fun closeRuntimeResources() {
         stopProgressEmitter()
+        pendingThumbnailRequest = null
+        thumbnailCache.evictAll()
         val activeEngine = engine
         if (activeEngine != null) {
             if (remoteSurface != null) {
@@ -538,6 +749,67 @@ internal class PlayerRuntimeService : Service() {
         mediaResolver?.close()
         mediaResolver = null
         currentLoadCommandId = 0L
+        currentMediaSource = null
+    }
+
+    private fun startNextThumbnailRequest() {
+        if (thumbnailWorkerRunning) return
+        val request = pendingThumbnailRequest ?: return
+        pendingThumbnailRequest = null
+        val activeEngine =
+            engine
+                ?: run {
+                    emitCommandFailure(
+                        commandId = request.commandId,
+                        operation = "提取进度缩略图",
+                        message = "播放器运行时尚未初始化",
+                    )
+                    return
+                }
+        thumbnailWorkerRunning = true
+        thumbnailExecutor.execute {
+            val result =
+                runCatching {
+                    activeEngine.grabThumbnail(
+                        source = request.source,
+                        positionSeconds = request.positionSeconds,
+                        maxSize = request.maxSize,
+                    )
+                }
+            runtimeHandler.post {
+                val stillCurrent =
+                    request.runtimeGeneration == runtimeGeneration &&
+                        request.loadCommandId == currentLoadCommandId &&
+                        request.source == currentMediaSource
+                if (stillCurrent) {
+                    result
+                        .onSuccess { bitmap ->
+                            bitmap?.let { thumbnailCache.put(request.cacheKey, it) }
+                            emitThumbnailReady(
+                                request.commandId,
+                                request.positionSeconds,
+                                bitmap,
+                            )
+                        }
+                        .onFailure { error ->
+                            val message = error.message ?: error.javaClass.simpleName
+                            emitCommandFailure(
+                                commandId = request.commandId,
+                                operation = "提取进度缩略图",
+                                message = message,
+                            )
+                        }
+                } else {
+                    emitThumbnailReady(
+                        request.commandId,
+                        request.positionSeconds,
+                        null,
+                    )
+                }
+                thumbnailWorkerRunning = false
+                startNextThumbnailRequest()
+            }
+        }
     }
 
     private fun releaseRemoteSurface() {
@@ -549,9 +821,40 @@ internal class PlayerRuntimeService : Service() {
     private fun isValidCommand(runtimeGeneration: Long, commandId: Long): Boolean =
         runtimeGeneration > 0L && commandId > 0L
 
+    private fun formatDiagnosticError(error: Throwable): String =
+        buildString {
+            append(error.javaClass.simpleName)
+            error.message?.takeIf(String::isNotBlank)?.let { message ->
+                append(": ")
+                append(message)
+            }
+            error.stackTrace.take(MAX_DIAGNOSTIC_STACK_FRAMES).forEach { frame ->
+                append(" | at ")
+                append(frame.className)
+                append('.')
+                append(frame.methodName)
+                append(':')
+                append(frame.lineNumber)
+            }
+        }
+
     private companion object {
         const val TAG = "PlayerRuntimeService"
         const val RUNTIME_THREAD_NAME = "KiyoriPlayerRuntime"
         const val PROGRESS_INTERVAL_MS = 250L
+        const val MAX_DIAGNOSTIC_STACK_FRAMES = 8
+        const val THUMBNAIL_THREAD_NAME = "KiyoriPlayerThumbnail"
+        const val THUMBNAIL_CACHE_MAX_KB = 20 * 1024
+        const val THUMBNAIL_BUCKETS_PER_SECOND = 2.0
     }
 }
+
+private data class PendingThumbnailRequest(
+    val runtimeGeneration: Long,
+    val commandId: Long,
+    val loadCommandId: Long,
+    val source: String,
+    val positionSeconds: Double,
+    val maxSize: Int,
+    val cacheKey: String,
+)

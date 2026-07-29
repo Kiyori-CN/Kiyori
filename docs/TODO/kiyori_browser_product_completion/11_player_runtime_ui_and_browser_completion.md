@@ -62,6 +62,89 @@
 - [DONE] 最终 formal readiness、`git diff --check` 和 `:app:assembleDebug` 通过；`verifyDebugPlayerRuntimePackaging` 通过，APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `468746121` 字节，SHA-256 `69B8CC545AE55174FF9E13FD9A3749C8CA45F7E0FC0E3BA353EAAE10B2690DF2`，新四个 outline drawable 均进入 resource table；`zipalign -P 16` 与 Android Debug v2 签名验证通过
 - [PENDING] vivo Android 16 现场复测：真实嗅探视频、Codec2 崩溃是否消失，以及横竖屏像素、按钮热区、弹窗锚点、三秒自动隐藏、锁定、旋转、seek/亮度/音量手势和日志复制
 
+### 2026-07-29 顶部状态与在线播放诊断日志增强
+
+- [DONE] 字幕、弹幕、音轨和画面模式四个按钮保持横竖屏原有外部尺寸、权重和位置，只把内部 padding
+  从横屏 `6dp`、竖屏 `4dp` 分别减为 `4dp`、`2dp`，实际图标统一从 `20dp` 增大到 `24dp`
+- [DONE] `PlayerStatusColumn` 删除固定 `32dp` 裁切高度，改为最小高度，并为两行文字明确
+  `11sp lineHeight`、`maxLines=1`、`softWrap=false`；横竖屏共用该实现，网速单位和电量下方时间不再被
+  字体缩放或窄宽换行裁掉
+- [DONE] `MpvPlayerEngine` 注册唯一 `MPVLib.LogObserver`，在 `mpv_initialize` 前设置
+  `msg-level=all=v`；独立 `:player` 进程把 runtime 命令、Surface、媒体加载、文件事件、MPV verbose
+  和全部命令/运行时错误通过现有有序 AIDL callback 汇入主进程 `PlayerDebugLogBuffer`
+- [DONE] 日志缓冲扩大为最多 2,000 条分级时间线，并记录丢弃条数；在线播放诊断保留协议、host、端口和
+  path 结构，统一删除查询参数值、request header 值、Cookie、Authorization、标题和私人路径
+- [DONE] 查看日志提供“全部 / 警告+错误 / 仅错误”三级过滤，默认全部；界面、复制和导出始终使用当前
+  过滤结果，报告附加应用、设备、Android、runtime PID/generation、会话、Surface、解码器、轨道和可见错误
+- [DONE] 新增“导出”按钮，文本文件写入 `Download/Kiyori/exports`；保留复制、清空和关闭
+- [DONE] `PlayerPolicyTest` 与 `PlayerRuntimeProtocolPolicyTest` 共 `18/18` 通过，播放器 Python
+  资源门禁 `6/6` 通过；`compileDebugKotlin`、`compileDebugAndroidTestKotlin`、formal readiness 与
+  `git diff --check` 通过
+- [DONE] `:app:assembleDebug` 通过，233 个任务零失败，`verifyDebugPlayerRuntimePackaging` 通过；
+  APK 为 `app/build/outputs/apk/debug/app-debug.apk`，时间 `2026-07-29 12:27:11 +08:00`，
+  大小 `463725699` 字节，SHA-256
+  `FDF25649812F22F2C4406D5334E5D84DC4117933B165A911BA4EE9DA6662E50F`
+- [DONE] APK 为 `com.kiyori`、`45 / 0.1.0`、min 26/target 34，Android Debug v2 签名和
+  `zipalign -c -P 16 4` 验证通过
+- [PENDING] 目标设备上的横竖屏双行状态、四图标视觉、在线播放错误完整性、三级过滤、复制和导出路径验收
+
+### 2026-07-29 真机反馈后的日志弹窗重构
+
+- [DONE] 用户 `2026-07-29 12:39 +08:00` 的横屏截图确认顶部两行已经完整显示，但上行 `Bold`、
+  下行 `Normal`；现已把网速/单位和电量/时间全部统一为 `10sp`、`11sp lineHeight`、`Bold`
+- [DONE] 截图同时确认平台默认 Dialog、等权筛选 Row 和最大 `360dp` 正文组合后超过横屏可用高度，
+  “警告+错误”发生换行，底部复制、导出、清空和关闭被挤出窗口
+- [DONE] 日志弹窗改为屏幕内 `94%` 宽、`90%` 高且最大 `720dp × 680dp` 的 Surface；标题、分类、
+  统计、加权日志正文和底部操作区分别占位，关闭固定在标题栏
+- [DONE] 分类改为永不换行的横向滑动单行条：全部、错误、警告及错误、网络与加载、播放控制、
+  画面与 Surface、音轨与字幕、运行时与 MPV
+- [DONE] 缓冲条目增加稳定 ID、结构化字段、写入时多主题分类和 revision；弹窗以约 `300ms` 节奏刷新，
+  使用最新在前的 `LazyColumn`，不会在每条 MPV verbose 到达时重新分类全部 2,000 条记录
+- [DONE] 底部固定“清空 / 复制日志 / 导出文件”，清空需要 3 秒内再次确认，导出进行中禁止重复触发；
+  复制和导出继续生成当前分类、时间正序、完整上下文且经过脱敏的诊断报告
+- [DONE] `PlayerPolicyTest` 与 `PlayerRuntimeProtocolPolicyTest` 共 `20/20` 通过，播放器 Python
+  资源门禁 `6/6` 与 `compileDebugKotlin` 通过
+- [DONE] `compileDebugAndroidTestKotlin`、formal readiness、隐私反向扫描与 `git diff --check` 通过；
+  `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 17s`，233 个任务零失败，
+  `verifyDebugPlayerRuntimePackaging` 通过
+- [DONE] APK 为 `app/build/outputs/apk/debug/app-debug.apk`，时间 `2026-07-29 13:00:54 +08:00`，
+  大小 `463725699` 字节，SHA-256
+  `652ECA3B6A6DED8EEB16B77AF72C2F28BE6BC49C81701B0FDE3D13DE12C6C17E`；
+  `com.kiyori 45 / 0.1.0`、min 26/target 34、Android Debug v2 签名和 16KB ZIP 对齐通过
+- [PENDING] 目标设备上的横竖屏尺寸、分类横滑、最新日志刷新、底部按钮可见性、二次清空、复制和导出验收
+
+### 2026-07-29 在线播放成功后的控制层与真实设置收口
+
+- [DONE] 用户 `2026-07-29 14:31 +08:00` 的 vivo V2507A / Android 16 报告确认此前 Debug APK 已
+  成功播放在线 MP4：runtime 为 `ACTIVE`，Surface、首帧、播放位置、时长和网速持续更新；当前故障与
+  native 在线播放链路无关
+- [DONE] 根因定位为 `PlayerGestureLayer` 把高频变化的 `state.positionSeconds` 用作两个
+  `pointerInput` key，播放进度更新会取消正在等待 ACTION_UP 的触摸协程
+- [DONE] 手势层改为单一稳定 detector；每次手势开始读取最新 state，单击、双击、水平 seek、左侧亮度
+  和右侧音量由同一序列判定，播放进度更新不会重启 detector
+- [DONE] 控制层自动隐藏开始观察暂停、加载、弹窗、日志、进度拖动和全屏手势；任意真实按钮交互重置
+  三秒计时。锁定后只显示左右解锁按钮，按钮自动隐藏后可通过单击视频区域重新显示
+- [DONE] 弹幕在没有真实 owner 前改为明确禁用态；上一项和下一项继续禁用；更多菜单删除解码、投屏、
+  听视频、片头片尾和自动旋转等活跃空动作，只保留真实“查看日志”
+- [DONE] 播放器设置页删除没有 owner 的静态伪设置，改为四组 14 项真实配置，完整覆盖
+  `PlayerSettingsStore` 的播放、交接、在线缓存、字幕和解码渲染字段；GPU Next 与 Vulkan 明确标注
+  下次创建播放器内核生效
+- [DONE] 浏览器悬浮播放器读取同一 `PlayerSettingsStore.seekStepSeconds`，不再把显示用步长固定为
+  `10`
+- [DONE] `PlayerPolicyTest 17/17`、`PlayerControlsPolicyTest 2/2` 与
+  `KiyoriSettingsPagesTest 8/8` 共 `27/27` 通过；播放器 Python 资源门禁 `6/6` 与
+  `:app:compileDebugKotlin` 通过
+- [DONE] 更宽播放器回归 `58/58`、播放器 Python 门禁 `6/6`、AndroidTest Kotlin 编译、
+  formal readiness、`git diff --check` 和最终 Debug APK 构建均通过；差异检查只有工作树既有的
+  CRLF -> LF 提示，没有 whitespace error
+- [DONE] 最终 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-29 15:22:40 +08:00`，大小 `474822245` 字节，SHA-256
+  `96726F63381FA7AEDF4AE212E162D3999BF057C2A3AB9EE1C0B6CA95B578788F`；
+  `com.kiyori 45 / 0.1.0`、min 26/target 34、`arm64-v8a`、Android Debug v2 签名和
+  16 KiB ZIP 对齐均通过
+- [PENDING] 目标设备复测本地/在线视频隐藏后单击恢复、双击、滑动、按钮热区、弹窗计时、锁定、
+  横竖屏和设置实时/下次启动生效语义
+
 ### vivo Android 16 WebView 与悬浮视频合成隔离
 
 - [DONE] 用户在 `2026-07-28 12:51:30 +08:00` 提供的 SIGABRT 不再是 Codec2 binder 栈：崩溃线程为 `RenderThread`，`libwebviewchromium.so` 随后进入 `drawVk` 和 HWUI `SkiaVulkanPipeline`，Abort 仍为 `fdsan` fd ownership exchange
@@ -186,7 +269,8 @@
 
 采用：
 
-- Range、原始请求 headers、HLS manifest 与普通文件下载必须保持同一请求身份
+- 浏览器候选和下载必须保留 Range 证据、原始请求 headers、HLS manifest 与普通文件下载身份；
+  player runtime 不重放捕获的静态 Range，而由 mpv/FFmpeg 按当前 open/seek 偏移生成
 - 网络日志和下载动作不应只保存裸 URL
 
 拒绝：
@@ -201,7 +285,9 @@ AAR member 和 native 哈希，还必须打开 `classes.jar` 并确认：
 
 - `is/xyz/mpv/MPVLib.class`
 - `is/xyz/mpv/MPVLib$EventObserver.class`
+- `is/xyz/mpv/MPVLib$LogObserver.class`
 - `is/xyz/mpv/MPVNode.class`
+- `is/xyz/mpv/Utils.class`
 
 Debug APK 构建后必须扫描全部 `classes*.dex`，确认 `Lis/xyz/mpv/MPVLib;`、`Lis/xyz/mpv/MPVNode;` 和
 Kiyori 的 mpv engine descriptor 同时存在。该门禁与 `libmpv.so`、`libplayer.so`、`DT_NEEDED`、ABI、符号和
@@ -210,14 +296,30 @@ Kiyori 的 mpv engine descriptor 同时存在。该门禁与 `libmpv.so`、`libp
 真机在 `2026-07-28 10:06` 暴露了另一个独立装载错误：Clang 21 构建的 `libmpv.so` 引用 float/double
 两个 `std::__ndk1::__from_chars_floating_point`，而先前由 Clang 18 FFmpegKit 输入提供的
 `libc++_shared.so` 不导出它们。修正后的 mpv AAR 必须保留固定 mpv 输入中的同工具链 C++ runtime；
-FFmpegKit 输入确定性转换为只含 arm64 Java/资源/许可证与九个 FFmpeg native 库的 AAR。构建前和最终
-APK 门禁必须同时确认唯一 C++ runtime、两个符号与 16 KB 对齐。
+FFmpegKit 输入确定性转换为只含 arm64 Java/资源/许可证与九个正常名称 native 库的 AAR。
+`2026-07-29` 在线播放诊断又确认该 FFmpegKit `libavformat.so` 没有 TLS 后端，因此固定 mpv 输入自带、
+启用 Mbed TLS 的七个 FFmpeg ELF 必须通过等长 SONAME / `DT_NEEDED` 改名进入 `libmp*.so` 播放器
+命名空间。构建前和最终 APK 门禁必须同时确认唯一 C++ runtime、两个 C++ 符号、旧 FFmpeg 依赖名清零、
+Mbed TLS 构建证据与 16 KB 对齐。
 
 `PlayerSession` 不再直接实现 `MPVLib.EventObserver`。唯一 session 私有持有一个 `MpvPlayerEngine`，所有
 `MPVLib` 类型只出现在 engine 文件中。engine 创建时若发生 `ClassNotFoundException`、
 `NoClassDefFoundError`、`UnsatisfiedLinkError` 或其他 `LinkageError`，session 进入包含具体原因的错误状态，
 不得崩溃 Activity，也不得创建替代播放器或重试另一个内核。正确 APK 中该路径必须由 DEX/native 门禁证明
 不会因为缺少打包输入而触发。
+
+### 2026-07-29 在线播放补充结果
+
+- [DONE] mpv AAR 输出改为 `50543589` 字节、SHA-256
+  `FC983B7ED0C8B8BE1938283FE94108DFDC593AA31608D55DD1CE119AE201C32C`
+- [DONE] 最终 APK 同时包含正常 FFmpegKit 九库与播放器七个 `libmp*.so`；53 个 native basename
+  无重复，52 个 ELF 全部 `PT_LOAD >= 0x4000`
+- [DONE] `libmpv.so` / `libplayer.so` 对旧 FFmpeg 名称的 `DT_NEEDED` 为零，256 个版本化 FFmpeg
+  符号去重后缺失 0
+- [DONE] `libmpformat.so` 保留 `--enable-mbedtls`、Mbed TLS 3.6.6 与 HTTPS 证据；engine 使用固定
+  CA 包、严格证书校验并禁用未分发 ytdl
+- [DONE] 用户 `2026-07-29 14:31 +08:00` 的报告已确认真机 HTTPS MP4 播放成功、首帧和网速正常；
+  HLS、更多带请求头站点、长时 seek、证书错误分类以及复制/导出路径继续待覆盖
 
 ## 唯一会话与文件职责
 
@@ -250,14 +352,18 @@ ui/features/player/
 以旧版布局为视觉权威，首期真实消费者包括：
 
 - 顶部：返回、横屏两行/竖屏单行标题、实时网络速度、电量与时间、字幕、弹幕、音轨、画面模式、更多
-- 横屏底部：时间位于最大 `800dp` 的进度条上方；中央依次为弹幕、上一项禁用、后退、播放/暂停、前进、下一项禁用、倍速，两侧为 Anime4K 与旋转
-- 竖屏底部：Anime4K、七个主控与旋转使用九个等宽单元，不再互相覆盖
+- 横屏底部：时间和当前章节位于最大 `800dp` 的进度条上方；中央依次为弹幕、上一项、后退、
+  播放/暂停、前进、下一项、倍速，两侧为 Anime4K 与旋转
+- 竖屏底部：Anime4K、七个主控与旋转使用九个等宽单元，不再互相覆盖；上一项和下一项只在
+  真实队列存在相邻媒体时启用
 - 右侧：截图、锁定、下载；只有来源为浏览器 candidate 时下载可用
 - 中央与两侧：加载、seek、亮度、音量、双击前后跳和锁定反馈
 
-旧版弹幕和投屏依赖当前项目没有的完整真实 owner；弹幕保留顶部和底部视觉入口，投屏只保留更多菜单入口，
-不创建第二套运行时或伪造成功状态。上一项和下一项维持旧版单媒体会话的禁用状态。按钮图标、尺寸、间距和
-相对位置仍按固定布局对齐。
+旧版弹幕和投屏依赖当前项目没有的完整真实 owner；弹幕保留顶部和底部位置但使用明确禁用态，投屏等
+没有 owner 的更多菜单项已经删除，不创建第二套运行时或伪造成功状态。Anime4K 入口打开包含关闭、
+流畅、均衡、高清四种真实 shader 组合的锚定菜单并立即应用。进度条按设置绘制 MPV 章节节点，显示
+当前章节，并在拖动时展示由当前 `:player` runtime 提取的画面预览。按钮图标、尺寸、间距和相对位置
+仍按固定布局对齐。
 
 ## 真实设置
 
@@ -267,18 +373,28 @@ ui/features/player/
 - GPU Next 与 Vulkan：在唯一 mpv core 下次创建时分别约束 `vo=gpu-next` 与
   `gpu-context=androidvk`
 - 记忆播放倍速：关闭时新媒体使用默认倍速，开启时使用并更新上次实际选择的倍速
-- 记忆超分模式：关闭时新媒体从 `OFF` 开始，开启时使用并更新上次 Anime4K 模式
+- 记忆超分模式：关闭时新媒体从 `OFF` 开始；开启后可独立选择新视频使用的默认 Anime4K 模式
 - 音量增强：约束 mpv 软件音量 `150%` 与 `volume-max=300%`
 - 精确 seek：约束 `hr-seek`、`hr-seek-framedrop` 和 seek command mode
-- 快进/快退时长：约束按钮、双击和横向手势的步长
+- 双击手势：可选择任意位置暂停/播放或左右半屏快退/快进；左右跳转使用独立秒数
+- 按钮快进/快退时长：只约束播放器按钮
+- 章节进度条：消费 MPV `chapter-list`，绘制节点并显示当前章节
+- 进度条缩略图：经唯一 runtime 调用 `grabThumbnailFast`，使用单线程、时间分桶和最新请求覆盖
+- 自动播放下一集：只在真实队列存在下一项时切换；本地队列使用同目录、同系列名和自然序
+- 队列播完行为：最后一项结束后停留、关闭或由 `PlayerSession` 从头播放当前项；MPV
+  `loop-file` 固定为 `no`
 - 网络缓存：约束 `demuxer-max-bytes`、`demuxer-max-back-bytes` 与 `cache-secs`
 - 字幕缩放：约束 mpv `sub-scale`
-- 播放结束行为：暂停保留或关闭会话，约束 `loop-file` 与 `eof-reached` 自然结束处理；普通
-  `MPV_EVENT_END_FILE` 不得把 replace/stop 误判成播放完成
+- 截图保存位置：默认按文件下载器真实目标解析，也可直接写入独立 SAF 目录
+- 视频下载位置：默认跟随文件下载器；独立 SAF 目录冻结到当前 candidate 请求并使用唯一内置下载器，
+  普通文件写入所选目录，M3U8 离线包继续保留在应用目录
+- 跟随重力自动旋转：开启时使用 `FULL_SENSOR` 并禁用手动旋转，关闭后恢复默认横屏与手动切换
 
-设置页继续复用 `KiyoriCollapsingSettingsPage` 与 `KiyoriSettingsGroupCard`，按 hikerView
-参考图呈现 `4/5/8/4/3/1` 六组 25 个原始选项，并在末组之后追加六个真实播放器配置。没有当前
-Kiyori owner 的原始选项保持静态状态或空动作，不建立平行运行时，也不伪造成功。
+设置页继续复用 `KiyoriCollapsingSettingsPage` 与 `KiyoriSettingsGroupCard`。Kiyori 尚未发布，原
+hikerView 参考页中没有当前 owner 的静态伪设置已经删除；当前按“播放与连播、手势与进度、画面与
+超分、音频与字幕、保存与下载、窗口与在线”使用 `4/6/5/2/2/4` 六组 23 项，只展示上列真实
+`PlayerSettingsStore` 字段。选择页显示当前值和参数说明，条件项使用明确禁用态，GPU Next 与 Vulkan
+明确标注下次创建唯一 mpv core 时生效。
 
 ## 浏览器收口
 

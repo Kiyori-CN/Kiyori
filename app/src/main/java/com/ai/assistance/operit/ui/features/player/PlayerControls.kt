@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.player
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,16 +17,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,11 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -45,15 +52,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.player.PLAYER_SPEED_OPTIONS
+import com.ai.assistance.operit.core.player.Anime4KMode
+import com.ai.assistance.operit.core.player.PlayerChapter
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
+import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private val LegacyPrimary = Color(0xFF667EEA)
 private val LegacyPopupBackground = Color(0xFFE8ECFE)
@@ -62,6 +75,7 @@ private val LegacyPopupText = Color(0xFF333333)
 @Composable
 internal fun PlayerControls(
     state: PlayerSessionState,
+    settings: PlayerSettings,
     session: PlayerSession,
     controlsLocked: Boolean,
     networkSpeedBytesPerSecond: Long,
@@ -73,6 +87,9 @@ internal fun PlayerControls(
     onDownload: () -> Unit,
     onShowPlaybackLog: () -> Unit,
     onLockChanged: (Boolean) -> Unit,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
+    onSeekInteractionChanged: (Boolean) -> Unit,
 ) {
     if (controlsLocked) {
         Box(Modifier.fillMaxSize()) {
@@ -107,18 +124,25 @@ internal fun PlayerControls(
             isPortrait = isPortrait,
             onBack = onBack,
             onShowPlaybackLog = onShowPlaybackLog,
+            onInteraction = onInteraction,
+            onPopupVisibilityChanged = onPopupVisibilityChanged,
         )
         PlayerBottomControls(
             state = state,
+            settings = settings,
             session = session,
             isPortrait = isPortrait,
             onRotate = onRotate,
+            onInteraction = onInteraction,
+            onPopupVisibilityChanged = onPopupVisibilityChanged,
+            onSeekInteractionChanged = onSeekInteractionChanged,
         )
         PlayerSideActions(
             downloadEnabled = state.request?.source == PlayerMediaSource.BROWSER_CANDIDATE,
             onScreenshot = onScreenshot,
             onLock = { onLockChanged(true) },
             onDownload = onDownload,
+            onInteraction = onInteraction,
             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp),
         )
     }
@@ -134,6 +158,8 @@ private fun PlayerTopControls(
     isPortrait: Boolean,
     onBack: () -> Unit,
     onShowPlaybackLog: () -> Unit,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -156,7 +182,10 @@ private fun PlayerTopControls(
             LegacyImageButton(
                 painter = painterResource(R.drawable.arrow_left),
                 description = "返回",
-                onClick = onBack,
+                onClick = {
+                    onInteraction()
+                    onBack()
+                },
                 size = 40.dp,
                 padding = 8.dp,
             )
@@ -190,30 +219,38 @@ private fun PlayerTopControls(
                     PlayerSubtitlePopup(
                         state = state,
                         session = session,
+                        onInteraction = onInteraction,
+                        onPopupVisibilityChanged = onPopupVisibilityChanged,
                         modifier = Modifier.weight(1f),
                         size = 28.dp,
-                        padding = 4.dp,
+                        padding = 2.dp,
                     )
                     PlayerDanmakuButton(
                         modifier = Modifier.weight(1f),
                         size = 28.dp,
-                        padding = 4.dp,
+                        padding = 2.dp,
                     )
                     PlayerAudioTrackPopup(
                         state = state,
                         session = session,
+                        onInteraction = onInteraction,
+                        onPopupVisibilityChanged = onPopupVisibilityChanged,
                         modifier = Modifier.weight(1f),
                         size = 28.dp,
-                        padding = 4.dp,
+                        padding = 2.dp,
                     )
                     PlayerAspectPopup(
                         session = session,
+                        onInteraction = onInteraction,
+                        onPopupVisibilityChanged = onPopupVisibilityChanged,
                         modifier = Modifier.weight(1f),
                         size = 28.dp,
-                        padding = 4.dp,
+                        padding = 2.dp,
                     )
                     PlayerMorePopup(
                         onShowPlaybackLog = onShowPlaybackLog,
+                        onInteraction = onInteraction,
+                        onPopupVisibilityChanged = onPopupVisibilityChanged,
                         modifier = Modifier.weight(1f),
                         size = 28.dp,
                         padding = 4.dp,
@@ -237,15 +274,33 @@ private fun PlayerTopControls(
                 Spacer(Modifier.width(4.dp))
                 PlayerStatusColumn(first = batteryText, second = clockText)
                 Spacer(Modifier.width(2.dp))
-                PlayerSubtitlePopup(state, session)
+                PlayerSubtitlePopup(
+                    state = state,
+                    session = session,
+                    onInteraction = onInteraction,
+                    onPopupVisibilityChanged = onPopupVisibilityChanged,
+                )
                 Spacer(Modifier.width(2.dp))
                 PlayerDanmakuButton()
                 Spacer(Modifier.width(2.dp))
-                PlayerAudioTrackPopup(state, session)
+                PlayerAudioTrackPopup(
+                    state = state,
+                    session = session,
+                    onInteraction = onInteraction,
+                    onPopupVisibilityChanged = onPopupVisibilityChanged,
+                )
                 Spacer(Modifier.width(2.dp))
-                PlayerAspectPopup(session)
+                PlayerAspectPopup(
+                    session = session,
+                    onInteraction = onInteraction,
+                    onPopupVisibilityChanged = onPopupVisibilityChanged,
+                )
                 Spacer(Modifier.width(2.dp))
-                PlayerMorePopup(onShowPlaybackLog = onShowPlaybackLog)
+                PlayerMorePopup(
+                    onShowPlaybackLog = onShowPlaybackLog,
+                    onInteraction = onInteraction,
+                    onPopupVisibilityChanged = onPopupVisibilityChanged,
+                )
             }
         }
     }
@@ -259,12 +314,34 @@ private fun PlayerStatusColumn(
     compact: Boolean = false,
 ) {
     Column(
-        modifier = modifier.height(32.dp).padding(horizontal = if (compact) 2.dp else 4.dp),
+        modifier =
+            modifier
+                .heightIn(min = 32.dp)
+                .padding(horizontal = if (compact) 2.dp else 4.dp),
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(first, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Text(second, color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(top = 1.dp))
+        Text(
+            text = first,
+            color = Color.White,
+            fontSize = 10.sp,
+            lineHeight = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
+        Text(
+            text = second,
+            color = Color.White,
+            fontSize = 10.sp,
+            lineHeight = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.padding(top = 1.dp),
+        )
     }
 }
 
@@ -272,11 +349,19 @@ private fun PlayerStatusColumn(
 private fun PlayerSubtitlePopup(
     state: PlayerSessionState,
     session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 32.dp,
-    padding: androidx.compose.ui.unit.Dp = 6.dp,
+    padding: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    fun setExpanded(value: Boolean) {
+        if (expanded == value) return
+        expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
     val items = buildList {
         add("关闭字幕")
         state.subtitleTracks.forEach { track -> add(track.title) }
@@ -285,19 +370,19 @@ private fun PlayerSubtitlePopup(
         LegacyImageButton(
             painter = painterResource(R.drawable.ic_kiyori_player_subtitle_outline),
             description = "字幕",
-            onClick = { expanded = true },
+            onClick = { setExpanded(true) },
             size = size,
             padding = padding,
         )
         LegacyPopupMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { setExpanded(false) },
             items = items,
             fixedHeight = items.size > 3,
             showScrollHint = items.size > 3,
         ) { position ->
             session.setSubtitleTrack(if (position == 0) null else state.subtitleTracks[position - 1].id)
-            expanded = false
+            setExpanded(false)
         }
     }
 }
@@ -306,15 +391,16 @@ private fun PlayerSubtitlePopup(
 private fun PlayerDanmakuButton(
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 32.dp,
-    padding: androidx.compose.ui.unit.Dp = 6.dp,
+    padding: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         LegacyImageButton(
             painter = painterResource(R.drawable.ic_kiyori_player_danmaku_outline),
-            description = "弹幕",
+            description = "弹幕（当前资源不支持）",
             onClick = {},
             size = size,
             padding = padding,
+            enabled = false,
         )
     }
 }
@@ -323,27 +409,36 @@ private fun PlayerDanmakuButton(
 private fun PlayerAudioTrackPopup(
     state: PlayerSessionState,
     session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 32.dp,
-    padding: androidx.compose.ui.unit.Dp = 6.dp,
+    padding: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val items = state.audioTracks.map { it.title }.ifEmpty { listOf("没有可用的音频轨道") }
+    fun setExpanded(value: Boolean) {
+        if (expanded == value) return
+        expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
+    val items = state.audioTracks.map { it.title }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         LegacyImageButton(
             painter = painterResource(R.drawable.ic_kiyori_player_audio_outline),
             description = "音轨",
-            onClick = { expanded = true },
+            onClick = { setExpanded(true) },
             size = size,
             padding = padding,
+            enabled = items.isNotEmpty(),
         )
         LegacyPopupMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { setExpanded(false) },
             items = items,
         ) { position ->
             state.audioTracks.getOrNull(position)?.let { session.setAudioTrack(it.id) }
-            expanded = false
+            setExpanded(false)
         }
     }
 }
@@ -351,23 +446,31 @@ private fun PlayerAudioTrackPopup(
 @Composable
 private fun PlayerAspectPopup(
     session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 32.dp,
-    padding: androidx.compose.ui.unit.Dp = 6.dp,
+    padding: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    fun setExpanded(value: Boolean) {
+        if (expanded == value) return
+        expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
     val items = listOf("适应屏幕", "拉伸", "裁剪")
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         LegacyImageButton(
             painter = painterResource(R.drawable.ic_kiyori_player_aspect_outline),
             description = "画面比例",
-            onClick = { expanded = true },
+            onClick = { setExpanded(true) },
             size = size,
             padding = padding,
         )
         LegacyPopupMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { setExpanded(false) },
             items = items,
         ) { position ->
             session.setVideoFitMode(
@@ -377,7 +480,7 @@ private fun PlayerAspectPopup(
                     else -> PlayerVideoFitMode.FIT
                 },
             )
-            expanded = false
+            setExpanded(false)
         }
     }
 }
@@ -385,29 +488,35 @@ private fun PlayerAspectPopup(
 @Composable
 private fun PlayerMorePopup(
     onShowPlaybackLog: () -> Unit,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 32.dp,
     padding: androidx.compose.ui.unit.Dp = 6.dp,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val items = listOf("解码", "投屏", "听视频", "片头片尾", "自动旋转", "查看日志")
+    fun setExpanded(value: Boolean) {
+        if (expanded == value) return
+        expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
+    val items = listOf("查看日志")
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         LegacyImageButton(
             painter = painterResource(R.drawable.menudotsvertical),
             description = "更多选项",
-            onClick = { expanded = true },
+            onClick = { setExpanded(true) },
             size = size,
             padding = padding,
         )
         LegacyPopupMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { setExpanded(false) },
             items = items,
-            fixedHeight = true,
-            showScrollHint = true,
-        ) { position ->
-            if (position == items.lastIndex) onShowPlaybackLog()
-            expanded = false
+        ) {
+            setExpanded(false)
+            onShowPlaybackLog()
         }
     }
 }
@@ -415,15 +524,47 @@ private fun PlayerMorePopup(
 @Composable
 private fun BoxScope.PlayerBottomControls(
     state: PlayerSessionState,
+    settings: PlayerSettings,
     session: PlayerSession,
     isPortrait: Boolean,
     onRotate: () -> Unit,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
+    onSeekInteractionChanged: (Boolean) -> Unit,
 ) {
     var seekDraft by remember { mutableStateOf<Double?>(null) }
     val duration = state.durationSeconds.coerceAtLeast(0.0)
     val position = (seekDraft ?: state.positionSeconds).coerceIn(0.0, duration.coerceAtLeast(0.01))
+    val visibleChapters = if (settings.chapterBarEnabled) state.chapters else emptyList()
+    val displayedChapter = chapterAtPosition(visibleChapters, position)
+
+    LaunchedEffect(
+        seekDraft,
+        settings.seekbarThumbnailEnabled,
+        state.loadGeneration,
+    ) {
+        val target = seekDraft
+        if (target == null || !settings.seekbarThumbnailEnabled) {
+            session.clearSeekPreview()
+            return@LaunchedEffect
+        }
+        delay(120)
+        session.requestSeekPreview(target)
+    }
+
+    if (seekDraft != null && settings.seekbarThumbnailEnabled) {
+        PlayerSeekPreviewCard(
+            preview = state.seekPreview,
+            position = position,
+            chapter = displayedChapter,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 108.dp),
+        )
+    }
     Box(
-        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(100.dp).background(
+        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(108.dp).background(
             Brush.verticalGradient(
                 colorStops = arrayOf(
                     0f to Color.Transparent,
@@ -438,19 +579,48 @@ private fun BoxScope.PlayerBottomControls(
         ) {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(modifier = Modifier.fillMaxWidth().widthIn(max = 800.dp)) {
-                    Text(
-                        text = "${formatPlayerTime(position)}/${formatPlayerTime(duration)}",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${formatPlayerTime(position)}/${formatPlayerTime(duration)}",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                        )
+                        displayedChapter?.let { chapter ->
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = chapter.title,
+                                color = Color.White.copy(alpha = 0.82f),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                     LegacySeekBar(
                         position = position,
                         duration = duration,
+                        chapters = visibleChapters,
                         onValueChange = { seekDraft = it },
                         onValueChangeFinished = { target ->
                             session.seekTo(target)
                             seekDraft = null
+                            session.clearSeekPreview()
+                        },
+                        onValueChangeCanceled = {
+                            seekDraft = null
+                            session.clearSeekPreview()
+                        },
+                        onInteractionStarted = {
+                            onSeekInteractionChanged(true)
+                            onInteraction()
+                        },
+                        onInteractionFinished = {
+                            onSeekInteractionChanged(false)
+                            onInteraction()
                         },
                         modifier = Modifier.fillMaxWidth().height(30.dp),
                     )
@@ -462,39 +632,60 @@ private fun BoxScope.PlayerBottomControls(
                         modifier = Modifier.fillMaxWidth().align(Alignment.Center),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        PortraitTextControlCell("超分", session::cycleAnime4KMode)
-                        PortraitImageControlCell(
-                            painter = painterResource(R.drawable.ic_danmaku_visible),
-                            description = "弹幕",
-                            onClick = {},
+                        PortraitAnime4KControlCell(
+                            mode = state.anime4KMode,
+                            session = session,
+                            onInteraction = onInteraction,
+                            onPopupVisibilityChanged = onPopupVisibilityChanged,
                         )
                         PortraitImageControlCell(
-                            painter = painterResource(R.drawable.previous_square),
-                            description = "上一项",
+                            painter = painterResource(R.drawable.ic_danmaku_visible),
+                            description = "弹幕（当前资源不支持）",
                             onClick = {},
                             enabled = false,
                         )
                         PortraitImageControlCell(
+                            painter = painterResource(R.drawable.previous_square),
+                            description = "上一项",
+                            onClick = {
+                                onInteraction()
+                                session.playPrevious()
+                            },
+                            enabled = state.hasPreviousQueueItem,
+                        )
+                        PortraitImageControlCell(
                             painter = painterResource(R.drawable.ic_rewind_new),
                             description = "后退",
-                            onClick = session::seekBackward,
+                            onClick = {
+                                onInteraction()
+                                session.seekBackward()
+                            },
                         )
                         PortraitImageControlCell(
                             painter = painterResource(if (state.paused) R.drawable.play else R.drawable.pause),
                             description = if (state.paused) "播放" else "暂停",
-                            onClick = session::togglePause,
+                            onClick = {
+                                onInteraction()
+                                session.togglePause()
+                            },
                             size = 36.dp,
                         )
                         PortraitImageControlCell(
                             painter = painterResource(R.drawable.ic_forward_new),
                             description = "前进",
-                            onClick = session::seekForward,
+                            onClick = {
+                                onInteraction()
+                                session.seekForward()
+                            },
                         )
                         PortraitImageControlCell(
                             painter = painterResource(R.drawable.next_square),
                             description = "下一项",
-                            onClick = {},
-                            enabled = false,
+                            onClick = {
+                                onInteraction()
+                                session.playNext()
+                            },
+                            enabled = state.hasNextQueueItem,
                         )
                         Box(
                             modifier = Modifier.weight(1f).height(48.dp),
@@ -503,11 +694,20 @@ private fun BoxScope.PlayerBottomControls(
                             PlayerSpeedMenu(
                                 speed = state.speed,
                                 session = session,
+                                onInteraction = onInteraction,
+                                onPopupVisibilityChanged = onPopupVisibilityChanged,
                                 size = 32.dp,
                                 padding = 5.dp,
                             )
                         }
-                        PortraitTextControlCell("旋转", onRotate)
+                        PortraitTextControlCell(
+                            text = if (settings.followGravityRotation) "自动" else "旋转",
+                            onClick = {
+                                onInteraction()
+                                onRotate()
+                            },
+                            enabled = !settings.followGravityRotation,
+                        )
                     }
                 } else {
                     Row(
@@ -517,15 +717,7 @@ private fun BoxScope.PlayerBottomControls(
                     ) {
                         LegacyImageButton(
                             painterResource(R.drawable.ic_danmaku_visible),
-                            "弹幕",
-                            onClick = {},
-                            size = 38.dp,
-                            padding = 6.dp,
-                        )
-                        Spacer(Modifier.width(7.dp))
-                        LegacyImageButton(
-                            painterResource(R.drawable.previous_square),
-                            "上一项",
+                            "弹幕（当前资源不支持）",
                             onClick = {},
                             size = 38.dp,
                             padding = 6.dp,
@@ -533,9 +725,24 @@ private fun BoxScope.PlayerBottomControls(
                         )
                         Spacer(Modifier.width(7.dp))
                         LegacyImageButton(
+                            painterResource(R.drawable.previous_square),
+                            "上一项",
+                            onClick = {
+                                onInteraction()
+                                session.playPrevious()
+                            },
+                            size = 38.dp,
+                            padding = 6.dp,
+                            enabled = state.hasPreviousQueueItem,
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        LegacyImageButton(
                             painterResource(R.drawable.ic_rewind_new),
                             "后退",
-                            onClick = session::seekBackward,
+                            onClick = {
+                                onInteraction()
+                                session.seekBackward()
+                            },
                             size = 38.dp,
                             padding = 6.dp,
                         )
@@ -543,7 +750,10 @@ private fun BoxScope.PlayerBottomControls(
                         LegacyImageButton(
                             painter = painterResource(if (state.paused) R.drawable.play else R.drawable.pause),
                             description = if (state.paused) "播放" else "暂停",
-                            onClick = session::togglePause,
+                            onClick = {
+                                onInteraction()
+                                session.togglePause()
+                            },
                             size = 42.dp,
                             padding = 6.dp,
                         )
@@ -551,7 +761,10 @@ private fun BoxScope.PlayerBottomControls(
                         LegacyImageButton(
                             painterResource(R.drawable.ic_forward_new),
                             "前进",
-                            onClick = session::seekForward,
+                            onClick = {
+                                onInteraction()
+                                session.seekForward()
+                            },
                             size = 38.dp,
                             padding = 6.dp,
                         )
@@ -559,23 +772,41 @@ private fun BoxScope.PlayerBottomControls(
                         LegacyImageButton(
                             painterResource(R.drawable.next_square),
                             "下一项",
-                            onClick = {},
+                            onClick = {
+                                onInteraction()
+                                session.playNext()
+                            },
                             size = 38.dp,
                             padding = 6.dp,
-                            enabled = false,
+                            enabled = state.hasNextQueueItem,
                         )
                         Spacer(Modifier.width(7.dp))
-                        PlayerSpeedMenu(speed = state.speed, session = session)
+                        PlayerSpeedMenu(
+                            speed = state.speed,
+                            session = session,
+                            onInteraction = onInteraction,
+                            onPopupVisibilityChanged = onPopupVisibilityChanged,
+                        )
                     }
-                    LegacyTextButton(
-                        text = "超分",
-                        onClick = session::cycleAnime4KMode,
-                        modifier = Modifier.align(Alignment.BottomStart).height(34.dp),
+                    Anime4KTextControl(
+                        mode = state.anime4KMode,
+                        session = session,
+                        onInteraction = onInteraction,
+                        onPopupVisibilityChanged = onPopupVisibilityChanged,
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .width(64.dp)
+                                .height(34.dp),
                     )
                     LegacyTextButton(
-                        text = "旋转",
-                        onClick = onRotate,
+                        text = if (settings.followGravityRotation) "自动" else "旋转",
+                        onClick = {
+                            onInteraction()
+                            onRotate()
+                        },
                         modifier = Modifier.align(Alignment.BottomEnd).height(34.dp),
+                        enabled = !settings.followGravityRotation,
                     )
                 }
             }
@@ -607,12 +838,89 @@ private fun androidx.compose.foundation.layout.RowScope.PortraitImageControlCell
 }
 
 @Composable
+private fun androidx.compose.foundation.layout.RowScope.PortraitAnime4KControlCell(
+    mode: Anime4KMode,
+    session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
+) {
+    Anime4KTextControl(
+        mode = mode,
+        session = session,
+        onInteraction = onInteraction,
+        onPopupVisibilityChanged = onPopupVisibilityChanged,
+        modifier = Modifier.weight(1f).height(48.dp),
+    )
+}
+
+@Composable
+private fun Anime4KTextControl(
+    mode: Anime4KMode,
+    session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
+    modifier: Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    fun setExpanded(value: Boolean) {
+        if (expanded == value) return
+        expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clickable { setExpanded(true) },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = "超分",
+                color = Color.White,
+                fontSize = 11.sp,
+                lineHeight = 11.sp,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = formatAnime4KControlMode(mode),
+                color = LegacyPrimary,
+                fontSize = 9.sp,
+                lineHeight = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                modifier = Modifier.offset(y = (-1).dp),
+            )
+        }
+        LegacyPopupMenu(
+            expanded = expanded,
+            onDismissRequest = { setExpanded(false) },
+            items =
+                Anime4KMode.entries.map { candidate ->
+                    "${if (candidate == mode) "✓ " else ""}${formatAnime4KMode(candidate)}"
+                },
+        ) { position ->
+            Anime4KMode.entries.getOrNull(position)?.let(session::setAnime4KMode)
+            setExpanded(false)
+        }
+    }
+}
+
+@Composable
 private fun androidx.compose.foundation.layout.RowScope.PortraitTextControlCell(
     text: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Box(
-        modifier = Modifier.weight(1f).height(48.dp).clickable(onClick = onClick),
+        modifier =
+            Modifier
+                .weight(1f)
+                .height(48.dp)
+                .alpha(if (enabled) 1f else 0.5f)
+                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Text(text = text, color = Color.White, fontSize = 11.sp, textAlign = TextAlign.Center)
@@ -625,13 +933,17 @@ private fun PlayerSideActions(
     onScreenshot: () -> Unit,
     onLock: () -> Unit,
     onDownload: () -> Unit,
+    onInteraction: () -> Unit,
     modifier: Modifier,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         LegacyImageButton(
             painterResource(R.drawable.ic_kiyori_player_camera_outline),
             "截图",
-            onScreenshot,
+            onClick = {
+                onInteraction()
+                onScreenshot()
+            },
             size = 44.dp,
             padding = 8.dp,
         )
@@ -639,7 +951,10 @@ private fun PlayerSideActions(
         LegacyImageButton(
             painterResource(R.drawable.ic_kiyori_player_unlock_outline),
             "锁定控制",
-            onLock,
+            onClick = {
+                onInteraction()
+                onLock()
+            },
             size = 44.dp,
             padding = 8.dp,
         )
@@ -647,7 +962,10 @@ private fun PlayerSideActions(
         LegacyImageButton(
             painterResource(R.drawable.ic_kiyori_player_download_outline),
             "下载视频",
-            onDownload,
+            onClick = {
+                onInteraction()
+                onDownload()
+            },
             size = 44.dp,
             padding = 8.dp,
             enabled = downloadEnabled,
@@ -659,27 +977,35 @@ private fun PlayerSideActions(
 private fun PlayerSpeedMenu(
     speed: Double,
     session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
     size: androidx.compose.ui.unit.Dp = 38.dp,
     padding: androidx.compose.ui.unit.Dp = 6.dp,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    fun setExpanded(value: Boolean) {
+        if (expanded == value) return
+        expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
     Box {
         LegacyImageButton(
             painterResource(R.drawable.tachometer_alt_fastest),
             formatPlayerSpeed(speed),
-            onClick = { expanded = true },
+            onClick = { setExpanded(true) },
             size = size,
             padding = padding,
         )
         LegacyPopupMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { setExpanded(false) },
             items = PLAYER_SPEED_OPTIONS.map(::formatPlayerSpeed),
             fixedHeight = true,
             showScrollHint = true,
         ) { position ->
             PLAYER_SPEED_OPTIONS.getOrNull(position)?.let(session::setSpeed)
-            expanded = false
+            setExpanded(false)
         }
     }
 }
@@ -763,11 +1089,18 @@ private fun LegacyImageButton(
 }
 
 @Composable
-private fun LegacyTextButton(text: String, onClick: () -> Unit, modifier: Modifier) {
+private fun LegacyTextButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean = true,
+) {
     Box(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+        modifier =
+            modifier
+                .alpha(if (enabled) 1f else 0.5f)
+                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text = text, color = Color.White, fontSize = 11.sp, textAlign = TextAlign.Center)
@@ -778,8 +1111,12 @@ private fun LegacyTextButton(text: String, onClick: () -> Unit, modifier: Modifi
 private fun LegacySeekBar(
     position: Double,
     duration: Double,
+    chapters: List<PlayerChapter>,
     onValueChange: (Double) -> Unit,
     onValueChangeFinished: (Double) -> Unit,
+    onValueChangeCanceled: () -> Unit,
+    onInteractionStarted: () -> Unit,
+    onInteractionFinished: () -> Unit,
     modifier: Modifier,
 ) {
     val density = LocalDensity.current
@@ -795,20 +1132,29 @@ private fun LegacySeekBar(
         modifier = modifier
             .pointerInput(duration) {
                 detectTapGestures { offset ->
+                    onInteractionStarted()
                     val target = resolvePosition(offset.x, size.width.toFloat())
                     onValueChange(target)
                     onValueChangeFinished(target)
+                    onInteractionFinished()
                 }
             }
             .pointerInput(duration) {
                 var pending = position
                 detectDragGestures(
                     onDragStart = { offset ->
+                        onInteractionStarted()
                         pending = resolvePosition(offset.x, size.width.toFloat())
                         onValueChange(pending)
                     },
-                    onDragEnd = { onValueChangeFinished(pending) },
-                    onDragCancel = { onValueChangeFinished(pending) },
+                    onDragEnd = {
+                        onValueChangeFinished(pending)
+                        onInteractionFinished()
+                    },
+                    onDragCancel = {
+                        onValueChangeCanceled()
+                        onInteractionFinished()
+                    },
                 ) { change, _ ->
                     change.consume()
                     pending = resolvePosition(change.position.x, size.width.toFloat())
@@ -832,6 +1178,19 @@ private fun LegacySeekBar(
             size = Size(trackWidth * progress, trackHeight),
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackHeight / 2f),
         )
+        if (duration > 0.0) {
+            chapters.forEach { chapter ->
+                if (chapter.startSeconds <= 0.0 || chapter.startSeconds >= duration) return@forEach
+                val chapterProgress = (chapter.startSeconds / duration).toFloat().coerceIn(0f, 1f)
+                val x = horizontalPadding + trackWidth * chapterProgress
+                drawLine(
+                    color = Color.White,
+                    start = Offset(x, trackY - 5.dp.toPx()),
+                    end = Offset(x, trackY + 5.dp.toPx()),
+                    strokeWidth = 1.5.dp.toPx(),
+                )
+            }
+        }
         drawCircle(
             color = LegacyPrimary,
             radius = 6.dp.toPx(),
@@ -839,6 +1198,101 @@ private fun LegacySeekBar(
         )
     }
 }
+
+@Composable
+private fun PlayerSeekPreviewCard(
+    preview: com.ai.assistance.operit.core.player.PlayerSeekPreview?,
+    position: Double,
+    chapter: PlayerChapter?,
+    modifier: Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .width(176.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xE8191A1D))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(10.dp))
+                .padding(5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(94.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Color(0xFF08090B)),
+            contentAlignment = Alignment.Center,
+        ) {
+            preview?.bitmap?.let { bitmap ->
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "进度预览",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            if (preview?.loading == true) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                )
+            } else if (preview?.bitmap == null) {
+                Text(
+                    text = "正在准备预览",
+                    color = Color.White.copy(alpha = 0.68f),
+                    fontSize = 11.sp,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = formatPlayerTime(position),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            chapter?.let {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = it.title,
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+private fun chapterAtPosition(
+    chapters: List<PlayerChapter>,
+    positionSeconds: Double,
+): PlayerChapter? =
+    chapters.lastOrNull { chapter -> chapter.startSeconds <= positionSeconds }
+
+private fun formatAnime4KControlMode(mode: Anime4KMode): String =
+    when (mode) {
+        Anime4KMode.OFF -> "关闭"
+        Anime4KMode.FAST -> "流畅"
+        Anime4KMode.BALANCED -> "均衡"
+        Anime4KMode.QUALITY -> "高清"
+    }
+
+private fun formatAnime4KMode(mode: Anime4KMode): String =
+    when (mode) {
+        Anime4KMode.OFF -> "关闭 · 原始画面"
+        Anime4KMode.FAST -> "流畅 · 低 GPU 占用"
+        Anime4KMode.BALANCED -> "均衡 · 推荐"
+        Anime4KMode.QUALITY -> "高清 · 高 GPU 占用"
+    }
 
 private fun formatNetworkSpeed(bytesPerSecond: Long): Pair<String, String> =
     if (bytesPerSecond >= 1024L * 1024L) {

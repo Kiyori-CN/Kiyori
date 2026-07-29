@@ -7860,6 +7860,7 @@
     <string name="web_session_download_confirm_type">类型：%1$s</string>
     <string name="web_session_download_confirm_size">大小：%1$s</string>
     <string name="web_session_download_confirm_engine">下载器：%1$s</string>
+    <string name="web_session_download_confirm_destination">保存位置：%1$s</string>
     <string name="web_session_download_confirm_cancel">取消</string>
     <string name="web_session_download_confirm_action">下载</string>
     <string name="web_session_external_open_failed">无法打开外部链接或应用：%1$s</string>

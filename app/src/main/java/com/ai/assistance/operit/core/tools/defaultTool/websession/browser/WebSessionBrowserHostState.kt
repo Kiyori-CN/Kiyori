@@ -180,6 +180,7 @@ internal data class BrowserDownloadPromptState(
     val mimeType: String?,
     val contentLength: Long,
     val engine: BrowserDownloadEngine,
+    val destinationName: String?,
 )
 
 @Immutable

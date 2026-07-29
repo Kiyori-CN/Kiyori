@@ -209,8 +209,11 @@ git submodule update --init --recursive terminal
 
 下载完成后使用固定 NDK 运行受控解包；该步骤会删除归档中的旧 GIF native 副本、旧
 `ffmpeg-kit-local.aar` 和手工 `libc++_shared.so`，并从两个固定 release/hash 生成互不重叠的 arm64
-播放器 AAR。mpv AAR 包含 Java API、`libmpv.so`、`libplayer.so` 及同工具链的 `libc++_shared.so`；
-FFmpegKit AAR 保留 Java/资源/许可证和九个 FFmpeg native 库：
+native AAR。mpv AAR 包含 Java API、`libmpv.so`、`libplayer.so`、同工具链的
+`libc++_shared.so`，以及由固定 mpv 输入构建、启用 Mbed TLS 的七个 FFmpeg ELF。准备脚本保持 ELF
+字符串长度不变，把这七个库及 `libmpv.so` / `libplayer.so` 的 SONAME / `DT_NEEDED` 改到
+`libmp*.so` 命名空间。FFmpegKit AAR继续保留 Java/资源/许可证和九个正常名称的 FFmpeg native 库，
+供主进程中的 FFmpeg 工具箱、媒体处理和下载合并使用：
 
 ```bash
 python3 ci/script/prepare_android_dependencies.py \
@@ -226,9 +229,12 @@ python3 ci/script/prepare_android_dependencies.py \
 .\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py --repository .
 ```
 
-准备脚本固定下载并校验 `dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7` 原始 AAR。Gradle 只消费两份生成
-AAR，`preBuild` 强制核对输出 SHA-256、精确 native member 集，以及 `libmpv.so` 所需的两个
-`__from_chars_floating_point` 符号是否由唯一 `libc++_shared.so` 提供。
+准备脚本固定下载并校验 `dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7` 与
+`mpv-android-lib-2026-06-25.aar` 原始输入。Gradle 只消费两份生成 AAR，`preBuild` 强制核对输出
+SHA-256、精确 native member 集、旧 `libav*.so` 依赖名在 mpv AAR 中清零、隔离 FFmpeg 的
+`--enable-mbedtls` / HTTPS 构建证据，以及 `libmpv.so` 所需的两个
+`__from_chars_floating_point` 符号是否由唯一 `libc++_shared.so` 提供。最终 APK 门禁再次确认正常
+FFmpegKit 名称与 `libmp*.so` 播放器名称各出现一次。
 完整来源、哈希、许可证与动态链接边界见 [Player native stack](./PLAYER_NATIVE_STACK.md)。准备后必须重新运行
 Debug 构建、`zipalign -c -P 16 -v 4` 与逐 ELF `llvm-readelf -lW` 审计。不得只凭 AAR 文件名或构建成功
 宣称支持 16 KB。

@@ -1,13 +1,15 @@
 package com.ai.assistance.operit.core.player
 
 import android.content.Context
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal class PlayerSettingsStore private constructor(context: Context) {
+    private val appContext = context.applicationContext
     private val preferences =
-        context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val _state = MutableStateFlow(readSettings())
 
     val state: StateFlow<PlayerSettings> = _state.asStateFlow()
@@ -56,6 +58,11 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         _state.value = _state.value.copy(fullscreenExitBehavior = value)
     }
 
+    fun setFollowGravityRotation(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_FOLLOW_GRAVITY_ROTATION, enabled).apply()
+        _state.value = _state.value.copy(followGravityRotation = enabled)
+    }
+
     fun setAnime4KMode(value: Anime4KMode) {
         preferences.edit().putString(KEY_ANIME4K_MODE, value.persistedId).apply()
         _state.value = _state.value.copy(anime4KMode = value)
@@ -82,6 +89,39 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         _state.value = _state.value.copy(seekStepSeconds = value)
     }
 
+    fun setDoubleTapAction(value: PlayerDoubleTapAction) {
+        preferences.edit().putString(KEY_DOUBLE_TAP_ACTION, value.persistedId).apply()
+        _state.value = _state.value.copy(doubleTapAction = value)
+    }
+
+    fun setDoubleTapSeekSeconds(value: Int) {
+        require(value in PLAYER_DOUBLE_TAP_SEEK_OPTIONS) {
+            "Unsupported player double tap seek step: $value"
+        }
+        preferences.edit().putInt(KEY_DOUBLE_TAP_SEEK_SECONDS, value).apply()
+        _state.value = _state.value.copy(doubleTapSeekSeconds = value)
+    }
+
+    fun setChapterBarEnabled(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_CHAPTER_BAR_ENABLED, enabled).apply()
+        _state.value = _state.value.copy(chapterBarEnabled = enabled)
+    }
+
+    fun setSeekbarThumbnailEnabled(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_SEEKBAR_THUMBNAIL_ENABLED, enabled).apply()
+        _state.value = _state.value.copy(seekbarThumbnailEnabled = enabled)
+    }
+
+    fun setAutoPlayNext(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_AUTO_PLAY_NEXT, enabled).apply()
+        _state.value = _state.value.copy(autoPlayNext = enabled)
+    }
+
+    fun setQueueEndBehavior(value: PlayerQueueEndBehavior) {
+        preferences.edit().putString(KEY_QUEUE_END_BEHAVIOR, value.persistedId).apply()
+        _state.value = _state.value.copy(queueEndBehavior = value)
+    }
+
     fun setNetworkCachePolicy(value: PlayerNetworkCachePolicy) {
         preferences.edit().putString(KEY_NETWORK_CACHE_POLICY, value.persistedId).apply()
         _state.value = _state.value.copy(networkCachePolicy = value)
@@ -93,9 +133,79 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         _state.value = _state.value.copy(subtitleScale = value)
     }
 
-    fun setEndBehavior(value: PlayerEndBehavior) {
-        preferences.edit().putString(KEY_END_BEHAVIOR, value.persistedId).apply()
-        _state.value = _state.value.copy(endBehavior = value)
+    fun setScreenshotDirectory(uri: String, displayName: String) {
+        val normalizedUri = uri.trim()
+        val normalizedName = displayName.trim()
+        require(normalizedUri.isNotBlank()) { "Player screenshot directory URI is blank" }
+        require(normalizedName.isNotBlank()) { "Player screenshot directory name is blank" }
+        val previousUri = _state.value.screenshotDirectoryUri
+        preferences
+            .edit()
+            .putString(KEY_SCREENSHOT_DIRECTORY_URI, normalizedUri)
+            .putString(KEY_SCREENSHOT_DIRECTORY_NAME, normalizedName)
+            .apply()
+        _state.value =
+            _state.value.copy(
+                screenshotDirectoryUri = normalizedUri,
+                screenshotDirectoryName = normalizedName,
+            )
+        releaseReplacedDirectoryPermission(previousUri, normalizedUri)
+    }
+
+    fun clearScreenshotDirectory() {
+        val previousUri = _state.value.screenshotDirectoryUri
+        preferences
+            .edit()
+            .remove(KEY_SCREENSHOT_DIRECTORY_URI)
+            .remove(KEY_SCREENSHOT_DIRECTORY_NAME)
+            .apply()
+        _state.value =
+            _state.value.copy(
+                screenshotDirectoryUri = "",
+                screenshotDirectoryName = "",
+            )
+        releaseReplacedDirectoryPermission(previousUri, "")
+    }
+
+    fun setVideoDownloadDirectory(uri: String, displayName: String) {
+        val normalizedUri = uri.trim()
+        val normalizedName = displayName.trim()
+        require(normalizedUri.isNotBlank()) { "Player video download directory URI is blank" }
+        require(normalizedName.isNotBlank()) { "Player video download directory name is blank" }
+        val previousUri = _state.value.videoDownloadDirectoryUri
+        preferences
+            .edit()
+            .putString(KEY_VIDEO_DOWNLOAD_DIRECTORY_URI, normalizedUri)
+            .putString(KEY_VIDEO_DOWNLOAD_DIRECTORY_NAME, normalizedName)
+            .apply()
+        _state.value =
+            _state.value.copy(
+                videoDownloadDirectoryUri = normalizedUri,
+                videoDownloadDirectoryName = normalizedName,
+            )
+        releaseReplacedDirectoryPermission(previousUri, normalizedUri)
+    }
+
+    fun clearVideoDownloadDirectory() {
+        val previousUri = _state.value.videoDownloadDirectoryUri
+        preferences
+            .edit()
+            .remove(KEY_VIDEO_DOWNLOAD_DIRECTORY_URI)
+            .remove(KEY_VIDEO_DOWNLOAD_DIRECTORY_NAME)
+            .apply()
+        _state.value =
+            _state.value.copy(
+                videoDownloadDirectoryUri = "",
+                videoDownloadDirectoryName = "",
+            )
+        releaseReplacedDirectoryPermission(previousUri, "")
+    }
+
+    private fun releaseReplacedDirectoryPermission(previousUri: String, currentUri: String) {
+        if (previousUri.isNotBlank() && previousUri != currentUri) {
+            BrowserDownloadManager.getInstance(appContext)
+                .releasePersistedDirectoryPermissionIfUnused(previousUri)
+        }
     }
 
     private fun readSettings(): PlayerSettings {
@@ -139,6 +249,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                         ),
                     ) { "Player fullscreen exit preference is null" },
                 ),
+            followGravityRotation = preferences.getBoolean(KEY_FOLLOW_GRAVITY_ROTATION, false),
             anime4KMode =
                 Anime4KMode.fromPersistedId(
                     requireNotNull(
@@ -154,6 +265,34 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                         "Invalid persisted player seek step: $value"
                     }
                 },
+            doubleTapAction =
+                PlayerDoubleTapAction.fromPersistedId(
+                    requireNotNull(
+                        preferences.getString(
+                            KEY_DOUBLE_TAP_ACTION,
+                            PlayerDoubleTapAction.SEEK.persistedId,
+                        ),
+                    ) { "Player double tap action preference is null" },
+                ),
+            doubleTapSeekSeconds =
+                preferences.getInt(KEY_DOUBLE_TAP_SEEK_SECONDS, 10).also { value ->
+                    require(value in PLAYER_DOUBLE_TAP_SEEK_OPTIONS) {
+                        "Invalid persisted player double tap seek step: $value"
+                    }
+                },
+            chapterBarEnabled = preferences.getBoolean(KEY_CHAPTER_BAR_ENABLED, true),
+            seekbarThumbnailEnabled =
+                preferences.getBoolean(KEY_SEEKBAR_THUMBNAIL_ENABLED, true),
+            autoPlayNext = preferences.getBoolean(KEY_AUTO_PLAY_NEXT, true),
+            queueEndBehavior =
+                PlayerQueueEndBehavior.fromPersistedId(
+                    requireNotNull(
+                        preferences.getString(
+                            KEY_QUEUE_END_BEHAVIOR,
+                            PlayerQueueEndBehavior.CLOSE.persistedId,
+                        ),
+                    ) { "Player queue end behavior preference is null" },
+                ),
             networkCachePolicy =
                 PlayerNetworkCachePolicy.fromPersistedId(
                     requireNotNull(
@@ -169,13 +308,36 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                         "Invalid persisted subtitle scale: $value"
                     }
                 },
-            endBehavior =
-                PlayerEndBehavior.fromPersistedId(
-                    requireNotNull(
-                        preferences.getString(KEY_END_BEHAVIOR, PlayerEndBehavior.CLOSE.persistedId),
-                    ) { "Player end behavior preference is null" },
-                ),
-        )
+            screenshotDirectoryUri =
+                requireNotNull(preferences.getString(KEY_SCREENSHOT_DIRECTORY_URI, "")) {
+                    "Player screenshot directory URI preference is null"
+                }.trim(),
+            screenshotDirectoryName =
+                requireNotNull(preferences.getString(KEY_SCREENSHOT_DIRECTORY_NAME, "")) {
+                    "Player screenshot directory name preference is null"
+                }.trim(),
+            videoDownloadDirectoryUri =
+                requireNotNull(preferences.getString(KEY_VIDEO_DOWNLOAD_DIRECTORY_URI, "")) {
+                    "Player video download directory URI preference is null"
+                }.trim(),
+            videoDownloadDirectoryName =
+                requireNotNull(preferences.getString(KEY_VIDEO_DOWNLOAD_DIRECTORY_NAME, "")) {
+                    "Player video download directory name preference is null"
+                }.trim(),
+        ).also { settings ->
+            require(
+                settings.screenshotDirectoryUri.isBlank() ==
+                    settings.screenshotDirectoryName.isBlank(),
+            ) {
+                "Player screenshot directory URI and name must be stored together"
+            }
+            require(
+                settings.videoDownloadDirectoryUri.isBlank() ==
+                    settings.videoDownloadDirectoryName.isBlank(),
+            ) {
+                "Player video download directory URI and name must be stored together"
+            }
+        }
     }
 
     companion object {
@@ -188,14 +350,24 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         private const val KEY_REMEMBER_PLAYBACK_SPEED = "remember_playback_speed"
         private const val KEY_BACKGROUND_BEHAVIOR = "background_behavior"
         private const val KEY_FULLSCREEN_EXIT_BEHAVIOR = "fullscreen_exit_behavior"
+        private const val KEY_FOLLOW_GRAVITY_ROTATION = "follow_gravity_rotation"
         private const val KEY_ANIME4K_MODE = "anime4k_mode"
         private const val KEY_REMEMBER_ANIME4K_MODE = "remember_anime4k_mode"
         private const val KEY_VOLUME_BOOST_ENABLED = "volume_boost_enabled"
         private const val KEY_PRECISE_SEEKING = "precise_seeking"
         private const val KEY_SEEK_STEP_SECONDS = "seek_step_seconds"
+        private const val KEY_DOUBLE_TAP_ACTION = "double_tap_action"
+        private const val KEY_DOUBLE_TAP_SEEK_SECONDS = "double_tap_seek_seconds"
+        private const val KEY_CHAPTER_BAR_ENABLED = "chapter_bar_enabled"
+        private const val KEY_SEEKBAR_THUMBNAIL_ENABLED = "seekbar_thumbnail_enabled"
+        private const val KEY_AUTO_PLAY_NEXT = "auto_play_next"
+        private const val KEY_QUEUE_END_BEHAVIOR = "queue_end_behavior"
         private const val KEY_NETWORK_CACHE_POLICY = "network_cache_policy"
         private const val KEY_SUBTITLE_SCALE_PERCENT = "subtitle_scale_percent"
-        private const val KEY_END_BEHAVIOR = "end_behavior"
+        private const val KEY_SCREENSHOT_DIRECTORY_URI = "screenshot_directory_uri"
+        private const val KEY_SCREENSHOT_DIRECTORY_NAME = "screenshot_directory_name"
+        private const val KEY_VIDEO_DOWNLOAD_DIRECTORY_URI = "video_download_directory_uri"
+        private const val KEY_VIDEO_DOWNLOAD_DIRECTORY_NAME = "video_download_directory_name"
 
         @Volatile private var instance: PlayerSettingsStore? = null
 

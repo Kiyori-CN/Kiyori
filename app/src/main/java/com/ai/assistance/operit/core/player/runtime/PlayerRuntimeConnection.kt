@@ -3,12 +3,14 @@ package com.ai.assistance.operit.core.player.runtime
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.content.ServiceConnection
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.view.Surface
+import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
 
 internal interface PlayerRuntimeConnectionListener {
     fun onRuntimeReady(runtimeGeneration: Long, processId: Int)
@@ -53,6 +55,20 @@ internal interface PlayerRuntimeConnectionListener {
     fun onNaturalEnd(runtimeGeneration: Long)
 
     fun onRuntimeError(runtimeGeneration: Long, message: String)
+
+    fun onDiagnosticLog(
+        runtimeGeneration: Long,
+        level: PlayerDebugLogLevel,
+        tag: String,
+        message: String,
+    )
+
+    fun onThumbnailReady(
+        runtimeGeneration: Long,
+        commandId: Long,
+        positionSeconds: Double,
+        bitmap: Bitmap?,
+    )
 
     fun onScreenshotCompleted(
         runtimeGeneration: Long,
@@ -202,6 +218,24 @@ internal class PlayerRuntimeConnection(
                 }
             }
 
+            override fun onDiagnosticLog(
+                runtimeGeneration: Long,
+                eventSequence: Long,
+                level: Int,
+                tag: String?,
+                message: String?,
+            ) {
+                val resolvedLevel = PlayerDebugLogLevel.fromWireValue(level) ?: return
+                postEvent(runtimeGeneration, eventSequence) {
+                    listener.onDiagnosticLog(
+                        runtimeGeneration = runtimeGeneration,
+                        level = resolvedLevel,
+                        tag = tag.orEmpty(),
+                        message = message.orEmpty(),
+                    )
+                }
+            }
+
             override fun onScreenshotCompleted(
                 runtimeGeneration: Long,
                 eventSequence: Long,
@@ -212,6 +246,25 @@ internal class PlayerRuntimeConnection(
                 postEvent(runtimeGeneration, eventSequence) {
                     if (takeCommand(commandId, PlayerRuntimeCommandType.SCREENSHOT) != null) {
                         listener.onScreenshotCompleted(runtimeGeneration, commandId, path)
+                    }
+                }
+            }
+
+            override fun onThumbnailReady(
+                runtimeGeneration: Long,
+                eventSequence: Long,
+                commandId: Long,
+                positionSeconds: Double,
+                bitmap: Bitmap?,
+            ) {
+                postEvent(runtimeGeneration, eventSequence) {
+                    if (takeCommand(commandId, PlayerRuntimeCommandType.THUMBNAIL) != null) {
+                        listener.onThumbnailReady(
+                            runtimeGeneration = runtimeGeneration,
+                            commandId = commandId,
+                            positionSeconds = positionSeconds,
+                            bitmap = bitmap,
+                        )
                     }
                 }
             }
@@ -407,6 +460,25 @@ internal class PlayerRuntimeConnection(
                 commandId,
             ->
             activeRemote.applyVideoFitMode(generation, commandId, mode)
+        }
+
+    fun requestThumbnail(
+        loadCommandId: Long,
+        positionSeconds: Double,
+        maxSize: Int,
+    ): Long? =
+        sendCommand(PlayerRuntimeCommandType.THUMBNAIL) {
+                activeRemote,
+                generation,
+                commandId,
+            ->
+            activeRemote.requestThumbnail(
+                generation,
+                commandId,
+                loadCommandId,
+                positionSeconds,
+                maxSize,
+            )
         }
 
     fun captureScreenshot(path: String): Long? =

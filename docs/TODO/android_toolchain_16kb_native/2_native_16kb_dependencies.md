@@ -7,11 +7,30 @@
 3. 使用 NDK r28 的 `llvm-readelf -lW` 检查每个 ELF 的 `LOAD` segment 对齐
 4. 将源码构建产物、仓库内预置二进制、Maven/AAR 预编译库分别记录
 
-## 2026-07-28 统一播放器 native 栈（当前证据）
+## 2026-07-29 播放器 native 命名空间与 HTTPS 修正（当前方案）
 
 播放器接入后已删除旧 `ffmpeg-kit-local.aar` owner，改为两个固定输入生成的确定性 arm64 AAR。
-mpv AAR 持有 `libmpv.so`、`libplayer.so` 与同 Clang 21 工具链的 `libc++_shared.so`；FFmpegKit AAR
-持有 Java/资源/许可证与九个 FFmpeg native 库。
+mpv AAR 持有 `libmpv.so`、`libplayer.so`、同 Clang 21 工具链的 `libc++_shared.so`，以及固定 mpv
+输入中启用 Mbed TLS 的七个 FFmpeg ELF；准备脚本通过等长字符串替换把它们隔离为 `libmp*.so`，
+并同步改写全部 SONAME / `DT_NEEDED`。FFmpegKit AAR 持有 Java/资源/许可证与九个正常名称 native
+库，继续服务主进程 FFmpeg 工具。两个进程不共享 FFmpeg 状态或播放器 owner。
+
+新的 mpv AAR 为 `50543589` 字节，SHA-256
+`FC983B7ED0C8B8BE1938283FE94108DFDC593AA31608D55DD1CE119AE201C32C`；七个上游 FFmpeg ELF、
+`libmpv.so`、`libplayer.so` 与 `libc++_shared.so` 的所有 `PT_LOAD` 最小对齐均至少为 `0x4000`。
+`libmpformat.so` 的固定编译配置包含 `--enable-mbedtls`，二进制版本为 Mbed TLS 3.6.6。
+
+`2026-07-29 14:22:10 +08:00` 最终 Debug APK 为 `474822245` 字节，SHA-256
+`969C20C2FC6E1A401CFF51812EC1936AB674ECF5B2F51D0A7AB1589FBB35A6A7`。APK 仅含
+`arm64-v8a`，53 个 native basename 无重复，52 个 ELF 的所有 `PT_LOAD` 最小对齐至少为
+`0x4000`，唯一非 ELF 为既有 2 字节 `libsudo.so`。`libmpv.so` / `libplayer.so` 的 256 个版本化
+FFmpeg 符号去重后由 `libmp*.so` 全部提供，缺失 0；99 个唯一 C++ 引用在隔离 FFmpeg 与唯一
+`libc++_shared.so` 中缺失 0。Debug v2、`zipalign -c -P 16 -v 4` 与构建后 native 门禁通过。
+
+以下 `2026-07-28` APK 记录是命名空间修正前的历史证据，不再描述当前交付物。
+
+## 2026-07-28 统一播放器 native 栈（历史证据）
+
 最终 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，时间 `2026-07-28 10:59:29 +08:00`，大小
 `468740360` 字节，SHA-256
 `44642BF9A4EE713D2566B6FEF2E77865067E7CB2D030F705D139075003B1ED03`。

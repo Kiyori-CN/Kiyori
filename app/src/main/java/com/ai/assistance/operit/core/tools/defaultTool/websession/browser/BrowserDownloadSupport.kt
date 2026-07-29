@@ -15,6 +15,7 @@ import androidx.documentfile.provider.DocumentFile
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
+import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
@@ -461,10 +462,16 @@ internal class BrowserDownloadManager private constructor(
             synchronized(tasks) {
                 tasks.values.mapNotNull { task -> task.targetDirectoryUri }
             }
+        val playerSettings = PlayerSettingsStore.getInstance(appContext).current
         if (
             !shouldReleaseBrowserDownloadDirectoryPermission(
                 candidateUri = normalizedUri,
-                settingsDirectoryUri = settingsStore.current.customDirectoryUri,
+                settingsDirectoryUris =
+                    listOf(
+                        settingsStore.current.customDirectoryUri,
+                        playerSettings.screenshotDirectoryUri,
+                        playerSettings.videoDownloadDirectoryUri,
+                    ),
                 taskDirectoryUris = taskDirectoryUris,
             )
         ) {
@@ -514,10 +521,23 @@ internal class BrowserDownloadManager private constructor(
         url: String,
         suggestedFileName: String,
         mimeType: String?,
-        headers: Map<String, String>
+        headers: Map<String, String>,
+        destinationPolicy: BrowserDownloadDestination = BrowserDownloadDestination.FollowSettings,
     ): BrowserDownloadTaskRecord {
         val settings = settingsStore.current
         val destination = resolveUniqueApplicationDestinationFile(appContext, suggestedFileName)
+        val targetDirectoryUri =
+            when (destinationPolicy) {
+                BrowserDownloadDestination.FollowSettings ->
+                    settings.customDirectoryUri.takeIf { it.isNotBlank() }
+                is BrowserDownloadDestination.DocumentTree -> destinationPolicy.treeUri
+            }
+        val autoTransferToPublicDirectory =
+            when (destinationPolicy) {
+                BrowserDownloadDestination.FollowSettings ->
+                    settings.autoTransferToPublicDirectory
+                is BrowserDownloadDestination.DocumentTree -> false
+            }
         val now = System.currentTimeMillis()
         val task =
             BrowserDownloadTaskRecord(
@@ -526,7 +546,7 @@ internal class BrowserDownloadManager private constructor(
                 type = DOWNLOAD_TYPE_HTTP,
                 sourceUrl = url,
                 destinationPath = destination.absolutePath,
-                targetDirectoryUri = settings.customDirectoryUri.takeIf { it.isNotBlank() },
+                targetDirectoryUri = targetDirectoryUri,
                 fileName = destination.name,
                 headers = LinkedHashMap(headers),
                 createdAt = now,
@@ -540,7 +560,7 @@ internal class BrowserDownloadManager private constructor(
                 threadCount = settings.segmentThreadCount,
                 m3u8ThreadCount = settings.m3u8ThreadCount,
                 autoMergeM3u8 = settings.autoMergeM3u8,
-                autoTransferToPublicDirectory = settings.autoTransferToPublicDirectory,
+                autoTransferToPublicDirectory = autoTransferToPublicDirectory,
                 chunkSizeKb = settings.chunkSizeKb,
                 enableHttp2 = settings.enableHttp2,
                 errorMessage = null,
@@ -2159,6 +2179,7 @@ internal data class PendingBrowserDownloadRequest(
     val contentLength: Long,
     val headers: Map<String, String>,
     val engine: BrowserDownloadEngine,
+    val destination: BrowserDownloadDestination = BrowserDownloadDestination.FollowSettings,
     val createdAt: Long = System.currentTimeMillis(),
 )
 
@@ -2251,6 +2272,7 @@ internal fun StandardBrowserSessionTools.startBrowserManagedDownload(
 internal fun StandardBrowserSessionTools.startMediaCandidateDownload(
     session: StandardBrowserSessionTools.WebSession,
     candidate: BrowserMediaCandidate,
+    destination: BrowserDownloadDestination = BrowserDownloadDestination.FollowSettings,
 ): Boolean {
     require(candidate.downloadReady && isBrowserDownloadNetworkUrl(candidate.url)) {
         "Media candidate is not an http or https download: ${candidate.url}"
@@ -2269,7 +2291,12 @@ internal fun StandardBrowserSessionTools.startMediaCandidateDownload(
             // Candidate headers are the observed request identity. Rebuilding them here would
             // lose Origin/Range/Accept or widen the captured Cookie scope.
             headers = candidate.requestHeaders,
-            engine = settings.defaultEngine,
+            engine =
+                when (destination) {
+                    BrowserDownloadDestination.FollowSettings -> settings.defaultEngine
+                    is BrowserDownloadDestination.DocumentTree -> BrowserDownloadEngine.INTERNAL
+                },
+            destination = destination,
         )
     if (settings.skipConfirmation) {
         return dispatchBrowserDownloadRequest(request)
@@ -2369,6 +2396,7 @@ private fun StandardBrowserSessionTools.dispatchBrowserDownloadRequest(
                     suggestedFileName = request.fileName,
                     mimeType = request.mimeType,
                     headers = request.headers,
+                    destinationPolicy = request.destination,
                 )
                 showToast(context.getString(com.ai.assistance.operit.R.string.download_started, request.fileName))
             }
@@ -2407,6 +2435,9 @@ private fun StandardBrowserSessionTools.dispatchBrowserDownloadRequest(
 private fun StandardBrowserSessionTools.enqueueSystemBrowserDownload(
     request: PendingBrowserDownloadRequest,
 ): Long {
+    require(request.destination == BrowserDownloadDestination.FollowSettings) {
+        "Android system downloads cannot target a SAF document tree"
+    }
     require(isBrowserDownloadNetworkUrl(request.url)) {
         "System downloads require an http or https URL: ${request.url}"
     }
@@ -2439,6 +2470,11 @@ internal fun PendingBrowserDownloadRequest.toUiState(): BrowserDownloadPromptSta
         mimeType = mimeType?.takeIf { value -> value.isNotBlank() },
         contentLength = contentLength,
         engine = engine,
+        destinationName =
+            when (val currentDestination = destination) {
+                BrowserDownloadDestination.FollowSettings -> null
+                is BrowserDownloadDestination.DocumentTree -> currentDestination.displayName
+            },
     )
 
 internal fun StandardBrowserSessionTools.startInlineManagedDownload(
@@ -2627,7 +2663,7 @@ private fun resolveUniquePublicDestinationFile(suggestedFileName: String): File 
         suggestedFileName = suggestedFileName,
     )
 
-private fun browserDownloadApplicationDirectory(context: Context): File {
+internal fun browserDownloadApplicationDirectory(context: Context): File {
     val externalDownloads =
         requireNotNull(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)) {
             "Application download directory is unavailable"
@@ -2638,6 +2674,8 @@ private fun browserDownloadApplicationDirectory(context: Context): File {
     }
     return directory
 }
+
+internal fun browserDownloadPublicDirectory(): File = OperitPaths.browserDownloadsDir()
 
 private fun resolveUniqueBrowserDownloadFile(
     directory: File,
