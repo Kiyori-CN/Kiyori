@@ -1201,6 +1201,10 @@
     <string name="speech_error_not_initialized">Mecanismo de reconhecimento de fala não inicializado</string>
     <string name="title_activity_crash_report">Erro de aplicativo</string>
     <string name="crash_report_header">O aplicativo encontrou um erro irrecuperável e precisa ser reiniciado.</string>
+    <string name="crash_report_player_header">O runtime do player de vídeo foi interrompido. O Kiyori continua em execução.</string>
+    <string name="crash_report_return_button">Voltar ao Kiyori</string>
+    <string name="crash_report_restart_player_button">Reiniciar o player de vídeo</string>
+    <string name="crash_report_missing">Não foi possível ler o relatório estruturado de falha.</string>
     <string name="crash_report_restart_button">Reinicie o aplicativo</string>
     <string name="crash_report_details_title">Detalhes do erro</string>
     <string name="crash_report_copy_button">cópia</string>

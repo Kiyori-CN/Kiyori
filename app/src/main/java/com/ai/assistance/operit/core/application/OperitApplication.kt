@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
 import android.system.Os
+import android.util.Log
 import com.ai.assistance.operit.util.AppLogger
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -51,12 +52,13 @@ import com.ai.assistance.operit.util.GlobalExceptionHandler
 import com.ai.assistance.operit.util.ImagePoolManager
 import com.ai.assistance.operit.util.LocaleUtils
 import com.ai.assistance.operit.util.MediaPoolManager
-import com.ai.assistance.operit.util.CrashRecoveryState
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.SkillRepoZipPoolManager
 import com.ai.assistance.operit.util.SerializationSetup
 import com.ai.assistance.operit.util.TextSegmenter
 import com.ai.assistance.operit.util.WaifuMessageProcessor
+import com.ai.assistance.operit.util.crash.CrashProcessIdentity
+import com.ai.assistance.operit.util.crash.CrashReportStore
 import com.ai.assistance.operit.core.tools.agent.ShowerController
 import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
@@ -129,7 +131,9 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         instance = this
 
         configureOpenMpEnvironment()
-        Thread.setDefaultUncaughtExceptionHandler(GlobalExceptionHandler(this))
+        if (!CrashProcessIdentity.isCrashProcess(this)) {
+            Thread.setDefaultUncaughtExceptionHandler(GlobalExceptionHandler(this))
+        }
 
         json = Json {
             serializersModule = SerializationSetup.module
@@ -169,13 +173,19 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
         configureOpenMpEnvironment()
 
         // 每次应用冷启动时重置上一轮日志，避免日志无限增长
-        val isCrashReportRecoveryStartup = CrashRecoveryState.consumePendingCrashReportLaunch(this)
-        if (!isCrashReportRecoveryStartup) {
+        val preserveLogsForCrashReport =
+            try {
+                CrashReportStore.hasUnresolvedReports(this)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Unable to inspect crash report state; preserving current app log", error)
+                true
+            }
+        if (!preserveLogsForCrashReport) {
             AppLogger.resetLogFile()
         }
 
-        if (isCrashReportRecoveryStartup) {
-            AppLogger.w(TAG, "检测到崩溃报告启动，保留上一轮日志供崩溃页导出")
+        if (preserveLogsForCrashReport) {
+            AppLogger.w(TAG, "检测到未处理的崩溃报告，保留上一轮日志供崩溃页导出")
         }
 
         AppLogger.d(TAG, "【启动计时】首屏必需初始化开始")

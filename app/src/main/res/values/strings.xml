@@ -1388,6 +1388,10 @@
 
     <!-- Crash Report Screen -->
     <string name="crash_report_header">应用遇到了一个无法恢复的错误，需要重启。</string>
+    <string name="crash_report_player_header">视频播放器运行时已停止，Kiyori 仍在运行。</string>
+    <string name="crash_report_return_button">返回 Kiyori</string>
+    <string name="crash_report_restart_player_button">重新启动播放器</string>
+    <string name="crash_report_missing">无法读取结构化崩溃报告。</string>
     <string name="crash_report_restart_button">重启应用</string>
     <string name="crash_report_details_title">错误详情</string>
     <string name="crash_report_copy_button">复制</string>

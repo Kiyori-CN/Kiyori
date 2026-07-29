@@ -800,6 +800,10 @@
     
     <!-- Crash Report Screen -->
     <string name="crash_report_header">La aplicación ha encontrado un error irrecuperable y necesita reiniciarse.</string>
+    <string name="crash_report_player_header">El entorno del reproductor de vídeo se ha detenido. Kiyori sigue funcionando.</string>
+    <string name="crash_report_return_button">Volver a Kiyori</string>
+    <string name="crash_report_restart_player_button">Reiniciar el reproductor</string>
+    <string name="crash_report_missing">No se pudo leer el informe de error estructurado.</string>
     <string name="crash_report_restart_button">Reiniciar Aplicación</string>
     <string name="crash_report_details_title">Detalles del Error</string>
     <string name="crash_report_copy_button">Copiar</string>

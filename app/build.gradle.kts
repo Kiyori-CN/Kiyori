@@ -594,7 +594,8 @@ val verifyDebugPlayerRuntimePackaging =
                 listOf(
                     "Lis/xyz/mpv/MPVLib;",
                     "Lis/xyz/mpv/MPVNode;",
-                    "Lcom/ai/assistance/operit/core/player/MpvPlayerEngine;",
+                    "Lcom/ai/assistance/operit/core/player/runtime/MpvPlayerEngine;",
+                    "Lcom/ai/assistance/operit/core/player/runtime/PlayerRuntimeService;",
                 )
             ZipFile(apk).use { archive ->
                 val dexEntries =

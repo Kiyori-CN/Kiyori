@@ -1,9 +1,9 @@
-package com.ai.assistance.operit.core.player
+package com.ai.assistance.operit.core.player.runtime
 
 import android.content.Context
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import com.ai.assistance.operit.util.AppLogger
+import android.util.Log
 import java.io.File
 import java.util.Locale
 
@@ -11,9 +11,9 @@ internal class PlayerMediaResolver(context: Context) {
     private val appContext = context.applicationContext
     private var contentFileDescriptor: ParcelFileDescriptor? = null
 
-    fun resolve(request: PlayerMediaRequest): String {
+    fun resolve(uriText: String): String {
         close()
-        val uri = Uri.parse(request.uri)
+        val uri = Uri.parse(uriText)
         return when (uri.scheme?.lowercase(Locale.ROOT)) {
             "content" -> {
                 val descriptor =
@@ -24,15 +24,17 @@ internal class PlayerMediaResolver(context: Context) {
                 "fd://${descriptor.fd}"
             }
             "file" -> requireNotNull(uri.path) { "File URI has no path" }
-            "http", "https", "rtsp", "rtmp", "rtmps" -> request.uri
-            null -> File(request.uri).absolutePath
+            "http", "https", "rtsp", "rtmp", "rtmps" -> uriText
+            null -> File(uriText).absolutePath
             else -> error("Unsupported player URI scheme: ${uri.scheme}")
         }
     }
 
     fun close() {
         runCatching { contentFileDescriptor?.close() }
-            .onFailure { AppLogger.w(TAG, "Failed to close player content descriptor", it) }
+            .onFailure { error ->
+                Log.w(TAG, "Failed to close player content descriptor", error)
+            }
         contentFileDescriptor = null
     }
 

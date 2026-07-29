@@ -45,6 +45,7 @@ kiyori_browser_product_completion/
 	9_browser_sniffer_and_floating_playback.md
 	10_validation_build_git_and_device_acceptance.md
 	11_player_runtime_ui_and_browser_completion.md
+	12_player_process_crash_isolation.md
 ```
 
 实施顺序不可交换：播放器和嗅探依赖稳定的 session profile、窗口生命周期、设置 owner、下载 owner 和菜单路由；无痕必须先于缩略图和 AI tab 输出完成，以免后续再次更改窗口模型。
@@ -95,6 +96,7 @@ kiyori_browser_product_completion/
 6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成，其他菜单能力按第七阶段继续串行推进
 7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与统一 native 栈，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏入口均已完成本地实现；2026-07-28 又完成精确视频格式、被动时长、推荐排序、动态格式筛选、双开关与结果动作弹窗。人工播放固定进入横向全屏，自动推荐才进入悬浮；当前播放器运行时仍无法实际播放视频，播放器修复和真机解码不属于本次嗅探抽屉完成状态
 8. [DONE] P0：阶段 11 的运行时、设置、浏览器候选与 native 门禁已完成；全屏播放器按用户 `2800x1260` 横屏和 `1260x2800` 竖屏截图继续收口，竖屏顶部沿用 legacy 固定标题/权重单元，底部九键等宽排列。顶部四个功能入口统一为字幕、弹幕、音轨、画面模式描边图标，投屏移入更多菜单并删除样式覆盖。浏览器悬浮播放器已按 legacy 改为内容区全宽、固定 `16:9`、零边距、只能在顶栏与底栏之间纵向平移，并恢复顶部、右侧、底部和锁定控制层。`2026-07-28 19:18:21 +08:00` 的必现闪退纠正了播放器启动契约：新媒体先创建并初始化唯一 mpv，首个有效 Surface 在 `mpv_initialize` 完成后 attach，完成当前 lease 的 native attach 后再执行 `loadfile`。播放器日志入口可复制、清空和关闭；自动检查和 Debug APK 证据以阶段 11 最新记录为准，真机像素、崩溃与交互验收保持 `verification_pending`
+9. [LOCAL DONE] P0：阶段 12 已完成结构化崩溃报告、唯一非导出 `:player` AIDL service、串行 MPV owner、Surface ACK、Binder death、退出证据、前后台 `:crash` 展示和用户明确重启。主进程 `PlayerSession` 不再构造 engine/resolver 或同步读取 MPV，death 路径不会自动 bind、load 或刷新 WebView。自动检查和各里程碑 Debug APK 构建通过；设备安装、真实进程终止和 vivo Android 16 验收未授权，最终状态保持 `verification_pending`。详细证据见 [播放器进程崩溃隔离与诊断页](12_player_process_crash_isolation.md)
 
 ### 2026-07-28 浏览器搜索与菜单追加小步
 

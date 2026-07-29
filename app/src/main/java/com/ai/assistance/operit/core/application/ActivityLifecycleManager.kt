@@ -13,6 +13,7 @@ import com.ai.assistance.operit.plugins.lifecycle.AppLifecycleHookPluginRegistry
 import com.ai.assistance.operit.integrations.http.ExternalChatHttpAutoStarter
 import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.core.tools.agent.ShowerController
+import com.ai.assistance.operit.util.crash.PlayerCrashCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -163,6 +164,7 @@ object ActivityLifecycleManager : Application.ActivityLifecycleCallbacks {
     override fun onActivityResumed(activity: Activity) {
         // When an activity is resumed, it becomes the current foreground activity.
         currentActivity = WeakReference(activity)
+        PlayerCrashCoordinator.onActivityResumed(activity)
 
         try {
             val now = System.currentTimeMillis()

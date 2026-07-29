@@ -18,6 +18,13 @@ internal enum class PlayerSurfaceTransferPhase {
     CLOSING,
 }
 
+internal enum class PlayerNativeSurfaceState {
+    DETACHED,
+    ATTACHING,
+    ATTACHED,
+    DETACHING,
+}
+
 internal data class PlayerSurfaceLeaseOwner(
     val role: PlayerSurfaceRole,
     val ownerToken: String,
@@ -35,13 +42,20 @@ internal data class PlayerSurfaceLeaseState(
     val currentOwner: PlayerSurfaceLeaseOwner? = null,
     val pendingTarget: PlayerSurfaceLeaseTarget? = null,
     val generation: Long = 0L,
-    val nativeSurfaceAttached: Boolean = false,
-    val nativeDetachCompleted: Boolean = true,
+    val nativeState: PlayerNativeSurfaceState = PlayerNativeSurfaceState.DETACHED,
     val transferTarget: PlayerSurfaceRole? = null,
     val activityRequestGeneration: Long = 0L,
     val fullscreenLaunchRequestId: Long? = null,
     val fullscreenFinishRequestId: Long? = null,
-)
+) {
+    val nativeSurfaceAttached: Boolean
+        get() =
+            nativeState == PlayerNativeSurfaceState.ATTACHED ||
+                nativeState == PlayerNativeSurfaceState.DETACHING
+
+    val nativeDetachCompleted: Boolean
+        get() = nativeState == PlayerNativeSurfaceState.DETACHED
+}
 
 internal data class PlayerSurfaceRegistration(
     val state: PlayerSurfaceLeaseState,
@@ -58,7 +72,6 @@ internal fun preparePlayerSurfaceLease(
         phase = waitingPhase(role),
         pendingTarget = PlayerSurfaceLeaseTarget(role, null, generation),
         generation = generation,
-        nativeDetachCompleted = true,
         transferTarget = role,
         fullscreenLaunchRequestId = null,
         fullscreenFinishRequestId = null,
@@ -127,6 +140,27 @@ internal fun registerPlayerSurfaceOwner(
     )
 }
 
+internal fun beginPendingPlayerSurfaceAttach(
+    state: PlayerSurfaceLeaseState,
+    role: PlayerSurfaceRole,
+    ownerToken: String,
+    generation: Long,
+): PlayerSurfaceLeaseState {
+    check(state.currentOwner == null) { "A native Surface is already active" }
+    check(state.nativeState == PlayerNativeSurfaceState.DETACHED) {
+        "Native Surface is not ready for attach"
+    }
+    val pending = requireNotNull(state.pendingTarget) { "No pending Surface lease" }
+    check(
+        pending.role == role &&
+            pending.ownerToken == ownerToken &&
+            pending.generation == generation,
+    ) {
+        "Pending Surface lease identity does not match"
+    }
+    return state.copy(nativeState = PlayerNativeSurfaceState.ATTACHING)
+}
+
 internal fun activatePendingPlayerSurface(
     state: PlayerSurfaceLeaseState,
     role: PlayerSurfaceRole,
@@ -134,8 +168,9 @@ internal fun activatePendingPlayerSurface(
     generation: Long,
 ): PlayerSurfaceLeaseState {
     check(state.currentOwner == null) { "A native Surface is already active" }
-    check(!state.nativeSurfaceAttached) { "Native Surface state is still attached" }
-    check(state.nativeDetachCompleted) { "Native Surface detach has not completed" }
+    check(state.nativeState == PlayerNativeSurfaceState.ATTACHING) {
+        "Native Surface attach has not been sent"
+    }
     val pending = requireNotNull(state.pendingTarget) { "No pending Surface lease" }
     check(
         pending.role == role &&
@@ -148,10 +183,39 @@ internal fun activatePendingPlayerSurface(
         phase = activePhase(role),
         currentOwner = PlayerSurfaceLeaseOwner(role, ownerToken, generation),
         pendingTarget = null,
-        nativeSurfaceAttached = true,
-        nativeDetachCompleted = false,
+        nativeState = PlayerNativeSurfaceState.ATTACHED,
         transferTarget = null,
     )
+}
+
+internal fun rejectPendingPlayerSurfaceAttach(
+    state: PlayerSurfaceLeaseState,
+    role: PlayerSurfaceRole,
+    ownerToken: String,
+    generation: Long,
+): PlayerSurfaceLeaseState {
+    check(state.currentOwner == null) { "A native Surface is already active" }
+    check(state.nativeState == PlayerNativeSurfaceState.ATTACHING) {
+        "Native Surface attach is not pending"
+    }
+    val pending = requireNotNull(state.pendingTarget) { "No pending Surface lease" }
+    check(
+        pending.role == role &&
+            pending.ownerToken == ownerToken &&
+            pending.generation == generation,
+    ) {
+        "Pending Surface lease identity does not match"
+    }
+    return state.copy(nativeState = PlayerNativeSurfaceState.DETACHED)
+}
+
+internal fun rejectPlayerSurfaceDetach(
+    state: PlayerSurfaceLeaseState,
+): PlayerSurfaceLeaseState {
+    check(state.nativeState == PlayerNativeSurfaceState.DETACHING) {
+        "Native Surface detach is not pending"
+    }
+    return state.copy(nativeState = PlayerNativeSurfaceState.ATTACHED)
 }
 
 internal fun requestFullscreenActivityLaunchIfReady(
@@ -217,15 +281,39 @@ internal fun requestFullscreenActivityFinish(
     )
 }
 
+internal fun beginPlayerSurfaceDetach(
+    state: PlayerSurfaceLeaseState,
+    role: PlayerSurfaceRole,
+    ownerToken: String,
+    generation: Long,
+): PlayerSurfaceLeaseState {
+    check(
+        isCurrentPlayerSurfaceOwner(
+            state = state,
+            role = role,
+            ownerToken = ownerToken,
+            generation = generation,
+        ),
+    ) {
+        "Current Surface lease identity does not match"
+    }
+    check(state.nativeState == PlayerNativeSurfaceState.ATTACHED) {
+        "Native Surface is not attached"
+    }
+    return state.copy(nativeState = PlayerNativeSurfaceState.DETACHING)
+}
+
 internal fun completePlayerSurfaceDetach(
     state: PlayerSurfaceLeaseState,
 ): PlayerSurfaceLeaseState {
+    check(state.nativeState == PlayerNativeSurfaceState.DETACHING) {
+        "Native Surface detach has not been sent"
+    }
     val previousRole = requireNotNull(state.currentOwner).role
     val detached =
         state.copy(
             currentOwner = null,
-            nativeSurfaceAttached = false,
-            nativeDetachCompleted = true,
+            nativeState = PlayerNativeSurfaceState.DETACHED,
         )
     return when (state.phase) {
         PlayerSurfaceTransferPhase.FLOATING_TO_FULLSCREEN_WAITING_FLOATING_DESTROY -> {
@@ -266,13 +354,30 @@ internal fun completeClosingPlayerSurfaceLease(
     return state.copy(
         currentOwner = null,
         pendingTarget = null,
-        nativeSurfaceAttached = false,
-        nativeDetachCompleted = true,
+        nativeState = PlayerNativeSurfaceState.DETACHED,
         transferTarget = null,
         fullscreenLaunchRequestId = null,
         fullscreenFinishRequestId = null,
     )
 }
+
+internal fun resetPlayerSurfaceLeaseAfterRuntimeStop(
+    state: PlayerSurfaceLeaseState,
+): PlayerSurfaceLeaseState =
+    state.copy(
+        phase =
+            if (state.phase == PlayerSurfaceTransferPhase.CLOSING) {
+                PlayerSurfaceTransferPhase.CLOSING
+            } else {
+                PlayerSurfaceTransferPhase.NONE
+            },
+        currentOwner = null,
+        pendingTarget = null,
+        nativeState = PlayerNativeSurfaceState.DETACHED,
+        transferTarget = null,
+        fullscreenLaunchRequestId = null,
+        fullscreenFinishRequestId = null,
+    )
 
 internal fun isCurrentPlayerSurfaceOwner(
     state: PlayerSurfaceLeaseState,

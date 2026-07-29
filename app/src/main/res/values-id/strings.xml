@@ -1118,6 +1118,10 @@
     <string name="speech_error_not_initialized">Mesin pengenalan ucapan belum diinisialisasi</string>
     <string name="title_activity_crash_report">Kesalahan Aplikasi</string>
     <string name="crash_report_header">Aplikasi mengalami kesalahan yang tidak dapat dipulihkan dan perlu dimulai ulang.</string>
+    <string name="crash_report_player_header">Runtime pemutar video telah berhenti. Kiyori masih berjalan.</string>
+    <string name="crash_report_return_button">Kembali ke Kiyori</string>
+    <string name="crash_report_restart_player_button">Mulai ulang pemutar video</string>
+    <string name="crash_report_missing">Laporan kerusakan terstruktur tidak dapat dibaca.</string>
     <string name="crash_report_restart_button">Mulai ulang aplikasi</string>
     <string name="crash_report_details_title">Detail Kesalahan</string>
     <string name="crash_report_copy_button">Salin</string>

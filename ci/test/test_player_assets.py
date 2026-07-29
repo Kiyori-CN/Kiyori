@@ -147,7 +147,10 @@ class PlayerAssetsTest(unittest.TestCase):
             if "`is`.xyz.mpv" in text or "is.xyz.mpv" in text:
                 mpv_import_owners.append(source.relative_to(REPO_ROOT).as_posix())
         self.assertEqual(
-            ["app/src/main/java/com/ai/assistance/operit/core/player/MpvPlayerEngine.kt"],
+            [
+                "app/src/main/java/com/ai/assistance/operit/core/player/runtime/"
+                "MpvPlayerEngine.kt"
+            ],
             mpv_import_owners,
         )
 
@@ -182,7 +185,11 @@ class PlayerAssetsTest(unittest.TestCase):
             / "core"
             / "player"
         )
-        engine_source = (player_root / "MpvPlayerEngine.kt").read_text(encoding="utf-8")
+        runtime_root = player_root / "runtime"
+        engine_source = (runtime_root / "MpvPlayerEngine.kt").read_text(encoding="utf-8")
+        service_source = (runtime_root / "PlayerRuntimeService.kt").read_text(
+            encoding="utf-8"
+        )
         session_source = (player_root / "PlayerSession.kt").read_text(encoding="utf-8")
         initialize_body = engine_source[
             engine_source.index("fun initialize("):
@@ -192,9 +199,16 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertIn("MPVLib.init()", initialize_body)
         self.assertNotIn("MPVLib.attachSurface", initialize_body)
         self.assertNotIn('setRequiredOption("force-window", "yes")', initialize_body)
-        self.assertIn("val activeEngine = ensureEngine(settings)", session_source)
-        self.assertIn("activeEngine.attachSurface(surface", session_source)
-        self.assertIn("startPendingMediaLoad(activeEngine)", session_source)
+        self.assertIn(
+            "val created = MpvPlayerEngine(applicationContext, engineListener)",
+            service_source,
+        )
+        self.assertIn("runtimeHandler.post", service_source)
+        self.assertNotIn("MpvPlayerEngine", session_source)
+        self.assertNotIn("PlayerMediaResolver", session_source)
+        self.assertNotIn("MPVLib", session_source)
+        self.assertIn("beginPendingPlayerSurfaceAttach", session_source)
+        self.assertIn("onSurfaceAttached", session_source)
 
 
 if __name__ == "__main__":

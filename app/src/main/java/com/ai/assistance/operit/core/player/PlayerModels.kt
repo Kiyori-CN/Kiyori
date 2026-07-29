@@ -8,6 +8,15 @@ internal enum class PlayerPresentation {
     FULLSCREEN_PLAYER,
 }
 
+internal enum class PlayerRuntimeState {
+    STOPPED,
+    BINDING,
+    READY,
+    ACTIVE,
+    DEAD,
+    CLOSING,
+}
+
 internal enum class PlayerMediaSource {
     EXTERNAL_INTENT,
     BROWSER_CANDIDATE,
@@ -238,6 +247,9 @@ internal data class PlayerSessionState(
     val networkSpeedBytesPerSecond: Long = 0L,
     val videoFitMode: PlayerVideoFitMode = PlayerVideoFitMode.FIT,
     val loadGeneration: Long = 0L,
+    val runtimeGeneration: Long = 0L,
+    val runtimeState: PlayerRuntimeState = PlayerRuntimeState.STOPPED,
+    val runtimeProcessId: Int? = null,
 ) {
     val hasMedia: Boolean
         get() = request != null
@@ -280,6 +292,9 @@ internal fun resolvePlayerOpenTransition(
                 videoFitMode = PlayerVideoFitMode.FIT,
                 surfaceLease = current.surfaceLease,
                 loadGeneration = current.loadGeneration + 1L,
+                runtimeGeneration = current.runtimeGeneration,
+                runtimeState = current.runtimeState,
+                runtimeProcessId = current.runtimeProcessId,
             ),
         shouldLoad = true,
     )

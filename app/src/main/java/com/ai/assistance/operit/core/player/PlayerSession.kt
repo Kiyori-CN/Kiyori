@@ -5,11 +5,23 @@ import android.content.Context
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
-import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.view.Surface
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeCommandType
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConfig
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnection
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnectionListener
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeLoadRequest
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimePlaybackSnapshot
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeTrackSnapshot
+import com.ai.assistance.operit.core.player.runtime.toPlayerTrack
+import com.ai.assistance.operit.core.player.runtime.toRuntimeConfig
+import com.ai.assistance.operit.core.player.runtime.toRuntimeId
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.crash.PlayerCrashCoordinator
+import com.ai.assistance.operit.util.crash.PlayerCrashEventType
+import com.ai.assistance.operit.util.crash.PlayerCrashJournal
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,97 +38,327 @@ internal class PlayerSession private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val settingsStore = PlayerSettingsStore.getInstance(appContext)
     private val shaderManager = Anime4KShaderManager(appContext)
-    private val mediaResolver = PlayerMediaResolver(appContext)
-    private val mainHandler = Handler(Looper.getMainLooper())
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(PlayerSessionState())
 
     val state: StateFlow<PlayerSessionState> = _state.asStateFlow()
 
-    private var engine: MpvPlayerEngine? = null
-    private var currentSurface: Surface? = null
-    private var pendingSurfaceLease: PendingSurfaceLease? = null
+    private var pendingSurfaceLease: SurfaceParcel? = null
+    private var activeSurfaceLease: SurfaceParcel? = null
     private var pendingMediaLoad: PendingMediaLoad? = null
+    private var lastLoadCommandId: Long? = null
+    private var closeCommandId: Long? = null
+    private var closeRequested = false
+    private var failedSession: FailedPlayerSession? = null
+    private var pendingRestartSeekSeconds: Double? = null
+    private val pendingScreenshots = LinkedHashMap<Long, PendingScreenshot>()
 
-    private val engineListener =
-        object : MpvPlayerEngineListener {
-            override fun onBooleanProperty(name: String, value: Boolean) {
-                mainHandler.post {
-                    when (name) {
-                        "pause" -> _state.value = _state.value.copy(paused = value)
-                        "paused-for-cache" -> _state.value = _state.value.copy(buffering = value)
-                        "eof-reached" -> if (value) handleNaturalEndOfFile()
+    private val runtimeListener =
+        object : PlayerRuntimeConnectionListener {
+            override fun onRuntimeReady(runtimeGeneration: Long, processId: Int) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                if (processId <= 0) {
+                    handleUnexpectedRuntimeStop("播放器运行时返回了无效进程 ID")
+                    return
+                }
+                val snapshot = _state.value
+                if (snapshot.runtimeState != PlayerRuntimeState.BINDING) return
+                _state.value =
+                    snapshot.copy(
+                        runtimeState = PlayerRuntimeState.READY,
+                        runtimeProcessId = processId,
+                        error = null,
+                    )
+                PlayerDebugLogBuffer.append(
+                    TAG,
+                    "播放器运行时就绪 generation=$runtimeGeneration",
+                )
+                PlayerCrashJournal.record(
+                    appContext,
+                    PlayerCrashEventType.RUNTIME_READY,
+                    runtimeGeneration,
+                )
+                requestPendingSurfaceAttach()
+                startPendingMediaLoad()
+            }
+
+            override fun onCommandCompleted(
+                runtimeGeneration: Long,
+                commandId: Long,
+                commandType: PlayerRuntimeCommandType,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                if (
+                    commandType == PlayerRuntimeCommandType.CLOSE &&
+                        closeCommandId == commandId
+                ) {
+                    runtimeConnection.disconnect()
+                    finalizeClosedSession()
+                }
+            }
+
+            override fun onCommandFailed(
+                runtimeGeneration: Long,
+                commandId: Long,
+                commandType: PlayerRuntimeCommandType?,
+                operation: String,
+                message: String,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                when (commandType) {
+                    PlayerRuntimeCommandType.ATTACH_SURFACE ->
+                        handleSurfaceAttachFailure(commandId)
+                    PlayerRuntimeCommandType.DETACH_SURFACE ->
+                        handleSurfaceDetachFailure(commandId)
+                    PlayerRuntimeCommandType.SCREENSHOT -> {
+                        failScreenshot(commandId, IllegalStateException(message))
+                        return
                     }
-                }
-            }
-
-            override fun onDoubleProperty(name: String, value: Double) {
-                mainHandler.post {
-                    when (name) {
-                        "time-pos" -> _state.value = _state.value.copy(positionSeconds = value)
-                        "duration" -> _state.value = _state.value.copy(durationSeconds = value)
-                        "speed" -> _state.value = _state.value.copy(speed = value)
+                    PlayerRuntimeCommandType.CLOSE -> {
+                        runtimeConnection.disconnect()
+                        finalizeClosedSession()
+                        return
                     }
+                    else -> Unit
+                }
+                setError("$operation：$message", IllegalStateException(message))
+            }
+
+            override fun onSurfaceAttached(
+                runtimeGeneration: Long,
+                commandId: Long,
+                surfaceGeneration: Long,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                val pending =
+                    pendingSurfaceLease?.takeIf { surface ->
+                        surface.generation == surfaceGeneration &&
+                            surface.attachCommandId == commandId
+                    } ?: return
+                val nextLease =
+                    activatePendingPlayerSurface(
+                        _state.value.surfaceLease,
+                        pending.role,
+                        pending.ownerToken,
+                        pending.generation,
+                    )
+                activeSurfaceLease =
+                    pending.copy(
+                        attachCommandId = null,
+                        detachCommandId = null,
+                    )
+                pendingSurfaceLease = null
+                _state.value =
+                    _state.value.copy(
+                        surfaceLease = nextLease,
+                        runtimeState = PlayerRuntimeState.ACTIVE,
+                        error = null,
+                    )
+                PlayerDebugLogBuffer.append(
+                    TAG,
+                    "远端确认 Surface attach role=${pending.role} generation=${pending.generation}",
+                )
+                PlayerCrashJournal.record(
+                    appContext,
+                    PlayerCrashEventType.ATTACH_ACK,
+                    runtimeGeneration,
+                    pending.generation,
+                    commandId,
+                )
+                if (pending.detachRequested) {
+                    requestActiveSurfaceDetach()
+                } else {
+                    startPendingMediaLoad()
                 }
             }
 
-            override fun onFileLoaded() {
-                mainHandler.post {
-                    updateTracks()
-                    _state.value = _state.value.copy(loading = false, buffering = false, error = null)
+            override fun onSurfaceDetached(
+                runtimeGeneration: Long,
+                commandId: Long,
+                surfaceGeneration: Long,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                val active =
+                    activeSurfaceLease?.takeIf { surface ->
+                        surface.generation == surfaceGeneration &&
+                            surface.detachCommandId == commandId
+                    } ?: return
+                activeSurfaceLease = null
+                val completed = completePlayerSurfaceDetach(_state.value.surfaceLease)
+                val returnToFloating =
+                    completed.phase == PlayerSurfaceTransferPhase.WAITING_FLOATING_SURFACE &&
+                        completed.transferTarget == PlayerSurfaceRole.FLOATING
+                _state.value =
+                    _state.value.copy(
+                        presentation =
+                            if (returnToFloating) {
+                                PlayerPresentation.FLOATING_PLAYER
+                            } else {
+                                _state.value.presentation
+                            },
+                        surfaceLease = completed,
+                        runtimeState = PlayerRuntimeState.READY,
+                    )
+                PlayerDebugLogBuffer.append(
+                    TAG,
+                    "远端确认 Surface detach role=${active.role} generation=${active.generation}",
+                )
+                PlayerCrashJournal.record(
+                    appContext,
+                    PlayerCrashEventType.DETACH_ACK,
+                    runtimeGeneration,
+                    active.generation,
+                    commandId,
+                )
+                if (closeRequested) {
+                    sendRuntimeClose()
+                } else {
+                    requestPendingSurfaceAttach()
                 }
             }
 
-            override fun onRuntimeError(message: String) {
-                mainHandler.post {
-                    setError(message, IllegalStateException(message))
+            override fun onPlaybackSnapshot(
+                runtimeGeneration: Long,
+                snapshot: PlayerRuntimePlaybackSnapshot,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration) || !_state.value.hasMedia) return
+                val current = _state.value
+                _state.value =
+                    current.copy(
+                        positionSeconds =
+                            snapshot.positionSeconds
+                                ?.takeIf(Double::isFinite)
+                                ?: current.positionSeconds,
+                        durationSeconds =
+                            snapshot.durationSeconds
+                                ?.takeIf(Double::isFinite)
+                                ?: current.durationSeconds,
+                        paused = snapshot.paused ?: current.paused,
+                        buffering = snapshot.buffering ?: current.buffering,
+                        speed =
+                            snapshot.speed
+                                ?.takeIf { speed -> speed.isFinite() && speed > 0.0 }
+                                ?: current.speed,
+                        networkSpeedBytesPerSecond =
+                            snapshot.networkSpeedBytesPerSecond.coerceAtLeast(0L),
+                    )
+            }
+
+            override fun onFileLoaded(
+                runtimeGeneration: Long,
+                loadCommandId: Long,
+                tracks: PlayerRuntimeTrackSnapshot,
+            ) {
+                if (
+                    !isCurrentRuntime(runtimeGeneration) ||
+                        lastLoadCommandId != loadCommandId
+                ) {
+                    return
                 }
+                val audioTracks = tracks.audioTracks.map { track -> track.toPlayerTrack() }
+                val subtitleTracks = tracks.subtitleTracks.map { track -> track.toPlayerTrack() }
+                _state.value =
+                    _state.value.copy(
+                        loading = false,
+                        buffering = false,
+                        error = null,
+                        audioTracks = audioTracks,
+                        subtitleTracks = subtitleTracks,
+                        selectedAudioTrackId = audioTracks.singleOrNull { it.selected }?.id,
+                        selectedSubtitleTrackId =
+                            subtitleTracks.singleOrNull { it.selected }?.id,
+                    )
+                pendingRestartSeekSeconds?.let { position ->
+                    pendingRestartSeekSeconds = null
+                    if (position > 0.0) seekTo(position)
+                }
+            }
+
+            override fun onNaturalEnd(runtimeGeneration: Long) {
+                if (isCurrentRuntime(runtimeGeneration)) {
+                    handleNaturalEndOfFile()
+                }
+            }
+
+            override fun onRuntimeError(runtimeGeneration: Long, message: String) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                setError(message, IllegalStateException(message))
+            }
+
+            override fun onScreenshotCompleted(
+                runtimeGeneration: Long,
+                commandId: Long,
+                path: String,
+            ) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                val pending = pendingScreenshots.remove(commandId) ?: return
+                if (pending.file.absolutePath != path) {
+                    pending.file.delete()
+                    pending.onResult(
+                        Result.failure(
+                            IllegalStateException("播放器截图结果路径不匹配"),
+                        ),
+                    )
+                    return
+                }
+                completeScreenshot(pending)
+            }
+
+            override fun onRuntimeDisconnected(runtimeGeneration: Long, expected: Boolean) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                if (expected || closeRequested || _state.value.runtimeState == PlayerRuntimeState.CLOSING) {
+                    finalizeClosedSession()
+                    return
+                }
+                handleUnexpectedRuntimeStop("播放器运行时连接已中断")
+            }
+
+            override fun onRuntimeConnectionError(runtimeGeneration: Long, message: String) {
+                if (!isCurrentRuntime(runtimeGeneration)) return
+                runtimeConnection.disconnect()
+                handleUnexpectedRuntimeStop(message)
             }
         }
 
-    private val progressPoll =
-        object : Runnable {
-            override fun run() {
-                if (engine == null || !_state.value.hasMedia) return
-                if (updateProgressFromMpv()) {
-                    mainHandler.postDelayed(this, PROGRESS_INTERVAL_MS)
-                }
-            }
-        }
+    private val runtimeConnection: PlayerRuntimeConnection by lazy(LazyThreadSafetyMode.NONE) {
+        PlayerRuntimeConnection(appContext, runtimeListener)
+    }
 
     init {
         mainScope.launch {
             settingsStore.state.drop(1).collect { settings ->
-                val activeEngine = engine
-                if (_state.value.hasMedia && activeEngine != null) {
-                    try {
-                        activeEngine.applyDecoderPreset(settings.decoderPreset)
-                        activeEngine.applyPreciseSeeking(settings.preciseSeeking)
-                        activeEngine.applyNetworkCache(settings.networkCachePolicy)
-                        activeEngine.applySubtitleScale(settings.subtitleScale)
-                        activeEngine.applyEndBehavior(settings.endBehavior)
-                        activeEngine.applyVolumeBoost(settings.volumeBoostEnabled)
-                        val anime4KMode =
-                            if (settings.rememberAnime4KMode) {
-                                settings.anime4KMode
-                            } else {
-                                _state.value.anime4KMode
-                            }
-                        val shaderFiles = shaderManager.resolveShaderFiles(anime4KMode)
-                        activeEngine.applyShaders(shaderFiles)
-                        _state.value =
-                            _state.value.copy(
-                                decoderPreset = settings.decoderPreset,
-                                anime4KMode = anime4KMode,
-                                activeShaderFiles = shaderFiles,
-                                error = null,
-                            )
-                    } catch (error: Exception) {
+                val snapshot = _state.value
+                if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) {
+                    return@collect
+                }
+                try {
+                    val anime4KMode =
+                        if (settings.rememberAnime4KMode) {
+                            settings.anime4KMode
+                        } else {
+                            snapshot.anime4KMode
+                        }
+                    val shaderFiles = shaderManager.resolveShaderFiles(anime4KMode)
+                    val config = settings.toRuntimeConfig(shaderFiles)
+                    if (runtimeConnection.applySettings(config) == null) {
                         setError(
-                            "播放器设置无法应用：${error.message ?: error.javaClass.simpleName}",
-                            error,
+                            "播放器设置命令无法发送",
+                            IllegalStateException("Player runtime is unavailable"),
                         )
+                        return@collect
                     }
+                    _state.value =
+                        _state.value.copy(
+                            decoderPreset = settings.decoderPreset,
+                            anime4KMode = anime4KMode,
+                            activeShaderFiles = shaderFiles,
+                            error = null,
+                        )
+                } catch (error: Exception) {
+                    setError(
+                        "播放器设置无法应用：${error.message ?: error.javaClass.simpleName}",
+                        error,
+                    )
                 }
             }
         }
@@ -124,6 +366,13 @@ internal class PlayerSession private constructor(context: Context) {
 
     fun open(request: PlayerMediaRequest, presentation: PlayerPresentation) {
         requireMainThread()
+        if (_state.value.runtimeState == PlayerRuntimeState.CLOSING) {
+            setError(
+                "播放器正在关闭，无法接收新的媒体请求",
+                IllegalStateException("Player runtime is closing"),
+            )
+            return
+        }
         val settings = settingsStore.current
         val transition = resolvePlayerOpenTransition(_state.value, request, presentation, settings)
         if (!transition.shouldLoad) {
@@ -132,28 +381,38 @@ internal class PlayerSession private constructor(context: Context) {
         }
 
         PlayerDebugLogBuffer.clear()
+        PlayerCrashJournal.clear(appContext)
         PlayerDebugLogBuffer.append(
             TAG,
             "打开媒体 request=${request.requestId} source=${request.source} " +
-                "decoder=${settings.decoderPreset.persistedId} " +
-                "uri=${request.uri.substringBefore('?')}",
+                "decoder=${settings.decoderPreset.persistedId}",
         )
         _state.value = transition.state
         prepareSurfaceLeaseForPresentation(presentation)
         pendingMediaLoad = null
         try {
-            val activeEngine = ensureEngine(settings)
-            val target = mediaResolver.resolve(request)
             val shaderFiles = shaderManager.resolveShaderFiles(transition.state.anime4KMode)
+            val config = settings.toRuntimeConfig(shaderFiles)
             _state.value = _state.value.copy(activeShaderFiles = shaderFiles)
-            pendingMediaLoad = PendingMediaLoad(
-                requestId = request.requestId,
-                target = target,
-                headers = request.headers,
-            )
-            // mpvlibAndroid owns core initialization before Android Surface callbacks. Media
-            // loading still waits until the current lease has completed its native attach.
-            startPendingMediaLoad(activeEngine)
+            pendingMediaLoad =
+                PendingMediaLoad(
+                    requestId = request.requestId,
+                    uri = request.uri,
+                    headers = request.headers.toMap(),
+                    config = config,
+                    initialSpeed = transition.state.speed,
+                )
+            when (_state.value.runtimeState) {
+                PlayerRuntimeState.STOPPED,
+                PlayerRuntimeState.DEAD,
+                -> connectRuntime(config)
+                PlayerRuntimeState.BINDING -> Unit
+                PlayerRuntimeState.READY,
+                PlayerRuntimeState.ACTIVE,
+                -> startPendingMediaLoad()
+                PlayerRuntimeState.CLOSING ->
+                    error("Player runtime entered closing during open")
+            }
         } catch (error: Exception) {
             setError("无法加载视频：${error.message ?: error.javaClass.simpleName}", error)
         }
@@ -270,15 +529,12 @@ internal class PlayerSession private constructor(context: Context) {
         requireMainThread()
         if (!_state.value.hasMedia || !surface.isValid) return
         val lease = _state.value.surfaceLease
+        val active = activeSurfaceLease
         if (
             isCurrentPlayerSurfaceOwner(lease, role, ownerToken, generation) &&
-                currentSurface === surface
+                active?.surface === surface
         ) {
-            engine?.let { activeEngine ->
-                runEngineAction("无法更新播放画面尺寸") {
-                    activeEngine.updateSurfaceSize(width, height)
-                }
-            }
+            runtimeConnection.updateSurface(generation, width, height)
             return
         }
         if (!isPendingPlayerSurfaceTarget(lease, role, ownerToken, generation)) {
@@ -289,7 +545,14 @@ internal class PlayerSession private constructor(context: Context) {
             return
         }
         pendingSurfaceLease =
-            PendingSurfaceLease(role, ownerToken, generation, surface, width, height)
+            SurfaceParcel(
+                role = role,
+                ownerToken = ownerToken,
+                generation = generation,
+                surface = surface,
+                width = width,
+                height = height,
+            )
         if (lease.currentOwner != null || !lease.nativeDetachCompleted) {
             PlayerDebugLogBuffer.append(
                 TAG,
@@ -297,59 +560,7 @@ internal class PlayerSession private constructor(context: Context) {
             )
             return
         }
-        attachPendingSurfaceLease()
-    }
-
-    private fun attachPendingSurfaceLease() {
-        val pending = pendingSurfaceLease ?: return
-        val lease = _state.value.surfaceLease
-        if (
-            !isPendingPlayerSurfaceTarget(
-                lease,
-                pending.role,
-                pending.ownerToken,
-                pending.generation,
-            ) ||
-                lease.currentOwner != null ||
-                !lease.nativeDetachCompleted
-        ) {
-            return
-        }
-        val surface = pending.surface
-        PlayerDebugLogBuffer.append(
-            TAG,
-            "准备 native attach role=${pending.role} generation=${pending.generation} phase=${lease.phase}",
-        )
-        val activeEngine =
-            engine ?: run {
-                setError(
-                    "播放器内核未在 Surface 到达前完成初始化",
-                    IllegalStateException("Player engine is missing during Surface attach"),
-                )
-                return
-            }
-        if (!runEngineAction("无法连接播放画面") {
-                activeEngine.attachSurface(surface, pending.width, pending.height)
-            }) {
-            return
-        }
-        currentSurface = surface
-        pendingSurfaceLease = null
-        _state.value =
-            _state.value.copy(
-                surfaceLease =
-                    activatePendingPlayerSurface(
-                        _state.value.surfaceLease,
-                        pending.role,
-                        pending.ownerToken,
-                        pending.generation,
-                    ),
-            )
-        PlayerDebugLogBuffer.append(
-            TAG,
-            "连接播放画面 role=${pending.role} generation=${pending.generation} phase=${_state.value.surfaceLease.phase}",
-        )
-        startPendingMediaLoad(activeEngine)
+        requestPendingSurfaceAttach()
     }
 
     fun updateSurface(
@@ -361,6 +572,7 @@ internal class PlayerSession private constructor(context: Context) {
         height: Int,
     ) {
         requireMainThread()
+        val active = activeSurfaceLease
         if (
             isCurrentPlayerSurfaceOwner(
                 _state.value.surfaceLease,
@@ -368,24 +580,20 @@ internal class PlayerSession private constructor(context: Context) {
                 ownerToken,
                 generation,
             ) &&
-                currentSurface === surface
+                active?.surface === surface
         ) {
-            engine?.let { activeEngine ->
-                runEngineAction("无法更新播放画面尺寸") {
-                    activeEngine.updateSurfaceSize(width, height)
-                }
-            }
+            runtimeConnection.updateSurface(generation, width, height)
             return
         }
         pendingSurfaceLease
-            ?.takeIf {
-                it.role == role &&
-                    it.ownerToken == ownerToken &&
-                    it.generation == generation &&
-                    it.surface === surface
+            ?.takeIf { pending ->
+                pending.role == role &&
+                    pending.ownerToken == ownerToken &&
+                    pending.generation == generation &&
+                    pending.surface === surface
             }
-            ?.let {
-                pendingSurfaceLease = it.copy(width = width, height = height)
+            ?.let { pending ->
+                pendingSurfaceLease = pending.copy(width = width, height = height)
             }
     }
 
@@ -404,16 +612,21 @@ internal class PlayerSession private constructor(context: Context) {
                 pending.generation == generation &&
                 (surface == null || pending.surface === surface)
         ) {
-            pendingSurfaceLease = null
-            val lease = _state.value.surfaceLease
-            if (isPendingPlayerSurfaceTarget(lease, role, ownerToken, generation)) {
-                _state.value =
-                    _state.value.copy(
-                        surfaceLease = lease.copy(pendingTarget = null),
-                    )
+            if (_state.value.surfaceLease.nativeState == PlayerNativeSurfaceState.ATTACHING) {
+                pendingSurfaceLease = pending.copy(detachRequested = true)
+            } else {
+                pendingSurfaceLease = null
+                val lease = _state.value.surfaceLease
+                if (isPendingPlayerSurfaceTarget(lease, role, ownerToken, generation)) {
+                    _state.value =
+                        _state.value.copy(
+                            surfaceLease = lease.copy(pendingTarget = null),
+                        )
+                }
             }
             return
         }
+        val active = activeSurfaceLease
         if (
             !isCurrentPlayerSurfaceOwner(
                 _state.value.surfaceLease,
@@ -421,7 +634,8 @@ internal class PlayerSession private constructor(context: Context) {
                 ownerToken,
                 generation,
             ) ||
-                (surface != null && currentSurface !== surface)
+                active == null ||
+                (surface != null && active.surface !== surface)
         ) {
             PlayerDebugLogBuffer.append(
                 TAG,
@@ -429,30 +643,7 @@ internal class PlayerSession private constructor(context: Context) {
             )
             return
         }
-        PlayerDebugLogBuffer.append(
-            TAG,
-            "准备 native detach role=$role generation=$generation phase=${_state.value.surfaceLease.phase}",
-        )
-        if (!detachAttachedSurface()) return
-        val completed = completePlayerSurfaceDetach(_state.value.surfaceLease)
-        val returnToFloating =
-            completed.phase == PlayerSurfaceTransferPhase.WAITING_FLOATING_SURFACE &&
-                completed.transferTarget == PlayerSurfaceRole.FLOATING
-        _state.value =
-            _state.value.copy(
-                presentation =
-                    if (returnToFloating) {
-                        PlayerPresentation.FLOATING_PLAYER
-                    } else {
-                        _state.value.presentation
-                    },
-                surfaceLease = completed,
-            )
-        PlayerDebugLogBuffer.append(
-            TAG,
-            "释放播放画面 role=$role generation=$generation phase=${completed.phase}",
-        )
-        attachPendingSurfaceLease()
+        requestActiveSurfaceDetach()
     }
 
     fun togglePause() {
@@ -462,17 +653,15 @@ internal class PlayerSession private constructor(context: Context) {
 
     fun setPaused(paused: Boolean) {
         requireMainThread()
-        val activeEngine = engine ?: return
-        if (!_state.value.hasMedia) return
-        if (runEngineAction("无法设置暂停状态") { activeEngine.setPaused(paused) }) {
+        if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
+        if (runtimeConnection.setPaused(paused) != null) {
             _state.value = _state.value.copy(paused = paused)
         }
     }
 
     fun seekTo(positionSeconds: Double) {
         requireMainThread()
-        val activeEngine = engine ?: return
-        if (!_state.value.hasMedia) return
+        if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
         val duration = _state.value.durationSeconds
         val target =
             if (duration > 0.0) {
@@ -480,11 +669,7 @@ internal class PlayerSession private constructor(context: Context) {
             } else {
                 positionSeconds.coerceAtLeast(0.0)
             }
-        if (
-            runEngineAction("无法跳转播放位置") {
-                activeEngine.seekTo(target, settingsStore.current.preciseSeeking)
-            }
-        ) {
+        if (runtimeConnection.seekTo(target, settingsStore.current.preciseSeeking) != null) {
             _state.value = _state.value.copy(positionSeconds = target)
         }
     }
@@ -500,9 +685,8 @@ internal class PlayerSession private constructor(context: Context) {
     fun setSpeed(speed: Double) {
         requireMainThread()
         require(speed in PLAYER_SPEED_OPTIONS) { "Unsupported player speed: $speed" }
-        val activeEngine = engine ?: return
-        if (!_state.value.hasMedia) return
-        if (runEngineAction("无法设置播放速度") { activeEngine.setSpeed(speed) }) {
+        if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
+        if (runtimeConnection.setSpeed(speed) != null) {
             _state.value = _state.value.copy(speed = speed)
             if (settingsStore.current.rememberPlaybackSpeed) {
                 settingsStore.setLastPlaybackSpeed(speed)
@@ -512,86 +696,77 @@ internal class PlayerSession private constructor(context: Context) {
 
     fun setAudioTrack(trackId: Int) {
         requireMainThread()
-        val activeEngine = engine ?: return
         val snapshot = _state.value
-        if (!snapshot.hasMedia) return
-        if (runEngineAction("无法切换音轨") { activeEngine.setAudioTrack(trackId) }) {
-            _state.value = snapshot.copy(
-                selectedAudioTrackId = trackId,
-                audioTracks = snapshot.audioTracks.map { it.copy(selected = it.id == trackId) },
-            )
+        if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) return
+        if (runtimeConnection.setAudioTrack(trackId) != null) {
+            _state.value =
+                snapshot.copy(
+                    selectedAudioTrackId = trackId,
+                    audioTracks =
+                        snapshot.audioTracks.map { track ->
+                            track.copy(selected = track.id == trackId)
+                        },
+                )
         }
     }
 
     fun setSubtitleTrack(trackId: Int?) {
         requireMainThread()
-        val activeEngine = engine ?: return
         val snapshot = _state.value
-        if (!snapshot.hasMedia) return
-        if (runEngineAction("无法切换字幕") { activeEngine.setSubtitleTrack(trackId) }) {
-            _state.value = snapshot.copy(
-                selectedSubtitleTrackId = trackId,
-                subtitleTracks = snapshot.subtitleTracks.map { it.copy(selected = it.id == trackId) },
-            )
+        if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) return
+        if (runtimeConnection.setSubtitleTrack(trackId) != null) {
+            _state.value =
+                snapshot.copy(
+                    selectedSubtitleTrackId = trackId,
+                    subtitleTracks =
+                        snapshot.subtitleTracks.map { track ->
+                            track.copy(selected = track.id == trackId)
+                        },
+                )
         }
     }
 
     fun setVideoFitMode(mode: PlayerVideoFitMode) {
         requireMainThread()
-        val activeEngine = engine ?: return
-        if (!runEngineAction("无法切换画面比例") { activeEngine.applyVideoFitMode(mode) }) return
-        _state.value = _state.value.copy(videoFitMode = mode)
+        if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
+        if (runtimeConnection.applyVideoFitMode(mode.toRuntimeId()) != null) {
+            _state.value = _state.value.copy(videoFitMode = mode)
+        }
     }
 
     fun cycleAudioTrack() {
         requireMainThread()
-        val activeEngine = engine ?: return
         val snapshot = _state.value
         if (snapshot.audioTracks.isEmpty()) return
-        val currentIndex = snapshot.audioTracks.indexOfFirst { it.id == snapshot.selectedAudioTrackId }
-        val next = snapshot.audioTracks[(currentIndex + 1).mod(snapshot.audioTracks.size)]
-        if (runEngineAction("无法切换音轨") { activeEngine.setAudioTrack(next.id) }) {
-            _state.value =
-                snapshot.copy(
-                    selectedAudioTrackId = next.id,
-                    audioTracks = snapshot.audioTracks.map { it.copy(selected = it.id == next.id) },
-                )
-        }
+        val currentIndex =
+            snapshot.audioTracks.indexOfFirst { track ->
+                track.id == snapshot.selectedAudioTrackId
+            }
+        setAudioTrack(snapshot.audioTracks[(currentIndex + 1).mod(snapshot.audioTracks.size)].id)
     }
 
     fun cycleSubtitleTrack() {
         requireMainThread()
-        val activeEngine = engine ?: return
         val snapshot = _state.value
         if (snapshot.subtitleTracks.isEmpty()) return
-        val currentIndex = snapshot.subtitleTracks.indexOfFirst { it.id == snapshot.selectedSubtitleTrackId }
-        if (snapshot.selectedSubtitleTrackId != null && currentIndex == snapshot.subtitleTracks.lastIndex) {
-            if (runEngineAction("无法关闭字幕") { activeEngine.setSubtitleTrack(null) }) {
-                _state.value =
-                    snapshot.copy(
-                        selectedSubtitleTrackId = null,
-                        subtitleTracks = snapshot.subtitleTracks.map { it.copy(selected = false) },
-                    )
+        val currentIndex =
+            snapshot.subtitleTracks.indexOfFirst { track ->
+                track.id == snapshot.selectedSubtitleTrackId
             }
+        if (
+            snapshot.selectedSubtitleTrackId != null &&
+                currentIndex == snapshot.subtitleTracks.lastIndex
+        ) {
+            setSubtitleTrack(null)
             return
         }
         val next = snapshot.subtitleTracks[(currentIndex + 1).coerceAtLeast(0)]
-        if (runEngineAction("无法切换字幕") { activeEngine.setSubtitleTrack(next.id) }) {
-            _state.value =
-                snapshot.copy(
-                    selectedSubtitleTrackId = next.id,
-                    subtitleTracks = snapshot.subtitleTracks.map { it.copy(selected = it.id == next.id) },
-                )
-        }
+        setSubtitleTrack(next.id)
     }
 
     fun cycleVideoFitMode() {
         requireMainThread()
-        val activeEngine = engine ?: return
-        val next = _state.value.videoFitMode.next()
-        if (runEngineAction("无法切换画面比例") { activeEngine.applyVideoFitMode(next) }) {
-            _state.value = _state.value.copy(videoFitMode = next)
-        }
+        setVideoFitMode(_state.value.videoFitMode.next())
     }
 
     fun cycleAnime4KMode() {
@@ -602,160 +777,471 @@ internal class PlayerSession private constructor(context: Context) {
             settingsStore.setAnime4KMode(next)
             return
         }
-        val activeEngine = engine ?: return
-        val shaderFiles = shaderManager.resolveShaderFiles(next)
-        if (runEngineAction("无法切换 Anime4K 模式") { activeEngine.applyShaders(shaderFiles) }) {
-            _state.value = _state.value.copy(anime4KMode = next, activeShaderFiles = shaderFiles)
+        if (!_state.value.runtimeState.acceptsCommands()) return
+        try {
+            val shaderFiles = shaderManager.resolveShaderFiles(next)
+            val config = settingsStore.current.toRuntimeConfig(shaderFiles)
+            if (runtimeConnection.applySettings(config) != null) {
+                _state.value =
+                    _state.value.copy(
+                        anime4KMode = next,
+                        activeShaderFiles = shaderFiles,
+                    )
+            }
+        } catch (error: Exception) {
+            setError(
+                "无法切换 Anime4K 模式：${error.message ?: error.javaClass.simpleName}",
+                error,
+            )
         }
     }
 
     fun captureScreenshot(onResult: (Result<String>) -> Unit) {
         requireMainThread()
-        val activeEngine = engine
-        if (activeEngine == null || !_state.value.hasMedia) {
+        if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) {
             onResult(Result.failure(IllegalStateException("当前没有可截图的视频")))
             return
         }
-        val temporary = File(appContext.cacheDir, "player-screenshot-${System.currentTimeMillis()}.png")
-        try {
-            activeEngine.captureScreenshot(temporary.absolutePath)
-        } catch (error: Exception) {
-            onResult(Result.failure(error))
+        val temporary =
+            File(
+                appContext.cacheDir,
+                "player-screenshot-${System.currentTimeMillis()}.png",
+            )
+        val commandId = runtimeConnection.captureScreenshot(temporary.absolutePath)
+        if (commandId == null) {
+            onResult(Result.failure(IllegalStateException("播放器运行时无法接收截图命令")))
             return
         }
-        mainScope.launch(Dispatchers.IO) {
-            val generated =
-                repeatUntilNotNull(SCREENSHOT_WAIT_ATTEMPTS, SCREENSHOT_WAIT_INTERVAL_MS) {
-                    temporary.takeIf { it.isFile && it.length() > 0L }
-                }
-            val result =
-                runCatching {
-                    val file = requireNotNull(generated) { "mpv did not produce a screenshot" }
-                    saveScreenshot(file)
-                }
-            temporary.delete()
-            withContext(Dispatchers.Main.immediate) { onResult(result) }
-        }
+        pendingScreenshots[commandId] = PendingScreenshot(temporary, onResult)
     }
 
     fun onHostBackgrounded() {
         requireMainThread()
-        if (_state.value.hasMedia && settingsStore.current.backgroundBehavior == PlayerBackgroundBehavior.PAUSE) {
+        if (
+            _state.value.hasMedia &&
+                settingsStore.current.backgroundBehavior == PlayerBackgroundBehavior.PAUSE
+        ) {
             setPaused(true)
         }
     }
 
     fun close() {
         requireMainThread()
-        mainHandler.removeCallbacks(progressPoll)
-        pendingMediaLoad = null
-        pendingSurfaceLease = null
-        val closingLease = beginClosingPlayerSurfaceLease(_state.value.surfaceLease)
-        _state.value = _state.value.copy(surfaceLease = closingLease)
-        if (!detachAttachedSurface()) return
-        runCatching { engine?.destroy() }
-            .onFailure { AppLogger.e(TAG, "Failed to destroy MPV core", it) }
-        engine = null
-        currentSurface = null
-        // Keep content:// descriptors valid until libmpv has stopped reading the active media.
-        mediaResolver.close()
-        _state.value =
-            PlayerSessionState(
-                loadGeneration = _state.value.loadGeneration,
-                surfaceLease = completeClosingPlayerSurfaceLease(closingLease),
-            )
-    }
-
-    private fun ensureEngine(settings: PlayerSettings): MpvPlayerEngine {
-        engine?.let { return it }
-        try {
-            return MpvPlayerEngine(appContext, engineListener).also { created ->
-                created.initialize(settings)
-                engine = created
-            }
-        } catch (error: LinkageError) {
-            throw IllegalStateException(
-                "mpv 运行时无法链接：${error.message ?: error.javaClass.simpleName}",
-                error,
-            )
-        }
-    }
-
-    private fun detachAttachedSurface(): Boolean {
-        if (currentSurface == null) {
-            return true
-        }
-        val detached = runEngineAction("无法断开播放画面") { engine?.detachSurface() }
-        if (!detached) return false
-        currentSurface = null
-        return true
-    }
-
-    private fun startPendingMediaLoad(activeEngine: MpvPlayerEngine) {
-        val pending = pendingMediaLoad ?: return
-        if (!isPlayerMediaLoadReady(hasPendingLoad = true, hasAttachedSurface = currentSurface != null)) return
-        check(_state.value.request?.requestId == pending.requestId) {
-            "Pending player request does not match the active session"
-        }
-        pendingMediaLoad = null
-        try {
-            val settings = settingsStore.current
-            val shaderFiles = shaderManager.resolveShaderFiles(_state.value.anime4KMode)
-            _state.value = _state.value.copy(activeShaderFiles = shaderFiles)
-            activeEngine.load(
-                pending.target,
-                pending.headers,
-                settings,
-                shaderFiles,
-                initialSpeed = _state.value.speed,
-            )
-            mainHandler.removeCallbacks(progressPoll)
-            mainHandler.post(progressPoll)
-            PlayerDebugLogBuffer.append(TAG, "播放画面已连接，开始加载媒体")
-        } catch (error: Exception) {
-            setError("无法加载视频：${error.message ?: error.javaClass.simpleName}", error)
-        }
-    }
-
-    private fun updateProgressFromMpv(): Boolean {
-        val activeEngine = engine ?: return false
         val snapshot = _state.value
-        val progress =
-            try {
-                activeEngine.readProgress()
-            } catch (error: Exception) {
-                setError("无法读取播放状态：${error.message ?: error.javaClass.simpleName}", error)
-                return false
-            }
+        if (
+            snapshot.runtimeState == PlayerRuntimeState.STOPPED &&
+                !snapshot.hasMedia
+        ) {
+            return
+        }
+        closeRequested = true
+        closeCommandId = null
+        pendingMediaLoad = null
+        lastLoadCommandId = null
+        failAllScreenshots(IllegalStateException("播放器已关闭"))
+        val previousRuntimeState = snapshot.runtimeState
+        PlayerCrashJournal.record(
+            appContext,
+            PlayerCrashEventType.RUNTIME_CLOSE,
+            snapshot.runtimeGeneration,
+        )
+        val closingLease = beginClosingPlayerSurfaceLease(snapshot.surfaceLease)
         _state.value =
             snapshot.copy(
-                positionSeconds =
-                    progress.positionSeconds?.takeIf(Double::isFinite) ?: snapshot.positionSeconds,
-                durationSeconds =
-                    progress.durationSeconds?.takeIf(Double::isFinite) ?: snapshot.durationSeconds,
-                paused = progress.paused ?: snapshot.paused,
-                speed =
-                    progress.speed?.takeIf { it.isFinite() && it > 0.0 } ?: snapshot.speed,
-                networkSpeedBytesPerSecond = progress.networkSpeedBytesPerSecond,
+                surfaceLease = closingLease,
+                runtimeState = PlayerRuntimeState.CLOSING,
+                loading = false,
+                buffering = false,
             )
-        return true
+        if (
+            previousRuntimeState == PlayerRuntimeState.STOPPED ||
+                previousRuntimeState == PlayerRuntimeState.BINDING ||
+                previousRuntimeState == PlayerRuntimeState.DEAD
+        ) {
+            runtimeConnection.disconnect()
+            finalizeClosedSession()
+            return
+        }
+        when (_state.value.surfaceLease.nativeState) {
+            PlayerNativeSurfaceState.DETACHED -> sendRuntimeClose()
+            PlayerNativeSurfaceState.ATTACHING -> {
+                pendingSurfaceLease =
+                    pendingSurfaceLease?.copy(detachRequested = true)
+            }
+            PlayerNativeSurfaceState.ATTACHED -> requestActiveSurfaceDetach()
+            PlayerNativeSurfaceState.DETACHING -> Unit
+        }
     }
 
-    private fun updateTracks() {
-        val tracks =
-            try {
-                engine?.readTracks() ?: return
-            } catch (error: Exception) {
-                setError("无法读取媒体轨道：${error.message ?: error.javaClass.simpleName}", error)
-                return
-            }
+    private fun connectRuntime(config: PlayerRuntimeConfig) {
+        val generation = _state.value.runtimeGeneration + 1L
         _state.value =
             _state.value.copy(
-                audioTracks = tracks.audioTracks,
-                subtitleTracks = tracks.subtitleTracks,
-                selectedAudioTrackId = tracks.audioTracks.singleOrNull { it.selected }?.id,
-                selectedSubtitleTrackId = tracks.subtitleTracks.singleOrNull { it.selected }?.id,
+                runtimeGeneration = generation,
+                runtimeState = PlayerRuntimeState.BINDING,
+                error = null,
             )
+        PlayerDebugLogBuffer.append(TAG, "绑定播放器运行时 generation=$generation")
+        PlayerCrashJournal.record(
+            appContext,
+            PlayerCrashEventType.RUNTIME_BINDING,
+            generation,
+        )
+        runtimeConnection.connect(generation, config)
+    }
+
+    private fun requestPendingSurfaceAttach() {
+        val pending = pendingSurfaceLease ?: return
+        val snapshot = _state.value
+        if (
+            !snapshot.runtimeState.acceptsCommands() ||
+                pending.attachCommandId != null ||
+                snapshot.surfaceLease.currentOwner != null ||
+                snapshot.surfaceLease.nativeState != PlayerNativeSurfaceState.DETACHED
+        ) {
+            return
+        }
+        if (
+            !isPendingPlayerSurfaceTarget(
+                snapshot.surfaceLease,
+                pending.role,
+                pending.ownerToken,
+                pending.generation,
+            )
+        ) {
+            return
+        }
+        val attachingLease =
+            beginPendingPlayerSurfaceAttach(
+                snapshot.surfaceLease,
+                pending.role,
+                pending.ownerToken,
+                pending.generation,
+            )
+        _state.value = snapshot.copy(surfaceLease = attachingLease)
+        val commandId =
+            runtimeConnection.attachSurface(
+                surfaceGeneration = pending.generation,
+                surface = pending.surface,
+                width = pending.width,
+                height = pending.height,
+            )
+        if (commandId == null) {
+            _state.value =
+                _state.value.copy(
+                    surfaceLease =
+                        rejectPendingPlayerSurfaceAttach(
+                            _state.value.surfaceLease,
+                            pending.role,
+                            pending.ownerToken,
+                            pending.generation,
+                        ),
+                )
+            setError(
+                "无法发送播放画面连接命令",
+                IllegalStateException("Player runtime is unavailable"),
+            )
+            return
+        }
+        pendingSurfaceLease = pending.copy(attachCommandId = commandId)
+        PlayerCrashJournal.record(
+            appContext,
+            PlayerCrashEventType.ATTACH_SENT,
+            _state.value.runtimeGeneration,
+            pending.generation,
+            commandId,
+        )
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "发送 Surface attach role=${pending.role} generation=${pending.generation}",
+        )
+    }
+
+    private fun requestActiveSurfaceDetach() {
+        val active = activeSurfaceLease ?: return
+        val snapshot = _state.value
+        if (snapshot.surfaceLease.nativeState != PlayerNativeSurfaceState.ATTACHED) return
+        val detachingLease =
+            beginPlayerSurfaceDetach(
+                snapshot.surfaceLease,
+                active.role,
+                active.ownerToken,
+                active.generation,
+            )
+        _state.value = snapshot.copy(surfaceLease = detachingLease)
+        val commandId = runtimeConnection.detachSurface(active.generation)
+        if (commandId == null) {
+            _state.value =
+                _state.value.copy(
+                    surfaceLease = rejectPlayerSurfaceDetach(_state.value.surfaceLease),
+                )
+            setError(
+                "无法发送播放画面断开命令",
+                IllegalStateException("Player runtime is unavailable"),
+            )
+            return
+        }
+        activeSurfaceLease = active.copy(detachCommandId = commandId)
+        PlayerCrashJournal.record(
+            appContext,
+            PlayerCrashEventType.DETACH_SENT,
+            _state.value.runtimeGeneration,
+            active.generation,
+            commandId,
+        )
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "发送 Surface detach role=${active.role} generation=${active.generation}",
+        )
+    }
+
+    private fun startPendingMediaLoad() {
+        val pending = pendingMediaLoad ?: return
+        val snapshot = _state.value
+        if (
+            snapshot.runtimeState != PlayerRuntimeState.ACTIVE ||
+                snapshot.surfaceLease.nativeState != PlayerNativeSurfaceState.ATTACHED ||
+                activeSurfaceLease == null
+        ) {
+            return
+        }
+        check(snapshot.request?.requestId == pending.requestId) {
+            "Pending player request does not match the active session"
+        }
+        val commandId =
+            runtimeConnection.load(
+                PlayerRuntimeLoadRequest(
+                    requestId = pending.requestId,
+                    uri = pending.uri,
+                    headers = pending.headers,
+                    config = pending.config,
+                    initialSpeed = pending.initialSpeed,
+                ),
+            )
+        if (commandId == null) {
+            pendingMediaLoad = null
+            setError(
+                "无法发送媒体加载命令",
+                IllegalStateException("Player runtime is unavailable"),
+            )
+            return
+        }
+        lastLoadCommandId = commandId
+        pendingMediaLoad = null
+        PlayerCrashJournal.record(
+            appContext,
+            PlayerCrashEventType.LOAD_SENT,
+            snapshot.runtimeGeneration,
+            activeSurfaceLease?.generation,
+            commandId,
+        )
+        PlayerDebugLogBuffer.append(
+            TAG,
+            "Surface attach 已确认，发送媒体加载 request=${pending.requestId}",
+        )
+    }
+
+    private fun handleSurfaceAttachFailure(commandId: Long) {
+        val pending =
+            pendingSurfaceLease?.takeIf { surface -> surface.attachCommandId == commandId }
+                ?: return
+        if (_state.value.surfaceLease.nativeState == PlayerNativeSurfaceState.ATTACHING) {
+            _state.value =
+                _state.value.copy(
+                    surfaceLease =
+                        rejectPendingPlayerSurfaceAttach(
+                            _state.value.surfaceLease,
+                            pending.role,
+                            pending.ownerToken,
+                            pending.generation,
+                        ),
+                )
+        }
+        pendingSurfaceLease =
+            if (pending.detachRequested) {
+                val lease = _state.value.surfaceLease
+                if (
+                    isPendingPlayerSurfaceTarget(
+                        lease,
+                        pending.role,
+                        pending.ownerToken,
+                        pending.generation,
+                    )
+                ) {
+                    _state.value =
+                        _state.value.copy(surfaceLease = lease.copy(pendingTarget = null))
+                }
+                null
+            } else {
+                pending.copy(attachCommandId = null)
+            }
+        if (closeRequested) {
+            sendRuntimeClose()
+        }
+    }
+
+    private fun handleSurfaceDetachFailure(commandId: Long) {
+        val active =
+            activeSurfaceLease?.takeIf { surface -> surface.detachCommandId == commandId }
+                ?: return
+        if (_state.value.surfaceLease.nativeState == PlayerNativeSurfaceState.DETACHING) {
+            _state.value =
+                _state.value.copy(
+                    surfaceLease = rejectPlayerSurfaceDetach(_state.value.surfaceLease),
+                )
+        }
+        activeSurfaceLease = active.copy(detachCommandId = null)
+        if (closeRequested) {
+            sendRuntimeCloseCommand()
+        }
+    }
+
+    private fun sendRuntimeClose() {
+        if (closeCommandId != null) return
+        if (_state.value.surfaceLease.nativeState != PlayerNativeSurfaceState.DETACHED) return
+        sendRuntimeCloseCommand()
+    }
+
+    private fun sendRuntimeCloseCommand() {
+        if (closeCommandId != null) return
+        val commandId = runtimeConnection.close()
+        if (commandId == null) {
+            runtimeConnection.disconnect()
+            finalizeClosedSession()
+            return
+        }
+        closeCommandId = commandId
+    }
+
+    private fun finalizeClosedSession() {
+        val snapshot = _state.value
+        val resetLease =
+            resetPlayerSurfaceLeaseAfterRuntimeStop(
+                beginClosingPlayerSurfaceLease(snapshot.surfaceLease),
+            )
+        val closedLease = completeClosingPlayerSurfaceLease(resetLease)
+        pendingSurfaceLease = null
+        activeSurfaceLease = null
+        pendingMediaLoad = null
+        lastLoadCommandId = null
+        closeCommandId = null
+        closeRequested = false
+        _state.value =
+            PlayerSessionState(
+                loadGeneration = snapshot.loadGeneration,
+                runtimeGeneration = snapshot.runtimeGeneration,
+                runtimeState = PlayerRuntimeState.STOPPED,
+                runtimeProcessId = null,
+                surfaceLease = closedLease,
+            )
+    }
+
+    private fun handleUnexpectedRuntimeStop(message: String) {
+        val snapshot = _state.value
+        val processId = snapshot.runtimeProcessId
+        snapshot.request?.let { request ->
+            failedSession =
+                FailedPlayerSession(
+                    request = request,
+                    presentation = snapshot.presentation,
+                    positionSeconds = snapshot.positionSeconds,
+                    speed = snapshot.speed,
+                    runtimeGeneration = snapshot.runtimeGeneration,
+                )
+        }
+        PlayerCrashJournal.record(
+            appContext,
+            PlayerCrashEventType.RUNTIME_DEATH,
+            snapshot.runtimeGeneration,
+            snapshot.surfaceLease.currentOwner?.generation,
+        )
+        if (processId != null) {
+            PlayerCrashCoordinator.onRuntimeDeath(
+                context = appContext,
+                runtimeGeneration = snapshot.runtimeGeneration,
+                processId = processId,
+            )
+        }
+        failAllScreenshots(IllegalStateException(message))
+        pendingMediaLoad = null
+        pendingSurfaceLease = null
+        activeSurfaceLease = null
+        closeCommandId = null
+        closeRequested = false
+        var deadLease = resetPlayerSurfaceLeaseAfterRuntimeStop(snapshot.surfaceLease)
+        if (snapshot.presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
+            deadLease = requestFullscreenActivityFinish(deadLease)
+        }
+        _state.value =
+            snapshot.copy(
+                presentation = PlayerPresentation.BROWSER_ONLY,
+                surfaceLease = deadLease,
+                runtimeState = PlayerRuntimeState.DEAD,
+                loading = false,
+                buffering = false,
+                paused = true,
+                error = message,
+            )
+        PlayerDebugLogBuffer.append(TAG, message)
+    }
+
+    fun restartAfterCrash(runtimeGeneration: Long): PlayerPresentation? {
+        requireMainThread()
+        val failed =
+            failedSession?.takeIf { session ->
+                session.runtimeGeneration == runtimeGeneration &&
+                    _state.value.runtimeState == PlayerRuntimeState.DEAD
+            } ?: return null
+        failedSession = null
+        val snapshot = _state.value
+        _state.value =
+            PlayerSessionState(
+                loadGeneration = snapshot.loadGeneration,
+                runtimeGeneration = snapshot.runtimeGeneration,
+                surfaceLease =
+                    PlayerSurfaceLeaseState(
+                        generation = snapshot.surfaceLease.generation,
+                        activityRequestGeneration =
+                            snapshot.surfaceLease.activityRequestGeneration,
+                    ),
+            )
+        open(failed.request, failed.presentation)
+        pendingMediaLoad =
+            pendingMediaLoad?.copy(initialSpeed = failed.speed)
+        pendingRestartSeekSeconds = failed.positionSeconds
+        _state.value = _state.value.copy(speed = failed.speed)
+        return failed.presentation
+    }
+
+    private fun completeScreenshot(pending: PendingScreenshot) {
+        mainScope.launch(Dispatchers.IO) {
+            val generated =
+                repeatUntilNotNull(SCREENSHOT_WAIT_ATTEMPTS, SCREENSHOT_WAIT_INTERVAL_MS) {
+                    pending.file.takeIf { file -> file.isFile && file.length() > 0L }
+                }
+            val result =
+                runCatching {
+                    val file = requireNotNull(generated) { "mpv did not produce a screenshot" }
+                    saveScreenshot(file)
+                }
+            pending.file.delete()
+            withContext(Dispatchers.Main.immediate) { pending.onResult(result) }
+        }
+    }
+
+    private fun failScreenshot(commandId: Long, error: Throwable) {
+        val pending = pendingScreenshots.remove(commandId) ?: return
+        pending.file.delete()
+        pending.onResult(Result.failure(error))
+    }
+
+    private fun failAllScreenshots(error: Throwable) {
+        val pending = pendingScreenshots.values.toList()
+        pendingScreenshots.clear()
+        pending.forEach { screenshot ->
+            screenshot.file.delete()
+            screenshot.onResult(Result.failure(error))
+        }
     }
 
     private suspend fun <T> repeatUntilNotNull(
@@ -795,11 +1281,17 @@ internal class PlayerSession private constructor(context: Context) {
             ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
                 put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-                put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Kiyori")
+                put(
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    "${Environment.DIRECTORY_PICTURES}/Kiyori",
+                )
             }
         val uri =
             requireNotNull(
-                appContext.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values),
+                appContext.contentResolver.insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    values,
+                ),
             ) { "Unable to create screenshot in MediaStore" }
         appContext.contentResolver.openOutputStream(uri).use { output ->
             requireNotNull(output) { "Unable to open screenshot output" }
@@ -826,52 +1318,14 @@ internal class PlayerSession private constructor(context: Context) {
         }
     }
 
-    private inline fun runEngineAction(message: String, action: () -> Unit): Boolean =
-        try {
-            action()
-            true
-        } catch (error: Exception) {
-            setError("$message：${error.message ?: error.javaClass.simpleName}", error)
-            false
-        }
+    private fun isCurrentRuntime(runtimeGeneration: Long): Boolean =
+        runtimeGeneration == _state.value.runtimeGeneration && runtimeGeneration > 0L
 
     private fun requireMainThread() {
         check(Looper.myLooper() == Looper.getMainLooper()) {
             "PlayerSession must be called on the main thread"
         }
     }
-
-    companion object {
-        private const val TAG = "PlayerSession"
-        private const val PROGRESS_INTERVAL_MS = 250L
-        private const val SCREENSHOT_WAIT_ATTEMPTS = 20
-        private const val SCREENSHOT_WAIT_INTERVAL_MS = 50L
-
-        @Volatile private var instance: PlayerSession? = null
-
-        fun getInstance(context: Context): PlayerSession =
-            instance ?: synchronized(this) {
-                instance
-                    ?: PlayerSession(context.applicationContext).also { session ->
-                        instance = session
-                    }
-            }
-    }
-
-    private data class PendingMediaLoad(
-        val requestId: String,
-        val target: String,
-        val headers: Map<String, String>,
-    )
-
-    private data class PendingSurfaceLease(
-        val role: PlayerSurfaceRole,
-        val ownerToken: String,
-        val generation: Long,
-        val surface: Surface,
-        val width: Int,
-        val height: Int,
-    )
 
     private fun prepareSurfaceLeaseForPresentation(presentation: PlayerPresentation) {
         val role =
@@ -940,10 +1394,63 @@ internal class PlayerSession private constructor(context: Context) {
         val expectedTransfer =
             snapshot.surfaceLease.phase ==
                 PlayerSurfaceTransferPhase.FULLSCREEN_TO_FLOATING_WAITING_FULLSCREEN_DESTROY ||
-                snapshot.surfaceLease.phase == PlayerSurfaceTransferPhase.WAITING_FLOATING_SURFACE ||
+                snapshot.surfaceLease.phase ==
+                    PlayerSurfaceTransferPhase.WAITING_FLOATING_SURFACE ||
                 snapshot.surfaceLease.phase == PlayerSurfaceTransferPhase.CLOSING
         if (!expectedTransfer && snapshot.presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
             close()
         }
+    }
+
+    private fun PlayerRuntimeState.acceptsCommands(): Boolean =
+        this == PlayerRuntimeState.READY || this == PlayerRuntimeState.ACTIVE
+
+    private data class PendingMediaLoad(
+        val requestId: String,
+        val uri: String,
+        val headers: Map<String, String>,
+        val config: PlayerRuntimeConfig,
+        val initialSpeed: Double,
+    )
+
+    private data class SurfaceParcel(
+        val role: PlayerSurfaceRole,
+        val ownerToken: String,
+        val generation: Long,
+        val surface: Surface,
+        val width: Int,
+        val height: Int,
+        val attachCommandId: Long? = null,
+        val detachCommandId: Long? = null,
+        val detachRequested: Boolean = false,
+    )
+
+    private data class PendingScreenshot(
+        val file: File,
+        val onResult: (Result<String>) -> Unit,
+    )
+
+    private data class FailedPlayerSession(
+        val request: PlayerMediaRequest,
+        val presentation: PlayerPresentation,
+        val positionSeconds: Double,
+        val speed: Double,
+        val runtimeGeneration: Long,
+    )
+
+    companion object {
+        private const val TAG = "PlayerSession"
+        private const val SCREENSHOT_WAIT_ATTEMPTS = 20
+        private const val SCREENSHOT_WAIT_INTERVAL_MS = 50L
+
+        @Volatile private var instance: PlayerSession? = null
+
+        fun getInstance(context: Context): PlayerSession =
+            instance ?: synchronized(this) {
+                instance
+                    ?: PlayerSession(context.applicationContext).also { session ->
+                        instance = session
+                    }
+            }
     }
 }

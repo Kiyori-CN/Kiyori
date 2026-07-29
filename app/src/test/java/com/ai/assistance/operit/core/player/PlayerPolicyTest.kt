@@ -141,7 +141,12 @@ class PlayerPolicyTest {
             )
         val surfaceLease =
             activatePendingPlayerSurface(
-                registration.state,
+                beginPendingPlayerSurfaceAttach(
+                    registration.state,
+                    PlayerSurfaceRole.FLOATING,
+                    "floating-1",
+                    requireNotNull(registration.generation),
+                ),
                 PlayerSurfaceRole.FLOATING,
                 "floating-1",
                 requireNotNull(registration.generation),

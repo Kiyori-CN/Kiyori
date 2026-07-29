@@ -329,6 +329,12 @@
             android:process=":crash"
             android:theme="@style/Theme.Operit" />
 
+        <service
+            android:name=".core.player.runtime.PlayerRuntimeService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":player" />
+
         <activity
             android:name=".ui.recovery.DataRecoveryActivity"
             android:exported="true"

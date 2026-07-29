@@ -1432,6 +1432,10 @@
 
     <!-- Crash Report Screen -->
     <string name="crash_report_header">The application has encountered an unrecoverable error and needs to restart.</string>
+    <string name="crash_report_player_header">The video player runtime has stopped. Kiyori is still running.</string>
+    <string name="crash_report_return_button">Return to Kiyori</string>
+    <string name="crash_report_restart_player_button">Restart video player</string>
+    <string name="crash_report_missing">The structured crash report could not be read.</string>
     <string name="crash_report_restart_button">Restart Application</string>
     <string name="crash_report_details_title">Error Details</string>
     <string name="crash_report_copy_button">Copy</string>

@@ -24,9 +24,21 @@ class PlayerSurfaceLeasePolicyTest {
         val registration =
             registerPlayerSurfaceOwner(prepared, PlayerSurfaceRole.FLOATING, "floating-1")
         val generation = requireNotNull(registration.generation)
+        val attaching =
+            beginPendingPlayerSurfaceAttach(
+                registration.state,
+                PlayerSurfaceRole.FLOATING,
+                "floating-1",
+                generation,
+            )
+
+        assertEquals(PlayerNativeSurfaceState.ATTACHING, attaching.nativeState)
+        assertNull(attaching.currentOwner)
+        assertFalse(attaching.nativeSurfaceAttached)
+
         val active =
             activatePendingPlayerSurface(
-                registration.state,
+                attaching,
                 PlayerSurfaceRole.FLOATING,
                 "floating-1",
                 generation,
@@ -50,7 +62,17 @@ class PlayerSurfaceLeasePolicyTest {
         )
         assertNull(requestFullscreenActivityLaunchIfReady(transferring).fullscreenLaunchRequestId)
 
-        val detached = completePlayerSurfaceDetach(transferring)
+        val detaching =
+            beginPlayerSurfaceDetach(
+                transferring,
+                PlayerSurfaceRole.FLOATING,
+                "floating-1",
+                requireNotNull(transferring.currentOwner).generation,
+            )
+        assertEquals(PlayerNativeSurfaceState.DETACHING, detaching.nativeState)
+        assertFalse(detaching.nativeDetachCompleted)
+
+        val detached = completePlayerSurfaceDetach(detaching)
 
         assertEquals(PlayerSurfaceTransferPhase.WAITING_FULLSCREEN_SURFACE, detached.phase)
         assertEquals(PlayerSurfaceRole.FULLSCREEN, detached.pendingTarget?.role)
@@ -86,10 +108,24 @@ class PlayerSurfaceLeasePolicyTest {
             )
         }
 
-        val detached = completePlayerSurfaceDetach(fullscreenRegistration.state)
+        val currentOwner = requireNotNull(fullscreenRegistration.state.currentOwner)
+        val detached =
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    fullscreenRegistration.state,
+                    currentOwner.role,
+                    currentOwner.ownerToken,
+                    currentOwner.generation,
+                ),
+            )
         val fullscreen =
             activatePendingPlayerSurface(
-                detached,
+                beginPendingPlayerSurfaceAttach(
+                    detached,
+                    PlayerSurfaceRole.FULLSCREEN,
+                    "fullscreen-1",
+                    fullscreenGeneration,
+                ),
                 PlayerSurfaceRole.FULLSCREEN,
                 "fullscreen-1",
                 fullscreenGeneration,
@@ -117,13 +153,27 @@ class PlayerSurfaceLeasePolicyTest {
         )
 
         val acknowledged = acknowledgeFullscreenFinishRequest(transferring, finishRequestId)
-        val detached = completePlayerSurfaceDetach(acknowledged)
+        val fullscreenOwner = requireNotNull(acknowledged.currentOwner)
+        val detached =
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    acknowledged,
+                    fullscreenOwner.role,
+                    fullscreenOwner.ownerToken,
+                    fullscreenOwner.generation,
+                ),
+            )
         val registration =
             registerPlayerSurfaceOwner(detached, PlayerSurfaceRole.FLOATING, "floating-2")
         val generation = requireNotNull(registration.generation)
         val floating =
             activatePendingPlayerSurface(
-                registration.state,
+                beginPendingPlayerSurfaceAttach(
+                    registration.state,
+                    PlayerSurfaceRole.FLOATING,
+                    "floating-2",
+                    generation,
+                ),
                 PlayerSurfaceRole.FLOATING,
                 "floating-2",
                 generation,
@@ -156,8 +206,17 @@ class PlayerSurfaceLeasePolicyTest {
             ),
         )
 
+        val transferring = beginFloatingToFullscreenTransfer(floating)
+        val floatingOwner = requireNotNull(transferring.currentOwner)
         val waitingFullscreen =
-            completePlayerSurfaceDetach(beginFloatingToFullscreenTransfer(floating))
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    transferring,
+                    floatingOwner.role,
+                    floatingOwner.ownerToken,
+                    floatingOwner.generation,
+                ),
+            )
         val staleRegistration =
             registerPlayerSurfaceOwner(
                 waitingFullscreen,
@@ -194,10 +253,24 @@ class PlayerSurfaceLeasePolicyTest {
             replacement.state.phase,
         )
 
-        val detached = completePlayerSurfaceDetach(replacement.state)
+        val oldOwner = requireNotNull(replacement.state.currentOwner)
+        val detached =
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    replacement.state,
+                    oldOwner.role,
+                    oldOwner.ownerToken,
+                    oldOwner.generation,
+                ),
+            )
         val active =
             activatePendingPlayerSurface(
-                detached,
+                beginPendingPlayerSurfaceAttach(
+                    detached,
+                    PlayerSurfaceRole.FULLSCREEN,
+                    "fullscreen-new",
+                    replacementGeneration,
+                ),
                 PlayerSurfaceRole.FULLSCREEN,
                 "fullscreen-new",
                 replacementGeneration,
@@ -211,7 +284,16 @@ class PlayerSurfaceLeasePolicyTest {
     fun ordinarySurfaceRecreationNeverReusesGeneration() {
         val floating = activeLease(PlayerSurfaceRole.FLOATING, "floating-1")
         val firstGeneration = requireNotNull(floating.currentOwner).generation
-        val detached = completePlayerSurfaceDetach(floating)
+        val owner = requireNotNull(floating.currentOwner)
+        val detached =
+            completePlayerSurfaceDetach(
+                beginPlayerSurfaceDetach(
+                    floating,
+                    owner.role,
+                    owner.ownerToken,
+                    owner.generation,
+                ),
+            )
         val registration =
             registerPlayerSurfaceOwner(
                 detached,
@@ -254,6 +336,20 @@ class PlayerSurfaceLeasePolicyTest {
         assertTrue(closed.nativeDetachCompleted)
     }
 
+    @Test
+    fun runtimeStopClearsRemoteOwnershipWithoutReusingGeneration() {
+        val active = activeLease(PlayerSurfaceRole.FLOATING, "floating-1")
+        val generation = requireNotNull(active.currentOwner).generation
+
+        val stopped = resetPlayerSurfaceLeaseAfterRuntimeStop(active)
+        val prepared = preparePlayerSurfaceLease(stopped, PlayerSurfaceRole.FLOATING)
+
+        assertEquals(PlayerNativeSurfaceState.DETACHED, stopped.nativeState)
+        assertNull(stopped.currentOwner)
+        assertNull(stopped.pendingTarget)
+        assertTrue(requireNotNull(prepared.pendingTarget).generation > generation)
+    }
+
     private fun activeLease(
         role: PlayerSurfaceRole,
         ownerToken: String,
@@ -261,7 +357,12 @@ class PlayerSurfaceLeasePolicyTest {
         val prepared = preparePlayerSurfaceLease(PlayerSurfaceLeaseState(), role)
         val registration = registerPlayerSurfaceOwner(prepared, role, ownerToken)
         return activatePendingPlayerSurface(
-            registration.state,
+            beginPendingPlayerSurfaceAttach(
+                registration.state,
+                role,
+                ownerToken,
+                requireNotNull(registration.generation),
+            ),
             role,
             ownerToken,
             requireNotNull(registration.generation),

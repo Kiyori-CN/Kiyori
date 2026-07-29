@@ -62,6 +62,7 @@ import android.net.Uri
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.ui.features.player.PlayerActivity
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellExternalDestination
@@ -89,6 +90,10 @@ class MainActivity : ComponentActivity() {
             "com.kiyori.action.OPEN_BROWSER_SETTINGS"
         const val ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS =
             "com.kiyori.action.OPEN_DOWNLOAD_SETTINGS"
+        const val ACTION_RESTART_PLAYER_AFTER_CRASH =
+            "com.kiyori.action.RESTART_PLAYER_AFTER_CRASH"
+        const val EXTRA_PLAYER_RUNTIME_GENERATION =
+            "com.kiyori.extra.PLAYER_RUNTIME_GENERATION"
     }
 
     private val TAG = "MainActivity"
@@ -283,6 +288,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?): Boolean {
+        if (intent?.action == ACTION_RESTART_PLAYER_AFTER_CRASH) {
+            val runtimeGeneration =
+                intent.getLongExtra(EXTRA_PLAYER_RUNTIME_GENERATION, 0L)
+            val presentation =
+                PlayerSession.getInstance(this).restartAfterCrash(runtimeGeneration)
+            intent.action = null
+            if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
+                startActivity(PlayerActivity.createReuseSessionIntent(this))
+            }
+            return presentation != null
+        }
+
         resolveKiyoriShellExternalDestination(intent?.action)?.let { destination ->
             pendingKiyoriShellDestination = destination
             pendingKiyoriShellRequestId = System.currentTimeMillis()

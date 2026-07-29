@@ -1,7 +1,14 @@
-package com.ai.assistance.operit.core.player
+package com.ai.assistance.operit.core.player.runtime
 
 import android.content.Context
+import android.util.Log
 import android.view.Surface
+import com.ai.assistance.operit.core.player.PlayerDecoderPreset
+import com.ai.assistance.operit.core.player.PlayerEndBehavior
+import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
+import com.ai.assistance.operit.core.player.PlayerSettings
+import com.ai.assistance.operit.core.player.PlayerTrack
+import com.ai.assistance.operit.core.player.PlayerVideoFitMode
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
 
@@ -9,6 +16,7 @@ internal data class MpvPlayerProgress(
     val positionSeconds: Double?,
     val durationSeconds: Double?,
     val paused: Boolean?,
+    val buffering: Boolean?,
     val speed: Double?,
     val networkSpeedBytesPerSecond: Long,
 )
@@ -47,7 +55,7 @@ internal class MpvPlayerEngine(
 
     fun initialize(settings: PlayerSettings): Unit = callMpv("初始化") {
         if (initialized) return
-        PlayerDebugLogBuffer.append("MpvPlayerEngine", "初始化 mpv 内核")
+        Log.d(TAG, "初始化 mpv 内核")
         MPVLib.create(appContext)
         setRequiredOption("config", "no")
         setRequiredOption("profile", settings.decoderPreset.persistedId)
@@ -93,7 +101,7 @@ internal class MpvPlayerEngine(
         MPVLib.observeProperty("paused-for-cache", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
         initialized = true
-        PlayerDebugLogBuffer.append("MpvPlayerEngine", "mpv 内核初始化完成")
+        Log.d(TAG, "mpv 内核初始化完成")
     }
 
     fun load(
@@ -104,10 +112,7 @@ internal class MpvPlayerEngine(
         initialSpeed: Double,
     ) = callMpv("加载媒体") {
         check(initialized) { "mpv engine is not initialized" }
-        PlayerDebugLogBuffer.append(
-            "MpvPlayerEngine",
-            "加载媒体 uri=${target.substringBefore('?')}",
-        )
+        Log.d(TAG, "加载媒体")
         applyRequestHeaders(headers)
         applyDecoderPreset(settings.decoderPreset)
         applyPreciseSeeking(settings.preciseSeeking)
@@ -132,7 +137,7 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyString("force-window", "yes")
         attachedSurface = surface
         updateSurfaceSize(width, height)
-        PlayerDebugLogBuffer.append("MpvPlayerEngine", "连接播放画面 ${width}x$height")
+        Log.d(TAG, "连接播放画面 ${width}x$height")
     }
 
     fun updateSurfaceSize(width: Int, height: Int) = callMpv("更新播放画面尺寸") {
@@ -147,7 +152,7 @@ internal class MpvPlayerEngine(
         MPVLib.setPropertyString("force-window", "no")
         MPVLib.detachSurface()
         attachedSurface = null
-        PlayerDebugLogBuffer.append("MpvPlayerEngine", "断开播放画面")
+        Log.d(TAG, "断开播放画面")
     }
 
     fun setPaused(paused: Boolean) = callMpv("设置暂停状态") {
@@ -239,6 +244,7 @@ internal class MpvPlayerEngine(
             positionSeconds = MPVLib.getPropertyDouble("time-pos"),
             durationSeconds = MPVLib.getPropertyDouble("duration"),
             paused = MPVLib.getPropertyBoolean("pause"),
+            buffering = MPVLib.getPropertyBoolean("paused-for-cache"),
             speed = MPVLib.getPropertyDouble("speed"),
             networkSpeedBytesPerSecond =
                 MPVLib.getPropertyInt("cache-speed")?.toLong()?.coerceAtLeast(0L) ?: 0L,
@@ -277,7 +283,7 @@ internal class MpvPlayerEngine(
         MPVLib.removeObserver(this)
         MPVLib.destroy()
         initialized = false
-        PlayerDebugLogBuffer.append("MpvPlayerEngine", "销毁 mpv 内核")
+        Log.d(TAG, "销毁 mpv 内核")
     }
 
     private fun setRequiredOption(name: String, value: String) {
@@ -345,12 +351,12 @@ internal class MpvPlayerEngine(
     override fun event(eventId: Int, data: MPVNode) {
         when (eventId) {
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
-                PlayerDebugLogBuffer.append("MpvPlayerEngine", "媒体文件已加载")
+                Log.d(TAG, "媒体文件已加载")
                 listener.onFileLoaded()
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 val reason = data["reason"]?.asInt()
-                PlayerDebugLogBuffer.append("MpvPlayerEngine", "媒体结束 reason=${reason ?: "unknown"}")
+                Log.d(TAG, "媒体结束 reason=${reason ?: "unknown"}")
                 if (reason == MPV_END_FILE_REASON_ERROR) {
                     val errorCode = data["error"]?.asInt()
                     listener.onRuntimeError(
@@ -365,10 +371,7 @@ internal class MpvPlayerEngine(
         try {
             block()
         } catch (error: LinkageError) {
-            PlayerDebugLogBuffer.append(
-                "MpvPlayerEngine",
-                "$operation 失败：${error.message ?: error.javaClass.simpleName}",
-            )
+            Log.e(TAG, "$operation 失败", error)
             throw MpvRuntimeException(operation, error)
         }
 
@@ -376,6 +379,7 @@ internal class MpvPlayerEngine(
         if (behavior == PlayerEndBehavior.LOOP) "inf" else "no"
 
     private companion object {
+        const val TAG = "MpvPlayerEngine"
         const val VIDEO_OUTPUT_GPU = "gpu"
         const val VIDEO_OUTPUT_GPU_NEXT = "gpu-next"
         const val GPU_CONTEXT_OPENGL = "android"

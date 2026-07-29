@@ -1279,6 +1279,10 @@
     <string name="speech_error_not_initialized">Enjin pengecaman ucapan belum dimulakan</string>
     <string name="title_activity_crash_report">Ralat Aplikasi</string>
     <string name="crash_report_header">Aplikasi mengalami ralat yang tidak dapat dipulihkan dan perlu dimulakan semula.</string>
+    <string name="crash_report_player_header">Runtime pemain video telah berhenti. Kiyori masih berjalan.</string>
+    <string name="crash_report_return_button">Kembali ke Kiyori</string>
+    <string name="crash_report_restart_player_button">Mulakan semula pemain video</string>
+    <string name="crash_report_missing">Laporan kerosakan berstruktur tidak dapat dibaca.</string>
     <string name="crash_report_restart_button">Mulakan Semula Aplikasi</string>
     <string name="crash_report_details_title">Butiran Ralat</string>
     <string name="crash_report_copy_button">Salin</string>
