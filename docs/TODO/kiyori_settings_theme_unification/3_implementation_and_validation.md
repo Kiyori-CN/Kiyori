@@ -70,3 +70,34 @@
   `2026-07-29`，属于本机时钟偏差，不作为项目日期
 - [ ] 未安装 APK、未操作设备；浅色、深色、系统模式、长语音表单、底部面板和 AI 局部外观
   保持 `verification_pending`
+
+## 2026-07-30 Shell 设置子页主题边界修复
+
+Crash Report `92a847df-518a-477d-b3cb-870b17273550` 的主线程栈定位到
+`KiyoriDownloadSettingsPage` 打开 `KiyoriSettingsSelectionSheet` 时读取
+`LocalKiyoriSettingsColors` 失败。
+
+根因不是颜色缺省值，而是 Compose 提供范围错误：
+
+- `KiyoriCollapsingSettingsPage` 在内部提供 `KiyoriSettingsTheme`
+- 下载器和播放器的选择面板在折叠页面调用结束后作为同级节点渲染
+- 同级选择面板不属于折叠页面内部主题子树，因此首次显示即触发严格异常
+
+修复与门禁：
+
+- [DONE] `KiyoriAppShell` 在完整浏览器、下载器和播放器设置子页外提供
+  `KiyoriSettingsTheme`，使列表、选择面板和后续同级覆盖层共享同一主题 owner
+- [DONE] 全屏网页搜索继续只使用 `KiyoriBrowserTheme`
+- [DONE] `LocalKiyoriSettingsColors` 继续在缺少 owner 时抛出异常，不增加默认色或回退路径
+- [DONE] `KiyoriShellStateTest` 覆盖全部 Shell 设置子页与非设置子页的主题映射
+- [DONE] `KiyoriShellStateTest` 与 `KiyoriSettingsPagesTest` 合计 `56/56`，零失败、零错误、
+  零跳过；测试任务完成 `:app:compileDebugKotlin`
+- [DONE] formal readiness 与 `git diff --check` 通过
+- [DONE] `:app:assembleDebug` 通过，233 个任务零失败；
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- [DONE] Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-30 12:06:51 +08:00`，大小 `482615791` 字节，SHA-256
+  `E3F7D90A72851CBBFB4479A313CD8D0BE50F2B1346D5DD1D4CEBA09835DA721E`
+- [DONE] APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、`arm64-v8a`；
+  Android Debug V2 签名和 `zipalign -c -P 16 -v 4` 通过
+- [PENDING] 报告设备上的下载器与播放器选择面板复测

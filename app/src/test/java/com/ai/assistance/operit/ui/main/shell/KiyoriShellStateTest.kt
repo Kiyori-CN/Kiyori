@@ -172,6 +172,21 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `settings child roots provide theme across page overlays`() {
+        assertFalse(shouldProvideKiyoriSettingsTheme(null))
+        assertFalse(
+            shouldProvideKiyoriSettingsTheme(KiyoriShellChild.FULL_SCREEN_WEB_SEARCH),
+        )
+        listOf(
+            KiyoriShellChild.BROWSER_SETTINGS,
+            KiyoriShellChild.DOWNLOAD_SETTINGS,
+            KiyoriShellChild.PLAYER_SETTINGS,
+        ).forEach { child ->
+            assertTrue(shouldProvideKiyoriSettingsTheme(child))
+        }
+    }
+
+    @Test
     fun `browser settings child retains browser owner until Back`() {
         val browserState =
             KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)

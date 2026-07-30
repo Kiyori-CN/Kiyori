@@ -4,6 +4,31 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-30 文件下载器设置主题边界崩溃修复
+
+Crash Report `92a847df-518a-477d-b3cb-870b17273550` 显示，文件下载器设置打开底部选择面板时，
+`KiyoriSettingsSelectionSheet` 读取不到 `LocalKiyoriSettingsColors`。折叠列表内部已经提供
+`KiyoriSettingsTheme`，但选择面板与列表是同级节点，原主题边界没有覆盖完整设置子页。
+
+本轮修复门禁：
+
+1. [DONE] 在 Kiyori Shell 子页面宿主为浏览器、下载器和播放器设置提供完整主题边界
+2. [DONE] 保留缺少主题时的严格异常，不添加默认颜色或回退逻辑
+3. [DONE] 增加 Shell 设置子页主题映射回归测试
+4. [DONE] 执行定向 JVM、Kotlin 编译、formal readiness、差异检查和 Debug APK 核验
+5. [PENDING] 在报告设备复测文件下载器设置的全部选择面板，并顺带复测播放器设置面板
+
+详细根因、实现与验收记录继续写入
+[`kiyori_settings_theme_unification/3_implementation_and_validation.md`](kiyori_settings_theme_unification/3_implementation_and_validation.md)。
+
+本地证据：`KiyoriShellStateTest` 与 `KiyoriSettingsPagesTest` 合计 `56/56`，零失败、零错误、
+零跳过；测试任务完成 `:app:compileDebugKotlin`。formal readiness、`git diff --check` 和
+`:app:assembleDebug` 通过，构建共 233 个任务、零失败，播放器运行时打包校验通过。Debug APK
+为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `482615791` 字节，SHA-256
+`E3F7D90A72851CBBFB4479A313CD8D0BE50F2B1346D5DD1D4CEBA09835DA721E`；包名
+`com.kiyori`、版本 `45 / 0.1.0`、min 26、target 34、`arm64-v8a`，Android Debug V2 签名
+与 16 KB ZIP 对齐通过。
+
 ## 2026-07-29 全量 UI 与功能逻辑链路审计优化
 
 本阶段以两个目标进行横向封板：覆盖全部用户可达页面、抽屉、弹窗和特殊渲染域的视觉一致性，

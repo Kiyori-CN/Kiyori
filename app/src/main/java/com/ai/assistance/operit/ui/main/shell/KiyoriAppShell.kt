@@ -38,9 +38,26 @@ import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
+import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
+
+@Composable
+private fun KiyoriShellChildThemeBoundary(
+    child: KiyoriShellChild?,
+    content: @Composable () -> Unit,
+) {
+    KiyoriBrowserTheme {
+        // 设置页的选择面板与折叠列表是同级节点。主题边界必须包住完整子页，
+        // 否则面板会在列表内部主题退出后读取不到 LocalKiyoriSettingsColors。
+        if (shouldProvideKiyoriSettingsTheme(child)) {
+            KiyoriSettingsTheme(content)
+        } else {
+            content()
+        }
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -303,7 +320,7 @@ internal fun KiyoriAppShell(
             enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
         ) {
-            KiyoriBrowserTheme {
+            KiyoriShellChildThemeBoundary(child = state.child) {
                 when (state.child) {
                     KiyoriShellChild.FULL_SCREEN_WEB_SEARCH ->
                         KiyoriFullScreenWebSearchPage(
@@ -421,6 +438,17 @@ internal fun shouldComposeKiyoriAiHost(
     startupPreloadReady: Boolean,
 ): Boolean =
     startupPreloadReady || !aiHostIsRoot || softwareHomePage == SoftwareHomePage.AI_HOME
+
+internal fun shouldProvideKiyoriSettingsTheme(child: KiyoriShellChild?): Boolean =
+    when (child) {
+        KiyoriShellChild.BROWSER_SETTINGS,
+        KiyoriShellChild.DOWNLOAD_SETTINGS,
+        KiyoriShellChild.PLAYER_SETTINGS,
+        -> true
+        KiyoriShellChild.FULL_SCREEN_WEB_SEARCH,
+        null,
+        -> false
+    }
 
 internal fun calculateKiyoriAiHostTranslation(
     pageOffset: Float,
