@@ -67,11 +67,13 @@ internal fun resolveKiyoriSemanticColors(
         }
     }
 
-internal fun resolveKiyoriWarmAccentYellow(isDark: Boolean): Color =
+internal val KiyoriBottomNavigationSelectedFillColor = Color(0xFFFFC153)
+
+internal fun resolveKiyoriWeatherSunColor(isDark: Boolean): Color =
     if (isDark) {
         Color(0xFFFFD166)
     } else {
-        Color(0xFFC48A00)
+        Color(0xFFC57C00)
     }
 
 @Composable
@@ -81,7 +83,7 @@ fun KiyoriSemanticTone.resolveColors(): KiyoriSemanticColors {
 }
 
 @Composable
-internal fun kiyoriWarmAccentYellow(): Color {
+internal fun kiyoriWeatherSunColor(): Color {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    return resolveKiyoriWarmAccentYellow(isDark)
+    return resolveKiyoriWeatherSunColor(isDark)
 }

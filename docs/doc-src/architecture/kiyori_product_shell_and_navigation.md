@@ -108,8 +108,12 @@ AI 助手设置由模态 AI 抽屉或设置首页进入同一页面与持久状�
 底栏的显示与隐藏通过产品壳的页面状态驱动。Browser Home 直接占满 presentation 约束，不为已隐藏的 Kiyori 底栏保留高度；切换动画不得通过增删内容高度造成首页主体跳动。
 
 底部五入口未选中时继续使用 Legacy Kiyori 空心 Vector 和中性 `onSurfaceVariant`。选中时不增加
-胶囊、圆形容器或蓝色描边，而是先绘制浅色 `#C48A00`、深色 `#FFD166` 的封闭填充层，再以当前
-页面背景色重绘原线条与内部细节。五个图标共享同一 `160ms` 选中态过渡，点击热区与导航状态不变。
+胶囊、圆形容器或蓝色描边，而是绘制精确 `#FFC153` 的封闭填充层，再以当前页面背景色重绘内部
+细节。Home、Browser、Mini App、Files 与 Settings 按各自可见边界设置终点缩放，最终视觉尺寸与
+原空心图标一致；Settings 的背景色细节层只包含内部圆环，不重绘外缘。每次点击先用 `70ms` 连续
+压回较小填充态，再以低阻尼弹簧放大到终点；重复点击当前目的地也递增激活序号并完整重播。Home、
+Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰值，Settings 保持 `0.55`；
+五项落定尺寸、点击热区、导航状态与页面切换合同不变。
 
 ## 手势所有权
 
@@ -174,7 +178,7 @@ query 重新导航；网址提交或右侧关闭动作隐藏切换条。浏览�
 
 首页右上角窗口按钮的数量由 `StandardBrowserSessionTools.syncProjectedBrowserStateOnMain` 同步发布。首页与浏览器底栏第四项共同使用 `WebSessionBrowserWindowCountIcon` 的 `23×21dp` 方框数字视觉；点击首页按钮后先在同一个 `WebSessionBrowserHost` 上设置 `WebSessionBrowserSheetRoute.TABS`，再进入 Browser Home，由 App presentation 获取流程创建或连接活动 session。该入口不先挂一次后台 anchor，因此两处进入完全相同的总览页面且不制造无意义的跨窗口往返。
 
-首页左上角天气只在已有定位授权时自动刷新；未授权时点击请求 Android 定位权限。`LocationManager.NETWORK_PROVIDER` 提供城市级定位，`Geocoder` 的 `locality` 是唯一城市字段；定位、城市解析、网络或响应失败都会显示明确的不可用状态，不展示猜测值。Open-Meteo 当前天气接口接收经纬度并返回摄氏温度与 WMO code，前台每 30 分钟最多刷新一次。晴天图标使用底栏同一暖黄色，局部云和雨使用蓝色，阴天、雾和雪使用青色，雷暴使用紫色；权限缺失使用红色，数据不可用使用橙色。免费接口仅限非商业用途并受服务限制，坐标会发送给该第三方；参见 <https://open-meteo.com/en/terms>。
+首页左上角天气只在已有定位授权时自动刷新；未授权时点击请求 Android 定位权限。`LocationManager.NETWORK_PROVIDER` 提供城市级定位，`Geocoder` 的 `locality` 是唯一城市字段；定位、城市解析、网络或响应失败都会显示明确的不可用状态，不展示猜测值。Open-Meteo 当前天气接口接收经纬度并返回摄氏温度与 WMO code，前台每 30 分钟最多刷新一次。晴天图标独立于底栏选中色：浅色主题使用 `#C57C00`，深色主题使用 `#FFD166`；局部云和雨使用蓝色，阴天、雾和雪使用青色，雷暴使用紫色。权限缺失使用红色，数据不可用使用橙色。免费接口仅限非商业用途并受服务限制，坐标会发送给该第三方；参见 <https://open-meteo.com/en/terms>。
 
 ## AI 首页与模态 AI 左抽屉
 

@@ -380,6 +380,53 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `bottom navigation selected icons grow from the previous fill size to original visual size`() {
+        val expectedScales =
+            mapOf(
+                PrimaryDestination.SOFTWARE_HOME to (1f to 1.1f),
+                PrimaryDestination.BROWSER_HOME to (1f to 1.1f),
+                PrimaryDestination.MINI_APP_HOME to (1f to 1.12f),
+                PrimaryDestination.FILE_MANAGEMENT_HOME to (1f to 1.1f),
+                PrimaryDestination.SETTINGS_HOME to (0.9f to 1f),
+            )
+
+        expectedScales.forEach { (destination, scales) ->
+            assertEquals(
+                scales.first,
+                resolveKiyoriBottomNavigationSelectedStartScale(destination),
+            )
+            assertEquals(
+                scales.second,
+                resolveKiyoriBottomNavigationSelectedFinalScale(destination),
+            )
+        }
+    }
+
+    @Test
+    fun `bottom navigation enlarges the spring peak except for settings`() {
+        val enlargedPeakDestinations =
+            listOf(
+                PrimaryDestination.SOFTWARE_HOME,
+                PrimaryDestination.BROWSER_HOME,
+                PrimaryDestination.MINI_APP_HOME,
+                PrimaryDestination.FILE_MANAGEMENT_HOME,
+            )
+
+        enlargedPeakDestinations.forEach { destination ->
+            assertEquals(
+                0.42f,
+                resolveKiyoriBottomNavigationSelectedSpringDampingRatio(destination),
+            )
+        }
+        assertEquals(
+            0.55f,
+            resolveKiyoriBottomNavigationSelectedSpringDampingRatio(
+                PrimaryDestination.SETTINGS_HOME,
+            ),
+        )
+    }
+
+    @Test
     fun `AI drawer uses stable semantic tones for every built in destination`() {
         val expected =
             mapOf(

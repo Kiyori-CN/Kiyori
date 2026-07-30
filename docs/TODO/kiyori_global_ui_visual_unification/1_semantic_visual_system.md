@@ -29,10 +29,16 @@ Kiyori 的现代化不是把每个区域染成不同颜色，而是让用户在�
 同一功能在负一屏、AI 抽屉、浏览器抽屉和独立页面必须使用同一语义色。插件提供的动态入口不
 增加持久化颜色字段，而是用稳定 entry id 映射到现有色调，避免列表重排导致颜色漂移。
 
-App Shell 底部五入口使用一组不参与 entry id 哈希的固定暖黄色：浅色 `#C48A00`，深色
-`#FFD166`。它只表达当前顶层目的地和晴天天气，不扩展 `KiyoriSemanticTone`。底栏未选中图标
-继续绘制原空心 Vector；选中时先绘制暖黄色封闭填充层，再以当前页面背景色重绘原线条和内部
-细节，因此不出现蓝色描边、胶囊或额外选中容器。
+App Shell 底部五入口使用不参与 entry id 哈希的固定选中填充 `#FFC153`，且不扩展
+`KiyoriSemanticTone`。底栏未选中图标继续绘制原空心 Vector；选中时先绘制封闭填充层，再以
+当前页面背景色重绘内部细节，因此不出现蓝色描边、胶囊或额外选中容器。不同 Vector 按可见边界
+使用独立终点缩放，确保填充后的最终视觉尺寸与原空心图标一致；设置图标使用只含内部圆环的细节层，
+不重绘外缘。每次点击先连续压回较小填充态，再通过低阻尼弹簧放大到最终尺寸；重复点击当前入口同样
+重新触发。首页、浏览器、小程序和文件入口使用 `0.42` 阻尼获得更大的黄色过冲峰值，最右侧设置入口
+保持 `0.55`，所有入口的最终落定尺寸不变。
+
+晴天天气不复用底栏颜色：浅色主题使用 `#C57C00`，在白色首页上保持清晰的图形对比；深色主题
+使用 `#FFD166`。其余天气继续按蓝、青、紫、红、橙表达天气类别与异常状态。
 
 ## 共享组件
 
@@ -40,8 +46,10 @@ App Shell 底部五入口使用一组不参与 entry id 哈希的固定暖黄色
 - `KiyoriSemanticColors`：浅深主题下的图标色与低饱和容器色
 - `resolveKiyoriSemanticColors`：纯函数，便于 JVM 测试对比度和唯一性
 - `KiyoriSemanticIconBadge`：统一圆角、尺寸、图标缩放、禁用透明度和主题感知
-- `resolveKiyoriWarmAccentYellow`：底部导航填充和晴天天气使用的固定浅深暖黄色
-- `ic_kiyori_*_selected_fill`：五个封闭底栏图标的填充层，原 Vector 继续作为背景色细节层
+- `KiyoriBottomNavigationSelectedFillColor`：底部导航选中填充的精确 `#FFC153`
+- `resolveKiyoriWeatherSunColor`：晴天天气独立的浅深主题颜色
+- `ic_kiyori_*_selected_fill`：五个封闭底栏图标的填充层
+- `ic_kiyori_tool_settings_selected_detail`：只保留设置图标内部圆环的背景色细节层
 
 设置页现有 `KiyoriSettingsIconTone` 必须被上述全应用命名完整取代，不保留类型别名或兼容
 分支。该变化是未发布内部 UI 方案的正常迭代。

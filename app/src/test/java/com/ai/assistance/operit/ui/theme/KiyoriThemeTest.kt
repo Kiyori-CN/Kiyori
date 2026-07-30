@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -114,14 +115,17 @@ class KiyoriThemeTest {
     }
 
     @Test
-    fun `warm yellow accent stays theme aware and visible on navigation backgrounds`() {
-        val lightYellow = resolveKiyoriWarmAccentYellow(isDark = false)
-        val darkYellow = resolveKiyoriWarmAccentYellow(isDark = true)
+    fun `bottom navigation yellow is exact while weather sun remains independent`() {
+        val lightWeatherSun = resolveKiyoriWeatherSunColor(isDark = false)
+        val darkWeatherSun = resolveKiyoriWeatherSunColor(isDark = true)
 
-        assertEquals(Color(0xFFC48A00), lightYellow)
-        assertEquals(Color(0xFFFFD166), darkYellow)
-        assertTrue(contrastRatio(lightYellow, KiyoriLightColorScheme.background) >= 3.0)
-        assertTrue(contrastRatio(darkYellow, KiyoriDarkColorScheme.background) >= 3.0)
+        assertEquals(Color(0xFFFFC153), KiyoriBottomNavigationSelectedFillColor)
+        assertEquals(Color(0xFFC57C00), lightWeatherSun)
+        assertEquals(Color(0xFFFFD166), darkWeatherSun)
+        assertNotEquals(KiyoriBottomNavigationSelectedFillColor, lightWeatherSun)
+        assertNotEquals(KiyoriBottomNavigationSelectedFillColor, darkWeatherSun)
+        assertTrue(contrastRatio(lightWeatherSun, KiyoriLightColorScheme.background) >= 3.0)
+        assertTrue(contrastRatio(darkWeatherSun, KiyoriDarkColorScheme.background) >= 3.0)
     }
 
     @Test

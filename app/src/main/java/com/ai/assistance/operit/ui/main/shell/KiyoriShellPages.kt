@@ -3,6 +3,9 @@ package com.ai.assistance.operit.ui.main.shell
 import android.Manifest
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -58,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -112,8 +116,9 @@ import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherRepository
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherState
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherVisual
+import com.ai.assistance.operit.ui.theme.KiyoriBottomNavigationSelectedFillColor
 import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.kiyoriWarmAccentYellow
+import com.ai.assistance.operit.ui.theme.kiyoriWeatherSunColor
 import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -164,9 +169,42 @@ private val primaryDestinationVisuals =
             R.string.kiyori_shell_settings_home,
             R.drawable.ic_kiyori_tool_settings,
             R.drawable.ic_kiyori_tool_settings_selected_fill,
-            R.drawable.ic_kiyori_tool_settings,
+            R.drawable.ic_kiyori_tool_settings_selected_detail,
         ),
     )
+
+internal fun resolveKiyoriBottomNavigationSelectedStartScale(
+    destination: PrimaryDestination,
+): Float =
+    when (destination) {
+        PrimaryDestination.SOFTWARE_HOME,
+        PrimaryDestination.BROWSER_HOME,
+        PrimaryDestination.MINI_APP_HOME,
+        PrimaryDestination.FILE_MANAGEMENT_HOME -> 1f
+        PrimaryDestination.SETTINGS_HOME -> 0.9f
+    }
+
+internal fun resolveKiyoriBottomNavigationSelectedFinalScale(
+    destination: PrimaryDestination,
+): Float =
+    when (destination) {
+        PrimaryDestination.SOFTWARE_HOME,
+        PrimaryDestination.BROWSER_HOME,
+        PrimaryDestination.FILE_MANAGEMENT_HOME -> 1.1f
+        PrimaryDestination.MINI_APP_HOME -> 1.12f
+        PrimaryDestination.SETTINGS_HOME -> 1f
+    }
+
+internal fun resolveKiyoriBottomNavigationSelectedSpringDampingRatio(
+    destination: PrimaryDestination,
+): Float =
+    when (destination) {
+        PrimaryDestination.SOFTWARE_HOME,
+        PrimaryDestination.BROWSER_HOME,
+        PrimaryDestination.MINI_APP_HOME,
+        PrimaryDestination.FILE_MANAGEMENT_HOME -> 0.42f
+        PrimaryDestination.SETTINGS_HOME -> 0.55f
+    }
 
 @Composable
 internal fun KiyoriSoftwareHomePage(
@@ -677,7 +715,7 @@ private fun KiyoriWeatherButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val warmYellow = kiyoriWarmAccentYellow()
+    val sunColor = kiyoriWeatherSunColor()
     val blue = KiyoriSemanticTone.BLUE.resolveColors().icon
     val cyan = KiyoriSemanticTone.CYAN.resolveColors().icon
     val purple = KiyoriSemanticTone.PURPLE.resolveColors().icon
@@ -687,7 +725,7 @@ private fun KiyoriWeatherButton(
         when (state) {
             is KiyoriWeatherState.Available ->
                 when (state.visual) {
-                    KiyoriWeatherVisual.CLEAR -> warmYellow
+                    KiyoriWeatherVisual.CLEAR -> sunColor
                     KiyoriWeatherVisual.PARTLY_CLOUDY,
                     KiyoriWeatherVisual.DRIZZLE,
                     KiyoriWeatherVisual.RAIN -> blue
@@ -1030,6 +1068,10 @@ internal fun KiyoriBottomNavigation(
     onDestinationSelected: (PrimaryDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var lastActivatedDestination by remember {
+        mutableStateOf<PrimaryDestination?>(null)
+    }
+    var activationSequence by remember { mutableIntStateOf(0) }
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter,
@@ -1070,7 +1112,11 @@ internal fun KiyoriBottomNavigation(
                                         interactionSource = interactionSource,
                                         indication = null,
                                         role = Role.Button,
-                                        onClick = { onDestinationSelected(item.destination) },
+                                        onClick = {
+                                            lastActivatedDestination = item.destination
+                                            activationSequence += 1
+                                            onDestinationSelected(item.destination)
+                                        },
                                     )
                                     .semantics(mergeDescendants = true) {
                                         contentDescription = label
@@ -1081,6 +1127,12 @@ internal fun KiyoriBottomNavigation(
                             KiyoriBottomNavigationIcon(
                                 visual = item,
                                 selected = selected,
+                                activationSequence =
+                                    if (lastActivatedDestination == item.destination) {
+                                        activationSequence
+                                    } else {
+                                        0
+                                    },
                             )
                         }
                     }
@@ -1094,9 +1146,52 @@ internal fun KiyoriBottomNavigation(
 private fun KiyoriBottomNavigationIcon(
     visual: PrimaryDestinationVisual,
     selected: Boolean,
+    activationSequence: Int,
 ) {
-    val selectedFillColor = kiyoriWarmAccentYellow()
     val selectedDetailColor = MaterialTheme.colorScheme.background
+    val selectedStartScale =
+        resolveKiyoriBottomNavigationSelectedStartScale(visual.destination)
+    val selectedFinalScale =
+        resolveKiyoriBottomNavigationSelectedFinalScale(visual.destination)
+    val selectedSpringDampingRatio =
+        resolveKiyoriBottomNavigationSelectedSpringDampingRatio(visual.destination)
+    val selectedScale =
+        remember(visual.destination) {
+            Animatable(if (selected) selectedFinalScale else selectedStartScale)
+        }
+
+    LaunchedEffect(
+        selected,
+        activationSequence,
+        selectedStartScale,
+        selectedFinalScale,
+        selectedSpringDampingRatio,
+    ) {
+        when {
+            !selected -> selectedScale.snapTo(selectedStartScale)
+            activationSequence == 0 -> selectedScale.snapTo(selectedFinalScale)
+            else -> {
+                // 前四项使用更低阻尼扩大黄色填充的弹性峰值；设置项保持原峰值，避免齿轮显得过重。
+                selectedScale.animateTo(
+                    targetValue = selectedStartScale,
+                    animationSpec =
+                        tween(
+                            durationMillis = 70,
+                            easing = FastOutLinearInEasing,
+                        ),
+                )
+                selectedScale.animateTo(
+                    targetValue = selectedFinalScale,
+                    animationSpec =
+                        spring(
+                            dampingRatio = selectedSpringDampingRatio,
+                            stiffness = 420f,
+                        ),
+                )
+            }
+        }
+    }
+
     Crossfade(
         targetState = selected,
         modifier = Modifier.size(visual.iconSizeDp.dp),
@@ -1104,12 +1199,20 @@ private fun KiyoriBottomNavigationIcon(
         label = "kiyoriBottomNavigationIcon",
     ) { isSelected ->
         if (isSelected) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = selectedScale.value
+                            scaleY = selectedScale.value
+                        },
+            ) {
                 Icon(
                     painter = painterResource(visual.selectedFillResId),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    tint = selectedFillColor,
+                    tint = KiyoriBottomNavigationSelectedFillColor,
                 )
                 Icon(
                     painter = painterResource(visual.selectedDetailResId),
