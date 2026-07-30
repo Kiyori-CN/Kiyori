@@ -1073,7 +1073,7 @@ object AIMessageManager {
         if (topPackages.isEmpty()) {
             val emptyMessage =
                 if (useEnglish) {
-                    "No package-prefixed tool usage was detected in this summary window, so no package was preheated."
+                    "No activated packages were detected in this summary window."
                 } else {
                     context.getString(R.string.ai_message_package_warmup_empty)
                 }
@@ -1082,7 +1082,7 @@ object AIMessageManager {
 
         val intro =
             if (useEnglish) {
-                "The following high-frequency packages were automatically activated from the summarized tool usage, and their use_package results are attached for the next-turn warmup."
+                "The following activated packages can be used directly."
             } else {
                 context.getString(R.string.ai_message_package_warmup_intro)
             }
@@ -1113,8 +1113,10 @@ object AIMessageManager {
                                 }
                             }
 
+                    // 该摘要会进入下一轮模型上下文；明确“已激活”可避免重复调用 use_package。
                     if (useEnglish) {
                         appendLine("${index + 1}. Package ${stat.packageName} (${stat.count} hits)")
+                        appendLine("   Activated package: the tool prompt below can be used directly.")
                     } else {
                         appendLine(
                             context.getString(
@@ -1124,6 +1126,7 @@ object AIMessageManager {
                                 stat.count
                             )
                         )
+                        appendLine("   已激活包：以下工具提示可以直接使用。")
                     }
                     appendLine(indentBlock(resultText, "   "))
                     if (index != topPackages.lastIndex) {

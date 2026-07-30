@@ -7825,9 +7825,9 @@
     <string name="ai_message_image_attached_multimodal_notice">Image content has been attached as multimodal input with this message. Do not call file reading tools to read this path.</string>
     <string name="ai_message_result_prefix">[Result: </string>
     <string name="ai_message_result_suffix">]</string>
-    <string name="ai_message_package_warmup_title">【Package Warmup】</string>
-    <string name="ai_message_package_warmup_empty">No package tool calls were detected within the scope of this summary, so no package warmup was performed.</string>
-    <string name="ai_message_package_warmup_intro">Based on the frequency of tool usage within the scope of this summary, the most frequently used packages have been automatically activated, and the results of use_package are attached for the next warmup round.</string>
+    <string name="ai_message_package_warmup_title">【Activated Packages】</string>
+    <string name="ai_message_package_warmup_empty">No activated packages were detected in this summary window.</string>
+    <string name="ai_message_package_warmup_intro">The following activated packages can be used directly.</string>
     <string name="ai_message_use_package_failed">use_package call failed: %1$s</string>
     <string name="ai_message_use_package_empty">use_package returned empty.</string>
     <string name="ai_message_package_warmup_item">%1$d. Package %2$s (hit %3$d times)</string>
