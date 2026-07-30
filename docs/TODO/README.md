@@ -4,6 +4,32 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-30 AI 抽屉状态徽标与导航图标视觉修订
+
+本轮不改变导航路由、业务状态 owner 或页面结构，只修复当前 UI 的明确遮挡并收口三组图标视觉。
+Kiyori 尚未发布，因此直接迭代当前样式，不保留旧蓝色选中态或平行图标方案。
+
+实施与验收门禁：
+
+1. [DONE] 定位 AI 左抽屉包管理、权限、工作流卡片的状态徽标与居中图标重叠根因
+2. [DONE] 设计状态徽标独立顶部区域，并保留三个快捷入口的现有计数与权限状态语义
+3. [DONE] 将软件首页天气图标与 AI 对话页浏览器、终端、工作区三个顶栏动作接入固定语义色
+4. [DONE] 为底部五个封闭图标增加主题感知暖黄色填充层与页面背景色细节层，删除蓝色空心选中态
+5. [DONE] 更新视觉合同、定向测试与正式开发门禁
+6. [DONE] 构建并核验 Debug APK
+7. [PENDING] 目标设备浅色、深色、窄屏抽屉与点击切换视觉保持独立验收
+
+本地验证证据：
+
+- `KiyoriThemeTest 11/11`、`KiyoriShellStateTest 45/45`，合计 `56/56`，零失败、零错误、零跳过
+- Android 资源合并、`:app:compileDebugKotlin`、formal readiness 与 `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 完成 `233` 个任务、零失败，
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `482617228` 字节，
+  SHA-256 `3C66F7F978051D9E8096EF794C274F9DC4375C93F6660EC7A8EE1468DA2138B8`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34；Android Debug V2 签名与
+  `zipalign -c -P 16 -v 4` 通过
+
 ## 2026-07-30 Operit `1.12.0+5` 上游差异审计与选择性移植
 
 本轮以 `upstream/main@98faa44c` 为上游目标，Kiyori 以

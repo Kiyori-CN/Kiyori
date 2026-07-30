@@ -114,6 +114,17 @@ class KiyoriThemeTest {
     }
 
     @Test
+    fun `warm yellow accent stays theme aware and visible on navigation backgrounds`() {
+        val lightYellow = resolveKiyoriWarmAccentYellow(isDark = false)
+        val darkYellow = resolveKiyoriWarmAccentYellow(isDark = true)
+
+        assertEquals(Color(0xFFC48A00), lightYellow)
+        assertEquals(Color(0xFFFFD166), darkYellow)
+        assertTrue(contrastRatio(lightYellow, KiyoriLightColorScheme.background) >= 3.0)
+        assertTrue(contrastRatio(darkYellow, KiyoriDarkColorScheme.background) >= 3.0)
+    }
+
+    @Test
     fun `stable entry ids keep deterministic semantic tones`() {
         val entryIds =
             listOf(

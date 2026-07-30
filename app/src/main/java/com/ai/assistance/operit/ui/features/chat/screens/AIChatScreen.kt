@@ -82,7 +82,6 @@ import com.ai.assistance.operit.ui.main.LocalOpenBrowser
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.PendingAiHomeActionHandler
 import com.ai.assistance.operit.ui.main.PendingChatDraftHandler
-import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.SharedFileHandler
 import java.io.File
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -96,6 +95,8 @@ import com.ai.assistance.operit.ui.common.rememberLocal
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clipToBounds
@@ -819,7 +820,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     // 从CompositionLocal获取设置TopBar Actions的函数
     val setTopBarActions = LocalTopBarActions.current
     val openBrowser = LocalOpenBrowser.current
-    val appBarContentColor = LocalAppBarContentColor.current
     val setScreenSoftInputMode = LocalSetScreenSoftInputMode.current
     val setUseScreenImePadding = LocalSetUseScreenImePadding.current
     val requestedSoftInputMode =
@@ -841,18 +841,25 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
 
     // 当showWebView或showAiComputer状态改变时，更新TopAppBar的actions
     // 使用DisposableEffect确保当AIChatScreen离开组合时，actions被清空
-    LaunchedEffect(isCurrentScreen, showWebView, showAiComputer, isWorkspacePreparing, appBarContentColor, hasBoundWorkspace) {
+    LaunchedEffect(isCurrentScreen, showWebView, showAiComputer, isWorkspacePreparing, hasBoundWorkspace) {
         if (isCurrentScreen) {
             setTopBarActions {
+                val browserColors = KiyoriSemanticTone.BLUE.resolveColors()
+                val terminalColors = KiyoriSemanticTone.CYAN.resolveColors()
+                val workspaceColors = KiyoriSemanticTone.PURPLE.resolveColors()
                 // 共享浏览器入口：进入 Browser Home 时只转挂现有 WebSession，不创建第二个 WebView。
                 IconButton(
                         enabled = !isWorkspacePreparing,
                         onClick = openBrowser,
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                contentColor = browserColors.icon,
+                                disabledContentColor = browserColors.icon.copy(alpha = 0.38f),
+                            ),
                 ) {
                     Icon(
                             imageVector = Icons.Default.Language,
                             contentDescription = stringResource(R.string.kiyori_shell_browser_home),
-                            tint = appBarContentColor,
                     )
                 }
 
@@ -866,16 +873,13 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                             IconButtonDefaults.iconButtonColors(
                                 containerColor =
                                     if (showAiComputer) {
-                                        MaterialTheme.colorScheme.primaryContainer
+                                        terminalColors.container
                                     } else {
                                         Color.Transparent
                                     },
-                                contentColor =
-                                    if (showAiComputer) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        appBarContentColor
-                                    },
+                                contentColor = terminalColors.icon,
+                                disabledContainerColor = Color.Transparent,
+                                disabledContentColor = terminalColors.icon.copy(alpha = 0.38f),
                             ),
                 ) {
                     Icon(
@@ -894,23 +898,20 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                             IconButtonDefaults.iconButtonColors(
                                 containerColor =
                                     if (showWebView) {
-                                        MaterialTheme.colorScheme.primaryContainer
+                                        workspaceColors.container
                                     } else {
                                         Color.Transparent
                                     },
-                                contentColor =
-                                    if (showWebView) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        appBarContentColor
-                                    },
+                                contentColor = workspaceColors.icon,
+                                disabledContainerColor = Color.Transparent,
+                                disabledContentColor = workspaceColors.icon.copy(alpha = 0.38f),
                             ),
                 ) {
                     if (isWorkspacePreparing) {
                         CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
-                                color = appBarContentColor
+                                color = workspaceColors.icon,
                         )
                     } else {
                         Icon(

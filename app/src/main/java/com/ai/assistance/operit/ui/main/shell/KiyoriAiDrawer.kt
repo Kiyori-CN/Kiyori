@@ -79,6 +79,10 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 
 private const val AI_DRAWER_ANIMATION_MILLIS = 280
+private const val AI_DRAWER_QUICK_ACTION_HEIGHT_DP = 80
+private const val AI_DRAWER_QUICK_ACTION_BADGE_RESERVED_HEIGHT_DP = 26
+private const val AI_DRAWER_QUICK_ACTION_ICON_CONTAINER_SIZE_DP = 30
+private const val AI_DRAWER_QUICK_ACTION_ICON_SIZE_DP = 18
 private val AI_DRAWER_PLUGIN_TONES =
     listOf(
         KiyoriSemanticTone.PURPLE,
@@ -423,7 +427,7 @@ private fun KiyoriAiDrawerQuickAction(
     val colors = tone.resolveColors()
     Surface(
         onClick = onClick,
-        modifier = modifier.height(76.dp),
+        modifier = modifier.height(AI_DRAWER_QUICK_ACTION_HEIGHT_DP.dp),
         enabled = enabled,
         shape = MaterialTheme.shapes.small,
         color =
@@ -452,21 +456,31 @@ private fun KiyoriAiDrawerQuickAction(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
                 )
             }
+            // 为右上角状态徽标预留独立高度；否则“正常”等较宽文本会压在居中的图标上。
             Column(
-                modifier = Modifier.align(Alignment.Center).padding(horizontal = 4.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(
+                            top = AI_DRAWER_QUICK_ACTION_BADGE_RESERVED_HEIGHT_DP.dp,
+                            start = 4.dp,
+                            end = 4.dp,
+                            bottom = 4.dp,
+                        ),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
             ) {
                 KiyoriSemanticIconBadge(
                     imageVector = entry.icon,
                     tone = tone,
                     contentDescription = null,
-                    containerSize = 36.dp,
-                    iconSize = 20.dp,
+                    containerSize = AI_DRAWER_QUICK_ACTION_ICON_CONTAINER_SIZE_DP.dp,
+                    iconSize = AI_DRAWER_QUICK_ACTION_ICON_SIZE_DP.dp,
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelMedium,

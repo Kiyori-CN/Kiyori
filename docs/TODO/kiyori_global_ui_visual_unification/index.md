@@ -45,6 +45,19 @@ date: 2026-07-29
 6. [DONE] 执行定向测试、Kotlin 编译、formal readiness、差异检查和 Debug APK 核验
 7. [PENDING] 在目标设备验收浅色、深色、抽屉、弹窗和触摸热区
 
+## 2026-07-30 小范围视觉修订
+
+- [DONE] AI 抽屉三张快捷卡为右上角计数/状态徽标保留独立顶部区域，避免文字覆盖图标
+- [DONE] 软件首页天气图标按天气与异常状态使用暖黄、蓝、青、紫、红、橙
+- [DONE] AI 顶栏浏览器、终端、工作区动作固定使用蓝、青、紫语义色
+- [DONE] App Shell 底部五入口的选中态改为暖黄色填充和页面背景色细节，不再使用蓝色空心描边
+- [DONE] 本轮定向测试 `56/56`、资源/Kotlin 编译、formal readiness、差异检查和 Debug APK 通过
+- [PENDING] 目标设备浅深色、窄屏徽标间距和五入口切换动画验收
+
+本轮 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `482617228` 字节，
+SHA-256 `3C66F7F978051D9E8096EF794C274F9DC4375C93F6660EC7A8EE1468DA2138B8`；包名
+`com.kiyori`、版本 `45 / 0.1.0`，Android Debug V2 签名和 16 KB ZIP 对齐通过。
+
 ## 本地实施结果
 
 - [DONE] 新增 `KiyoriSemanticTheme.kt` 和统一 `KiyoriSemanticIconBadge`；旧

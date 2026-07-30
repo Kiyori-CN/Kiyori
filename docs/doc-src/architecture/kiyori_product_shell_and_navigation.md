@@ -15,7 +15,7 @@ last_updated: 2026-07-29
 - AI 一级根的显式身份、外部入口菜单/返回解析和全局透明状态栏已落地；用户可见的“AI 助手”设置由模态 AI 抽屉和设置首页进入同一页面，并按入口来源返回
 - 旧手机抽屉、平板侧栏、边缘拖动、主内容透视变换、全局手势状态和抽屉专属主题设置已删除
 - 全屏网页搜索已经接入共享 Browser Runtime；负一屏、文件管理和设置根页面按固定旧版提交完成静态复刻，小程序根页面仍是接线骨架
-- 模态 AI 左抽屉、AI 一级路由替换和 AI 助手设置双来源返回已实现并通过自动验证；设置首页已经拆出账号、语音、界面和数据根页。全应用 `KiyoriSemanticTone` 已统一负一屏、AI 抽屉、浏览器内容抽屉、包管理、权限和工作流的图标与状态，工作流画布也已适配浅深主题；真机交互保持 `verification_pending`，权限总览与状态徽标尚未完成
+- 模态 AI 左抽屉、AI 一级路由替换和 AI 助手设置双来源返回已实现并通过自动验证；设置首页已经拆出账号、语音、界面和数据根页。全应用 `KiyoriSemanticTone` 已统一负一屏、AI 抽屉、浏览器内容抽屉、包管理、权限和工作流的图标与状态，工作流画布也已适配浅深主题；抽屉快捷入口状态徽标已实现且拥有独立布局区域，权限中心总览仍未完成，真机交互保持 `verification_pending`
 - 自动检查不能证明真机手势、Back、旋转、折叠屏或流式对话持续性，以上保持 `verification_pending`
 
 稳定术语以根目录 [CONTEXT.md](../../../CONTEXT.md) 为准。产品定位决策见 [Kiyori 产品定位与 Operit AI 边界](../decisions/0001_kiyori_product_positioning.md)，当前导航决策见 [模态 AI 左抽屉导航](../decisions/0004_modal_ai_drawer_navigation.md)，视觉规则见 [UI 设计来源层级](../decisions/0003_ui_design_source_hierarchy.md)。
@@ -107,6 +107,10 @@ AI 助手设置由模态 AI 抽屉或设置首页进入同一页面与持久状�
 
 底栏的显示与隐藏通过产品壳的页面状态驱动。Browser Home 直接占满 presentation 约束，不为已隐藏的 Kiyori 底栏保留高度；切换动画不得通过增删内容高度造成首页主体跳动。
 
+底部五入口未选中时继续使用 Legacy Kiyori 空心 Vector 和中性 `onSurfaceVariant`。选中时不增加
+胶囊、圆形容器或蓝色描边，而是先绘制浅色 `#C48A00`、深色 `#FFD166` 的封闭填充层，再以当前
+页面背景色重绘原线条与内部细节。五个图标共享同一 `160ms` 选中态过渡，点击热区与导航状态不变。
+
 ## 手势所有权
 
 迁移前 `PhoneLayout` 在根布局监听水平拖动并打开抽屉，这与软件首页 Pager 使用同一手势轴。当前合同采用以下规则：
@@ -170,13 +174,17 @@ query 重新导航；网址提交或右侧关闭动作隐藏切换条。浏览�
 
 首页右上角窗口按钮的数量由 `StandardBrowserSessionTools.syncProjectedBrowserStateOnMain` 同步发布。首页与浏览器底栏第四项共同使用 `WebSessionBrowserWindowCountIcon` 的 `23×21dp` 方框数字视觉；点击首页按钮后先在同一个 `WebSessionBrowserHost` 上设置 `WebSessionBrowserSheetRoute.TABS`，再进入 Browser Home，由 App presentation 获取流程创建或连接活动 session。该入口不先挂一次后台 anchor，因此两处进入完全相同的总览页面且不制造无意义的跨窗口往返。
 
-首页左上角天气只在已有定位授权时自动刷新；未授权时点击请求 Android 定位权限。`LocationManager.NETWORK_PROVIDER` 提供城市级定位，`Geocoder` 的 `locality` 是唯一城市字段；定位、城市解析、网络或响应失败都会显示明确的不可用状态，不展示猜测值。Open-Meteo 当前天气接口接收经纬度并返回摄氏温度与 WMO code，前台每 30 分钟最多刷新一次。免费接口仅限非商业用途并受服务限制，坐标会发送给该第三方；参见 <https://open-meteo.com/en/terms>。
+首页左上角天气只在已有定位授权时自动刷新；未授权时点击请求 Android 定位权限。`LocationManager.NETWORK_PROVIDER` 提供城市级定位，`Geocoder` 的 `locality` 是唯一城市字段；定位、城市解析、网络或响应失败都会显示明确的不可用状态，不展示猜测值。Open-Meteo 当前天气接口接收经纬度并返回摄氏温度与 WMO code，前台每 30 分钟最多刷新一次。晴天图标使用底栏同一暖黄色，局部云和雨使用蓝色，阴天、雾和雪使用青色，雷暴使用紫色；权限缺失使用红色，数据不可用使用橙色。免费接口仅限非商业用途并受服务限制，坐标会发送给该第三方；参见 <https://open-meteo.com/en/terms>。
 
 ## AI 首页与模态 AI 左抽屉
 
 AI 首页只承担对话主界面，不再承担 Operit 应用壳。即使当前没有可用模型配置或 API Key，AI 首页仍显示对话内容区和输入控件；模型配置由独立设置页面承载，缺少凭据时只在实际需要模型的操作中报告。AI 首页与 AI 一级页面的左上角三横线按钮打开模态 AI 左抽屉；深层页面显示返回箭头。浏览器、小程序、文件管理和 Kiyori 设置不显示 AI 抽屉按钮。
 
 `ChatHeader` 和 `ChatHistorySelectorPanel` 继续拥有对话历史、搜索、新建、切换和删除对话。抽屉中的“AI 对话”只返回现有 AI Home，不创建会话、不清空草稿，也不复制会话操作或最近对话列表。
+
+AI 首页右上角 App Shell 动作从左到右为 Browser、Terminal、Workspace，分别使用
+`KiyoriSemanticTone.BLUE / CYAN / PURPLE`。Browser 是进入共享 Browser Home 的一次性动作；
+Terminal 与 Workspace 是切换动作，活动时只增加各自低饱和容器，图标颜色保持稳定。
 
 原版左抽屉的可见入口库存为：
 
@@ -310,6 +318,7 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 - 沿用 Operit 对语义主题 token 的使用方式、字体层级、图标、选中态、状态徽标、分隔线和交互密度；默认 token 值遵守 [专业浏览器灰白默认主题](../decisions/0007_professional_browser_theme.md)
 - 模块状态区显示“Operit AI”，不再由 `softwareIdentity` 决定 Kiyori 应用品牌
 - 保留包数量、权限状态、工作流数量和动态插件入口，不把可操作状态退化为静态按钮
+- 包管理、权限和工作流快捷卡为右上角数量/状态徽标保留独立顶部区域，图标与标签位于其下方；窄屏下“正常”、未授权和未运行等文本不得覆盖图标
 - 使用原版纵向滚动层级；AI 助手固定在底部安全区上方，不随长列表消失
 - `<600dp` 为窗口宽度 `75%`，`600-839dp` 为 `320dp`，`>=840dp` 为 `360dp`；分隔铰链把最大宽度限制在左侧物理区域
 - 抽屉遮罩覆盖窗口全高；面板从状态栏底部开始，左侧两角贴屏，右侧两角为 `16dp`

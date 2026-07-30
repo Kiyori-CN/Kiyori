@@ -51,7 +51,8 @@ primary/secondary 是应用级语义 token。AI、设置控件和软件壳选中
 1. 增加应用强调色与浏览器中性色两套完整 ColorScheme，并保持主题设置 key、字体、背景媒体和气泡个性化格式不变
 2. 在实际浏览器屏幕和 App Shell 浏览器子页边界嵌套中性主题；不改变 Browser Runtime、WebSession 或 WebView owner
 3. 固定两个搜索框的黑色边框，复制旧版立方体工具集合图标，并保留菜单中的手提工具箱图标
-4. 删除 Software Home 底栏的选中胶囊、圆形裁剪和可见 indication；选中项使用应用 primary tint
+4. 删除 Software Home 底栏的选中胶囊、圆形裁剪和可见 indication；该阶段的 primary tint 已由
+   `2026-07-30` 视觉修订替换为主题感知暖黄色填充与页面背景色细节层
 5. 同步修改 Classic 和 Agent 两种 AI 输入样式的空输入语音动作
 6. 复制旧版 9 个描边 Vector、4 个存储 PNG 和 4 个设置顶栏 PNG，并核验 SHA-256 一致
 7. 新增三个独立静态页面实现；删除旧设置首页双入口、宽度布局枚举和只服务该入口的导航来源

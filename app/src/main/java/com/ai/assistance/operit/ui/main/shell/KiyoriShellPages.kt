@@ -112,6 +112,9 @@ import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherRepository
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherState
 import com.ai.assistance.operit.ui.main.weather.KiyoriWeatherVisual
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.kiyoriWarmAccentYellow
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -120,6 +123,8 @@ private data class PrimaryDestinationVisual(
     val destination: PrimaryDestination,
     val labelResId: Int,
     val iconResId: Int,
+    val selectedFillResId: Int,
+    val selectedDetailResId: Int,
     val iconSizeDp: Int = WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP,
 )
 
@@ -129,15 +134,21 @@ private val primaryDestinationVisuals =
             PrimaryDestination.SOFTWARE_HOME,
             R.string.kiyori_shell_software_home,
             R.drawable.ic_kiyori_nav_home,
+            R.drawable.ic_kiyori_nav_home_selected_fill,
+            R.drawable.ic_kiyori_nav_home,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.BROWSER_HOME,
             R.string.kiyori_shell_browser_home,
             R.drawable.ic_kiyori_nav_globe,
+            R.drawable.ic_kiyori_nav_globe_selected_fill,
+            R.drawable.ic_kiyori_nav_globe,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.MINI_APP_HOME,
             R.string.kiyori_shell_mini_app_home,
+            R.drawable.ic_kiyori_nav_apps,
+            R.drawable.ic_kiyori_nav_apps_selected_fill,
             R.drawable.ic_kiyori_nav_apps,
             WEB_SESSION_BROWSER_BOTTOM_CENTER_ICON_SIZE_DP,
         ),
@@ -145,10 +156,14 @@ private val primaryDestinationVisuals =
             PrimaryDestination.FILE_MANAGEMENT_HOME,
             R.string.kiyori_shell_file_management_home,
             R.drawable.ic_kiyori_nav_folder,
+            R.drawable.ic_kiyori_nav_folder_selected_fill,
+            R.drawable.ic_kiyori_nav_folder,
         ),
         PrimaryDestinationVisual(
             PrimaryDestination.SETTINGS_HOME,
             R.string.kiyori_shell_settings_home,
+            R.drawable.ic_kiyori_tool_settings,
+            R.drawable.ic_kiyori_tool_settings_selected_fill,
             R.drawable.ic_kiyori_tool_settings,
         ),
     )
@@ -662,6 +677,30 @@ private fun KiyoriWeatherButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val warmYellow = kiyoriWarmAccentYellow()
+    val blue = KiyoriSemanticTone.BLUE.resolveColors().icon
+    val cyan = KiyoriSemanticTone.CYAN.resolveColors().icon
+    val purple = KiyoriSemanticTone.PURPLE.resolveColors().icon
+    val orange = KiyoriSemanticTone.ORANGE.resolveColors().icon
+    val red = KiyoriSemanticTone.RED.resolveColors().icon
+    val weatherIconColor =
+        when (state) {
+            is KiyoriWeatherState.Available ->
+                when (state.visual) {
+                    KiyoriWeatherVisual.CLEAR -> warmYellow
+                    KiyoriWeatherVisual.PARTLY_CLOUDY,
+                    KiyoriWeatherVisual.DRIZZLE,
+                    KiyoriWeatherVisual.RAIN -> blue
+                    KiyoriWeatherVisual.OVERCAST,
+                    KiyoriWeatherVisual.FOG,
+                    KiyoriWeatherVisual.SNOW -> cyan
+                    KiyoriWeatherVisual.THUNDERSTORM -> purple
+                }
+            KiyoriWeatherState.Loading -> blue
+            KiyoriWeatherState.PermissionRequired,
+            KiyoriWeatherState.PermissionDenied -> red
+            is KiyoriWeatherState.Unavailable -> orange
+        }
     val contentDescription =
         when (state) {
             is KiyoriWeatherState.Available ->
@@ -695,6 +734,7 @@ private fun KiyoriWeatherButton(
                         imageVector = kiyoriWeatherIcon(state.visual),
                         contentDescription = contentDescription,
                         modifier = Modifier.size(21.dp),
+                        tint = weatherIconColor,
                     )
                     Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
@@ -715,6 +755,7 @@ private fun KiyoriWeatherButton(
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
+                        color = weatherIconColor,
                     )
                 KiyoriWeatherState.PermissionRequired,
                 KiyoriWeatherState.PermissionDenied ->
@@ -722,12 +763,14 @@ private fun KiyoriWeatherButton(
                         imageVector = Icons.Default.LocationOff,
                         contentDescription = contentDescription,
                         modifier = Modifier.size(21.dp),
+                        tint = weatherIconColor,
                     )
                 is KiyoriWeatherState.Unavailable ->
                     Icon(
                         imageVector = Icons.Default.CloudOff,
                         contentDescription = contentDescription,
                         modifier = Modifier.size(21.dp),
+                        tint = weatherIconColor,
                     )
             }
         }
@@ -1035,21 +1078,53 @@ internal fun KiyoriBottomNavigation(
                                     },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                painter = painterResource(item.iconResId),
-                                contentDescription = null,
-                                modifier = Modifier.size(item.iconSizeDp.dp),
-                                tint =
-                                    if (selected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
+                            KiyoriBottomNavigationIcon(
+                                visual = item,
+                                selected = selected,
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun KiyoriBottomNavigationIcon(
+    visual: PrimaryDestinationVisual,
+    selected: Boolean,
+) {
+    val selectedFillColor = kiyoriWarmAccentYellow()
+    val selectedDetailColor = MaterialTheme.colorScheme.background
+    Crossfade(
+        targetState = selected,
+        modifier = Modifier.size(visual.iconSizeDp.dp),
+        animationSpec = tween(durationMillis = 160),
+        label = "kiyoriBottomNavigationIcon",
+    ) { isSelected ->
+        if (isSelected) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    painter = painterResource(visual.selectedFillResId),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    tint = selectedFillColor,
+                )
+                Icon(
+                    painter = painterResource(visual.selectedDetailResId),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    tint = selectedDetailColor,
+                )
+            }
+        } else {
+            Icon(
+                painter = painterResource(visual.iconResId),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

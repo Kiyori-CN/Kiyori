@@ -67,8 +67,21 @@ internal fun resolveKiyoriSemanticColors(
         }
     }
 
+internal fun resolveKiyoriWarmAccentYellow(isDark: Boolean): Color =
+    if (isDark) {
+        Color(0xFFFFD166)
+    } else {
+        Color(0xFFC48A00)
+    }
+
 @Composable
 fun KiyoriSemanticTone.resolveColors(): KiyoriSemanticColors {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     return resolveKiyoriSemanticColors(this, isDark)
+}
+
+@Composable
+internal fun kiyoriWarmAccentYellow(): Color {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return resolveKiyoriWarmAccentYellow(isDark)
 }
