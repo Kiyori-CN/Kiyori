@@ -82,7 +82,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionProfileToggleTarget
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.selectAutomaticFloatingMediaCandidate
@@ -290,6 +290,27 @@ internal fun WebSessionBrowserScreen(
     var profileFeedback by remember { mutableStateOf<String?>(null) }
     val incognitoEnabledMessage = stringResource(R.string.web_session_incognito_enabled)
     val incognitoDisabledMessage = stringResource(R.string.web_session_incognito_disabled)
+
+    fun toggleDefaultProfile(currentProfile: WebSessionProfile) {
+        val requestedProfile =
+            resolveWebSessionProfileToggleTarget(
+                currentProfile = currentProfile,
+                incognitoAvailability = browserState.incognitoAvailability,
+            ) ?: return
+        if (!onSetDefaultSessionProfile(requestedProfile)) {
+            return
+        }
+        onHostStateChange { current ->
+            current.copy(searchProfile = requestedProfile)
+        }
+        profileFeedback =
+            if (requestedProfile == WebSessionProfile.INCOGNITO) {
+                incognitoEnabledMessage
+            } else {
+                incognitoDisabledMessage
+            }
+    }
+
     LaunchedEffect(activeSheetRoute) {
         when {
             activeSheetRoute == WebSessionBrowserSheetRoute.TABS -> {
@@ -659,20 +680,7 @@ internal fun WebSessionBrowserScreen(
                 },
                 selectedProfile = hostState.searchProfile,
                 incognitoAvailability = browserState.incognitoAvailability,
-                onToggleProfile = {
-                    val requestedProfile = hostState.searchProfile.opposite()
-                    if (onSetDefaultSessionProfile(requestedProfile)) {
-                        onHostStateChange { current ->
-                            current.copy(searchProfile = requestedProfile)
-                        }
-                        profileFeedback =
-                            if (requestedProfile == WebSessionProfile.INCOGNITO) {
-                                incognitoEnabledMessage
-                            } else {
-                                incognitoDisabledMessage
-                            }
-                    }
-                },
+                onToggleProfile = { toggleDefaultProfile(hostState.searchProfile) },
                 profileFeedback = profileFeedback,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -782,13 +790,11 @@ internal fun WebSessionBrowserScreen(
                         onOpenAiDialogue()
                     },
                     onOpenToolbox = { openPlaceholder(WebSessionBrowserPlaceholderPage.TOOLBOX) },
-                    onOpenIncognito = {
-                        onHostStateChange { current ->
-                            current.copy(
-                                sheetRoute = WebSessionBrowserSheetRoute.TABS,
-                                selectedProfile = WebSessionProfile.INCOGNITO,
-                            )
-                        }
+                    incognitoEnabled =
+                        browserState.defaultSessionProfile == WebSessionProfile.INCOGNITO ||
+                            browserState.incognitoAvailability.isAvailable,
+                    onToggleIncognito = {
+                        toggleDefaultProfile(browserState.defaultSessionProfile)
                     },
                     onOpenReaderMode = { openPlaceholder(WebSessionBrowserPlaceholderPage.READER_MODE) },
                     onOpenPageSource = {
@@ -807,6 +813,11 @@ internal fun WebSessionBrowserScreen(
                     },
                     onCollapse = dismissSheet,
                 )
+                if (activeSheetRoute == WebSessionBrowserSheetRoute.MENU) {
+                    profileFeedback?.let { message ->
+                        WebSessionBrowserProfileFeedback(message)
+                    }
+                }
             }
             if (mountedDrawerRoute.isBrowserChildDrawerRoute()) {
                 WebSessionBrowserBottomDrawer(

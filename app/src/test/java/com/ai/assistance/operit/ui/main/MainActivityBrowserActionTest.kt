@@ -19,6 +19,12 @@ class MainActivityBrowserActionTest {
             ),
         )
         assertEquals(
+            KiyoriShellExternalDestination.BROWSER_HOME_FROM_MINIMIZED_INDICATOR,
+            resolveKiyoriShellExternalDestination(
+                MainActivity.ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR,
+            ),
+        )
+        assertEquals(
             KiyoriShellExternalDestination.DOWNLOADS,
             resolveKiyoriShellExternalDestination(MainActivity.ACTION_OPEN_KIYORI_DOWNLOADS),
         )

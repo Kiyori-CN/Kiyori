@@ -15,6 +15,30 @@ class WebSessionProfilePolicyTest {
     }
 
     @Test
+    fun `shared profile control enables incognito only when multi profile is available`() {
+        assertEquals(
+            WebSessionProfile.INCOGNITO,
+            resolveWebSessionProfileToggleTarget(
+                currentProfile = WebSessionProfile.NORMAL,
+                incognitoAvailability = WebSessionIncognitoAvailability.AVAILABLE,
+            ),
+        )
+        assertNull(
+            resolveWebSessionProfileToggleTarget(
+                currentProfile = WebSessionProfile.NORMAL,
+                incognitoAvailability = WebSessionIncognitoAvailability.UNSUPPORTED,
+            ),
+        )
+        assertEquals(
+            WebSessionProfile.NORMAL,
+            resolveWebSessionProfileToggleTarget(
+                currentProfile = WebSessionProfile.INCOGNITO,
+                incognitoAvailability = WebSessionIncognitoAvailability.PROFILE_RESET_FAILED,
+            ),
+        )
+    }
+
+    @Test
     fun `only normal profile persists browser history`() {
         assertTrue(WebSessionProfile.NORMAL.shouldPersistBrowserHistory)
         assertFalse(WebSessionProfile.INCOGNITO.shouldPersistBrowserHistory)

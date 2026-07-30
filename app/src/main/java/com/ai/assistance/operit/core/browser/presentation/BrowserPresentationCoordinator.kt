@@ -36,20 +36,20 @@ internal class BrowserPresentationReleaseGate {
     }
 }
 
+internal enum class BrowserAppPresentationReleaseMode {
+    DETACH,
+    MINIMIZE,
+    DESTROY,
+}
+
 internal class BrowserAppPresentationLease(
     val presentation: WebSessionBrowserHost,
-    private val onRelease: () -> Unit,
-    private val onReleaseAndDestroy: () -> Unit,
+    private val onRelease: (BrowserAppPresentationReleaseMode) -> Unit,
 ) {
     private val releaseGate = BrowserPresentationReleaseGate()
 
-    fun release() {
-        releaseGate.runOnce(onRelease)
-    }
-
-    fun releaseAndDestroy() {
-        releaseGate.runOnce(onReleaseAndDestroy)
-    }
+    fun release(mode: BrowserAppPresentationReleaseMode): Boolean =
+        releaseGate.runOnce { onRelease(mode) }
 }
 
 /**
@@ -77,11 +77,8 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
             tools.refreshSessionUiOnMain(session.id)
             BrowserAppPresentationLease(
                 presentation = presentation,
-                onRelease = {
-                    releaseAppPresentation(presentation, webViewHost)
-                },
-                onReleaseAndDestroy = {
-                    releaseAppPresentationAndDestroy(presentation, webViewHost)
+                onRelease = { mode ->
+                    releaseAppPresentation(presentation, webViewHost, mode)
                 },
             )
         }
@@ -96,27 +93,22 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     private fun releaseAppPresentation(
         presentation: WebSessionBrowserHost,
         webViewHost: WebSessionWebViewHost,
+        mode: BrowserAppPresentationReleaseMode,
     ) {
         tools.runOnMainSync<Unit> {
+            val keepInBackgroundAnchor =
+                mode == BrowserAppPresentationReleaseMode.MINIMIZE &&
+                    (
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+                            Settings.canDrawOverlays(appContext)
+                    )
             presentation.releaseAppPresentation(
                 webViewHost = webViewHost,
-                keepInBackgroundAnchor =
-                    Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-                        Settings.canDrawOverlays(appContext),
+                keepInBackgroundAnchor = keepInBackgroundAnchor,
             )
-        }
-    }
-
-    private fun releaseAppPresentationAndDestroy(
-        presentation: WebSessionBrowserHost,
-        webViewHost: WebSessionWebViewHost,
-    ) {
-        tools.runOnMainSync<Unit> {
-            presentation.releaseAppPresentation(
-                webViewHost = webViewHost,
-                keepInBackgroundAnchor = false,
-            )
-            tools.destroyBrowserPresentationOnMain()
+            if (mode == BrowserAppPresentationReleaseMode.DESTROY) {
+                tools.destroyBrowserPresentationOnMain()
+            }
         }
     }
 

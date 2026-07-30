@@ -48,6 +48,7 @@ import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.main.shell.AiDrawerSelectionEffect
 import com.ai.assistance.operit.ui.main.shell.AiTopBarMode
 import com.ai.assistance.operit.ui.main.shell.KiyoriAppShell
+import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserExitPresentation
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellChild
 import com.ai.assistance.operit.ui.main.shell.KiyoriShellExternalDestination
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserReturnTarget
@@ -639,7 +640,13 @@ fun OperitApp(
                 topBarTitleContent = titleContent
             },
             LocalOpenBrowser provides {
-                updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.AI_HOME))
+                updateShellState(
+                    shellState.openBrowser(
+                        returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                        exitPresentation =
+                            KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+                    ),
+                )
             },
         ) {
             KiyoriAppShell(
@@ -735,9 +742,7 @@ fun OperitApp(
                             )
                         },
                         onOpenAiDialogue = {
-                            updateShellState(
-                                shellState.showSoftwareHomePage(SoftwareHomePage.AI_HOME),
-                            )
+                            openAiHome(AiHomeQuickAction.FOCUS_INPUT)
                         },
                         onOpenBrowserSettings = {
                             updateShellState(
@@ -752,6 +757,7 @@ fun OperitApp(
                         onCloseBrowser = {
                             updateShellState(shellState.exitBrowser())
                         },
+                        exitPresentation = shellState.browserExitPresentation,
                         modifier = modifier,
                     )
                 },

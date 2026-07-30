@@ -20,6 +20,11 @@ enum class KiyoriBrowserReturnTarget {
     AI_HOME,
 }
 
+enum class KiyoriBrowserExitPresentation {
+    CLOSE,
+    MINIMIZED_INDICATOR,
+}
+
 enum class SoftwareHomePage(val pagerIndex: Int) {
     MINUS_ONE(0),
     HOME(1),
@@ -41,6 +46,7 @@ enum class KiyoriShellChild {
 
 enum class KiyoriShellExternalDestination {
     BROWSER_HOME,
+    BROWSER_HOME_FROM_MINIMIZED_INDICATOR,
     DOWNLOADS,
     BROWSER_SETTINGS,
     DOWNLOAD_SETTINGS,
@@ -75,6 +81,8 @@ data class KiyoriShellState(
     val isBookmarkDrawerOpen: Boolean = false,
     val isDownloadDrawerOpen: Boolean = false,
     val browserReturnTarget: KiyoriBrowserReturnTarget? = null,
+    val browserExitPresentation: KiyoriBrowserExitPresentation =
+        KiyoriBrowserExitPresentation.CLOSE,
 ) {
     val showsBottomBar: Boolean
         get() =
@@ -98,9 +106,13 @@ data class KiyoriShellState(
             isBookmarkDrawerOpen = false,
             isDownloadDrawerOpen = false,
             browserReturnTarget = null,
+            browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
         )
 
-    fun openBrowser(returnTarget: KiyoriBrowserReturnTarget): KiyoriShellState =
+    fun openBrowser(
+        returnTarget: KiyoriBrowserReturnTarget,
+        exitPresentation: KiyoriBrowserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
+    ): KiyoriShellState =
         copy(
             primaryDestination = PrimaryDestination.BROWSER_HOME,
             child = null,
@@ -109,6 +121,7 @@ data class KiyoriShellState(
             isBookmarkDrawerOpen = false,
             isDownloadDrawerOpen = false,
             browserReturnTarget = returnTarget,
+            browserExitPresentation = exitPresentation,
         )
 
     fun exitBrowser(): KiyoriShellState =
@@ -123,6 +136,7 @@ data class KiyoriShellState(
                     isBookmarkDrawerOpen = false,
                     isDownloadDrawerOpen = false,
                     browserReturnTarget = null,
+                    browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
                 )
             KiyoriBrowserReturnTarget.SOFTWARE_HOME,
             null ->
@@ -135,6 +149,7 @@ data class KiyoriShellState(
                     isBookmarkDrawerOpen = false,
                     isDownloadDrawerOpen = false,
                     browserReturnTarget = null,
+                    browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
                 )
         }
 
@@ -148,6 +163,7 @@ data class KiyoriShellState(
             isBookmarkDrawerOpen = false,
             isDownloadDrawerOpen = false,
             browserReturnTarget = null,
+            browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
         )
 
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =
@@ -265,6 +281,7 @@ internal fun KiyoriShellState.toKiyoriShellSaveableValues(): List<Any> =
         isBookmarkDrawerOpen,
         isDownloadDrawerOpen,
         browserReturnTarget?.name.orEmpty(),
+        browserExitPresentation.name,
     )
 
 internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
@@ -286,6 +303,8 @@ internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
             (values[7] as String)
                 .takeIf { name -> name.isNotEmpty() }
                 ?.let(KiyoriBrowserReturnTarget::valueOf),
+        browserExitPresentation =
+            KiyoriBrowserExitPresentation.valueOf(values[8] as String),
     )
 
 internal val KiyoriShellStateSaver =
@@ -312,7 +331,15 @@ internal fun KiyoriShellState.openExternalDestination(
 ): KiyoriShellState =
     when (destination) {
         KiyoriShellExternalDestination.BROWSER_HOME ->
-            openBrowser(resolveExternalBrowserReturnTarget())
+            openBrowser(
+                returnTarget = resolveExternalBrowserReturnTarget(),
+                exitPresentation = resolveExternalBrowserExitPresentation(),
+            )
+        KiyoriShellExternalDestination.BROWSER_HOME_FROM_MINIMIZED_INDICATOR ->
+            openBrowser(
+                returnTarget = resolveExternalBrowserReturnTarget(),
+                exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            )
         KiyoriShellExternalDestination.DOWNLOADS ->
             openDownloadDrawer()
         KiyoriShellExternalDestination.BROWSER_SETTINGS ->
@@ -320,6 +347,14 @@ internal fun KiyoriShellState.openExternalDestination(
         KiyoriShellExternalDestination.DOWNLOAD_SETTINGS ->
             openExternalChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
     }
+
+internal fun KiyoriShellState.resolveExternalBrowserExitPresentation():
+    KiyoriBrowserExitPresentation =
+        if (primaryDestination == PrimaryDestination.BROWSER_HOME) {
+            browserExitPresentation
+        } else {
+            KiyoriBrowserExitPresentation.CLOSE
+        }
 
 internal fun KiyoriShellState.resolveExternalBrowserReturnTarget(): KiyoriBrowserReturnTarget =
     when {

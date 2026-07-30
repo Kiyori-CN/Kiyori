@@ -600,6 +600,19 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             )
         }
 
+        override fun onRestoreAppShellBrowserFromIndicator() {
+            context.startActivity(
+                Intent(context, MainActivity::class.java).apply {
+                    action = MainActivity.ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR
+                    addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                    )
+                },
+            )
+        }
+
         override fun onExitBrowser() {
             runOnMainSync<Unit> {
                 destroyBrowserPresentationOnMain()

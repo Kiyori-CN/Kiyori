@@ -13,9 +13,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentationReleaseMode
 import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentationLease
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserExitPresentation
 
 @Composable
 internal fun KiyoriBrowserHome(
@@ -24,6 +26,7 @@ internal fun KiyoriBrowserHome(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onCloseBrowser: () -> Unit,
+    exitPresentation: KiyoriBrowserExitPresentation,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -37,20 +40,37 @@ internal fun KiyoriBrowserHome(
         val acquired = coordinator.acquireAppPresentation(webViewHost)
         presentationLease = acquired
         onDispose {
-            acquired.release()
+            // A Compose rebuild is not a user request to show the minimized indicator.
+            acquired.release(BrowserAppPresentationReleaseMode.DETACH)
         }
     }
 
-    fun releaseAppPresentation() {
-        presentationLease?.release()
+    fun finishPresentation(
+        releaseMode: BrowserAppPresentationReleaseMode,
+        onFinished: () -> Unit,
+    ) {
+        val lease = presentationLease ?: return
+        if (lease.release(releaseMode)) {
+            onFinished()
+        }
+    }
+
+    fun handleBrowserBack() {
+        val handledByBrowser = presentationLease?.presentation?.handleBack() == true
+        if (!handledByBrowser) {
+            val releaseMode =
+                when (exitPresentation) {
+                    KiyoriBrowserExitPresentation.CLOSE ->
+                        BrowserAppPresentationReleaseMode.DESTROY
+                    KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR ->
+                        BrowserAppPresentationReleaseMode.MINIMIZE
+                }
+            finishPresentation(releaseMode, onExitBrowser)
+        }
     }
 
     BackHandler(enabled = presentationLease != null) {
-        val handledByBrowser = presentationLease?.presentation?.handleBack() == true
-        if (!handledByBrowser) {
-            releaseAppPresentation()
-            onExitBrowser()
-        }
+        handleBrowserBack()
     }
 
     Box(
@@ -61,19 +81,20 @@ internal fun KiyoriBrowserHome(
     ) {
         presentationLease?.presentation?.BrowserContent(
             webViewHost = webViewHost,
-            onTopBarBack = {
-                releaseAppPresentation()
-                onExitBrowser()
-            },
+            onTopBarBack = ::handleBrowserBack,
             onOpenAiDialogue = {
-                releaseAppPresentation()
-                onOpenAiDialogue()
+                finishPresentation(
+                    BrowserAppPresentationReleaseMode.MINIMIZE,
+                    onOpenAiDialogue,
+                )
             },
             onOpenBrowserSettings = onOpenBrowserSettings,
             onOpenDownloadSettings = onOpenDownloadSettings,
             onExitBrowser = {
-                presentationLease?.releaseAndDestroy()
-                onCloseBrowser()
+                finishPresentation(
+                    BrowserAppPresentationReleaseMode.DESTROY,
+                    onCloseBrowser,
+                )
             },
             modifier = Modifier.fillMaxSize(),
         )

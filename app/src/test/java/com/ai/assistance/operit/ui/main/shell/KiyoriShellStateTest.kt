@@ -46,6 +46,8 @@ class KiyoriShellStateTest {
                     childBackTarget = KiyoriShellChild.BROWSER_SETTINGS,
                     isAiDrawerOpen = true,
                     browserReturnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                    browserExitPresentation =
+                        KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
                 ),
             )
 
@@ -92,10 +94,18 @@ class KiyoriShellStateTest {
 
     @Test
     fun `browser home remembers AI source and exits back to AI home`() {
-        val browserState = KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+        val browserState =
+            KiyoriShellState().openBrowser(
+                returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            )
 
         assertEquals(PrimaryDestination.BROWSER_HOME, browserState.primaryDestination)
         assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
+        assertEquals(
+            KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            browserState.browserExitPresentation,
+        )
         assertEquals(
             KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
             browserState.exitBrowser(),
@@ -106,6 +116,10 @@ class KiyoriShellStateTest {
     fun `browser home opened from software home exits to center home`() {
         val browserState = KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)
 
+        assertEquals(
+            KiyoriBrowserExitPresentation.CLOSE,
+            browserState.browserExitPresentation,
+        )
         assertEquals(
             KiyoriShellState(),
             browserState.exitBrowser(),
@@ -123,8 +137,29 @@ class KiyoriShellStateTest {
         assertEquals(PrimaryDestination.BROWSER_HOME, browserState.primaryDestination)
         assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
         assertEquals(
+            KiyoriBrowserExitPresentation.CLOSE,
+            browserState.browserExitPresentation,
+        )
+        assertEquals(
             KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
             browserState.exitBrowser(),
+        )
+    }
+
+    @Test
+    fun `indicator restore returns to the current owner and minimizes again`() {
+        val browserState =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openExternalDestination(
+                KiyoriShellExternalDestination.BROWSER_HOME_FROM_MINIMIZED_INDICATOR,
+            )
+
+        assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
+        assertEquals(
+            KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            browserState.browserExitPresentation,
         )
     }
 
@@ -147,10 +182,17 @@ class KiyoriShellStateTest {
     fun `repeated external browser action retains the existing browser return target`() {
         val browserState =
             KiyoriShellState()
-                .openBrowser(KiyoriBrowserReturnTarget.AI_HOME)
+                .openBrowser(
+                    returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                    exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+                )
                 .openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME)
 
         assertEquals(KiyoriBrowserReturnTarget.AI_HOME, browserState.browserReturnTarget)
+        assertEquals(
+            KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            browserState.browserExitPresentation,
+        )
     }
 
     @Test
@@ -793,6 +835,28 @@ class KiyoriShellStateTest {
                 softwareHomePage = SoftwareHomePage.AI_HOME,
                 startupPreloadReady = false,
             )
+        )
+    }
+
+    @Test
+    fun `AI home readiness only fires for an already settled requested AI page`() {
+        assertTrue(
+            shouldNotifyKiyoriAiHomeSettledForInitialPage(
+                initialSettledPage = SoftwareHomePage.AI_HOME,
+                requestedPage = SoftwareHomePage.AI_HOME,
+            ),
+        )
+        assertFalse(
+            shouldNotifyKiyoriAiHomeSettledForInitialPage(
+                initialSettledPage = SoftwareHomePage.HOME,
+                requestedPage = SoftwareHomePage.AI_HOME,
+            ),
+        )
+        assertFalse(
+            shouldNotifyKiyoriAiHomeSettledForInitialPage(
+                initialSettledPage = SoftwareHomePage.AI_HOME,
+                requestedPage = SoftwareHomePage.HOME,
+            ),
         )
     }
 }

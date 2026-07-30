@@ -7,8 +7,8 @@
 
 - `KiyoriBrowserHome` 和 `WebSessionBrowserHost.BrowserContent(...)` 只在 Activity Compose tree 中挂载
 - `WindowManager` 浏览器控制面固定为同一活动 WebView 的 1×1、不可见、不可触摸、不可聚焦 background anchor
-- 最小 indicator 继续显示下载提示；普通点击通过
-  `MainActivity.ACTION_OPEN_KIYORI_BROWSER` 进入现有 Browser Home。长按消费本次进入动作并显示
+- 最小 indicator 继续显示下载提示；普通点击通过专用 indicator 恢复 action 进入现有 Browser Home，
+  使这次 Browser Home 的最终返回仍恢复同一个 indicator。长按消费本次进入动作并显示
   球体右上角外围的独立透明临时关闭层，其中只绘制较小的红色叉号。按住期间叉号窗口不可触摸，
   松手后允许点击并保留 3 秒；
   叉号随球体拖动、约束在屏幕内，并复用第 4 行第 1 个菜单按钮的 `onExitBrowser`
@@ -49,6 +49,24 @@
   Android Debug V2 签名与 16 KB ZIP 对齐通过
 - 未安装 APK；目标设备上的外围视觉、长按不中断、松手后三秒与可点击性、屏幕边缘、
   拖动同步和关闭结果保持 `verification_pending`
+
+## 2026-07-30 离开方式与逐级 Back 收口实施记录
+
+- Browser Home 的返回目标只决定回到软件首页或 AI 首页，不再隐式决定是否显示 indicator
+- 普通浏览入口最终离开时关闭 presentation，不显示 indicator；AI 往返和已有 indicator 恢复使用
+  background anchor
+- `DisposableEffect` 因配置或组合重建释放 presentation 时只执行无 indicator 的临时 detach，
+  不把生命周期重建误判为用户最小化
+- 浏览器顶栏返回与系统 Back 调用同一条 host 状态机，优先关闭浏览器内部最上层状态，再执行网页历史
+  后退，最后离开 Browser Home
+- 浏览器菜单进入 AI 对话时请求输入框焦点并显式最小化；菜单“退出浏览器”继续关闭展示且不显示
+  indicator
+- AI 工具主动操作浏览器时沿用 `ensureSessionAttachedOnMain()` 的唯一 background anchor 路径
+
+本轮不改变 WebSession、活动 WebView、下载、书签、Profile 或 AI 工具协议所有权，不增加回退实现。
+Shell、外部 action、presentation release 和逐级 Back 的定向 JVM 回归已通过；最终
+`:app:assembleDebug`、formal readiness、Debug APK V2 签名与 16 KiB ZIP 对齐均通过。设备上的
+系统 Back、IME 聚焦、indicator 与 WindowManager 转挂仍保留为 `verification_pending`。
 
 ## 历史旧实现（已由方案 A 删除）
 

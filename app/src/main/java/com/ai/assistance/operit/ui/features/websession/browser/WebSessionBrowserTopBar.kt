@@ -16,6 +16,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -791,24 +792,8 @@ internal fun WebSessionBrowserSearchScreen(
                 )
             }
 
-            if (profileFeedback != null) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(bottom = 32.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    shadowElevation = 4.dp,
-                ) {
-                    Text(
-                        text = profileFeedback,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                    )
-                }
+            profileFeedback?.let { message ->
+                WebSessionBrowserProfileFeedback(message)
             }
         }
     }
@@ -822,6 +807,27 @@ internal fun WebSessionBrowserSearchScreen(
                 isHistoryEditing = false
                 onClearSearchHistory()
             },
+        )
+    }
+}
+
+@Composable
+internal fun BoxScope.WebSessionBrowserProfileFeedback(message: String) {
+    Surface(
+        modifier =
+            Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        shadowElevation = 4.dp,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
         )
     }
 }

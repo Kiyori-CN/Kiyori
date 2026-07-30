@@ -16,7 +16,8 @@
 ### 旧版没有实现的占位
 
 - 阅读模式、标记广告、网站配置和工具箱继续保持空占位
-- 无痕模式保留当前 Kiyori 已完成的真实 Profile 窗口总览，不复制旧版共享 Cookie 模式
+- 无痕模式复用全屏搜索右上角的真实默认 Profile 切换与短时提示；当前标签 Profile 保持不可变，
+  菜单保持显示，不复制旧版共享 Cookie 模式
 - 网页插件入口继续复用现有 userscript owner；不新增第二个插件仓库
 
 ### 依赖播放器后实现
@@ -95,3 +96,16 @@
   `com.kiyori`，`45 / 0.1.0`，SHA-256
   `EC13E49350D5A3DB84571082F892A77D24A847B993DA6A3CE6A50E82A6B12678`，V2 Debug 签名且
   `zipalign -c -P 16 -v 4` 通过
+
+## 2026-07-30 AI 对话与无痕菜单行为实施记录
+
+- “AI 对话”先关闭菜单，再显式把浏览器转入 background anchor，进入 AI 首页并请求输入框焦点
+- Browser Home 返回软件 Shell 时不消费启动瞬间的旧 `HOME` Pager 快照，避免它覆盖菜单动作
+  请求的 `AI_HOME`；AI 页稳定后再触发输入焦点，已在 AI 页时立即触发
+- “无痕模式”不改变 `sheetRoute = MENU`；它只切换 Browser Runtime 的默认新窗口 Profile，并显示与
+  全屏搜索相同的短时状态提示
+- “退出浏览器”继续关闭 presentation 且不显示 indicator；退出不清空 WebSession 窗口
+- 本轮以 Shell 状态、presentation release mode 和 host Back 状态机为唯一控制面，不在菜单层复制
+  WebView、导航或悬浮球状态
+- Kotlin 编译、定向 JVM 回归、formal readiness 与 Debug APK 构建通过；AI 输入框实际唤起、
+  菜单保持显示和 indicator 触控行为等待设备验收

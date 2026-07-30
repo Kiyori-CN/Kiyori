@@ -41,6 +41,7 @@ import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
 import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
@@ -146,8 +147,21 @@ internal fun KiyoriAppShell(
         ) {
             return@LaunchedEffect
         }
+        val initialSettledPage = SoftwareHomePage.fromPagerIndex(pagerState.settledPage)
+        if (
+            shouldNotifyKiyoriAiHomeSettledForInitialPage(
+                initialSettledPage = initialSettledPage,
+                requestedPage = latestState.softwareHomePage,
+            )
+        ) {
+            latestOnAiHomeSettled()
+        }
         snapshotFlow { pagerState.settledPage }
             .distinctUntilChanged()
+            // When Browser Home is released, this collector restarts before the requested
+            // software-home animation settles. Its first value can still be the old page;
+            // ignore only that unchanged snapshot so a newly settled AI page is never discarded.
+            .dropWhile { pageIndex -> pageIndex == initialSettledPage.pagerIndex }
             .collect { pageIndex ->
                 val page = SoftwareHomePage.fromPagerIndex(pageIndex)
                 if (latestState.softwareHomePage != page) {
@@ -438,6 +452,13 @@ internal fun shouldComposeKiyoriAiHost(
     startupPreloadReady: Boolean,
 ): Boolean =
     startupPreloadReady || !aiHostIsRoot || softwareHomePage == SoftwareHomePage.AI_HOME
+
+internal fun shouldNotifyKiyoriAiHomeSettledForInitialPage(
+    initialSettledPage: SoftwareHomePage,
+    requestedPage: SoftwareHomePage,
+): Boolean =
+    initialSettledPage == SoftwareHomePage.AI_HOME &&
+        requestedPage == SoftwareHomePage.AI_HOME
 
 internal fun shouldProvideKiyoriSettingsTheme(child: KiyoriShellChild?): Boolean =
     when (child) {

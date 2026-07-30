@@ -157,6 +157,16 @@ Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态�
 - 无痕按钮继续使用第三里程碑接入的 AndroidX WebKit Multi-Profile、默认新窗口 Profile 和设备支持判断，
   本轮只调整其在搜索框右侧的布局位置与视觉相邻关系
 
+## 2026-07-30 无痕入口统一实施记录
+
+- 全屏搜索右上角无痕按钮与浏览器菜单“无痕模式”共用同一个默认 Profile 切换动作
+- 两个入口只改变后续新窗口默认 Profile；当前标签的不可变 `WebSession.profile` 不转换
+- 切换成功后共用“已开启无痕模式 / 已关闭无痕模式”短时提示
+- 菜单入口不打开窗口总览、不关闭菜单，也不创建新标签
+- 无痕不可用时沿用 AndroidX Multi-Profile 可用性门禁，不使用普通 Profile 模拟
+- 共享 Profile 切换策略与搜索 UI 定向 JVM 回归已通过；设备上的菜单保持、短时提示位置和
+  Multi-Profile 实际可用性仍保留为 `verification_pending`
+
 ## 本地验证
 
 - 定向 JVM：`KiyoriSoftwareHomeSearchTest`、`KiyoriShellStateTest`、`BrowserAddressResolverTest` 通过

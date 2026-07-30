@@ -206,6 +206,39 @@ internal data class WebSessionBrowserHostState(
     val browserAreaHeightPx: Int = 0
 )
 
+internal enum class WebSessionBrowserBackAction {
+    DISMISS_TEXT_SELECTION,
+    DISMISS_PENDING_DIALOG,
+    CANCEL_DOWNLOAD_PROMPT,
+    CLOSE_SHEET,
+    CLOSE_SEARCH_ENGINE_PANEL,
+    CLOSE_SEARCH,
+    NAVIGATE_WEB_HISTORY,
+    EXIT_BROWSER,
+}
+
+internal fun resolveWebSessionBrowserBackAction(
+    state: WebSessionBrowserHostState,
+): WebSessionBrowserBackAction =
+    when {
+        state.textSelectionActions != null ->
+            WebSessionBrowserBackAction.DISMISS_TEXT_SELECTION
+        state.browserState.pendingDialog != null ->
+            WebSessionBrowserBackAction.DISMISS_PENDING_DIALOG
+        state.downloadPrompt != null ->
+            WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT
+        state.sheetRoute != WebSessionBrowserSheetRoute.NONE ->
+            WebSessionBrowserBackAction.CLOSE_SHEET
+        state.isSearchEnginePanelVisible ->
+            WebSessionBrowserBackAction.CLOSE_SEARCH_ENGINE_PANEL
+        state.isSearchVisible ->
+            WebSessionBrowserBackAction.CLOSE_SEARCH
+        state.browserState.canGoBack ->
+            WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY
+        else ->
+            WebSessionBrowserBackAction.EXIT_BROWSER
+    }
+
 @Serializable
 internal data class WebSessionBookmark(
     val url: String,

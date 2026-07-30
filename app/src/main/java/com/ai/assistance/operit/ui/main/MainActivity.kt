@@ -76,6 +76,8 @@ internal fun resolveKiyoriShellExternalDestination(
     when (action) {
         MainActivity.ACTION_OPEN_KIYORI_BROWSER ->
             KiyoriShellExternalDestination.BROWSER_HOME
+        MainActivity.ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR ->
+            KiyoriShellExternalDestination.BROWSER_HOME_FROM_MINIMIZED_INDICATOR
         MainActivity.ACTION_OPEN_KIYORI_DOWNLOADS ->
             KiyoriShellExternalDestination.DOWNLOADS
         MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS ->
@@ -99,6 +101,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_SETTINGS_SHORTCUT = "com.ai.assistance.operit.action.OPEN_SETTINGS_SHORTCUT"
         const val ACTION_OPEN_KIYORI_BROWSER = "com.kiyori.action.OPEN_BROWSER"
+        const val ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR =
+            "com.kiyori.action.RESTORE_BROWSER_FROM_INDICATOR"
         const val ACTION_OPEN_KIYORI_DOWNLOADS = "com.kiyori.action.OPEN_DOWNLOADS"
         const val ACTION_OPEN_KIYORI_DOWNLOAD_TASK =
             "com.kiyori.action.OPEN_DOWNLOAD_TASK"

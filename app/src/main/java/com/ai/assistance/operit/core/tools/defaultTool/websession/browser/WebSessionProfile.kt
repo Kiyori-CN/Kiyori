@@ -68,6 +68,16 @@ internal fun WebSessionProfile.opposite(): WebSessionProfile =
         WebSessionProfile.INCOGNITO -> WebSessionProfile.NORMAL
     }
 
+internal fun resolveWebSessionProfileToggleTarget(
+    currentProfile: WebSessionProfile,
+    incognitoAvailability: WebSessionIncognitoAvailability,
+): WebSessionProfile? =
+    when (currentProfile) {
+        WebSessionProfile.NORMAL ->
+            WebSessionProfile.INCOGNITO.takeIf { incognitoAvailability.isAvailable }
+        WebSessionProfile.INCOGNITO -> WebSessionProfile.NORMAL
+    }
+
 internal fun shouldCreateSessionForSearch(
     activeProfile: WebSessionProfile?,
     requestedProfile: WebSessionProfile,

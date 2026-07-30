@@ -79,7 +79,9 @@ kiyori_browser_product_completion/
 ## 全局交互合同
 
 - Browser Home、1×1 background anchor 和 AI 只转挂同一个活动 WebView，不在展示切换时调用 `loadUrl`、`reload` 或重建
-- 完整浏览器 UI 只存在于 App Shell Browser Home；系统层最小 indicator 单击时通过显式 action 打开 Browser Home，长按时消费进入动作并创建球体右上角外围的透明 `28dp` 临时关闭窗口，其中只绘制 `16dp` 红色叉号。该窗口按住期间不可触摸，松手后保留 3 秒，随拖动同步且不越出屏幕，点击复用菜单 `onExitBrowser`；后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
+- 完整浏览器 UI 只存在于 App Shell Browser Home。离开 Browser Home 必须显式选择“关闭展示”或“最小化到 indicator”：底部浏览器入口、软件首页搜索、书签和外部网址等普通入口关闭时不显示 indicator；浏览器菜单进入 AI 对话、AI 首页顶栏进入浏览器后返回，以及点击已有 indicator 恢复浏览器后再次返回时，才把同一活动 WebView 转挂到 background anchor 并显示 indicator。AI `browser_*` 在 Browser Home 未挂载时主动使用浏览器，也可按现有唯一 WebSession 路径创建 background anchor 并显示 indicator
+- 系统 Back 与浏览器顶栏返回共用同一逐级回退状态机：先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再执行当前 WebView 历史后退，历史耗尽后才按本次入口的离开方式退出 Browser Home
+- 系统层最小 indicator 单击时通过专用恢复 action 打开 Browser Home，长按时消费进入动作并创建球体右上角外围的透明 `28dp` 临时关闭窗口，其中只绘制 `16dp` 红色叉号。该窗口按住期间不可触摸，松手后保留 3 秒，随拖动同步且不越出屏幕，点击复用菜单 `onExitBrowser`；后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
 - 软件首页全屏搜索创建新窗口；浏览器顶栏搜索继续导航当前窗口，两者不混用
 - 普通窗口和无痕窗口不能互相转换；关闭窗口后其 Profile 语义不改变
 - AI 可以操作无痕窗口，但无痕仅隔离 WebView 网站数据，不隔离本应用内已经获得授权的 AI；所有相关 UI 必须明确说明
@@ -120,6 +122,36 @@ kiyori_browser_product_completion/
 - 关联 JVM 测试 `16/16`、Kotlin 编译、formal readiness、`git diff --check` 与 Debug APK 构建通过
 - APK SHA-256 为 `689A7EA123EC0107C7A29E8A82138BE6B383374EBC1365325A3F1816D6BFD463`；
   真机外围视觉、长按不中断、计时、边缘钳制、拖动同步和关闭结果保持
+  `verification_pending`
+
+### 2026-07-30 浏览器退出、AI 往返、逐级 Back 与无痕菜单收口
+
+- Shell 同时记录浏览器返回目标和离开后的 presentation 方式，避免“返回 AI”与“是否显示 indicator”
+  被一个布尔条件混在一起
+- 底部第二个浏览器入口、软件首页搜索、书签和普通外部入口使用“关闭展示”；浏览器窗口和 WebSession
+  保留，退出后不显示 indicator
+- 浏览器菜单“AI 对话”直接进入 AI 首页并请求真实输入框焦点，同时把当前浏览器最小化为 indicator；
+  AI 首页右上角浏览器按钮进入 Browser Home 后，最终返回也恢复 indicator
+- indicator 使用独立恢复入口；点击已有 indicator 进入 Browser Home 后，最终返回继续恢复同一个
+  indicator，不把这次恢复误当作普通底栏入口
+- AI `browser_*` 在 Browser Home 未挂载时继续通过唯一 WebSession 主动请求 background anchor；
+  不新增第二 WebView、第二浏览器运行时或并行悬浮球 owner
+- 浏览器顶栏返回与系统 Back 共用 `WebSessionBrowserHost` 的逐级状态机；网页有历史时先后退，
+  历史耗尽后才按本次入口退出
+- 菜单“无痕模式”不再打开窗口总览；它与全屏搜索右上角按钮共用默认 Profile 切换和短时提示，
+  不切换当前不可变 Profile 标签，也不关闭仍在显示的菜单
+- 用户实测发现首次实现从 Browser Home 切回软件 Shell 时，Pager 同步协程会先消费旧的
+  `HOME` 已稳定页并覆盖显式 `AI_HOME` 请求。现已只忽略启动时未变化的旧页快照；目标 AI 页
+  真正稳定后才同步状态，若 AI 页本来已经稳定则立即标记可用并继续执行输入焦点/IME 请求
+- 本地验收：8 个定向 JVM suite 共 79 项测试全部通过；其中包含 AI 首页一次性输入焦点和
+  已稳定目标页回归；
+  Kotlin 编译、formal readiness、
+  `git diff --check`、`:app:assembleDebug` 和 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`com.kiyori`，
+  `versionCode=45`，`versionName=0.1.0`，大小 `482617522` 字节，SHA-256
+  `8C095478ED9D5CD4F0D6D6546D20BF8404EA7D611BB0F13CFE4900BF53CC71B4`；V2 Debug 签名与
+  `zipalign -c -P 16 4` 通过
+- 设备上的 IME、系统 Back、indicator、WindowManager 转挂和菜单提示继续保持
   `verification_pending`
 
 ### 2026-07-28 浏览器视频嗅探抽屉优化

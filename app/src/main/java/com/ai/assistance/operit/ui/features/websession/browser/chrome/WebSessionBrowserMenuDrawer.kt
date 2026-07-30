@@ -59,7 +59,8 @@ internal fun WebSessionBrowserMenuDrawer(
     onOpenNetworkLog: () -> Unit,
     onOpenAiDialogue: () -> Unit,
     onOpenToolbox: () -> Unit,
-    onOpenIncognito: () -> Unit,
+    incognitoEnabled: Boolean,
+    onToggleIncognito: () -> Unit,
     onOpenReaderMode: () -> Unit,
     onOpenPageSource: () -> Unit,
     onOpenAdMarking: () -> Unit,
@@ -145,7 +146,13 @@ internal fun WebSessionBrowserMenuDrawer(
                         MenuAction(stringResource(R.string.web_session_browser_toolbox), R.drawable.ic_kiyori_browser_bottom_toolbox, onOpenToolbox, tone = KiyoriSemanticTone.ORANGE),
                     )
                     MenuRow(
-                        MenuAction(stringResource(R.string.web_session_incognito_mode), R.drawable.ic_kiyori_tool_incognito, onOpenIncognito, tone = KiyoriSemanticTone.PURPLE),
+                        MenuAction(
+                            stringResource(R.string.web_session_incognito_mode),
+                            R.drawable.ic_kiyori_tool_incognito,
+                            onToggleIncognito,
+                            enabled = incognitoEnabled,
+                            tone = KiyoriSemanticTone.PURPLE,
+                        ),
                         MenuAction(stringResource(R.string.web_session_reader_mode), R.drawable.ic_kiyori_tool_reader_mode, onOpenReaderMode, tone = KiyoriSemanticTone.GREEN),
                         MenuAction(stringResource(R.string.web_session_page_source), R.drawable.ic_kiyori_tool_view_source, onOpenPageSource, tone = KiyoriSemanticTone.BLUE),
                         MenuAction(stringResource(R.string.web_session_ad_marking), R.drawable.ic_kiyori_tool_ad_block, onOpenAdMarking, tone = KiyoriSemanticTone.RED),

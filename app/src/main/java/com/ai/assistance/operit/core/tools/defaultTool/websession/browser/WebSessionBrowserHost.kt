@@ -61,6 +61,7 @@ internal class WebSessionBrowserHost(
         fun onNewTab(profile: WebSessionProfile)
         fun onRequestTabThumbnails()
         fun onOpenAppShellBrowser()
+        fun onRestoreAppShellBrowserFromIndicator()
         fun onExitBrowser()
         fun onOpenBrowserSettings()
         fun onOpenDownloadSettings()
@@ -533,53 +534,47 @@ internal class WebSessionBrowserHost(
     }
 
     fun handleBack(): Boolean {
-        if (hostState.textSelectionActions != null) {
-            hideTextSelectionActionsOverlay()
-            return true
-        }
-
-        val browserState = hostState.browserState
-        val pendingDialog = browserState.pendingDialog
-        if (pendingDialog != null) {
-            callbacks.onHandlePendingDialog(false, null)
-            return true
-        }
-
-        val downloadPrompt = hostState.downloadPrompt
-        if (downloadPrompt != null) {
-            callbacks.onCancelBrowserDownload(downloadPrompt.requestId)
-            return true
-        }
-
-        if (hostState.sheetRoute != WebSessionBrowserSheetRoute.NONE) {
-            updateHostState { current ->
-                current.copy(sheetRoute = WebSessionBrowserSheetRoute.NONE)
+        // Top-bar Back and system Back both enter this single ordering so browser chrome,
+        // transient UI, and WebView history cannot diverge.
+        return when (resolveWebSessionBrowserBackAction(hostState)) {
+            WebSessionBrowserBackAction.DISMISS_TEXT_SELECTION -> {
+                hideTextSelectionActionsOverlay()
+                true
             }
-            return true
-        }
-
-        if (hostState.isSearchEnginePanelVisible) {
-            updateHostState { current -> current.copy(isSearchEnginePanelVisible = false) }
-            return true
-        }
-
-        if (hostState.isSearchVisible) {
-            updateHostState { current ->
-                current.copy(
-                    isSearchVisible = false,
-                    isSearchEnginePanelVisible = false,
-                    searchDraft = "",
-                )
+            WebSessionBrowserBackAction.DISMISS_PENDING_DIALOG -> {
+                callbacks.onHandlePendingDialog(false, null)
+                true
             }
-            return true
+            WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT -> {
+                callbacks.onCancelBrowserDownload(requireNotNull(hostState.downloadPrompt).requestId)
+                true
+            }
+            WebSessionBrowserBackAction.CLOSE_SHEET -> {
+                updateHostState { current ->
+                    current.copy(sheetRoute = WebSessionBrowserSheetRoute.NONE)
+                }
+                true
+            }
+            WebSessionBrowserBackAction.CLOSE_SEARCH_ENGINE_PANEL -> {
+                updateHostState { current -> current.copy(isSearchEnginePanelVisible = false) }
+                true
+            }
+            WebSessionBrowserBackAction.CLOSE_SEARCH -> {
+                updateHostState { current ->
+                    current.copy(
+                        isSearchVisible = false,
+                        isSearchEnginePanelVisible = false,
+                        searchDraft = "",
+                    )
+                }
+                true
+            }
+            WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY -> {
+                callbacks.onBack()
+                true
+            }
+            WebSessionBrowserBackAction.EXIT_BROWSER -> false
         }
-
-        if (browserState.canGoBack) {
-            callbacks.onBack()
-            return true
-        }
-
-        return false
     }
 
     fun showTextSelectionActionsOverlay(anchorX: Double, anchorY: Double) {
@@ -843,7 +838,7 @@ internal class WebSessionBrowserHost(
 
     private fun openBrowserFromIndicator() {
         applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
-        callbacks.onOpenAppShellBrowser()
+        callbacks.onRestoreAppShellBrowserFromIndicator()
     }
 
     private fun showIndicatorCloseAction() {
