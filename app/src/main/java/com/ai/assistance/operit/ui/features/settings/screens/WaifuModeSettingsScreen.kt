@@ -14,7 +14,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
@@ -24,6 +23,8 @@ import com.ai.assistance.operit.data.preferences.WaifuPreferences
 import com.ai.assistance.operit.data.model.ActivePrompt
 import kotlinx.coroutines.launch
 import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +57,7 @@ fun WaifuModeSettingsScreen(
         }
     }.collectAsState(initial = null)
     val activeTargetName = activeCharacterGroup?.name ?: activeCharacterCard?.name ?: ""
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
 
     // 状态
     var showSaveSuccess by remember { mutableStateOf(false) }
@@ -664,7 +666,7 @@ fun WaifuModeSettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                        containerColor = successColors.container
                     )
                 ) {
                     Row(
@@ -676,14 +678,14 @@ fun WaifuModeSettingsScreen(
                         Icon(
                             Icons.Default.Check,
                             contentDescription = null,
-                            tint = Color(0xFF4CAF50),
+                            tint = successColors.icon,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.settings_saved_message),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF4CAF50)
+                            color = successColors.icon
                         )
                     }
                 }

@@ -59,7 +59,6 @@ import com.ai.assistance.operit.ui.theme.isWaterGlassSupported
 import com.ai.assistance.operit.ui.theme.liquidGlass
 import com.ai.assistance.operit.ui.theme.resolveConfiguredFontFamily
 import com.ai.assistance.operit.ui.theme.waterGlass
-import kotlinx.coroutines.runBlocking
 
 private val ExpandedBubbleLayoutNodeTypes =
     setOf(
@@ -123,24 +122,13 @@ fun BubbleAiMessageComposable(
     val toolCollapseMode by displayPreferencesManager.toolCollapseMode.collectAsState(initial = ToolCollapseMode.ALL)
     
     // 根据角色名获取头像
-    val aiAvatarUri by remember(message.roleName) {
-        if (message.roleName != null) {
-            try {
-                runBlocking {
-                    val characterCard = characterCardManager.findCharacterCardByName(message.roleName)
-                    if (characterCard != null) {
-                        preferencesManager.getAiAvatarForCharacterCardFlow(characterCard.id)
-                    } else {
-                        preferencesManager.customAiAvatarUri
-                    }
-                }
-            } catch (e: Exception) {
-                preferencesManager.customAiAvatarUri
-            }
-        } else {
-            preferencesManager.customAiAvatarUri
-        }
-    }.collectAsState(initial = null)
+    val aiAvatarUri by
+        rememberMessageRoleAvatarUri(
+            roleName = message.roleName,
+            useGlobalAiAvatarWhenRoleMissing = true,
+            characterCardManager = characterCardManager,
+            preferencesManager = preferencesManager,
+        )
 
     val avatarShape = remember(avatarShapePref, avatarCornerRadius) {
         if (avatarShapePref == UserPreferencesManager.AVATAR_SHAPE_SQUARE) {

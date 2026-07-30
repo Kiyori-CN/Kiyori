@@ -8,10 +8,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ai.assistance.operit.util.AppLogger
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 import com.google.android.exoplayer2.ui.StyledPlayerView
+
+private const val VIDEO_ATTACHMENT_PLAYER_TAG = "VideoAttachmentPlayer"
 
 @Composable
 fun VideoAttachmentPlayer(
@@ -37,7 +40,8 @@ fun VideoAttachmentPlayer(
                 player.stop()
                 player.clearMediaItems()
                 player.release()
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                AppLogger.w(VIDEO_ATTACHMENT_PLAYER_TAG, "释放视频附件播放器失败", error)
             }
         }
     }

@@ -25,7 +25,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -44,6 +43,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 /** 命令执行记录数据类 */
 data class CommandRecord(
@@ -539,6 +540,8 @@ fun PresetCommandChip(presetCommand: PresetCommand, modifier: Modifier = Modifie
 /** 命令结果卡片 */
 @Composable
 fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val errorColors = KiyoriSemanticTone.RED.resolveColors()
     val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()) }
     val formattedDate = remember(record) { dateFormatter.format(Date(record.timestamp)) }
     
@@ -607,8 +610,8 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
                         .size(10.dp)
                         .clip(CircleShape)
                         .background(
-                            if (record.result.success) Color(0xFF4CAF50)
-                            else Color(0xFFFF5252)
+                            if (record.result.success) successColors.icon
+                            else errorColors.icon
                         )
                 )
                 
@@ -723,4 +726,4 @@ fun CommandResultCard(record: CommandRecord, onReExecute: () -> Unit = {}) {
             }
         }
     }
-} 
+}

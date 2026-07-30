@@ -725,9 +725,14 @@ private fun TokenUsageModelCard(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    AssistChip(
-                        onClick = { },
-                        label = {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = when (billingMode) {
+                            BillingMode.TOKEN -> MaterialTheme.colorScheme.secondaryContainer
+                            BillingMode.COUNT -> MaterialTheme.colorScheme.tertiaryContainer
+                        },
+                    ) {
+                        Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
                             Text(
                                 text = when (billingMode) {
                                     BillingMode.TOKEN -> stringResource(id = R.string.settings_billing_mode_token)
@@ -735,15 +740,8 @@ private fun TokenUsageModelCard(
                                 },
                                 style = MaterialTheme.typography.labelSmall
                             )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = when (billingMode) {
-                                BillingMode.TOKEN -> MaterialTheme.colorScheme.secondaryContainer
-                                BillingMode.COUNT -> MaterialTheme.colorScheme.tertiaryContainer
-                            }
-                        ),
-                        modifier = Modifier.height(24.dp)
-                    )
+                        }
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onResetClick) {

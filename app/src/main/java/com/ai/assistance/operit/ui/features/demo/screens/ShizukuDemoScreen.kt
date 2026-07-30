@@ -35,6 +35,8 @@ import com.ai.assistance.operit.ui.features.demo.wizards.AccessibilityWizardCard
 import com.ai.assistance.operit.ui.features.demo.wizards.OperitTerminalWizardCard
 import com.ai.assistance.operit.ui.features.demo.wizards.RootWizardCard
 import com.ai.assistance.operit.ui.features.demo.wizards.ShizukuWizardCard
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -315,19 +317,21 @@ fun ShizukuDemoScreen(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                KiyoriSemanticIconBadge(
                         imageVector = Icons.Default.Build,
+                        tone = KiyoriSemanticTone.ORANGE,
                         contentDescription = context.getString(R.string.setup_wizard_icon_desc),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        containerSize = 34.dp,
+                        iconSize = 19.dp,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
                         text = context.getString(R.string.setup_wizard),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                 )
             }
 

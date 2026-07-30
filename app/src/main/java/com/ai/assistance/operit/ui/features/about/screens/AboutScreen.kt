@@ -50,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 
 private const val PROJECT_URL = "https://github.com/Kiyori-CN/Kiyori"
 private const val ISSUES_URL = "$PROJECT_URL/issues"
@@ -68,6 +70,7 @@ private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun SettingsRow(
     icon: ImageVector,
+    tone: KiyoriSemanticTone,
     title: String,
     subtitle: String? = null,
     onClick: (() -> Unit)? = null
@@ -79,13 +82,14 @@ private fun SettingsRow(
             .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
+        KiyoriSemanticIconBadge(
             imageVector = icon,
+            tone = tone,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            containerSize = 40.dp,
+            iconSize = 21.dp,
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -198,20 +202,23 @@ fun AboutScreen() {
                 SettingsGroup {
                     SettingsRow(
                         icon = Icons.Default.Language,
+                        tone = KiyoriSemanticTone.BLUE,
                         title = stringResource(R.string.project_url),
                         subtitle = PROJECT_URL,
                         onClick = { openUrl(PROJECT_URL) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp))
+                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
                     SettingsRow(
                         icon = Icons.Default.BugReport,
+                        tone = KiyoriSemanticTone.RED,
                         title = stringResource(R.string.project_issues),
                         subtitle = ISSUES_URL,
                         onClick = { openUrl(ISSUES_URL) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp))
+                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
                     SettingsRow(
                         icon = Icons.Default.Source,
+                        tone = KiyoriSemanticTone.PURPLE,
                         title = stringResource(R.string.open_source_licenses),
                         onClick = { showLicenseDialog = true }
                     )
@@ -222,6 +229,7 @@ fun AboutScreen() {
                 SettingsGroup {
                     SettingsRow(
                         icon = Icons.Default.Info,
+                        tone = KiyoriSemanticTone.CYAN,
                         title = stringResource(R.string.app_update_channel),
                         subtitle = stringResource(R.string.app_update_channel_disabled)
                     )

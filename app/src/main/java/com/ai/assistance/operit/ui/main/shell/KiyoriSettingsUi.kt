@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -28,11 +30,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 internal const val KIYORI_SETTINGS_ROW_VERTICAL_PADDING_DP = 16
 internal const val KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP = 26
@@ -66,17 +72,18 @@ internal fun KiyoriSettingsGroupSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val colors = LocalKiyoriSettingsColors.current
     Column(modifier = modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp)) {
         Text(
             text = title,
-            color = Color(0xFF35332F),
+            color = colors.primaryText,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 20.dp),
         )
         Text(
             text = description,
-            color = Color(0xFF8B8882),
+            color = colors.secondaryText,
             fontSize = 12.sp,
             lineHeight = 17.sp,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp),
@@ -93,11 +100,14 @@ internal fun KiyoriSettingsRow(
     title: String,
     description: String,
     kind: KiyoriSettingsRowKind,
+    icon: ImageVector? = null,
+    iconTone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
     value: String? = null,
     checked: Boolean = false,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val colors = LocalKiyoriSettingsColors.current
     Row(
         modifier =
             Modifier
@@ -112,12 +122,31 @@ internal fun KiyoriSettingsRow(
                 ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        icon?.let { imageVector ->
+            val iconColors = iconTone.resolveColors()
+            Box(
+                modifier =
+                    Modifier
+                        .size(34.dp)
+                        .background(iconColors.container, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = null,
+                    tint = iconColors.icon,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF292825),
+                color = colors.primaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -125,7 +154,7 @@ internal fun KiyoriSettingsRow(
                 text = description,
                 fontSize = 12.sp,
                 lineHeight = 17.sp,
-                color = Color(0xFF8C8984),
+                color = colors.secondaryText,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp),
@@ -138,7 +167,7 @@ internal fun KiyoriSettingsRow(
                     Text(
                         text = currentValue,
                         fontSize = 12.sp,
-                        color = Color(0xFF77736E),
+                        color = colors.secondaryText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(start = 12.dp),
@@ -148,7 +177,7 @@ internal fun KiyoriSettingsRow(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFFB4B0AA),
+                    tint = colors.mutedIcon,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -159,10 +188,10 @@ internal fun KiyoriSettingsRow(
                     enabled = enabled,
                     colors =
                         SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF667EEA),
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFD5D2CC),
+                            checkedThumbColor = colors.accentContent,
+                            checkedTrackColor = colors.accent,
+                            uncheckedThumbColor = colors.cardBackground,
+                            uncheckedTrackColor = colors.disabledTrack,
                             uncheckedBorderColor = Color.Transparent,
                         ),
                     modifier = Modifier.padding(start = 12.dp),
@@ -173,7 +202,10 @@ internal fun KiyoriSettingsRow(
 
 @Composable
 internal fun KiyoriSettingsDivider() {
-    HorizontalDivider(color = Color(0xFFF0EFEB), thickness = 0.6.dp)
+    HorizontalDivider(
+        color = LocalKiyoriSettingsColors.current.divider,
+        thickness = 0.6.dp,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -183,6 +215,7 @@ internal fun KiyoriSettingsSelectionSheet(
     onDismiss: () -> Unit,
     onSelect: (KiyoriSettingsSelectionOption) -> Unit,
 ) {
+    val colors = LocalKiyoriSettingsColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -193,13 +226,14 @@ internal fun KiyoriSettingsSelectionSheet(
                 topStart = KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP.dp,
                 topEnd = KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP.dp,
             ),
-        containerColor = Color.White,
-        scrimColor = Color(0x73000000),
+        containerColor = colors.cardBackground,
+        scrimColor = colors.scrim,
         tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
             Text(
                 text = selection.title,
+                color = colors.primaryText,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -207,12 +241,12 @@ internal fun KiyoriSettingsSelectionSheet(
             )
             Text(
                 text = "当前：${selection.currentValue}",
-                color = Color(0xFF85817B),
+                color = colors.secondaryText,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
             )
-            HorizontalDivider(color = Color(0xFFEFEDE9))
+            HorizontalDivider(color = colors.divider)
             selection.options.forEach { option ->
                 Row(
                     modifier =
@@ -230,6 +264,7 @@ internal fun KiyoriSettingsSelectionSheet(
                     Column(modifier = Modifier.weight(1f).padding(end = 14.dp)) {
                         Text(
                             text = option.label,
+                            color = colors.primaryText,
                             fontSize = 14.sp,
                             fontWeight =
                                 if (option.selected) FontWeight.SemiBold else FontWeight.Normal,
@@ -239,7 +274,7 @@ internal fun KiyoriSettingsSelectionSheet(
                                 text = description,
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp,
-                                color = Color(0xFF7E7A74),
+                                color = colors.secondaryText,
                                 modifier = Modifier.padding(top = 3.dp),
                             )
                         }
@@ -248,7 +283,7 @@ internal fun KiyoriSettingsSelectionSheet(
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = null,
-                            tint = Color(0xFF667EEA),
+                            tint = colors.accent,
                             modifier =
                                 Modifier.size(
                                     KIYORI_SETTINGS_SELECTION_CHECK_ICON_SIZE_DP.dp,
@@ -256,10 +291,11 @@ internal fun KiyoriSettingsSelectionSheet(
                         )
                     }
                 }
-                HorizontalDivider(color = Color(0xFFF1EFEC))
+                HorizontalDivider(color = colors.divider)
             }
             Text(
                 text = "取消",
+                color = colors.primaryText,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
                 modifier =

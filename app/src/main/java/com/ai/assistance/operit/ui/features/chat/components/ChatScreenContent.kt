@@ -48,6 +48,7 @@ import com.ai.assistance.operit.ui.features.chat.components.style.bubble.BubbleI
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceBackupManager
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -169,6 +170,7 @@ fun ChatScreenContent(
     var exportSuccess by remember { mutableStateOf(false) }
     var exportFilePath by remember { mutableStateOf<String?>(null) }
     var exportErrorMessage by remember { mutableStateOf<String?>(null) }
+    var exportJob by remember { mutableStateOf<Job?>(null) }
     var webContentDir by remember { mutableStateOf<File?>(null) }
     var editingMessageType by remember { mutableStateOf<String?>(null) }
     var pendingRollbackIndex by remember { mutableStateOf<Int?>(null) }
@@ -861,7 +863,8 @@ fun ChatScreenContent(
                         exportStatus = context.getString(R.string.chat_starting_export)
 
                         // 启动导出过程
-                        coroutineScope.launch {
+                        exportJob?.cancel()
+                        exportJob = coroutineScope.launch {
                             exportAndroidApp(
                                     context = context,
                                     packageName = packageName,
@@ -875,6 +878,7 @@ fun ChatScreenContent(
                                         exportStatus = status
                                     },
                                     onComplete = { success, filePath, errorMessage ->
+                                        exportJob = null
                                         showExportProgressDialog = false
                                         exportSuccess = success
                                         exportFilePath = filePath
@@ -899,7 +903,8 @@ fun ChatScreenContent(
                         exportStatus = context.getString(R.string.chat_starting_export)
 
                         // 启动导出过程
-                        coroutineScope.launch {
+                        exportJob?.cancel()
+                        exportJob = coroutineScope.launch {
                             exportWindowsApp(
                                     context = context,
                                     appName = appName,
@@ -910,6 +915,7 @@ fun ChatScreenContent(
                                         exportStatus = status
                                     },
                                     onComplete = { success, filePath, errorMessage ->
+                                        exportJob = null
                                         showExportProgressDialog = false
                                         exportSuccess = success
                                         exportFilePath = filePath
@@ -927,7 +933,11 @@ fun ChatScreenContent(
             ExportProgressDialog(
                     progress = exportProgress,
                     status = exportStatus,
-                    onCancel = { showExportProgressDialog = false }
+                    onCancel = {
+                        exportJob?.cancel()
+                        exportJob = null
+                        showExportProgressDialog = false
+                    }
             )
         }
 

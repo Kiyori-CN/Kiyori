@@ -21,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -34,6 +33,8 @@ import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 /**
  * 进程限制操作记录
@@ -58,6 +59,7 @@ enum class ProcessLimitAction {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProcessLimitRemoverScreen(navController: NavController? = null) {
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     
@@ -559,7 +561,7 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
                     Icon(
                         imageVector = if (lastResult!!.result.success) Icons.Default.CheckCircle else Icons.Default.Error,
                         contentDescription = null,
-                        tint = if (lastResult!!.result.success) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                        tint = if (lastResult!!.result.success) successColors.icon else MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -602,6 +604,8 @@ fun ProcessLimitRemoverScreen(navController: NavController? = null) {
  */
 @Composable
 fun OperationRecordCard(record: ProcessLimitRecord) {
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val errorColors = KiyoriSemanticTone.RED.resolveColors()
     val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
     val formattedDate = remember(record) { dateFormatter.format(Date(record.timestamp)) }
     
@@ -674,8 +678,8 @@ fun OperationRecordCard(record: ProcessLimitRecord) {
                     .size(10.dp)
                     .clip(CircleShape)
                     .background(
-                        if (record.result.success) Color(0xFF4CAF50)
-                        else Color(0xFFFF5252)
+                        if (record.result.success) successColors.icon
+                        else errorColors.icon
                     )
             )
         }

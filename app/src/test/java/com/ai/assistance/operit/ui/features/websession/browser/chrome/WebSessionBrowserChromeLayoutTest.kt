@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.websession.browser.chrome
 
-import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,7 +45,6 @@ class WebSessionBrowserChromeLayoutTest {
         assertEquals(40, WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP)
         assertEquals(42, WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP)
         assertEquals(6, WEB_SESSION_BROWSER_TOP_GAP_DP)
-        assertEquals(Color.Black, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR)
     }
 
     @Test

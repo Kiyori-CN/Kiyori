@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -88,6 +89,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.Job
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.ui.common.rememberLocal
@@ -105,6 +107,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.data.preferences.ActivePromptManager
 import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatHistoryDisplayMode
+import com.ai.assistance.operit.ui.theme.AppBackgroundLayer
 import com.ai.assistance.operit.ui.theme.getTextColorForBackground
 import com.ai.assistance.operit.plugins.chatview.ChatViewEvent
 import com.ai.assistance.operit.plugins.chatview.ChatViewHookParams
@@ -170,6 +173,20 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     val displayPreferencesManager = remember { DisplayPreferencesManager.getInstance(context) }
     val useBackgroundImage by preferencesManager.useBackgroundImage.collectAsState(initial = false)
     val backgroundImageUri by preferencesManager.backgroundImageUri.collectAsState(initial = null)
+    val backgroundImageOpacity by
+        preferencesManager.backgroundImageOpacity.collectAsState(initial = 0.3f)
+    val backgroundMediaType by
+        preferencesManager.backgroundMediaType.collectAsState(
+            initial = UserPreferencesManager.MEDIA_TYPE_IMAGE,
+        )
+    val videoBackgroundMuted by
+        preferencesManager.videoBackgroundMuted.collectAsState(initial = true)
+    val videoBackgroundLoop by
+        preferencesManager.videoBackgroundLoop.collectAsState(initial = true)
+    val useBackgroundBlur by
+        preferencesManager.useBackgroundBlur.collectAsState(initial = false)
+    val backgroundBlurRadius by
+        preferencesManager.backgroundBlurRadius.collectAsState(initial = 10f)
     val chatHeaderTransparent by preferencesManager.chatHeaderTransparent.collectAsState(initial = false)
     val chatInputTransparent by preferencesManager.chatInputTransparent.collectAsState(initial = false)
     val chatInputFloating by preferencesManager.chatInputFloating.collectAsState(initial = false)
@@ -189,6 +206,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         preferencesManager.showChatFloatingDotsAnimation.collectAsState(initial = true)
     val hasBackgroundImageFromPrefs = useBackgroundImage && backgroundImageUri != null
     val effectiveHasBackgroundImage = hasBackgroundImage || hasBackgroundImageFromPrefs
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     // Collect chat style from preferences
     val chatStyleSetting by preferencesManager.chatStyle.collectAsState(initial = UserPreferencesManager.CHAT_STYLE_CURSOR)
@@ -920,6 +938,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     var exportSuccess by remember { mutableStateOf(false) }
     var exportFilePath by remember { mutableStateOf<String?>(null) }
     var exportErrorMessage by remember { mutableStateOf<String?>(null) }
+    var exportJob by remember { mutableStateOf<Job?>(null) }
     var webContentDir by remember { mutableStateOf<File?>(null) }
     var showCharacterSelector by remember { mutableStateOf(false) }
 
@@ -939,6 +958,20 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         }
     val chatViewportTranslationYPx = inputBarTranslationYPx
     Box(modifier = Modifier.fillMaxSize()) {
+        if (hasBackgroundImageFromPrefs) {
+            AppBackgroundLayer(
+                darkTheme = isDarkTheme,
+                useBackgroundImage = useBackgroundImage,
+                backgroundImageUri = backgroundImageUri,
+                backgroundImageOpacity = backgroundImageOpacity,
+                backgroundMediaType = backgroundMediaType,
+                videoBackgroundMuted = videoBackgroundMuted,
+                videoBackgroundLoop = videoBackgroundLoop,
+                useBackgroundBlur = useBackgroundBlur,
+                backgroundBlurRadius = backgroundBlurRadius,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         CustomScaffold(
                 containerColor = Color.Transparent,
                 snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -1363,7 +1396,8 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                         exportStatus = context.getString(R.string.export_starting)
 
                         // 启动导出过程
-                        coroutineScope.launch {
+                        exportJob?.cancel()
+                        exportJob = coroutineScope.launch {
                             exportAndroidApp(
                                     context = context,
                                     packageName = packageName,
@@ -1377,6 +1411,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                                         exportStatus = status
                                     },
                                     onComplete = { success, filePath, errorMessage ->
+                                        exportJob = null
                                         showExportProgressDialog = false
                                         exportSuccess = success
                                         exportFilePath = filePath
@@ -1401,7 +1436,8 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                         exportStatus = context.getString(R.string.export_starting)
 
                         // 启动导出过程
-                        coroutineScope.launch {
+                        exportJob?.cancel()
+                        exportJob = coroutineScope.launch {
                             exportWindowsApp(
                                     context = context,
                                     appName = appName,
@@ -1412,6 +1448,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                                         exportStatus = status
                                     },
                                     onComplete = { success, filePath, errorMessage ->
+                                        exportJob = null
                                         showExportProgressDialog = false
                                         exportSuccess = success
                                         exportFilePath = filePath
@@ -1430,7 +1467,8 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                     progress = exportProgress,
                     status = exportStatus,
                     onCancel = {
-                        // TODO: 实现取消导出的逻辑
+                        exportJob?.cancel()
+                        exportJob = null
                         showExportProgressDialog = false
                     }
             )

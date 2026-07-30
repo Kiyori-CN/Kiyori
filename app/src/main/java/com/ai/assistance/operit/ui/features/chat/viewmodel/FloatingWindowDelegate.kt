@@ -88,7 +88,8 @@ class FloatingWindowDelegate(
             override fun onServiceDisconnected(name: ComponentName?) {
                 try {
                     floatingBinder?.clearCallbacks()
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    AppLogger.w(TAG, "清理已断开悬浮窗服务回调失败", error)
                 }
                 floatingBinder = null
                 floatingService = null
@@ -110,7 +111,8 @@ class FloatingWindowDelegate(
                 @Suppress("DEPRECATION")
                 context.registerReceiver(serviceLifecycleReceiver, filter)
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "注册悬浮窗服务生命周期接收器失败", error)
         }
 
         // If the service is already running (started by wake/workflow/widget), bind to it.
@@ -219,12 +221,14 @@ class FloatingWindowDelegate(
         if (isBoundToService) {
             try {
                 context.unbindService(serviceConnection)
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                AppLogger.w(TAG, "解绑悬浮窗服务失败", error)
             }
         }
         try {
             floatingBinder?.clearCallbacks()
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppLogger.w(TAG, "清理悬浮窗服务回调失败", error)
         }
         floatingBinder = null
         floatingService = null
@@ -246,7 +250,8 @@ class FloatingWindowDelegate(
     fun cleanup() {
         try {
             context.unregisterReceiver(serviceLifecycleReceiver)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppLogger.w(TAG, "注销悬浮窗服务生命周期接收器失败", error)
         }
         // 解绑服务
         disconnectFromService(updateFloatingMode = false)

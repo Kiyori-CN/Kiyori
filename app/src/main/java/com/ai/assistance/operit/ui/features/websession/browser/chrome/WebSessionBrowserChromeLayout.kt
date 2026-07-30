@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.websession.browser.chrome
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.graphics.Color
 
 // App Shell and browser bottom bars share one five-slot Kiyori geometry contract.
 internal const val WEB_SESSION_BROWSER_CHROME_SLOT_COUNT = 5
@@ -35,7 +34,6 @@ internal const val WEB_SESSION_BROWSER_TOP_VERTICAL_PADDING_DP = 8
 internal const val WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP = 40
 internal const val WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP = 42
 internal const val WEB_SESSION_BROWSER_TOP_GAP_DP = 6
-internal val WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR = Color.Black
 
 @Immutable
 internal data class WebSessionBrowserChromeLayout(

@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadAction
@@ -49,6 +50,7 @@ internal fun KiyoriDownloadDrawerHost(
     }
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val manager = remember(context) { BrowserDownloadManager.getInstance(context) }
     val browserTools = remember(context) { StandardBrowserSessionTools(context.applicationContext) }
@@ -143,7 +145,7 @@ internal fun KiyoriDownloadDrawerHost(
                         .onSuccess { task ->
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.download_started, task.fileName),
+                                resources.getString(R.string.download_started, task.fileName),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }

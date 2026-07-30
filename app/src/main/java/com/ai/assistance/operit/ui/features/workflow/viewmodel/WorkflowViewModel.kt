@@ -1469,10 +1469,16 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
                             currentWorkflow = it
                             onSuccess()
                         },
-                        onFailure = { /* 静默失败，位置更新不是关键操作 */ }
+                        onFailure = {
+                            error =
+                                it.message
+                                    ?: app.getString(R.string.workflow_error_update_node_failed)
+                        }
                     )
                 },
-                onFailure = { /* 静默失败 */ }
+                onFailure = {
+                    error = it.message ?: app.getString(R.string.workflow_load_failed)
+                }
             )
         }
     }
@@ -1515,15 +1521,6 @@ class WorkflowViewModel(application: Application) : AndroidViewModel(application
             } catch (e: Exception) {
                 error = e.message ?: app.getString(R.string.workflow_error_cancel_schedule_failed)
             }
-        }
-    }
-    
-    /**
-     * Check if workflow is scheduled
-     */
-    fun isWorkflowScheduled(workflowId: String): Boolean {
-        return kotlinx.coroutines.runBlocking {
-            repository.isWorkflowScheduled(workflowId)
         }
     }
     

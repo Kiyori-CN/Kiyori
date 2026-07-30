@@ -31,6 +31,8 @@ import com.ai.assistance.operit.data.model.ActivePrompt
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatViewModel
 import com.ai.assistance.operit.ui.floating.FloatingMode
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 
@@ -188,10 +190,13 @@ fun ChatScreenHeader(
                 // 主要显示（圆环进度）
                 val progress = (contextUsagePercentage / 100f).coerceIn(0f, 1f)
                 val animatedProgress by animateFloatAsState(targetValue = progress, label = "TokenProgressAnimation")
+                val normalColors = KiyoriSemanticTone.BLUE.resolveColors()
+                val warningColors = KiyoriSemanticTone.ORANGE.resolveColors()
+                val criticalColors = KiyoriSemanticTone.RED.resolveColors()
                 val progressColor = when {
-                    contextUsagePercentage > 90 -> MaterialTheme.colorScheme.error
-                    contextUsagePercentage > 75 -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
+                    contextUsagePercentage > 90 -> criticalColors.icon
+                    contextUsagePercentage > 75 -> warningColors.icon
+                    else -> normalColors.icon
                 }
 
                 Box(
@@ -253,7 +258,7 @@ fun ChatScreenHeader(
                                                                 androidx.compose.ui.text.font
                                                                         .FontWeight.Bold
                                                 ),
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = normalColors.icon
                                 )
                             },
                             onClick = {},

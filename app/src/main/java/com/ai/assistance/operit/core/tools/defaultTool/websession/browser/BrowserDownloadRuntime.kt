@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,6 +14,7 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -218,15 +220,14 @@ internal object BrowserDownloadRuntimeCoordinator {
             return true
         }
         val appContext = context.applicationContext
-        return when (resolveBrowserDownloadRuntimeKind(Build.VERSION.SDK_INT)) {
-            BrowserDownloadRuntimeKind.USER_INITIATED_JOB ->
-                requestUserInitiatedJob(
-                    context = appContext,
-                    estimatedDownloadBytes = estimatedDownloadBytes,
-                    requiresUnmeteredNetwork = requiresUnmeteredNetwork,
-                )
-            BrowserDownloadRuntimeKind.DATA_SYNC_FOREGROUND_SERVICE ->
-                requestLegacyForegroundService(appContext)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requestUserInitiatedJob(
+                context = appContext,
+                estimatedDownloadBytes = estimatedDownloadBytes,
+                requiresUnmeteredNetwork = requiresUnmeteredNetwork,
+            )
+        } else {
+            requestLegacyForegroundService(appContext)
         }
     }
 
@@ -338,24 +339,28 @@ internal object BrowserDownloadRuntimeCoordinator {
                 openTaskPendingIntent(context, task),
             )
         }
-        runCatching {
+        if (!canPostBrowserDownloadNotifications(context)) {
+            AppLogger.w(
+                DOWNLOAD_RUNTIME_TAG,
+                "Browser download result notification skipped because notification permission is unavailable",
+            )
+            return
+        }
+        try {
             NotificationManagerCompat.from(context).notify(
                 terminalNotificationId(task.id),
                 builder.build(),
             )
-        }.onFailure { error ->
+        } catch (error: SecurityException) {
             AppLogger.w(
                 DOWNLOAD_RUNTIME_TAG,
-                "Unable to publish browser download result notification: " +
-                    "${error::class.java.simpleName}: ${browserDownloadSafeErrorMessage(error)}",
+                "Browser download result notification permission changed before publication: " +
+                    browserDownloadSafeErrorMessage(error),
             )
         }
     }
 
     fun ensureNotificationChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return
-        }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannels(
             listOf(
@@ -624,15 +629,37 @@ internal class BrowserDownloadForegroundService : Service() {
     }
 
     private fun updateNotification() {
-        NotificationManagerCompat.from(this).notify(
-            BROWSER_DOWNLOAD_RUNTIME_NOTIFICATION_ID,
-            BrowserDownloadRuntimeCoordinator.createRuntimeNotification(
-                context = this,
-                summary = buildBrowserDownloadRuntimeSummary(manager.snapshotTasks()),
-            ),
-        )
+        if (!canPostBrowserDownloadNotifications(this)) {
+            AppLogger.w(
+                DOWNLOAD_RUNTIME_TAG,
+                "Browser download runtime notification update skipped because notification permission is unavailable",
+            )
+            return
+        }
+        try {
+            NotificationManagerCompat.from(this).notify(
+                BROWSER_DOWNLOAD_RUNTIME_NOTIFICATION_ID,
+                BrowserDownloadRuntimeCoordinator.createRuntimeNotification(
+                    context = this,
+                    summary = buildBrowserDownloadRuntimeSummary(manager.snapshotTasks()),
+                ),
+            )
+        } catch (error: SecurityException) {
+            AppLogger.w(
+                DOWNLOAD_RUNTIME_TAG,
+                "Browser download runtime notification permission changed before update: " +
+                    browserDownloadSafeErrorMessage(error),
+            )
+        }
     }
 }
+
+private fun canPostBrowserDownloadNotifications(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
 
 internal class BrowserDownloadRuntimeActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

@@ -47,6 +47,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.flow.flowOf
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 private enum class CharacterSelectorSortOption {
     DEFAULT,
@@ -81,6 +83,7 @@ fun CharacterSelectorPanel(
     onSelectCharacter: (CharacterSelectorTarget) -> Unit,
     onOpenCharacterSettings: () -> Unit
 ) {
+    val panelColors = KiyoriSemanticTone.PINK.resolveColors()
     val context = LocalContext.current
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
     val characterGroupCardManager = remember { CharacterGroupCardManager.getInstance(context) }
@@ -143,7 +146,7 @@ fun CharacterSelectorPanel(
                         .shadow(
                             elevation = 16.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            spotColor = panelColors.icon.copy(alpha = 0.12f)
                         )
                         .clickable(enabled = false) {},
                     color = MaterialTheme.colorScheme.surface
@@ -189,13 +192,13 @@ fun CharacterSelectorPanel(
                                     modifier = Modifier
                                         .shadow(elevation = 12.dp, shape = RoundedCornerShape(12.dp))
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.White)
+                                        .background(MaterialTheme.colorScheme.surface)
                                 ) {
                                     DropdownMenuItem(
                                         text = {
                                             Text(
                                                 text = context.getString(R.string.character_card_sort_default),
-                                                color = Color(0xFF1F1F1F)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         },
                                         onClick = {
@@ -207,7 +210,7 @@ fun CharacterSelectorPanel(
                                         text = {
                                             Text(
                                                 text = context.getString(R.string.character_card_sort_by_name),
-                                                color = Color(0xFF1F1F1F)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         },
                                         onClick = {
@@ -219,7 +222,7 @@ fun CharacterSelectorPanel(
                                         text = {
                                             Text(
                                                 text = context.getString(R.string.character_card_sort_by_created),
-                                                color = Color(0xFF1F1F1F)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         },
                                         onClick = {
@@ -307,14 +310,15 @@ fun CharacterItem(
     val userPreferencesManager = remember { UserPreferencesManager.getInstance(context) }
     val avatarUri by userPreferencesManager.getAiAvatarForCharacterCardFlow(card.id).collectAsState(initial = null)
 
+    val colors = KiyoriSemanticTone.PINK.resolveColors()
     val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        colors.container
     } else {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     }
     
     val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        colors.icon.copy(alpha = 0.3f)
     } else {
         Color.Transparent
     }
@@ -343,7 +347,7 @@ fun CharacterItem(
                     .clip(CircleShape)
                     .background(
                         if (avatarUri != null) Color.Transparent 
-                        else MaterialTheme.colorScheme.secondaryContainer
+                        else colors.container
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -359,7 +363,7 @@ fun CharacterItem(
                         Icons.Rounded.Person,
                         contentDescription = "Character Avatar",
                         modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        tint = colors.icon
                     )
                 }
                 
@@ -375,7 +379,7 @@ fun CharacterItem(
                     text = card.name,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary 
+                    color = if (isSelected) colors.icon
                            else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -400,7 +404,7 @@ fun CharacterItem(
                     Icons.Rounded.Check,
                     contentDescription = "Selected",
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = colors.icon
                 )
             }
         }
@@ -429,14 +433,15 @@ fun CharacterGroupItem(
     }.collectAsState(initial = null)
     val displayAvatarUri = groupAvatarUri ?: fallbackMemberAvatarUri
 
+    val colors = KiyoriSemanticTone.PURPLE.resolveColors()
     val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        colors.container
     } else {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     }
 
     val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        colors.icon.copy(alpha = 0.3f)
     } else {
         Color.Transparent
     }
@@ -464,7 +469,7 @@ fun CharacterGroupItem(
                     .clip(CircleShape)
                     .background(
                         if (displayAvatarUri != null) Color.Transparent
-                        else MaterialTheme.colorScheme.secondaryContainer
+                        else colors.container
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -480,7 +485,7 @@ fun CharacterGroupItem(
                         Icons.Rounded.Groups,
                         contentDescription = "Group Avatar",
                         modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        tint = colors.icon
                     )
                 }
             }
@@ -494,7 +499,7 @@ fun CharacterGroupItem(
                     text = group.name,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    color = if (isSelected) colors.icon else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -513,7 +518,7 @@ fun CharacterGroupItem(
                     Icons.Rounded.Check,
                     contentDescription = "Selected",
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = colors.icon
                 )
             }
         }

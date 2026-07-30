@@ -2,7 +2,6 @@ package com.ai.assistance.operit.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
-import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -68,21 +67,74 @@ class KiyoriThemeTest {
     }
 
     @Test
-    fun `explicit custom colors do not tint neutral page surfaces`() {
-        val customScheme =
-            resolveThemeColorScheme(
-                darkTheme = false,
-                useCustomColors = true,
-                customPrimaryColor = 0xFF146C43.toInt(),
-                customSecondaryColor = 0xFF4B5F83.toInt(),
-                onColorMode = UserPreferencesManager.ON_COLOR_MODE_AUTO,
-            )
+    fun `theme resolver exposes only the fixed Kiyori light and dark palettes`() {
+        assertEquals(KiyoriLightColorScheme, resolveThemeColorScheme(darkTheme = false))
+        assertEquals(KiyoriDarkColorScheme, resolveThemeColorScheme(darkTheme = true))
+    }
 
-        assertEquals(Color(0xFF146C43), customScheme.primary)
-        assertEquals(Color(0xFF4B5F83), customScheme.secondary)
-        assertEquals(Color(0xFFFFFFFF), customScheme.background)
-        assertEquals(Color(0xFFF7F7F7), customScheme.surfaceContainer)
-        assertEquals(Color.Transparent, customScheme.surfaceTint)
+    @Test
+    fun `settings palette keeps a neutral hierarchy in both application themes`() {
+        with(resolveKiyoriSettingsColors(isDark = false)) {
+            assertEquals(Color(0xFFF6F7F9), pageBackground)
+            assertEquals(Color.White, cardBackground)
+            assertEquals(Color(0xFF20242A), primaryText)
+            assertEquals(Color(0xFF6E747C), secondaryText)
+            assertEquals(Color(0xFFE9EDF2), divider)
+            assertEquals(Color(0xFF1E88E5), accent)
+        }
+        with(resolveKiyoriSettingsColors(isDark = true)) {
+            assertEquals(Color(0xFF101215), pageBackground)
+            assertEquals(Color(0xFF1B1F24), cardBackground)
+            assertEquals(Color(0xFFF2F5F8), primaryText)
+            assertEquals(Color(0xFFAAB2BC), secondaryText)
+            assertEquals(Color(0xFF2A3037), divider)
+            assertEquals(Color(0xFF90CAF9), accent)
+        }
+    }
+
+    @Test
+    fun `application semantic icon tones stay colorful and theme aware`() {
+        val lightPairs =
+            KiyoriSemanticTone.entries.map { tone ->
+                resolveKiyoriSemanticColors(tone, isDark = false)
+            }
+        val darkPairs =
+            KiyoriSemanticTone.entries.map { tone ->
+                resolveKiyoriSemanticColors(tone, isDark = true)
+            }
+
+        assertEquals(KiyoriSemanticTone.entries.size, lightPairs.map { it.icon }.toSet().size)
+        assertEquals(KiyoriSemanticTone.entries.size, darkPairs.map { it.icon }.toSet().size)
+        assertTrue(lightPairs.zip(darkPairs).all { (light, dark) -> light != dark })
+        assertTrue(
+            (lightPairs + darkPairs).all { colors ->
+                contrastRatio(colors.icon, colors.container) >= 3.0
+            },
+        )
+    }
+
+    @Test
+    fun `stable entry ids keep deterministic semantic tones`() {
+        val entryIds =
+            listOf(
+                "toolbox.tool_tester",
+                "toolbox.file_manager",
+                "toolbox.text_to_speech",
+                "toolbox.speech_to_text",
+                "toolbox.app_permissions",
+                "toolbox.terminal",
+                "toolbox.ui_debugger",
+                "toolbox.ffmpeg_toolbox",
+                "toolbox.shell_executor",
+                "toolbox.logcat",
+                "toolbox.sql_viewer",
+                "toolbox.token_config",
+            )
+        val firstPass = entryIds.map(::kiyoriSemanticToneForStableId)
+        val secondPass = entryIds.map(::kiyoriSemanticToneForStableId)
+
+        assertEquals(firstPass, secondPass)
+        assertTrue(firstPass.toSet().size >= 5)
     }
 
     @Test

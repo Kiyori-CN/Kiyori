@@ -2,7 +2,6 @@ package com.ai.assistance.operit.ui.features.settings.screens
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Box
@@ -16,14 +15,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
@@ -32,8 +29,6 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -48,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,7 +72,10 @@ import kotlinx.serialization.json.Json
 import androidx.compose.foundation.layout.Arrangement
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelOption
-import com.ai.assistance.operit.ui.components.CustomScaffold
+import com.ai.assistance.operit.ui.main.shell.KiyoriCollapsingSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsGroupSection
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsRow
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsRowKind
 import com.ai.assistance.operit.api.voice.SiliconFlowVoiceProvider
 import com.ai.assistance.operit.api.voice.MimoVoiceProvider
 import com.ai.assistance.operit.api.voice.DoubaoVoiceProvider
@@ -87,6 +86,8 @@ import com.ai.assistance.operit.api.voice.VoiceListFetcher
 import com.ai.assistance.operit.api.voice.VoiceService
 import com.ai.assistance.operit.api.chat.llmprovider.ModelListFetcher
 import androidx.compose.runtime.LaunchedEffect
+import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
 
 @SuppressLint("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,6 +136,7 @@ fun SpeechServicesSettingsScreen(
     var simpleTtsVoices by remember { mutableStateOf<List<VoiceService.Voice>>(emptyList()) }
     var simpleTtsVoicesLoading by remember { mutableStateOf(false) }
     var simpleTtsVoicesError by remember { mutableStateOf<String?>(null) }
+    var autoSaveFailed by remember { mutableStateOf(false) }
     var simpleTtsLocaleExpanded by remember { mutableStateOf(false) }
     var simpleTtsShowVoiceDialog by remember { mutableStateOf(false) }
 
@@ -293,8 +295,12 @@ fun SpeechServicesSettingsScreen(
 
             VoiceServiceFactory.resetInstance()
             SpeechServiceFactory.resetInstance()
-        } catch (_: Exception) {
-            // Keep UI editable; auto-save retries on next change.
+            autoSaveFailed = false
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.e("SpeechServicesSettings", "自动保存语音服务设置失败", error)
+            autoSaveFailed = true
         }
     }
 
@@ -339,54 +345,43 @@ fun SpeechServicesSettingsScreen(
     }
 
 
-    CustomScaffold { paddingValues ->
-        Box(modifier = Modifier
-            .padding(paddingValues)
-            .fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // --- TTS Section ---
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(0.7.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    KiyoriCollapsingSettingsPage(
+        title = "语音服务",
+        onBack = onBackPressed,
+    ) {
+        if (autoSaveFailed) {
+            item(key = "speech_auto_save_error") {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.errorContainer,
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.speech_services_tts_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        
-                        Text(
-                            text = stringResource(R.string.speech_services_tts_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
                         )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(R.string.auto_save_failed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+        }
+        item(key = "speech_tts") {
+            KiyoriSettingsGroupSection(
+                title = stringResource(R.string.speech_services_tts_title),
+                description = stringResource(R.string.speech_services_tts_desc),
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
 
                         Text(
                             text = stringResource(R.string.speech_services_service_type),
@@ -1961,46 +1956,16 @@ fun SpeechServicesSettingsScreen(
                                 }
                             }
                         }
-                    }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
 
-                // --- STT Section ---
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(0.7.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Mic,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.speech_services_stt_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Text(
-                            text = stringResource(R.string.speech_services_stt_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
+        item(key = "speech_stt") {
+            KiyoriSettingsGroupSection(
+                title = stringResource(R.string.speech_services_stt_title),
+                description = stringResource(R.string.speech_services_stt_desc),
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
 
                         Text(
                             text = stringResource(R.string.speech_services_service_type),
@@ -2176,39 +2141,16 @@ fun SpeechServicesSettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // 信息卡片
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.speech_services_info_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Column(modifier = Modifier.fillMaxWidth()) {
+            }
+        }
+
+        item(key = "speech_information") {
+            KiyoriSettingsGroupSection(
+                title = stringResource(R.string.speech_services_info_title),
+                description = stringResource(R.string.speech_services_settings_desc),
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
                             SettingsInfoRow(
                                 title = stringResource(R.string.speech_services_info_tts_title),
                                 description = stringResource(R.string.speech_services_info_tts_desc)
@@ -2223,43 +2165,21 @@ fun SpeechServicesSettingsScreen(
                                 title = stringResource(R.string.speech_services_info_stt_title),
                                 description = stringResource(R.string.speech_services_info_stt_desc)
                             )
-                        }
-                    }
                 }
-                
-                // 底部区域
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        OutlinedButton(
-                            onClick = onNavigateToTextToSpeech,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.VolumeUp,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.speech_services_test_tts))
-                        }
-                    }
-                }
-                
-                // 底部空间
-                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+
+        item(key = "speech_tools") {
+            KiyoriSettingsGroupSection(
+                title = "语音工具",
+                description = "使用当前语音配置进行文本朗读测试",
+            ) {
+                KiyoriSettingsRow(
+                    title = stringResource(R.string.speech_services_test_tts),
+                    description = "打开文本朗读工具并验证当前语音合成配置",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    onClick = onNavigateToTextToSpeech,
+                )
             }
         }
     }

@@ -40,6 +40,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.ui.features.packages.components.EmptyState
 import sh.calvin.reorderable.ReorderableItem
@@ -56,6 +59,7 @@ fun PluginTabContent(
     pluginOrder: List<String> = emptyList(),
     onSavePluginOrder: (List<String>) -> Unit = {},
 ) {
+    val pluginColors = KiyoriSemanticTone.PURPLE.resolveColors()
     // Convert map to ordered list, applying saved order if available
     val orderedPluginList = remember(plugins, pluginOrder) {
         val entries = plugins.entries.toList()
@@ -160,11 +164,13 @@ fun PluginTabContent(
                                         .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
+                                    KiyoriSemanticIconBadge(
                                         imageVector = Icons.Default.Apps,
+                                        tone = KiyoriSemanticTone.PURPLE,
                                         contentDescription = null,
-                                        modifier = Modifier.size(22.dp),
-                                        tint = MaterialTheme.colorScheme.primary
+                                        containerSize = 36.dp,
+                                        iconSize = 20.dp,
+                                        shape = RoundedCornerShape(11.dp),
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column(
@@ -204,8 +210,8 @@ fun PluginTabContent(
                                         modifier = Modifier.size(width = 32.dp, height = 20.dp),
                                         colors =
                                             SwitchDefaults.colors(
-                                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                                                checkedThumbColor = pluginColors.icon,
+                                                checkedTrackColor = pluginColors.container,
                                                 uncheckedThumbColor = MaterialTheme.colorScheme.outline,
                                                 uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                                             )

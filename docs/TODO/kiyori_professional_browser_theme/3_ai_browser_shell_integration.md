@@ -4,12 +4,8 @@
 
 默认 AI 顶栏使用 `background`，内容使用 `onBackground`，tonal/shadow elevation 为零。非透明顶栏底部绘制 `0.5dp outlineVariant` 分隔线，使顶栏与页面连续但边界清楚。
 
-顶栏自定义行为：
-
-- 透明工具栏使用页面 `onBackground`
-- 自定义顶栏颜色根据实际背景选择可读前景
-- 用户强制亮色/暗色内容设置覆盖自动前景
-- 系统状态栏保持透明，图标明暗跟随实际页面背景
+顶栏颜色由固定应用主题决定，不提供透明工具栏、自定义 AppBar 或强制前景色入口。系统状态栏保持
+透明，图标明暗跟随当前浅深主题。
 
 AI 电脑和工作区活动状态使用 `primaryContainer` 圆形容器与 `onPrimaryContainer` 图标。普通状态保持透明容器和顶栏内容色。活动态不能只把图标 tint 改成浅灰，否则会与禁用态混淆。
 
@@ -35,7 +31,7 @@ AI 电脑和工作区活动状态使用 `primaryContainer` 圆形容器与 `onPr
 - Search/AI 分段按产品迭代恢复固定明暗蓝色文字与 `10%` 同色背景
 - 搜索框恢复既有五色 `1dp` 闭环渐变描边，不增加外发光、模糊或阴影
 - 搜索框、标题、天气和窗口数继续使用共享背景与内容色
-- 固定彩色强调只属于 Software Home；应用 primary/secondary 独立作用于 AI、设置和软件壳，不传播到浏览器 chrome
+- 固定彩色强调只属于 Software Home；固定应用 primary/secondary 独立作用于 AI 和软件壳，不传播到浏览器 chrome。设置页由专用设置 token 与语义图标 tone 表达层级
 
 ## 浏览器 chrome
 

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -14,22 +15,29 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
+import com.ai.assistance.operit.core.tools.defaultTool.standard.CookiePrivacyManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
+import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.launch
 
 internal enum class KiyoriBrowserSettingsAction {
     NONE,
@@ -38,6 +46,7 @@ internal enum class KiyoriBrowserSettingsAction {
     TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
     TOGGLE_WEB_PAGE_OPEN_APP,
     TOGGLE_WEB_PAGE_GEOLOCATION,
+    CLEAR_COOKIES,
 }
 
 internal const val KIYORI_BROWSER_SETTINGS_PAGE_TITLE = "网页浏览器设置"
@@ -158,6 +167,11 @@ internal val kiyoriBrowserSettingsGroups =
                         action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
                     ),
                     browserNavigation(
+                        title = "清除网站 Cookie",
+                        description = "清除搜索工具、网页访问和内置浏览器保存的普通网站 Cookie",
+                        action = KiyoriBrowserSettingsAction.CLEAR_COOKIES,
+                    ),
+                    browserNavigation(
                         title = "网页翻译接口",
                         description = "选择网页翻译请求使用的服务",
                         value = "百度翻译",
@@ -246,15 +260,18 @@ internal fun KiyoriBrowserSettingsPage(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coordinator =
         remember(context) {
             BrowserPresentationCoordinator.getInstance(context.applicationContext)
         }
     val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
+    val scope = rememberCoroutineScope()
     val settings by coordinator.browserSettings.collectAsState()
     val searchEngine by
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
     var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
+    var showClearCookieConfirm by rememberSaveable { mutableStateOf(false) }
     val subPage = subPageName?.let(KiyoriBrowserSettingsSubPage::valueOf)
 
     fun closeCurrentPage() {
@@ -280,6 +297,7 @@ internal fun KiyoriBrowserSettingsPage(
                     coordinator::setAutomaticFloatingPlaybackEnabled,
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
                 onSetAllowWebPageGeolocation = coordinator::setAllowWebPageGeolocation,
+                onClearCookies = { showClearCookieConfirm = true },
                 modifier = modifier,
             )
         KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION ->
@@ -315,6 +333,49 @@ internal fun KiyoriBrowserSettingsPage(
                 modifier = modifier,
             )
     }
+
+    if (showClearCookieConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearCookieConfirm = false },
+            title = { Text(stringResource(R.string.clear_cookies_dialog_title)) },
+            text = { Text(stringResource(R.string.clear_cookies_dialog_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearCookieConfirm = false
+                        scope.launch {
+                            try {
+                                CookiePrivacyManager.clearAllCookies()
+                                Toast.makeText(
+                                    context,
+                                    resources.getString(R.string.clear_cookies_success),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } catch (error: Exception) {
+                                AppLogger.e(
+                                    "KiyoriBrowserSettings",
+                                    "Failed to clear cookies",
+                                    error,
+                                )
+                                Toast.makeText(
+                                    context,
+                                    resources.getString(R.string.clear_cookies_failed),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.clear_cookies_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCookieConfirm = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -326,6 +387,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
+    onClearCookies: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     KiyoriCollapsingSettingsPage(
@@ -360,6 +422,8 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onSetAllowWebPageOpenApp(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
                                     onSetAllowWebPageGeolocation(!checked)
+                                KiyoriBrowserSettingsAction.CLEAR_COOKIES ->
+                                    onClearCookies()
                                 KiyoriBrowserSettingsAction.NONE ->
                                     error("Disabled browser setting must not receive clicks")
                             }
@@ -387,6 +451,7 @@ internal fun browserSettingValue(
         when (entry.action) {
             KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
                 formatBrowserHomeUrl(settings.homeUrl)
+            KiyoriBrowserSettingsAction.CLEAR_COOKIES -> null
             KiyoriBrowserSettingsAction.NONE -> entry.value ?: "未接入"
             else -> entry.value
         }
@@ -473,11 +538,11 @@ private fun KiyoriBrowserHomepageEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = "自定义主页入口",
-                color = Color(0xFF292825),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
             )
@@ -496,11 +561,11 @@ private fun KiyoriBrowserHomepageEditDialog(
                 },
                 colors =
                     OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = Color(0xFF667EEA),
-                        focusedLabelColor = Color(0xFF667EEA),
-                        cursorColor = Color(0xFF667EEA),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary,
                     ),
             )
         },
@@ -508,7 +573,7 @@ private fun KiyoriBrowserHomepageEditDialog(
             TextButton(onClick = { onConfirm(inputValue.trim()) }) {
                 Text(
                     text = "保存",
-                    color = Color(0xFF667EEA),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -517,7 +582,7 @@ private fun KiyoriBrowserHomepageEditDialog(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = "取消",
-                    color = Color(0xFF77736E),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
                 )
             }

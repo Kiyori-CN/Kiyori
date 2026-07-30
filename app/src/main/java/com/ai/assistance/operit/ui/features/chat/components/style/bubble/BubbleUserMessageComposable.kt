@@ -67,7 +67,6 @@ import com.ai.assistance.operit.ui.theme.waterGlass
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -139,24 +138,13 @@ fun BubbleUserMessageComposable(
     val proxySenderName = if (isHiddenPlaceholder) null else parseResult.proxySenderName
 
     val isProxySender = !proxySenderName.isNullOrBlank()
-    val proxyAvatarUri by remember(proxySenderName) {
-        if (isProxySender) {
-            try {
-                runBlocking {
-                    val characterCard = characterCardManager.findCharacterCardByName(proxySenderName!!)
-                    if (characterCard != null) {
-                        preferencesManager.getAiAvatarForCharacterCardFlow(characterCard.id)
-                    } else {
-                        preferencesManager.customAiAvatarUri
-                    }
-                }
-            } catch (_: Exception) {
-                preferencesManager.customAiAvatarUri
-            }
-        } else {
-            preferencesManager.customAiAvatarUri
-        }
-    }.collectAsState(initial = null)
+    val proxyAvatarUri by
+        rememberMessageRoleAvatarUri(
+            roleName = proxySenderName,
+            useGlobalAiAvatarWhenRoleMissing = false,
+            characterCardManager = characterCardManager,
+            preferencesManager = preferencesManager,
+        )
 
     val avatarUri = remember(customUserAvatarUri, globalUserAvatarUri, proxyAvatarUri, isProxySender) {
         when {

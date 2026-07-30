@@ -59,7 +59,6 @@ import com.ai.assistance.operit.ui.features.settings.screens.LayoutAdjustmentSet
 import com.ai.assistance.operit.ui.features.settings.screens.ModelConfigScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ModelPromptsSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.TagMarketScreen
-import com.ai.assistance.operit.ui.features.settings.screens.SettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.SpeechServicesSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ThemeSettingsScreen
 import com.ai.assistance.operit.ui.features.settings.screens.ToolPermissionSettingsScreen
@@ -91,6 +90,13 @@ import com.ai.assistance.operit.ui.features.workflow.screens.WorkflowListScreen
 import com.ai.assistance.operit.ui.features.workflow.screens.WorkflowDetailScreen
 import com.ai.assistance.operit.ui.main.PendingChatDraftHandler
 import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
+import com.ai.assistance.operit.ui.main.shell.KiyoriAccountConnectionsSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriAiAssistantSettingsAction
+import com.ai.assistance.operit.ui.main.shell.KiyoriAiAssistantSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriAppearanceSettingsAction
+import com.ai.assistance.operit.ui.main.shell.KiyoriAppearanceSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriDataSettingsAction
+import com.ai.assistance.operit.ui.main.shell.KiyoriDataSettingsPage
 
 // 路由配置类
 typealias ScreenNavigationHandler = (Screen) -> Unit
@@ -105,7 +111,9 @@ sealed class Screen(
         // 是否参与 AppContent 的跨页淡入淡出。
         // 某些包含实时渲染视图的页面在转场中保留上一页会产生明显残影。
         open val participatesInCrossfadeTransition: Boolean = true,
-        open val keepAlive: Boolean = false
+        open val keepAlive: Boolean = false,
+        // Kiyori 设置根自己绘制与文件下载器一致的折叠标题，避免 AppContent 再叠加一层顶栏。
+        open val usesEmbeddedSettingsTopBar: Boolean = false,
 ) {
     open fun stableScreenKey(): String? = null
 
@@ -573,7 +581,11 @@ sealed class Screen(
         }
     }
 
-    data object Settings : Screen(navItem = NavItem.Settings) {
+    data object Settings :
+            Screen(
+                navItem = NavItem.Settings,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,
@@ -584,25 +596,111 @@ sealed class Screen(
                 onError: (String) -> Unit,
                 onGestureConsumed: (Boolean) -> Unit
         ) {
-            SettingsScreen(
-                    navigateToToolPermissions = { navigateTo(ToolPermission) },
-                    onNavigateToUserPreferences = { navigateTo(UserPreferencesSettings) },
-                    navigateToGitHubAccount = { navigateTo(GitHubAccount) },
-                    navigateToModelConfig = { navigateTo(ModelConfig) },
-                    navigateToThemeSettings = { navigateTo(ThemeSettings) },
-                    navigateToGlobalDisplaySettings = { navigateTo(GlobalDisplaySettings) },
-                    navigateToModelPrompts = { navigateTo(ModelPromptsSettings) },
-                    navigateToFunctionalConfig = { navigateTo(FunctionalConfig) },
-                    navigateToChatHistorySettings = { navigateTo(ChatHistorySettings) },
-                    navigateToChatBackupSettings = { navigateTo(ChatBackupSettings) },
-                    navigateToLanguageSettings = { navigateTo(LanguageSettings) },
-                    navigateToSpeechServicesSettings = { navigateTo(SpeechServicesSettings) },
-                    navigateToExternalHttpChatSettings = { navigateTo(ExternalHttpChatSettings) },
-                    navigateToPersonaCardGeneration = { navigateTo(PersonaCardGeneration) },
-                    navigateToWaifuModeSettings = { navigateTo(WaifuModeSettings) },
-                    navigateToTokenUsageStatistics = { navigateTo(TokenUsageStatistics) },
-                    navigateToContextSummarySettings = { navigateTo(ContextSummarySettings) },
-                    navigateToLayoutAdjustmentSettings = { navigateTo(LayoutAdjustmentSettings) }
+            KiyoriAiAssistantSettingsPage(
+                onAction = { action ->
+                    navigateTo(
+                        when (action) {
+                            KiyoriAiAssistantSettingsAction.OPEN_USER_PREFERENCES ->
+                                UserPreferencesSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_MODEL_CONFIG -> ModelConfig
+                            KiyoriAiAssistantSettingsAction.OPEN_FUNCTIONAL_CONFIG ->
+                                FunctionalConfig
+                            KiyoriAiAssistantSettingsAction.OPEN_MODEL_PROMPTS ->
+                                ModelPromptsSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_PERSONA_GENERATION ->
+                                PersonaCardGeneration
+                            KiyoriAiAssistantSettingsAction.OPEN_WAIFU_MODE ->
+                                WaifuModeSettings
+                            KiyoriAiAssistantSettingsAction.OPEN_CONTEXT_SUMMARY ->
+                                ContextSummarySettings
+                            KiyoriAiAssistantSettingsAction.OPEN_TOOL_PERMISSIONS ->
+                                ToolPermission
+                            KiyoriAiAssistantSettingsAction.OPEN_TOKEN_USAGE ->
+                                TokenUsageStatistics
+                            KiyoriAiAssistantSettingsAction.OPEN_EXTERNAL_HTTP_CHAT ->
+                                ExternalHttpChatSettings
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    data object AccountConnectionsSettings :
+            Screen(
+                navItem = NavItem.Settings,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            KiyoriAccountConnectionsSettingsPage()
+        }
+    }
+
+    data object AppearanceSettings :
+            Screen(
+                navItem = NavItem.Settings,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            KiyoriAppearanceSettingsPage(
+                onAction = { action ->
+                    navigateTo(
+                        when (action) {
+                            KiyoriAppearanceSettingsAction.OPEN_LANGUAGE -> LanguageSettings
+                            KiyoriAppearanceSettingsAction.OPEN_THEME -> ThemeSettings
+                            KiyoriAppearanceSettingsAction.OPEN_GLOBAL_DISPLAY ->
+                                GlobalDisplaySettings
+                            KiyoriAppearanceSettingsAction.OPEN_LAYOUT_ADJUSTMENT ->
+                                LayoutAdjustmentSettings
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    data object DataManagementSettings :
+            Screen(
+                navItem = NavItem.Settings,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
+        @Composable
+        override fun Content(
+                navController: NavController,
+                navigateTo: ScreenNavigationHandler,
+                onGoBack: () -> Unit,
+                hasBackgroundImage: Boolean,
+                onLoading: (Boolean) -> Unit,
+                onError: (String) -> Unit,
+                onGestureConsumed: (Boolean) -> Unit
+        ) {
+            KiyoriDataSettingsPage(
+                onAction = { action ->
+                    navigateTo(
+                        when (action) {
+                            KiyoriDataSettingsAction.OPEN_BACKUP -> ChatBackupSettings
+                            KiyoriDataSettingsAction.OPEN_CHAT_HISTORY -> ChatHistorySettings
+                        },
+                    )
+                },
             )
         }
     }
@@ -793,7 +891,11 @@ sealed class Screen(
 
     // 添加SpeechServicesSettings屏幕定义
     data object SpeechServicesSettings :
-            Screen(navItem = NavItem.Settings, titleRes = R.string.screen_title_speech_services_settings) {
+            Screen(
+                navItem = NavItem.Settings,
+                titleRes = R.string.screen_title_speech_services_settings,
+                usesEmbeddedSettingsTopBar = true,
+            ) {
         @Composable
         override fun Content(
                 navController: NavController,

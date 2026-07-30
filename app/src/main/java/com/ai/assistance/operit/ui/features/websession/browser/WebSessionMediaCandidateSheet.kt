@@ -63,6 +63,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserMediaCandidateVideoFormat
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserMediaCandidate
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import java.util.Locale
 
 private const val ALL_VIDEO_FORMATS = "ALL"
@@ -186,7 +189,15 @@ private fun BrowserMediaCandidateHeader(
         modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        KiyoriSemanticIconBadge(
+            imageVector = Icons.Filled.VideoLibrary,
+            tone = KiyoriSemanticTone.CYAN,
+            contentDescription = null,
+            containerSize = 34.dp,
+            iconSize = 19.dp,
+            shape = RoundedCornerShape(10.dp),
+        )
+        Column(modifier = Modifier.weight(1f).padding(start = 10.dp)) {
             Text(
                 text = "视频资源",
                 color = MaterialTheme.colorScheme.onSurface,
@@ -250,12 +261,13 @@ private fun BrowserMediaFormatChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
     Surface(
         modifier = Modifier.height(32.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         color =
             if (selected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                cyanColors.container
             } else {
                 MaterialTheme.colorScheme.surface
             },
@@ -263,7 +275,7 @@ private fun BrowserMediaFormatChip(
             androidx.compose.foundation.BorderStroke(
                 1.dp,
                 if (selected) {
-                    MaterialTheme.colorScheme.primary
+                    cyanColors.icon
                 } else {
                     MaterialTheme.colorScheme.outlineVariant
                 },
@@ -274,7 +286,7 @@ private fun BrowserMediaFormatChip(
                 text = "$label $count",
                 color =
                     if (selected) {
-                        MaterialTheme.colorScheme.primary
+                        cyanColors.icon
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
@@ -294,6 +306,8 @@ private fun BrowserMediaCandidateCard(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
 ) {
+    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
+    val greenColors = KiyoriSemanticTone.GREEN.resolveColors()
     Surface(
         modifier =
             Modifier
@@ -312,15 +326,15 @@ private fun BrowserMediaCandidateCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 BrowserMediaLabel(
                     text = candidate.videoFormat.displayName,
-                    foreground = MaterialTheme.colorScheme.primary,
-                    background = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                    foreground = cyanColors.icon,
+                    background = cyanColors.container,
                 )
                 if (candidate.isRecommended) {
                     Spacer(modifier = Modifier.width(6.dp))
                     BrowserMediaLabel(
                         text = "推荐",
-                        foreground = Color(0xFF087F5B),
-                        background = Color(0xFFE6F6EF),
+                        foreground = greenColors.icon,
+                        background = greenColors.container,
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -421,11 +435,12 @@ private fun BrowserMediaCandidateEmptyState() {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
+            KiyoriSemanticIconBadge(
                 imageVector = Icons.Filled.VideoLibrary,
+                tone = KiyoriSemanticTone.CYAN,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(34.dp),
+                containerSize = 50.dp,
+                iconSize = 28.dp,
             )
             Text(
                 text = "当前网页暂未发现可播放视频",
@@ -454,21 +469,18 @@ private fun BrowserMediaCandidateActionDialog(
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "资源操作",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 14.dp),
+                BrowserMediaDialogTitle(
+                    title = "资源操作",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
-                BrowserMediaActionRow(Icons.Filled.PlayArrow, "播放资源", onPlay)
-                BrowserMediaActionRow(Icons.Filled.Download, "下载资源", onDownload)
-                BrowserMediaActionRow(Icons.Filled.ContentCopy, "复制链接", onCopy)
+                BrowserMediaActionRow(Icons.Filled.PlayArrow, "播放资源", KiyoriSemanticTone.BLUE, onPlay)
+                BrowserMediaActionRow(Icons.Filled.Download, "下载资源", KiyoriSemanticTone.GREEN, onDownload)
+                BrowserMediaActionRow(Icons.Filled.ContentCopy, "复制链接", KiyoriSemanticTone.PURPLE, onCopy)
                 BrowserMediaActionRow(
                     icon = Icons.Filled.Info,
                     title = "查看链接",
+                    tone = KiyoriSemanticTone.CYAN,
                     onClick = onViewLink,
                     drawDivider = false,
                 )
@@ -481,6 +493,7 @@ private fun BrowserMediaCandidateActionDialog(
 private fun BrowserMediaActionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
+    tone: KiyoriSemanticTone,
     onClick: () -> Unit,
     drawDivider: Boolean = true,
 ) {
@@ -489,11 +502,13 @@ private fun BrowserMediaActionRow(
             modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            KiyoriSemanticIconBadge(
                 imageVector = icon,
+                tone = tone,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
+                containerSize = 30.dp,
+                iconSize = 16.dp,
+                shape = RoundedCornerShape(9.dp),
             )
             Text(
                 text = title,
@@ -522,12 +537,8 @@ private fun BrowserMediaCandidateLinkDialog(
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "视频链接",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
+                BrowserMediaDialogTitle(
+                    title = "视频链接",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
@@ -575,6 +586,34 @@ private fun BrowserMediaCandidateLinkDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BrowserMediaDialogTitle(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        KiyoriSemanticIconBadge(
+            imageVector = Icons.Filled.VideoLibrary,
+            tone = KiyoriSemanticTone.CYAN,
+            contentDescription = null,
+            containerSize = 32.dp,
+            iconSize = 18.dp,
+            shape = RoundedCornerShape(9.dp),
+        )
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

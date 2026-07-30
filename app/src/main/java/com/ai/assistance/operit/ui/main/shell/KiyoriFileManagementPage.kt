@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.StatFs
 import android.text.format.Formatter
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,7 +39,6 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -51,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
@@ -63,11 +60,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 
 internal data class KiyoriFileEntryItem(
     val title: String,
     val count: String,
-    val backgroundColors: List<Color>,
+    val tone: KiyoriSemanticTone,
     val icon: ImageVector,
 )
 
@@ -80,25 +81,25 @@ internal data class KiyoriFileStorageItem(
 
 internal val kiyoriFileCategoryItems =
     listOf(
-        KiyoriFileEntryItem("图片", "0项", listOf(Color(0xFF74AFFF), Color(0xFF4F86E6)), Icons.Default.Image),
-        KiyoriFileEntryItem("视频", "0项", listOf(Color(0xFFFF7888), Color(0xFFE65567)), Icons.Default.PlayCircle),
-        KiyoriFileEntryItem("音频", "0项", listOf(Color(0xFF4B4B57), Color(0xFF2F3138)), Icons.Default.MusicNote),
-        KiyoriFileEntryItem("文档", "0项", listOf(Color(0xFFFFE06A), Color(0xFFF4C53A)), Icons.Default.Description),
-        KiyoriFileEntryItem("安装包", "0项", listOf(Color(0xFF69D690), Color(0xFF4BC16C)), Icons.Default.Android),
-        KiyoriFileEntryItem("压缩包", "0项", listOf(Color(0xFFFFE06A), Color(0xFFF4C53A)), Icons.Default.Folder),
-        KiyoriFileEntryItem("标签", "0项", listOf(Color(0xFF7DB3FF), Color(0xFF4A86E8)), Icons.Default.LocalOffer),
-        KiyoriFileEntryItem("下载", "0项", listOf(Color(0xFFFFE7A6), Color(0xFFF5C14A)), Icons.Default.Download),
+        KiyoriFileEntryItem("图片", "0项", KiyoriSemanticTone.PINK, Icons.Default.Image),
+        KiyoriFileEntryItem("视频", "0项", KiyoriSemanticTone.RED, Icons.Default.PlayCircle),
+        KiyoriFileEntryItem("音频", "0项", KiyoriSemanticTone.PURPLE, Icons.Default.MusicNote),
+        KiyoriFileEntryItem("文档", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Description),
+        KiyoriFileEntryItem("安装包", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Android),
+        KiyoriFileEntryItem("压缩包", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Folder),
+        KiyoriFileEntryItem("标签", "0项", KiyoriSemanticTone.BLUE, Icons.Default.LocalOffer),
+        KiyoriFileEntryItem("下载", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Download),
     )
 
 internal val kiyoriFileQuickAccessItems =
     listOf(
-        KiyoriFileEntryItem("应用集", "0项", listOf(Color(0xFF86B8FF), Color(0xFF5D93E8)), Icons.Default.Apps),
-        KiyoriFileEntryItem("WPS Office", "0项", listOf(Color(0xFFFFA2AA), Color(0xFFFF6C7A)), Icons.Default.Description),
-        KiyoriFileEntryItem("QQ", "0项", listOf(Color(0xFF5E6676), Color(0xFF373C47)), Icons.AutoMirrored.Filled.Chat),
-        KiyoriFileEntryItem("微信", "0项", listOf(Color(0xFF73E98F), Color(0xFF37C95B)), Icons.Default.Forum),
-        KiyoriFileEntryItem("截屏", "0项", listOf(Color(0xFF8EC0FF), Color(0xFF5E97EC)), Icons.Default.Crop),
-        KiyoriFileEntryItem("录音机", "0项", listOf(Color(0xFF7284A5), Color(0xFF51627F)), Icons.Default.GraphicEq),
-        KiyoriFileEntryItem("蓝牙", "0项", listOf(Color(0xFF8EC0FF), Color(0xFF5E97EC)), Icons.Default.Bluetooth),
+        KiyoriFileEntryItem("应用集", "0项", KiyoriSemanticTone.BLUE, Icons.Default.Apps),
+        KiyoriFileEntryItem("WPS Office", "0项", KiyoriSemanticTone.RED, Icons.Default.Description),
+        KiyoriFileEntryItem("QQ", "0项", KiyoriSemanticTone.BLUE, Icons.AutoMirrored.Filled.Chat),
+        KiyoriFileEntryItem("微信", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Forum),
+        KiyoriFileEntryItem("截屏", "0项", KiyoriSemanticTone.CYAN, Icons.Default.Crop),
+        KiyoriFileEntryItem("录音机", "0项", KiyoriSemanticTone.PURPLE, Icons.Default.GraphicEq),
+        KiyoriFileEntryItem("蓝牙", "0项", KiyoriSemanticTone.BLUE, Icons.Default.Bluetooth),
     )
 
 internal val kiyoriFileStorageItems =
@@ -121,7 +122,7 @@ internal fun KiyoriFileManagementPage(modifier: Modifier = Modifier) {
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
     ) {
@@ -154,28 +155,48 @@ private fun KiyoriFileManagementTopBar() {
         modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
+        Surface(
             modifier =
                 Modifier
                     .weight(1f)
                     .height(36.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFFF7F7F7))
-                    .clickable(onClick = {})
-                    .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.CenterStart,
+                    .clip(RoundedCornerShape(18.dp)),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Search, null, tint = Color(0xFF8C8C8C), modifier = Modifier.size(19.dp))
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.Search,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                    modifier = Modifier.size(19.dp),
+                )
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("搜索", fontSize = 14.sp, color = Color(0xFF8C8C8C))
+                Text(
+                    "搜索",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                )
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(Icons.Default.KeyboardVoice, null, tint = Color(0xFF8C8C8C), modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Default.KeyboardVoice,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
-        IconButton(onClick = {}, modifier = Modifier.size(30.dp)) {
-            Icon(Icons.Default.MoreVert, "更多", tint = Color(0xFF111111), modifier = Modifier.size(20.dp))
+        Box(modifier = Modifier.size(30.dp), contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Default.MoreVert,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
@@ -183,11 +204,25 @@ private fun KiyoriFileManagementTopBar() {
 @Composable
 private fun KiyoriFileSectionHeader(title: String) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color(0xFFB0B0B0))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(modifier = Modifier.weight(1f))
-        Row(modifier = Modifier.clickable(onClick = {}), verticalAlignment = Alignment.CenterVertically) {
-            Text("全部", fontSize = 15.sp, color = Color(0xFFC3C3C3))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFFC3C3C3), modifier = Modifier.size(19.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "全部",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
@@ -211,24 +246,28 @@ private fun KiyoriFileEntryGrid(items: List<KiyoriFileEntryItem>) {
 @Composable
 private fun KiyoriFileEntryTile(item: KiyoriFileEntryItem, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.clickable(onClick = {}),
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(item.backgroundColors)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(item.icon, item.title, tint = Color.White, modifier = Modifier.size(15.dp))
-        }
+        KiyoriSemanticIconBadge(
+            imageVector = item.icon,
+            tone = item.tone,
+            contentDescription = item.title,
+            containerSize = 40.dp,
+            iconSize = 18.dp,
+        )
         Spacer(modifier = Modifier.height(5.dp))
         Text(
             item.title,
-            fontSize = 12.sp,
-            lineHeight = 13.sp,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF111111),
+            color = MaterialTheme.colorScheme.onSurface,
         )
-        Text(item.count, fontSize = 9.sp, lineHeight = 10.sp, color = Color(0xFFC1C1C1))
+        Text(
+            item.count,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+        )
     }
 }
 
@@ -242,7 +281,6 @@ private fun KiyoriFileStorageRow(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .clickable(onClick = {})
                 .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -253,19 +291,29 @@ private fun KiyoriFileStorageRow(
             modifier = Modifier.size(22.dp),
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(item.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111111))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         Spacer(modifier = Modifier.weight(1f))
         value?.let { storageValue ->
             Text(
                 text = storageValue,
-                fontSize = 13.sp,
-                color = Color(0xFFC0C0C0),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         Spacer(modifier = Modifier.width(4.dp))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFFC0C0C0), modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 

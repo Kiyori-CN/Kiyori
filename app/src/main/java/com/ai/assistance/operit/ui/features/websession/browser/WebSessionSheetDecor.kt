@@ -22,6 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 @Composable
 internal fun WebSessionSheetScaffold(
@@ -60,12 +63,14 @@ internal fun WebSessionSheetScaffold(
 @Composable
 internal fun WebSessionSectionLabel(
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
 ) {
+    val colors = tone.resolveColors()
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
+        color = colors.icon,
         fontWeight = FontWeight.SemiBold,
         modifier = modifier.padding(horizontal = 2.dp)
     )
@@ -75,10 +80,12 @@ internal fun WebSessionSectionLabel(
 internal fun WebSessionItemCard(
     onClick: (() -> Unit)? = null,
     highlighted: Boolean = false,
+    highlightTone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val colors = highlightTone.resolveColors()
     Surface(
         modifier =
             modifier
@@ -93,13 +100,13 @@ internal fun WebSessionItemCard(
         shape = shape,
         color =
             if (highlighted) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
+                colors.container
             } else {
                 MaterialTheme.colorScheme.surface
             },
         contentColor =
             if (highlighted) {
-                MaterialTheme.colorScheme.onPrimaryContainer
+                MaterialTheme.colorScheme.onSurface
             } else {
                 MaterialTheme.colorScheme.onSurface
             },
@@ -108,7 +115,7 @@ internal fun WebSessionItemCard(
                 width = 1.dp,
                 color =
                     if (highlighted) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        colors.icon.copy(alpha = 0.24f)
                     } else {
                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     }
@@ -125,7 +132,8 @@ internal fun WebSessionEmptyState(
     icon: ImageVector,
     title: String,
     message: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -147,21 +155,14 @@ internal fun WebSessionEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Surface(
+            KiyoriSemanticIconBadge(
+                imageVector = icon,
+                tone = tone,
+                contentDescription = null,
+                containerSize = 44.dp,
+                iconSize = 24.dp,
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            ) {
-                Box(
-                    modifier = Modifier.padding(10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            )
 
             Text(
                 text = title,

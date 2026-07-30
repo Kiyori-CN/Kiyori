@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.ui.features.packages.components.EmptyState
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 @Composable
 fun PackageTabContent(
@@ -93,11 +96,6 @@ fun PackageTabContent(
                         sortedEntries.associate { entry -> entry.key to entry.value }
                 }
 
-                val automaticColor = MaterialTheme.colorScheme.primary
-                val experimentalColor = MaterialTheme.colorScheme.tertiary
-                val drawColor = MaterialTheme.colorScheme.secondary
-                val otherColor = MaterialTheme.colorScheme.onSurfaceVariant
-
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
@@ -125,11 +123,11 @@ fun PackageTabContent(
                     }
 
                     groupedPackages.forEach { (category, packagesInCategory) ->
-                        val categoryColor = when (category) {
-                            "Automatic" -> automaticColor
-                            "Experimental" -> experimentalColor
-                            "Draw" -> drawColor
-                            else -> otherColor
+                        val categoryTone = when (category) {
+                            "Automatic" -> KiyoriSemanticTone.ORANGE
+                            "Experimental" -> KiyoriSemanticTone.PINK
+                            "Draw" -> KiyoriSemanticTone.PURPLE
+                            else -> KiyoriSemanticTone.CYAN
                         }
 
                         items(
@@ -144,7 +142,7 @@ fun PackageTabContent(
                                 isImported = enabledPackageNames.contains(packageName),
                                 categoryTag = if (isFirstInCategory) category else null,
                                 category = category,
-                                categoryColor = categoryColor,
+                                categoryTone = categoryTone,
                                 onPackageClick = { onPackageClick(packageName) },
                                 onToggleImport = { isChecked ->
                                     onTogglePackage(packageName, isChecked)
@@ -168,6 +166,7 @@ fun PackageTabContent(
 private fun QuickPluginCreatorEntry(
     onClick: () -> Unit
 ) {
+    val colors = KiyoriSemanticTone.PURPLE.resolveColors()
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,7 +174,7 @@ private fun QuickPluginCreatorEntry(
         onClick = onClick,
         colors =
             CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -186,17 +185,14 @@ private fun QuickPluginCreatorEntry(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AutoMode,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Default.AutoMode,
+                tone = KiyoriSemanticTone.PURPLE,
+                contentDescription = null,
+                containerSize = 46.dp,
+                iconSize = 24.dp,
+                shape = RoundedCornerShape(16.dp),
+            )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -205,18 +201,18 @@ private fun QuickPluginCreatorEntry(
                     text = stringResource(R.string.quick_plugin_creator_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = stringResource(R.string.quick_plugin_creator_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = colors.icon
             )
         }
     }
@@ -229,11 +225,12 @@ private fun PackageListItemWithTag(
     isImported: Boolean,
     categoryTag: String?,
     category: String,
-    categoryColor: Color,
+    categoryTone: KiyoriSemanticTone,
     onPackageClick: () -> Unit,
     onToggleImport: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
+    val categoryColors = categoryTone.resolveColors()
     val packageDisplayName =
         toolPackage
             ?.displayName
@@ -256,14 +253,14 @@ private fun PackageListItemWithTag(
                         Modifier
                             .width(3.dp)
                             .height(12.dp),
-                    color = categoryColor,
+                    color = categoryColors.icon,
                     shape = RoundedCornerShape(1.5.dp)
                 ) {}
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = categoryTag,
                     style = MaterialTheme.typography.labelSmall,
-                    color = categoryColor,
+                    color = categoryColors.icon,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -287,7 +284,7 @@ private fun PackageListItemWithTag(
                         ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                KiyoriSemanticIconBadge(
                     imageVector = when (category) {
                         "Automatic" -> Icons.Default.AutoMode
                         "Experimental" -> Icons.Default.Science
@@ -295,9 +292,11 @@ private fun PackageListItemWithTag(
                         "Other" -> Icons.Default.Widgets
                         else -> Icons.Default.Extension
                     },
+                    tone = categoryTone,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = categoryColor
+                    containerSize = 34.dp,
+                    iconSize = 19.dp,
+                    shape = RoundedCornerShape(10.dp),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {

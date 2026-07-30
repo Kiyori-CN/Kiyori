@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +34,8 @@ import com.ai.assistance.operit.data.model.ExecuteNode
 import com.ai.assistance.operit.data.model.ConditionNode
 import com.ai.assistance.operit.data.model.LogicNode
 import com.ai.assistance.operit.data.model.ExtractNode
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -56,61 +57,48 @@ fun DraggableNodeCard(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val runningColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val failedColors = KiyoriSemanticTone.RED.resolveColors()
     
     // 根据执行状态选择边框颜色
     val executionBorderColor = when (executionState) {
-        is NodeExecutionState.Running -> Color(0xFF2196F3) // 蓝色
-        is NodeExecutionState.Success -> Color(0xFF4CAF50) // 绿色
-        is NodeExecutionState.Skipped -> Color(0xFF9E9E9E) // 灰色
-        is NodeExecutionState.Failed -> Color(0xFFF44336) // 红色
+        is NodeExecutionState.Running -> runningColors.icon
+        is NodeExecutionState.Success -> successColors.icon
+        is NodeExecutionState.Skipped -> MaterialTheme.colorScheme.outline
+        is NodeExecutionState.Failed -> failedColors.icon
         else -> null
     }
     
     // 根据节点类型选择颜色和图标
     val nodeStyle = when (node) {
         is TriggerNode -> NodeStyle(
-            primaryColor = Color(0xFF4CAF50),
-            backgroundColor = Color(0xFFE8F5E9),
-            borderColor = Color(0xFF81C784),
+            tone = KiyoriSemanticTone.GREEN,
             icon = Icons.Default.PlayArrow,
             label = stringResource(R.string.workflow_node_label_trigger)
         )
         is ExecuteNode -> NodeStyle(
-            primaryColor = Color(0xFF2196F3),
-            backgroundColor = Color(0xFFE3F2FD),
-            borderColor = Color(0xFF64B5F6),
+            tone = KiyoriSemanticTone.BLUE,
             icon = Icons.Default.Settings,
             label = stringResource(R.string.workflow_node_label_execute)
         )
         is ConditionNode -> NodeStyle(
-            primaryColor = Color(0xFFFF9800),
-            backgroundColor = Color(0xFFFFF3E0),
-            borderColor = Color(0xFFFFB74D),
+            tone = KiyoriSemanticTone.ORANGE,
             icon = Icons.Default.Settings,
             label = stringResource(R.string.workflow_node_label_condition)
         )
         is LogicNode -> NodeStyle(
-            primaryColor = Color(0xFF7E57C2),
-            backgroundColor = Color(0xFFF3E5F5),
-            borderColor = Color(0xFFB39DDB),
+            tone = KiyoriSemanticTone.PURPLE,
             icon = Icons.Default.Settings,
             label = stringResource(R.string.workflow_node_label_logic)
         )
         is ExtractNode -> NodeStyle(
-            primaryColor = Color(0xFF009688),
-            backgroundColor = Color(0xFFE0F2F1),
-            borderColor = Color(0xFF4DB6AC),
+            tone = KiyoriSemanticTone.CYAN,
             icon = Icons.Default.Settings,
             label = stringResource(R.string.workflow_node_label_extract)
         )
-        else -> NodeStyle(
-            primaryColor = Color(0xFF9E9E9E),
-            backgroundColor = Color(0xFFF5F5F5),
-            borderColor = Color(0xFFBDBDBD),
-            icon = Icons.Default.Settings,
-            label = stringResource(R.string.workflow_node_label_unknown)
-        )
     }
+    val nodeColors = nodeStyle.tone.resolveColors()
     
     var hasDragged by remember { mutableStateOf(false) }
     
@@ -176,7 +164,13 @@ fun DraggableNodeCard(
                 }
                 .border(
                     width = if (executionBorderColor != null) 3.dp else 2.dp,
-                    color = executionBorderColor ?: (if (isDragging) nodeStyle.primaryColor else nodeStyle.borderColor),
+                    color =
+                        executionBorderColor
+                            ?: if (isDragging) {
+                                nodeColors.icon
+                            } else {
+                                nodeColors.icon.copy(alpha = 0.58f)
+                            },
                     shape = RoundedCornerShape(8.dp)
                 ),
             shape = RoundedCornerShape(8.dp),
@@ -185,9 +179,9 @@ fun DraggableNodeCard(
             ),
             colors = CardDefaults.cardColors(
                 containerColor = if (isDragging) 
-                    nodeStyle.backgroundColor.copy(alpha = 0.8f) 
+                    nodeColors.container.copy(alpha = 0.9f)
                 else 
-                    Color.White
+                    MaterialTheme.colorScheme.surface
             )
         ) {
             Column(
@@ -200,7 +194,7 @@ fun DraggableNodeCard(
                 // 顶部：类型标签
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = nodeStyle.primaryColor.copy(alpha = 0.15f),
+                    color = nodeColors.container,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -211,7 +205,7 @@ fun DraggableNodeCard(
                         Icon(
                             imageVector = nodeStyle.icon,
                             contentDescription = null,
-                            tint = nodeStyle.primaryColor,
+                            tint = nodeColors.icon,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -219,7 +213,7 @@ fun DraggableNodeCard(
                             text = nodeStyle.label,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
-                            color = nodeStyle.primaryColor
+                            color = nodeColors.icon
                         )
                     }
                 }
@@ -229,7 +223,7 @@ fun DraggableNodeCard(
                     text = node.name,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF212121),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
@@ -252,13 +246,13 @@ fun DraggableNodeCard(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(12.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color(0xFF2196F3)
+                                    color = runningColors.icon
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = stringResource(R.string.workflow_node_running),
                                     fontSize = 9.sp,
-                                    color = Color(0xFF2196F3),
+                                    color = runningColors.icon,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -266,14 +260,14 @@ fun DraggableNodeCard(
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = Color(0xFF4CAF50),
+                                    tint = successColors.icon,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = stringResource(R.string.workflow_node_success),
                                     fontSize = 9.sp,
-                                    color = Color(0xFF4CAF50),
+                                    color = successColors.icon,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -281,14 +275,14 @@ fun DraggableNodeCard(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = null,
-                                    tint = Color(0xFF9E9E9E),
+                                    tint = MaterialTheme.colorScheme.outline,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = stringResource(R.string.workflow_node_skipped),
                                     fontSize = 9.sp,
-                                    color = Color(0xFF9E9E9E),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -296,14 +290,14 @@ fun DraggableNodeCard(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = null,
-                                    tint = Color(0xFFF44336),
+                                    tint = failedColors.icon,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = stringResource(R.string.workflow_node_failed),
                                     fontSize = 9.sp,
-                                    color = Color(0xFFF44336),
+                                    color = failedColors.icon,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -314,7 +308,7 @@ fun DraggableNodeCard(
                     Text(
                         text = node.description,
                         fontSize = 9.sp,
-                        color = Color(0xFF757575),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
@@ -330,9 +324,7 @@ fun DraggableNodeCard(
  * 节点样式数据类
  */
 private data class NodeStyle(
-    val primaryColor: Color,
-    val backgroundColor: Color,
-    val borderColor: Color,
+    val tone: KiyoriSemanticTone,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val label: String
 )

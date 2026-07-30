@@ -37,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -71,6 +72,8 @@ import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
 import com.ai.assistance.operit.core.player.buildPlayerDebugLogReport
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -295,6 +298,8 @@ private fun PlayerLogDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val redColors = KiyoriSemanticTone.RED.resolveColors()
     val clipboard = remember(context) {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
@@ -340,7 +345,7 @@ private fun PlayerLogDialog(
                         .fillMaxHeight(0.9f)
                         .heightIn(max = 680.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 8.dp,
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -354,7 +359,7 @@ private fun PlayerLogDialog(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "播放器日志",
-                                color = Color(0xFF202124),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 19.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -362,7 +367,7 @@ private fun PlayerLogDialog(
                                 text =
                                     "实时更新 · 最新日志在前 · PID " +
                                         (state.runtimeProcessId?.toString() ?: "未连接"),
-                                color = Color(0xFF6B7280),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -377,7 +382,7 @@ private fun PlayerLogDialog(
                         }
                     }
 
-                    HorizontalDivider(color = Color(0xFFE5E7EB))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     Row(
                         modifier =
@@ -410,14 +415,14 @@ private fun PlayerLogDialog(
                             text =
                                 "${selectedFilter.displayName} · " +
                                     "${logSnapshot.lineCount}/${logSnapshot.totalLineCount} 条",
-                            color = Color(0xFF4B5563),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                         )
                         Spacer(Modifier.weight(1f))
                         if (logSnapshot.droppedLineCount > 0L) {
                             Text(
                                 text = "已丢弃 ${logSnapshot.droppedLineCount} 条旧日志",
-                                color = Color(0xFFB3261E),
+                                color = redColors.icon,
                                 fontSize = 11.sp,
                             )
                         }
@@ -430,10 +435,10 @@ private fun PlayerLogDialog(
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFF7F8FA))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f))
                                 .border(
                                     width = 1.dp,
-                                    color = Color(0xFFE5E7EB),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
                                     shape = RoundedCornerShape(8.dp),
                                 ),
                     ) {
@@ -441,7 +446,7 @@ private fun PlayerLogDialog(
                             Text(
                                 text = "当前分类暂无日志",
                                 modifier = Modifier.align(Alignment.Center),
-                                color = Color(0xFF6B7280),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 13.sp,
                             )
                         } else {
@@ -459,7 +464,7 @@ private fun PlayerLogDialog(
                         }
                     }
 
-                    HorizontalDivider(color = Color(0xFFE5E7EB))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     Row(
                         modifier =
@@ -487,11 +492,11 @@ private fun PlayerLogDialog(
                                 ButtonDefaults.textButtonColors(
                                     containerColor =
                                         if (clearConfirmationRequired) {
-                                            Color(0xFFFFE9E7)
+                                            redColors.container
                                         } else {
                                             Color.Transparent
                                         },
-                                    contentColor = Color(0xFFB3261E),
+                                    contentColor = redColors.icon,
                                 ),
                             contentPadding = PaddingValues(horizontal = 12.dp),
                         ) {
@@ -521,7 +526,7 @@ private fun PlayerLogDialog(
                             },
                             colors =
                                 ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFF4557C7),
+                                    contentColor = blueColors.icon,
                                 ),
                             contentPadding = PaddingValues(horizontal = 14.dp),
                         ) {
@@ -562,15 +567,15 @@ private fun PlayerLogDialog(
                             },
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF4557C7),
-                                    contentColor = Color.White,
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
                                 ),
                             contentPadding = PaddingValues(horizontal = 14.dp),
                         ) {
                             if (exporting) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     strokeWidth = 2.dp,
                                 )
                                 Spacer(Modifier.size(6.dp))
@@ -593,14 +598,25 @@ private fun PlayerLogFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
     TextButton(
         onClick = onClick,
         modifier = Modifier.height(34.dp),
         shape = RoundedCornerShape(17.dp),
         colors =
             ButtonDefaults.textButtonColors(
-                containerColor = if (selected) Color(0xFFE4E9FF) else Color(0xFFF2F3F5),
-                contentColor = if (selected) Color(0xFF4557C7) else Color(0xFF4B5563),
+                containerColor =
+                    if (selected) {
+                        blueColors.container
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+                    },
+                contentColor =
+                    if (selected) {
+                        blueColors.icon
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
             ),
         contentPadding = PaddingValues(horizontal = 14.dp),
     ) {
@@ -616,17 +632,24 @@ private fun PlayerLogFilterChip(
 
 @Composable
 private fun PlayerLogEntryRow(entry: PlayerDebugLogLine) {
-    val levelColor =
+    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val orangeColors = KiyoriSemanticTone.ORANGE.resolveColors()
+    val redColors = KiyoriSemanticTone.RED.resolveColors()
+    val levelColors =
         when (entry.level) {
-            PlayerDebugLogLevel.DEBUG -> Color(0xFF6B7280)
-            PlayerDebugLogLevel.INFO -> Color(0xFF4557C7)
-            PlayerDebugLogLevel.WARN -> Color(0xFF9A6700)
-            PlayerDebugLogLevel.ERROR -> Color(0xFFB3261E)
+            PlayerDebugLogLevel.DEBUG ->
+                com.ai.assistance.operit.ui.theme.KiyoriSemanticColors(
+                    icon = MaterialTheme.colorScheme.onSurfaceVariant,
+                    container = MaterialTheme.colorScheme.surfaceVariant
+                )
+            PlayerDebugLogLevel.INFO -> blueColors
+            PlayerDebugLogLevel.WARN -> orangeColors
+            PlayerDebugLogLevel.ERROR -> redColors
         }
     val rowBackground =
         when (entry.level) {
-            PlayerDebugLogLevel.ERROR -> Color(0xFFFFF3F2)
-            PlayerDebugLogLevel.WARN -> Color(0xFFFFFAEB)
+            PlayerDebugLogLevel.ERROR,
+            PlayerDebugLogLevel.WARN -> levelColors.container.copy(alpha = 0.42f)
             else -> Color.Transparent
         }
 
@@ -646,12 +669,12 @@ private fun PlayerLogEntryRow(entry: PlayerDebugLogLine) {
                     modifier =
                         Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(levelColor.copy(alpha = 0.12f))
+                            .background(levelColors.container)
                             .padding(horizontal = 7.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = entry.level.displayName,
-                        color = levelColor,
+                        color = levelColors.icon,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -659,7 +682,7 @@ private fun PlayerLogEntryRow(entry: PlayerDebugLogLine) {
                 Text(
                     text = entry.timestamp.drop(5),
                     modifier = Modifier.padding(start = 8.dp).weight(1f),
-                    color = Color(0xFF6B7280),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
@@ -667,7 +690,7 @@ private fun PlayerLogEntryRow(entry: PlayerDebugLogLine) {
                 Text(
                     text = entry.tag,
                     modifier = Modifier.padding(start = 8.dp).widthIn(max = 180.dp),
-                    color = Color(0xFF4557C7),
+                    color = blueColors.icon,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
@@ -677,14 +700,14 @@ private fun PlayerLogEntryRow(entry: PlayerDebugLogLine) {
             Text(
                 text = entry.message,
                 modifier = Modifier.padding(top = 5.dp),
-                color = Color(0xFF202124),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 fontFamily = FontFamily.Monospace,
             )
         }
     }
-    HorizontalDivider(color = Color(0xFFE5E7EB))
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 private fun readBatteryAndTime(context: Context): Pair<String, String> {

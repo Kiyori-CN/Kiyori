@@ -4,19 +4,21 @@ upstream: https://github.com/AAswordman/Operit
 status: verification_pending
 ---
 
-# Kiyori 专业浏览器主题与应用强调色
+# Kiyori 专业浏览器主题与固定应用强调色
 
 ## 目标
 
 Kiyori 的默认视觉从 inherited Material 动态色和紫色基线，改为稳定、克制、内容优先的专业应用主题。默认亮色使用纯白页面、近黑文字、蓝色应用强调和分层灰阶 surface；错误、警告、在线状态、代码高亮等真实语义继续使用必要颜色。
 
-应用强调色统一覆盖 Kiyori App Shell、Operit AI 页面、AI 与系统设置、悬浮聊天、权限弹窗、WebChat 主题快照、分享图片、恢复/崩溃辅助界面和 Android XML 启动窗口。Browser Home、浏览器 overlay、全屏搜索和浏览器子页使用固定中性色主题边界，不读取应用 primary/secondary。
+固定应用强调色统一覆盖 Kiyori App Shell、Operit AI 页面、悬浮聊天、权限弹窗、WebChat 主题快照、
+分享图片、恢复/崩溃辅助界面和 Android XML 启动窗口。设置页面使用独立且固定的浅深色设置 token；
+Browser Home、浏览器 overlay、全屏搜索和浏览器子页使用固定中性色主题边界。
 
 ## 非目标
 
 - 不改变 Browser Runtime、WebSession、活动 WebView 或 AI 工具的状态所有权
 - 不向网页注入 CSS，不覆盖网站自身背景和排版
-- 不删除用户主动保存的自定义颜色、背景媒体、字体或聊天气泡设置
+- 不删除 AI 对话局部背景、字体、头像、聊天头部、输入区或聊天气泡设置
 - 不改变 AI、浏览器、抽屉和系统 Back 的既有行为；旧版三页面静态复刻明确要求的空按钮除外
 - 不引入新的字体文件、图片资产或依赖；Software Home 只恢复既有五色描边和固定明暗蓝色选中效果，不扩展为全局色板
 - 不把 Debug 构建、模拟器或静态检查表述为真机视觉验收
@@ -54,10 +56,11 @@ kiyori_professional_browser_theme/
 5. 统一浏览器搜索、反馈、标签和 chrome 的中性色角色，同时保持网页内容边界
 6. 同步 Android XML 启动主题、WebChat、悬浮窗、权限弹窗、分享图片和辅助 Activity
 7. 运行对比度单元测试、现有相关 JVM 测试、静态检查与 Debug APK 构建
-8. 保留真机视觉验收，覆盖亮色、暗色、系统模式、自定义主题和背景媒体
+8. 保留真机视觉验收，覆盖亮色、暗色、系统模式、设置浅深色和 AI 局部背景媒体
 9. 统一浏览器普通顶栏与全屏搜索几何，并按旧版 Kiyori 的描边 Vector 与紧凑几何统一 App Shell、浏览器底栏和浏览器四行菜单
 10. 建立蓝色应用强调域与浏览器中性保护域，修正底栏和 AI 语音动作，并静态复刻负一屏、文件管理首页和设置首页
 11. 精调 AI 默认强调色与文件/设置首页，恢复唯一 AI 设置入口，并彻底移除待重做的浏览器设置页面和专用逻辑
+12. 删除用户对全应用颜色的控制，建立固定设置视觉与 AI 对话局部个性化边界
 
 ## 完成条件
 
@@ -74,7 +77,7 @@ kiyori_professional_browser_theme/
 
 ## 本轮实施结果
 
-- [DONE] 单一 Compose 灰白/灰黑 ColorScheme、固定亮色默认、显式系统亮暗和自定义颜色派生逻辑已实现
+- [DONE] 单一 Compose 灰白/灰黑 ColorScheme、固定亮色默认和显式系统亮暗已实现
 - [DONE] AI 顶栏、活动工具、Software Home、浏览器宿主、搜索反馈、Utility、Floating、WebChat resolver、分享图片和 XML 启动主题已统一
 - [DONE] 主题精确值、WCAG 对比度与 Typography 契约测试以及相关 Shell/Browser 测试共 `45/45` 通过
 - [DONE] `:app:assembleDebug` 通过；APK 为 `449494162` 字节，SHA-256 `5E83D22EA05FF147F08298D0B032D275884000EF189A4F21BD954B47D9C2ED82`
@@ -87,4 +90,5 @@ kiyori_professional_browser_theme/
 - [DONE] [第七阶段](7_ai_theme_settings_and_browser_settings_removal.md)：AI 色板精调、真实存储容量、AI 设置入口和浏览器设置实现移除已完成；第四行设置按钮原样保留为空占位
 - [DONE] 第七阶段聚焦 JVM 测试 `37/37`、`git diff --check`、正式开发准备门禁和 Debug 构建通过
 - [DONE] 最新 APK 为 `449485670` 字节，SHA-256 `F33D327D840F4D45BDE5167A1A2FCCC8E4F393A3CCE643D004C5AA1DFF3C6B9E`，包名 `com.kiyori`，版本 `45 / 0.1.0`，V2 Debug 签名与 16 KB ZIP 对齐通过
-- [ ] 真机亮色、暗色、系统模式、自定义主题和独立界面视觉矩阵仍待验收
+- [DONE-local] [设置 UI、主题边界与现代化配色统一](../kiyori_settings_theme_unification/index.md)：固定应用主题、设置语义色板和 AI 局部个性化边界已完成本地实施与构建验收
+- [ ] 真机亮色、暗色、系统模式、设置页面与 AI 局部个性化视觉矩阵仍待验收

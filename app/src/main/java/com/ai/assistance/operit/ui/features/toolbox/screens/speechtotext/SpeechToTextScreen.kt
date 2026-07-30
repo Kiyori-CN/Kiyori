@@ -19,7 +19,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,12 +29,17 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.speech.SpeechService
 import com.ai.assistance.operit.api.speech.SpeechServiceFactory
 import kotlinx.coroutines.launch
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
+import com.ai.assistance.operit.util.AppLogger
 
 /** 语音识别演示屏幕 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpeechToTextScreen(navController: NavController) {
     val context = LocalContext.current
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val activeColors = KiyoriSemanticTone.BLUE.resolveColors()
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     
@@ -130,7 +134,8 @@ fun SpeechToTextScreen(navController: NavController) {
     LaunchedEffect(recognitionMode) {
         try {
             speechService.shutdown()
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppLogger.w("SpeechToTextScreen", "切换语音识别引擎时关闭旧实例失败", error)
         }
         speechService = SpeechServiceFactory.createSpeechService(context, recognitionMode)
     }
@@ -139,7 +144,8 @@ fun SpeechToTextScreen(navController: NavController) {
         onDispose {
             try {
                 speechService.shutdown()
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                AppLogger.w("SpeechToTextScreen", "释放语音识别引擎失败", error)
             }
         }
     }
@@ -483,7 +489,7 @@ fun SpeechToTextScreen(navController: NavController) {
                     Icon(
                         imageVector = if (isInitialized) Icons.Default.CheckCircle else Icons.Default.Error,
                         contentDescription = null,
-                        tint = if (isInitialized) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                        tint = if (isInitialized) successColors.icon else MaterialTheme.colorScheme.error
                     )
                     Text(
                         text = if (isInitialized) 
@@ -503,7 +509,7 @@ fun SpeechToTextScreen(navController: NavController) {
                     Icon(
                         imageVector = if (isListening) Icons.Default.Mic else Icons.Default.MicOff,
                         contentDescription = null,
-                        tint = if (isListening) Color(0xFF2196F3) else MaterialTheme.colorScheme.onSecondaryContainer
+                        tint = if (isListening) activeColors.icon else MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
                         text = if (isListening) 

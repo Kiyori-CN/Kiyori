@@ -4,6 +4,66 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-29 全量 UI 与功能逻辑链路审计优化
+
+本阶段以两个目标进行横向封板：覆盖全部用户可达页面、抽屉、弹窗和特殊渲染域的视觉一致性，
+并逐条检查现有功能从入口、导航、状态 owner、执行层、持久化到结果反馈的完整链路。只修复现有
+功能和真实缺陷，不新增产品能力，不建立第二运行时、第二状态源或任何 fallback。
+
+完整页面矩阵、语义配色、特殊渲染边界、功能链路、实施顺序和验证门禁见
+[`kiyori_full_ui_and_function_chain_audit/`](kiyori_full_ui_and_function_chain_audit/index.md)。
+本轮持续工作窗口截止到 `2026-07-30 10:00 Asia/Shanghai`；未授权的设备、提交、推送和发布
+不在范围内。
+
+当前代码实现、静态反向审查、660 项 JVM 测试、AndroidTest 编译、正式开发准备检查、差异检查、
+完整 Lint、Debug APK、播放器运行时打包、Debug 签名、包信息、ABI 和 16 KB ZIP 对齐均已
+通过。目标设备上的视觉与真实系统能力验收继续标记为 `verification_pending`。
+
+## 2026-07-29 全局页面视觉一致性与语义彩色图标
+
+本阶段继续收口取消旧全局自定义配色后的剩余影响，建立不依赖用户颜色、只随固定 Kiyori
+浅色/深色主题变化的全应用语义色系统。应用壳、正文、卡片和浏览器 chrome 保持中性层级；
+蓝、绿、紫、橙、红、青、粉用于图标容器、状态、分组标识和选中边界，不把页面改造成大面积
+高饱和彩色界面。
+
+重点覆盖负一屏、AI 模态左抽屉、浏览器菜单及内容抽屉、相关弹窗、AI 对话入口，以及包管理、
+权限和工作流页面。设计合同、稳定颜色映射、页面覆盖矩阵、实施顺序和验证门禁见
+[`kiyori_global_ui_visual_unification/`](kiyori_global_ui_visual_unification/index.md)。
+
+本地实现与验收已完成：7 个定向 JVM 测试类共 `75/75` 通过，主源码和测试源码编译、
+formal readiness、`git diff --check` 与 Debug APK 构建均通过。APK 为 `com.kiyori`、
+`45 / 0.1.0`、`arm64-v8a`，Android Debug v2 签名和 16 KB ZIP 对齐通过。未安装 APK、
+未操作设备，浅色/深色视觉、抽屉弹窗、工作流画布和触摸热区保持 `verification_pending`。
+
+## 2026-07-29 设置 UI、主题边界与现代化配色统一
+
+本阶段继续整理设置系统：取消用户颜色对 Kiyori 全应用的控制，保留固定浅色、深色和跟随系统
+主题；背景、气泡、头像、聊天头部和输入区继续作为 AI 对话局部个性化。设置首页、拆分设置根、
+浏览器、下载器、播放器及关键子页使用同一套浅深色 token 和蓝绿紫橙红青粉语义图标色阶。
+
+主题 owner、必须删除的旧状态、设置视觉 token、覆盖页面、实施顺序和验收门禁见
+[`kiyori_settings_theme_unification/`](kiyori_settings_theme_unification/index.md)。
+
+本地实施与验收已完成：旧全局颜色路径和资源为零，设置主题覆盖顶栏与正文，定向 JVM 测试
+`64/64`、Kotlin 编译、formal readiness、`git diff --check` 和 Debug APK 构建均通过。APK 为
+`com.kiyori`、`45 / 0.1.0`、`arm64-v8a`，Android Debug V2 签名与 16 KB ZIP 对齐通过。
+未安装 APK、未操作设备，视觉和交互验收保持 `verification_pending`。
+
+## 2026-07-29 设置页信息架构与统一视觉
+
+本轮把原综合 AI 设置按实际 owner 拆分，并以文件下载器设置页为统一视觉标准。Settings Home
+继续保持 `4/4/4/4`：第一组固定为“账号与连接 / AI 助手 / 语音服务 / 小程序管理”，删除
+“剪贴板口令”和独立“小程序订阅”；“界面定制”和“数据备份与同步”开始承接从 AI 设置移出的
+应用级入口，普通网站 Cookie 清理迁入网页浏览器设置。
+
+详细信息架构、状态 owner、返回合同、视觉标准和串行门禁见
+[`kiyori_settings_information_architecture/`](kiyori_settings_information_architecture/index.md)。
+
+当前实现和本地验收已完成：设置与 Shell 定向测试 `52/52` 通过，formal readiness、
+`git diff --check`、Debug APK 构建、包元数据、v2 签名和 16 KB ZIP 对齐均通过。未安装 APK、
+未操作设备，设置页视觉、长语音表单、GitHub 登录弹窗与返回交互保持
+`verification_pending`。
+
 ## 2026-07-29 文件下载器全链路深度优化与阶段封板
 
 本阶段以现有 `BrowserDownloadManager` 为唯一任务、调度和状态所有者，对浏览器下载、播放器

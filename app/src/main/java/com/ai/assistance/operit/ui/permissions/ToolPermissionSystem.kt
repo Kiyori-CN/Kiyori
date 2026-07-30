@@ -14,6 +14,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.data.model.AITool
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
@@ -79,6 +83,9 @@ class ToolPermissionSystem private constructor(private val context: Context) {
     // Permission request management
     private val mainHandler = Handler(Looper.getMainLooper())
     private val permissionRequestOverlay = PermissionRequestOverlay(context)
+    private val permissionRequestMutex = Mutex()
+    private val permissionPersistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
     private var currentPermissionCallback: ((PermissionRequestResult) -> Unit)? = null
     private var permissionRequestInfo: Pair<AITool, String>? = null
     
@@ -209,6 +216,12 @@ class ToolPermissionSystem private constructor(private val context: Context) {
      * Request permission from the user to execute a tool
      */
     private suspend fun requestPermission(tool: AITool): Boolean {
+        return permissionRequestMutex.withLock {
+            requestPermissionLocked(tool)
+        }
+    }
+
+    private suspend fun requestPermissionLocked(tool: AITool): Boolean {
         // Get operation description
         val operationDescription = getOperationDescription(tool)
         
@@ -226,54 +239,69 @@ class ToolPermissionSystem private constructor(private val context: Context) {
         
         AppLogger.d(TAG, "Permission request state updated: ${tool.name}")
         
-        return withTimeoutOrNull(PERMISSION_REQUEST_TIMEOUT_MS) {
-            suspendCancellableCoroutine { continuation ->
-                // Set callback
-                currentPermissionCallback = { result ->
-                    AppLogger.d(TAG, "Permission result received: $result for ${tool.name}")
-                    // Clean up state
-                    currentPermissionCallback = null
-                    permissionRequestInfo = null
-                    _permissionRequestState.value = null
-                    
-                    // Handle result
-                    when (result) {
-                        PermissionRequestResult.ALLOW -> continuation.resume(true)
-                        PermissionRequestResult.DENY -> continuation.resume(false)
-                        PermissionRequestResult.ALWAYS_ALLOW -> {
-                            // Save the permission and resume
-                            tool.let {
-                                val toolScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-                                toolScope.launch {
-                                    saveToolPermission(it.name, PermissionLevel.ALLOW)
+        return try {
+            withTimeoutOrNull(PERMISSION_REQUEST_TIMEOUT_MS) {
+                suspendCancellableCoroutine { continuation ->
+                    // Set callback
+                    lateinit var permissionCallback: (PermissionRequestResult) -> Unit
+                    permissionCallback = callback@{ result ->
+                        if (currentPermissionCallback !== permissionCallback || !continuation.isActive) {
+                            return@callback
+                        }
+                        AppLogger.d(TAG, "Permission result received: $result for ${tool.name}")
+                        // Clean up state
+                        currentPermissionCallback = null
+                        permissionRequestInfo = null
+                        _permissionRequestState.value = null
+
+                        // Handle result
+                        when (result) {
+                            PermissionRequestResult.ALLOW -> continuation.resume(true)
+                            PermissionRequestResult.DENY -> continuation.resume(false)
+                            PermissionRequestResult.ALWAYS_ALLOW -> {
+                                // Save the permission and resume
+                                permissionPersistenceScope.launch {
+                                    try {
+                                        saveToolPermission(tool.name, PermissionLevel.ALLOW)
+                                    } catch (error: Exception) {
+                                        AppLogger.e(TAG, "保存工具永久授权失败: ${tool.name}", error)
+                                    }
                                 }
+                                continuation.resume(true)
                             }
-                            continuation.resume(true)
+                        }
+                    }
+                    currentPermissionCallback = permissionCallback
+
+                    // Start permission request on main thread
+                    mainHandler.post {
+                        if (currentPermissionCallback !== permissionCallback) {
+                            return@post
+                        }
+                        // Use overlay to show permission request
+                        if (!permissionRequestOverlay.hasOverlayPermission()) {
+                            AppLogger.w(TAG, "No overlay permission, requesting...")
+                            permissionRequestOverlay.requestOverlayPermission()
+                            currentPermissionCallback?.invoke(PermissionRequestResult.DENY)
+                        } else {
+                            permissionRequestOverlay.show(tool, operationDescription) { result ->
+                                handlePermissionResult(result)
+                            }
                         }
                     }
                 }
-                
-                // Start permission request on main thread
-                mainHandler.post {
-                    // Use overlay to show permission request
-                    if (!permissionRequestOverlay.hasOverlayPermission()) {
-                        AppLogger.w(TAG, "No overlay permission, requesting...")
-                        permissionRequestOverlay.requestOverlayPermission()
-                        currentPermissionCallback?.invoke(PermissionRequestResult.DENY)
-                    } else {
-                        permissionRequestOverlay.show(tool, operationDescription) { result ->
-                            handlePermissionResult(result)
-                        }
-                    }
-                }
+            } ?: run {
+                AppLogger.d(TAG, "Permission request timed out: ${tool.name}")
+                false
             }
-        } ?: run {
-            // Timeout handling
-            AppLogger.d(TAG, "Permission request timed out: ${tool.name}")
-            currentPermissionCallback = null
-            permissionRequestInfo = null
-            _permissionRequestState.value = null
-            false
+        } finally {
+            // 在释放请求互斥锁前同步清理旧视图，否则下一次请求会被残留 Overlay 阻挡。
+            kotlinx.coroutines.withContext(NonCancellable + Dispatchers.Main.immediate) {
+                currentPermissionCallback = null
+                permissionRequestInfo = null
+                _permissionRequestState.value = null
+                permissionRequestOverlay.dismiss()
+            }
         }
     }
     

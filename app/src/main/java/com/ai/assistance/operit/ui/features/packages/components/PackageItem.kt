@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 @Composable
 fun PackageItem(
@@ -21,10 +24,11 @@ fun PackageItem(
         onClick: () -> Unit,
         onToggleImport: (Boolean) -> Unit
 ) {
+    val colors = KiyoriSemanticTone.PURPLE.resolveColors()
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         )
         ) {
                 Row(
@@ -32,12 +36,14 @@ fun PackageItem(
             verticalAlignment = Alignment.CenterVertically
                 ) {
             // 图标
-                                        Icon(
-                                                imageVector = Icons.Default.Extension,
-                                                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                        )
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Default.Extension,
+                tone = KiyoriSemanticTone.PURPLE,
+                contentDescription = null,
+                containerSize = 36.dp,
+                iconSize = 20.dp,
+                shape = RoundedCornerShape(11.dp),
+            )
             
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -67,8 +73,8 @@ fun PackageItem(
                                 onCheckedChange = onToggleImport,
                 modifier = Modifier.size(width = 32.dp, height = 20.dp),
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                    checkedThumbColor = colors.icon,
+                    checkedTrackColor = colors.container,
                     uncheckedThumbColor = MaterialTheme.colorScheme.outline,
                     uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                                         )

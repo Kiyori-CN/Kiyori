@@ -61,7 +61,10 @@ import com.ai.assistance.operit.ui.features.packages.market.PublishProgressStage
 import com.ai.assistance.operit.ui.features.packages.market.isOperit2VersionAllowed
 import com.ai.assistance.operit.ui.features.packages.market.sameArtifactRuntimePackageId
 import com.ai.assistance.operit.ui.features.packages.screens.artifact.viewmodel.ArtifactMarketViewModel
+import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.launch
+
+private const val ARTIFACT_PUBLISH_TAG = "ArtifactPublishScreen"
 
 private data class ArtifactPublishEditInfo(
     val type: PublishArtifactType?,
@@ -202,12 +205,19 @@ fun ArtifactPublishScreen(
     var showConfirmationDialog by remember { mutableStateOf(false) }
     var showOperit2WarningDialog by remember { mutableStateOf(false) }
     var showSecondForgeConfirm by remember { mutableStateOf(false) }
+    var manifestLoadError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshPublishableArtifacts()
         MarketStatsApiService().getManifest().fold(
-            onSuccess = { manifest -> categories = manifest.categories.filter { it.id.isNotBlank() } },
-            onFailure = {}
+            onSuccess = { manifest ->
+                categories = manifest.categories.filter { it.id.isNotBlank() }
+                manifestLoadError = null
+            },
+            onFailure = { error ->
+                AppLogger.e(ARTIFACT_PUBLISH_TAG, "Failed to load artifact categories", error)
+                manifestLoadError = context.getString(R.string.market_error_load_failed)
+            }
         )
     }
 
@@ -326,6 +336,9 @@ fun ArtifactPublishScreen(
                             PublishArtifactType.SCRIPT -> stringResource(R.string.artifact_type_script)
                             null -> ""
                         }
+                    val lockedFileLabel = stringResource(R.string.artifact_publish_file_locked)
+                    val editableDescription =
+                        stringResource(R.string.artifact_publish_only_description_versions_editable)
                     val summaryText =
                         buildString {
                             if (artifactTypeLabel.isNotBlank()) {
@@ -333,9 +346,9 @@ fun ArtifactPublishScreen(
                             }
                             initialInfo.sourceFileName.takeIf { it.isNotBlank() }?.let {
                                 if (isNotBlank()) append(" · ")
-                                append(context.getString(R.string.artifact_publish_file_locked))
+                                append(lockedFileLabel)
                             }
-                        }.ifBlank { context.getString(R.string.artifact_publish_only_description_versions_editable) }
+                        }.ifBlank { editableDescription }
                     Text(
                         text = stringResource(R.string.artifact_publish_current_artifact),
                         style = MaterialTheme.typography.titleSmall,
@@ -831,40 +844,18 @@ fun ArtifactPublishScreen(
             supportingText = { Text(stringResource(R.string.max_supported_version_input_hint)) }
         )
 
+        manifestLoadError?.let { error ->
+            ArtifactPublishErrorCard(
+                title = stringResource(R.string.market_error_load_failed),
+                message = error
+            )
+        }
+
         publishError?.let { error ->
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = stringResource(R.string.publish_failed_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        maxLines = 4,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            ArtifactPublishErrorCard(
+                title = stringResource(R.string.publish_failed_title),
+                message = error
+            )
         }
 
         Button(
@@ -1021,7 +1012,7 @@ fun ArtifactPublishScreen(
                 TextButton(
                     onClick = {
                         showConfirmationDialog = false
-                        if (isEditMode && editingEntry != null) {
+                        if (editingEntry != null) {
                             viewModel.updatePublishedArtifact(
                                 entry = editingEntry,
                                 displayName = displayName,
@@ -1173,5 +1164,45 @@ fun ArtifactPublishScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun ArtifactPublishErrorCard(
+    title: String,
+    message: String
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

@@ -51,6 +51,9 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.launch
 
@@ -150,6 +153,7 @@ fun PermissionLevelCard(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
             ) {
+                val displayedTone = permissionManagementTone(displayedPermissionLevel)
                 val icon =
                         when (displayedPermissionLevel) {
                             AndroidPermissionLevel.STANDARD -> Icons.Default.Shield
@@ -157,22 +161,23 @@ fun PermissionLevelCard(
                             AndroidPermissionLevel.ADMIN -> Icons.Default.Shield
                             AndroidPermissionLevel.DEBUGGER -> Icons.Default.Shield
                             AndroidPermissionLevel.ROOT -> Icons.Default.Lock
-                            null -> Icons.Default.Shield // 默认使用标准图标
                         }
 
-                Icon(
+                KiyoriSemanticIconBadge(
                         imageVector = icon,
+                        tone = displayedTone,
                         contentDescription = stringResource(R.string.permission_level_icon),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        containerSize = 34.dp,
+                        iconSize = 19.dp,
+                        shape = RoundedCornerShape(10.dp)
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
                         text = stringResource(R.string.permission_level),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -200,7 +205,7 @@ fun PermissionLevelCard(
                     },
                     label = "Permission Description Animation"
             ) { level ->
-                PermissionLevelVisualDescription(level ?: AndroidPermissionLevel.STANDARD)
+                PermissionLevelVisualDescription(level)
             }
 
             // 显示状态指示条 - 更紧凑的状态条
@@ -443,12 +448,13 @@ private fun PermissionLevelSelector(
         onLevelSelected: (AndroidPermissionLevel) -> Unit
 ) {
     val levels = AndroidPermissionLevel.values()
+    val currentColors = permissionManagementTone(currentLevel).resolveColors()
 
     ScrollableTabRow(
             selectedTabIndex = currentLevel.ordinal,
             edgePadding = 0.dp,
             divider = {},
-            contentColor = MaterialTheme.colorScheme.primary,
+            contentColor = currentColors.icon,
             containerColor = Color.Transparent,
             indicator = { tabPositions ->
                 // Draw indicator under the selected tab
@@ -457,7 +463,7 @@ private fun PermissionLevelSelector(
                             modifier =
                                     Modifier.tabIndicatorOffset(tabPositions[currentLevel.ordinal])
                                             .height(2.dp)
-                                            .background(MaterialTheme.colorScheme.primary)
+                                            .background(currentColors.icon)
                                             .clip(
                                                     RoundedCornerShape(
                                                             topStart = 1.dp,
@@ -471,6 +477,7 @@ private fun PermissionLevelSelector(
         levels.forEach { level ->
             val isSelected = level == currentLevel
             val isActive = level == activeLevel
+            val levelColors = permissionManagementTone(level).resolveColors()
 
             Tab(
                     selected = isSelected,
@@ -482,9 +489,9 @@ private fun PermissionLevelSelector(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color =
                                         when {
-                                            isSelected -> MaterialTheme.colorScheme.primary
+                                            isSelected -> levelColors.icon
                                             isActive ->
-                                                    MaterialTheme.colorScheme.primary.copy(
+                                                    levelColors.icon.copy(
                                                             alpha = 0.7f
                                                     )
                                             else ->
@@ -495,12 +502,21 @@ private fun PermissionLevelSelector(
                         )
                     },
                     modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp),
-                    selectedContentColor = MaterialTheme.colorScheme.primary,
+                    selectedContentColor = levelColors.icon,
                     unselectedContentColor = MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
+
+private fun permissionManagementTone(level: AndroidPermissionLevel): KiyoriSemanticTone =
+        when (level) {
+            AndroidPermissionLevel.STANDARD -> KiyoriSemanticTone.BLUE
+            AndroidPermissionLevel.ACCESSIBILITY -> KiyoriSemanticTone.GREEN
+            AndroidPermissionLevel.ADMIN -> KiyoriSemanticTone.PURPLE
+            AndroidPermissionLevel.DEBUGGER -> KiyoriSemanticTone.ORANGE
+            AndroidPermissionLevel.ROOT -> KiyoriSemanticTone.RED
+        }
 
 @Composable
 private fun PermissionSectionContainer(
@@ -811,8 +827,9 @@ private fun AccessibilityPermissionSection(
                                         !isAccessibilityProviderInstalled ||
                                                 !hasAccessibilityServiceEnabled ->
                                                 MaterialTheme.colorScheme.error
-                                        isAccessibilityUpdateNeeded -> Color(0xFFFF9800)
-                                        else -> MaterialTheme.colorScheme.primary
+                                        isAccessibilityUpdateNeeded ->
+                                                KiyoriSemanticTone.ORANGE.resolveColors().icon
+                                        else -> KiyoriSemanticTone.GREEN.resolveColors().icon
                                     }
                     )
                 }
@@ -842,10 +859,11 @@ private fun AdminPermissionSection(
         )
 
         // 添加不支持使用的提示卡片 - 移至顶部
+        val warningColors = KiyoriSemanticTone.ORANGE.resolveColors()
         Surface(
-                color = Color(0xFFFFF8E1), // 浅琥珀色背景
+                color = warningColors.container,
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFFFB74D)) // 琥珀色边框
+                border = BorderStroke(1.dp, warningColors.icon.copy(alpha = 0.5f))
         ) {
             Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -854,7 +872,7 @@ private fun AdminPermissionSection(
                 Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = Color(0xFFFF9800), // 琥珀色图标
+                        tint = warningColors.icon,
                         modifier = Modifier.size(20.dp)
                 )
 
@@ -866,7 +884,7 @@ private fun AdminPermissionSection(
                                 MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Medium
                                 ),
-                        color = Color(0xFFE65100) // 深琥珀色文字
+                        color = warningColors.icon
                 )
             }
         }
@@ -1112,8 +1130,9 @@ private fun DebuggerPermissionSection(
                                                 !isShizukuRunning ||
                                                 !hasShizukuPermission ->
                                                 MaterialTheme.colorScheme.error
-                                        isShizukuUpdateNeeded -> Color(0xFFFF9800) // 琥珀色表示待更新
-                                        else -> MaterialTheme.colorScheme.primary
+                                        isShizukuUpdateNeeded ->
+                                                KiyoriSemanticTone.ORANGE.resolveColors().icon
+                                        else -> KiyoriSemanticTone.GREEN.resolveColors().icon
                                     }
                     )
                 }

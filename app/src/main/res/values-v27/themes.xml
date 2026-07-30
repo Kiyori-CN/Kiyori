@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.Operit" parent="@style/KiyoriThemeBase">
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

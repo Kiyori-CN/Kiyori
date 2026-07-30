@@ -55,6 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -426,6 +428,7 @@ private fun MarketBrowseMetaRow(
     thumbsUpCount: Int,
     heartCount: Int
 ) {
+    val favoriteColors = KiyoriSemanticTone.PINK.resolveColors()
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -460,7 +463,7 @@ private fun MarketBrowseMetaRow(
             MarketBrowseMetaCount(
                 icon = Icons.Default.Favorite,
                 count = heartCount,
-                tint = Color(0xFFE91E63)
+                tint = favoriteColors.icon
             )
         }
     }

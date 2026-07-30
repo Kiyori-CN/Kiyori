@@ -5,6 +5,11 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
+import com.ai.assistance.operit.ui.main.navigation.AppRouteCatalog
+import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
+import com.ai.assistance.operit.ui.main.screens.Screen
+import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -65,10 +70,10 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             listOf(
-                "AI 设置",
-                "剪贴板口令",
+                "账号与连接",
+                "AI 助手",
+                "语音服务",
                 "小程序管理",
-                "小程序订阅",
                 "网页浏览器",
                 "视频播放器",
                 "音乐播放器",
@@ -85,10 +90,38 @@ class KiyoriSettingsPagesTest {
             kiyoriSettingsHomeGroups.flatten().map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
-            listOf("AI 设置"),
+            listOf("账号与连接"),
             kiyoriSettingsHomeGroups
                 .flatten()
-                .filter { entry -> entry.action == KiyoriSettingsHomeAction.OPEN_AI_SETTINGS }
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("AI 助手"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("语音服务"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("小程序管理"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry -> entry.title == "小程序管理" }
+                .filter { entry -> entry.action == KiyoriSettingsHomeAction.NONE }
                 .map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
@@ -118,6 +151,142 @@ class KiyoriSettingsPagesTest {
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )
+        assertEquals(
+            listOf("界面定制"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("数据备份与同步"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+    }
+
+    @Test
+    fun `application settings roots keep AI application and data ownership separated`() {
+        assertEquals(
+            listOf(2, 4, 2, 2),
+            kiyoriAiAssistantSettingsGroups.map { group -> group.entries.size },
+        )
+        assertEquals(
+            listOf("模型与服务", "对话与角色", "上下文与安全", "使用与连接"),
+            kiyoriAiAssistantSettingsGroups.map { group -> group.title },
+        )
+        assertEquals(
+            listOf(
+                "模型与 API",
+                "功能模型",
+                "用户偏好",
+                "提示词",
+                "人设卡生成",
+                "分句回复",
+                "上下文与总结",
+                "AI 工具授权",
+                "Token 使用统计",
+                "外部 HTTP 对话",
+            ),
+            kiyoriAiAssistantSettingsGroups
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.title },
+        )
+        assertEquals(
+            KiyoriAiAssistantSettingsAction.entries.toSet(),
+            kiyoriAiAssistantSettingsGroups
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.action }
+                .toSet(),
+        )
+        assertEquals(
+            listOf("语言", "主题与外观", "全局显示", "布局调整"),
+            kiyoriAppearanceSettingsGroups
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.title },
+        )
+        assertEquals(
+            KiyoriAppearanceSettingsAction.entries.toSet(),
+            kiyoriAppearanceSettingsGroups
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.action }
+                .toSet(),
+        )
+        assertEquals(
+            listOf("数据备份与恢复", "聊天历史管理"),
+            kiyoriDataSettingsGroups
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.title },
+        )
+        assertEquals(
+            KiyoriDataSettingsAction.entries.toSet(),
+            kiyoriDataSettingsGroups
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.action }
+                .toSet(),
+        )
+        assertTrue(
+            (kiyoriAiAssistantSettingsGroups +
+                kiyoriAppearanceSettingsGroups +
+                kiyoriDataSettingsGroups).all { group ->
+                group.description.isNotBlank() &&
+                    group.entries.all { entry -> entry.description.isNotBlank() }
+            },
+        )
+        assertEquals(
+            KiyoriSemanticTone.entries.toSet(),
+            (kiyoriAiAssistantSettingsGroups +
+                kiyoriAppearanceSettingsGroups +
+                kiyoriDataSettingsGroups)
+                .flatMap { group -> group.entries }
+                .map { entry -> entry.iconTone }
+                .toSet(),
+        )
+        assertFalse(
+            kiyoriAppearanceSettingsGroups
+                .flatMap { group -> group.entries }
+                .single { entry -> entry.action == KiyoriAppearanceSettingsAction.OPEN_THEME }
+                .description
+                .contains("全局配色"),
+        )
+    }
+
+    @Test
+    fun `settings home uses the complete semantic color vocabulary`() {
+        assertEquals(
+            KiyoriSemanticTone.entries.toSet(),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .map { entry -> entry.iconTone }
+                .toSet(),
+        )
+    }
+
+    @Test
+    fun `application settings roots round trip through the native route registry`() {
+        listOf(
+            Screen.AccountConnectionsSettings,
+            Screen.Settings,
+            Screen.SpeechServicesSettings,
+            Screen.AppearanceSettings,
+            Screen.DataManagementSettings,
+        ).forEach { screen ->
+            val entry =
+                AppRouteCatalog.toEntry(
+                    screen = screen,
+                    source = RouteEntrySource.KIYORI_SETTINGS,
+                )
+
+            assertEquals(RouteEntrySource.KIYORI_SETTINGS, entry.source)
+            assertEquals(screen, ScreenRouteRegistry.screenFromEntry(entry))
+            assertEquals(screen, ScreenRouteRegistry.buildScreen(entry.routeId, emptyMap()))
+        }
     }
 
     @Test
@@ -349,7 +518,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings group sniffing switches together and only connect verified capabilities`() {
         assertEquals(
-            listOf(3, 5, 4, 5, 6),
+            listOf(3, 5, 4, 6, 6),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -368,6 +537,7 @@ class KiyoriSettingsPagesTest {
                 "嗅探规则管理",
                 "允许网页打开应用",
                 "允许网页获取位置",
+                "清除网站 Cookie",
                 "网页翻译接口",
                 "网站配置管理",
                 "网站密码管理",
@@ -394,6 +564,8 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
                 "允许网页获取位置" to
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
+                "清除网站 Cookie" to
+                    KiyoriBrowserSettingsAction.CLEAR_COOKIES,
             ),
             kiyoriBrowserSettingsGroups
                 .flatMap(KiyoriBrowserSettingsGroupSpec::entries)
@@ -419,7 +591,7 @@ class KiyoriSettingsPagesTest {
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(5, entries.count(::isBrowserSettingEnabled))
+        assertEquals(6, entries.count(::isBrowserSettingEnabled))
         assertEquals(18, entries.count { entry -> !isBrowserSettingEnabled(entry) })
         assertEquals(
             "https://example.com/home",
@@ -461,6 +633,28 @@ class KiyoriSettingsPagesTest {
         assertEquals(
             listOf("新版", "手册", "版本", "搜索", "工具箱", "清理", "备份", "退出"),
             kiyoriMinusOneQuickTools.map(KiyoriMinusOneQuickTool::title),
+        )
+        assertEquals(
+            listOf(
+                KiyoriSemanticTone.PURPLE,
+                KiyoriSemanticTone.BLUE,
+                KiyoriSemanticTone.ORANGE,
+                KiyoriSemanticTone.GREEN,
+            ),
+            kiyoriMinusOneDataItems.map(KiyoriMinusOneDataItem::tone),
+        )
+        assertEquals(
+            listOf(
+                KiyoriSemanticTone.BLUE,
+                KiyoriSemanticTone.ORANGE,
+                KiyoriSemanticTone.PURPLE,
+                KiyoriSemanticTone.CYAN,
+                KiyoriSemanticTone.BLUE,
+                KiyoriSemanticTone.RED,
+                KiyoriSemanticTone.GREEN,
+                KiyoriSemanticTone.RED,
+            ),
+            kiyoriMinusOneQuickTools.map(KiyoriMinusOneQuickTool::tone),
         )
     }
 

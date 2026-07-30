@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -62,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
@@ -73,6 +74,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.compac
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filterBrowserNetworkLogEntries
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isThirdPartyBrowserNetworkRequest
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveManualBrowserDownloadFileName
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import com.ai.assistance.operit.util.AppLogger
 import java.text.DateFormat
 import java.util.Date
@@ -102,6 +106,7 @@ internal fun WebSessionBrowserNetworkLog(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val downloadSettingsStore = remember(context) { BrowserDownloadSettingsStore.getInstance(context) }
     var selectedFilter by rememberSaveable { mutableStateOf(BrowserNetworkLogFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -119,6 +124,14 @@ internal fun WebSessionBrowserNetworkLog(
             modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Filled.Info,
+                tone = KiyoriSemanticTone.CYAN,
+                contentDescription = null,
+                containerSize = 34.dp,
+                iconSize = 18.dp,
+                shape = RoundedCornerShape(10.dp),
+            )
             Text(
                 text = stringResource(R.string.web_session_network_log),
                 fontSize = 22.sp,
@@ -129,7 +142,7 @@ internal fun WebSessionBrowserNetworkLog(
                 text = stringResource(R.string.web_session_network_log_count, entries.size),
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp),
+                modifier = Modifier.padding(start = 10.dp),
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
@@ -140,7 +153,7 @@ internal fun WebSessionBrowserNetworkLog(
                     if (entries.isEmpty()) {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
                     } else {
-                        MaterialTheme.colorScheme.primary
+                        KiyoriSemanticTone.RED.resolveColors().icon
                     },
                 modifier =
                     Modifier
@@ -250,7 +263,7 @@ internal fun WebSessionBrowserNetworkLog(
                 if (accepted) {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.download_started, fileName),
+                        resources.getString(R.string.download_started, fileName),
                         Toast.LENGTH_SHORT,
                     ).show()
                 }
@@ -290,6 +303,7 @@ private fun BrowserNetworkLogSearchField(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
         shape = RoundedCornerShape(8.dp),
@@ -311,7 +325,7 @@ private fun BrowserNetworkLogSearchField(
                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 singleLine = true,
                 textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(cyanColors.icon),
                 decorationBox = { innerTextField ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isBlank()) {
@@ -345,25 +359,26 @@ private fun BrowserNetworkLogFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
     Surface(
         modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         color =
             if (selected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                cyanColors.container
             } else {
                 MaterialTheme.colorScheme.surface
             },
         border =
             androidx.compose.foundation.BorderStroke(
                 1.dp,
-                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                if (selected) cyanColors.icon else MaterialTheme.colorScheme.outlineVariant,
             ),
     ) {
         Box(modifier = Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text(
                 text = "$label $count",
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                color = if (selected) cyanColors.icon else MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             )
@@ -378,6 +393,7 @@ private fun BrowserNetworkLogRow(
     onClick: () -> Unit,
 ) {
     val thirdParty = isThirdPartyBrowserNetworkRequest(currentPageUrl, entry.url)
+    val thirdPartyColors = KiyoriSemanticTone.ORANGE.resolveColors()
     val host = browserNetworkHost(entry.url).ifBlank { entry.url.substringBefore(':') }
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
@@ -408,12 +424,12 @@ private fun BrowserNetworkLogRow(
                 if (thirdParty) {
                     Text(
                         text = stringResource(R.string.web_session_network_log_third_party),
-                        color = Color(0xFF9A6700),
+                        color = thirdPartyColors.icon,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Medium,
                         modifier =
                             Modifier
-                                .background(Color(0xFFFFF3C4), RoundedCornerShape(5.dp))
+                                .background(thirdPartyColors.container, RoundedCornerShape(5.dp))
                                 .padding(horizontal = 5.dp, vertical = 2.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -438,6 +454,7 @@ private fun BrowserNetworkLogRow(
 
 @Composable
 private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
+    val colors = browserNetworkTone(entry.category).resolveColors()
     val extension = browserNetworkUrlExtension(entry.url)
     val label =
         extension.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
@@ -450,14 +467,14 @@ private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
             }
     Text(
         text = label,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = colors.icon,
         fontSize = 9.sp,
         fontWeight = FontWeight.SemiBold,
         fontFamily = FontFamily.Monospace,
         modifier =
             Modifier
                 .widthIn(min = 34.dp, max = 54.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(5.dp))
+                .background(colors.container, RoundedCornerShape(5.dp))
                 .padding(horizontal = 5.dp, vertical = 3.dp),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
@@ -482,23 +499,22 @@ private fun BrowserNetworkLogActionDialog(
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.web_session_network_log_action_title),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 14.dp),
+                BrowserNetworkDialogTitle(
+                    title = stringResource(R.string.web_session_network_log_action_title),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
                 BrowserNetworkLogActionRow(
                     icon = Icons.Filled.ContentCopy,
                     title = stringResource(R.string.web_session_network_log_copy_link),
+                    tone = KiyoriSemanticTone.PURPLE,
                     onClick = onCopy,
                 )
                 if (entry.mediaCandidateId != null) {
                     BrowserNetworkLogActionRow(
                         icon = Icons.Filled.PlayArrow,
                         title = "在线播放",
+                        tone = KiyoriSemanticTone.BLUE,
                         onClick = onPlay,
                     )
                 }
@@ -506,17 +522,20 @@ private fun BrowserNetworkLogActionDialog(
                     BrowserNetworkLogActionRow(
                         icon = Icons.Filled.Download,
                         title = stringResource(R.string.web_session_network_log_download_resource),
+                        tone = KiyoriSemanticTone.GREEN,
                         onClick = onDownload,
                     )
                     BrowserNetworkLogActionRow(
                         icon = Icons.AutoMirrored.Filled.OpenInNew,
                         title = stringResource(R.string.web_session_network_log_open_external),
+                        tone = KiyoriSemanticTone.BLUE,
                         onClick = onOpenExternal,
                     )
                 }
                 BrowserNetworkLogActionRow(
                     icon = Icons.Filled.Info,
                     title = stringResource(R.string.web_session_network_log_view_details),
+                    tone = KiyoriSemanticTone.CYAN,
                     onClick = onViewDetails,
                     drawDivider = false,
                 )
@@ -529,6 +548,7 @@ private fun BrowserNetworkLogActionDialog(
 private fun BrowserNetworkLogActionRow(
     icon: ImageVector,
     title: String,
+    tone: KiyoriSemanticTone,
     onClick: () -> Unit,
     drawDivider: Boolean = true,
 ) {
@@ -537,11 +557,13 @@ private fun BrowserNetworkLogActionRow(
             modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            KiyoriSemanticIconBadge(
                 imageVector = icon,
+                tone = tone,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
+                containerSize = 30.dp,
+                iconSize = 16.dp,
+                shape = RoundedCornerShape(9.dp),
             )
             Text(
                 text = title,
@@ -569,11 +591,8 @@ private fun BrowserNetworkLogDetailsDialog(
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.web_session_network_log_details_title),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                BrowserNetworkDialogTitle(
+                    title = stringResource(R.string.web_session_network_log_details_title),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
@@ -647,6 +666,42 @@ private fun BrowserNetworkLogDetailsDialog(
 }
 
 @Composable
+private fun BrowserNetworkDialogTitle(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        KiyoriSemanticIconBadge(
+            imageVector = Icons.Filled.Info,
+            tone = KiyoriSemanticTone.CYAN,
+            contentDescription = null,
+            containerSize = 32.dp,
+            iconSize = 18.dp,
+            shape = RoundedCornerShape(9.dp),
+        )
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+private fun browserNetworkTone(category: BrowserNetworkRequestCategory): KiyoriSemanticTone =
+    when (category) {
+        BrowserNetworkRequestCategory.VIDEO -> KiyoriSemanticTone.CYAN
+        BrowserNetworkRequestCategory.AUDIO -> KiyoriSemanticTone.PURPLE
+        BrowserNetworkRequestCategory.IMAGE -> KiyoriSemanticTone.PINK
+        BrowserNetworkRequestCategory.WEB -> KiyoriSemanticTone.BLUE
+        BrowserNetworkRequestCategory.OTHER -> KiyoriSemanticTone.ORANGE
+    }
+
+@Composable
 private fun BrowserNetworkLogDetailRow(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -703,7 +758,7 @@ private fun openNetworkLogUrlExternally(
 ) {
     runCatching {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            Intent(Intent.ACTION_VIEW, url.toUri())
                 .addCategory(Intent.CATEGORY_BROWSABLE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )

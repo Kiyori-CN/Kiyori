@@ -60,7 +60,7 @@ primary/secondary 是应用级语义 token。AI、设置控件和软件壳选中
 ## 验证
 
 - 应用亮暗色板精确值和所有文字/容器对比度
-- 自定义 primary/secondary 只改变应用强调方案，浏览器方案保持逐角色不变
+- 当前固定应用主题和浏览器保护色域保持逐角色隔离；本历史阶段的用户自定义颜色验证项已取消
 - 两个浏览器搜索框共享固定黑色边框合同
 - 三个静态页面的分组数、项目数、顺序和关键几何常量
 - 现有 `KiyoriShellStateTest`、`KiyoriSoftwareHomeSearchTest` 和 `WebSessionBrowserChromeLayoutTest`

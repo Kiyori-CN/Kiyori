@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.help.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
@@ -9,7 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -67,11 +67,23 @@ fun HelpScreen(onBackPressed: () -> Unit = {}) {
             webView.requestFocus()
             webView.requestFocusFromTouch()
         }
-        onDispose { }
+        onDispose {
+            webView.stopLoading()
+            webView.removeAllViews()
+            webView.destroy()
+        }
     }
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         webView.loadUrl(helpUrl)
+    }
+
+    BackHandler {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            onBackPressed()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -89,7 +101,7 @@ fun HelpScreen(onBackPressed: () -> Unit = {}) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White.copy(alpha = 0.8f)),
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(

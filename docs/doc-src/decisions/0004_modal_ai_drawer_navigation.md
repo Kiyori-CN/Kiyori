@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-07-22
-updated: 2026-07-26
+updated: 2026-07-29
 supersedes: 0002_product_shell_and_ai_center_navigation.md
 ---
 
@@ -17,7 +17,7 @@ supersedes: 0002_product_shell_and_ai_center_navigation.md
 
 - 删除全屏 AI Center 路由、页面、状态、字符串和来源标记。
 - AI 首页及 AI 一级页面的三横线按钮直接打开覆盖当前页面的模态左抽屉。
-- 抽屉包含状态头部、包管理、权限授予、工作流、AI 对话、助手配置、记忆库、工具箱、ToolPkg 动态插件和 AI 设置；不包含帮助、关于、使用手册或 Terminal。
+- 抽屉包含状态头部、包管理、权限授予、工作流、AI 对话、助手配置、记忆库、工具箱、ToolPkg 动态插件和 AI 助手；不包含帮助、关于、使用手册或 Terminal。
 - 抽屉只能由三横线按钮打开。禁止左边缘打开、横向拖动和滑动关闭；点击遮罩、再次选择当前入口或系统 Back 可以关闭。
 - 抽屉从左侧滑入和滑出，遮罩同步淡入和淡出。底层页面继续渲染但不接收触摸，不发生位移、缩放、倾斜、圆角或透明度变化。
 - 抽屉宽度在 `<600dp` 时为窗口宽度的 `75%`，在 `600-839dp` 时为 `320dp`，在 `>=840dp` 时为 `360dp`；遇到分隔铰链时宽度限制在左侧物理区域内。
@@ -26,7 +26,8 @@ supersedes: 0002_product_shell_and_ai_center_navigation.md
 - AI 一级页面保留各自的页面状态与子栈。一级页面显示三横线，深层页面显示返回箭头；一级页面 Back 返回 AI 首页，深层页面 Back 返回所属一级页面。
 - 原生一级根使用稳定实例。ToolPkg 一级根每次进入生成新路由实例，只有对应路由声明 `keepAlive=true` 时才恢复组合状态和保存子栈。
 - AI 一级根在路由条目上显式保存注册入口 ID。宿主入口按 route ID 匹配，ToolPkg 插件入口按 route ID 和注册参数匹配；不得通过 route args、返回栈深度或 instance ID 前缀猜测根归属。启动、快捷方式、raw route 与 `AppRouterGateway` 共用这一规则。
-- AI 设置保持单一页面、表单与持久状态。从 AI 抽屉进入时属于 AI 一级页面，根页面 Back 返回 AI 首页；从 Kiyori 设置首页进入时显示返回语义并回到设置首页。同来源族可恢复自己的子页面栈，跨来源族进入时必须打开 AI 设置根页。
+- AI 助手设置保持单一页面、表单与持久状态。从 AI 抽屉进入时属于 AI 一级页面，根页面 Back 返回 AI 首页；从 Kiyori 设置首页进入时显示返回语义并回到设置首页。同来源族可恢复自己的子页面栈，跨来源族进入时必须打开 AI 助手根页。
+- 包管理、ToolPkg、脚本包和插件市场继续属于 AI 抽屉及其独立目的地，不得经由设置首页为底部小程序产品域保留的“小程序管理”空入口打开。
 - `Screen.ShizukuCommands`、Kiyori 权限总览和 `ToolPermissionSystem` 继续是三个不同的页面与状态 owner，不互相复制。
 - AI Home 保持单一、稳定的组合宿主。打开或关闭抽屉、切换 AI 一级页面都不能暂停、取消、销毁或重建其流式回答、思考、工具调用、附件、草稿、会话和滚动状态。
 - 三页首页与 AI Home 覆盖层共享一个 Pager 状态和 fling 行为；移动跟随手指，新手势可以立即中断尚未完成的 fling，Shell 状态在页面 settle 后更新。

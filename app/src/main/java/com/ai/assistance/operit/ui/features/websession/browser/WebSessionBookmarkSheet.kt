@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Folder
@@ -75,6 +76,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.canMov
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.descendantFolderIds
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isValidWebSessionBookmarkArchive
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -223,13 +227,21 @@ internal fun WebSessionBookmarkSheet(
             modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Filled.Bookmark,
+                tone = KiyoriSemanticTone.PURPLE,
+                contentDescription = null,
+                containerSize = 32.dp,
+                iconSize = 18.dp,
+                shape = RoundedCornerShape(10.dp),
+            )
             Text(
                 text = currentFolder?.title ?: "我的书签",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).padding(start = 10.dp),
             )
             Box {
                 IconButton(onClick = { topMenuExpanded = true }) {
@@ -305,11 +317,23 @@ internal fun WebSessionBookmarkSheet(
 
             if (orderedRows.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (normalizedQuery.isBlank()) "当前没有书签" else "没有匹配的书签",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        KiyoriSemanticIconBadge(
+                            imageVector = Icons.Filled.Bookmark,
+                            tone = KiyoriSemanticTone.PURPLE,
+                            contentDescription = null,
+                            containerSize = 46.dp,
+                            iconSize = 24.dp,
+                        )
+                        Text(
+                            text = if (normalizedQuery.isBlank()) "当前没有书签" else "没有匹配的书签",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -333,7 +357,7 @@ internal fun WebSessionBookmarkSheet(
                                     BookmarkFolderRow(
                                         folder = row.value,
                                         count = row.count,
-                                        dragModifier = dragModifier,
+                                        modifier = dragModifier,
                                         menuExpanded = folderMenuId == row.value.id,
                                         menuEnabled = !dragSortMode,
                                         onClick = {
@@ -363,7 +387,7 @@ internal fun WebSessionBookmarkSheet(
                                 is BookmarkDrawerRow.Bookmark ->
                                     BookmarkItemRow(
                                         bookmark = row.value,
-                                        dragModifier = dragModifier,
+                                        modifier = dragModifier,
                                         menuExpanded = bookmarkMenuId == row.value.id,
                                         menuEnabled = !dragSortMode,
                                         onClick = { onOpenBookmark(row.value.url) },
@@ -661,7 +685,7 @@ private fun BookmarkBreadcrumbRow(
 private fun BookmarkFolderRow(
     folder: WebSessionBookmarkFolder,
     count: Int,
-    dragModifier: Modifier,
+    modifier: Modifier,
     menuExpanded: Boolean,
     menuEnabled: Boolean,
     onClick: () -> Unit,
@@ -674,7 +698,7 @@ private fun BookmarkFolderRow(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .then(dragModifier)
+                    .then(modifier)
                     .combinedClickable(
                         onClick = onClick,
                         onLongClick = if (menuEnabled) onLongClick else null,
@@ -682,11 +706,14 @@ private fun BookmarkFolderRow(
                     .padding(horizontal = 16.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(modifier = Modifier.size(38.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(22.dp))
-                }
-            }
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Outlined.Folder,
+                tone = KiyoriSemanticTone.PURPLE,
+                contentDescription = null,
+                containerSize = 38.dp,
+                iconSize = 22.dp,
+                shape = CircleShape,
+            )
             Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(folder.title, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${count}个书签", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -711,7 +738,7 @@ private fun BookmarkFolderRow(
 @Composable
 private fun BookmarkItemRow(
     bookmark: WebSessionBookmark,
-    dragModifier: Modifier,
+    modifier: Modifier,
     menuExpanded: Boolean,
     menuEnabled: Boolean,
     onClick: () -> Unit,
@@ -724,7 +751,7 @@ private fun BookmarkItemRow(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .then(dragModifier)
+                    .then(modifier)
                     .combinedClickable(
                         onClick = onClick,
                         onLongClick = if (menuEnabled) onLongClick else null,
@@ -762,12 +789,13 @@ private fun BookmarkItemRow(
 
 @Composable
 private fun BookmarkFavicon(iconUrl: String) {
-    Surface(modifier = Modifier.size(38.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    val colors = KiyoriSemanticTone.BLUE.resolveColors()
+    Surface(modifier = Modifier.size(38.dp), shape = CircleShape, color = colors.container) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 Icons.Outlined.Language,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = colors.icon,
                 modifier = Modifier.size(21.dp),
             )
             if (iconUrl.isNotBlank()) {

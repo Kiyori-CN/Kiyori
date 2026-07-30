@@ -17,6 +17,8 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.AccessibilityProviderInstaller
 import com.ai.assistance.operit.provider.IAccessibilityProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -28,7 +30,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.StringReader
 import kotlin.coroutines.resume
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -57,6 +58,7 @@ object UIHierarchyManager {
     val isBound = _isBound.asStateFlow()
 
     private val bindingMutex = Mutex()
+    private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
     private var connectionContinuation: ((Boolean) -> Unit)? = null
@@ -105,13 +107,14 @@ object UIHierarchyManager {
      * 启动安装流程来安装提供者应用
      */
     fun launchProviderInstall(context: Context) {
-        GlobalScope.launch(Dispatchers.IO) {
-            val apkFile = extractProviderApkFromAssets(context)
+        val appContext = context.applicationContext
+        installScope.launch {
+            val apkFile = extractProviderApkFromAssets(appContext)
             if (apkFile == null) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
-                        context,
-                        context.getString(R.string.toast_apk_extract_failed),
+                        appContext,
+                        appContext.getString(R.string.toast_apk_extract_failed),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -121,8 +124,8 @@ object UIHierarchyManager {
             val apkUri =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
+                        appContext,
+                        "${appContext.packageName}.fileprovider",
                         apkFile
                     )
                 } else {
@@ -139,12 +142,12 @@ object UIHierarchyManager {
 
             withContext(Dispatchers.Main) {
                 try {
-                    context.startActivity(installIntent)
+                    appContext.startActivity(installIntent)
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "启动安装界面失败", e)
                     Toast.makeText(
-                        context,
-                        context.getString(R.string.toast_operation_failed, e.message ?: ""),
+                        appContext,
+                        appContext.getString(R.string.toast_operation_failed, e.message ?: ""),
                         Toast.LENGTH_SHORT
                     ).show()
                 }

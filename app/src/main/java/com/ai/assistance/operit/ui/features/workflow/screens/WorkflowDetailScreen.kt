@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -54,6 +55,11 @@ import com.ai.assistance.operit.ui.features.workflow.components.GridWorkflowCanv
 import com.ai.assistance.operit.ui.features.workflow.components.ConnectionMenuDialog
 import com.ai.assistance.operit.ui.features.workflow.components.NodeActionMenuDialog
 import com.ai.assistance.operit.ui.features.workflow.components.ScheduleConfigDialog
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
+import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -103,6 +109,7 @@ fun WorkflowDetailScreen(
     onNavigateBack: () -> Unit,
     viewModel: WorkflowViewModel = viewModel()
 ) {
+    val workflowColors = KiyoriSemanticTone.ORANGE.resolveColors()
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showTriggerResult by remember { mutableStateOf<String?>(null) }
@@ -161,7 +168,13 @@ fun WorkflowDetailScreen(
                                             viewModel.triggerWorkflow(workflowId) { result -> showTriggerResult = result }
                                         }
                                         isFabMenuExpanded = false
-                                    }
+                                    },
+                                    tone =
+                                        if (isWorkflowRunning) {
+                                            KiyoriSemanticTone.RED
+                                        } else {
+                                            KiyoriSemanticTone.GREEN
+                                        },
                                 )
                             }
                             SpeedDialAction(
@@ -172,7 +185,8 @@ fun WorkflowDetailScreen(
                                     showExecutionLogsForNodeId = null
                                     showExecutionLogDialog = true
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.CYAN,
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_action_add_node),
@@ -180,7 +194,8 @@ fun WorkflowDetailScreen(
                                 onClick = {
                                     showAddNodeDialog = true
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.BLUE,
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_action_edit_workflow),
@@ -188,7 +203,8 @@ fun WorkflowDetailScreen(
                                 onClick = {
                                     showEditDialog = true
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.PINK,
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_delete),
@@ -197,8 +213,7 @@ fun WorkflowDetailScreen(
                                     showDeleteDialog = true
                                     isFabMenuExpanded = false
                                 },
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                tone = KiyoriSemanticTone.RED,
                             )
                         }
                     }
@@ -206,7 +221,8 @@ fun WorkflowDetailScreen(
                     // Main FAB
                     FloatingActionButton(
                         onClick = { isFabMenuExpanded = !isFabMenuExpanded },
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = workflowColors.container,
+                        contentColor = workflowColors.icon,
                     ) {
                         val rotation by animateFloatAsState(targetValue = if (isFabMenuExpanded) 45f else 0f, label = "fab_icon_rotation")
                         Icon(
@@ -227,11 +243,25 @@ fun WorkflowDetailScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 workflow == null -> {
-                    Text(
-                        text = stringResource(R.string.workflow_not_found),
-                        modifier = Modifier.align(Alignment.Center),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        KiyoriSemanticIconBadge(
+                            imageVector = Icons.Default.Close,
+                            tone = KiyoriSemanticTone.RED,
+                            contentDescription = null,
+                            containerSize = 64.dp,
+                            iconSize = 32.dp,
+                            shape = RoundedCornerShape(20.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.workflow_not_found),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
                 else -> {
                     Column(
@@ -246,8 +276,9 @@ fun WorkflowDetailScreen(
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                shape = RoundedCornerShape(20.dp),
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -256,9 +287,13 @@ fun WorkflowDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Text(
-                                        text = "📋",
-                                        style = MaterialTheme.typography.displayMedium
+                                    KiyoriSemanticIconBadge(
+                                        imageVector = Icons.Default.Add,
+                                        tone = KiyoriSemanticTone.ORANGE,
+                                        contentDescription = null,
+                                        containerSize = 72.dp,
+                                        iconSize = 36.dp,
+                                        shape = RoundedCornerShape(22.dp),
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
@@ -502,31 +537,32 @@ fun WorkflowDetailScreen(
             }
 
             // 连接菜单对话框
-            showConnectionMenu?.let { sourceNodeId ->
-                val sourceNode = workflow?.nodes?.find { it.id == sourceNodeId }
-                if (sourceNode != null && workflow != null) {
-                    ConnectionMenuDialog(
-                        sourceNode = sourceNode,
-                        allNodes = workflow.nodes,
-                        existingConnections = workflow.connections,
-                        onCreateConnection = { targetNodeId ->
-                            viewModel.createConnection(workflowId, sourceNodeId, targetNodeId) {
-                                // 连接创建成功，保持对话框打开以便继续操作
-                            }
-                        },
-                        onDeleteConnection = { connectionId ->
-                            viewModel.deleteConnection(workflowId, connectionId) {
-                                // 连接删除成功
-                            }
-                        },
-                        onUpdateConnectionCondition = { connectionId, condition ->
-                            viewModel.updateConnectionCondition(workflowId, connectionId, condition) {
-                                // 条件更新成功
-                            }
-                        },
-                        onDismiss = { showConnectionMenu = null }
-                    )
-                }
+            showConnectionMenu?.let connectionMenu@{ sourceNodeId ->
+                val activeWorkflow = workflow ?: return@connectionMenu
+                val sourceNode =
+                    activeWorkflow.nodes.find { it.id == sourceNodeId }
+                        ?: return@connectionMenu
+                ConnectionMenuDialog(
+                    sourceNode = sourceNode,
+                    allNodes = activeWorkflow.nodes,
+                    existingConnections = activeWorkflow.connections,
+                    onCreateConnection = { targetNodeId ->
+                        viewModel.createConnection(workflowId, sourceNodeId, targetNodeId) {
+                            // 连接创建成功，保持对话框打开以便继续操作
+                        }
+                    },
+                    onDeleteConnection = { connectionId ->
+                        viewModel.deleteConnection(workflowId, connectionId) {
+                            // 连接删除成功
+                        }
+                    },
+                    onUpdateConnectionCondition = { connectionId, condition ->
+                        viewModel.updateConnectionCondition(workflowId, connectionId, condition) {
+                            // 条件更新成功
+                        }
+                    },
+                    onDismiss = { showConnectionMenu = null }
+                )
             }
         }
     }
@@ -537,17 +573,20 @@ private fun SpeedDialAction(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
+    tone: KiyoriSemanticTone,
 ) {
+    val colors = tone.resolveColors()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Card(
-            shape = MaterialTheme.shapes.small,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Text(
                 text = text,
@@ -557,8 +596,8 @@ private fun SpeedDialAction(
         }
         SmallFloatingActionButton(
             onClick = onClick,
-            containerColor = containerColor,
-            contentColor = contentColor
+            containerColor = colors.container,
+            contentColor = colors.icon,
         ) {
             Icon(icon, contentDescription = text)
         }
@@ -743,6 +782,7 @@ fun NodeDialog(
 
     var toolDescription by remember { mutableStateOf<String?>(null) }
     var toolParameterSchemas by remember { mutableStateOf<List<ToolParameterSchema>>(emptyList()) }
+    var toolResolutionFailed by remember { mutableStateOf(false) }
     val toolParameterSchemasByName = remember(toolParameterSchemas) {
         toolParameterSchemas.associateBy { it.name }
     }
@@ -751,6 +791,7 @@ fun NodeDialog(
         if (nodeType != "execute") {
             toolDescription = null
             toolParameterSchemas = emptyList()
+            toolResolutionFailed = false
             return@LaunchedEffect
         }
 
@@ -758,9 +799,11 @@ fun NodeDialog(
         if (toolName.isBlank()) {
             toolDescription = null
             toolParameterSchemas = emptyList()
+            toolResolutionFailed = false
             return@LaunchedEffect
         }
 
+        toolResolutionFailed = false
         var schemas: List<ToolParameterSchema> = emptyList()
         var description: String? = null
 
@@ -771,35 +814,48 @@ fun NodeDialog(
                 val packageToolName = parts[1].trim()
 
                 if (packageName.isNotBlank() && packageToolName.isNotBlank()) {
-                    withContext(Dispatchers.IO) {
+                    val packageReady = withContext(Dispatchers.IO) {
                         try {
                             if (!packageManager.isPackageEnabled(packageName)) {
                                 packageManager.enablePackage(packageName)
                             }
                             packageManager.usePackage(packageName)
-                        } catch (_: Exception) {
+                            true
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            AppLogger.e("WorkflowNodeDialog", "启用工作流工具包失败: $packageName", error)
+                            false
                         }
                     }
 
-                    val effectivePackage = try {
-                        packageManager.getEffectivePackageTools(packageName)
-                    } catch (_: Exception) {
-                        null
-                    }
-
-                    val matchedTool = effectivePackage?.tools?.find { it.name == packageToolName }
-                    description = matchedTool?.description?.resolve(context)
-                    schemas =
-                        matchedTool?.parameters?.map { param ->
-                            ToolParameterSchema(
-                                name = param.name,
-                                type = param.type,
-                                description = param.description.resolve(context),
-                                required = param.required,
-                                default = null
-                            )
+                    if (!packageReady) {
+                        toolResolutionFailed = true
+                    } else {
+                        val effectivePackage = try {
+                            packageManager.getEffectivePackageTools(packageName)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            AppLogger.e("WorkflowNodeDialog", "读取工作流工具包失败: $packageName", error)
+                            toolResolutionFailed = true
+                            null
                         }
-                            ?: emptyList()
+
+                        val matchedTool = effectivePackage?.tools?.find { it.name == packageToolName }
+                        description = matchedTool?.description?.resolve(context)
+                        schemas =
+                            matchedTool?.parameters?.map { param ->
+                                ToolParameterSchema(
+                                    name = param.name,
+                                    type = param.type,
+                                    description = param.description.resolve(context),
+                                    required = param.required,
+                                    default = null
+                                )
+                            }
+                                ?: emptyList()
+                    }
                 }
             }
         } else {
@@ -1110,6 +1166,13 @@ fun NodeDialog(
                                 text = desc,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (toolResolutionFailed) {
+                            Text(
+                                text = stringResource(R.string.workflow_unknown_error),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
 
@@ -1987,7 +2050,7 @@ fun NodeDialog(
                         name
                     }
                     
-                    val resultNode: WorkflowNode = if (isEditMode && node != null) {
+                    val resultNode: WorkflowNode = if (node != null) {
                         // 编辑模式：更新现有节点
                         when (node) {
                             is TriggerNode -> node.copy(

@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.token
 
 import com.ai.assistance.operit.util.AppLogger
+import androidx.activity.compose.BackHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,12 +57,15 @@ import com.ai.assistance.operit.ui.features.token.model.NavDestination
 import com.ai.assistance.operit.ui.features.token.model.getIconForIndex
 import com.ai.assistance.operit.ui.features.token.preferences.UrlConfigManager
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
+import com.ai.assistance.operit.ui.theme.kiyoriSemanticToneForStableId
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.launch
 
 /** Token配置屏幕 */
 @Composable
 fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val urlConfigManager = remember { UrlConfigManager(context) }
@@ -95,7 +100,7 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
     }
 
     // 简化的WebViewClient
-    val webViewClient = remember {
+    val webViewClient = remember(context, resources, navDestinations, snackbarHostState) {
         object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                     view: WebView?,
@@ -116,9 +121,16 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
                             context.startActivity(intent)
                             return true
                         } catch (e: Exception) {
-                            AppLogger.e("TokenConfigWebView", "无法打开外部应用: ${e.message}")
-                            // 如果打开失败，返回false让WebView尝试处理
-                            return false
+                            AppLogger.e("TokenConfigWebView", "无法打开外部应用: $url", e)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    resources.getString(
+                                        R.string.web_session_external_open_failed,
+                                        url,
+                                    ),
+                                )
+                            }
+                            return true
                         }
                     }
                     
@@ -150,18 +162,32 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
         }
     }
 
-    // 设置WebView
-    DisposableEffect(webView) {
+    DisposableEffect(webView, webViewClient) {
         webView.webViewClient = webViewClient
-        
-        // 加载初始URL
-        if (urlConfig.signInUrl.isNotEmpty()) {
-            webView.loadUrl(urlConfig.signInUrl)
-        }
+        onDispose { }
+    }
 
+    DisposableEffect(webView) {
         onDispose {
             webView.stopLoading()
+            webView.removeAllViews()
             webView.destroy()
+        }
+    }
+
+    LaunchedEffect(webView, urlConfig.signInUrl) {
+        val signInUrl = urlConfig.signInUrl
+        if (signInUrl.isNotEmpty() && webView.url != signInUrl) {
+            isLoading = true
+            webView.loadUrl(signInUrl)
+        }
+    }
+
+    BackHandler {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            onNavigateBack()
         }
     }
 
@@ -208,12 +234,12 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
             bottomBar = {
                 Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
                 ) {
                     Column {
                         HorizontalDivider(
-                                color = Color.LightGray.copy(alpha = 0.3f),
+                                color = MaterialTheme.colorScheme.outlineVariant,
                                 thickness = 0.5.dp
                         )
 
@@ -222,11 +248,13 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                                                 .height(60.dp)
-                                                .background(Color.White),
+                                                .background(MaterialTheme.colorScheme.surface),
                                 verticalAlignment = Alignment.CenterVertically
                         ) {
                             navDestinations.forEachIndexed { index, destination ->
                                 val isSelected = selectedTabIndex == index
+                                val semanticColors =
+                                    kiyoriSemanticToneForStableId(destination.url).resolveColors()
                                 Column(
                                 modifier = Modifier
                                     .weight(1f)
@@ -243,8 +271,8 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
                                             contentDescription = destination.title,
                                             modifier = Modifier.size(24.dp),
                                     tint = if (isSelected) 
-                                                            MaterialTheme.colorScheme.primary
-                                                    else Color.Gray
+                                                            semanticColors.icon
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
 
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -256,8 +284,8 @@ fun TokenConfigWebViewScreen(onNavigateBack: () -> Unit) {
                                         FontWeight.Medium 
                                                     else FontWeight.Normal,
                                     color = if (isSelected)
-                                                            MaterialTheme.colorScheme.primary
-                                                    else Color.Gray
+                                                            semanticColors.icon
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }

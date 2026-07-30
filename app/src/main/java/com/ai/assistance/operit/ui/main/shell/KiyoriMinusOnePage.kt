@@ -19,11 +19,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,11 +36,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,6 +52,9 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 internal enum class KiyoriMinusOneDataAction {
     NONE,
@@ -54,52 +65,64 @@ internal enum class KiyoriMinusOneDataAction {
 internal data class KiyoriMinusOneDataItem(
     val title: String,
     val count: Int,
-    val accentColor: Color,
-    val backgroundColors: List<Color>,
+    val icon: ImageVector,
+    val tone: KiyoriSemanticTone,
     val action: KiyoriMinusOneDataAction = KiyoriMinusOneDataAction.NONE,
 )
 
 internal data class KiyoriMinusOneQuickTool(
     val title: String,
     val iconResId: Int,
+    val tone: KiyoriSemanticTone,
 )
 
 internal val kiyoriMinusOneDataItems =
     listOf(
-        KiyoriMinusOneDataItem("收藏", 0, Color(0xFF39A95F), listOf(Color(0xFFF0FAF2), Color.White)),
         KiyoriMinusOneDataItem(
-            "书签",
-            0,
-            Color(0xFFE45D65),
-            listOf(Color(0xFFFEF0F1), Color.White),
-            KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER,
+            title = "收藏",
+            count = 0,
+            icon = Icons.Default.Favorite,
+            tone = KiyoriSemanticTone.PURPLE,
         ),
-        KiyoriMinusOneDataItem("历史", 0, Color(0xFF6E48E6), listOf(Color(0xFFF4F0FE), Color.White)),
         KiyoriMinusOneDataItem(
-            "下载",
-            0,
-            Color(0xFFE1BE4E),
-            listOf(Color(0xFFFFF8E9), Color.White),
-            KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER,
+            title = "书签",
+            count = 0,
+            icon = Icons.Default.Bookmark,
+            tone = KiyoriSemanticTone.BLUE,
+            action = KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER,
+        ),
+        KiyoriMinusOneDataItem(
+            title = "历史",
+            count = 0,
+            icon = Icons.Default.History,
+            tone = KiyoriSemanticTone.ORANGE,
+        ),
+        KiyoriMinusOneDataItem(
+            title = "下载",
+            count = 0,
+            icon = Icons.Default.Download,
+            tone = KiyoriSemanticTone.GREEN,
+            action = KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER,
         ),
     )
 
 internal val kiyoriMinusOneQuickTools =
     listOf(
-        KiyoriMinusOneQuickTool("新版", R.drawable.ic_kiyori_minus_one_new),
-        KiyoriMinusOneQuickTool("手册", R.drawable.ic_kiyori_minus_one_manual),
-        KiyoriMinusOneQuickTool("版本", R.drawable.ic_kiyori_minus_one_version),
-        KiyoriMinusOneQuickTool("搜索", R.drawable.ic_kiyori_minus_one_search),
-        KiyoriMinusOneQuickTool("工具箱", R.drawable.ic_kiyori_minus_one_toolbox),
-        KiyoriMinusOneQuickTool("清理", R.drawable.ic_kiyori_minus_one_clean),
-        KiyoriMinusOneQuickTool("备份", R.drawable.ic_kiyori_minus_one_backup),
-        KiyoriMinusOneQuickTool("退出", R.drawable.ic_kiyori_minus_one_exit),
+        KiyoriMinusOneQuickTool("新版", R.drawable.ic_kiyori_minus_one_new, KiyoriSemanticTone.BLUE),
+        KiyoriMinusOneQuickTool("手册", R.drawable.ic_kiyori_minus_one_manual, KiyoriSemanticTone.ORANGE),
+        KiyoriMinusOneQuickTool("版本", R.drawable.ic_kiyori_minus_one_version, KiyoriSemanticTone.PURPLE),
+        KiyoriMinusOneQuickTool("搜索", R.drawable.ic_kiyori_minus_one_search, KiyoriSemanticTone.CYAN),
+        KiyoriMinusOneQuickTool("工具箱", R.drawable.ic_kiyori_minus_one_toolbox, KiyoriSemanticTone.BLUE),
+        KiyoriMinusOneQuickTool("清理", R.drawable.ic_kiyori_minus_one_clean, KiyoriSemanticTone.RED),
+        KiyoriMinusOneQuickTool("备份", R.drawable.ic_kiyori_minus_one_backup, KiyoriSemanticTone.GREEN),
+        KiyoriMinusOneQuickTool("退出", R.drawable.ic_kiyori_minus_one_exit, KiyoriSemanticTone.RED),
     )
 
 @Composable
 internal fun KiyoriMinusOnePage(
     onOpenBookmarkDrawer: () -> Unit,
     onOpenDownloadDrawer: () -> Unit,
+    onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -111,10 +134,10 @@ internal fun KiyoriMinusOnePage(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState()),
     ) {
-        KiyoriMinusOneTopBar()
+        KiyoriMinusOneTopBar(onClose = onClose)
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -131,12 +154,12 @@ internal fun KiyoriMinusOnePage(
 }
 
 @Composable
-private fun KiyoriMinusOneTopBar() {
+private fun KiyoriMinusOneTopBar(onClose: () -> Unit) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .statusBarsPadding()
                 .padding(start = 20.dp, top = 12.dp, end = 14.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -146,13 +169,13 @@ private fun KiyoriMinusOneTopBar() {
             text = "负一屏",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF111111),
+            color = MaterialTheme.colorScheme.onSurface,
         )
-        IconButton(onClick = {}, modifier = Modifier.size(32.dp)) {
+        IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "关闭负一屏",
-                tint = Color(0xFF6B6B6B),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -169,12 +192,12 @@ private fun KiyoriMinusOneDataSection(
     Text(
         text = "我的数据",
         fontSize = 13.sp,
-        color = Color(0xFF8B8B8B),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp),
     )
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -182,12 +205,20 @@ private fun KiyoriMinusOneDataSection(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             kiyoriMinusOneDataItems.forEach { item ->
+                val colors = item.tone.resolveColors()
                 Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Brush.verticalGradient(item.backgroundColors))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        colors.container,
+                                        MaterialTheme.colorScheme.surfaceContainerLow,
+                                    ),
+                                ),
+                            )
                             .clickable {
                                 when (item.action) {
                                     KiyoriMinusOneDataAction.NONE -> Unit
@@ -204,7 +235,24 @@ private fun KiyoriMinusOneDataSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = item.accentColor)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            KiyoriSemanticIconBadge(
+                                imageVector = item.icon,
+                                tone = item.tone,
+                                contentDescription = null,
+                                containerSize = 38.dp,
+                                iconSize = 20.dp,
+                            )
+                            Text(
+                                text = item.title,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                         Text(
                             text =
                                 when (item.action) {
@@ -213,8 +261,8 @@ private fun KiyoriMinusOneDataSection(
                                     KiyoriMinusOneDataAction.NONE -> item.count.toString()
                                 },
                             fontSize = 20.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = item.accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.icon,
                         )
                     }
                 }
@@ -227,7 +275,7 @@ private fun KiyoriMinusOneDataSection(
 private fun KiyoriMinusOneQuickToolsSection() {
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp)) {
@@ -236,11 +284,16 @@ private fun KiyoriMinusOneQuickToolsSection() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("快捷工具", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF131313))
+                Text(
+                    "快捷工具",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFF222222),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -250,26 +303,27 @@ private fun KiyoriMinusOneQuickToolsSection() {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         rowItems.forEach { tool ->
                             Column(
-                                modifier = Modifier.width(64.dp).clickable(onClick = {}),
+                                modifier =
+                                    Modifier
+                                        .width(64.dp)
+                                        .alpha(0.58f)
+                                        .semantics { disabled() },
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                Box(
-                                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        painter = painterResource(tool.iconResId),
-                                        contentDescription = tool.title,
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier.size(26.dp),
-                                    )
-                                }
+                                KiyoriSemanticIconBadge(
+                                    painter = painterResource(tool.iconResId),
+                                    tone = tool.tone,
+                                    contentDescription = tool.title,
+                                    containerSize = 40.dp,
+                                    iconSize = 24.dp,
+                                    shape = RoundedCornerShape(12.dp),
+                                )
                                 Text(
                                     text = tool.title,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF111111),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
                                 )

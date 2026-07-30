@@ -20,132 +20,210 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Widgets
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
+import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 internal data class KiyoriSettingsHomeEntry(
     val title: String,
     val icon: ImageVector,
-    val iconTint: Color,
+    val iconTone: KiyoriSemanticTone,
     val action: KiyoriSettingsHomeAction = KiyoriSettingsHomeAction.NONE,
 )
 
 internal enum class KiyoriSettingsHomeAction {
     NONE,
-    OPEN_AI_SETTINGS,
+    OPEN_ACCOUNT_CONNECTIONS,
+    OPEN_AI_ASSISTANT,
+    OPEN_SPEECH_SERVICES,
     OPEN_BROWSER_SETTINGS,
     OPEN_DOWNLOAD_SETTINGS,
     OPEN_PLAYER_SETTINGS,
+    OPEN_APPEARANCE_SETTINGS,
+    OPEN_DATA_SETTINGS,
 }
 
 internal val kiyoriSettingsHomeGroups =
     listOf(
         listOf(
             KiyoriSettingsHomeEntry(
-                "AI 设置",
-                Icons.Outlined.SmartToy,
-                Color(0xFF1E88E5),
-                KiyoriSettingsHomeAction.OPEN_AI_SETTINGS,
+                "账号与连接",
+                Icons.Default.AccountCircle,
+                KiyoriSemanticTone.GREEN,
+                KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS,
             ),
-            KiyoriSettingsHomeEntry("剪贴板口令", Icons.Default.ContentPaste, Color(0xFF46C785)),
-            KiyoriSettingsHomeEntry("小程序管理", Icons.Default.Apps, Color(0xFF59BCE8)),
-            KiyoriSettingsHomeEntry("小程序订阅", Icons.Default.GridView, Color(0xFF5AA9EA)),
+            KiyoriSettingsHomeEntry(
+                "AI 助手",
+                Icons.Outlined.SmartToy,
+                KiyoriSemanticTone.PURPLE,
+                KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT,
+            ),
+            KiyoriSettingsHomeEntry(
+                "语音服务",
+                Icons.Default.RecordVoiceOver,
+                KiyoriSemanticTone.CYAN,
+                KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES,
+            ),
+            KiyoriSettingsHomeEntry(
+                "小程序管理",
+                Icons.Default.Apps,
+                KiyoriSemanticTone.BLUE,
+            ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 "网页浏览器",
                 Icons.Default.Language,
-                Color(0xFF6A96F2),
+                KiyoriSemanticTone.BLUE,
                 KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "视频播放器",
                 Icons.Default.PlayCircle,
-                Color(0xFFF06E71),
+                KiyoriSemanticTone.RED,
                 KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS,
             ),
-            KiyoriSettingsHomeEntry("音乐播放器", Icons.Default.Audiotrack, Color(0xFF8A6FF2)),
-            KiyoriSettingsHomeEntry("小说阅读器", Icons.AutoMirrored.Filled.MenuBook, Color(0xFFCC935C)),
+            KiyoriSettingsHomeEntry(
+                "音乐播放器",
+                Icons.Default.Audiotrack,
+                KiyoriSemanticTone.PURPLE,
+            ),
+            KiyoriSettingsHomeEntry(
+                "小说阅读器",
+                Icons.AutoMirrored.Filled.MenuBook,
+                KiyoriSemanticTone.ORANGE,
+            ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 "文件下载器",
                 Icons.Default.Download,
-                Color(0xFFF27D84),
+                KiyoriSemanticTone.RED,
                 KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
             ),
-            KiyoriSettingsHomeEntry("文件管理器", Icons.Default.Folder, Color(0xFF56B38A)),
-            KiyoriSettingsHomeEntry("广告拦截器", Icons.Default.Block, Color(0xFF58C68E)),
-            KiyoriSettingsHomeEntry("日志记录器", Icons.Default.BugReport, Color(0xFF5A8FD8)),
+            KiyoriSettingsHomeEntry(
+                "文件管理器",
+                Icons.Default.Folder,
+                KiyoriSemanticTone.GREEN,
+            ),
+            KiyoriSettingsHomeEntry(
+                "广告拦截器",
+                Icons.Default.Block,
+                KiyoriSemanticTone.RED,
+            ),
+            KiyoriSettingsHomeEntry(
+                "日志记录器",
+                Icons.Default.BugReport,
+                KiyoriSemanticTone.BLUE,
+            ),
         ),
         listOf(
-            KiyoriSettingsHomeEntry("界面定制", Icons.Default.Palette, Color(0xFFE575A5)),
-            KiyoriSettingsHomeEntry("数据备份与同步", Icons.Default.Backup, Color(0xFF4FAEE9)),
-            KiyoriSettingsHomeEntry("开发手册与模式", Icons.AutoMirrored.Filled.MenuBook, Color(0xFF5DBDCC)),
-            KiyoriSettingsHomeEntry("更多功能", Icons.Default.Widgets, Color(0xFF5E9CEE)),
+            KiyoriSettingsHomeEntry(
+                "界面定制",
+                Icons.Default.Palette,
+                KiyoriSemanticTone.PINK,
+                KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS,
+            ),
+            KiyoriSettingsHomeEntry(
+                "数据备份与同步",
+                Icons.Default.Backup,
+                KiyoriSemanticTone.CYAN,
+                KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS,
+            ),
+            KiyoriSettingsHomeEntry(
+                "开发手册与模式",
+                Icons.AutoMirrored.Filled.MenuBook,
+                KiyoriSemanticTone.ORANGE,
+            ),
+            KiyoriSettingsHomeEntry(
+                "更多功能",
+                Icons.Default.Widgets,
+                KiyoriSemanticTone.BLUE,
+            ),
         ),
     )
 
 @Composable
 internal fun KiyoriSettingsHomePage(
-    onOpenAiSettings: () -> Unit,
+    onOpenAccountConnections: () -> Unit,
+    onOpenAiAssistant: () -> Unit,
+    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAppearanceSettings: () -> Unit,
+    onOpenDataSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize().background(Color(0xFFF5F5F2)),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item { KiyoriSettingsHomeHeader() }
-        itemsIndexed(kiyoriSettingsHomeGroups) { _, group ->
-            KiyoriSettingsHomeGroupCard(
-                entries = group,
-                onOpenAiSettings = onOpenAiSettings,
-                onOpenBrowserSettings = onOpenBrowserSettings,
-                onOpenDownloadSettings = onOpenDownloadSettings,
-                onOpenPlayerSettings = onOpenPlayerSettings,
-            )
+    KiyoriSettingsTheme {
+        val colors = LocalKiyoriSettingsColors.current
+        LazyColumn(
+            modifier = modifier.fillMaxSize().background(colors.pageBackground),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item {
+                KiyoriSettingsHomeHeader(
+                    onOpenAppearanceSettings = onOpenAppearanceSettings,
+                )
+            }
+            itemsIndexed(kiyoriSettingsHomeGroups) { _, group ->
+                KiyoriSettingsHomeGroupCard(
+                    entries = group,
+                    onOpenAccountConnections = onOpenAccountConnections,
+                    onOpenAiAssistant = onOpenAiAssistant,
+                    onOpenSpeechServices = onOpenSpeechServices,
+                    onOpenBrowserSettings = onOpenBrowserSettings,
+                    onOpenDownloadSettings = onOpenDownloadSettings,
+                    onOpenPlayerSettings = onOpenPlayerSettings,
+                    onOpenAppearanceSettings = onOpenAppearanceSettings,
+                    onOpenDataSettings = onOpenDataSettings,
+                )
+            }
+            item { Spacer(modifier = Modifier.height(96.dp)) }
         }
-        item { Spacer(modifier = Modifier.height(96.dp)) }
     }
 }
 
 @Composable
-private fun KiyoriSettingsHomeHeader() {
+private fun KiyoriSettingsHomeHeader(
+    onOpenAppearanceSettings: () -> Unit,
+) {
+    val colors = LocalKiyoriSettingsColors.current
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFF5F5F2))
+                .background(colors.pageBackground)
                 .statusBarsPadding()
                 .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -155,13 +233,17 @@ private fun KiyoriSettingsHomeHeader() {
             text = "设置",
             fontSize = 21.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF202020),
+            color = colors.primaryText,
             modifier = Modifier.weight(1f),
         )
         KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_search, "搜索")
         KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_scan, "扫描")
         KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_refresh, "刷新")
-        KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_sun, "外观")
+        KiyoriSettingsHeaderAction(
+            iconResId = R.drawable.ic_kiyori_settings_header_sun,
+            contentDescription = "外观",
+            onClick = onOpenAppearanceSettings,
+        )
     }
 }
 
@@ -169,15 +251,22 @@ private fun KiyoriSettingsHomeHeader() {
 private fun KiyoriSettingsHeaderAction(
     iconResId: Int,
     contentDescription: String,
+    onClick: (() -> Unit)? = null,
 ) {
+    val interactionModifier =
+        if (onClick == null) {
+            Modifier.alpha(0.48f).semantics { disabled() }
+        } else {
+            Modifier.clickable(onClick = onClick)
+        }
     Box(
-        modifier = Modifier.size(36.dp).clickable(onClick = {}).padding(2.dp),
+        modifier = Modifier.size(36.dp).then(interactionModifier).padding(2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(iconResId),
             contentDescription = contentDescription,
-            tint = Color(0xFF72726E),
+            tint = LocalKiyoriSettingsColors.current.secondaryText,
             modifier = Modifier.size(22.dp),
         )
     }
@@ -186,35 +275,38 @@ private fun KiyoriSettingsHeaderAction(
 @Composable
 private fun KiyoriSettingsHomeGroupCard(
     entries: List<KiyoriSettingsHomeEntry>,
-    onOpenAiSettings: () -> Unit,
+    onOpenAccountConnections: () -> Unit,
+    onOpenAiAssistant: () -> Unit,
+    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAppearanceSettings: () -> Unit,
+    onOpenDataSettings: () -> Unit,
 ) {
-    Card(
+    KiyoriSettingsGroupCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            entries.forEachIndexed { index, entry ->
-                KiyoriSettingsHomeRow(
-                    entry = entry,
-                    onOpenAiSettings = onOpenAiSettings,
-                    onOpenBrowserSettings = onOpenBrowserSettings,
-                    onOpenDownloadSettings = onOpenDownloadSettings,
-                    onOpenPlayerSettings = onOpenPlayerSettings,
+        entries.forEachIndexed { index, entry ->
+            KiyoriSettingsHomeRow(
+                entry = entry,
+                onOpenAccountConnections = onOpenAccountConnections,
+                onOpenAiAssistant = onOpenAiAssistant,
+                onOpenSpeechServices = onOpenSpeechServices,
+                onOpenBrowserSettings = onOpenBrowserSettings,
+                onOpenDownloadSettings = onOpenDownloadSettings,
+                onOpenPlayerSettings = onOpenPlayerSettings,
+                onOpenAppearanceSettings = onOpenAppearanceSettings,
+                onOpenDataSettings = onOpenDataSettings,
+            )
+            if (index != entries.lastIndex) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(0.6.dp)
+                            .background(LocalKiyoriSettingsColors.current.divider),
                 )
-                if (index != entries.lastIndex) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(0.6.dp)
-                                .background(Color(0xFFF2F2EE)),
-                    )
-                }
             }
         }
     }
@@ -223,11 +315,17 @@ private fun KiyoriSettingsHomeGroupCard(
 @Composable
 private fun KiyoriSettingsHomeRow(
     entry: KiyoriSettingsHomeEntry,
-    onOpenAiSettings: () -> Unit,
+    onOpenAccountConnections: () -> Unit,
+    onOpenAiAssistant: () -> Unit,
+    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAppearanceSettings: () -> Unit,
+    onOpenDataSettings: () -> Unit,
 ) {
+    val colors = LocalKiyoriSettingsColors.current
+    val iconColors = entry.iconTone.resolveColors()
     Row(
         modifier =
             Modifier
@@ -235,29 +333,42 @@ private fun KiyoriSettingsHomeRow(
                 .clickable {
                     when (entry.action) {
                         KiyoriSettingsHomeAction.NONE -> Unit
-                        KiyoriSettingsHomeAction.OPEN_AI_SETTINGS -> onOpenAiSettings()
+                        KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS ->
+                            onOpenAccountConnections()
+                        KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT -> onOpenAiAssistant()
+                        KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES ->
+                            onOpenSpeechServices()
                         KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
                         KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
                         KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS -> onOpenPlayerSettings()
+                        KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS ->
+                            onOpenAppearanceSettings()
+                        KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS -> onOpenDataSettings()
                     }
                 }
-                .padding(start = 16.dp, end = 14.dp, top = 16.dp, bottom = 16.dp),
+                .padding(start = 16.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+        Box(
+            modifier =
+                Modifier
+                    .size(34.dp)
+                    .background(iconColors.container, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 imageVector = entry.icon,
                 contentDescription = entry.title,
-                tint = entry.iconTint,
+                tint = iconColors.icon,
                 modifier = Modifier.size(19.dp),
             )
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(13.dp))
         Text(
             text = entry.title,
             fontSize = 15.5.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF2B2B2B),
+            color = colors.primaryText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -265,7 +376,7 @@ private fun KiyoriSettingsHomeRow(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color(0xFFBDBDB8),
+            tint = colors.mutedIcon,
             modifier = Modifier.size(18.dp),
         )
     }

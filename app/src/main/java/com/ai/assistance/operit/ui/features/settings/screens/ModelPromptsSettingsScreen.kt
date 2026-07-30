@@ -2248,18 +2248,28 @@ fun CharacterCardItem(
                         )
                         if (isActive) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            AssistChip(
-                                onClick = { },
-                                label = { Text(stringResource(R.string.currently_active), fontSize = 10.sp) },
-                                leadingIcon = {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = stringResource(R.string.currently_active),
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
-                                },
-                                modifier = Modifier.height(24.dp)
-                            )
+                                    Text(
+                                        stringResource(R.string.currently_active),
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -2418,14 +2428,17 @@ fun CharacterCardItem(
                     characterCard.attachedTagIds.take(3).forEach { tagId ->
                         val tag = allTags.find { it.id == tagId }
                         tag?.let {
-                            AssistChip(
-                                onClick = { },
-                                label = { Text(it.name, fontSize = 10.sp) },
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                ),
-                                modifier = Modifier.height(24.dp)
-                                        )
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                            ) {
+                                Text(
+                                    text = it.name,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
                         }
                     }
                     if (characterCard.attachedTagIds.size > 3) {
@@ -2706,18 +2719,28 @@ private fun GroupCardItem(
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (isActive) {
-                                AssistChip(
-                                    onClick = {},
-                                    label = { Text(stringResource(R.string.currently_active), fontSize = 10.sp) },
-                                    leadingIcon = {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
                                         Icon(
                                             Icons.Default.Check,
                                             contentDescription = null,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                         )
-                                    },
-                                    modifier = Modifier.height(24.dp)
-                                )
+                                        Text(
+                                            stringResource(R.string.currently_active),
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

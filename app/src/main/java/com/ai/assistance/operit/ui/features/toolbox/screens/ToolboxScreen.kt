@@ -2,7 +2,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +39,8 @@ import com.ai.assistance.operit.terminal.rememberTerminalEnv
 import com.ai.assistance.operit.ui.main.LocalAppNavigationModel
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.kiyoriSemanticToneForStableId
 
 data class Tool(
         val id: String,
@@ -105,6 +106,7 @@ fun ToolboxScreen(
 @Composable
 fun ToolCard(tool: Tool) {
         var isPressed by remember { mutableStateOf(false) }
+        val tone = remember(tool.id) { kiyoriSemanticToneForStableId(tool.id) }
 
         // 创建协程作用域
         val scope = rememberCoroutineScope()
@@ -129,13 +131,16 @@ fun ToolCard(tool: Tool) {
                 },
                 modifier = Modifier.fillMaxWidth().height(156.dp).scale(scale),
                 colors =
-                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
                 elevation =
                         CardDefaults.cardElevation(
-                                defaultElevation = 2.dp,
-                                pressedElevation = 8.dp
+                                defaultElevation = 0.dp,
+                                pressedElevation = 1.dp
                         ),
-                shape = RoundedCornerShape(12.dp)
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(16.dp)
         ) {
                 // 卡片内容
                 Column(
@@ -143,29 +148,19 @@ fun ToolCard(tool: Tool) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                        // 工具图标带有背景圆圈
-                        Box(
-                                contentAlignment = Alignment.Center,
-                                modifier =
-                                        Modifier.size(48.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                        color = MaterialTheme.colorScheme.primaryContainer
-                                                )
-                                                .padding(8.dp)
-                        ) {
-                                Icon(
-                                        imageVector = tool.icon,
-                                        contentDescription = tool.name,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                )
-                        }
+                        KiyoriSemanticIconBadge(
+                                imageVector = tool.icon,
+                                tone = tone,
+                                contentDescription = tool.name,
+                                containerSize = 48.dp,
+                                iconSize = 24.dp,
+                                shape = CircleShape,
+                        )
 
                         Text(
                                 text = tool.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center,
                                 minLines = 1,
                                 maxLines = 2,

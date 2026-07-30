@@ -1504,18 +1504,24 @@ open class StandardSystemOperationTools(private val context: Context) {
                             }
 
                             // 否则请求位置更新
+                            var timeoutJob: kotlinx.coroutines.Job? = null
                             val locationListener =
                                     object : android.location.LocationListener {
                                         override fun onLocationChanged(location: Location) {
-                                            locationManager.removeUpdates(this)
-                                            continuation.resume(location) {
-                                                AppLogger.e(TAG, "位置请求取消", it)
+                                            timeoutJob?.cancel()
+                                            if (!continuation.isCompleted) {
+                                                locationManager.removeUpdates(this)
+                                                continuation.resume(location) {
+                                                    AppLogger.e(TAG, "位置请求取消", it)
+                                                }
                                             }
                                         }
 
                                         override fun onProviderDisabled(provider: String) {
                                             // 如果提供者被禁用，尝试使用最后已知位置
                                             if (!continuation.isCompleted) {
+                                                timeoutJob?.cancel()
+                                                locationManager.removeUpdates(this)
                                                 if (lastKnownLocation != null) {
                                                     continuation.resume(lastKnownLocation) {
                                                         AppLogger.e(TAG, "位置请求取消", it)
@@ -1551,13 +1557,11 @@ open class StandardSystemOperationTools(private val context: Context) {
                                         locationListener
                                 )
 
-                                // 设置超时
-                                kotlinx.coroutines.GlobalScope.launch {
-                                    delay(timeout * 1000L)
-                                    // 在主线程上移除更新和恢复协程
-                                    kotlinx.coroutines.withContext(
-                                            kotlinx.coroutines.Dispatchers.Main
-                                    ) {
+                                if (!continuation.isCompleted) {
+                                    // 超时任务绑定到当前请求，页面或工具调用取消时会一并停止。
+                                    timeoutJob =
+                                        kotlinx.coroutines.CoroutineScope(continuation.context).launch {
+                                            delay(timeout * 1000L)
                                         if (!continuation.isCompleted) {
                                             locationManager.removeUpdates(locationListener)
                                             // 如果超时，尝试使用最后已知位置
@@ -1570,13 +1574,13 @@ open class StandardSystemOperationTools(private val context: Context) {
 
                                 // 如果协程被取消，移除位置更新
                                 continuation.invokeOnCancellation {
-                                    try {
-                                        // 确保在主线程上移除位置更新
-                                        kotlinx.coroutines.runBlocking(
-                                                kotlinx.coroutines.Dispatchers.Main
-                                        ) { locationManager.removeUpdates(locationListener) }
-                                    } catch (e: Exception) {
-                                        AppLogger.e(TAG, "移除位置更新失败", e)
+                                    timeoutJob?.cancel()
+                                    Handler(Looper.getMainLooper()).post {
+                                        try {
+                                            locationManager.removeUpdates(locationListener)
+                                        } catch (e: Exception) {
+                                            AppLogger.e(TAG, "移除位置更新失败", e)
+                                        }
                                     }
                                 }
                             } catch (e: SecurityException) {

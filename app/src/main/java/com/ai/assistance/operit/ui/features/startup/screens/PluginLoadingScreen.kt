@@ -64,6 +64,7 @@ import com.ai.assistance.operit.data.mcp.MCPRepository
 import com.ai.assistance.operit.data.mcp.plugins.MCPStarter
 import com.ai.assistance.operit.ui.features.startup.components.SmoothLinearProgressIndicator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -558,7 +559,7 @@ class PluginLoadingState {
                                 displayName = pluginInfo.name
                             }
                         } catch (e: Exception) {
-                            // 获取元数据失败，使用默认名称
+                            AppLogger.w("PluginLoadingState", "读取插件元数据失败: $id", e)
                         }
                     }
 
@@ -825,6 +826,8 @@ class PluginLoadingState {
 
                     // 启动所有插件 - MCPStarter会处理各种检查逻辑
                     mcpStarter.startAllDeployedPlugins(progressListener)
+                } catch (error: CancellationException) {
+                    throw error
                 } catch (e: Exception) {
                     // 处理插件加载过程中的异常
                     AppLogger.e("PluginLoadingState", "加载插件过程中出错", e)
@@ -833,6 +836,8 @@ class PluginLoadingState {
 
                     forceExpanded()
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 AppLogger.e("PluginLoadingState", "启动MCP服务器和插件时出错", e)
                 updateMessage(e.message ?: context.getString(R.string.plugin_other_error))

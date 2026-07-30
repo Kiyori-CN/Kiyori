@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -76,6 +75,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadBatchAction
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadDrawerTab
@@ -112,7 +112,6 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 private val DownloadAccentColor = Color(0xFF27A866)
-private val DownloadPageLightColor = Color(0xFFEFF5FA)
 private const val DOWNLOAD_DRAWER_TAG = "WebSessionDownloadDrawer"
 
 private data class BrowserDownloadDeleteRequest(
@@ -171,12 +170,7 @@ internal fun WebSessionDownloadSheet(
     var actionItem by remember { mutableStateOf<BrowserDownloadItem?>(null) }
     var renameItem by remember { mutableStateOf<BrowserDownloadItem?>(null) }
     var renameMode by remember { mutableStateOf(BrowserDownloadRenameMode.RENAME) }
-    val pageBackground =
-        if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            DownloadPageLightColor
-        }
+    val pageBackground = MaterialTheme.colorScheme.surfaceContainerLow
     val visibleItems =
         remember(uiState.tasks, selectedTab, sortMode, statusFilter, searchQuery) {
             sortBrowserDownloadDrawerItems(
@@ -212,7 +206,7 @@ internal fun WebSessionDownloadSheet(
     fun launchMoveDirectoryPicker(taskId: String) {
         WebSessionDirectoryPickerCoordinator.launch(context) { treeUriString ->
             if (treeUriString != null) {
-                val uri = Uri.parse(treeUriString)
+                val uri = treeUriString.toUri()
                 try {
                     context.contentResolver.takePersistableUriPermission(
                         uri,

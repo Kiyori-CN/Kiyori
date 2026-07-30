@@ -58,6 +58,7 @@ import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private const val TAG = "GitHubLoginWebView"
@@ -114,6 +115,8 @@ private fun GitHubLoginMethodDialog(
                     Toast.LENGTH_SHORT
                 ).show()
                 onDismissRequest()
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 isLaunchingExternal = false
                 AppLogger.e(TAG, "Failed to launch external GitHub login", e)

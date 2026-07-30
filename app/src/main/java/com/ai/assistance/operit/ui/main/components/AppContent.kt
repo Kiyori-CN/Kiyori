@@ -55,7 +55,9 @@ import com.ai.assistance.operit.ui.main.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.navigation.RouteEntry
 import com.ai.assistance.operit.ui.main.navigation.LocalRouteInstanceId
 import com.ai.assistance.operit.ui.main.screens.Screen
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsNavigationIcon
 import com.ai.assistance.operit.ui.common.composedsl.ToolPkgComposeDslToolScreen
+import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -83,12 +85,19 @@ import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.platform.LocalDensity
 import com.ai.assistance.operit.api.chat.AIForegroundService
-import com.ai.assistance.operit.ui.theme.resolveContrastingContentColor
 
 // 定义一个 CompositionLocal，用于向下传递当前屏幕是否可见的状态
 val LocalIsCurrentScreen = compositionLocalOf { true }
 val LocalSetScreenSoftInputMode = compositionLocalOf<(Int?) -> Unit> { {} }
 val LocalSetUseScreenImePadding = compositionLocalOf<(Boolean) -> Unit> { {} }
+internal data class KiyoriEmbeddedSettingsNavigation(
+    val icon: KiyoriSettingsNavigationIcon,
+    val onClick: () -> Unit,
+)
+internal val LocalKiyoriEmbeddedSettingsNavigation =
+    compositionLocalOf<KiyoriEmbeddedSettingsNavigation> {
+        error("Kiyori embedded settings navigation is not available")
+    }
 
 private tailrec fun Context.findActivity(): Activity? =
     when (this) {
@@ -107,6 +116,18 @@ private fun Activity.manifestSoftInputMode(): Int =
         @Suppress("DEPRECATION")
         packageManager.getActivityInfo(componentName, 0).softInputMode
     }
+
+@Composable
+private fun KiyoriSettingsThemeBoundary(
+    enabled: Boolean,
+    content: @Composable () -> Unit,
+) {
+    if (enabled) {
+        KiyoriSettingsTheme(content)
+    } else {
+        content()
+    }
+}
 
 @Composable
 private fun ImeWakeListeningEffect(
@@ -160,54 +181,6 @@ fun AppContent(
         with(density) { if (isWideLayout) 28.dp.toPx() else 20.dp.toPx() }
     ImeWakeListeningEffect(context = context, density = density)
     val preferencesManager = UserPreferencesManager.getInstance(context)
-    val useBackgroundImage =
-            preferencesManager.useBackgroundImage.collectAsState(initial = false).value
-    val backgroundImageUri =
-            preferencesManager.backgroundImageUri.collectAsState(initial = null).value
-    val hasBackgroundImage = useBackgroundImage && backgroundImageUri != null
-
-    // Get toolbar transparency setting
-    val toolbarTransparent =
-            preferencesManager.toolbarTransparent.collectAsState(initial = false).value
-    
-    // Get AppBar custom color settings
-    val useCustomAppBarColor =
-            preferencesManager.useCustomAppBarColor.collectAsState(initial = false).value
-    val customAppBarColor =
-            preferencesManager.customAppBarColor.collectAsState(initial = null).value
-
-    // Get AppBar content color settings
-    val forceAppBarContentColor =
-            preferencesManager.forceAppBarContentColor.collectAsState(initial = false).value
-    val appBarContentColorMode =
-            preferencesManager.appBarContentColorMode.collectAsState(
-                            initial = UserPreferencesManager.APP_BAR_CONTENT_COLOR_MODE_LIGHT
-                    )
-                    .value
-
-    val appBarContainerColor =
-            when {
-                toolbarTransparent -> Color.Transparent
-                useCustomAppBarColor && customAppBarColor != null -> Color(customAppBarColor)
-                else -> MaterialTheme.colorScheme.background
-            }
-    val automaticAppBarContentColor =
-            when {
-                toolbarTransparent -> MaterialTheme.colorScheme.onBackground
-                useCustomAppBarColor && customAppBarColor != null ->
-                    resolveContrastingContentColor(appBarContainerColor)
-                else -> MaterialTheme.colorScheme.onBackground
-            }
-    val appBarContentColor =
-            if (forceAppBarContentColor) {
-                when (appBarContentColorMode) {
-                    UserPreferencesManager.APP_BAR_CONTENT_COLOR_MODE_LIGHT -> Color.White
-                    UserPreferencesManager.APP_BAR_CONTENT_COLOR_MODE_DARK -> Color.Black
-                    else -> automaticAppBarContentColor
-                }
-            } else {
-                automaticAppBarContentColor
-            }
 
     // 获取聊天历史管理器
     val chatHistoryManager = ChatHistoryManager.getInstance(context)
@@ -260,14 +233,20 @@ fun AppContent(
         }
     }
 
-    CompositionLocalProvider(
-        LocalAppBarContentColor provides appBarContentColor,
-    ) {
+    KiyoriSettingsThemeBoundary(enabled = currentScreen.navItem == NavItem.Settings) {
+        val appBarContainerColor = MaterialTheme.colorScheme.background
+        val appBarContentColor = MaterialTheme.colorScheme.onBackground
+        CompositionLocalProvider(
+            LocalAppBarContentColor provides appBarContentColor,
+        ) {
         // 使用Scaffold来正确处理顶部栏和内容的布局
         // contentWindowInsets = WindowInsets(0) 让内容可以延伸到系统栏下方，使背景能够完全填充
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
+                if (currentScreen.usesEmbeddedSettingsTopBar) {
+                    return@Scaffold
+                }
                 // 单一工具栏 - 使用小型化的设计
                 // 使用 windowInsets 参数让 TopAppBar 自己处理状态栏的 insets
                 Column {
@@ -347,12 +326,10 @@ fun AppContent(
                     ),
                     // Scaffold会处理 insets, 这里不再需要手动添加 modifier
                 )
-                    if (!toolbarTransparent) {
-                        HorizontalDivider(
-                            thickness = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                        )
-                    }
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
                 }
             },
             containerColor = Color.Transparent
@@ -372,9 +349,7 @@ fun AppContent(
                         }
                     )
                     .fillMaxSize(),
-                color =
-                if (hasBackgroundImage) Color.Transparent
-                else MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.background
             ) {
                 if (isLoading) {
                     // 加载中状态
@@ -452,7 +427,7 @@ fun AppContent(
                                             navController = navController,
                                             navigateTo = onScreenChange,
                                             onGoBack = onGoBack,
-                                            hasBackgroundImage = hasBackgroundImage,
+                                            hasBackgroundImage = false,
                                             onLoading = onLoading,
                                             onError = onError,
                                             onGestureConsumed = if (screenSnapshot is Screen.AiChat) onGestureConsumed else { _ -> }
@@ -668,7 +643,22 @@ fun AppContent(
                                                     if (isCurrentScreen && currentScreenUsesImePadding != enabled) {
                                                         currentScreenUsesImePadding = enabled
                                                     }
-                                                }
+                                                },
+                                                LocalKiyoriEmbeddedSettingsNavigation provides
+                                                    KiyoriEmbeddedSettingsNavigation(
+                                                        icon =
+                                                            if (showNavigationMenu) {
+                                                                KiyoriSettingsNavigationIcon.MENU
+                                                            } else {
+                                                                KiyoriSettingsNavigationIcon.BACK
+                                                            },
+                                                        onClick =
+                                                            if (showNavigationMenu) {
+                                                                onOpenNavigation
+                                                            } else {
+                                                                onGoBack
+                                                            },
+                                                    ),
                                             ) {
                                                 screenContent()
                                             }
@@ -690,6 +680,7 @@ fun AppContent(
                     }
                 }
             }
+        }
         }
     }
 }

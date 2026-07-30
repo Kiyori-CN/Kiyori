@@ -6,11 +6,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import com.ai.assistance.operit.data.preferences.ThemePreferenceSnapshot
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
-import com.ai.assistance.operit.data.preferences.UserPreferencesManager.Companion.ON_COLOR_MODE_DARK
-import com.ai.assistance.operit.data.preferences.UserPreferencesManager.Companion.ON_COLOR_MODE_LIGHT
 
 val KiyoriBrowserLightColorScheme =
     lightColorScheme(
@@ -162,37 +159,10 @@ fun resolveThemeColorScheme(
     context: Context,
     snapshot: ThemePreferenceSnapshot,
 ): ColorScheme =
-    resolveThemeColorScheme(
-        darkTheme = resolveDarkTheme(context, snapshot),
-        useCustomColors = snapshot.useCustomColors,
-        customPrimaryColor = snapshot.customPrimaryColor,
-        customSecondaryColor = snapshot.customSecondaryColor,
-        onColorMode = snapshot.onColorMode,
-    )
+    resolveThemeColorScheme(darkTheme = resolveDarkTheme(context, snapshot))
 
-fun resolveThemeColorScheme(
-    darkTheme: Boolean,
-    useCustomColors: Boolean,
-    customPrimaryColor: Int?,
-    customSecondaryColor: Int?,
-    onColorMode: String,
-): ColorScheme {
-    val baseColorScheme = if (darkTheme) KiyoriDarkColorScheme else KiyoriLightColorScheme
-    if (!useCustomColors || customPrimaryColor == null) {
-        return baseColorScheme
-    }
-
-    val primary = Color(customPrimaryColor)
-    val secondary = customSecondaryColor?.let(::Color) ?: baseColorScheme.secondary
-    return if (darkTheme) {
-        generateResolvedDarkColorScheme(primary, secondary, onColorMode)
-    } else {
-        generateResolvedLightColorScheme(primary, secondary, onColorMode)
-    }
-}
-
-fun resolveContrastingContentColor(backgroundColor: Color): Color =
-    if (backgroundColor.luminance() > 0.179f) Color.Black else Color.White
+fun resolveThemeColorScheme(darkTheme: Boolean): ColorScheme =
+    if (darkTheme) KiyoriDarkColorScheme else KiyoriLightColorScheme
 
 private fun resolveDarkTheme(
     context: Context,
@@ -204,69 +174,3 @@ private fun resolveDarkTheme(
     return (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
         Configuration.UI_MODE_NIGHT_YES
 }
-
-private fun generateResolvedLightColorScheme(
-    primaryColor: Color,
-    secondaryColor: Color,
-    onColorMode: String,
-): ColorScheme {
-    val primaryContainer = lightenResolvedColor(primaryColor, 0.7f)
-    val secondaryContainer = lightenResolvedColor(secondaryColor, 0.7f)
-    return KiyoriLightColorScheme.copy(
-        primary = primaryColor,
-        onPrimary = resolveConfiguredContentColor(primaryColor, onColorMode),
-        primaryContainer = primaryContainer,
-        onPrimaryContainer = resolveContrastingContentColor(primaryContainer),
-        secondary = secondaryColor,
-        onSecondary = resolveConfiguredContentColor(secondaryColor, onColorMode),
-        secondaryContainer = secondaryContainer,
-        onSecondaryContainer = resolveContrastingContentColor(secondaryContainer),
-    )
-}
-
-private fun generateResolvedDarkColorScheme(
-    primaryColor: Color,
-    secondaryColor: Color,
-    onColorMode: String,
-): ColorScheme {
-    val adjustedPrimaryColor = lightenResolvedColor(primaryColor, 0.2f)
-    val adjustedSecondaryColor = lightenResolvedColor(secondaryColor, 0.2f)
-    val primaryContainer = darkenResolvedColor(primaryColor, 0.3f)
-    val secondaryContainer = darkenResolvedColor(secondaryColor, 0.3f)
-    return KiyoriDarkColorScheme.copy(
-        primary = adjustedPrimaryColor,
-        onPrimary = resolveConfiguredContentColor(adjustedPrimaryColor, onColorMode),
-        primaryContainer = primaryContainer,
-        onPrimaryContainer = resolveContrastingContentColor(primaryContainer),
-        secondary = adjustedSecondaryColor,
-        onSecondary = resolveConfiguredContentColor(adjustedSecondaryColor, onColorMode),
-        secondaryContainer = secondaryContainer,
-        onSecondaryContainer = resolveContrastingContentColor(secondaryContainer),
-    )
-}
-
-private fun resolveConfiguredContentColor(
-    backgroundColor: Color,
-    onColorMode: String,
-): Color =
-    when (onColorMode) {
-        ON_COLOR_MODE_LIGHT -> Color.White
-        ON_COLOR_MODE_DARK -> Color.Black
-        else -> resolveContrastingContentColor(backgroundColor)
-    }
-
-private fun lightenResolvedColor(color: Color, factor: Float): Color =
-    Color(
-        red = color.red + (1f - color.red) * factor,
-        green = color.green + (1f - color.green) * factor,
-        blue = color.blue + (1f - color.blue) * factor,
-        alpha = color.alpha,
-    )
-
-private fun darkenResolvedColor(color: Color, factor: Float): Color =
-    Color(
-        red = color.red * (1f - factor),
-        green = color.green * (1f - factor),
-        blue = color.blue * (1f - factor),
-        alpha = color.alpha,
-    )

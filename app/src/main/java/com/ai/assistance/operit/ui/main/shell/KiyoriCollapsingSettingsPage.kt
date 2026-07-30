@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -31,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -40,8 +40,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
+import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
 
-internal val KIYORI_SETTINGS_PAGE_BACKGROUND = Color(0xFFF5F5F2)
+internal enum class KiyoriSettingsNavigationIcon {
+    BACK,
+    MENU,
+}
 
 internal data class KiyoriCollapsingSettingsHeaderFrame(
     val contentHeightDp: Float,
@@ -84,8 +89,29 @@ internal fun KiyoriCollapsingSettingsPage(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    navigationIcon: KiyoriSettingsNavigationIcon = KiyoriSettingsNavigationIcon.BACK,
     content: LazyListScope.() -> Unit,
 ) {
+    KiyoriSettingsTheme {
+        KiyoriCollapsingSettingsPageContent(
+            title = title,
+            onBack = onBack,
+            navigationIcon = navigationIcon,
+            modifier = modifier,
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun KiyoriCollapsingSettingsPageContent(
+    title: String,
+    onBack: () -> Unit,
+    navigationIcon: KiyoriSettingsNavigationIcon,
+    modifier: Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    val colors = LocalKiyoriSettingsColors.current
     val density = LocalDensity.current
     val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
     val collapseDistancePx = with(density) { 72.dp.toPx() }
@@ -107,7 +133,7 @@ internal fun KiyoriCollapsingSettingsPage(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(KIYORI_SETTINGS_PAGE_BACKGROUND),
+                .background(colors.pageBackground),
     ) {
         LazyColumn(
             state = listState,
@@ -131,6 +157,7 @@ internal fun KiyoriCollapsingSettingsPage(
         KiyoriCollapsingSettingsHeader(
             title = title,
             onBack = onBack,
+            navigationIcon = navigationIcon,
             statusBarHeight = statusBarHeight,
             frame = headerFrame,
             modifier = Modifier.zIndex(1f),
@@ -146,7 +173,10 @@ internal fun KiyoriSettingsGroupCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = LocalKiyoriSettingsColors.current.cardBackground,
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth(), content = content)
@@ -157,16 +187,18 @@ internal fun KiyoriSettingsGroupCard(
 private fun KiyoriCollapsingSettingsHeader(
     title: String,
     onBack: () -> Unit,
+    navigationIcon: KiyoriSettingsNavigationIcon,
     statusBarHeight: androidx.compose.ui.unit.Dp,
     frame: KiyoriCollapsingSettingsHeaderFrame,
     modifier: Modifier = Modifier,
 ) {
+    val colors = LocalKiyoriSettingsColors.current
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
                 .height(statusBarHeight + frame.contentHeightDp.dp)
-                .background(KIYORI_SETTINGS_PAGE_BACKGROUND)
+                .background(colors.pageBackground)
                 .clipToBounds(),
     ) {
         IconButton(
@@ -177,9 +209,18 @@ private fun KiyoriCollapsingSettingsHeader(
                     .size(48.dp),
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "返回",
-                tint = Color(0xFF2B2B2B),
+                imageVector =
+                    when (navigationIcon) {
+                        KiyoriSettingsNavigationIcon.BACK ->
+                            Icons.AutoMirrored.Filled.ArrowBack
+                        KiyoriSettingsNavigationIcon.MENU -> Icons.Default.Menu
+                    },
+                contentDescription =
+                    when (navigationIcon) {
+                        KiyoriSettingsNavigationIcon.BACK -> "返回"
+                        KiyoriSettingsNavigationIcon.MENU -> "菜单"
+                    },
+                tint = colors.primaryText,
                 modifier = Modifier.size(24.dp),
             )
         }
@@ -187,7 +228,7 @@ private fun KiyoriCollapsingSettingsHeader(
             text = title,
             fontSize = frame.titleFontSizeSp.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF202020),
+            color = colors.primaryText,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Clip,

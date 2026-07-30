@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,13 +66,14 @@ import com.ai.assistance.operit.ui.features.memory.screens.dialogs.EditEdgeDialo
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModelFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStreamReader
+import java.io.IOException
+import java.util.UUID
 import android.provider.OpenableColumns
 import android.widget.Toast
 import com.ai.assistance.operit.util.AppLogger
@@ -137,6 +139,7 @@ fun MemorySearchBar(
 @Composable
 fun MemoryScreen() {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val profileList by preferencesManager.memorySpaceListFlow.collectAsState(initial = emptyList())
     val activeProfileId by
     preferencesManager.activeMemorySpaceIdFlow.collectAsState(initial = "default")
@@ -208,19 +211,35 @@ fun MemoryScreen() {
 
                         if (mimeType != null && mimeType.startsWith("text")) {
                             val content = withContext(Dispatchers.IO) {
-                                val inputStream = context.contentResolver.openInputStream(fileUri)
-                                val reader = BufferedReader(InputStreamReader(inputStream))
-                                reader.readText()
+                                val inputStream =
+                                    context.contentResolver.openInputStream(fileUri)
+                                        ?: throw IOException("ContentResolver returned no input stream")
+                                inputStream.bufferedReader().use { reader -> reader.readText() }
                             }
                             viewModel.importDocument(fileName, fileUri.toString(), content)
                         } else {
                             // For binary files, use the tool
-                            tempFile = File(context.cacheDir, fileName)
+                            val extension =
+                                fileName
+                                    .substringAfterLast('.', missingDelimiterValue = "")
+                                    .filter(Char::isLetterOrDigit)
+                                    .take(12)
+                            val tempFileName =
+                                buildString {
+                                    append("memory_import_")
+                                    append(UUID.randomUUID())
+                                    if (extension.isNotEmpty()) {
+                                        append('.')
+                                        append(extension)
+                                    }
+                                }
+                            tempFile = File(context.cacheDir, tempFileName)
                             withContext(Dispatchers.IO) {
-                                val inputStream = context.contentResolver.openInputStream(fileUri)
-                                val outputStream = FileOutputStream(tempFile)
-                                inputStream?.use { input ->
-                                    outputStream.use { output ->
+                                val inputStream =
+                                    context.contentResolver.openInputStream(fileUri)
+                                        ?: throw IOException("ContentResolver returned no input stream")
+                                inputStream.use { input ->
+                                    FileOutputStream(tempFile).use { output ->
                                         input.copyTo(output)
                                     }
                                 }
@@ -245,13 +264,30 @@ fun MemoryScreen() {
                                 }
                                 viewModel.importDocument(fileName, fileUri.toString(), content)
                             } else {
-                                AppLogger.e("MemoryScreen", "Tool execution failed: ${result.error}")
+                                throw IOException("read_file_full failed: ${result.error}")
                             }
                         }
+                    } catch (error: CancellationException) {
+                        throw error
                     } catch (e: Exception) {
                         AppLogger.e("MemoryScreen", "Error processing file: $fileUri", e)
+                        Toast.makeText(
+                            context,
+                            resources.getString(
+                                R.string.memory_error_import_document,
+                                e.message ?: e.javaClass.simpleName,
+                            ),
+                            Toast.LENGTH_LONG,
+                        ).show()
                     } finally {
-                        tempFile?.delete()
+                        tempFile?.let { file ->
+                            if (file.exists() && !file.delete()) {
+                                AppLogger.w(
+                                    "MemoryScreen",
+                                    "Unable to delete temporary import file: ${file.name}",
+                                )
+                            }
+                        }
                     }
                 }
             }

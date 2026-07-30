@@ -6,6 +6,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -21,17 +28,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.yield
 
-internal enum class ThemeSettingsTab(val titleRes: Int) {
-    BASIC(R.string.theme_tab_basic),
-    BACKGROUND(R.string.theme_tab_background),
-    CHAT(R.string.theme_tab_chat),
-    INPUT(R.string.theme_tab_input),
-    INTERFACE(R.string.theme_tab_interface),
+internal enum class ThemeSettingsTab(
+    val titleRes: Int,
+    val icon: ImageVector,
+    val iconTone: KiyoriSemanticTone,
+) {
+    BASIC(R.string.theme_tab_basic, Icons.Default.Brightness6, KiyoriSemanticTone.BLUE),
+    BACKGROUND(
+        R.string.theme_tab_background,
+        Icons.Default.Wallpaper,
+        KiyoriSemanticTone.PINK,
+    ),
+    CHAT(R.string.theme_tab_chat, Icons.Default.ChatBubble, KiyoriSemanticTone.PURPLE),
+    INPUT(R.string.theme_tab_input, Icons.Default.Keyboard, KiyoriSemanticTone.CYAN),
+    INTERFACE(R.string.theme_tab_interface, Icons.Default.Tune, KiyoriSemanticTone.ORANGE),
 }
 
 @Composable
@@ -47,6 +66,7 @@ internal fun ThemeSettingsTabbedContent(
     scrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
+    val settingsColors = LocalKiyoriSettingsColors.current
     var renderedTab by remember { mutableStateOf(selectedTab) }
     var isSwitchingTab by remember { mutableStateOf(false) }
 
@@ -69,10 +89,28 @@ internal fun ThemeSettingsTabbedContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             ThemeSettingsTab.values().forEach { tab ->
+                val iconColors = tab.iconTone.resolveColors()
                 Tab(
                     selected = selectedTab == tab,
                     onClick = { onSelectedTabChange(tab) },
-                    text = { Text(text = stringResource(id = tab.titleRes)) },
+                    icon = {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = null,
+                            tint = iconColors.icon,
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = stringResource(id = tab.titleRes),
+                            color =
+                                if (selectedTab == tab) {
+                                    settingsColors.primaryText
+                                } else {
+                                    settingsColors.secondaryText
+                                },
+                        )
+                    },
                 )
             }
         }

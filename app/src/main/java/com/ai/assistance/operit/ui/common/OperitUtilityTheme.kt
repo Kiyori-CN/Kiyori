@@ -8,7 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
-import com.ai.assistance.operit.data.preferences.UserPreferencesManager.Companion.ON_COLOR_MODE_AUTO
 import com.ai.assistance.operit.ui.theme.Typography
 import com.ai.assistance.operit.ui.theme.resolveThemeColorScheme
 
@@ -19,10 +18,6 @@ fun OperitUtilityTheme(content: @Composable () -> Unit) {
     val useSystemTheme by preferencesManager.useSystemTheme.collectAsState(initial = false)
     val themeMode by
         preferencesManager.themeMode.collectAsState(initial = UserPreferencesManager.THEME_MODE_LIGHT)
-    val useCustomColors by preferencesManager.useCustomColors.collectAsState(initial = false)
-    val customPrimaryColor by preferencesManager.customPrimaryColor.collectAsState(initial = null)
-    val customSecondaryColor by preferencesManager.customSecondaryColor.collectAsState(initial = null)
-    val onColorMode by preferencesManager.onColorMode.collectAsState(initial = ON_COLOR_MODE_AUTO)
     val systemDarkTheme = isSystemInDarkTheme()
     val darkTheme =
         if (useSystemTheme) {
@@ -32,14 +27,7 @@ fun OperitUtilityTheme(content: @Composable () -> Unit) {
         }
 
     MaterialTheme(
-        colorScheme =
-            resolveThemeColorScheme(
-                darkTheme = darkTheme,
-                useCustomColors = useCustomColors,
-                customPrimaryColor = customPrimaryColor,
-                customSecondaryColor = customSecondaryColor,
-                onColorMode = onColorMode,
-            ),
+        colorScheme = resolveThemeColorScheme(darkTheme),
         typography = Typography,
         content = content,
     )

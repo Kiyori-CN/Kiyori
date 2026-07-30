@@ -179,14 +179,17 @@ private fun PresetTagCard(preset: PresetTagBilingual, context: android.content.C
                     fontWeight = FontWeight.Bold
                 )
                 // 标签类型徽章 (Tag type badge)
-                AssistChip(
-                    onClick = { },
-                    label = { Text(preset.tagType.name, fontSize = 10.sp) },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    ),
-                    modifier = Modifier.height(24.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Text(
+                        text = preset.tagType.name,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(

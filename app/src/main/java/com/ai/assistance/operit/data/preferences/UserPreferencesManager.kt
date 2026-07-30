@@ -92,9 +92,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
         // 主题设置相关键
         private val THEME_MODE = stringPreferencesKey("theme_mode")
         private val USE_SYSTEM_THEME = booleanPreferencesKey("use_system_theme")
-        private val CUSTOM_PRIMARY_COLOR = intPreferencesKey("custom_primary_color")
-        private val CUSTOM_SECONDARY_COLOR = intPreferencesKey("custom_secondary_color")
-        private val USE_CUSTOM_COLORS = booleanPreferencesKey("use_custom_colors")
         private val USE_BACKGROUND_IMAGE = booleanPreferencesKey("use_background_image")
         private val BACKGROUND_IMAGE_URI = stringPreferencesKey("background_image_uri")
         private val BACKGROUND_IMAGE_OPACITY = floatPreferencesKey("background_image_opacity")
@@ -104,23 +101,12 @@ class UserPreferencesManager private constructor(private val context: Context) {
         private val VIDEO_BACKGROUND_MUTED = booleanPreferencesKey("video_background_muted")
         private val VIDEO_BACKGROUND_LOOP = booleanPreferencesKey("video_background_loop")
 
-        // 工具栏透明度设置
-        private val TOOLBAR_TRANSPARENT = booleanPreferencesKey("toolbar_transparent")
-
-        // AppBar 自定义颜色设置
-        private val USE_CUSTOM_APP_BAR_COLOR = booleanPreferencesKey("use_custom_app_bar_color")
-        private val CUSTOM_APP_BAR_COLOR = intPreferencesKey("custom_app_bar_color")
-
         private val STATUS_BAR_HIDDEN = booleanPreferencesKey("status_bar_hidden")
         private val CHAT_HEADER_TRANSPARENT = booleanPreferencesKey("chat_header_transparent")
         private val CHAT_INPUT_TRANSPARENT = booleanPreferencesKey("chat_input_transparent")
         private val CHAT_INPUT_FLOATING = booleanPreferencesKey("chat_input_floating")
         private val CHAT_INPUT_LIQUID_GLASS = booleanPreferencesKey("chat_input_liquid_glass")
         private val CHAT_INPUT_WATER_GLASS = booleanPreferencesKey("chat_input_water_glass")
-
-        // AppBar 内容颜色设置
-        private val FORCE_APP_BAR_CONTENT_COLOR_ENABLED = booleanPreferencesKey("force_app_bar_content_color_enabled")
-        private val APP_BAR_CONTENT_COLOR_MODE = stringPreferencesKey("app_bar_content_color_mode")
 
         // ChatHeader 图标颜色设置
         private val CHAT_HEADER_HISTORY_ICON_COLOR = intPreferencesKey("chat_header_history_icon_color")
@@ -232,10 +218,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
         const val THEME_MODE_LIGHT = "light"
         const val THEME_MODE_DARK = "dark"
 
-        // AppBar 内容颜色模式常量
-        const val APP_BAR_CONTENT_COLOR_MODE_LIGHT = "light"
-        const val APP_BAR_CONTENT_COLOR_MODE_DARK = "dark"
-
         // 背景媒体类型常量
         const val MEDIA_TYPE_IMAGE = "image"
         const val MEDIA_TYPE_VIDEO = "video"
@@ -266,7 +248,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
         private val KEY_CUSTOM_AI_AVATAR_URI = stringPreferencesKey("custom_ai_avatar_uri")
         private val KEY_AVATAR_SHAPE = stringPreferencesKey("avatar_shape")
         private val KEY_AVATAR_CORNER_RADIUS = floatPreferencesKey("avatar_corner_radius")
-        private val KEY_ON_COLOR_MODE = stringPreferencesKey("on_color_mode")
         private val KEY_CUSTOM_CHAT_TITLE = stringPreferencesKey("custom_chat_title")
         private val KEY_SHOW_INPUT_PROCESSING_STATUS = booleanPreferencesKey("show_input_processing_status")
         private val KEY_SHOW_CHAT_FLOATING_DOTS_ANIMATION = booleanPreferencesKey("show_chat_floating_dots_animation")
@@ -288,10 +269,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
 
         const val AVATAR_SHAPE_CIRCLE = "circle"
         const val AVATAR_SHAPE_SQUARE = "square"
-
-        const val ON_COLOR_MODE_AUTO = "auto"
-        const val ON_COLOR_MODE_LIGHT = "light"
-        const val ON_COLOR_MODE_DARK = "dark"
 
         // 字体类型常量
         const val FONT_TYPE_SYSTEM = "system"
@@ -526,21 +503,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
                 preferences[USE_SYSTEM_THEME] ?: false
             }
 
-    val customPrimaryColor: Flow<Int?> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[CUSTOM_PRIMARY_COLOR]
-            }
-
-    val customSecondaryColor: Flow<Int?> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[CUSTOM_SECONDARY_COLOR]
-            }
-
-    val useCustomColors: Flow<Boolean> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[USE_CUSTOM_COLORS] ?: false
-            }
-
     // 背景图片相关Flow
     val useBackgroundImage: Flow<Boolean> =
             context.userPreferencesDataStore.data.map { preferences ->
@@ -573,21 +535,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
                 preferences[VIDEO_BACKGROUND_LOOP] ?: true
             }
 
-    val toolbarTransparent: Flow<Boolean> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[TOOLBAR_TRANSPARENT] ?: false
-            }
-
-    val useCustomAppBarColor: Flow<Boolean> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[USE_CUSTOM_APP_BAR_COLOR] ?: false
-            }
-    
-    val customAppBarColor: Flow<Int?> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[CUSTOM_APP_BAR_COLOR]
-            }
-
     val statusBarHidden: Flow<Boolean> =
             context.userPreferencesDataStore.data.map { preferences ->
                 preferences[STATUS_BAR_HIDDEN] ?: false
@@ -616,16 +563,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
     val chatInputWaterGlass: Flow<Boolean> =
             context.userPreferencesDataStore.data.map { preferences ->
                 preferences[CHAT_INPUT_WATER_GLASS] ?: false
-            }
-
-    val forceAppBarContentColor: Flow<Boolean> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[FORCE_APP_BAR_CONTENT_COLOR_ENABLED] ?: false
-            }
-
-    val appBarContentColorMode: Flow<String> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[APP_BAR_CONTENT_COLOR_MODE] ?: APP_BAR_CONTENT_COLOR_MODE_LIGHT
             }
 
     val chatHeaderHistoryIconColor: Flow<Int?> =
@@ -988,11 +925,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
                 preferences[KEY_AVATAR_CORNER_RADIUS] ?: 8f
             }
 
-    val onColorMode: Flow<String> =
-            context.userPreferencesDataStore.data.map { preferences ->
-                preferences[KEY_ON_COLOR_MODE] ?: ON_COLOR_MODE_AUTO
-            }
-
     val customChatTitle: Flow<String?> =
             context.userPreferencesDataStore.data.map { preferences ->
                 preferences[KEY_CUSTOM_CHAT_TITLE]
@@ -1231,26 +1163,18 @@ class UserPreferencesManager private constructor(private val context: Context) {
     suspend fun saveThemeSettings(
             themeMode: String? = null,
             useSystemTheme: Boolean? = null,
-            customPrimaryColor: Int? = null,
-            customSecondaryColor: Int? = null,
-            useCustomColors: Boolean? = null,
             useBackgroundImage: Boolean? = null,
             backgroundImageUri: String? = null,
             backgroundImageOpacity: Float? = null,
             backgroundMediaType: String? = null,
             videoBackgroundMuted: Boolean? = null,
             videoBackgroundLoop: Boolean? = null,
-            toolbarTransparent: Boolean? = null,
-            useCustomAppBarColor: Boolean? = null,
-            customAppBarColor: Int? = null,
             statusBarHidden: Boolean? = null,
             chatHeaderTransparent: Boolean? = null,
             chatInputTransparent: Boolean? = null,
             chatInputFloating: Boolean? = null,
             chatInputLiquidGlass: Boolean? = null,
             chatInputWaterGlass: Boolean? = null,
-            forceAppBarContentColor: Boolean? = null,
-            appBarContentColorMode: String? = null,
             chatHeaderHistoryIconColor: Int? = null,
             chatHeaderPipIconColor: Int? = null,
             chatHeaderOverlayMode: Boolean? = null,
@@ -1321,7 +1245,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             customAiAvatarUri: String? = null,
             avatarShape: String? = null,
             avatarCornerRadius: Float? = null,
-            onColorMode: String? = null,
             customChatTitle: String? = null,
             showInputProcessingStatus: Boolean? = null,
             showChatFloatingDotsAnimation: Boolean? = null,
@@ -1335,9 +1258,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
         context.userPreferencesDataStore.edit { preferences ->
             themeMode?.let { preferences[THEME_MODE] = it }
             useSystemTheme?.let { preferences[USE_SYSTEM_THEME] = it }
-            customPrimaryColor?.let { preferences[CUSTOM_PRIMARY_COLOR] = it }
-            customSecondaryColor?.let { preferences[CUSTOM_SECONDARY_COLOR] = it }
-            useCustomColors?.let { preferences[USE_CUSTOM_COLORS] = it }
             useBackgroundImage?.let { preferences[USE_BACKGROUND_IMAGE] = it }
             backgroundImageUri?.let {
                 // Simply store the URI as a string in preferences
@@ -1348,9 +1268,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             backgroundMediaType?.let { preferences[BACKGROUND_MEDIA_TYPE] = it }
             videoBackgroundMuted?.let { preferences[VIDEO_BACKGROUND_MUTED] = it }
             videoBackgroundLoop?.let { preferences[VIDEO_BACKGROUND_LOOP] = it }
-            toolbarTransparent?.let { preferences[TOOLBAR_TRANSPARENT] = it }
-            useCustomAppBarColor?.let { preferences[USE_CUSTOM_APP_BAR_COLOR] = it }
-            customAppBarColor?.let { preferences[CUSTOM_APP_BAR_COLOR] = it }
             statusBarHidden?.let { preferences[STATUS_BAR_HIDDEN] = it }
             chatHeaderTransparent?.let { preferences[CHAT_HEADER_TRANSPARENT] = it }
             chatInputTransparent?.let { preferences[CHAT_INPUT_TRANSPARENT] = it }
@@ -1367,8 +1284,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
                     preferences[CHAT_INPUT_LIQUID_GLASS] = false
                 }
             }
-            forceAppBarContentColor?.let { preferences[FORCE_APP_BAR_CONTENT_COLOR_ENABLED] = it }
-            appBarContentColorMode?.let { preferences[APP_BAR_CONTENT_COLOR_MODE] = it }
             chatHeaderHistoryIconColor?.let { preferences[CHAT_HEADER_HISTORY_ICON_COLOR] = it }
             chatHeaderPipIconColor?.let { preferences[CHAT_HEADER_PIP_ICON_COLOR] = it }
             chatHeaderOverlayMode?.let { preferences[CHAT_HEADER_OVERLAY_MODE] = it }
@@ -1473,7 +1388,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             customAiAvatarUri?.let { preferences[KEY_CUSTOM_AI_AVATAR_URI] = it }
             avatarShape?.let { preferences[KEY_AVATAR_SHAPE] = it }
             avatarCornerRadius?.let { preferences[KEY_AVATAR_CORNER_RADIUS] = it }
-            onColorMode?.let { preferences[KEY_ON_COLOR_MODE] = it }
             customChatTitle?.let { preferences[KEY_CUSTOM_CHAT_TITLE] = it }
             showInputProcessingStatus?.let { preferences[KEY_SHOW_INPUT_PROCESSING_STATUS] = it }
             showChatFloatingDotsAnimation?.let { preferences[KEY_SHOW_CHAT_FLOATING_DOTS_ANIMATION] = it }
@@ -1492,24 +1406,18 @@ class UserPreferencesManager private constructor(private val context: Context) {
         context.userPreferencesDataStore.edit { preferences ->
             preferences.remove(THEME_MODE)
             preferences.remove(USE_SYSTEM_THEME)
-            preferences.remove(CUSTOM_PRIMARY_COLOR)
-            preferences.remove(CUSTOM_SECONDARY_COLOR)
-            preferences.remove(USE_CUSTOM_COLORS)
             preferences.remove(USE_BACKGROUND_IMAGE)
             preferences.remove(BACKGROUND_IMAGE_URI)
             preferences.remove(BACKGROUND_IMAGE_OPACITY)
             preferences.remove(BACKGROUND_MEDIA_TYPE)
             preferences.remove(VIDEO_BACKGROUND_MUTED)
             preferences.remove(VIDEO_BACKGROUND_LOOP)
-            preferences.remove(TOOLBAR_TRANSPARENT)
             preferences.remove(STATUS_BAR_HIDDEN)
             preferences.remove(CHAT_HEADER_TRANSPARENT)
             preferences.remove(CHAT_INPUT_TRANSPARENT)
             preferences.remove(CHAT_INPUT_FLOATING)
             preferences.remove(CHAT_INPUT_LIQUID_GLASS)
             preferences.remove(CHAT_INPUT_WATER_GLASS)
-            preferences.remove(FORCE_APP_BAR_CONTENT_COLOR_ENABLED)
-            preferences.remove(APP_BAR_CONTENT_COLOR_MODE)
             preferences.remove(CHAT_HEADER_HISTORY_ICON_COLOR)
             preferences.remove(CHAT_HEADER_PIP_ICON_COLOR)
             preferences.remove(CHAT_HEADER_OVERLAY_MODE)
@@ -1580,7 +1488,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
             preferences.remove(KEY_CUSTOM_AI_AVATAR_URI)
             preferences.remove(KEY_AVATAR_SHAPE)
             preferences.remove(KEY_AVATAR_CORNER_RADIUS)
-            preferences.remove(KEY_ON_COLOR_MODE)
             preferences.remove(KEY_CUSTOM_CHAT_TITLE)
             preferences.remove(KEY_SHOW_INPUT_PROCESSING_STATUS)
             preferences.remove(KEY_SHOW_CHAT_FLOATING_DOTS_ANIMATION)
@@ -1604,10 +1511,9 @@ class UserPreferencesManager private constructor(private val context: Context) {
 
     private fun getAllStringThemeKeys(): List<Preferences.Key<String>> {
         return listOf(
-            THEME_MODE, BACKGROUND_IMAGE_URI, BACKGROUND_MEDIA_TYPE, APP_BAR_CONTENT_COLOR_MODE,
+            BACKGROUND_IMAGE_URI, BACKGROUND_MEDIA_TYPE,
             CHAT_STYLE, KEY_CUSTOM_USER_AVATAR_URI, KEY_CUSTOM_AI_AVATAR_URI, KEY_AVATAR_SHAPE,
-            KEY_ON_COLOR_MODE, KEY_CUSTOM_CHAT_TITLE, INPUT_STYLE, FONT_TYPE, SYSTEM_FONT_NAME,
-            CUSTOM_FONT_PATH, BUBBLE_USER_FONT_TYPE, BUBBLE_USER_SYSTEM_FONT_NAME,
+            KEY_CUSTOM_CHAT_TITLE, INPUT_STYLE, BUBBLE_USER_FONT_TYPE, BUBBLE_USER_SYSTEM_FONT_NAME,
             BUBBLE_USER_CUSTOM_FONT_PATH, BUBBLE_AI_FONT_TYPE, BUBBLE_AI_SYSTEM_FONT_NAME,
             BUBBLE_AI_CUSTOM_FONT_PATH, BUBBLE_USER_IMAGE_URI, BUBBLE_AI_IMAGE_URI,
             BUBBLE_IMAGE_RENDER_MODE
@@ -1616,17 +1522,16 @@ class UserPreferencesManager private constructor(private val context: Context) {
 
     private fun getAllBooleanThemeKeys(): List<Preferences.Key<Boolean>> {
         return listOf(
-            USE_SYSTEM_THEME, USE_CUSTOM_COLORS, USE_BACKGROUND_IMAGE, VIDEO_BACKGROUND_MUTED,
-            VIDEO_BACKGROUND_LOOP, TOOLBAR_TRANSPARENT,
-            USE_CUSTOM_APP_BAR_COLOR, STATUS_BAR_HIDDEN, CHAT_HEADER_TRANSPARENT, CHAT_INPUT_TRANSPARENT, CHAT_INPUT_FLOATING,
+            USE_BACKGROUND_IMAGE, VIDEO_BACKGROUND_MUTED, VIDEO_BACKGROUND_LOOP,
+            CHAT_HEADER_TRANSPARENT, CHAT_INPUT_TRANSPARENT, CHAT_INPUT_FLOATING,
             CHAT_INPUT_LIQUID_GLASS,
             CHAT_INPUT_WATER_GLASS,
-            FORCE_APP_BAR_CONTENT_COLOR_ENABLED, CHAT_HEADER_OVERLAY_MODE, USE_BACKGROUND_BLUR,
+            CHAT_HEADER_OVERLAY_MODE, USE_BACKGROUND_BLUR,
             BUBBLE_SHOW_AVATAR, BUBBLE_WIDE_LAYOUT_ENABLED, CURSOR_USER_BUBBLE_FOLLOW_THEME, CURSOR_USER_BUBBLE_LIQUID_GLASS,
             CURSOR_USER_BUBBLE_WATER_GLASS, BUBBLE_USER_BUBBLE_LIQUID_GLASS, BUBBLE_USER_BUBBLE_WATER_GLASS,
             BUBBLE_AI_BUBBLE_LIQUID_GLASS, BUBBLE_AI_BUBBLE_WATER_GLASS, BUBBLE_USER_USE_IMAGE,
             BUBBLE_AI_USE_IMAGE, BUBBLE_USER_ROUNDED_CORNERS_ENABLED, BUBBLE_AI_ROUNDED_CORNERS_ENABLED, KEY_SHOW_THINKING_PROCESS, KEY_SHOW_STATUS_TAGS,
-            KEY_SHOW_INPUT_PROCESSING_STATUS, KEY_SHOW_CHAT_FLOATING_DOTS_ANIMATION, USE_CUSTOM_FONT,
+            KEY_SHOW_INPUT_PROCESSING_STATUS, KEY_SHOW_CHAT_FLOATING_DOTS_ANIMATION,
             BUBBLE_USER_USE_CUSTOM_FONT, BUBBLE_AI_USE_CUSTOM_FONT, KEY_SHOW_MODEL_PROVIDER,
             KEY_SHOW_MODEL_NAME, KEY_SHOW_ROLE_NAME, KEY_SHOW_USER_NAME,
             KEY_SHOW_MESSAGE_TOKEN_STATS, KEY_SHOW_MESSAGE_TIMING_STATS,
@@ -1636,7 +1541,6 @@ class UserPreferencesManager private constructor(private val context: Context) {
 
     private fun getAllIntThemeKeys(): List<Preferences.Key<Int>> {
         return listOf(
-            CUSTOM_PRIMARY_COLOR, CUSTOM_SECONDARY_COLOR, CUSTOM_APP_BAR_COLOR,
             CHAT_HEADER_HISTORY_ICON_COLOR, CHAT_HEADER_PIP_ICON_COLOR,
             CURSOR_USER_BUBBLE_COLOR, BUBBLE_USER_BUBBLE_COLOR, BUBBLE_AI_BUBBLE_COLOR,
             BUBBLE_USER_TEXT_COLOR, BUBBLE_AI_TEXT_COLOR
@@ -1645,7 +1549,7 @@ class UserPreferencesManager private constructor(private val context: Context) {
 
     private fun getAllFloatThemeKeys(): List<Preferences.Key<Float>> {
         return listOf(
-            BACKGROUND_IMAGE_OPACITY, BACKGROUND_BLUR_RADIUS, KEY_AVATAR_CORNER_RADIUS, FONT_SCALE,
+            BACKGROUND_IMAGE_OPACITY, BACKGROUND_BLUR_RADIUS, KEY_AVATAR_CORNER_RADIUS,
             BUBBLE_USER_IMAGE_CROP_LEFT, BUBBLE_USER_IMAGE_CROP_TOP, BUBBLE_USER_IMAGE_CROP_RIGHT,
             BUBBLE_USER_IMAGE_CROP_BOTTOM, BUBBLE_USER_IMAGE_REPEAT_START, BUBBLE_USER_IMAGE_REPEAT_END,
             BUBBLE_USER_IMAGE_REPEAT_Y_START, BUBBLE_USER_IMAGE_REPEAT_Y_END, BUBBLE_USER_IMAGE_SCALE,
@@ -1902,12 +1806,8 @@ class UserPreferencesManager private constructor(private val context: Context) {
         return ThemePreferenceSnapshot(
             source = source,
             sourceId = sourceId,
-            themeMode = stringValue(THEME_MODE, THEME_MODE_LIGHT) ?: THEME_MODE_LIGHT,
-            useSystemTheme = booleanValue(USE_SYSTEM_THEME, false),
-            useCustomColors = booleanValue(USE_CUSTOM_COLORS, false),
-            customPrimaryColor = intValue(CUSTOM_PRIMARY_COLOR),
-            customSecondaryColor = intValue(CUSTOM_SECONDARY_COLOR),
-            onColorMode = stringValue(KEY_ON_COLOR_MODE, ON_COLOR_MODE_AUTO) ?: ON_COLOR_MODE_AUTO,
+            themeMode = preferences[THEME_MODE] ?: THEME_MODE_LIGHT,
+            useSystemTheme = preferences[USE_SYSTEM_THEME] ?: false,
             useBackgroundImage = booleanValue(USE_BACKGROUND_IMAGE, false),
             backgroundImageUri = stringValue(BACKGROUND_IMAGE_URI),
             backgroundMediaType = stringValue(BACKGROUND_MEDIA_TYPE, MEDIA_TYPE_IMAGE)
@@ -1950,10 +1850,10 @@ class UserPreferencesManager private constructor(private val context: Context) {
             customAiAvatarUri = stringValue(KEY_CUSTOM_AI_AVATAR_URI),
             avatarShape = stringValue(KEY_AVATAR_SHAPE, AVATAR_SHAPE_CIRCLE) ?: AVATAR_SHAPE_CIRCLE,
             avatarCornerRadius = floatValue(KEY_AVATAR_CORNER_RADIUS, 8f),
-            fontType = stringValue(FONT_TYPE, FONT_TYPE_SYSTEM) ?: FONT_TYPE_SYSTEM,
-            systemFontName = stringValue(SYSTEM_FONT_NAME),
-            customFontPath = stringValue(CUSTOM_FONT_PATH),
-            fontScale = floatValue(FONT_SCALE, 1.0f),
+            fontType = preferences[FONT_TYPE] ?: FONT_TYPE_SYSTEM,
+            systemFontName = preferences[SYSTEM_FONT_NAME],
+            customFontPath = preferences[CUSTOM_FONT_PATH],
+            fontScale = preferences[FONT_SCALE] ?: 1.0f,
             showThinkingProcess = booleanValue(KEY_SHOW_THINKING_PROCESS, true),
             showStatusTags = booleanValue(KEY_SHOW_STATUS_TAGS, true),
             showModelProvider = booleanValue(KEY_SHOW_MODEL_PROVIDER, false),

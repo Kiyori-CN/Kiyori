@@ -7,12 +7,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -42,6 +44,9 @@ import com.ai.assistance.operit.data.model.ExecutionStatus
 import com.ai.assistance.operit.data.model.Workflow
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.workflow.viewmodel.WorkflowViewModel
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -52,6 +57,8 @@ fun WorkflowListScreen(
     viewModel: WorkflowViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val workflowColors = KiyoriSemanticTone.ORANGE.resolveColors()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var showTemplateDialog by remember { mutableStateOf(false) }
@@ -76,6 +83,7 @@ fun WorkflowListScreen(
     val selectedCount = selectedWorkflowIds.size
 
     CustomScaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(
                 horizontalAlignment = Alignment.End,
@@ -99,8 +107,7 @@ fun WorkflowListScreen(
                                         showDeleteSelectedDialog = true
                                         isFabMenuExpanded = false
                                     },
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    tone = KiyoriSemanticTone.RED,
                                 )
                             }
                             SpeedDialAction(
@@ -110,7 +117,8 @@ fun WorkflowListScreen(
                                     selectedWorkflowIds = emptySet()
                                     isSelectionMode = false
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.GREEN,
                             )
                         } else {
                             SpeedDialAction(
@@ -119,7 +127,8 @@ fun WorkflowListScreen(
                                 onClick = {
                                     showCreateDialog = true
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.ORANGE,
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.workflow_create_from_template),
@@ -127,7 +136,8 @@ fun WorkflowListScreen(
                                 onClick = {
                                     showTemplateDialog = true
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.PURPLE,
                             )
                             SpeedDialAction(
                                 text = stringResource(R.string.multi_select),
@@ -136,7 +146,8 @@ fun WorkflowListScreen(
                                     selectedWorkflowIds = emptySet()
                                     isSelectionMode = true
                                     isFabMenuExpanded = false
-                                }
+                                },
+                                tone = KiyoriSemanticTone.BLUE,
                             )
                         }
                     }
@@ -144,7 +155,8 @@ fun WorkflowListScreen(
 
                 FloatingActionButton(
                     onClick = { isFabMenuExpanded = !isFabMenuExpanded },
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = workflowColors.container,
+                    contentColor = workflowColors.icon,
                 ) {
                     val rotation by animateFloatAsState(
                         targetValue = if (isFabMenuExpanded) 45f else 0f,
@@ -172,19 +184,14 @@ fun WorkflowListScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // 极简图标
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "⚡",
-                                style = MaterialTheme.typography.displayMedium
-                            )
-                        }
+                        KiyoriSemanticIconBadge(
+                            imageVector = Icons.Outlined.PlayCircle,
+                            tone = KiyoriSemanticTone.ORANGE,
+                            contentDescription = null,
+                            containerSize = 72.dp,
+                            iconSize = 38.dp,
+                            shape = RoundedCornerShape(22.dp),
+                        )
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
@@ -209,7 +216,12 @@ fun WorkflowListScreen(
                         FilledTonalButton(
                             onClick = { showCreateDialog = true },
                             modifier = Modifier.height(48.dp),
-                            contentPadding = PaddingValues(horizontal = 28.dp)
+                            contentPadding = PaddingValues(horizontal = 28.dp),
+                            colors =
+                                ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = workflowColors.container,
+                                    contentColor = workflowColors.icon,
+                                ),
                         ) {
                             Icon(
                                 Icons.Default.Add,
@@ -283,11 +295,10 @@ fun WorkflowListScreen(
             }
 
             // 错误提示
-            viewModel.error?.let { error ->
-                LaunchedEffect(error) {
-                    // 可以显示Snackbar
-                    viewModel.clearError()
-                }
+            LaunchedEffect(viewModel.error) {
+                val error = viewModel.error ?: return@LaunchedEffect
+                snackbarHostState.showSnackbar(error)
+                viewModel.clearError()
             }
 
             // 创建工作流对话框
@@ -413,8 +424,10 @@ private fun WorkflowSelectionBar(
     onSelectAll: () -> Unit,
     onClearSelection: () -> Unit
 ) {
+    val colors = KiyoriSemanticTone.ORANGE.resolveColors()
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+        colors = CardDefaults.cardColors(containerColor = colors.container),
+        border = BorderStroke(1.dp, colors.icon.copy(alpha = 0.22f)),
     ) {
         Row(
             modifier = Modifier
@@ -457,6 +470,13 @@ private fun TemplateTypeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = {
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Outlined.PlayCircle,
+                tone = KiyoriSemanticTone.ORANGE,
+                contentDescription = null,
+            )
+        },
         title = { Text(stringResource(R.string.workflow_select_template_type)) },
         text = {
             Column(
@@ -553,22 +573,36 @@ private fun TemplateTypeItem(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder()
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Outlined.PlayCircle,
+                tone = KiyoriSemanticTone.ORANGE,
+                contentDescription = null,
+                containerSize = 34.dp,
+                iconSize = 18.dp,
+                shape = RoundedCornerShape(10.dp),
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -578,9 +612,9 @@ private fun SpeedDialAction(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
+    tone: KiyoriSemanticTone,
 ) {
+    val colors = tone.resolveColors()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -598,8 +632,8 @@ private fun SpeedDialAction(
         }
         SmallFloatingActionButton(
             onClick = onClick,
-            containerColor = containerColor,
-            contentColor = contentColor
+            containerColor = colors.container,
+            contentColor = colors.icon
         ) {
             Icon(icon, contentDescription = text)
         }
@@ -616,6 +650,7 @@ fun WorkflowCard(
     isSelected: Boolean = false,
     onSelectionChange: (Boolean) -> Unit = {}
 ) {
+    val workflowColors = KiyoriSemanticTone.ORANGE.resolveColors()
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -623,12 +658,17 @@ fun WorkflowCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                workflowColors.container
             } else {
                 MaterialTheme.colorScheme.surface
             }
         ),
-        border = CardDefaults.outlinedCardBorder()
+        border =
+            if (isSelected) {
+                BorderStroke(1.dp, workflowColors.icon.copy(alpha = 0.28f))
+            } else {
+                CardDefaults.outlinedCardBorder()
+            }
     ) {
         Column(
             modifier = Modifier
@@ -641,6 +681,15 @@ fun WorkflowCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                KiyoriSemanticIconBadge(
+                    imageVector = Icons.Outlined.PlayCircle,
+                    tone = KiyoriSemanticTone.ORANGE,
+                    contentDescription = null,
+                    containerSize = 34.dp,
+                    iconSize = 18.dp,
+                    shape = RoundedCornerShape(10.dp),
+                )
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = workflow.name,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -681,7 +730,12 @@ fun WorkflowCard(
                         Switch(
                             checked = workflow.enabled,
                             onCheckedChange = onEnabledChange,
-                            modifier = Modifier.scale(0.82f)
+                            modifier = Modifier.scale(0.82f),
+                            colors =
+                                SwitchDefaults.colors(
+                                    checkedThumbColor = workflowColors.icon,
+                                    checkedTrackColor = workflowColors.container,
+                                ),
                         )
                     }
                 }
@@ -735,7 +789,7 @@ fun WorkflowCard(
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = MaterialTheme.colorScheme.primary
+                            color = workflowColors.icon
                         )
                         Text(
                             text = stringResource(R.string.workflow_node),
@@ -783,19 +837,23 @@ fun ExecutionStatusBar(
     totalExecutions: Int,
     successRate: Int
 ) {
+    val successColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val failedColors = KiyoriSemanticTone.RED.resolveColors()
+    val runningColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val warningColors = KiyoriSemanticTone.ORANGE.resolveColors()
     val (statusColor, statusIcon, statusText) = when (status) {
         ExecutionStatus.SUCCESS -> Triple(
-            MaterialTheme.colorScheme.tertiary,
+            successColors.icon,
             Icons.Filled.CheckCircle,
             stringResource(R.string.workflow_execution_success)
         )
         ExecutionStatus.FAILED -> Triple(
-            MaterialTheme.colorScheme.error,
+            failedColors.icon,
             Icons.Filled.Error,
             stringResource(R.string.workflow_execution_failed)
         )
         ExecutionStatus.RUNNING -> Triple(
-            MaterialTheme.colorScheme.primary,
+            runningColors.icon,
             Icons.Outlined.PlayCircle,
             stringResource(R.string.workflow_execution_running)
         )
@@ -848,11 +906,11 @@ fun ExecutionStatusBar(
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = if (successRate >= 80) {
-                    MaterialTheme.colorScheme.tertiary
+                    successColors.icon
                 } else if (successRate >= 50) {
-                    MaterialTheme.colorScheme.primary
+                    warningColors.icon
                 } else {
-                    MaterialTheme.colorScheme.error
+                    failedColors.icon
                 }
             )
         }
@@ -869,6 +927,13 @@ fun CreateWorkflowDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = {
+            KiyoriSemanticIconBadge(
+                imageVector = Icons.Default.Add,
+                tone = KiyoriSemanticTone.ORANGE,
+                contentDescription = null,
+            )
+        },
         title = { Text(stringResource(R.string.workflow_create)) },
         text = {
             Column(

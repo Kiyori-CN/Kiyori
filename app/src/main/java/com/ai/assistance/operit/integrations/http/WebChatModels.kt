@@ -201,12 +201,6 @@ data class WebThemeSnapshot(
     val themeMode: String,
     @SerialName("use_system_theme")
     val useSystemTheme: Boolean,
-    @SerialName("use_custom_colors")
-    val useCustomColors: Boolean,
-    @SerialName("primary_color")
-    val primaryColor: String? = null,
-    @SerialName("secondary_color")
-    val secondaryColor: String? = null,
     @SerialName("palette")
     val palette: WebThemePalette,
     @SerialName("background")

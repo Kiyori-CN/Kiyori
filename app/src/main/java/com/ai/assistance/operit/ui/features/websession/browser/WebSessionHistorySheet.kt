@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSessionHistoryItem
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import java.text.DateFormat
 import java.util.Date
 
@@ -43,11 +46,15 @@ internal fun WebSessionHistorySheet(
         title = stringResource(R.string.web_session_history),
         modifier = modifier
     ) {
-        WebSessionSectionLabel(text = stringResource(R.string.web_session_current_session_history))
+        WebSessionSectionLabel(
+            text = stringResource(R.string.web_session_current_session_history),
+            tone = KiyoriSemanticTone.ORANGE,
+        )
         if (sessionHistory.isEmpty()) {
             WebSessionEmptyState(
                 icon = Icons.Filled.History,
-                title = stringResource(R.string.web_session_no_history)
+                title = stringResource(R.string.web_session_no_history),
+                tone = KiyoriSemanticTone.ORANGE,
             )
         } else {
             LazyColumn(
@@ -58,6 +65,7 @@ internal fun WebSessionHistorySheet(
                 items(items = sessionHistory, key = { "session-${it.index}" }) { item ->
                     WebSessionItemCard(
                         highlighted = item.isCurrent,
+                        highlightTone = KiyoriSemanticTone.ORANGE,
                         onClick = { onSelectSessionHistory(item.index) }
                     ) {
                         Row(
@@ -99,7 +107,7 @@ internal fun WebSessionHistorySheet(
                                     Text(
                                         text = stringResource(R.string.web_session_current_page),
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = KiyoriSemanticTone.ORANGE.resolveColors().icon,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -132,12 +140,15 @@ internal fun WebSessionHistorySheet(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            WebSessionSectionLabel(text = stringResource(R.string.web_session_recent_history))
+            WebSessionSectionLabel(
+                text = stringResource(R.string.web_session_recent_history),
+                tone = KiyoriSemanticTone.ORANGE,
+            )
             if (globalHistory.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.web_session_clear_history),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = KiyoriSemanticTone.RED.resolveColors().icon,
                     modifier =
                         Modifier
                             .clickable(onClick = onClearHistory)
@@ -149,7 +160,8 @@ internal fun WebSessionHistorySheet(
         if (globalHistory.isEmpty()) {
             WebSessionEmptyState(
                 icon = Icons.Filled.History,
-                title = stringResource(R.string.web_session_no_history)
+                title = stringResource(R.string.web_session_no_history),
+                tone = KiyoriSemanticTone.ORANGE,
             )
         } else {
             LazyColumn(
@@ -167,13 +179,14 @@ internal fun WebSessionHistorySheet(
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                modifier = Modifier.size(40.dp),
+                            KiyoriSemanticIconBadge(
+                                imageVector = Icons.Filled.History,
+                                tone = KiyoriSemanticTone.ORANGE,
+                                contentDescription = null,
+                                containerSize = 40.dp,
+                                iconSize = 21.dp,
                                 shape = androidx.compose.foundation.shape.CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
-                            ) {
-                                BoxHistoryIcon()
-                            }
+                            )
 
                             Column(
                                 modifier = Modifier.weight(1f),
@@ -204,20 +217,5 @@ internal fun WebSessionHistorySheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BoxHistoryIcon() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        androidx.compose.material3.Icon(
-            imageVector = Icons.Filled.History,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSecondaryContainer
-        )
     }
 }

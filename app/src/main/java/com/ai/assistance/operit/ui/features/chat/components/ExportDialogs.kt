@@ -48,8 +48,12 @@ import com.ai.assistance.operit.util.UriSerializer
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -780,72 +784,78 @@ suspend fun exportAndroidApp(
         onProgress: (Float, String) -> Unit,
         onComplete: (success: Boolean, filePath: String?, errorMessage: String?) -> Unit
 ) {
+    var outputFile: File? = null
     try {
         withContext(Dispatchers.IO) {
             onProgress(0.1f, context.getString(R.string.export_prepare_base_apk))
+            currentCoroutineContext().ensureActive()
 
             // 1. 初始化APK编辑器
             val apkEditor = ApkEditor.fromAsset(context, "subpack/android.apk")
 
-            // 2. 修改包名和应用名
-            onProgress(0.3f, context.getString(R.string.export_modify_app_info))
-            apkEditor.changePackageName(packageName)
-            apkEditor.changeAppName(appName)
-            apkEditor.changeVersionName(versionName)
-            apkEditor.changeVersionCode(versionCode)
-
-            // 4. 更改图标（如果提供）
-            if (iconUri != null) {
-                onProgress(0.4f, context.getString(R.string.export_change_app_icon))
-                context.contentResolver.openInputStream(iconUri)?.use { inputStream ->
-                    apkEditor.changeIcon(inputStream)
-                }
-            }
-
-            // 6. 准备签名文件
-            onProgress(0.7f, context.getString(R.string.export_prepare_signing))
-            // 使用KeyStoreHelper获取密钥库
-            val keyStoreFile = KeyStoreHelper.getOrCreateKeystore(context)
-            AppLogger.d(
-                    "ExportDialogs",
-                    "签名使用密钥库: ${keyStoreFile.absolutePath}, 大小: ${keyStoreFile.length()}"
-            )
-
-            // 7. 设置签名信息并执行签名
-            onProgress(0.8f, context.getString(R.string.export_signing_apk))
-            // 导出目录由 Kiyori 公共路径所有者统一管理，避免各导出器写入不同品牌目录。
-            val outputDir = OperitPaths.exportsDir()
-
-            val outputName = "WebApp_${Date().time}.apk"
-            val outputFile = File(outputDir, outputName)
-
-            AppLogger.d("ExportDialogs", "即将签名APK，使用密钥: ${keyStoreFile.absolutePath}, 别名: androidkey")
-            apkEditor
-                    .withSignature(
-                            keyStoreFile,
-                            "android", // 密码
-                            "androidkey", // 别名
-                            "android" // 密钥密码
-                    )
-                    .setOutput(outputFile)
-
             try {
+                // 2. 修改包名和应用名
+                onProgress(0.3f, context.getString(R.string.export_modify_app_info))
+                apkEditor.changePackageName(packageName)
+                apkEditor.changeAppName(appName)
+                apkEditor.changeVersionName(versionName)
+                apkEditor.changeVersionCode(versionCode)
+                currentCoroutineContext().ensureActive()
+
+                // 4. 更改图标（如果提供）
+                if (iconUri != null) {
+                    onProgress(0.4f, context.getString(R.string.export_change_app_icon))
+                    val inputStream =
+                        context.contentResolver.openInputStream(iconUri)
+                            ?: throw IOException("Unable to open selected Android app icon")
+                    inputStream.use(apkEditor::changeIcon)
+                }
+                currentCoroutineContext().ensureActive()
+
+                // 6. 准备签名文件
+                onProgress(0.7f, context.getString(R.string.export_prepare_signing))
+                val keyStoreFile = KeyStoreHelper.getOrCreateKeystore(context)
+                AppLogger.d(
+                        "ExportDialogs",
+                        "签名使用密钥库: ${keyStoreFile.absolutePath}, 大小: ${keyStoreFile.length()}"
+                )
+
+                // 7. 设置签名信息并执行签名
+                onProgress(0.8f, context.getString(R.string.export_signing_apk))
+                val outputDir = OperitPaths.exportsDir()
+                val androidOutputFile = File(outputDir, "WebApp_${Date().time}.apk")
+                outputFile = androidOutputFile
+
+                AppLogger.d("ExportDialogs", "即将签名APK，使用密钥: ${keyStoreFile.absolutePath}, 别名: androidkey")
+                apkEditor
+                        .withSignature(
+                                keyStoreFile,
+                                "android",
+                                "androidkey",
+                                "android"
+                        )
+                        .setOutput(androidOutputFile)
+
                 onProgress(0.5f, context.getString(R.string.export_pack_web_content))
                 onProgress(0.9f, context.getString(R.string.export_finish_packaging))
                 val signedApk = apkEditor.repackAndSignWithWebContent(webContentDir)
-
-                // 9. 清理
-                apkEditor.cleanup()
+                currentCoroutineContext().ensureActive()
 
                 onProgress(1.0f, context.getString(R.string.export_completed))
                 onComplete(true, signedApk.absolutePath, null)
-            } catch (e: Exception) {
-                AppLogger.e("ExportDialogs", "签名APK失败", e)
-                onComplete(false, null, context.getString(R.string.export_sign_apk_failed, e.message ?: ""))
-                apkEditor.cleanup() // 确保失败时也清理资源
+            } finally {
+                try {
+                    apkEditor.cleanup()
+                } catch (cleanupError: Exception) {
+                    AppLogger.e("ExportDialogs", "清理Android导出工作目录失败", cleanupError)
+                }
             }
         }
+    } catch (error: CancellationException) {
+        outputFile?.delete()
+        throw error
     } catch (e: Exception) {
+        outputFile?.delete()
         AppLogger.e("ExportDialogs", "导出失败", e)
         onComplete(false, null, context.getString(R.string.export_failed_with_reason, e.message ?: ""))
     }
@@ -860,18 +870,20 @@ suspend fun exportWindowsApp(
         onProgress: (Float, String) -> Unit,
         onComplete: (success: Boolean, filePath: String?, errorMessage: String?) -> Unit
 ) {
+    var outputZip: File? = null
     try {
         withContext(Dispatchers.IO) {
             onProgress(0.1f, context.getString(R.string.export_prepare_windows_template))
+            currentCoroutineContext().ensureActive()
 
             val outputDir = OperitPaths.exportsDir()
 
             // 创建临时工作目录
-            val tempDir = File(context.cacheDir, "windows_export_temp")
-            if (tempDir.exists()) {
-                tempDir.deleteRecursively()
+            val tempDir =
+                File(context.cacheDir, "windows_export_${UUID.randomUUID()}")
+            if (!tempDir.mkdirs()) {
+                throw IOException("Unable to create Windows export work directory")
             }
-            tempDir.mkdirs()
 
             try {
                 // 1. 从assets复制windows.zip模板到临时目录
@@ -880,23 +892,32 @@ suspend fun exportWindowsApp(
                 context.assets.open("subpack/windows.zip").use { input ->
                     FileOutputStream(templateZip).use { output -> input.copyTo(output) }
                 }
+                currentCoroutineContext().ensureActive()
 
                 // 2. 解压windows.zip
                 onProgress(0.3f, context.getString(R.string.export_extract_template))
                 val extractedDir = File(tempDir, "extracted")
-                extractedDir.mkdirs()
+                if (!extractedDir.mkdirs()) {
+                    throw IOException("Unable to create Windows export extraction directory")
+                }
 
                 // 解压ZIP文件
                 java.util.zip.ZipFile(templateZip).use { zip ->
                     val entries = zip.entries()
                     while (entries.hasMoreElements()) {
+                        currentCoroutineContext().ensureActive()
                         val entry = entries.nextElement()
-                        val entryFile = File(extractedDir, entry.name)
+                        val entryFile = resolveZipEntryTarget(extractedDir, entry.name)
 
                         if (entry.isDirectory) {
-                            entryFile.mkdirs()
+                            if (!entryFile.exists() && !entryFile.mkdirs()) {
+                                throw IOException("Unable to create Windows export template directory")
+                            }
                         } else {
-                            entryFile.parentFile?.mkdirs()
+                            val parentDir = entryFile.parentFile
+                            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                                throw IOException("Unable to create Windows export template directory")
+                            }
                             zip.getInputStream(entry).use { input ->
                                 FileOutputStream(entryFile).use { output -> input.copyTo(output) }
                             }
@@ -908,21 +929,19 @@ suspend fun exportWindowsApp(
                 if (iconUri != null) {
                     onProgress(0.4f, context.getString(R.string.export_change_app_icon))
                     val mainExe = File(extractedDir, "assistance_subpack.exe")
-                    if (mainExe.exists()) {
-                        try {
-                            val exeEditor = ExeEditor.fromFile(context, mainExe)
-                            context.contentResolver.openInputStream(iconUri)?.use { input ->
-                                exeEditor.changeIcon(input).setOutput(mainExe).process()
-                            }
-                            AppLogger.d("ExportDialogs", "已更换Windows应用图标")
-                        } catch (e: Exception) {
-                            AppLogger.e("ExportDialogs", "更换Windows应用图标失败", e)
-                            // 继续执行，不因图标失败而中断整个导出流程
-                        }
-                    } else {
-                        AppLogger.e("ExportDialogs", "未找到assistance_subpack.exe文件")
+                    if (!mainExe.isFile) {
+                        throw IOException("Windows export template is missing assistance_subpack.exe")
                     }
+                    val inputStream =
+                        context.contentResolver.openInputStream(iconUri)
+                            ?: throw IOException("Unable to open selected Windows app icon")
+                    val exeEditor = ExeEditor.fromFile(context, mainExe)
+                    inputStream.use { input ->
+                        exeEditor.changeIcon(input).setOutput(mainExe).process()
+                    }
+                    AppLogger.d("ExportDialogs", "已更换Windows应用图标")
                 }
+                currentCoroutineContext().ensureActive()
 
                 // 4. 复制网页内容到data\flutter_assets\assets\web_content
                 onProgress(0.5f, context.getString(R.string.export_copy_web_content))
@@ -936,32 +955,38 @@ suspend fun exportWindowsApp(
                         "复制网页文件到Windows应用: ${webContentDir.absolutePath} -> ${webContentTarget.absolutePath}"
                 )
                 copyDirectory(webContentDir, webContentTarget)
+                currentCoroutineContext().ensureActive()
 
                 // 5. 创建最终输出文件名
                 val timestamp =
                         java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
                                 .format(java.util.Date())
                 val safeName = appName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-                val outputZip = File(outputDir, "${safeName}_${timestamp}.zip")
+                val windowsOutputZip = File(outputDir, "${safeName}_${timestamp}.zip")
+                outputZip = windowsOutputZip
 
                 // 6. 重新打包为ZIP
                 onProgress(0.8f, context.getString(R.string.export_pack_app))
 
                 // 确保输出文件不存在
-                if (outputZip.exists()) {
-                    outputZip.delete()
+                if (windowsOutputZip.exists() && !windowsOutputZip.delete()) {
+                    throw IOException("Unable to replace existing Windows export")
                 }
 
                 // 创建ZIP文件
                 val buffer = ByteArray(1024)
-                java.util.zip.ZipOutputStream(FileOutputStream(outputZip)).use { zipOut ->
+                java.util.zip.ZipOutputStream(FileOutputStream(windowsOutputZip)).use { zipOut ->
                     // 添加文件到ZIP
                     addDirToZip(extractedDir, extractedDir, zipOut, buffer)
                 }
+                currentCoroutineContext().ensureActive()
 
                 onProgress(1.0f, context.getString(R.string.export_completed))
-                onComplete(true, outputZip.absolutePath, null)
+                onComplete(true, windowsOutputZip.absolutePath, null)
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
+                outputZip?.delete()
                 AppLogger.e("ExportDialogs", "Windows应用导出过程失败", e)
                 onComplete(false, null, context.getString(R.string.export_process_failed, e.message ?: ""))
             } finally {
@@ -974,6 +999,9 @@ suspend fun exportWindowsApp(
                 }
             }
         }
+    } catch (error: CancellationException) {
+        outputZip?.delete()
+        throw error
     } catch (e: Exception) {
         AppLogger.e("ExportDialogs", "Windows应用导出失败", e)
         onComplete(false, null, context.getString(R.string.export_failed_with_reason, e.message ?: ""))
@@ -981,13 +1009,17 @@ suspend fun exportWindowsApp(
 }
 
 /** 递归添加目录到ZIP文件 */
-private fun addDirToZip(
+private suspend fun addDirToZip(
         rootDir: File,
         currentDir: File,
         zipOut: java.util.zip.ZipOutputStream,
         buffer: ByteArray
 ) {
-    currentDir.listFiles()?.forEach { file ->
+    val files =
+        currentDir.listFiles()
+            ?: throw IOException("Unable to read export directory: ${currentDir.name}")
+    files.forEach { file ->
+        currentCoroutineContext().ensureActive()
         val relativePath =
                 file.absolutePath.substring(rootDir.absolutePath.length + 1).replace("\\", "/")
 
@@ -1000,22 +1032,19 @@ private fun addDirToZip(
                 zipOut.closeEntry()
             }
         } else {
-            try {
-                val entry = java.util.zip.ZipEntry(relativePath)
-                zipOut.putNextEntry(entry)
+            val entry = java.util.zip.ZipEntry(relativePath)
+            zipOut.putNextEntry(entry)
 
-                FileInputStream(file).use { input ->
-                    var len: Int
-                    while (input.read(buffer).also { len = it } > 0) {
-                        zipOut.write(buffer, 0, len)
-                    }
+            FileInputStream(file).use { input ->
+                var len: Int
+                while (input.read(buffer).also { len = it } > 0) {
+                    currentCoroutineContext().ensureActive()
+                    zipOut.write(buffer, 0, len)
                 }
-
-                zipOut.closeEntry()
-                AppLogger.d("ExportDialogs", "已添加文件到ZIP: $relativePath")
-            } catch (e: Exception) {
-                AppLogger.e("ExportDialogs", "添加文件到ZIP失败: $relativePath", e)
             }
+
+            zipOut.closeEntry()
+            AppLogger.d("ExportDialogs", "已添加文件到ZIP: $relativePath")
         }
     }
 }
@@ -1033,38 +1062,54 @@ private fun validateKeystore(file: File, type: String, password: String): Boolea
 }
 
 /** 复制目录及其内容 */
-private fun copyDirectory(sourceDir: File, destDir: File) {
-    if (!destDir.exists()) {
-        destDir.mkdirs()
+private suspend fun copyDirectory(sourceDir: File, destDir: File) {
+    currentCoroutineContext().ensureActive()
+    if (!destDir.exists() && !destDir.mkdirs()) {
+        throw IOException("Unable to create export directory: ${destDir.name}")
     }
 
-    sourceDir.listFiles()?.forEach { file ->
+    val files =
+        sourceDir.listFiles()
+            ?: throw IOException("Unable to read export source directory: ${sourceDir.name}")
+    files.forEach { file ->
+        currentCoroutineContext().ensureActive()
         val destFile = File(destDir, file.name)
         if (file.isDirectory) {
             copyDirectory(file, destFile)
         } else {
-            try {
-                // 如果目标文件已存在，则先删除
-                if (destFile.exists()) {
-                    destFile.delete()
-                }
-
-                // 确保父目录存在
-                destFile.parentFile?.mkdirs()
-
-                // 复制文件内容
-                file.inputStream().use { input ->
-                    FileOutputStream(destFile).use { output -> input.copyTo(output) }
-                }
-
-                AppLogger.d("ExportDialogs", "成功复制文件: ${file.absolutePath} -> ${destFile.absolutePath}")
-            } catch (e: Exception) {
-                AppLogger.e(
-                        "ExportDialogs",
-                        "复制文件失败: ${file.absolutePath} -> ${destFile.absolutePath}",
-                        e
-                )
+            if (destFile.exists() && !destFile.delete()) {
+                throw IOException("Unable to replace export file: ${destFile.name}")
             }
+
+            val parentDir = destFile.parentFile
+            if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
+                throw IOException("Unable to create export directory: ${parentDir.name}")
+            }
+
+            file.inputStream().use { input ->
+                FileOutputStream(destFile).use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var count: Int
+                    while (input.read(buffer).also { count = it } >= 0) {
+                        currentCoroutineContext().ensureActive()
+                        if (count > 0) {
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                }
+            }
+            AppLogger.d("ExportDialogs", "成功复制文件: ${file.absolutePath} -> ${destFile.absolutePath}")
         }
     }
+}
+
+internal fun resolveZipEntryTarget(rootDir: File, entryName: String): File {
+    val canonicalRoot = rootDir.canonicalFile
+    val normalizedEntryName = entryName.replace('\\', '/')
+    val canonicalTarget = File(canonicalRoot, normalizedEntryName).canonicalFile
+    val rootPath = canonicalRoot.toPath()
+    if (!canonicalTarget.toPath().startsWith(rootPath)) {
+        throw IOException("Windows export template contains an unsafe path: $entryName")
+    }
+    return canonicalTarget
 }

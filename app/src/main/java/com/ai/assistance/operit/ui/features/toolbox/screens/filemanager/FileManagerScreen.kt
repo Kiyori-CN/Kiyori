@@ -40,9 +40,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.provider.DocumentsContract
+import android.widget.Toast
 import kotlinx.coroutines.launch
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.withTimeoutOrNull
+
+private const val FILE_MANAGER_TAG = "ToolboxFileManager"
 
 /** 文件管理器屏幕 */
 @Composable
@@ -108,7 +111,17 @@ fun FileManagerScreen(navController: NavController) {
     ) { uri: Uri? ->
         if (uri != null) {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            runCatching { context.contentResolver.takePersistableUriPermission(uri, flags) }
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (error: Exception) {
+                AppLogger.e(FILE_MANAGER_TAG, "持久化仓库目录访问权限失败", error)
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.file_manager_permission_denied),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                return@rememberLauncherForActivityResult
+            }
             pendingRepoBookmarkUri = uri
             repoBookmarkNameInput = queryRepoBookmarkName(uri)
             showRepoBookmarkNameDialog = true
@@ -171,7 +184,7 @@ fun FileManagerScreen(navController: NavController) {
                         pendingRepoBookmarkUri = null
                         repoBookmarkNameError = null
                     }
-                ) { Text(context.getString(android.R.string.ok)) }
+                ) { Text(stringResource(android.R.string.ok)) }
             },
             dismissButton = {
                 TextButton(
@@ -180,7 +193,7 @@ fun FileManagerScreen(navController: NavController) {
                         pendingRepoBookmarkUri = null
                         repoBookmarkNameError = null
                     }
-                ) { Text(context.getString(android.R.string.cancel)) }
+                ) { Text(stringResource(android.R.string.cancel)) }
             }
         )
     }
@@ -361,7 +374,7 @@ fun FileManagerScreen(navController: NavController) {
                             icon = Icons.Default.Folder,
                             isActive = viewModel.currentEnvironment == repoEnv,
                             onClick = {
-                                AppLogger.d("ToolboxFileManager", "switch to repository name=${bookmark.name} env=$repoEnv")
+                                AppLogger.d(FILE_MANAGER_TAG, "switch to repository name=${bookmark.name} env=$repoEnv")
                                 viewModel.navigateToPath("/", repoEnv)
                             },
                             onLongPress = { menuExpanded = true }
@@ -377,7 +390,11 @@ fun FileManagerScreen(navController: NavController) {
                                     val uri = runCatching { Uri.parse(bookmark.uri) }.getOrNull()
                                     if (uri != null) {
                                         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                        runCatching { context.contentResolver.releasePersistableUriPermission(uri, flags) }
+                                        try {
+                                            context.contentResolver.releasePersistableUriPermission(uri, flags)
+                                        } catch (error: Exception) {
+                                            AppLogger.w(FILE_MANAGER_TAG, "释放仓库目录访问权限失败", error)
+                                        }
                                     }
                                     scope.launch {
                                         apiPreferences.removeSafBookmark(bookmark.uri)

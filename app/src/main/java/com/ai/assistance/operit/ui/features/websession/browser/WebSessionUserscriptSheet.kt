@@ -40,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallPreview
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
@@ -82,12 +84,16 @@ internal fun WebSessionUserscriptSheet(
                     title = stringResource(R.string.web_session_userscript_unsupported),
                     message =
                         state.supportState.reason
-                            ?: stringResource(R.string.web_session_userscript_unsupported_summary)
+                            ?: stringResource(R.string.web_session_userscript_unsupported_summary),
+                    tone = KiyoriSemanticTone.RED,
                 )
                 return@Column
             }
 
-            WebSessionSectionLabel(text = stringResource(R.string.web_session_userscript_install))
+            WebSessionSectionLabel(
+                text = stringResource(R.string.web_session_userscript_install),
+                tone = KiyoriSemanticTone.PURPLE,
+            )
             WebSessionItemCard {
                 Column(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -130,7 +136,8 @@ internal fun WebSessionUserscriptSheet(
                             } else {
                                 R.string.web_session_userscript_install_preview
                             }
-                        )
+                        ),
+                    tone = KiyoriSemanticTone.PURPLE,
                 )
                 PendingInstallCard(
                     preview = preview,
@@ -140,7 +147,10 @@ internal fun WebSessionUserscriptSheet(
             }
 
             if (currentPageMenuCommands.isNotEmpty()) {
-                WebSessionSectionLabel(text = stringResource(R.string.web_session_userscript_page_menu))
+                WebSessionSectionLabel(
+                    text = stringResource(R.string.web_session_userscript_page_menu),
+                    tone = KiyoriSemanticTone.PURPLE,
+                )
                 currentPageMenuCommands.forEach { command ->
                     WebSessionItemCard(onClick = { onInvokeMenuCommand(command.commandId) }) {
                         Row(
@@ -151,17 +161,14 @@ internal fun WebSessionUserscriptSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Surface(
+                            KiyoriSemanticIconBadge(
+                                imageVector = Icons.Filled.Extension,
+                                tone = KiyoriSemanticTone.PURPLE,
+                                contentDescription = null,
+                                containerSize = 38.dp,
+                                iconSize = 20.dp,
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Extension,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(9.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
+                            )
                             Column(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -182,11 +189,15 @@ internal fun WebSessionUserscriptSheet(
                 }
             }
 
-            WebSessionSectionLabel(text = stringResource(R.string.web_session_userscript_library))
+            WebSessionSectionLabel(
+                text = stringResource(R.string.web_session_userscript_library),
+                tone = KiyoriSemanticTone.PURPLE,
+            )
             if (state.installedScripts.isEmpty()) {
                 WebSessionEmptyState(
                     icon = Icons.Filled.Description,
-                    title = stringResource(R.string.web_session_userscript_none)
+                    title = stringResource(R.string.web_session_userscript_none),
+                    tone = KiyoriSemanticTone.PURPLE,
                 )
             } else {
                 state.installedScripts.forEach { script ->
@@ -210,7 +221,10 @@ private fun PendingInstallCard(
     onCancelInstall: () -> Unit
 ) {
     val previewBlockedReasons = preview.blockedReasons.filterNot { it.startsWith("Unknown grants:") }
-    WebSessionItemCard(highlighted = true) {
+    WebSessionItemCard(
+        highlighted = true,
+        highlightTone = KiyoriSemanticTone.PURPLE,
+    ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)

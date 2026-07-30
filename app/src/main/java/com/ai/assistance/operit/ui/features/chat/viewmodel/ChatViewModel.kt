@@ -735,18 +735,20 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     private suspend fun autoSwitchCharacterTargetForChat(chatId: String) {
         val targetHistory = chatHistories.value.firstOrNull { it.id == chatId } ?: return
-        runCatching {
+        try {
             activePromptManager.activateForChatBinding(
                 characterCardName = targetHistory.characterCardName,
                 characterGroupId = targetHistory.characterGroupId
             )
-        }.onFailure { throwable ->
-            AppLogger.w(TAG, "Auto switch character target failed: ${throwable.message}")
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.w(TAG, "Auto switch character target failed", error)
         }
     }
 
     private suspend fun autoSwitchChatForCharacterTarget(target: CharacterSelectorTarget) {
-        runCatching {
+        try {
             when (target) {
                 is CharacterSelectorTarget.CharacterCardTarget -> {
                     val targetCard = characterCardManager.getCharacterCard(target.id)
@@ -773,8 +775,10 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                     }
                 }
             }
-        }.onFailure { throwable ->
-            AppLogger.w(TAG, "Auto switch chat for character target failed: ${throwable.message}")
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.w(TAG, "Auto switch chat for character target failed", error)
         }
     }
 
@@ -2439,7 +2443,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         newWorkspaceName: String
     ): WorkspaceRenameResult {
         val result = chatHistoryDelegate.renameWorkspaceAndChat(chatId, newWorkspaceName)
-        runCatching {
+        try {
             if (prepareWorkspaceServer(result.workspacePath, result.workspaceEnv)) {
                 AppLogger.d(
                     TAG,
@@ -2452,7 +2456,9 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                 )
             }
             refreshWebView()
-        }.onFailure { e ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to refresh workspace after rename", e)
             uiStateDelegate.showErrorMessage(
                 context.getString(R.string.chat_update_workspace_server_failed, e.message ?: "")

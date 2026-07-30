@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 
 @Composable
 internal fun WebSessionBrowserPlaceholderSheet(
@@ -67,17 +69,14 @@ internal fun WebSessionBrowserPlaceholderSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Surface(
+                KiyoriSemanticIconBadge(
+                    imageVector = model.icon,
+                    tone = model.tone,
+                    contentDescription = null,
+                    containerSize = 70.dp,
+                    iconSize = 34.dp,
                     shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.64f),
-                ) {
-                    Icon(
-                        imageVector = model.icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(18.dp).size(34.dp),
-                    )
-                }
+                )
                 Text(
                     text = stringResource(R.string.web_session_placeholder_status),
                     style = MaterialTheme.typography.titleMedium,
@@ -107,6 +106,7 @@ private data class PlaceholderModel(
     val title: String,
     val description: String,
     val icon: ImageVector,
+    val tone: KiyoriSemanticTone,
 )
 
 @Composable
@@ -117,24 +117,28 @@ private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderMode
                 title = stringResource(R.string.web_session_browser_toolbox),
                 description = stringResource(R.string.web_session_placeholder_toolbox),
                 icon = Icons.Filled.Build,
+                tone = KiyoriSemanticTone.CYAN,
             )
         WebSessionBrowserPlaceholderPage.READER_MODE ->
             PlaceholderModel(
                 title = stringResource(R.string.web_session_reader_mode),
                 description = stringResource(R.string.web_session_placeholder_reader_mode),
                 icon = Icons.Filled.MenuBook,
+                tone = KiyoriSemanticTone.GREEN,
             )
         WebSessionBrowserPlaceholderPage.AD_MARKING ->
             PlaceholderModel(
                 title = stringResource(R.string.web_session_ad_marking),
                 description = stringResource(R.string.web_session_placeholder_ad_marking),
                 icon = Icons.Filled.Block,
+                tone = KiyoriSemanticTone.RED,
             )
         WebSessionBrowserPlaceholderPage.SITE_CONFIG ->
             PlaceholderModel(
                 title = stringResource(R.string.web_session_site_config),
                 description = stringResource(R.string.web_session_placeholder_site_config),
                 icon = Icons.Filled.Security,
+                tone = KiyoriSemanticTone.ORANGE,
             )
     }
 

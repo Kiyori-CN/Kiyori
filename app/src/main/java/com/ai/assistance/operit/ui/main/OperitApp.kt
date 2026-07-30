@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.navigation.compose.rememberNavController
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
@@ -132,6 +133,7 @@ fun OperitApp(
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val browserHistoryStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val browserCoordinator =
         remember(context) { BrowserPresentationCoordinator.getInstance(context.applicationContext) }
@@ -372,6 +374,27 @@ fun OperitApp(
         val targetStack = buildAiPrimaryStack(targetRoot, savedStack, restoreChildren)
         isNavigatingBack = false
         routerState.restoreStack(targetStack)
+    }
+
+    fun openKiyoriSettingsRoot(
+        screen: Screen,
+        rootId: String,
+    ) {
+        saveCurrentAiPrimaryStack()
+        isNavigatingBack = false
+        routerState.resetTo(
+            AppRouteCatalog
+                .toEntry(
+                    screen = screen,
+                    source = RouteEntrySource.KIYORI_SETTINGS,
+                ).copy(
+                    instanceId = "kiyori.settings.root:$rootId",
+                    navigationRootEntryId = "kiyori.settings.$rootId",
+                ),
+        )
+        updateShellState(
+            shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
+        )
     }
 
     fun performGoBack() {
@@ -637,7 +660,7 @@ fun OperitApp(
                     scope.launch {
                         val request =
                             resolveKiyoriWebSearchRequest(
-                                rawQuery = context.getString(R.string.kiyori_home_weather_query, city),
+                                rawQuery = resources.getString(R.string.kiyori_home_weather_query, city),
                                 searchEngine = browserHistoryStore.searchEngineFlow.first(),
                                 profile = browserCoordinator.newSessionProfileState().defaultProfile,
                             )
@@ -652,7 +675,13 @@ fun OperitApp(
                 },
                 onOpenBookmark = browserCoordinator::openUrl,
                 onOpenBookmarkInTab = browserCoordinator::openUrlInSiblingSession,
-                onOpenAiSettingsFromKiyoriSettings = {
+                onOpenAccountConnectionsFromKiyoriSettings = {
+                    openKiyoriSettingsRoot(
+                        screen = Screen.AccountConnectionsSettings,
+                        rootId = "account_connections",
+                    )
+                },
+                onOpenAiAssistantFromKiyoriSettings = {
                     replaceAiPrimary(
                         aiSettingsDrawerEntry,
                         RouteEntrySource.KIYORI_SETTINGS,
@@ -661,9 +690,27 @@ fun OperitApp(
                         shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
                     )
                 },
+                onOpenSpeechServicesFromKiyoriSettings = {
+                    openKiyoriSettingsRoot(
+                        screen = Screen.SpeechServicesSettings,
+                        rootId = "speech_services",
+                    )
+                },
                 onOpenBrowserSettingsFromKiyoriSettings = {
                     updateShellState(
                         shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
+                    )
+                },
+                onOpenAppearanceSettingsFromKiyoriSettings = {
+                    openKiyoriSettingsRoot(
+                        screen = Screen.AppearanceSettings,
+                        rootId = "appearance",
+                    )
+                },
+                onOpenDataSettingsFromKiyoriSettings = {
+                    openKiyoriSettingsRoot(
+                        screen = Screen.DataManagementSettings,
+                        rootId = "data_management",
                     )
                 },
                 onSubmitWebSearch = ::submitWebSearch,

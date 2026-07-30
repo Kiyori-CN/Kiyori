@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.apppermissions
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.PermissionInfo as AndroidPermissionInfo
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -24,7 +25,6 @@ import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -37,9 +37,17 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
+import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private const val RESET_PERMISSION_OPERATION = "reset_permissions"
 
 data class AppInfo(
         val name: String,
@@ -54,6 +62,7 @@ data class PermissionInfo(
         val description: String,
         val granted: Boolean,
         val dangerous: Boolean,
+        val modifiable: Boolean,
         val group: String,
         val rawName: String // 用于执行命令
 )
@@ -73,28 +82,30 @@ fun AppPermissionsScreen(navController: NavController) {
     var showSystemApps by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showError by remember { mutableStateOf(false) }
+    var permissionLoadJob by remember { mutableStateOf<Job?>(null) }
+    var permissionMutationJob by remember { mutableStateOf<Job?>(null) }
+    var permissionMutationRawName by remember { mutableStateOf<String?>(null) }
 
     // 分组权限，按组显示
     val groupedPermissions =
             remember(selectedAppPermissions) { selectedAppPermissions.groupBy { it.group } }
 
-    // 权限组颜色和图标
-    val groupColors = remember {
+    val groupTones = remember {
         mapOf(
-                "ACTIVITY_RECOGNITION" to Color(0xFF8D6E63),
-                "CALENDAR" to Color(0xFF7986CB),
-                "CALL_LOG" to Color(0xFFE57373),
-                "CAMERA" to Color(0xFFBA68C8),
-                "CONTACTS" to Color(0xFF4DB6AC),
-                "LOCATION" to Color(0xFFFFB74D),
-                "MICROPHONE" to Color(0xFF4FC3F7),
-                "PHONE" to Color(0xFFFF8A65),
-                "SENSORS" to Color(0xFF9CCC65),
-                "SMS" to Color(0xFFFF8A65),
-                "STORAGE" to Color(0xFF7E57C2),
-                "OTHER_GRANTED" to Color(0xFF66BB6A),
-                "OTHER_DENIED" to Color(0xFF78909C),
-                "undefined" to Color(0xFF9E9E9E)
+                "ACTIVITY_RECOGNITION" to KiyoriSemanticTone.GREEN,
+                "CALENDAR" to KiyoriSemanticTone.BLUE,
+                "CALL_LOG" to KiyoriSemanticTone.RED,
+                "CAMERA" to KiyoriSemanticTone.PINK,
+                "CONTACTS" to KiyoriSemanticTone.CYAN,
+                "LOCATION" to KiyoriSemanticTone.ORANGE,
+                "MICROPHONE" to KiyoriSemanticTone.CYAN,
+                "PHONE" to KiyoriSemanticTone.RED,
+                "SENSORS" to KiyoriSemanticTone.GREEN,
+                "SMS" to KiyoriSemanticTone.ORANGE,
+                "STORAGE" to KiyoriSemanticTone.PURPLE,
+                "OTHER_GRANTED" to KiyoriSemanticTone.GREEN,
+                "OTHER_DENIED" to KiyoriSemanticTone.RED,
+                "undefined" to KiyoriSemanticTone.CYAN
         )
     }
 
@@ -120,11 +131,8 @@ fun AppPermissionsScreen(navController: NavController) {
     // 加载应用列表
     LaunchedEffect(Unit) {
         isLoading = true
-        coroutineScope.launch {
-            val apps = loadInstalledApps(packageManager)
-            installedApps = apps
-            isLoading = false
-        }
+        installedApps = loadInstalledApps(packageManager)
+        isLoading = false
     }
 
     // 过滤应用列表
@@ -142,26 +150,38 @@ fun AppPermissionsScreen(navController: NavController) {
 
     // 查询应用权限函数
     fun loadAppPermissions(packageName: String) {
+        permissionLoadJob?.cancel()
+        selectedAppPermissions = emptyList()
         isPermissionLoading = true
-        coroutineScope.launch {
+        permissionLoadJob = coroutineScope.launch {
             try {
                 val permissions = getAppPermissions(packageName, context)
-                selectedAppPermissions = permissions
+                if (selectedApp?.packageName == packageName) {
+                    selectedAppPermissions = permissions
+                }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
-                                            errorMessage = context.getString(R.string.toolbox_permissions_get_error, e.message ?: "")
-                showError = true
+                if (selectedApp?.packageName == packageName) {
+                    errorMessage =
+                        context.getString(R.string.toolbox_permissions_get_error, e.message ?: "")
+                    showError = true
+                }
             } finally {
-                isPermissionLoading = false
+                if (selectedApp?.packageName == packageName) {
+                    isPermissionLoading = false
+                }
             }
         }
     }
 
     // 修改应用权限函数
     fun togglePermission(permission: PermissionInfo) {
+        if (!permission.modifiable || permissionMutationJob?.isActive == true) return
         val packageName = selectedApp?.packageName ?: return
         val action = if (permission.granted) "revoke" else "grant"
-
-        coroutineScope.launch {
+        permissionMutationRawName = permission.rawName
+        permissionMutationJob = coroutineScope.launch {
             try {
                 val result =
                         withContext(Dispatchers.IO) {
@@ -171,15 +191,39 @@ fun AppPermissionsScreen(navController: NavController) {
                         }
 
                 if (result.success) {
-                    // 刷新权限列表
-                    loadAppPermissions(packageName)
+                    if (selectedApp?.packageName == packageName) {
+                        selectedAppPermissions =
+                            selectedAppPermissions.map { currentPermission ->
+                                if (currentPermission.rawName == permission.rawName) {
+                                    currentPermission.copy(granted = !permission.granted)
+                                } else {
+                                    currentPermission
+                                }
+                            }
+                    }
                 } else {
-                                                errorMessage = context.getString(R.string.toolbox_permissions_modify_error, result.stderr)
+                    if (selectedApp?.packageName == packageName) {
+                        errorMessage =
+                            context.getString(
+                                R.string.toolbox_permissions_modify_error,
+                                result.stderr,
+                            )
+                        showError = true
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (e: Exception) {
+                if (selectedApp?.packageName == packageName) {
+                    errorMessage =
+                        context.getString(
+                            R.string.toolbox_permissions_modify_error,
+                            e.message ?: "",
+                        )
                     showError = true
                 }
-            } catch (e: Exception) {
-                                            errorMessage = context.getString(R.string.toolbox_permissions_modify_error, e.message ?: "")
-                showError = true
+            } finally {
+                permissionMutationRawName = null
             }
         }
     }
@@ -188,7 +232,9 @@ fun AppPermissionsScreen(navController: NavController) {
     fun resetAppPermissions() {
         val packageName = selectedApp?.packageName ?: return
 
-        coroutineScope.launch {
+        if (permissionMutationJob?.isActive == true) return
+        permissionMutationRawName = RESET_PERMISSION_OPERATION
+        permissionMutationJob = coroutineScope.launch {
             try {
                 val result =
                         withContext(Dispatchers.IO) {
@@ -198,15 +244,32 @@ fun AppPermissionsScreen(navController: NavController) {
                         }
 
                 if (result.success) {
-                    // 刷新权限列表
-                    loadAppPermissions(packageName)
+                    if (selectedApp?.packageName == packageName) {
+                        loadAppPermissions(packageName)
+                    }
                 } else {
-                                                errorMessage = context.getString(R.string.toolbox_permissions_reset_error, result.stderr)
+                    if (selectedApp?.packageName == packageName) {
+                        errorMessage =
+                            context.getString(
+                                R.string.toolbox_permissions_reset_error,
+                                result.stderr,
+                            )
+                        showError = true
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (e: Exception) {
+                if (selectedApp?.packageName == packageName) {
+                    errorMessage =
+                        context.getString(
+                            R.string.toolbox_permissions_reset_error,
+                            e.message ?: "",
+                        )
                     showError = true
                 }
-            } catch (e: Exception) {
-                                        errorMessage = context.getString(R.string.toolbox_permissions_reset_error, e.message ?: "")
-                showError = true
+            } finally {
+                permissionMutationRawName = null
             }
         }
     }
@@ -421,7 +484,14 @@ fun AppPermissionsScreen(navController: NavController) {
                             ) {
                                 // 返回按钮
                                 IconButton(
-                                        onClick = { selectedApp = null },
+                                        onClick = {
+                                            permissionLoadJob?.cancel()
+                                            permissionMutationJob?.cancel()
+                                            permissionMutationRawName = null
+                                            selectedAppPermissions = emptyList()
+                                            isPermissionLoading = false
+                                            selectedApp = null
+                                        },
                                         modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
@@ -480,6 +550,9 @@ fun AppPermissionsScreen(navController: NavController) {
                                 // 重置权限按钮
                                 FilledTonalIconButton(
                                         onClick = { resetAppPermissions() },
+                                        enabled =
+                                                !isPermissionLoading &&
+                                                    permissionMutationRawName == null,
                                         modifier = Modifier.size(40.dp),
                                         colors =
                                                 IconButtonDefaults.filledTonalIconButtonColors(
@@ -514,16 +587,14 @@ fun AppPermissionsScreen(navController: NavController) {
                                     colors =
                                             CardDefaults.cardColors(
                                                     containerColor =
-                                                            colorScheme.primaryContainer.copy(
-                                                                    alpha = 0.7f
-                                                            )
+                                                        colorScheme.surfaceContainerLow
                                             )
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text(
                                             context.getString(R.string.toolbox_permissions_overview),
                                             style = MaterialTheme.typography.titleMedium,
-                                            color = colorScheme.onPrimaryContainer
+                                            color = colorScheme.onSurface
                                     )
 
                                     Spacer(modifier = Modifier.height(16.dp))
@@ -537,7 +608,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                                 count = totalPerms,
                                                 label = context.getString(R.string.toolbox_permissions_total),
                                                 icon = Icons.Default.List,
-                                                iconTint = colorScheme.onPrimaryContainer
+                                                tone = KiyoriSemanticTone.BLUE,
                                         )
 
                                         // 已授权数
@@ -545,7 +616,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                                 count = grantedPerms,
                                                 label = context.getString(R.string.toolbox_permissions_granted),
                                                 icon = Icons.Default.Check,
-                                                iconTint = Color(0xFF4CAF50)
+                                                tone = KiyoriSemanticTone.GREEN,
                                         )
 
                                         // 危险权限数
@@ -553,7 +624,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                                 count = dangerousPerms,
                                                 label = context.getString(R.string.toolbox_permissions_dangerous),
                                                 icon = Icons.Default.Warning,
-                                                iconTint = Color(0xFFFF9800)
+                                                tone = KiyoriSemanticTone.ORANGE,
                                         )
                                     }
                                 }
@@ -652,33 +723,18 @@ fun AppPermissionsScreen(navController: NavController) {
                                                     verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 // 权限组图标
-                                                Box(
-                                                        modifier =
-                                                                Modifier.size(36.dp)
-                                                                        .background(
-                                                                                groupColors[group]
-                                                                                        ?.copy(
-                                                                                                alpha =
-                                                                                                        0.2f
-                                                                                        )
-                                                                                        ?: Color.Gray
-                                                                                                .copy(
-                                                                                                        alpha =
-                                                                                                                0.2f
-                                                                                                ),
-                                                                                CircleShape
-                                                                        ),
-                                                        contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                            imageVector = groupIcons[group]
-                                                                            ?: Icons.Default
-                                                                                    .Extension,
-                                                            contentDescription = groupName,
-                                                            tint = groupColors[group] ?: Color.Gray,
-                                                            modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
+                                                KiyoriSemanticIconBadge(
+                                                    imageVector =
+                                                        groupIcons[group]
+                                                            ?: Icons.Default.Extension,
+                                                    tone =
+                                                        groupTones[group]
+                                                            ?: KiyoriSemanticTone.CYAN,
+                                                    contentDescription = groupName,
+                                                    containerSize = 38.dp,
+                                                    iconSize = 20.dp,
+                                                    shape = CircleShape,
+                                                )
 
                                                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -711,62 +767,13 @@ fun AppPermissionsScreen(navController: NavController) {
                                     ) { index, permission ->
                                         PermissionItem(
                                                 permission = permission,
-                                                onToggle = {
-                                                    // 修改权限切换函数，避免刷新整个列表
-                                                    coroutineScope.launch {
-                                                        val packageName =
-                                                                selectedApp?.packageName
-                                                                        ?: return@launch
-                                                        val action =
-                                                                if (permission.granted) "revoke"
-                                                                else "grant"
-
-                                                        try {
-                                                            val result =
-                                                                    withContext(Dispatchers.IO) {
-                                                                        AndroidShellExecutor
-                                                                                .executeShellCommand(
-                                                                                        "pm $action $packageName ${permission.rawName}"
-                                                                                )
-                                                                    }
-
-                                                            if (result.success) {
-                                                                // 更新当前权限状态而不是整个列表
-                                                                val updatedPermissions =
-                                                                        selectedAppPermissions
-                                                                                .toMutableList()
-                                                                val permIndex =
-                                                                        updatedPermissions
-                                                                                .indexOfFirst {
-                                                                                    it.rawName ==
-                                                                                            permission
-                                                                                                    .rawName
-                                                                                }
-
-                                                                if (permIndex != -1) {
-                                                                    val updatedPerm =
-                                                                            permission.copy(
-                                                                                    granted =
-                                                                                            !permission
-                                                                                                    .granted
-                                                                            )
-                                                                    updatedPermissions[permIndex] =
-                                                                            updatedPerm
-                                                                    selectedAppPermissions =
-                                                                            updatedPermissions
-                                                                }
-                                                            } else {
-                                                                errorMessage =
-                                                                        context.getString(R.string.toolbox_permissions_modify_error, result.stderr)
-                                                                showError = true
-                                                            }
-                                                        } catch (e: Exception) {
-                                                            errorMessage = context.getString(R.string.toolbox_permissions_modify_error, e.message ?: "")
-                                                            showError = true
-                                                        }
-                                                    }
-                                                },
-                                                groupColor = groupColors[group] ?: Color.Gray
+                                                onToggle = { togglePermission(permission) },
+                                                groupTone =
+                                                    groupTones[group]
+                                                        ?: KiyoriSemanticTone.CYAN,
+                                                enabled =
+                                                    permission.modifiable &&
+                                                        permissionMutationRawName == null,
                                         )
                                     }
                                 }
@@ -816,34 +823,35 @@ fun AppPermissionsScreen(navController: NavController) {
 
 // 添加权限统计组件
 @Composable
-fun PermissionStat(count: Int, label: String, icon: ImageVector, iconTint: Color) {
+fun PermissionStat(
+    count: Int,
+    label: String,
+    icon: ImageVector,
+    tone: KiyoriSemanticTone,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-                modifier =
-                        Modifier.size(48.dp).background(iconTint.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(24.dp)
-            )
-        }
+        KiyoriSemanticIconBadge(
+            imageVector = icon,
+            tone = tone,
+            contentDescription = null,
+            containerSize = 48.dp,
+            iconSize = 24.dp,
+            shape = CircleShape,
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.titleLarge,
-                color = colorScheme.onPrimaryContainer,
+                color = colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
         )
 
         Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                color = colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -939,28 +947,29 @@ fun AppItem(app: AppInfo, onClick: () -> Unit) {
             }
 
             // 查看权限按钮，使用更现代的图标按钮样式
-            FilledIconButton(
-                    onClick = onClick,
-                    modifier = Modifier.size(40.dp),
-                    colors =
-                            IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = colorScheme.primaryContainer
-                            )
-            ) {
-                Icon(
-                        imageVector = Icons.Default.Security,
-                                                                    contentDescription = context.getString(R.string.toolbox_permissions_view),
-                        tint = colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(18.dp)
-                )
-            }
+            KiyoriSemanticIconBadge(
+                    imageVector = Icons.Default.Security,
+                    tone = KiyoriSemanticTone.RED,
+                    contentDescription = context.getString(R.string.toolbox_permissions_view),
+                    containerSize = 40.dp,
+                    iconSize = 19.dp,
+            )
         }
     }
 }
 
 @Composable
-fun PermissionItem(permission: PermissionInfo, onToggle: () -> Unit, groupColor: Color) {
+fun PermissionItem(
+    permission: PermissionInfo,
+    onToggle: () -> Unit,
+    groupTone: KiyoriSemanticTone,
+    enabled: Boolean,
+) {
     val context = LocalContext.current
+    val groupColors = groupTone.resolveColors()
+    val statusTone =
+        if (permission.granted) KiyoriSemanticTone.GREEN else KiyoriSemanticTone.RED
+    val statusColors = statusTone.resolveColors()
     val animatedElevation by
             animateDpAsState(
                     targetValue = if (permission.granted) 2.dp else 0.dp,
@@ -992,7 +1001,7 @@ fun PermissionItem(permission: PermissionInfo, onToggle: () -> Unit, groupColor:
                                     .height(4.dp)
                                     .background(
                                             color =
-                                                    groupColor.copy(
+                                                    groupColors.icon.copy(
                                                             alpha =
                                                                     if (permission.granted) 0.9f
                                                                     else 0.4f
@@ -1011,7 +1020,7 @@ fun PermissionItem(permission: PermissionInfo, onToggle: () -> Unit, groupColor:
                                         .background(
                                                 color =
                                                         if (permission.granted)
-                                                                groupColor.copy(alpha = 0.2f)
+                                                                groupColors.container
                                                         else colorScheme.surfaceVariant,
                                                 shape = CircleShape
                                         ),
@@ -1022,8 +1031,10 @@ fun PermissionItem(permission: PermissionInfo, onToggle: () -> Unit, groupColor:
                                 imageVector = Icons.Default.Warning,
                                                                             contentDescription = context.getString(R.string.dangerous_permission),
                                 tint =
-                                        if (permission.granted) Color(0xFFFF9800)
-                                        else Color(0xFFFF9800).copy(alpha = 0.6f),
+                                        KiyoriSemanticTone.ORANGE
+                                            .resolveColors()
+                                            .icon
+                                            .copy(alpha = if (permission.granted) 1f else 0.62f),
                                 modifier = Modifier.size(24.dp)
                         )
                     } else {
@@ -1033,8 +1044,7 @@ fun PermissionItem(permission: PermissionInfo, onToggle: () -> Unit, groupColor:
                                         else Icons.Default.Lock,
                                 contentDescription = if (permission.granted) context.getString(R.string.granted) else context.getString(R.string.not_granted),
                                 tint =
-                                        if (permission.granted) colorScheme.primary
-                                        else colorScheme.outline,
+                                        statusColors.icon,
                                 modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1066,7 +1076,11 @@ fun PermissionItem(permission: PermissionInfo, onToggle: () -> Unit, groupColor:
                 // 权限开关
                 Switch(
                         checked = permission.granted,
-                        onCheckedChange = { onToggle() },
+                        onCheckedChange = if (enabled) {
+                            { onToggle() }
+                        } else {
+                            null
+                        },
                         thumbContent =
                                 if (permission.granted) {
                                     {
@@ -1123,11 +1137,15 @@ private suspend fun loadInstalledApps(packageManager: PackageManager): List<AppI
                                 )
                         )
                     } catch (e: Exception) {
-                        // 忽略异常应用
+                        AppLogger.e(
+                            "AppPermissionsScreen",
+                            "Unable to inspect installed app ${appInfo.packageName}",
+                            e,
+                        )
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLogger.e("AppPermissionsScreen", "Unable to load installed apps", e)
             }
 
             return@withContext apps
@@ -1137,6 +1155,7 @@ private suspend fun loadInstalledApps(packageManager: PackageManager): List<AppI
 private suspend fun getAppPermissions(packageName: String, context: Context): List<PermissionInfo> =
         withContext(Dispatchers.IO) {
             val permissions = mutableListOf<PermissionInfo>()
+            val packageManager = context.packageManager
 
             try {
                 // 获取应用请求的权限 - 无需预过滤，直接获取完整输出
@@ -1345,6 +1364,8 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                                 permissionDisplayNames[permName] ?: permName.substringAfterLast(".")
                         val description = permissionDescriptions[permName] ?: context.getString(R.string.perm_default_desc)
                         val isGranted = grantedPerms.contains(permName)
+                        val modifiable =
+                            isRuntimeModifiablePermission(packageManager, permName)
 
                         permissions.add(
                                 PermissionInfo(
@@ -1352,6 +1373,7 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                                         description = description,
                                         granted = isGranted,
                                         dangerous = true,
+                                        modifiable = modifiable,
                                         group = group,
                                         rawName = permName
                                 )
@@ -1371,13 +1393,16 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                     ) {
 
                         val displayName = permName.substringAfterLast(".")
+                        val modifiable =
+                            isRuntimeModifiablePermission(packageManager, permName)
 
                         permissions.add(
                                 PermissionInfo(
                                         name = displayName,
                                         description = context.getString(R.string.perm_default_desc),
                                         granted = true,
-                                        dangerous = false,
+                                        dangerous = modifiable,
+                                        modifiable = modifiable,
                                         group = "OTHER_GRANTED",
                                         rawName = permName
                                 )
@@ -1396,13 +1421,16 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                     ) {
 
                         val displayName = permName.substringAfterLast(".")
+                        val modifiable =
+                            isRuntimeModifiablePermission(packageManager, permName)
 
                         permissions.add(
                                 PermissionInfo(
                                         name = displayName,
                                         description = context.getString(R.string.perm_default_desc),
                                         granted = false,
-                                        dangerous = false,
+                                        dangerous = modifiable,
+                                        modifiable = modifiable,
                                         group = "OTHER_DENIED",
                                         rawName = permName
                                 )
@@ -1434,13 +1462,18 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                                                     ),
                                     granted = false,
                                     dangerous = false,
+                                    modifiable = false,
                                     group = "undefined",
                                     rawName = "debug.info"
                             )
                     )
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLogger.e(
+                    "AppPermissionsScreen",
+                    "Unable to inspect permissions for $packageName",
+                    e,
+                )
                 // 添加错误信息作为权限显示
                 permissions.add(
                         PermissionInfo(
@@ -1451,6 +1484,7 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                                 ),
                                 granted = false,
                                 dangerous = false,
+                                modifiable = false,
                                 group = "undefined",
                                 rawName = "error.info"
                         )
@@ -1467,6 +1501,19 @@ private suspend fun getAppPermissions(packageName: String, context: Context): Li
                     )
             )
         }
+
+private fun isRuntimeModifiablePermission(
+    packageManager: PackageManager,
+    permissionName: String,
+): Boolean =
+    try {
+        val permissionInfo = packageManager.getPermissionInfo(permissionName, 0)
+        val baseProtection =
+            permissionInfo.protectionLevel and AndroidPermissionInfo.PROTECTION_MASK_BASE
+        baseProtection == AndroidPermissionInfo.PROTECTION_DANGEROUS
+    } catch (_: PackageManager.NameNotFoundException) {
+        false
+    }
 
 // 从完整输出中提取特定段落的内容
 private fun extractSectionContent(output: String, sectionHeader: String): String {

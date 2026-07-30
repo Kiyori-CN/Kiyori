@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.ai.assistance.operit.data.backup.RawSnapshotBackupManager
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,6 +77,8 @@ class DataRecoveryViewModel(private val context: Context) : ViewModel() {
                             )
                     }
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Recovery SQL failed", e)
                 withContext(Dispatchers.Main) {
@@ -109,6 +112,8 @@ class DataRecoveryViewModel(private val context: Context) : ViewModel() {
                         status = "原始快照导出完成",
                         lastSnapshotPath = outFile.absolutePath
                     )
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Raw snapshot export failed", e)
                 _state.value =
@@ -135,6 +140,8 @@ class DataRecoveryViewModel(private val context: Context) : ViewModel() {
                         status = "原始快照导入完成，请重启应用",
                         restoreCompleted = true
                     )
+            } catch (error: CancellationException) {
+                throw error
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Raw snapshot restore failed", e)
                 _state.value =

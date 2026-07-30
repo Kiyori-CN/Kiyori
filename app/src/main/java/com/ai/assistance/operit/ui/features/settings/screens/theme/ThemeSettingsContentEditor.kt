@@ -24,6 +24,7 @@ import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.features.settings.sections.SaveThemeSettingsAction
+import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -98,9 +99,10 @@ internal fun ThemeSettingsContentEditor(
         activeCharacterGroup?.id?.let { preferencesManager.getAiAvatarForCharacterGroupFlow(it) }
             ?: flowOf(null)
     }.collectAsState(initial = null)
-    val cardColors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-    )
+    val cardColors =
+        CardDefaults.cardColors(
+            containerColor = LocalKiyoriSettingsColors.current.cardBackground,
+        )
     var selectedThemeTab by remember { mutableStateOf(ThemeSettingsTab.BASIC) }
     var showSaveSuccessMessage by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()

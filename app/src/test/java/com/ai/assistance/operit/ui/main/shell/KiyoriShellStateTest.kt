@@ -12,6 +12,7 @@ import com.ai.assistance.operit.ui.main.navigation.RouteRuntime
 import com.ai.assistance.operit.ui.main.navigation.RouteSpec
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.navigation.matchesNavigationRoot
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -364,6 +365,34 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `AI drawer uses stable semantic tones for every built in destination`() {
+        val expected =
+            mapOf(
+                "main.ai_chat" to KiyoriSemanticTone.BLUE,
+                "main.assistant_config" to KiyoriSemanticTone.PINK,
+                "main.memory_base" to KiyoriSemanticTone.GREEN,
+                "main.packages" to KiyoriSemanticTone.PURPLE,
+                "main.shizuku_commands" to KiyoriSemanticTone.RED,
+                "main.workflow" to KiyoriSemanticTone.ORANGE,
+                "main.settings" to KiyoriSemanticTone.BLUE,
+                "main.toolbox" to KiyoriSemanticTone.CYAN,
+            )
+
+        expected.forEach { (entryId, tone) ->
+            assertEquals(tone, resolveKiyoriAiDrawerTone(testAiDrawerEntry(entryId)))
+        }
+    }
+
+    @Test
+    fun `plugin drawer tone is deterministic and stays in the semantic vocabulary`() {
+        val entry = testAiDrawerEntry("toolpkg:demo:dashboard", NavigationSurface.MAIN_SIDEBAR_PLUGINS)
+        val tone = resolveKiyoriAiDrawerTone(entry)
+
+        assertEquals(tone, resolveKiyoriAiDrawerTone(entry.copy()))
+        assertTrue(tone in KiyoriSemanticTone.entries)
+    }
+
+    @Test
     fun `AI drawer replaces another primary route`() {
         assertEquals(
             AiDrawerSelectionEffect.REPLACE_PRIMARY,
@@ -579,6 +608,18 @@ class KiyoriShellStateTest {
             title = "Dashboard",
             icon = Icons.Default.Home,
             kind = kind,
+        )
+
+    private fun testAiDrawerEntry(
+        entryId: String,
+        surface: NavigationSurface = NavigationSurface.MAIN_SIDEBAR_AI,
+    ): NavigationEntrySpec =
+        NavigationEntrySpec(
+            entryId = entryId,
+            routeId = "test.$entryId",
+            surface = surface,
+            title = entryId,
+            icon = Icons.Default.Home,
         )
 
     private fun testRouteSpec(keepAlive: Boolean): RouteSpec =

@@ -8,9 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ai.assistance.operit.util.AppLogger
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
+
+private const val AUDIO_ATTACHMENT_PLAYER_TAG = "AudioAttachmentPlayer"
 
 @Composable
 fun AudioAttachmentPlayer(
@@ -36,7 +39,8 @@ fun AudioAttachmentPlayer(
                 player.stop()
                 player.clearMediaItems()
                 player.release()
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                AppLogger.w(AUDIO_ATTACHMENT_PLAYER_TAG, "释放音频附件播放器失败", error)
             }
         }
     }

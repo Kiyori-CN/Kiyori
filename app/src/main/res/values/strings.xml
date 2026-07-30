@@ -678,29 +678,17 @@
 
     <!-- Theme Settings Screen -->
     <string name="theme_title_mode">主题模式</string>
-    <string name="theme_tab_basic">基础</string>
+    <string name="theme_tab_basic">主题</string>
     <string name="theme_tab_background">背景</string>
     <string name="theme_tab_chat">聊天</string>
     <string name="theme_tab_input">输入栏</string>
-    <string name="theme_tab_interface">界面栏</string>
+    <string name="theme_tab_interface">AI 界面</string>
     <string name="theme_system_title">系统主题</string>
     <string name="theme_follow_system">跟随系统主题</string>
     <string name="theme_follow_system_desc">开启后会根据系统深色模式自动切换主题</string>
     <string name="theme_select">选择主题</string>
     <string name="theme_light">浅色主题</string>
     <string name="theme_dark">深色主题</string>
-    <string name="theme_title_color">颜色定制</string>
-    <string name="theme_custom_color">自定义配色</string>
-    <string name="theme_use_custom_color">使用自定义颜色</string>
-    <string name="theme_custom_color_desc">开启后可以自定义应用的主要配色</string>
-    <string name="theme_select_color">选择颜色</string>
-    <string name="theme_primary_color">主色</string>
-    <string name="theme_secondary_color">次色</string>
-    <string name="theme_preview">色彩效果预览</string>
-    <string name="theme_primary_button">主按钮</string>
-    <string name="theme_secondary_button">次要按钮</string>
-    <string name="theme_contrast_tip">提示: 选择对比度高的颜色组合效果最佳</string>
-    <string name="theme_save_colors">保存颜色设置</string>
     <string name="theme_title_background">背景定制</string>
     <string name="theme_bg_media">背景媒体设置</string>
     <string name="theme_use_custom_bg">使用自定义背景</string>
@@ -729,12 +717,6 @@
     <string name="theme_loop_on">关闭循环</string>
     <string name="theme_loop_enabled">循环播放已开启</string>
     <string name="theme_loop_disabled">循环播放已关闭</string>
-    <string name="theme_toolbar_transparent">工具栏设置</string>
-    <string name="theme_toolbar_transparent_desc">透明工具栏</string>
-    <string name="theme_toolbar_transparent_desc_desc">开启后，工具栏将变为透明</string>
-    <string name="theme_appbar_color">顶栏颜色</string>
-    <string name="theme_use_custom_appbar_color">自定义顶栏颜色</string>
-    <string name="theme_use_custom_appbar_color_desc">开启后可以自定义顶栏的颜色</string>
     <string name="theme_statusbar">状态栏</string>
     <string name="theme_statusbar_hidden">隐藏状态栏</string>
     <string name="theme_statusbar_hidden_desc">开启后将完全隐藏状态栏，获得更大的显示空间</string>
@@ -1600,12 +1582,6 @@
     <string name="accessibility_risk_warning_confirm">确认继续</string>
     <string name="accessibility_risk_warning_cancel">取消</string>
 
-    <string name="theme_appbar_content_color_title">顶栏内容颜色</string>
-    <string name="theme_force_appbar_content_color">强制使用顶栏内容颜色</string>
-    <string name="theme_force_appbar_content_color_desc">开启后，顶栏的标题和图标颜色将固定，不受背景影响</string>
-    <string name="theme_appbar_content_color_mode">颜色模式</string>
-    <string name="theme_appbar_content_color_light">浅色 (白色系)</string>
-    <string name="theme_appbar_content_color_dark">深色 (黑色系)</string>
 
     <string name="theme_chat_header_icons_color_title">聊天顶栏图标颜色</string>
     <string name="theme_chat_header_history_icon_color">历史记录图标颜色</string>
@@ -3547,10 +3523,6 @@
     <string name="delete_icon">删除</string>
     
     <!-- Theme Settings Additional Strings -->
-    <string name="theme_on_color_mode">主题文字颜色</string>
-    <string name="theme_on_color_auto">自动</string>
-    <string name="theme_on_color_light">浅色</string>
-    <string name="theme_on_color_dark">深色</string>
     <string name="chat_style_title">聊天风格</string>
     <string name="chat_style_desc">选择聊天界面风格</string>
     <string name="chat_style_cursor">命令框</string>
@@ -7980,11 +7952,13 @@
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">网页搜索</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
-    <string name="kiyori_shell_ai_settings">AI 设置</string>
+    <string name="kiyori_shell_ai_settings">AI 助手</string>
     <string name="kiyori_shell_favorites">收藏</string>
     <string name="kiyori_shell_bookmarks">书签</string>
     <string name="kiyori_shell_history">历史</string>
     <string name="kiyori_shell_downloads">下载</string>
     <string name="kiyori_shell_exit_hint">再按一次退出 Kiyori</string>
 
+    <string name="theme_fixed_palette_title">Kiyori 固定配色</string>
+    <string name="theme_fixed_palette_desc">浅色、深色与跟随系统主题仍然保留；AI 背景、消息、头像和输入区可在其他标签中单独调整。</string>
 </resources>

@@ -5,12 +5,14 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,20 +22,27 @@ internal object PlayerLogExportHelper {
         report: String,
     ): Result<String> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            try {
                 require(report.isNotBlank()) { "播放器诊断报告为空" }
                 val fileName =
                     "kiyori_player_log_${
                         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                     }.txt"
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveWithMediaStore(context, fileName, report)
-                } else {
-                    saveToPublicExports(fileName, report)
-                }
+                val path =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        saveWithMediaStore(context, fileName, report)
+                    } else {
+                        saveToPublicExports(fileName, report)
+                    }
+                Result.success(path)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Result.failure(error)
             }
         }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun saveWithMediaStore(
         context: Context,
         fileName: String,

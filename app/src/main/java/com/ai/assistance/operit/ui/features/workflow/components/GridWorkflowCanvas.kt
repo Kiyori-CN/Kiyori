@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -45,6 +46,8 @@ import com.ai.assistance.operit.data.model.LogicNode
 import com.ai.assistance.operit.data.model.ParameterValue
 import com.ai.assistance.operit.data.model.WorkflowNode
 import com.ai.assistance.operit.data.model.WorkflowNodeConnection
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlin.math.roundToInt
 
 // 画布配置常量
@@ -70,6 +73,17 @@ fun GridWorkflowCanvas(
     cellSize: Dp = CELL_SIZE
 ) {
     val density = LocalDensity.current
+    val colorScheme = MaterialTheme.colorScheme
+    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val greenColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val orangeColors = KiyoriSemanticTone.ORANGE.resolveColors()
+    val redColors = KiyoriSemanticTone.RED.resolveColors()
+    val canvasBackground = colorScheme.surfaceContainerLow
+    val canvasGridDotColor = colorScheme.outlineVariant.copy(alpha = 0.78f)
+    val labelBackgroundColor = colorScheme.surface.copy(alpha = 0.94f)
+    val labelTextColor = colorScheme.onSurface.toArgb()
+    val connectionShadowColor = colorScheme.scrim
+    val inactiveConnectionColor = colorScheme.outline
     val cellSizePx = with(density) { cellSize.toPx() }
     val nodeWidthPx = with(density) { NODE_WIDTH.toPx() }
     val nodeHeightPx = with(density) { NODE_HEIGHT.toPx() }
@@ -248,7 +262,7 @@ fun GridWorkflowCanvas(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(canvasBackground)
             .onGloballyPositioned { coordinates ->
                 viewportSize = coordinates.size
             }
@@ -278,7 +292,6 @@ fun GridWorkflowCanvas(
             val scaledCellSize = cellSizePx * scale
             if (scaledCellSize <= 0f) return@Canvas
 
-            val gridDotColor = Color(0xFF888888)
             val startX = ((panOffset.x % scaledCellSize) + scaledCellSize) % scaledCellSize
             val startY = ((panOffset.y % scaledCellSize) + scaledCellSize) % scaledCellSize
             val points = mutableListOf<Offset>()
@@ -296,7 +309,7 @@ fun GridWorkflowCanvas(
             drawPoints(
                 points = points,
                 pointMode = PointMode.Points,
-                color = gridDotColor,
+                color = canvasGridDotColor,
                 strokeWidth = 6f * scale,
                 cap = StrokeCap.Round
             )
@@ -325,11 +338,10 @@ fun GridWorkflowCanvas(
                 val labelTextPaint = Paint().apply {
                     isAntiAlias = true
                     textSize = labelTextSize
-                    color = android.graphics.Color.BLACK
+                    color = labelTextColor
                 }
 
                 // 绘制网格点背景
-                val gridDotColor = Color(0xFF888888) // 更深、对比度更高的颜色
                 val points = mutableListOf<Offset>()
                 var x = 0f
                 while (x <= width) {
@@ -344,12 +356,12 @@ fun GridWorkflowCanvas(
                 drawPoints(
                     points = points,
                     pointMode = PointMode.Points,
-                    color = gridDotColor,
+                    color = canvasGridDotColor,
                     strokeWidth = 6f, // 增大点的尺寸
                     cap = StrokeCap.Round
                 )
 
-                val referenceLineColor = Color(0xFFFF9800).copy(alpha = 0.75f)
+                val referenceLineColor = orangeColors.icon.copy(alpha = 0.82f)
                 val referenceLineWidth = 2.5f
                 val referenceDash = PathEffect.dashPathEffect(floatArrayOf(12f, 10f), 0f)
 
@@ -450,20 +462,19 @@ fun GridWorkflowCanvas(
 
                         val activeColor =
                             when (targetState) {
-                                is NodeExecutionState.Running -> Color(0xFF2196F3)
-                                is NodeExecutionState.Failed -> Color(0xFFF44336)
-                                is NodeExecutionState.Success -> Color(0xFF4CAF50)
-                                else -> Color(0xFF4285F4)
+                                is NodeExecutionState.Running -> blueColors.icon
+                                is NodeExecutionState.Failed -> redColors.icon
+                                is NodeExecutionState.Success -> greenColors.icon
+                                else -> blueColors.icon
                             }
 
-                        val inactiveColor = Color(0xFFBDBDBD)
                         val lineColor =
                             if (!hasExecutionInfo) {
-                                Color(0xFF4285F4)
+                                blueColors.icon
                             } else if (active) {
                                 activeColor
                             } else {
-                                inactiveColor
+                                inactiveConnectionColor
                             }
 
                         val lineWidth = if (active) 3.5f else 2.5f
@@ -545,7 +556,10 @@ fun GridWorkflowCanvas(
                         // 绘制连接线阴影
                         drawPath(
                             path = path,
-                            color = if (hasExecutionInfo && !active) Color(0x14000000) else Color(0x30000000),
+                            color =
+                                connectionShadowColor.copy(
+                                    alpha = if (hasExecutionInfo && !active) 0.08f else 0.19f,
+                                ),
                             style = Stroke(
                                 width = lineWidth + 1.5f,
                                 cap = StrokeCap.Round,
@@ -625,7 +639,10 @@ fun GridWorkflowCanvas(
                             // 绘制箭头阴影
                             drawPath(
                                 path = arrowPath,
-                                color = if (hasExecutionInfo && !active) Color(0x24000000) else Color(0x40000000)
+                                color =
+                                    connectionShadowColor.copy(
+                                        alpha = if (hasExecutionInfo && !active) 0.14f else 0.25f,
+                                    )
                             )
                             
                             // 绘制实心箭头
@@ -647,7 +664,7 @@ fun GridWorkflowCanvas(
                             val rectTopLeft = Offset(midPoint.x - rectWidth / 2, midPoint.y - rectHeight / 2)
 
                             drawRoundRect(
-                                color = Color(0xE0FFFFFF),
+                                color = labelBackgroundColor,
                                 topLeft = rectTopLeft,
                                 size = Size(rectWidth, rectHeight),
                                 cornerRadius = CornerRadius(10f, 10f)
@@ -751,7 +768,7 @@ fun GridWorkflowCanvas(
                     .align(Alignment.TopEnd)
                     .padding(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xE0FFFFFF)
+                    containerColor = colorScheme.surface.copy(alpha = 0.94f)
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 shape = RoundedCornerShape(8.dp)
@@ -761,7 +778,7 @@ fun GridWorkflowCanvas(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 14.sp,
-                        color = Color(0xFF1A73E8)
+                        color = blueColors.icon
                     )
                 )
             }

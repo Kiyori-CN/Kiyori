@@ -62,8 +62,12 @@ internal fun KiyoriAppShell(
     onOpenBrowserWindows: () -> Unit,
     onOpenBookmark: (String) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
-    onOpenAiSettingsFromKiyoriSettings: () -> Unit,
+    onOpenAccountConnectionsFromKiyoriSettings: () -> Unit,
+    onOpenAiAssistantFromKiyoriSettings: () -> Unit,
+    onOpenSpeechServicesFromKiyoriSettings: () -> Unit,
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
+    onOpenAppearanceSettingsFromKiyoriSettings: () -> Unit,
+    onOpenDataSettingsFromKiyoriSettings: () -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
     browserHome: @Composable (Modifier) -> Unit,
@@ -202,6 +206,11 @@ internal fun KiyoriAppShell(
                         onOpenDownloadDrawer = {
                             latestOnStateChange(latestState.openDownloadDrawer())
                         },
+                        onClose = {
+                            latestOnStateChange(
+                                latestState.showSoftwareHomePage(SoftwareHomePage.HOME),
+                            )
+                        },
                     )
                 SoftwareHomePage.HOME ->
                     KiyoriSoftwareHomePage(
@@ -230,7 +239,9 @@ internal fun KiyoriAppShell(
             } else {
                 KiyoriPrimaryRootPage(
                     destination = state.primaryDestination,
-                    onOpenAiSettings = onOpenAiSettingsFromKiyoriSettings,
+                    onOpenAccountConnections = onOpenAccountConnectionsFromKiyoriSettings,
+                    onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
+                    onOpenSpeechServices = onOpenSpeechServicesFromKiyoriSettings,
                     onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
                     onOpenDownloadSettings = {
                         onStateChange(state.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS))
@@ -238,6 +249,8 @@ internal fun KiyoriAppShell(
                     onOpenPlayerSettings = {
                         onStateChange(state.openChild(KiyoriShellChild.PLAYER_SETTINGS))
                     },
+                    onOpenAppearanceSettings = onOpenAppearanceSettingsFromKiyoriSettings,
+                    onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
                     modifier = Modifier.fillMaxSize().zIndex(4f),
                 )
             }

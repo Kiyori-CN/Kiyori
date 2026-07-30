@@ -5,6 +5,7 @@ import android.net.Uri
 import com.ai.assistance.operit.data.api.GitHubApiService
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.data.preferences.GitHubUser
+import kotlinx.coroutines.CancellationException
 
 class GitHubOAuthCoordinator(context: Context) {
     private val appContext = context.applicationContext
@@ -51,7 +52,7 @@ class GitHubOAuthCoordinator(context: Context) {
     }
 
     suspend fun completeLoginWithCode(code: String): Result<GitHubUser> {
-        return runCatching {
+        return try {
             val tokenResponse = githubApiService.getAccessToken(code).getOrElse { error ->
                 throw error
             }
@@ -71,7 +72,11 @@ class GitHubOAuthCoordinator(context: Context) {
                 userInfo = user,
                 grantedScope = tokenResponse.scope
             )
-            user
+            Result.success(user)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
         }
     }
 }

@@ -772,29 +772,17 @@
 
     <!-- Theme Settings Screen -->
     <string name="theme_title_mode">Theme Mode</string>
-    <string name="theme_tab_basic">Basic</string>
+    <string name="theme_tab_basic">Theme</string>
     <string name="theme_tab_background">Background</string>
     <string name="theme_tab_chat">Chat</string>
     <string name="theme_tab_input">Input</string>
-    <string name="theme_tab_interface">Interface</string>
+    <string name="theme_tab_interface">AI UI</string>
     <string name="theme_system_title">System Theme</string>
     <string name="theme_follow_system">Follow System Theme</string>
     <string name="theme_follow_system_desc">When enabled, theme will automatically switch based on system dark mode</string>
     <string name="theme_select">Select Theme</string>
     <string name="theme_light">Light Theme</string>
     <string name="theme_dark">Dark Theme</string>
-    <string name="theme_title_color">Color Customization</string>
-    <string name="theme_custom_color">Custom Colors</string>
-    <string name="theme_use_custom_color">Use Custom Colors</string>
-    <string name="theme_custom_color_desc">When enabled, you can customize the app\'s main colors</string>
-    <string name="theme_select_color">Select Colors</string>
-    <string name="theme_primary_color">Primary</string>
-    <string name="theme_secondary_color">Secondary</string>
-    <string name="theme_preview">Color Preview</string>
-    <string name="theme_primary_button">Main Button</string>
-    <string name="theme_secondary_button">Secondary Button</string>
-    <string name="theme_contrast_tip">Tip: High contrast color combinations work best</string>
-    <string name="theme_save_colors">Save Color Settings</string>
     <string name="theme_title_background">Background Customization</string>
     <string name="theme_bg_media">Background Media Settings</string>
     <string name="theme_use_custom_bg">Use Custom Background</string>
@@ -2113,10 +2101,6 @@
     <string name="rename">Rename</string>
     
     <!-- Theme Settings -->
-    <string name="theme_appbar_content_color_title">App Bar Content Color</string>
-    <string name="theme_appbar_content_color_mode">Color Mode</string>
-    <string name="theme_appbar_content_color_light">Light (White Scheme)</string>
-    <string name="theme_appbar_content_color_dark">Dark (Black Scheme)</string>
     <string name="theme_background_blur">Background Blur</string>
     <string name="theme_background_blur_desc">Add Gaussian blur effect to background images or videos</string>
     <string name="theme_background_blur_radius">Blur Radius</string>
@@ -2124,8 +2108,6 @@
     <string name="theme_chat_header_pip_icon_color">Chat Header PIP Icon Color</string>
     <string name="theme_chat_header_overlay_mode">Overlay Mode</string>
     <string name="theme_chat_header_overlay_mode_desc">When enabled, transparent header will be displayed as overlay without taking up message space</string>
-    <string name="theme_force_appbar_content_color">Force App Bar Content Color</string>
-    <string name="theme_force_appbar_content_color_desc">When enabled, app bar title and icon colors will be fixed and not affected by background</string>
     <string name="theme_chat_header_icons_color_title">Chat Header Icons Color</string>
     <string name="theme_statusbar">Status Bar</string>
     <string name="theme_statusbar_hidden">Hide Status Bar</string>
@@ -2144,12 +2126,6 @@
     <string name="theme_chat_input_liquid_glass_desc">When enabled, the transparent input box will use an iOS-style frosted glass effect</string>
     <string name="theme_chat_input_water_glass">Water Glass Input Box</string>
     <string name="theme_chat_input_water_glass_desc">When enabled, the transparent input box will use a water glass effect</string>
-    <string name="theme_toolbar_transparent">Toolbar Settings</string>
-    <string name="theme_toolbar_transparent_desc">Transparent Toolbar</string>
-    <string name="theme_toolbar_transparent_desc_desc">When enabled, the toolbar will become transparent</string>
-    <string name="theme_appbar_color">App Bar Color</string>
-    <string name="theme_use_custom_appbar_color">Custom App Bar Color</string>
-    <string name="theme_use_custom_appbar_color_desc">When enabled, you can customize the app bar color</string>
 
     <!-- Toast Messages -->
     <string name="confirmation_code_copied">Confirmation code copied!</string>
@@ -3678,10 +3654,6 @@
     <string name="delete_icon">Delete</string>
   
     <!-- Theme Settings Additional Strings -->
-    <string name="theme_on_color_mode">Theme Text Color</string>
-    <string name="theme_on_color_auto">Auto</string>
-    <string name="theme_on_color_light">Light</string>
-    <string name="theme_on_color_dark">Dark</string>
     <string name="chat_style_title">Chat Style</string>
     <string name="chat_style_desc">Choose chat interface style</string>
     <string name="chat_style_cursor">Command Box</string>
@@ -7890,7 +7862,7 @@
     <string name="kiyori_shell_ai_action">AI</string>
     <string name="kiyori_shell_web_search">Web Search</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
-    <string name="kiyori_shell_ai_settings">AI Settings</string>
+    <string name="kiyori_shell_ai_settings">AI Assistant</string>
     <string name="kiyori_shell_favorites">Favorites</string>
     <string name="kiyori_shell_bookmarks">Bookmarks</string>
     <string name="kiyori_shell_history">History</string>
@@ -7908,4 +7880,74 @@
     <string name="web_session_incognito_ai_notice">Incognito uses an isolated profile generation for cookies, cache, and WebStorage. User-authorized Kiyori AI actions can still read and control this window. The generation retires after its last window closes and is deleted on the next cold start.</string>
     <string name="web_session_no_profile_tabs">No %1$s</string>
     <string name="web_session_clear_profile_tabs">Close every window in this group</string>
+    <string name="theme_fixed_palette_title">Fixed Kiyori palette</string>
+    <string name="theme_fixed_palette_desc">Light, dark, and system themes remain available. Customize AI backgrounds, messages, avatars, and input separately in the other tabs.</string>
+    <string name="web_session_search">Search</string>
+    <string name="web_session_search_engine">Search engine</string>
+    <string name="web_session_choose_search_engine">Choose search engine</string>
+    <string name="web_session_search_placeholder">Search or enter an address</string>
+    <string name="web_session_search_submit">Search or go</string>
+    <string name="web_session_clear_search">Clear input</string>
+    <string name="web_session_search_history">Search history</string>
+    <string name="web_session_no_search_history">No search history</string>
+    <string name="web_session_edit_search_history">Edit search history</string>
+    <string name="web_session_delete_search_history_item">Delete search entry</string>
+    <string name="web_session_clear_search_history_confirmation">Clear all search history?</string>
+    <string name="web_session_clear_search_history_confirm">Clear</string>
+    <string name="web_session_copy_current_url">Copy link</string>
+    <string name="web_session_edit_current_url">Edit link</string>
+    <string name="web_session_windows">Windows</string>
+    <string name="web_session_add_bookmark_tool">Add bookmark</string>
+    <string name="web_session_floating_sniffer">Floating sniffer</string>
+    <string name="web_session_ai_dialogue">AI chat</string>
+    <string name="web_session_browser_toolbox">Toolbox</string>
+    <string name="web_session_reader_mode">Reader mode</string>
+    <string name="web_session_ad_marking">Mark ads</string>
+    <string name="web_session_site_config">Site settings</string>
+    <string name="web_session_exit_browser">Exit browser</string>
+    <string name="web_session_browser_settings">Browser settings</string>
+    <string name="web_session_placeholder_status">This feature is not connected yet</string>
+    <string name="web_session_placeholder_runtime_unchanged">This page does not change the current webpage, tabs, cookies, or AI control state.</string>
+    <string name="web_session_placeholder_toolbox">The browser menu is the single menu entry point. A separate second toolbox has not been defined.</string>
+    <string name="web_session_placeholder_reader_mode">Reader mode requires content extraction, conversion, and reading-state pipelines, which are not connected yet.</string>
+    <string name="web_session_placeholder_ad_marking">Ad marking requires page-level rules, injected scripts, and persistent mark ownership, which are not connected yet.</string>
+    <string name="web_session_placeholder_site_config">Site settings require per-site matching, configuration storage, and inheritance contracts, which are not connected yet.</string>
+    <string name="web_session_browser_menu_button">Browser menu button</string>
+    <string name="web_session_browser_menu_title">Browser drawer menu</string>
+    <string name="web_session_network_log">Network log</string>
+    <string name="web_session_network_log_empty">No network requests have been recorded for this page</string>
+    <string name="web_session_network_log_empty_filter">No network requests match this filter</string>
+    <string name="web_session_network_log_count">%1$d requests</string>
+    <string name="web_session_network_log_clear">Clear</string>
+    <string name="web_session_network_log_search_hint">Search URLs or request methods</string>
+    <string name="web_session_network_log_filter_all">All</string>
+    <string name="web_session_network_log_filter_video">Video</string>
+    <string name="web_session_network_log_filter_audio">Audio</string>
+    <string name="web_session_network_log_filter_image">Images</string>
+    <string name="web_session_network_log_filter_web">Web</string>
+    <string name="web_session_network_log_filter_other">Other</string>
+    <string name="web_session_network_log_third_party_hint">“Third-party” means the request domain differs from the current page domain. It does not mean the request is an ad or has failed.</string>
+    <string name="web_session_network_log_third_party">Third-party</string>
+    <string name="web_session_network_log_action_title">Choose an action</string>
+    <string name="web_session_network_log_copy_link">Copy link</string>
+    <string name="web_session_network_log_download_resource">Download resource</string>
+    <string name="web_session_network_log_open_external">Open externally</string>
+    <string name="web_session_network_log_view_details">View details</string>
+    <string name="web_session_network_log_details_title">Request details</string>
+    <string name="web_session_network_log_detail_method">Request method</string>
+    <string name="web_session_network_log_detail_type">Resource category</string>
+    <string name="web_session_network_log_detail_frame">Request location</string>
+    <string name="web_session_network_log_detail_time">Capture time</string>
+    <string name="web_session_network_log_detail_url">Full URL</string>
+    <string name="web_session_network_log_main_frame">Main page</string>
+    <string name="web_session_network_log_subresource">Subresource</string>
+    <string name="web_session_network_log_copied">Link copied</string>
+    <string name="web_session_network_log_external_open_failed">No app can open this link</string>
+    <string name="web_session_page_source">View source</string>
+    <string name="web_session_copy_source">Copy source</string>
+    <string name="web_session_source_loading">Reading the current page source…</string>
+    <string name="web_session_source_unavailable">The current page has no readable WebView</string>
+    <string name="web_session_source_empty">The current page source is empty</string>
+    <string name="web_session_source_read_failed">Failed to read page source</string>
+    <string name="web_session_toolbox_subtitle">Tools available for the current page</string>
 </resources>

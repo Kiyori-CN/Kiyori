@@ -103,7 +103,8 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
             overlays.forEach { overlay ->
                 try {
                     overlay.hide()
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    AppLogger.w("VirtualDisplayOverlay", "批量关闭虚拟显示层失败", error)
                 }
             }
         }
@@ -742,7 +743,8 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                 ShowerSurfaceView(ctx).also { view ->
                                     try {
                                         view.bindController(ShowerController.getInstance(agentId))
-                                    } catch (_: Exception) {
+                                    } catch (error: Exception) {
+                                        AppLogger.e("VirtualDisplayOverlay", "绑定虚拟显示控制器失败: $agentId", error)
                                     }
                                     surfaceView = view
                                 }
@@ -751,7 +753,8 @@ class VirtualDisplayOverlay private constructor(private val context: Context, pr
                                 surfaceView = view
                                 try {
                                     view.bindController(ShowerController.getInstance(agentId))
-                                } catch (_: Exception) {
+                                } catch (error: Exception) {
+                                    AppLogger.e("VirtualDisplayOverlay", "更新虚拟显示控制器失败: $agentId", error)
                                 }
                             }
                         )

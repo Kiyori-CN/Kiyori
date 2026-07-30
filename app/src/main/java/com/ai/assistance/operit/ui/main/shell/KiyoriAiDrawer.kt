@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -49,7 +50,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -69,15 +69,25 @@ import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.core.tools.system.action.ActionListenerFactory
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.repository.WorkflowRepository
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 
 private const val AI_DRAWER_ANIMATION_MILLIS = 280
-private val NETWORK_ONLINE_INDICATOR_COLOR = Color(0xFF4CAF50)
-private val NETWORK_OFFLINE_INDICATOR_COLOR = Color(0xFFEF5350)
+private val AI_DRAWER_PLUGIN_TONES =
+    listOf(
+        KiyoriSemanticTone.PURPLE,
+        KiyoriSemanticTone.CYAN,
+        KiyoriSemanticTone.ORANGE,
+        KiyoriSemanticTone.GREEN,
+        KiyoriSemanticTone.PINK,
+        KiyoriSemanticTone.BLUE,
+    )
 
 private data class AiDrawerPermissionStatus(
     val badgeTextResId: Int,
@@ -347,13 +357,13 @@ private fun KiyoriAiDrawerStatusHeader(
     isNetworkAvailable: Boolean,
     networkType: String,
 ) {
-    // Keep the WiFi glyph and label on the drawer's theme accent; connectivity is shown by the dot.
-    val statusColor = MaterialTheme.colorScheme.primary
+    val statusColors = KiyoriSemanticTone.CYAN.resolveColors()
+    val statusColor = statusColors.icon
     val availabilityIndicatorColor =
         if (isNetworkAvailable) {
-            NETWORK_ONLINE_INDICATOR_COLOR
+            KiyoriSemanticTone.GREEN.resolveColors().icon
         } else {
-            NETWORK_OFFLINE_INDICATOR_COLOR
+            KiyoriSemanticTone.RED.resolveColors().icon
         }
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
@@ -361,13 +371,13 @@ private fun KiyoriAiDrawerStatusHeader(
         Text(
             text = stringResource(R.string.kiyori_ai_drawer_title),
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(10.dp))
         Surface(
             shape = CircleShape,
-            color = statusColor.copy(alpha = 0.12f),
+            color = statusColors.container,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -409,6 +419,8 @@ private fun KiyoriAiDrawerQuickAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tone = resolveKiyoriAiDrawerTone(entry)
+    val colors = tone.resolveColors()
     Surface(
         onClick = onClick,
         modifier = modifier.height(76.dp),
@@ -416,21 +428,27 @@ private fun KiyoriAiDrawerQuickAction(
         shape = MaterialTheme.shapes.small,
         color =
             if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer
+                colors.container
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        border =
+            if (selected) {
+                BorderStroke(1.dp, colors.icon.copy(alpha = 0.24f))
+            } else {
+                null
             },
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Surface(
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 6.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = colors.container,
             ) {
                 Text(
                     text = badgeText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = colors.icon,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
@@ -441,11 +459,12 @@ private fun KiyoriAiDrawerQuickAction(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Icon(
+                KiyoriSemanticIconBadge(
                     imageVector = entry.icon,
+                    tone = tone,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
+                    containerSize = 36.dp,
+                    iconSize = 20.dp,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
@@ -480,6 +499,8 @@ private fun KiyoriAiDrawerNavigationRow(
     onClick: () -> Unit,
     label: String = entry.title,
 ) {
+    val tone = resolveKiyoriAiDrawerTone(entry)
+    val colors = tone.resolveColors()
     Surface(
         onClick = onClick,
         modifier =
@@ -491,20 +512,27 @@ private fun KiyoriAiDrawerNavigationRow(
         shape = MaterialTheme.shapes.small,
         color =
             if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer
+                colors.container
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        border =
+            if (selected) {
+                BorderStroke(1.dp, colors.icon.copy(alpha = 0.22f))
+            } else {
+                null
             },
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            KiyoriSemanticIconBadge(
                 imageVector = entry.icon,
+                tone = tone,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
+                containerSize = 30.dp,
+                iconSize = 18.dp,
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
@@ -518,6 +546,22 @@ private fun KiyoriAiDrawerNavigationRow(
         }
     }
 }
+
+internal fun resolveKiyoriAiDrawerTone(entry: NavigationEntrySpec): KiyoriSemanticTone =
+    when (entry.entryId) {
+        "main.ai_chat" -> KiyoriSemanticTone.BLUE
+        "main.assistant_config" -> KiyoriSemanticTone.PINK
+        "main.memory_base" -> KiyoriSemanticTone.GREEN
+        "main.packages" -> KiyoriSemanticTone.PURPLE
+        "main.shizuku_commands" -> KiyoriSemanticTone.RED
+        "main.workflow" -> KiyoriSemanticTone.ORANGE
+        "main.settings" -> KiyoriSemanticTone.BLUE
+        "main.toolbox" -> KiyoriSemanticTone.CYAN
+        else -> {
+            val stableIndex = (entry.entryId.hashCode() and Int.MAX_VALUE) % AI_DRAWER_PLUGIN_TONES.size
+            AI_DRAWER_PLUGIN_TONES[stableIndex]
+        }
+    }
 
 private suspend fun resolveAiDrawerPermissionStatus(
     context: Context,

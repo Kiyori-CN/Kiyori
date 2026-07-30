@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +20,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 import kotlinx.coroutines.delay
 
 @Composable
@@ -38,16 +42,26 @@ fun AgreementScreen(onAgreementAccepted: () -> Unit) {
         Column(
                 modifier =
                         Modifier.fillMaxSize()
-                                .padding(16.dp)
-                                .background(MaterialTheme.colorScheme.background),
+                                .background(MaterialTheme.colorScheme.background)
+                                .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
         ) {
                 Spacer(modifier = Modifier.height(24.dp))
 
+                KiyoriSemanticIconBadge(
+                        imageVector = Icons.Default.Policy,
+                        tone = KiyoriSemanticTone.BLUE,
+                        contentDescription = null,
+                        containerSize = 52.dp,
+                        iconSize = 27.dp,
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
                         text = stringResource(R.string.agreement_title),
                         style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.Bold
                 )
 
@@ -78,7 +92,7 @@ fun AgreementScreen(onAgreementAccepted: () -> Unit) {
                                 Modifier.weight(1f)
                                         .fillMaxWidth()
                                         .background(
-                                                MaterialTheme.colorScheme.surfaceVariant,
+                                                MaterialTheme.colorScheme.surfaceContainerLow,
                                                 shape = MaterialTheme.shapes.medium
                                         )
                                         .padding(16.dp)
@@ -89,7 +103,7 @@ fun AgreementScreen(onAgreementAccepted: () -> Unit) {
                                         text = stringResource(R.string.agreement_human_readable_title),
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
@@ -107,7 +121,7 @@ fun AgreementScreen(onAgreementAccepted: () -> Unit) {
                                         text = stringResource(R.string.agreement_serious_title),
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
 

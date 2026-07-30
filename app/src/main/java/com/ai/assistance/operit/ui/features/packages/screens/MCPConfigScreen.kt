@@ -63,6 +63,9 @@ import kotlinx.coroutines.launch
 import com.ai.assistance.operit.data.mcp.InstallResult
 import com.ai.assistance.operit.data.mcp.InstallProgress
 import com.ai.assistance.operit.ui.features.startup.screens.LocalPluginLoadingState
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 /** MCP配置屏幕 - 极简风格界面，专注于插件快速部署 */
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -1167,11 +1170,21 @@ fun MCPConfigScreen(
                 ) {
                     // 状态指示器
                     item {
+                        val statusTone =
+                            when {
+                                totalEnabledPlugins == 0 -> KiyoriSemanticTone.CYAN
+                                successfulToolRequests.value == totalEnabledPlugins ->
+                                    KiyoriSemanticTone.GREEN
+                                successfulToolRequests.value > 0 -> KiyoriSemanticTone.ORANGE
+                                else -> KiyoriSemanticTone.RED
+                            }
+                        val statusColors = statusTone.resolveColors()
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            )
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            shape = RoundedCornerShape(16.dp),
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1194,12 +1207,7 @@ fun MCPConfigScreen(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .background(
-                                                color = when {
-                                                    totalEnabledPlugins == 0 -> Color.Gray
-                                                    successfulToolRequests.value == totalEnabledPlugins -> Color.Green
-                                                    successfulToolRequests.value > 0 -> Color(0xFFFFA500) // Orange
-                                                    else -> Color.Red
-                                                },
+                                                color = statusColors.icon,
                                                 shape = RoundedCornerShape(4.dp)
                                             )
                                     )
@@ -1533,18 +1541,14 @@ private fun PluginListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 紧凑的插件图标
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
+                Box(modifier = Modifier.size(32.dp)) {
+                    KiyoriSemanticIconBadge(
                         imageVector = Icons.Default.Extension,
+                        tone = KiyoriSemanticTone.BLUE,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp)
+                        containerSize = 30.dp,
+                        iconSize = 17.dp,
+                        shape = RoundedCornerShape(8.dp),
                     )
 
                     // 运行状态指示点
@@ -1555,7 +1559,7 @@ private fun PluginListItem(
                                 .align(Alignment.TopEnd)
                                 .offset(x = 2.dp, y = (-2).dp)
                                 .background(
-                                    color = Color(0xFF4CAF50),
+                                    color = KiyoriSemanticTone.GREEN.resolveColors().icon,
                                     shape = RoundedCornerShape(3.dp)
                                 )
                         )

@@ -36,9 +36,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -67,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -77,6 +83,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import com.ai.assistance.operit.ui.features.permission.viewmodel.PermissionGuideViewModel
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -210,7 +219,7 @@ fun PermissionGuideScreen(
                                 .padding(vertical = 8.dp)
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
+                color = KiyoriSemanticTone.RED.resolveColors().icon,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
 
@@ -502,6 +511,8 @@ fun PermissionGuideScreen(
 
 @Composable
 private fun IntroductionPage(title: String, description: String, pageIndex: Int) {
+    val tone = permissionIntroductionTone(pageIndex)
+    val colors = tone.resolveColors()
     Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -511,16 +522,16 @@ private fun IntroductionPage(title: String, description: String, pageIndex: Int)
                 modifier =
                         Modifier.size(80.dp)
                                 .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                        colors.container,
                                         CircleShape
                                 )
-                                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                                .border(2.dp, colors.icon.copy(alpha = 0.7f), CircleShape),
                 contentAlignment = Alignment.Center
         ) {
             Text(
                     text = "#${pageIndex + 1}",
                     style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = colors.icon,
                     fontWeight = FontWeight.Bold
             )
         }
@@ -531,7 +542,7 @@ private fun IntroductionPage(title: String, description: String, pageIndex: Int)
                 text = title,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
         )
 
@@ -553,11 +564,22 @@ private fun WelcomePage() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
     ) {
+        KiyoriSemanticIconBadge(
+                imageVector = Icons.Default.Security,
+                tone = KiyoriSemanticTone.RED,
+                contentDescription = null,
+                containerSize = 64.dp,
+                iconSize = 32.dp,
+                shape = RoundedCornerShape(20.dp)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Text(
                 text = stringResource(R.string.permission_guide_welcome_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -583,7 +605,7 @@ private fun WelcomePage() {
         Text(
                 text = stringResource(R.string.permission_guide_welcome_start),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = KiyoriSemanticTone.RED.resolveColors().icon,
                 fontWeight = FontWeight.Medium
         )
     }
@@ -617,7 +639,7 @@ private fun BasicPermissionsPage(
                 text = stringResource(R.string.permission_guide_basic_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -646,6 +668,8 @@ private fun BasicPermissionsPage(
                 PermissionItem(
                         title = stringResource(R.string.permission_guide_storage_title),
                         description = stringResource(R.string.permission_guide_storage_desc),
+                        icon = Icons.Default.Storage,
+                        tone = KiyoriSemanticTone.BLUE,
                         isGranted = hasStoragePermission,
                         onClick = onStoragePermissionClick
                 )
@@ -656,6 +680,8 @@ private fun BasicPermissionsPage(
                 PermissionItem(
                         title = stringResource(R.string.permission_guide_overlay_title),
                         description = stringResource(R.string.permission_guide_overlay_desc),
+                        icon = Icons.Default.Layers,
+                        tone = KiyoriSemanticTone.PURPLE,
                         isGranted = hasOverlayPermission,
                         onClick = onOverlayPermissionClick
                 )
@@ -666,6 +692,8 @@ private fun BasicPermissionsPage(
                 PermissionItem(
                         title = stringResource(R.string.permission_guide_battery_title),
                         description = stringResource(R.string.permission_guide_battery_desc),
+                        icon = Icons.Default.BatteryChargingFull,
+                        tone = KiyoriSemanticTone.ORANGE,
                         isGranted = hasBatteryOptimizationExemption,
                         onClick = onBatteryOptimizationClick
                 )
@@ -676,6 +704,8 @@ private fun BasicPermissionsPage(
                 PermissionItem(
                         title = stringResource(R.string.permission_guide_location_title),
                         description = stringResource(R.string.permission_guide_location_desc),
+                        icon = Icons.Default.LocationOn,
+                        tone = KiyoriSemanticTone.CYAN,
                         isGranted = hasLocationPermission,
                         onClick = onLocationPermissionClick
                 )
@@ -712,6 +742,7 @@ private fun BasicPermissionsPage(
                         hasLocationPermission
 
         AnimatedVisibility(visible = allGranted, enter = fadeIn(), exit = fadeOut()) {
+            val colors = KiyoriSemanticTone.GREEN.resolveColors()
             Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -719,10 +750,7 @@ private fun BasicPermissionsPage(
                             Modifier.fillMaxWidth()
                                     .padding(8.dp)
                                     .background(
-                                            color =
-                                                    MaterialTheme.colorScheme.primary.copy(
-                                                            alpha = 0.1f
-                                                    ),
+                                            color = colors.container,
                                             shape = RoundedCornerShape(8.dp)
                                     )
                                     .padding(12.dp)
@@ -730,14 +758,14 @@ private fun BasicPermissionsPage(
                 Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = colors.icon,
                         modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                         text = stringResource(R.string.permission_guide_all_granted),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        color = colors.icon
                 )
             }
         }
@@ -748,16 +776,29 @@ private fun BasicPermissionsPage(
 private fun PermissionItem(
         title: String,
         description: String,
+        icon: ImageVector,
+        tone: KiyoriSemanticTone,
         isGranted: Boolean,
         onClick: () -> Unit
 ) {
+    val grantedColors = KiyoriSemanticTone.GREEN.resolveColors()
+    val deniedColors = KiyoriSemanticTone.RED.resolveColors()
     Row(
             modifier =
                     Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        KiyoriSemanticIconBadge(
+                imageVector = icon,
+                tone = tone,
+                contentDescription = null,
+                containerSize = 38.dp,
+                iconSize = 20.dp,
+                shape = RoundedCornerShape(11.dp)
+        )
+
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
@@ -777,20 +818,16 @@ private fun PermissionItem(
                                 .background(
                                         color =
                                                 if (isGranted)
-                                                        MaterialTheme.colorScheme.primary.copy(
-                                                                alpha = 0.1f
-                                                        )
+                                                        grantedColors.container
                                                 else
-                                                        MaterialTheme.colorScheme.error.copy(
-                                                                alpha = 0.1f
-                                                        ),
+                                                        deniedColors.container,
                                         shape = CircleShape
                                 )
                                 .border(
                                         width = 1.dp,
                                         color =
-                                                if (isGranted) MaterialTheme.colorScheme.primary
-                                                else MaterialTheme.colorScheme.error,
+                                                if (isGranted) grantedColors.icon
+                                                else deniedColors.icon,
                                         shape = CircleShape
                                 ),
                 contentAlignment = Alignment.Center
@@ -799,14 +836,14 @@ private fun PermissionItem(
                 Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = stringResource(R.string.permission_guide_granted),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = grantedColors.icon,
                         modifier = Modifier.size(16.dp)
                 )
             } else {
                 Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.permission_guide_not_granted),
-                        tint = MaterialTheme.colorScheme.error,
+                        tint = deniedColors.icon,
                         modifier = Modifier.size(16.dp)
                 )
             }
@@ -828,7 +865,7 @@ private fun PermissionLevelPage(
                 text = stringResource(R.string.permission_guide_level_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -928,17 +965,18 @@ private fun PermissionLevelItem(
         isSelected: Boolean,
         onClick: () -> Unit
 ) {
+    val colors = permissionLevelTone(level).resolveColors()
     Surface(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
             shape = RoundedCornerShape(8.dp),
             color =
-                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    if (isSelected) colors.container
                     else MaterialTheme.colorScheme.surface,
             border =
                     if (isSelected)
                             androidx.compose.foundation.BorderStroke(
                                     1.dp,
-                                    MaterialTheme.colorScheme.primary
+                                    colors.icon
                             )
                     else null
     ) {
@@ -953,7 +991,7 @@ private fun PermissionLevelItem(
                                     .background(
                                             color =
                                                     if (isSelected)
-                                                            MaterialTheme.colorScheme.primary
+                                                            colors.icon
                                                     else Color.Transparent,
                                             shape = CircleShape
                                     )
@@ -961,7 +999,7 @@ private fun PermissionLevelItem(
                                             width = 1.dp,
                                             color =
                                                     if (isSelected)
-                                                            MaterialTheme.colorScheme.primary
+                                                            colors.icon
                                                     else
                                                             MaterialTheme.colorScheme.onSurface
                                                                     .copy(alpha = 0.5f),
@@ -973,7 +1011,7 @@ private fun PermissionLevelItem(
                     Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = stringResource(R.string.permission_guide_selected),
-                            tint = MaterialTheme.colorScheme.onPrimary,
+                            tint = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.size(12.dp)
                     )
                 }
@@ -981,12 +1019,23 @@ private fun PermissionLevelItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            KiyoriSemanticIconBadge(
+                    imageVector = Icons.Default.Security,
+                    tone = permissionLevelTone(level),
+                    contentDescription = null,
+                    containerSize = 36.dp,
+                    iconSize = 19.dp,
+                    shape = RoundedCornerShape(11.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
             Column {
                 Text(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
                         color =
-                                if (isSelected) MaterialTheme.colorScheme.primary
+                                if (isSelected) colors.icon
                                 else MaterialTheme.colorScheme.onSurface
                 )
 
@@ -999,3 +1048,19 @@ private fun PermissionLevelItem(
         }
     }
 }
+
+private fun permissionIntroductionTone(pageIndex: Int): KiyoriSemanticTone =
+        when (pageIndex) {
+            0 -> KiyoriSemanticTone.BLUE
+            1 -> KiyoriSemanticTone.ORANGE
+            else -> KiyoriSemanticTone.RED
+        }
+
+private fun permissionLevelTone(level: AndroidPermissionLevel): KiyoriSemanticTone =
+        when (level) {
+            AndroidPermissionLevel.STANDARD -> KiyoriSemanticTone.BLUE
+            AndroidPermissionLevel.ACCESSIBILITY -> KiyoriSemanticTone.GREEN
+            AndroidPermissionLevel.DEBUGGER -> KiyoriSemanticTone.ORANGE
+            AndroidPermissionLevel.ADMIN -> KiyoriSemanticTone.PURPLE
+            AndroidPermissionLevel.ROOT -> KiyoriSemanticTone.RED
+        }

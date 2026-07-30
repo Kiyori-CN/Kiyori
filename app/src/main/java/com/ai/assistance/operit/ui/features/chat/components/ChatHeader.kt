@@ -24,6 +24,8 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 private const val CHAT_HEADER_CHARACTER_NAME_MAX_LENGTH = 12
 
@@ -46,6 +48,9 @@ fun ChatHeader(
         onCharacterClick: () -> Unit
 ) {
         val displayCharacterName = activeCharacterName.toChatHeaderName()
+        val historyColors = KiyoriSemanticTone.ORANGE.resolveColors()
+        val floatingColors = KiyoriSemanticTone.CYAN.resolveColors()
+        val characterColors = KiyoriSemanticTone.PINK.resolveColors()
 
         Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -57,7 +62,7 @@ fun ChatHeader(
                                 onClick = onToggleChatHistorySelector,
                                 modifier = Modifier.height(32.dp),
                                 shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
+                                color = historyColors.container,
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp
                         ) {
@@ -72,14 +77,14 @@ fun ChatHeader(
                                                         if (showChatHistorySelector) stringResource(R.string.hide_history) else stringResource(R.string.show_history),
                                                 tint =
                                                         historyIconColor?.let { Color(it) }
-                                                                ?: MaterialTheme.colorScheme.onPrimaryContainer,
+                                                                ?: historyColors.icon,
                                                 modifier = Modifier.size(20.dp)
                                         )
                                         Text(
                                                 text = runningTaskCount.toString(),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                color = historyColors.icon,
                                                 maxLines = 1
                                         )
                                 }
@@ -91,8 +96,7 @@ fun ChatHeader(
                                                 .background(
                                                         color =
                                                                 if (showChatHistorySelector)
-                                                                        MaterialTheme.colorScheme.primary
-                                                                                .copy(alpha = 0.15f)
+                                                                        historyColors.container
                                                                 else Color.Transparent,
                                                         shape = CircleShape
                                                 )
@@ -106,9 +110,9 @@ fun ChatHeader(
                                                 contentDescription =
                                                         if (showChatHistorySelector) stringResource(R.string.hide_history) else stringResource(R.string.show_history),
                                                 tint =
-                                                        historyIconColor?.let { Color(it) }
+                                                                historyIconColor?.let { Color(it) }
                                                                 ?: if (showChatHistorySelector)
-                                                                        MaterialTheme.colorScheme.primary
+                                                                        historyColors.icon
                                                                 else
                                                                         MaterialTheme.colorScheme.onSurface
                                                                                 .copy(alpha = 0.7f),
@@ -124,8 +128,7 @@ fun ChatHeader(
                                         .background(
                                                 color =
                                                         if (isFloatingMode)
-                                                                MaterialTheme.colorScheme.primary
-                                                                        .copy(alpha = 0.15f)
+                                                                floatingColors.container
                                                         else Color.Transparent,
                                                 shape = CircleShape
                                         )
@@ -141,7 +144,7 @@ fun ChatHeader(
                                         tint =
                                                 pipIconColor?.let { Color(it) }
                                                         ?: if (isFloatingMode)
-                                                                MaterialTheme.colorScheme.primary
+                                                                floatingColors.icon
                                                         else
                                                                 MaterialTheme.colorScheme.onSurface
                                                                         .copy(alpha = 0.7f),
@@ -167,7 +170,7 @@ fun ChatHeader(
                                         Modifier
                                                 .size(24.dp)
                                                 .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                                                .background(characterColors.container),
                                 contentAlignment = Alignment.Center
                         ) {
                                 // Use Coil or another image loader for activeCharacterAvatarUri
@@ -182,7 +185,8 @@ fun ChatHeader(
                                     Icon(
                                         Icons.Rounded.Person,
                                         contentDescription = "Character Avatar",
-                                        modifier = Modifier.padding(4.dp)
+                                        modifier = Modifier.padding(4.dp),
+                                        tint = characterColors.icon,
                                     )
                                 }
                         }

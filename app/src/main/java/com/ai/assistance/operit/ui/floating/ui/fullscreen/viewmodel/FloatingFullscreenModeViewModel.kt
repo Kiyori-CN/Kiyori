@@ -13,6 +13,7 @@ import com.ai.assistance.operit.ui.floating.ui.fullscreen.XmlTextProcessor
 import com.ai.assistance.operit.ui.floating.ui.pet.AvatarEmotionManager
 import com.ai.assistance.operit.ui.floating.voice.SpeechInteractionManager
 import com.ai.assistance.operit.util.AppLogger
+import kotlinx.coroutines.CancellationException
 import com.ai.assistance.operit.util.TtsSegmenter
 import com.ai.assistance.operit.util.stream.Stream
 import kotlinx.coroutines.CoroutineScope
@@ -98,7 +99,10 @@ class FloatingFullscreenModeViewModel(
                     prepareVoiceCaptureForAiTurn()
                     try {
                         maybeAutoAttachByKeyword(finalText)
-                    } catch (_: Exception) {
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        AppLogger.e(TAG, "语音关键词自动附件处理失败", error)
                     }
                     floatContext.onSendMessage?.invoke(finalText, PromptFunctionType.VOICE)
                     awaitAiTurnAndResumeVoiceCapture()
@@ -584,7 +588,10 @@ class FloatingFullscreenModeViewModel(
         coroutineScope.launch {
             try {
                 maybeAutoAttachByKeyword(text)
-            } catch (_: Exception) {
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "语音关键词自动附件处理失败", error)
             }
             try {
                 val attachmentDelegate = floatContext.chatService?.getChatCore()?.getAttachmentDelegate()
@@ -598,7 +605,10 @@ class FloatingFullscreenModeViewModel(
                     attachmentDelegate?.captureLocation()
                 }
                 // hasOcrSelection 的附件已经在 FloatingScreenOcrScreen 中添加了
-            } catch (_: Exception) {
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "采集语音消息上下文附件失败", error)
             }
 
             floatContext.onSendMessage?.invoke(text, PromptFunctionType.VOICE)

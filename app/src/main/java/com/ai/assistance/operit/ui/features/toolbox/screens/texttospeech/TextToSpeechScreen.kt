@@ -16,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,12 +34,16 @@ import java.net.ProtocolException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import com.ai.assistance.operit.api.voice.TtsException
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 /** 文本转语音演示屏幕 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TextToSpeechScreen(navController: NavController) {
         val context = LocalContext.current
+        val successColors = KiyoriSemanticTone.GREEN.resolveColors()
+        val activeColors = KiyoriSemanticTone.BLUE.resolveColors()
         val coroutineScope = rememberCoroutineScope()
         val scrollState = rememberScrollState()
         val prefs = remember { SpeechServicesPreferences(context) }
@@ -496,7 +499,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                         else Icons.Default.Error,
                                                 contentDescription = null,
                                                 tint =
-                                                        if (isInitialized) Color(0xFF4CAF50)
+                                                        if (isInitialized) successColors.icon
                                                         else MaterialTheme.colorScheme.error
                                         )
                                         Text(
@@ -519,7 +522,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                         else Icons.AutoMirrored.Filled.VolumeOff,
                                                 contentDescription = null,
                                                 tint =
-                                                        if (isSpeaking) Color(0xFF2196F3)
+                                                        if (isSpeaking) activeColors.icon
                                                         else
                                                                 MaterialTheme.colorScheme
                                                                         .onSecondaryContainer

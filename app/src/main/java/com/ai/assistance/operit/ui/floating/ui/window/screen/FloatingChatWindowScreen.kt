@@ -85,8 +85,8 @@ import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.plugins.chatview.ChatViewEvent
 import com.ai.assistance.operit.plugins.chatview.ChatViewHookParams
 import com.ai.assistance.operit.plugins.chatview.ChatViewHookPluginRegistry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
 /** 渲染悬浮窗的窗口模式界面 - 简化版 */
@@ -438,6 +438,7 @@ private fun TitleBar(
     val primaryColor = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -513,16 +514,13 @@ private fun TitleBar(
                         icon = Icons.Default.Home,
                         description = stringResource(R.string.floating_back_to_main),
                         onClick = {
-                            // 启动 MainActivity 返回主应用
-                            try {
-                                val context = floatContext.chatService
-                                if (context != null) {
-                                    runBlocking {
-                                        try {
-                                            context.getChatCore().syncCurrentChatIdToGlobal()
-                                        } catch (_: Exception) {
-                                        }
-                                    }
+                            val context = floatContext.chatService
+                            if (context == null) {
+                                floatContext.onClose()
+                            } else {
+                                coroutineScope.launch {
+                                    try {
+                                        context.getChatCore().syncCurrentChatIdToGlobal()
                                     val intent = Intent(
                                         context,
                                         com.ai.assistance.operit.ui.main.MainActivity::class.java
@@ -531,12 +529,18 @@ private fun TitleBar(
                                             Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                                     }
                                     context.startActivity(intent)
+                                        floatContext.onClose()
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        AppLogger.e(
+                                            "FloatingChatWindow",
+                                            "启动 MainActivity 失败",
+                                            error,
+                                        )
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                AppLogger.e("FloatingChatWindow", "启动 MainActivity 失败", e)
                             }
-                            // 然后关闭悬浮窗
-                            floatContext.onClose()
                         }
                     )
                     // 关闭按钮

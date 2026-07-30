@@ -799,10 +799,14 @@ private fun Modifier.kiyoriGradientSearchFrame(): Modifier =
 @Composable
 internal fun KiyoriPrimaryRootPage(
     destination: PrimaryDestination,
-    onOpenAiSettings: () -> Unit,
+    onOpenAccountConnections: () -> Unit,
+    onOpenAiAssistant: () -> Unit,
+    onOpenSpeechServices: () -> Unit,
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAppearanceSettings: () -> Unit,
+    onOpenDataSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -812,10 +816,14 @@ internal fun KiyoriPrimaryRootPage(
         }
         PrimaryDestination.SETTINGS_HOME -> {
             KiyoriSettingsHomePage(
-                onOpenAiSettings = onOpenAiSettings,
+                onOpenAccountConnections = onOpenAccountConnections,
+                onOpenAiAssistant = onOpenAiAssistant,
+                onOpenSpeechServices = onOpenSpeechServices,
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
                 onOpenPlayerSettings = onOpenPlayerSettings,
+                onOpenAppearanceSettings = onOpenAppearanceSettings,
+                onOpenDataSettings = onOpenDataSettings,
                 modifier = modifier,
             )
             return

@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.extractWebSessionUserAgentHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionUserAgentDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionPresetUserAgent
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 
 private enum class UserAgentDialogPage {
     CHOOSER,
@@ -152,6 +156,7 @@ private fun UserAgentChooserDialog(
     onDismiss: () -> Unit,
 ) {
     val choices = UserAgentChoice.entries
+    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
@@ -165,10 +170,8 @@ private fun UserAgentChooserDialog(
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = 10.dp),
             ) {
-                Text(
+                UserAgentDialogTitle(
                     text = stringResource(R.string.web_session_user_agent_dialog_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 10.dp),
                 )
                 choices.forEachIndexed { index, choice ->
@@ -191,6 +194,7 @@ private fun UserAgentChooserDialog(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(22.dp),
+                                tint = blueColors.icon,
                             )
                         }
                     }
@@ -227,10 +231,8 @@ private fun CustomGlobalUserAgentDialog(
                         .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(
+                UserAgentDialogTitle(
                     text = stringResource(R.string.web_session_user_agent_custom_global_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
                 )
                 OutlinedTextField(
                     value = value,
@@ -290,10 +292,8 @@ private fun CustomSiteUserAgentDialog(
                         .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
+                UserAgentDialogTitle(
                     text = stringResource(R.string.web_session_user_agent_custom_site_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = stringResource(R.string.web_session_user_agent_custom_site_description),
@@ -360,6 +360,33 @@ private fun CustomSiteUserAgentDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UserAgentDialogTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        KiyoriSemanticIconBadge(
+            imageVector = Icons.Filled.Language,
+            tone = KiyoriSemanticTone.BLUE,
+            contentDescription = null,
+            containerSize = 34.dp,
+            iconSize = 18.dp,
+            shape = RoundedCornerShape(10.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

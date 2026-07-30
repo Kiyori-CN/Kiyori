@@ -87,12 +87,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP
-import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_ACTION_SIZE_DP
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_GAP_DP
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_TOP_HORIZONTAL_PADDING_DP
@@ -170,7 +171,7 @@ internal fun WebSessionBrowserTopBar(
                             .clickable(role = Role.Button, onClick = onOpenSearch),
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.background,
-                    border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 11.dp),
@@ -192,18 +193,19 @@ internal fun WebSessionBrowserTopBar(
                             fontWeight = FontWeight.Medium,
                         )
                         if (showDetectedVideoBadge && detectedVideoCount > 0) {
+                            val detectedVideoColors = KiyoriSemanticTone.ORANGE.resolveColors()
                             val badgeText = if (detectedVideoCount > 99) "99+" else detectedVideoCount.toString()
                             Box(
                                 modifier =
                                     Modifier
                                         .size(28.dp)
-                                        .background(Color(0xFFFF8A00), CircleShape)
+                                        .background(detectedVideoColors.container, CircleShape)
                                         .clickable(role = Role.Button, onClick = onShowDetectedVideos),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = badgeText,
-                                    color = Color.White,
+                                    color = detectedVideoColors.icon,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
@@ -518,7 +520,7 @@ internal fun WebSessionBrowserSearchScreen(
                                 ),
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.background,
-                        border = BorderStroke(1.dp, WEB_SESSION_BROWSER_SEARCH_BORDER_COLOR),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     ) {
                         Row(
                             modifier =
@@ -683,7 +685,7 @@ internal fun WebSessionBrowserSearchScreen(
                                     )
                                     CompactHistoryAction(
                                         text = stringResource(R.string.done),
-                                        color = Color(0xFF4F6FEA),
+                                        color = KiyoriSemanticTone.BLUE.resolveColors().icon,
                                         onClick = ::finishHistoryEditing,
                                     )
                                 } else {
@@ -873,10 +875,11 @@ private fun SearchEnginePanel(
     currentEngine: WebSessionSearchEngine,
     onSelect: (WebSessionSearchEngine) -> Unit,
 ) {
+    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = Color(0xFFEFF5FF),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         shadowElevation = 4.dp,
     ) {
         Column(
@@ -887,7 +890,7 @@ private fun SearchEnginePanel(
                 text = stringResource(R.string.web_session_choose_search_engine),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF111827),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 2.dp),
             )
             WebSessionSearchEngine.entries.chunked(3).forEach { row ->
@@ -909,17 +912,17 @@ private fun SearchEnginePanel(
                             shape = RoundedCornerShape(14.dp),
                             color =
                                 if (selected) {
-                                    Color(0xFFE7EEFF)
+                                    blueColors.container
                                 } else {
-                                    Color.White
+                                    MaterialTheme.colorScheme.surface
                                 },
                             border =
                                 BorderStroke(
                                     1.dp,
                                     if (selected) {
-                                        Color(0xFFAFC2F3)
+                                        blueColors.icon.copy(alpha = 0.28f)
                                     } else {
-                                        Color(0xFFE1E7F0)
+                                        MaterialTheme.colorScheme.outlineVariant
                                     },
                                 ),
                         ) {
@@ -950,7 +953,7 @@ private fun SearchEnginePanel(
                                         } else {
                                             FontWeight.Medium
                                         },
-                                    color = Color(0xFF111827),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f),
@@ -976,7 +979,7 @@ private fun CurrentUrlActions(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF3F7FD),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
             modifier =
@@ -996,7 +999,7 @@ private fun CurrentUrlActions(
                         .weight(1f)
                         .clickable(role = Role.Button, onClick = onOpen),
                 shape = RoundedCornerShape(12.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
             ) {
                 Column(
                     modifier =
@@ -1015,7 +1018,7 @@ private fun CurrentUrlActions(
                             fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_TITLE_SIZE_SP.sp,
                             lineHeight = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF111827),
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -1024,7 +1027,7 @@ private fun CurrentUrlActions(
                         text = url,
                         fontSize = WEB_SESSION_SEARCH_SCREEN_CURRENT_URL_SIZE_SP.sp,
                         lineHeight = 13.sp,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1050,6 +1053,7 @@ private fun UrlActionButton(
     title: String,
     onClick: () -> Unit,
 ) {
+    val colors = KiyoriSemanticTone.BLUE.resolveColors()
     Column(
         modifier =
             Modifier
@@ -1070,12 +1074,12 @@ private fun UrlActionButton(
                     .size(
                         WEB_SESSION_SEARCH_SCREEN_CURRENT_ACTION_ICON_SIZE_DP.dp,
                     ),
-            tint = Color(0xFF4F6FEA),
+            tint = colors.icon,
         )
         Text(
             text = title,
             fontSize = WEB_SESSION_BROWSER_MENU_LABEL_SIZE_SP.sp,
-            color = Color(0xFF1F2937),
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1107,7 +1111,7 @@ private fun SearchHistoryClearConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val destructiveColor = Color(0xFFEF4F4F)
+    val destructiveColors = KiyoriSemanticTone.RED.resolveColors()
 
     WebSessionBrowserModalDialog(
         onDismissRequest = onDismiss,
@@ -1116,8 +1120,8 @@ private fun SearchHistoryClearConfirmationDialog(
         Surface(
             modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp),
             shape = RoundedCornerShape(28.dp),
-            color = Color.White,
-            contentColor = Color(0xFF111827),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             shadowElevation = 8.dp,
         ) {
             Column(
@@ -1135,7 +1139,7 @@ private fun SearchHistoryClearConfirmationDialog(
                     fontSize = 16.sp,
                     lineHeight = 22.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111827),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Surface(
@@ -1145,8 +1149,8 @@ private fun SearchHistoryClearConfirmationDialog(
                             .height(46.dp)
                             .clickable(role = Role.Button, onClick = onConfirm),
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.Transparent,
-                    border = BorderStroke(1.5.dp, destructiveColor),
+                    color = destructiveColors.container,
+                    border = BorderStroke(1.5.dp, destructiveColors.icon),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1160,7 +1164,7 @@ private fun SearchHistoryClearConfirmationDialog(
                             fontSize = 14.sp,
                             lineHeight = 18.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = destructiveColor,
+                            color = destructiveColors.icon,
                         )
                     }
                 }
@@ -1179,7 +1183,7 @@ private fun SearchHistoryClearConfirmationDialog(
                         fontSize = 14.sp,
                         lineHeight = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF111827),
+                        color = destructiveColors.icon,
                     )
                 }
             }
@@ -1194,6 +1198,7 @@ private fun SearchHistoryTag(
     onOpen: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val deleteColors = KiyoriSemanticTone.RED.resolveColors()
     Box(
         modifier =
             Modifier.padding(
@@ -1211,13 +1216,13 @@ private fun SearchHistoryTag(
                         onClick = onOpen,
                     ),
             shape = RoundedCornerShape(14.dp),
-            color = Color(0xFFF5F6F8),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             Text(
                 text = text,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF171717),
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier =
@@ -1234,7 +1239,7 @@ private fun SearchHistoryTag(
                         .offset(x = 4.dp, y = (-4).dp)
                         .size(18.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE2E4E8))
+                        .background(deleteColors.container)
                         .clickable(role = Role.Button, onClick = onDelete),
                 contentAlignment = Alignment.Center,
             ) {
@@ -1242,7 +1247,7 @@ private fun SearchHistoryTag(
                     imageVector = Icons.Filled.Close,
                     contentDescription =
                         stringResource(R.string.web_session_delete_search_history_item),
-                    tint = Color(0xFF737780),
+                    tint = deleteColors.icon,
                     modifier = Modifier.size(12.dp),
                 )
             }

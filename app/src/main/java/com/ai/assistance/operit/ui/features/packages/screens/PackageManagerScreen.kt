@@ -40,6 +40,7 @@ import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +67,9 @@ import com.ai.assistance.operit.ui.features.packages.lists.PackagesList
 import com.ai.assistance.operit.ui.features.packages.market.BindMarketSearchToTopBar
 import com.ai.assistance.operit.ui.features.packages.market.PluginCreationIntent
 import com.ai.assistance.operit.ui.features.packages.market.PublishArtifactType
+import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.ui.theme.resolveColors
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -528,6 +532,7 @@ fun PackageManagerScreen(
         searchPlaceholderRes = activeSearchPlaceholderRes,
         isSearching = activeSearchApplying
     )
+    val selectedTabColors = packageManagerTabTone(selectedTab).resolveColors()
 
     CustomScaffold(
         snackbarHost = {
@@ -656,7 +661,7 @@ fun PackageManagerScreen(
                                     tabPositions[selectedTab.ordinal]
                                 ),
                             height = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = selectedTabColors.icon
                         )
                     }
                 }
@@ -667,30 +672,12 @@ fun PackageManagerScreen(
                     onClick = { selectedTab = PackageTab.PLUGINS },
                     modifier = Modifier.height(48.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Apps,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (selectedTab == PackageTab.PLUGINS)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            context.getString(R.string.nav_group_plugins),
-                            style = MaterialTheme.typography.bodySmall,
-                            softWrap = false,
-                            color = if (selectedTab == PackageTab.PLUGINS)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    PackageManagerTabLabel(
+                        tab = PackageTab.PLUGINS,
+                        title = context.getString(R.string.nav_group_plugins),
+                        icon = Icons.Default.Apps,
+                        selected = selectedTab == PackageTab.PLUGINS,
+                    )
                 }
 
                 // 包管理标签
@@ -699,30 +686,12 @@ fun PackageManagerScreen(
                     onClick = { selectedTab = PackageTab.PACKAGES },
                     modifier = Modifier.height(48.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Extension,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (selectedTab == PackageTab.PACKAGES)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            context.getString(R.string.script_packages),
-                            style = MaterialTheme.typography.bodySmall,
-                            softWrap = false,
-                            color = if (selectedTab == PackageTab.PACKAGES)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    PackageManagerTabLabel(
+                        tab = PackageTab.PACKAGES,
+                        title = context.getString(R.string.script_packages),
+                        icon = Icons.Default.Extension,
+                        selected = selectedTab == PackageTab.PACKAGES,
+                    )
                 }
 
                 // Skills标签
@@ -731,30 +700,12 @@ fun PackageManagerScreen(
                     onClick = { selectedTab = PackageTab.SKILLS },
                     modifier = Modifier.height(48.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Build,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (selectedTab == PackageTab.SKILLS)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            context.getString(R.string.skills),
-                            style = MaterialTheme.typography.bodySmall,
-                            softWrap = false,
-                            color = if (selectedTab == PackageTab.SKILLS)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    PackageManagerTabLabel(
+                        tab = PackageTab.SKILLS,
+                        title = context.getString(R.string.skills),
+                        icon = Icons.Default.Build,
+                        selected = selectedTab == PackageTab.SKILLS,
+                    )
                 }
 
                 // MCP标签
@@ -763,30 +714,12 @@ fun PackageManagerScreen(
                     onClick = { selectedTab = PackageTab.MCP },
                     modifier = Modifier.height(48.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Cloud,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (selectedTab == PackageTab.MCP)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            context.getString(R.string.mcp),
-                            style = MaterialTheme.typography.bodySmall,
-                            softWrap = false,
-                            color = if (selectedTab == PackageTab.MCP)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    PackageManagerTabLabel(
+                        tab = PackageTab.MCP,
+                        title = context.getString(R.string.mcp),
+                        icon = Icons.Default.Cloud,
+                        selected = selectedTab == PackageTab.MCP,
+                    )
                 }
             }
 
@@ -1150,6 +1083,51 @@ fun PackageManagerScreen(
                 )
             }
         }
+    }
+}
+
+internal fun packageManagerTabTone(tab: PackageTab): KiyoriSemanticTone =
+    when (tab) {
+        PackageTab.PLUGINS -> KiyoriSemanticTone.PURPLE
+        PackageTab.PACKAGES -> KiyoriSemanticTone.CYAN
+        PackageTab.SKILLS -> KiyoriSemanticTone.ORANGE
+        PackageTab.MCP -> KiyoriSemanticTone.BLUE
+    }
+
+@Composable
+private fun PackageManagerTabLabel(
+    tab: PackageTab,
+    title: String,
+    icon: ImageVector,
+    selected: Boolean,
+) {
+    val tone = packageManagerTabTone(tab)
+    val colors = tone.resolveColors()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        KiyoriSemanticIconBadge(
+            imageVector = icon,
+            tone = tone,
+            contentDescription = null,
+            containerSize = 28.dp,
+            iconSize = 15.dp,
+            shape = RoundedCornerShape(9.dp),
+            enabled = true,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodySmall,
+            softWrap = false,
+            color =
+                if (selected) {
+                    colors.icon
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+        )
     }
 }
 
