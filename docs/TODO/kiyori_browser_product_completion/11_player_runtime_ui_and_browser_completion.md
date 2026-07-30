@@ -55,7 +55,7 @@
 - [DONE] 竖屏底部不再叠加左右悬浮文字按钮；“超分 / 弹幕 / 上一项 / 后退 / 播放 / 前进 / 下一项 / 倍速 / 旋转”改为九个等宽单元，普通图标 `32dp`、播放图标 `36dp`
 - [DONE] 横屏进度区域恢复 legacy `800dp` 最大宽度，横屏中央七键组、超分/旋转两侧定位与右侧截图/锁定/下载图标不变
 - [DONE] 顶部功能入口改为字幕、弹幕、音轨、画面模式四个统一描边图标；音轨弹窗直接选择 `PlayerSession` 的真实 audio track；投屏从顶部移除
-- [DONE] 更多菜单删除“样式覆盖”，固定顺序为“解码 / 投屏 / 听视频 / 片头片尾 / 自动旋转 / 查看日志”
+- [CORRECTED] 早期更多菜单曾复刻“解码 / 投屏 / 听视频 / 片头片尾 / 自动旋转 / 查看日志”；当前已清理无 owner 项，只保留连接真实 `PlayerSettingsStore` 的自动旋转开关和查看日志
 - [DONE] 顶部网速改为 legacy `TrafficStats` 总接收/发送字节差值，电量和 `HH:mm` 时间持续读取 Android 系统状态
 - [DONE] `PlayerSession` 把新媒体保存为 pending request，只在 `PlayerSurfaceView` 已成功连接有效 Surface 后执行 `loadfile`；该顺序与 legacy `CustomMPVView.initialize -> loadVideo` 一致，避免 Android 16 Codec2 在 VO 替换期间交换 `AHardwareBuffer` fd 所有权
 - [DONE] `compileDebugKotlin` 通过；`PlayerPolicyTest` 为 `11/11`，其中新增门禁证明 pending media 与 attached Surface 同时成立时才允许加载
@@ -124,9 +124,9 @@
   和右侧音量由同一序列判定，播放进度更新不会重启 detector
 - [DONE] 控制层自动隐藏开始观察暂停、加载、弹窗、日志、进度拖动和全屏手势；任意真实按钮交互重置
   三秒计时。锁定后只显示左右解锁按钮，按钮自动隐藏后可通过单击视频区域重新显示
-- [DONE] 弹幕在没有真实 owner 前改为明确禁用态；上一项和下一项继续禁用；更多菜单删除解码、投屏、
-  听视频、片头片尾和自动旋转等活跃空动作，只保留真实“查看日志”
-- [DONE] 播放器设置页删除没有 owner 的静态伪设置，改为四组 14 项真实配置，完整覆盖
+- [CORRECTED] 弹幕在没有真实 owner 前改为明确禁用态；更多菜单删除解码、投屏、听视频和片头片尾等
+  活跃空动作。当前自动旋转已连接真实设置 owner，并与“查看日志”共同保留
+- [CORRECTED] 播放器设置页删除没有 owner 的静态伪设置，当前为六组 24 项真实配置，完整覆盖
   `PlayerSettingsStore` 的播放、交接、在线缓存、字幕和解码渲染字段；GPU Next 与 Vulkan 明确标注
   下次创建播放器内核生效
 - [DONE] 浏览器悬浮播放器读取同一 `PlayerSettingsStore.seekStepSeconds`，不再把显示用步长固定为
@@ -360,10 +360,12 @@ ui/features/player/
 - 中央与两侧：加载、seek、亮度、音量、双击前后跳和锁定反馈
 
 旧版弹幕和投屏依赖当前项目没有的完整真实 owner；弹幕保留顶部和底部位置但使用明确禁用态，投屏等
-没有 owner 的更多菜单项已经删除，不创建第二套运行时或伪造成功状态。Anime4K 入口打开包含关闭、
-流畅、均衡、高清四种真实 shader 组合的锚定菜单并立即应用。进度条按设置绘制 MPV 章节节点，显示
-当前章节，并在拖动时展示由当前 `:player` runtime 提取的画面预览。按钮图标、尺寸、间距和相对位置
-仍按固定布局对齐。
+没有 owner 的更多菜单项已经删除，不创建第二套运行时或伪造成功状态。更多菜单只提供连接
+`PlayerSettingsStore.followGravityRotation` 的自动旋转开关和真实播放日志。Anime4K 入口严格按
+`mpv-android-anime4k@32f5f169` 顺序显示关、A、B、C、A+、B+、C+，使用 Balanced/M shader 链并
+立即应用；资产、缓存和 MPV 属性均有校验证据。进度条按设置绘制 MPV 章节节点，显示当前章节，并在
+拖动时展示由当前 `:player` runtime 提取的画面预览。按钮、锚定菜单、加载/错误卡片和手势提示共用
+同一深色现代视觉，同时保留现有播放器专用图标与唯一控制层。
 
 ## 真实设置
 
@@ -377,6 +379,7 @@ ui/features/player/
 - 音量增强：约束 mpv 软件音量 `150%` 与 `volume-max=300%`
 - 精确 seek：约束 `hr-seek`、`hr-seek-framedrop` 和 seek command mode
 - 双击手势：可选择任意位置暂停/播放或左右半屏快退/快进；左右跳转使用独立秒数
+- 长按加速：开启后按住画面从当前倍速临时提升到下一合法档，松手或手势取消恢复原速，不写入倍速记忆
 - 按钮快进/快退时长：只约束播放器按钮
 - 章节进度条：消费 MPV `chapter-list`，绘制节点并显示当前章节
 - 进度条缩略图：经唯一 runtime 调用 `grabThumbnailFast`，使用单线程、时间分桶和最新请求覆盖
@@ -392,7 +395,7 @@ ui/features/player/
 
 设置页继续复用 `KiyoriCollapsingSettingsPage` 与 `KiyoriSettingsGroupCard`。Kiyori 尚未发布，原
 hikerView 参考页中没有当前 owner 的静态伪设置已经删除；当前按“播放与连播、手势与进度、画面与
-超分、音频与字幕、保存与下载、窗口与在线”使用 `4/6/5/2/2/4` 六组 23 项，只展示上列真实
+超分、音频与字幕、保存与下载、窗口与在线”使用 `4/7/5/2/2/4` 六组 24 项，只展示上列真实
 `PlayerSettingsStore` 字段。选择页显示当前值和参数说明，条件项使用明确禁用态，GPU Next 与 Vulkan
 明确标注下次创建唯一 mpv core 时生效。
 

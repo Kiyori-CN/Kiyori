@@ -16,3 +16,7 @@
 *.so binary
 *.webp binary
 *.zip binary
+
+# Anime4K assets are hash-locked third-party source files. Preserve their
+# upstream whitespace exactly instead of rewriting bytes that MPV consumes.
+app/src/main/assets/shaders/*.glsl -text !eol -whitespace

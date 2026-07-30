@@ -11,18 +11,35 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 EXPECTED_SHADER_HASHES = {
+    "Anime4K_AutoDownscalePre_x2.glsl":
+        "9141668ced0b26512253e6396e805820716f35b57c92950d9da489f8b96a7ba4",
+    "Anime4K_AutoDownscalePre_x4.glsl":
+        "dadb7b713cfa1d810c55b5deff616072f3390e546fed1e6a54f80ea555f7b95d",
     "Anime4K_Clamp_Highlights.glsl":
-        "e457fdb6c60cea88e195a463a3c21e72f3073e38b18ff4c8ddf7258028ed7ed5",
-    "Anime4K_Restore_CNN_L.glsl":
-        "bead2fca3a75eef0b8949d203ee3fcbcf8dfdb2bf3239580ec4c8eae80891f8b",
+        "8c5fb67c76bed3021f8a27b050c3b97a6ac1b284f9ce91c04189015c354c0217",
     "Anime4K_Restore_CNN_M.glsl":
         "dd515c307d97d8e5c809f263dd94174cc5667b8c1299082cdff14e6ddfc8d4bc",
-    "Anime4K_Upscale_CNN_x2_L.glsl":
-        "120f62fd293bb949c746d0c9986b6b6a8eecebfd49b0db8e139103b5f459234a",
+    "Anime4K_Restore_CNN_S.glsl":
+        "fca48f8322be4c7c5b14393a6eb6d733bbefffea0ca29694cb6c4b0335dad5ce",
+    "Anime4K_Restore_CNN_Soft_M.glsl":
+        "df1cdc360d6fbfd51b6d6deec99aefb747d0de72cc1c0ff271cd48758a6a0c5a",
+    "Anime4K_Restore_CNN_Soft_S.glsl":
+        "17fe08df911bd7ae67235da8076701d51647a5fcacab8f1f1f042a1a85f0bb50",
     "Anime4K_Upscale_CNN_x2_M.glsl":
         "249dc3be467f556ed3361deea79f42bac1ae57456c22588c2cc3c2ee8808909c",
     "Anime4K_Upscale_CNN_x2_S.glsl":
         "90b65a4f36950852a34e5f12beb179fafed59fa8d911887e0f5f184337998edf",
+    "Anime4K_Upscale_Denoise_CNN_x2_M.glsl":
+        "ca51390eabca94ed3e1d9b40dc15b34045cc966f232ba9490ae0b4c1834d94f6",
+}
+EXPECTED_SHADER_LICENSE_MARKERS = {
+    "Anime4K_AutoDownscalePre_x2.glsl": b"released into the public domain",
+    "Anime4K_AutoDownscalePre_x4.glsl": b"released into the public domain",
+    **{
+        file_name: b"// MIT License"
+        for file_name in EXPECTED_SHADER_HASHES
+        if not file_name.startswith("Anime4K_AutoDownscalePre_")
+    },
 }
 EXPECTED_MPV_AAR_SHA256 = "fc983b7ed0c8b8be1938283fe94108dfdc593aa31608d55dd1ce119ae201c32c"
 EXPECTED_FFMPEG_AAR_SHA256 = "1a30a94226bf2157927ec6edbb20154f9a1c1c53580f59cf55efe46db87a5ab3"
@@ -77,13 +94,18 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn("*/*", main_mime_types)
         self.assertNotIn("video/*", main_mime_types)
 
-    def test_anime4k_assets_are_fixed_mit_sources(self) -> None:
+    def test_anime4k_assets_are_fixed_upstream_sources(self) -> None:
+        attributes = (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8")
+        self.assertIn(
+            "app/src/main/assets/shaders/*.glsl -text !eol -whitespace",
+            attributes,
+        )
         shader_root = REPO_ROOT / "app" / "src" / "main" / "assets" / "shaders"
         actual_files = {path.name for path in shader_root.glob("*.glsl")}
         self.assertEqual(set(EXPECTED_SHADER_HASHES), actual_files)
         for file_name, expected_hash in EXPECTED_SHADER_HASHES.items():
             payload = (shader_root / file_name).read_bytes()
-            self.assertTrue(payload.startswith(b"// MIT License"))
+            self.assertIn(EXPECTED_SHADER_LICENSE_MARKERS[file_name], payload)
             self.assertEqual(expected_hash, hashlib.sha256(payload).hexdigest())
 
     def test_gradle_has_no_native_packaging_selection(self) -> None:
@@ -231,6 +253,22 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn('setRequiredOption("force-window", "yes")', initialize_body)
         self.assertIn("buildPlayerMpvHttpHeaderPlan(headers)", engine_source)
         self.assertIn("rangeOwner=mpv", engine_source)
+        self.assertIn('MPVLib.setPropertyString("glsl-shaders", serialized)', engine_source)
+        self.assertIn('MPVLib.getPropertyString("glsl-shaders")', engine_source)
+        self.assertIn("Anime4K 属性已核验", engine_source)
+        settings_store_source = (player_root / "PlayerSettingsStore.kt").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("private fun readAnime4KMode(): Anime4KMode", settings_store_source)
+        self.assertIn(
+            "val migratedId = migrateLegacyAnime4KPersistedId(storedId)",
+            settings_store_source,
+        )
+        self.assertIn(
+            "preferences.edit().putString(KEY_ANIME4K_MODE, migratedId).apply()",
+            settings_store_source,
+        )
+        self.assertIn("anime4KMode = readAnime4KMode()", settings_store_source)
         self.assertIn('data["reason"]?.asString()', engine_source)
         self.assertIn('data["file_error"]?.asString()', engine_source)
         self.assertNotIn('data["reason"]?.asInt()', engine_source)
@@ -245,6 +283,13 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn("MPVLib", session_source)
         self.assertIn("beginPendingPlayerSurfaceAttach", session_source)
         self.assertIn("onSurfaceAttached", session_source)
+        boost_body = session_source[
+            session_source.index("fun beginLongPressSpeedBoost("):
+            session_source.index("fun setAudioTrack(")
+        ]
+        self.assertIn("resolveNextPlayerSpeed(snapshot.speed)", boost_body)
+        self.assertIn("activeLongPressSpeedBoost", boost_body)
+        self.assertNotIn("setLastPlaybackSpeed", boost_body)
 
         controls_source = (
             REPO_ROOT
@@ -265,7 +310,12 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertGreaterEqual(controls_source.count("padding = 2.dp"), 4)
         self.assertGreaterEqual(controls_source.count("softWrap = false"), 2)
         self.assertGreaterEqual(controls_source.count("fontWeight = FontWeight.Bold"), 2)
-        self.assertIn('val items = listOf("查看日志")', controls_source)
+        self.assertIn('label = "自动旋转"', controls_source)
+        self.assertIn('label = "查看播放日志"', controls_source)
+        self.assertIn("onAutoRotateChanged(!autoRotateEnabled)", controls_source)
+        self.assertIn("PLAYER_SPEED_MENU_OPTIONS", controls_source)
+        self.assertIn('title = "Anime4K 模式"', controls_source)
+        self.assertIn('"A+ - 双重强化"', controls_source)
         self.assertNotIn(
             'listOf("解码", "投屏", "听视频", "片头片尾", "自动旋转", "查看日志")',
             controls_source,
@@ -274,6 +324,26 @@ class PlayerAssetsTest(unittest.TestCase):
             controls_source.count('description = "弹幕（当前资源不支持）"'),
             2,
         )
+        popup_body = controls_source[
+            controls_source.index("private fun PlayerPopupMenu("):
+            controls_source.index("private fun LegacyImageButton(")
+        ]
+        self.assertIn("shape = RoundedCornerShape(20.dp)", popup_body)
+        self.assertIn("containerColor = PlayerPopupBackground", popup_body)
+        self.assertIn("tonalElevation = 0.dp", popup_body)
+        self.assertNotIn(".background(PlayerPopupBackground)", popup_body)
+        image_button_body = controls_source[
+            controls_source.index("private fun LegacyImageButton("):
+            controls_source.index("private fun LegacyTextButton(")
+        ]
+        self.assertNotIn(".background(", image_button_body)
+        self.assertNotIn(".border(", image_button_body)
+        text_button_body = controls_source[
+            controls_source.index("private fun LegacyTextButton("):
+            controls_source.index("private fun LegacySeekBar(")
+        ]
+        self.assertNotIn(".background(", text_button_body)
+        self.assertNotIn(".border(", text_button_body)
 
         player_screen_source = (
             REPO_ROOT
@@ -321,6 +391,11 @@ class PlayerAssetsTest(unittest.TestCase):
             "pointerInput(enabled, state.positionSeconds, state.durationSeconds",
             gesture_source,
         )
+        self.assertIn("PLAYER_LONG_PRESS_SPEED_THRESHOLD_MILLIS", gesture_source)
+        self.assertIn("session.beginLongPressSpeedBoost()", gesture_source)
+        self.assertIn("session.endLongPressSpeedBoost()", gesture_source)
+        self.assertIn("verticalOnRight = true", gesture_source)
+        self.assertIn("verticalOnRight = false", gesture_source)
 
         log_buffer_source = (
             REPO_ROOT

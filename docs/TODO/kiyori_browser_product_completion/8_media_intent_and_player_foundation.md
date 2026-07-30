@@ -73,15 +73,18 @@ native 命名空间：
 - 网络 request 保留真实 `User-Agent`、`Referer`、`Origin`、`Cookie`、`Range` 与 `Accept`；
   缺失字段保持缺失，不根据页面 URL 猜测。浏览器捕获的 `Range` 只描述当次网络分段，player runtime
   在写入 `http-header-fields` 前将其排除，由 mpv/FFmpeg 根据当前 open/seek 偏移生成实际 Range。
-- `Anime4KMode.OFF` 清空 mpv `glsl-shaders`；其他模式先把固定 MIT shader 复制到应用私有目录，再把
-  存在且匹配模式的绝对路径设置给 `glsl-shaders`。初始化、复制或设置失败必须进入可见错误状态，不能把
+- `Anime4KMode.OFF` 清空 mpv `glsl-shaders`；其他模式先核验参考仓库锁定的授权文本和 shader
+  SHA-256，再把匹配模式的文件复制到版本化应用私有目录并二次核验，最后把绝对路径设置给
+  `glsl-shaders` 并读取同一属性确认。初始化、复制、缓存、设置或回读失败必须进入可见错误状态，不能把
   开关显示为已生效。
 - ExoPlayer 继续只服务现有背景视频，不参与播放器媒体加载。
 
 ## 首期播放器 UI
 
 - 黑色沉浸背景；顶部返回、标题；中央播放/暂停；底部进度、时间、倍速、音轨、字幕。
-- 横向拖动 seek；左侧纵向调屏幕亮度；右侧纵向调媒体音量。手势开始后锁定轴向，控制层有明确反馈。
+- 横向拖动 seek；左侧纵向调屏幕亮度并在右侧显示提示；右侧纵向调媒体音量并在左侧显示提示。
+  手势开始后锁定轴向，控制层有明确反馈。开启长按加速时，同一 detector 在长按阈值后临时升档，
+  松手或取消时恢复原速。
 - 手机横屏、竖屏和大屏复用同一 session，不因配置变化重新加载。
 - 错误层显示具体错误与 URI 类型；错误写入 `AppLogger`，不得显示成功控制状态。
 
@@ -93,7 +96,7 @@ native 命名空间：
 - 默认倍速：仅允许页面提供的固定值，新媒体加载时应用
 - 后台行为：Activity/浏览器 host 真正进入后台时暂停或继续
 - 全屏返回行为：来自浏览器的 session 返回悬浮或关闭
-- Anime4K 模式：关闭、快速、平衡、高质量，分别约束实际 shader 链
+- Anime4K 模式：关、A、B、C、A+、B+、C+，分别约束锁定的 Balanced/M shader 链
 
 设置首页“视频播放器”进入 `KiyoriShellChild.PLAYER_SETTINGS`。页面复用
 `KiyoriCollapsingSettingsPage`、`KiyoriSettingsGroupCard` 及浏览器/下载设置已有行组件、卡片间距和折叠
@@ -104,7 +107,8 @@ native 命名空间：
 - 系统“用 Kiyori 打开”视频进入 `PlayerActivity`，不进入 AI 附件。
 - 本地 `content://`、`file://` 和网络 URI 的单一 session 可开始、暂停、seek、改速、切音轨/字幕。
 - Activity 重建、方向变化和 Surface 更换不增加 `loadfile` 计数。
-- 四组设置均有纯逻辑映射测试，Anime4K 非关闭模式对应真实存在的 shader 文件和 mpv property。
+- 全部设置均有纯逻辑映射或静态链路测试，Anime4K 非关闭模式对应 SHA-256 锁定的 shader 文件和
+  经回读确认的 mpv property。
 - native 输入/输出哈希、动态符号、ABI、许可证和 16 KB 证据完整。
 - 定向测试、formal readiness、`git diff --check` 与第一次 `assembleDebug` 全部通过，并单独记录阶段 8 APK。
 - 真机解码、性能、手势与方向行为保持 `verification_pending`；阶段 8 APK 未通过时禁止进入阶段 9。

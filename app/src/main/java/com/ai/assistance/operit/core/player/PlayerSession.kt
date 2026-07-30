@@ -57,6 +57,7 @@ internal class PlayerSession private constructor(context: Context) {
     private var activeQueue: List<PlayerMediaRequest> = emptyList()
     private var activeQueueIndex: Int = 0
     private var pendingThumbnailCommandId: Long? = null
+    private var activeLongPressSpeedBoost: ActiveLongPressSpeedBoost? = null
     private val pendingScreenshots = LinkedHashMap<Long, PendingScreenshot>()
 
     private val runtimeListener =
@@ -482,6 +483,9 @@ internal class PlayerSession private constructor(context: Context) {
         clearDiagnostics: Boolean,
     ) {
         requireMainThread()
+        if (_state.value.request?.requestId != request.requestId) {
+            activeLongPressSpeedBoost = null
+        }
         if (_state.value.runtimeState == PlayerRuntimeState.CLOSING) {
             setError(
                 "播放器正在关闭，无法接收新的媒体请求",
@@ -837,6 +841,7 @@ internal class PlayerSession private constructor(context: Context) {
         requireMainThread()
         require(speed in PLAYER_SPEED_OPTIONS) { "Unsupported player speed: $speed" }
         if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
+        activeLongPressSpeedBoost = null
         if (runtimeConnection.setSpeed(speed) != null) {
             _state.value = _state.value.copy(speed = speed)
             PlayerDebugLogBuffer.append(
@@ -848,6 +853,66 @@ internal class PlayerSession private constructor(context: Context) {
                 settingsStore.setLastPlaybackSpeed(speed)
             }
         }
+    }
+
+    fun beginLongPressSpeedBoost(): LongPressSpeedBoostResult? {
+        requireMainThread()
+        activeLongPressSpeedBoost?.let { active ->
+            return LongPressSpeedBoostResult(
+                originalSpeed = active.originalSpeed,
+                boostedSpeed = active.boostedSpeed,
+            )
+        }
+        val snapshot = _state.value
+        if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) return null
+        val boostedSpeed = resolveNextPlayerSpeed(snapshot.speed) ?: return null
+        if (runtimeConnection.setSpeed(boostedSpeed) == null) return null
+        activeLongPressSpeedBoost =
+            ActiveLongPressSpeedBoost(
+                requestId = requireNotNull(snapshot.request).requestId,
+                loadGeneration = snapshot.loadGeneration,
+                runtimeGeneration = snapshot.runtimeGeneration,
+                originalSpeed = snapshot.speed,
+                boostedSpeed = boostedSpeed,
+            )
+        _state.value = snapshot.copy(speed = boostedSpeed)
+        PlayerDebugLogBuffer.append(
+            PlayerDebugLogLevel.DEBUG,
+            TAG,
+            "开始长按加速 original=${snapshot.speed} boosted=$boostedSpeed",
+        )
+        return LongPressSpeedBoostResult(
+            originalSpeed = snapshot.speed,
+            boostedSpeed = boostedSpeed,
+        )
+    }
+
+    fun endLongPressSpeedBoost() {
+        requireMainThread()
+        val active = activeLongPressSpeedBoost ?: return
+        activeLongPressSpeedBoost = null
+        val snapshot = _state.value
+        if (
+            snapshot.request?.requestId != active.requestId ||
+                snapshot.loadGeneration != active.loadGeneration ||
+                snapshot.runtimeGeneration != active.runtimeGeneration ||
+                !snapshot.runtimeState.acceptsCommands()
+        ) {
+            return
+        }
+        if (runtimeConnection.setSpeed(active.originalSpeed) == null) {
+            setError(
+                "无法恢复长按加速前的播放速度",
+                IllegalStateException("Player runtime is unavailable"),
+            )
+            return
+        }
+        _state.value = snapshot.copy(speed = active.originalSpeed)
+        PlayerDebugLogBuffer.append(
+            PlayerDebugLogLevel.DEBUG,
+            TAG,
+            "结束长按加速 restore=${active.originalSpeed}",
+        )
     }
 
     fun setAudioTrack(trackId: Int) {
@@ -1091,6 +1156,7 @@ internal class PlayerSession private constructor(context: Context) {
 
     fun onHostBackgrounded() {
         requireMainThread()
+        endLongPressSpeedBoost()
         if (
             _state.value.hasMedia &&
                 settingsStore.current.backgroundBehavior == PlayerBackgroundBehavior.PAUSE
@@ -1109,6 +1175,7 @@ internal class PlayerSession private constructor(context: Context) {
             return
         }
         closeRequested = true
+        activeLongPressSpeedBoost = null
         closeCommandId = null
         pendingMediaLoad = null
         lastLoadCommandId = null
@@ -1414,6 +1481,7 @@ internal class PlayerSession private constructor(context: Context) {
         pendingMediaLoad = null
         lastLoadCommandId = null
         pendingThumbnailCommandId = null
+        activeLongPressSpeedBoost = null
         closeCommandId = null
         closeRequested = false
         activeQueue = emptyList()
@@ -1457,6 +1525,7 @@ internal class PlayerSession private constructor(context: Context) {
         failAllScreenshots(IllegalStateException(message))
         pendingMediaLoad = null
         pendingThumbnailCommandId = null
+        activeLongPressSpeedBoost = null
         pendingSurfaceLease = null
         activeSurfaceLease = null
         closeCommandId = null
@@ -1826,6 +1895,14 @@ internal class PlayerSession private constructor(context: Context) {
         val positionSeconds: Double,
         val speed: Double,
         val runtimeGeneration: Long,
+    )
+
+    private data class ActiveLongPressSpeedBoost(
+        val requestId: String,
+        val loadGeneration: Long,
+        val runtimeGeneration: Long,
+        val originalSpeed: Double,
+        val boostedSpeed: Double,
     )
 
     companion object {

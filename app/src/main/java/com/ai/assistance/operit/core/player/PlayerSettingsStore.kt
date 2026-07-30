@@ -102,6 +102,11 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         _state.value = _state.value.copy(doubleTapSeekSeconds = value)
     }
 
+    fun setLongPressSpeedBoostEnabled(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_LONG_PRESS_SPEED_BOOST_ENABLED, enabled).apply()
+        _state.value = _state.value.copy(longPressSpeedBoostEnabled = enabled)
+    }
+
     fun setChapterBarEnabled(enabled: Boolean) {
         preferences.edit().putBoolean(KEY_CHAPTER_BAR_ENABLED, enabled).apply()
         _state.value = _state.value.copy(chapterBarEnabled = enabled)
@@ -208,6 +213,21 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         }
     }
 
+    private fun readAnime4KMode(): Anime4KMode {
+        val storedId =
+            requireNotNull(
+                preferences.getString(KEY_ANIME4K_MODE, Anime4KMode.OFF.persistedId),
+            ) {
+                "Anime4K preference is null"
+            }
+        val migratedId = migrateLegacyAnime4KPersistedId(storedId)
+        if (migratedId != storedId) {
+            // 七档方案替换了开发期四档 ID；必须先重写已存在的数据，否则严格枚举读取会在启动时崩溃。
+            preferences.edit().putString(KEY_ANIME4K_MODE, migratedId).apply()
+        }
+        return Anime4KMode.fromPersistedId(migratedId)
+    }
+
     private fun readSettings(): PlayerSettings {
         val speed = preferences.getInt(KEY_DEFAULT_SPEED_PERCENT, 100) / 100.0
         require(speed in PLAYER_SPEED_OPTIONS) { "Invalid persisted player speed: $speed" }
@@ -250,12 +270,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                     ) { "Player fullscreen exit preference is null" },
                 ),
             followGravityRotation = preferences.getBoolean(KEY_FOLLOW_GRAVITY_ROTATION, false),
-            anime4KMode =
-                Anime4KMode.fromPersistedId(
-                    requireNotNull(
-                        preferences.getString(KEY_ANIME4K_MODE, Anime4KMode.OFF.persistedId),
-                    ) { "Anime4K preference is null" },
-                ),
+            anime4KMode = readAnime4KMode(),
             rememberAnime4KMode = preferences.getBoolean(KEY_REMEMBER_ANIME4K_MODE, false),
             volumeBoostEnabled = preferences.getBoolean(KEY_VOLUME_BOOST_ENABLED, false),
             preciseSeeking = preferences.getBoolean(KEY_PRECISE_SEEKING, true),
@@ -280,6 +295,8 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                         "Invalid persisted player double tap seek step: $value"
                     }
                 },
+            longPressSpeedBoostEnabled =
+                preferences.getBoolean(KEY_LONG_PRESS_SPEED_BOOST_ENABLED, false),
             chapterBarEnabled = preferences.getBoolean(KEY_CHAPTER_BAR_ENABLED, true),
             seekbarThumbnailEnabled =
                 preferences.getBoolean(KEY_SEEKBAR_THUMBNAIL_ENABLED, true),
@@ -358,6 +375,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         private const val KEY_SEEK_STEP_SECONDS = "seek_step_seconds"
         private const val KEY_DOUBLE_TAP_ACTION = "double_tap_action"
         private const val KEY_DOUBLE_TAP_SEEK_SECONDS = "double_tap_seek_seconds"
+        private const val KEY_LONG_PRESS_SPEED_BOOST_ENABLED = "long_press_speed_boost_enabled"
         private const val KEY_CHAPTER_BAR_ENABLED = "chapter_bar_enabled"
         private const val KEY_SEEKBAR_THUMBNAIL_ENABLED = "seekbar_thumbnail_enabled"
         private const val KEY_AUTO_PLAY_NEXT = "auto_play_next"

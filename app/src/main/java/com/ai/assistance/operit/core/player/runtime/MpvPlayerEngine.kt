@@ -15,6 +15,7 @@ import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
 import `is`.xyz.mpv.Utils
+import java.io.File
 
 internal data class MpvPlayerProgress(
     val positionSeconds: Double?,
@@ -257,7 +258,32 @@ internal class MpvPlayerEngine(
     }
 
     fun applyShaders(shaderFiles: List<String>) = callMpv("应用 Anime4K 着色器") {
-        MPVLib.setPropertyString("glsl-shaders", shaderFiles.joinToString(":"))
+        val shaderPayloads =
+            shaderFiles.map { path ->
+                File(path).also { file ->
+                    check(file.isAbsolute && file.isFile && file.length() > 0L) {
+                        "Anime4K shader is unavailable in player runtime: $path"
+                    }
+                }
+            }
+        val serialized = shaderPayloads.joinToString(":") { file -> file.absolutePath }
+        MPVLib.setPropertyString("glsl-shaders", serialized)
+        val applied = MPVLib.getPropertyString("glsl-shaders")
+        if (serialized.isEmpty()) {
+            check(applied.isNullOrEmpty()) {
+                "mpv did not clear glsl-shaders: $applied"
+            }
+        } else {
+            check(applied == serialized) {
+                "mpv glsl-shaders verification failed: expected=$serialized actual=$applied"
+            }
+        }
+        diagnostic(
+            PlayerDebugLogLevel.INFO,
+            TAG,
+            "Anime4K 属性已核验 shaderCount=${shaderPayloads.size} " +
+                "files=${shaderPayloads.joinToString("|") { file -> file.name }.ifEmpty { "none" }}",
+        )
     }
 
     fun applyVideoFitMode(mode: PlayerVideoFitMode) = callMpv("切换画面比例") {

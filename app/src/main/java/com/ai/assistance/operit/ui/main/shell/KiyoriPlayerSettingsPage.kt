@@ -28,12 +28,12 @@ import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
 import com.ai.assistance.operit.core.player.PlayerQueueEndBehavior
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
+import com.ai.assistance.operit.core.player.formatPlayerSpeedLabel
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.util.AppLogger
-import java.util.Locale
 
 internal const val KIYORI_PLAYER_SETTINGS_PAGE_TITLE = "视频播放器设置"
 
@@ -50,6 +50,7 @@ internal enum class KiyoriPlayerSettingsAction {
     SELECT_QUEUE_END_BEHAVIOR,
     SELECT_DOUBLE_TAP_ACTION,
     SELECT_DOUBLE_TAP_SEEK_STEP,
+    TOGGLE_LONG_PRESS_SPEED_BOOST,
     SELECT_SEEK_STEP,
     TOGGLE_PRECISE_SEEKING,
     TOGGLE_CHAPTER_BAR,
@@ -152,6 +153,11 @@ internal val kiyoriPlayerSettingsGroups =
                         KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_SEEK_STEP,
                         KiyoriPlayerSettingsDependency.DOUBLE_TAP_SEEK,
                     ),
+                    playerToggleSpec(
+                        "长按加速",
+                        "按住画面后临时提升到下一档倍速，松手恢复按下前速度",
+                        KiyoriPlayerSettingsAction.TOGGLE_LONG_PRESS_SPEED_BOOST,
+                    ),
                     playerNavigationSpec(
                         "按钮跳转时长",
                         "播放器快退和快进按钮每次跳转的秒数",
@@ -186,7 +192,7 @@ internal val kiyoriPlayerSettingsGroups =
                     ),
                     playerNavigationSpec(
                         "默认超分模式",
-                        "选择关闭、流畅、均衡或高清 Anime4K 着色器组合",
+                        "选择关、A、B、C、A+、B+ 或 C+ Anime4K 着色器组合",
                         KiyoriPlayerSettingsAction.SELECT_DEFAULT_ANIME4K,
                         KiyoriPlayerSettingsDependency.REMEMBER_ANIME4K,
                     ),
@@ -419,6 +425,8 @@ private fun togglePlayerSetting(
             store.setAutoPlayNext(!settings.autoPlayNext)
         KiyoriPlayerSettingsAction.TOGGLE_PRECISE_SEEKING ->
             store.setPreciseSeeking(!settings.preciseSeeking)
+        KiyoriPlayerSettingsAction.TOGGLE_LONG_PRESS_SPEED_BOOST ->
+            store.setLongPressSpeedBoostEnabled(!settings.longPressSpeedBoostEnabled)
         KiyoriPlayerSettingsAction.TOGGLE_CHAPTER_BAR ->
             store.setChapterBarEnabled(!settings.chapterBarEnabled)
         KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL ->
@@ -443,7 +451,7 @@ private fun playerSettingValue(
 ): String =
     when (action) {
         KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
-            formatPlayerSettingSpeed(settings.defaultSpeed)
+            formatPlayerSpeedLabel(settings.defaultSpeed)
         KiyoriPlayerSettingsAction.SELECT_QUEUE_END_BEHAVIOR ->
             formatQueueEndBehavior(settings.queueEndBehavior)
         KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_ACTION ->
@@ -484,6 +492,8 @@ private fun playerSettingToggleValue(
             settings.rememberPlaybackSpeed
         KiyoriPlayerSettingsAction.TOGGLE_AUTO_PLAY_NEXT -> settings.autoPlayNext
         KiyoriPlayerSettingsAction.TOGGLE_PRECISE_SEEKING -> settings.preciseSeeking
+        KiyoriPlayerSettingsAction.TOGGLE_LONG_PRESS_SPEED_BOOST ->
+            settings.longPressSpeedBoostEnabled
         KiyoriPlayerSettingsAction.TOGGLE_CHAPTER_BAR -> settings.chapterBarEnabled
         KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL ->
             settings.seekbarThumbnailEnabled
@@ -508,7 +518,7 @@ private fun playerSettingSelection(
             KiyoriPlayerSettingsAction.SELECT_DEFAULT_SPEED ->
                 PLAYER_SPEED_OPTIONS.map { value ->
                     KiyoriSettingsSelectionOption(
-                        label = formatPlayerSettingSpeed(value),
+                        label = formatPlayerSpeedLabel(value),
                         selected = value == settings.defaultSpeed,
                     ) { store.setDefaultSpeed(value) }
                 }
@@ -676,10 +686,6 @@ private fun playerDirectoryOptions(
         ),
     )
 
-private fun formatPlayerSettingSpeed(value: Double): String =
-    if (value % 1.0 == 0.0) "${value.toInt()}x"
-    else String.format(Locale.US, "%.2gx", value)
-
 private fun formatQueueEndBehavior(value: PlayerQueueEndBehavior): String =
     when (value) {
         PlayerQueueEndBehavior.STAY -> "停在结尾"
@@ -695,18 +701,24 @@ private fun formatDoubleTapAction(value: PlayerDoubleTapAction): String =
 
 internal fun formatAnime4KMode(value: Anime4KMode): String =
     when (value) {
-        Anime4KMode.OFF -> "关闭"
-        Anime4KMode.FAST -> "流畅"
-        Anime4KMode.BALANCED -> "均衡"
-        Anime4KMode.QUALITY -> "高清"
+        Anime4KMode.OFF -> "关"
+        Anime4KMode.A -> "A"
+        Anime4KMode.B -> "B"
+        Anime4KMode.C -> "C"
+        Anime4KMode.A_PLUS -> "A+"
+        Anime4KMode.B_PLUS -> "B+"
+        Anime4KMode.C_PLUS -> "C+"
     }
 
 internal fun anime4KModeDescription(value: Anime4KMode): String =
     when (value) {
-        Anime4KMode.OFF -> "显示原始画面，不加载 Anime4K 着色器"
-        Anime4KMode.FAST -> "轻量放大，适合低功耗或高分辨率视频"
-        Anime4KMode.BALANCED -> "恢复与放大兼顾，适合多数设备"
-        Anime4KMode.QUALITY -> "使用高质量恢复和放大，对 GPU 要求最高"
+        Anime4KMode.OFF -> "原始画质，不加载 Anime4K 着色器"
+        Anime4KMode.A -> "强力重建，使用 Restore 与双阶段 Upscale"
+        Anime4KMode.B -> "柔和重建，使用 Soft Restore 与双阶段 Upscale"
+        Anime4KMode.C -> "降噪处理，使用 Denoise Upscale 与二次放大"
+        Anime4KMode.A_PLUS -> "双重强化，在二次放大前再次执行强力重建"
+        Anime4KMode.B_PLUS -> "双重柔和，在二次放大前再次执行柔和重建"
+        Anime4KMode.C_PLUS -> "降噪强化，在降噪放大后追加重建与二次放大"
     }
 
 private fun formatFullscreenExitBehavior(value: PlayerFullscreenExitBehavior): String =

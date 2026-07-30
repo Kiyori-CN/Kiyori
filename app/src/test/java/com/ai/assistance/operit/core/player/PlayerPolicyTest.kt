@@ -18,6 +18,7 @@ class PlayerPolicyTest {
             PlayerSessionState().decoderPreset,
         )
         assertFalse(PlayerSettings().followGravityRotation)
+        assertFalse(PlayerSettings().longPressSpeedBoostEnabled)
         assertTrue(PlayerSettings().screenshotDirectoryUri.isBlank())
         assertTrue(PlayerSettings().videoDownloadDirectoryUri.isBlank())
     }
@@ -115,10 +116,121 @@ class PlayerPolicyTest {
     @Test
     fun anime4KModesOwnRealShaderFiles() {
         assertTrue(Anime4KMode.OFF.shaderFiles.isEmpty())
+        assertEquals(
+            listOf(
+                Anime4KMode.OFF,
+                Anime4KMode.A,
+                Anime4KMode.B,
+                Anime4KMode.C,
+                Anime4KMode.A_PLUS,
+                Anime4KMode.B_PLUS,
+                Anime4KMode.C_PLUS,
+            ),
+            Anime4KMode.entries,
+        )
+        val clamp = "Anime4K_Clamp_Highlights.glsl"
+        val downscaleX2 = "Anime4K_AutoDownscalePre_x2.glsl"
+        val downscaleX4 = "Anime4K_AutoDownscalePre_x4.glsl"
+        val upscaleM = "Anime4K_Upscale_CNN_x2_M.glsl"
+        val upscaleS = "Anime4K_Upscale_CNN_x2_S.glsl"
+        assertEquals(
+            mapOf(
+                Anime4KMode.A to
+                    listOf(
+                        clamp,
+                        "Anime4K_Restore_CNN_M.glsl",
+                        upscaleM,
+                        downscaleX2,
+                        downscaleX4,
+                        upscaleS,
+                    ),
+                Anime4KMode.B to
+                    listOf(
+                        clamp,
+                        "Anime4K_Restore_CNN_Soft_M.glsl",
+                        upscaleM,
+                        downscaleX2,
+                        downscaleX4,
+                        upscaleS,
+                    ),
+                Anime4KMode.C to
+                    listOf(
+                        clamp,
+                        "Anime4K_Upscale_Denoise_CNN_x2_M.glsl",
+                        downscaleX2,
+                        downscaleX4,
+                        upscaleS,
+                    ),
+                Anime4KMode.A_PLUS to
+                    listOf(
+                        clamp,
+                        "Anime4K_Restore_CNN_M.glsl",
+                        upscaleM,
+                        downscaleX2,
+                        downscaleX4,
+                        "Anime4K_Restore_CNN_S.glsl",
+                        upscaleS,
+                    ),
+                Anime4KMode.B_PLUS to
+                    listOf(
+                        clamp,
+                        "Anime4K_Restore_CNN_Soft_M.glsl",
+                        upscaleM,
+                        downscaleX2,
+                        downscaleX4,
+                        "Anime4K_Restore_CNN_Soft_S.glsl",
+                        upscaleS,
+                    ),
+                Anime4KMode.C_PLUS to
+                    listOf(
+                        clamp,
+                        "Anime4K_Upscale_Denoise_CNN_x2_M.glsl",
+                        downscaleX2,
+                        downscaleX4,
+                        "Anime4K_Restore_CNN_S.glsl",
+                        upscaleS,
+                    ),
+            ),
+            Anime4KMode.entries
+                .filterNot { it == Anime4KMode.OFF }
+                .associateWith(Anime4KMode::shaderFiles),
+        )
         Anime4KMode.entries.filterNot { it == Anime4KMode.OFF }.forEach { mode ->
             assertTrue(mode.shaderFiles.isNotEmpty())
             assertTrue(mode.shaderFiles.all { it.startsWith("Anime4K_") && it.endsWith(".glsl") })
         }
+    }
+
+    @Test
+    fun legacyAnime4KPreferencesMigrateToTheSevenModeSchema() {
+        assertEquals(Anime4KMode.OFF.persistedId, migrateLegacyAnime4KPersistedId("off"))
+        assertEquals(Anime4KMode.B.persistedId, migrateLegacyAnime4KPersistedId("fast"))
+        assertEquals(Anime4KMode.A.persistedId, migrateLegacyAnime4KPersistedId("balanced"))
+        assertEquals(Anime4KMode.A_PLUS.persistedId, migrateLegacyAnime4KPersistedId("quality"))
+        Anime4KMode.entries.forEach { mode ->
+            assertEquals(mode.persistedId, migrateLegacyAnime4KPersistedId(mode.persistedId))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            Anime4KMode.fromPersistedId(migrateLegacyAnime4KPersistedId("unexpected"))
+        }
+    }
+
+    @Test
+    fun playerSpeedMenuAndLongPressStepsHaveIndependentExactOrders() {
+        assertEquals(
+            listOf(3.0, 2.0, 1.5, 1.25, 0.75, 0.5),
+            PLAYER_SPEED_MENU_OPTIONS,
+        )
+        assertEquals(
+            listOf("3.0x", "2.0x", "1.5x", "1.25x", "0.75x", "0.5x"),
+            PLAYER_SPEED_MENU_OPTIONS.map(::formatPlayerSpeedLabel),
+        )
+        assertEquals("1.0x", formatPlayerSpeedLabel(1.0))
+        assertEquals(0.75, resolveNextPlayerSpeed(0.5))
+        assertEquals(1.0, resolveNextPlayerSpeed(0.75))
+        assertEquals(1.25, resolveNextPlayerSpeed(1.0))
+        assertEquals(3.0, resolveNextPlayerSpeed(2.0))
+        assertEquals(null, resolveNextPlayerSpeed(3.0))
     }
 
     @Test
@@ -383,7 +495,7 @@ class PlayerPolicyTest {
             PlayerSettings(
                 defaultSpeed = 1.25,
                 decoderPreset = PlayerDecoderPreset.HIGH_QUALITY,
-                anime4KMode = Anime4KMode.BALANCED,
+                anime4KMode = Anime4KMode.B,
                 rememberAnime4KMode = true,
             )
 
@@ -400,7 +512,7 @@ class PlayerPolicyTest {
         assertEquals(1.25, transition.state.speed, 0.0)
         assertEquals(5L, transition.state.loadGeneration)
         assertEquals(PlayerDecoderPreset.HIGH_QUALITY, transition.state.decoderPreset)
-        assertEquals(Anime4KMode.BALANCED, transition.state.anime4KMode)
+        assertEquals(Anime4KMode.B, transition.state.anime4KMode)
     }
 
     @Test
@@ -410,11 +522,11 @@ class PlayerPolicyTest {
                 defaultSpeed = 1.0,
                 lastPlaybackSpeed = 1.5,
                 rememberPlaybackSpeed = true,
-                anime4KMode = Anime4KMode.QUALITY,
+                anime4KMode = Anime4KMode.C_PLUS,
                 rememberAnime4KMode = true,
             )
         assertEquals(1.5, resolveInitialPlayerSpeed(remembered), 0.0)
-        assertEquals(Anime4KMode.QUALITY, resolveInitialAnime4KMode(remembered))
+        assertEquals(Anime4KMode.C_PLUS, resolveInitialAnime4KMode(remembered))
 
         val resetForNewMedia =
             remembered.copy(

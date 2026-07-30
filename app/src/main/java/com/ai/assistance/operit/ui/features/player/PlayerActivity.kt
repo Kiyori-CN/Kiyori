@@ -89,6 +89,7 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        playerSession.endLongPressSpeedBoost()
         playerSession.onFullscreenActivityDestroyed(
             changingConfigurations = isChangingConfigurations,
             finishing = isFinishing,

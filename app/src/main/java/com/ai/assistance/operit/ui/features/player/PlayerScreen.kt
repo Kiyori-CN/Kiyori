@@ -185,6 +185,7 @@ internal fun PlayerScreen(
             state = state,
             doubleTapAction = settings.doubleTapAction,
             doubleTapSeekSeconds = settings.doubleTapSeekSeconds,
+            longPressSpeedBoostEnabled = settings.longPressSpeedBoostEnabled,
             gesturesEnabled = !controlsLocked,
             onSingleTap = {
                 when (
@@ -212,23 +213,63 @@ internal fun PlayerScreen(
             modifier = Modifier.fillMaxSize(),
         )
         if (state.loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center).size(60.dp),
-                color = Color.White,
-            )
+            Column(
+                modifier =
+                    Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xD91A1D25))
+                        .border(
+                            1.dp,
+                            Color.White.copy(alpha = 0.14f),
+                            RoundedCornerShape(22.dp),
+                        )
+                        .padding(horizontal = 24.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(34.dp),
+                    color = Color(0xFF7792FF),
+                    strokeWidth = 3.dp,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "正在准备视频",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
         state.error?.let { message ->
             Column(
                 modifier =
                     Modifier
                         .align(Alignment.Center)
-                        .background(Color(0xCC171717))
+                        .widthIn(max = 360.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xEB1A1D25))
+                        .border(
+                            1.dp,
+                            Color(0xFFFF8A8A).copy(alpha = 0.30f),
+                            RoundedCornerShape(22.dp),
+                        )
                         .padding(horizontal = 24.dp, vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("播放失败", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "播放失败",
+                    color = Color(0xFFFFB4B4),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Spacer(Modifier.height(6.dp))
-                Text(message, color = Color(0xFFD1D1D1), fontSize = 13.sp)
+                Text(
+                    message,
+                    color = Color.White.copy(alpha = 0.76f),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                )
             }
         }
         AnimatedVisibility(
@@ -254,6 +295,7 @@ internal fun PlayerScreen(
                 onRotate = onRotate,
                 onScreenshot = onScreenshot,
                 onDownload = onDownload,
+                onAutoRotateChanged = settingsStore::setFollowGravityRotation,
                 onShowPlaybackLog = {
                     controlsPopupVisible = false
                     showPlaybackLog = true

@@ -432,7 +432,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `player settings expose only capabilities owned by PlayerSettingsStore`() {
         assertEquals(
-            listOf(4, 6, 5, 2, 2, 4),
+            listOf(4, 7, 5, 2, 2, 4),
             kiyoriPlayerSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -443,6 +443,7 @@ class KiyoriSettingsPagesTest {
                 "队列播完后",
                 "双击手势",
                 "双击跳转时长",
+                "长按加速",
                 "按钮跳转时长",
                 "精确进度定位",
                 "显示章节进度条",
@@ -475,6 +476,8 @@ class KiyoriSettingsPagesTest {
                 "双击手势" to KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_ACTION,
                 "双击跳转时长" to
                     KiyoriPlayerSettingsAction.SELECT_DOUBLE_TAP_SEEK_STEP,
+                "长按加速" to
+                    KiyoriPlayerSettingsAction.TOGGLE_LONG_PRESS_SPEED_BOOST,
                 "按钮跳转时长" to KiyoriPlayerSettingsAction.SELECT_SEEK_STEP,
                 "精确进度定位" to KiyoriPlayerSettingsAction.TOGGLE_PRECISE_SEEKING,
                 "显示章节进度条" to KiyoriPlayerSettingsAction.TOGGLE_CHAPTER_BAR,

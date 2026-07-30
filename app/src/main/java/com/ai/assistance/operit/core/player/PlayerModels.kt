@@ -153,28 +153,72 @@ internal enum class Anime4KMode(
     val persistedId: String,
     val shaderFiles: List<String>,
 ) {
-    OFF("off", emptyList()),
-    FAST(
-        "fast",
-        listOf(
-            "Anime4K_Clamp_Highlights.glsl",
-            "Anime4K_Upscale_CNN_x2_S.glsl",
-        ),
-    ),
-    BALANCED(
-        "balanced",
+    OFF("OFF", emptyList()),
+    A(
+        "A",
         listOf(
             "Anime4K_Clamp_Highlights.glsl",
             "Anime4K_Restore_CNN_M.glsl",
             "Anime4K_Upscale_CNN_x2_M.glsl",
+            "Anime4K_AutoDownscalePre_x2.glsl",
+            "Anime4K_AutoDownscalePre_x4.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl",
         ),
     ),
-    QUALITY(
-        "quality",
+    B(
+        "B",
         listOf(
             "Anime4K_Clamp_Highlights.glsl",
-            "Anime4K_Restore_CNN_L.glsl",
-            "Anime4K_Upscale_CNN_x2_L.glsl",
+            "Anime4K_Restore_CNN_Soft_M.glsl",
+            "Anime4K_Upscale_CNN_x2_M.glsl",
+            "Anime4K_AutoDownscalePre_x2.glsl",
+            "Anime4K_AutoDownscalePre_x4.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl",
+        ),
+    ),
+    C(
+        "C",
+        listOf(
+            "Anime4K_Clamp_Highlights.glsl",
+            "Anime4K_Upscale_Denoise_CNN_x2_M.glsl",
+            "Anime4K_AutoDownscalePre_x2.glsl",
+            "Anime4K_AutoDownscalePre_x4.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl",
+        ),
+    ),
+    A_PLUS(
+        "A_PLUS",
+        listOf(
+            "Anime4K_Clamp_Highlights.glsl",
+            "Anime4K_Restore_CNN_M.glsl",
+            "Anime4K_Upscale_CNN_x2_M.glsl",
+            "Anime4K_AutoDownscalePre_x2.glsl",
+            "Anime4K_AutoDownscalePre_x4.glsl",
+            "Anime4K_Restore_CNN_S.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl",
+        ),
+    ),
+    B_PLUS(
+        "B_PLUS",
+        listOf(
+            "Anime4K_Clamp_Highlights.glsl",
+            "Anime4K_Restore_CNN_Soft_M.glsl",
+            "Anime4K_Upscale_CNN_x2_M.glsl",
+            "Anime4K_AutoDownscalePre_x2.glsl",
+            "Anime4K_AutoDownscalePre_x4.glsl",
+            "Anime4K_Restore_CNN_Soft_S.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl",
+        ),
+    ),
+    C_PLUS(
+        "C_PLUS",
+        listOf(
+            "Anime4K_Clamp_Highlights.glsl",
+            "Anime4K_Upscale_Denoise_CNN_x2_M.glsl",
+            "Anime4K_AutoDownscalePre_x2.glsl",
+            "Anime4K_AutoDownscalePre_x4.glsl",
+            "Anime4K_Restore_CNN_S.glsl",
+            "Anime4K_Upscale_CNN_x2_S.glsl",
         ),
     ),
     ;
@@ -187,10 +231,51 @@ internal enum class Anime4KMode(
     }
 }
 
-internal val PLAYER_SPEED_OPTIONS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
+internal fun migrateLegacyAnime4KPersistedId(value: String): String =
+    when (value) {
+        "off" -> Anime4KMode.OFF.persistedId
+        "fast" -> Anime4KMode.B.persistedId
+        "balanced" -> Anime4KMode.A.persistedId
+        "quality" -> Anime4KMode.A_PLUS.persistedId
+        else -> value
+    }
+
+internal val PLAYER_SPEED_OPTIONS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0)
+internal val PLAYER_SPEED_MENU_OPTIONS = listOf(3.0, 2.0, 1.5, 1.25, 0.75, 0.5)
 internal val PLAYER_SEEK_STEP_OPTIONS = listOf(5, 10, 15, 20, 30, 45, 60)
 internal val PLAYER_DOUBLE_TAP_SEEK_OPTIONS = listOf(5, 10, 15, 20, 30)
 internal val PLAYER_SUBTITLE_SCALE_OPTIONS = listOf(0.8, 1.0, 1.2, 1.5)
+
+internal fun formatPlayerSpeedLabel(speed: Double): String {
+    require(speed in PLAYER_SPEED_OPTIONS) { "Unsupported player speed label: $speed" }
+    return when (speed) {
+        0.5 -> "0.5x"
+        0.75 -> "0.75x"
+        1.0 -> "1.0x"
+        1.25 -> "1.25x"
+        1.5 -> "1.5x"
+        2.0 -> "2.0x"
+        3.0 -> "3.0x"
+        else -> error("Player speed options and labels are out of sync")
+    }
+}
+
+internal fun resolveNextPlayerSpeed(currentSpeed: Double): Double? {
+    require(currentSpeed in PLAYER_SPEED_OPTIONS) {
+        "Unsupported current player speed: $currentSpeed"
+    }
+    val currentIndex = PLAYER_SPEED_OPTIONS.indexOf(currentSpeed)
+    return if (currentIndex < PLAYER_SPEED_OPTIONS.lastIndex) {
+        PLAYER_SPEED_OPTIONS[currentIndex + 1]
+    } else {
+        null
+    }
+}
+
+internal data class LongPressSpeedBoostResult(
+    val originalSpeed: Double,
+    val boostedSpeed: Double,
+)
 
 @Immutable
 internal data class PlayerSettings(
@@ -211,6 +296,7 @@ internal data class PlayerSettings(
     val seekStepSeconds: Int = 10,
     val doubleTapAction: PlayerDoubleTapAction = PlayerDoubleTapAction.SEEK,
     val doubleTapSeekSeconds: Int = 10,
+    val longPressSpeedBoostEnabled: Boolean = false,
     val chapterBarEnabled: Boolean = true,
     val seekbarThumbnailEnabled: Boolean = true,
     val autoPlayNext: Boolean = true,
