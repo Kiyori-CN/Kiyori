@@ -71,7 +71,7 @@ kiyori_browser_product_completion/
 | 标签、活动标签和 WebView | `StandardBrowserSessionTools` | 直接操作 | `browser_*` 操作同一实例 |
 | 窗口 Profile | `WebSession.profile` | 搜索页和窗口页选择 | `browser_tabs` 读取并可显式创建 |
 | 新窗口默认 Profile | Browser Runtime | 无痕按钮改变 | `browser_tabs list` 可观察 |
-| 历史、书签和搜索记录 | `WebSessionHistoryStore` | 浏览器、负一屏和全屏页复用 | 浏览器工具不复制存储 |
+| 历史、书签和搜索记录 | `WebSessionHistoryStore` | 浏览器与负一屏共享抽屉，全屏搜索复用搜索记录 | 浏览器工具不复制存储 |
 | 下载任务 | `BrowserDownloadManager` | 浏览器抽屉和全屏下载中心复用 | 下载事件进入浏览器结果 |
 | 浏览器运行偏好 | 搜索与历史由 `WebSessionHistoryStore` 持有；Profile 由 Browser Runtime 持有；UA 与浏览器通用设置由 `WebSessionBrowserSettingsStore` 持有 | 浏览器主流程直接使用唯一 owner | 只通过明确能力读取或修改 |
 | 播放会话 | 唯一 `PlayerSession` / mpv core | 全屏、悬浮和浏览器共用同一媒体与 Surface owner 状态 | 后续 capability adapter 只能调用该 owner |
@@ -95,7 +95,7 @@ kiyori_browser_product_completion/
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
 4. [DONE] P1：网页浏览器设置已按播放器标准重排为 `3/5/4/5/6` 五组，统一分组说明、双行设置项、Material Switch 和禁用态；自定义主页、搜索栏嗅探入口、自动悬浮播放、网页外部应用和网页定位接入唯一 `WebSessionBrowserSettingsStore`，其余无本页 consumer 的项目明确禁用且不再打开空页。两个嗅探开关只位于“音视频嗅探”组，媒体候选抽屉不再承载设置开关
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；设置页已按播放器标准重排为 `5/2/3/1` 四组 11 行，“默认保存位置”统一选择应用目录、公开目录或 SAF 自定义目录，继续复用唯一 `BrowserDownloadSettingsStore` 和 `BrowserDownloadManager`；系统下载器生效时内置引擎专属项目明确禁用。仍待下载中心双筛选/批量操作复刻及真机综合验收
-6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成，其他菜单能力按第七阶段继续串行推进
+6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成。2026-07-30 已完成统一历史抽屉：扩展现有 `WebSessionHistoryStore`，普通网页访问与唯一 `PlayerSession` 分别写入网页/视频记录，视频区分在线与本地，浏览器菜单与负一屏共享搜索、六分类和分时段删除抽屉；定向测试、Debug APK 和新版历史界面用户验收已通过，完整设备场景仍按第六阶段清单继续验证
 7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与 native 边界，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏入口均已完成本地实现；2026-07-28 又完成精确视频格式、被动时长、推荐排序、动态格式筛选、双开关与结果动作弹窗。人工播放固定进入横向全屏，自动推荐才进入悬浮；该里程碑保留为嗅探入口完成记录，后续在线播放 native 修复见阶段 8、10、11 的 `2026-07-29` 补充证据
 8. [DONE] P0：阶段 11 的运行时、设置、浏览器候选与 native 门禁已完成；全屏播放器保留现有横竖屏结构与播放器专用图标，并统一为深色圆角菜单、半透明按钮和现代加载/错误/手势反馈。浏览器悬浮播放器为内容区全宽、固定 `16:9`、零边距，并与全屏共用唯一 session 和快进快退设置。`2026-07-28 19:18:21 +08:00` 的必现闪退纠正了播放器启动契约；`2026-07-29 14:31 +08:00` 的用户报告进一步确认 HTTPS MP4 已能进入 `ACTIVE` 并持续播放。稳定 pointer detector 统一协调单击、双击、长按升档、seek、亮度、音量、弹窗、进度拖动、三秒自动隐藏与锁定解锁；亮度提示位于右侧，音量提示位于左侧。没有真实 owner 的弹幕显示为禁用，更多菜单保留真实自动旋转开关和查看日志；播放器设置页为 `4/7/5/2/2/4` 六组 24 项真实 `PlayerSettingsStore` 配置。Anime4K 严格使用 `mpv-android-anime4k@32f5f169` 的关/A/B/C/A+/B+/C+ Balanced/M 链，并校验资产、私有缓存和 MPV 属性。播放器日志汇总主进程和独立 runtime 的 MPV verbose、命令与错误，并使用屏幕内固定分区、最新在前结构化列表和 8 个单行横滑分类，关闭固定在标题栏，清空/复制/导出固定在底部。自动检查和 Debug APK 证据以阶段 11 最新记录为准；本地/在线视频的控制层真机交互、HLS 与更多站点仍保持 `verification_pending`
 9. [LOCAL DONE] P0：阶段 12 已完成结构化崩溃报告、唯一非导出 `:player` AIDL service、串行 MPV owner、Surface ACK、Binder death、退出证据、前后台 `:crash` 展示和用户明确重启。主进程 `PlayerSession` 不再构造 engine/resolver 或同步读取 MPV，death 路径不会自动 bind、load 或刷新 WebView。自动检查和各里程碑 Debug APK 构建通过；设备安装、真实进程终止和 vivo Android 16 验收未授权，最终状态保持 `verification_pending`。详细证据见 [播放器进程崩溃隔离与诊断页](12_player_process_crash_isolation.md)

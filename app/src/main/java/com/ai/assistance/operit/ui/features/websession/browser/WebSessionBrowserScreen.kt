@@ -73,6 +73,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
@@ -138,9 +139,9 @@ internal fun WebSessionBrowserScreen(
     onRemoveBookmark: (String) -> Unit,
     onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
-    onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
-    onClearHistory: () -> Unit,
+    onOpenHistoryEntry: (WebSessionHistoryEntry) -> Boolean,
+    onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onClearNetworkLog: () -> Unit,
     onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
     onSaveCustomGlobalUserAgent: (String) -> Unit,
@@ -852,9 +853,9 @@ internal fun WebSessionBrowserScreen(
                             onDismiss = dismissSheet,
                             onBookmarkMutation = onBookmarkMutation,
                             onOpenBookmarkInTab = onOpenBookmarkInTab,
-                            onSelectSessionHistory = onSelectSessionHistory,
                             onOpenUrl = onOpenUrl,
-                            onClearHistory = onClearHistory,
+                            onOpenHistoryEntry = onOpenHistoryEntry,
+                            onDeleteHistory = onDeleteHistory,
                             onClearNetworkLog = onClearNetworkLog,
                             onOpenPageSource = onOpenPageSource,
                             onCopyPageSource = onCopyPageSource,
@@ -1122,9 +1123,9 @@ private fun WebSessionBrowserDrawerContent(
     onDismiss: () -> Unit,
     onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
-    onSelectSessionHistory: (Int) -> Unit,
     onOpenUrl: (String) -> Unit,
-    onClearHistory: () -> Unit,
+    onOpenHistoryEntry: (WebSessionHistoryEntry) -> Boolean,
+    onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onClearNetworkLog: () -> Unit,
     onOpenPageSource: () -> Unit,
     onCopyPageSource: () -> Unit,
@@ -1185,17 +1186,13 @@ private fun WebSessionBrowserDrawerContent(
 
         WebSessionBrowserSheetRoute.HISTORY ->
             WebSessionHistorySheet(
-                sessionHistory = browserState.sessionHistory,
-                globalHistory = globalHistory,
-                onSelectSessionHistory = { index ->
-                    onSelectSessionHistory(index)
-                    onDismiss()
+                entries = globalHistory,
+                onOpenEntry = { entry ->
+                    onOpenHistoryEntry(entry).also { accepted ->
+                        if (accepted) onDismiss()
+                    }
                 },
-                onOpenHistoryUrl = { url ->
-                    onOpenUrl(url)
-                    onDismiss()
-                },
-                onClearHistory = onClearHistory,
+                onDeleteHistory = onDeleteHistory,
                 modifier = Modifier.fillMaxSize(),
             )
 

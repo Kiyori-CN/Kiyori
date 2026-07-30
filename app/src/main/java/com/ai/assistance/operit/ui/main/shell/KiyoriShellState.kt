@@ -79,6 +79,7 @@ data class KiyoriShellState(
     val childBackTarget: KiyoriShellChild? = null,
     val isAiDrawerOpen: Boolean = false,
     val isBookmarkDrawerOpen: Boolean = false,
+    val isHistoryDrawerOpen: Boolean = false,
     val isDownloadDrawerOpen: Boolean = false,
     val browserReturnTarget: KiyoriBrowserReturnTarget? = null,
     val browserExitPresentation: KiyoriBrowserExitPresentation =
@@ -86,7 +87,8 @@ data class KiyoriShellState(
 ) {
     val showsBottomBar: Boolean
         get() =
-            child == null && !isAiDrawerOpen && !isBookmarkDrawerOpen && !isDownloadDrawerOpen &&
+            child == null && !isAiDrawerOpen && !isBookmarkDrawerOpen && !isHistoryDrawerOpen &&
+                !isDownloadDrawerOpen &&
                 primaryDestination != PrimaryDestination.BROWSER_HOME &&
                 (primaryDestination != PrimaryDestination.SOFTWARE_HOME ||
                     softwareHomePage == SoftwareHomePage.HOME)
@@ -104,6 +106,7 @@ data class KiyoriShellState(
             childBackTarget = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
             browserReturnTarget = null,
             browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
@@ -119,6 +122,7 @@ data class KiyoriShellState(
             childBackTarget = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
             browserReturnTarget = returnTarget,
             browserExitPresentation = exitPresentation,
@@ -134,6 +138,7 @@ data class KiyoriShellState(
                     childBackTarget = null,
                     isAiDrawerOpen = false,
                     isBookmarkDrawerOpen = false,
+                    isHistoryDrawerOpen = false,
                     isDownloadDrawerOpen = false,
                     browserReturnTarget = null,
                     browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
@@ -147,6 +152,7 @@ data class KiyoriShellState(
                     childBackTarget = null,
                     isAiDrawerOpen = false,
                     isBookmarkDrawerOpen = false,
+                    isHistoryDrawerOpen = false,
                     isDownloadDrawerOpen = false,
                     browserReturnTarget = null,
                     browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
@@ -161,6 +167,7 @@ data class KiyoriShellState(
             childBackTarget = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
             browserReturnTarget = null,
             browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
@@ -172,6 +179,7 @@ data class KiyoriShellState(
             childBackTarget = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
         )
 
@@ -183,6 +191,7 @@ data class KiyoriShellState(
             childBackTarget = currentChild,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
         )
     }
@@ -195,7 +204,12 @@ data class KiyoriShellState(
         }
 
     fun openAiDrawer(): KiyoriShellState =
-        copy(isAiDrawerOpen = true, isBookmarkDrawerOpen = false, isDownloadDrawerOpen = false)
+        copy(
+            isAiDrawerOpen = true,
+            isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
+            isDownloadDrawerOpen = false,
+        )
 
     fun closeAiDrawer(): KiyoriShellState = copy(isAiDrawerOpen = false)
 
@@ -205,10 +219,23 @@ data class KiyoriShellState(
             childBackTarget = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = true,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
         )
 
     fun closeBookmarkDrawer(): KiyoriShellState = copy(isBookmarkDrawerOpen = false)
+
+    fun openHistoryDrawer(): KiyoriShellState =
+        copy(
+            child = null,
+            childBackTarget = null,
+            isAiDrawerOpen = false,
+            isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = true,
+            isDownloadDrawerOpen = false,
+        )
+
+    fun closeHistoryDrawer(): KiyoriShellState = copy(isHistoryDrawerOpen = false)
 
     fun openDownloadDrawer(): KiyoriShellState =
         copy(
@@ -216,6 +243,7 @@ data class KiyoriShellState(
             childBackTarget = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = true,
         )
 
@@ -234,6 +262,11 @@ data class KiyoriShellState(
             isBookmarkDrawerOpen ->
                 KiyoriShellBackTransition(
                     state = closeBookmarkDrawer(),
+                    result = KiyoriShellBackResult.CONSUMED,
+                )
+            isHistoryDrawerOpen ->
+                KiyoriShellBackTransition(
+                    state = closeHistoryDrawer(),
                     result = KiyoriShellBackResult.CONSUMED,
                 )
             isDownloadDrawerOpen ->
@@ -279,6 +312,7 @@ internal fun KiyoriShellState.toKiyoriShellSaveableValues(): List<Any> =
         childBackTarget?.name.orEmpty(),
         isAiDrawerOpen,
         isBookmarkDrawerOpen,
+        isHistoryDrawerOpen,
         isDownloadDrawerOpen,
         browserReturnTarget?.name.orEmpty(),
         browserExitPresentation.name,
@@ -298,13 +332,14 @@ internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
                 ?.let(KiyoriShellChild::valueOf),
         isAiDrawerOpen = values[4] as Boolean,
         isBookmarkDrawerOpen = values[5] as Boolean,
-        isDownloadDrawerOpen = values[6] as Boolean,
+        isHistoryDrawerOpen = values[6] as Boolean,
+        isDownloadDrawerOpen = values[7] as Boolean,
         browserReturnTarget =
-            (values[7] as String)
+            (values[8] as String)
                 .takeIf { name -> name.isNotEmpty() }
                 ?.let(KiyoriBrowserReturnTarget::valueOf),
         browserExitPresentation =
-            KiyoriBrowserExitPresentation.valueOf(values[8] as String),
+            KiyoriBrowserExitPresentation.valueOf(values[9] as String),
     )
 
 internal val KiyoriShellStateSaver =

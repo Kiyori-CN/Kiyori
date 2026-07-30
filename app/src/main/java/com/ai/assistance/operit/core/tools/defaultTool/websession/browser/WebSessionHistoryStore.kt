@@ -85,26 +85,59 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         context.webSessionHistoryDataStore.edit { preferences ->
             val current = decodeHistory(preferences[KEY_HISTORY])
             val normalizedTitle = normalizeTitle(title, normalizedUrl)
-            val updated =
-                if (current.firstOrNull()?.url == normalizedUrl) {
-                    current.toMutableList().also { list ->
-                        list[0] = list[0].copy(
-                            title = normalizedTitle.ifBlank { list[0].title },
-                            visitedAt = now
-                        )
+            val updated = buildList {
+                add(
+                    WebSessionHistoryEntry(
+                        url = normalizedUrl,
+                        title = normalizedTitle,
+                        visitedAt = now,
+                        category = WebSessionHistoryCategory.WEB,
+                    )
+                )
+                addAll(
+                    current.filterNot { entry ->
+                        entry.category == WebSessionHistoryCategory.WEB &&
+                            entry.url == normalizedUrl
                     }
-                } else {
-                    buildList {
-                        add(
-                            WebSessionHistoryEntry(
-                                url = normalizedUrl,
-                                title = normalizedTitle,
-                                visitedAt = now
+                )
+            }
+            preferences[KEY_HISTORY] = json.encodeToString(updated.take(MAX_HISTORY_ENTRIES))
+        }
+    }
+
+    suspend fun recordMediaPlayback(
+        uri: String,
+        title: String,
+        sourcePageUrl: String,
+    ) {
+        val normalizedUri = normalizeHistoryTarget(uri) ?: return
+        val normalizedSourcePageUrl =
+            normalizeUrl(sourcePageUrl).orEmpty()
+        val now = System.currentTimeMillis()
+        context.webSessionHistoryDataStore.edit { preferences ->
+            val current = decodeHistory(preferences[KEY_HISTORY])
+            val mediaOrigin = resolveWebSessionHistoryMediaOrigin(normalizedUri)
+            val updated = buildList {
+                add(
+                    WebSessionHistoryEntry(
+                        url = normalizedUri,
+                        title = normalizeTitle(title, normalizedUri),
+                        visitedAt = now,
+                        category = WebSessionHistoryCategory.VIDEO,
+                        mediaOrigin = mediaOrigin,
+                        sourcePageUrl = normalizedSourcePageUrl,
+                    )
+                )
+                addAll(
+                    current.filterNot { entry ->
+                        entry.url == normalizedUri &&
+                            (
+                                entry.category == WebSessionHistoryCategory.WEB ||
+                                    entry.category == WebSessionHistoryCategory.VIDEO
                             )
-                        )
-                        addAll(current.take(MAX_HISTORY_ENTRIES - 1))
                     }
-                }
+                )
+            }
             preferences[KEY_HISTORY] = json.encodeToString(updated.take(MAX_HISTORY_ENTRIES))
         }
     }
@@ -116,7 +149,11 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         context.webSessionHistoryDataStore.edit { preferences ->
             val history =
                 decodeHistory(preferences[KEY_HISTORY]).map { entry ->
-                    if (entry.url == normalizedUrl && normalizedTitle.isNotBlank()) {
+                    if (
+                        entry.category == WebSessionHistoryCategory.WEB &&
+                            entry.url == normalizedUrl &&
+                            normalizedTitle.isNotBlank()
+                    ) {
                         entry.copy(title = normalizedTitle)
                     } else {
                         entry
@@ -156,9 +193,20 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         }
     }
 
-    suspend fun clearHistory() {
+    suspend fun deleteHistory(
+        category: WebSessionHistoryCategory?,
+        cutoffTimeMillis: Long?,
+    ) {
         context.webSessionHistoryDataStore.edit { preferences ->
-            preferences[KEY_HISTORY] = json.encodeToString(emptyList<WebSessionHistoryEntry>())
+            val updated =
+                decodeHistory(preferences[KEY_HISTORY]).filterNot { entry ->
+                    shouldDeleteWebSessionHistoryEntry(
+                        entry = entry,
+                        category = category,
+                        cutoffTimeMillis = cutoffTimeMillis,
+                    )
+                }
+            preferences[KEY_HISTORY] = json.encodeToString(updated)
         }
     }
 
@@ -247,6 +295,15 @@ internal class WebSessionHistoryStore private constructor(private val context: C
     }
 
     private fun normalizeUrl(raw: String): String? = normalizeWebSessionBookmarkUrl(raw)
+
+    private fun normalizeHistoryTarget(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isBlank()) return null
+        val normalizedWebUrl = normalizeUrl(trimmed)
+        if (normalizedWebUrl != null) return normalizedWebUrl
+        val scheme = trimmed.substringBefore(':').lowercase(Locale.ROOT)
+        return trimmed.takeIf { scheme == "content" || scheme == "file" }
+    }
 
     private fun normalizeTitle(title: String, fallbackUrl: String): String {
         val trimmed = title.trim()

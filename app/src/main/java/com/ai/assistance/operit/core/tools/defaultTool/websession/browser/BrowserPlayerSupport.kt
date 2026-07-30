@@ -5,9 +5,13 @@ import android.net.Uri
 import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
+import com.ai.assistance.operit.core.player.PlayerQueueResolver
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.ui.features.player.PlayerActivity
+import com.ai.assistance.operit.util.AppLogger
+import java.util.UUID
+import kotlinx.coroutines.launch
 
 internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String): Boolean =
     openMediaCandidate(candidateId, PlayerPresentation.FULLSCREEN_PLAYER)
@@ -94,6 +98,78 @@ internal fun StandardBrowserSessionTools.launchBrowserPlayerFullscreenActivity()
     )
 }
 
+internal fun StandardBrowserSessionTools.playHistoryMedia(
+    entry: WebSessionHistoryEntry,
+): Boolean =
+    runOnMainSync {
+        require(
+            entry.category == WebSessionHistoryCategory.VIDEO ||
+                entry.category == WebSessionHistoryCategory.MUSIC
+        ) {
+            "Only media history entries can be sent to PlayerSession"
+        }
+        val origin =
+            entry.mediaOrigin ?: resolveWebSessionHistoryMediaOrigin(entry.url)
+        val activeSession =
+            if (origin == WebSessionHistoryMediaOrigin.ONLINE) {
+                getActiveSessionOnMain() ?: return@runOnMainSync false
+            } else {
+                null
+            }
+        val headers = linkedMapOf<String, String>()
+        activeSession?.let { session ->
+            session.webView.settings.userAgentString
+                ?.takeIf(String::isNotBlank)
+                ?.let { value -> headers["User-Agent"] = value }
+            profileManager.cookieManagerFor(session.webView, session.profile)
+                .getCookie(entry.url)
+                ?.takeIf(String::isNotBlank)
+                ?.let { value -> headers["Cookie"] = value }
+            entry.sourcePageUrl
+                .takeIf(String::isNotBlank)
+                ?.let { value -> headers["Referer"] = value }
+        }
+        val playerSession = PlayerSession.getInstance(context)
+        val request =
+            PlayerMediaRequest(
+                requestId = UUID.randomUUID().toString(),
+                uri = entry.url,
+                title = entry.title,
+                headers = headers,
+                source =
+                    if (origin == WebSessionHistoryMediaOrigin.ONLINE) {
+                        PlayerMediaSource.BROWSER_CANDIDATE
+                    } else {
+                        PlayerMediaSource.EXTERNAL_INTENT
+                    },
+                sourceSessionId = activeSession?.id,
+                cookieScopeUrl = entry.sourcePageUrl.takeIf(String::isNotBlank),
+                sourcePageUrl = entry.sourcePageUrl.takeIf(String::isNotBlank),
+            )
+        playerSession.open(
+            request = request,
+            presentation = PlayerPresentation.FULLSCREEN_PLAYER,
+        )
+        if (origin == WebSessionHistoryMediaOrigin.LOCAL) {
+            ioScope.launch {
+                try {
+                    val queue = PlayerQueueResolver.resolve(context.applicationContext, request)
+                    StandardBrowserSessionTools.mainHandler.post {
+                        playerSession.replaceQueueForCurrent(request.requestId, queue)
+                    }
+                } catch (error: Exception) {
+                    AppLogger.e(
+                        "BrowserPlayerSupport",
+                        "Failed to restore the local history playback queue",
+                        error,
+                    )
+                }
+            }
+        }
+        playerSession.requestFullscreenActivityLaunchWhenReady()
+        true
+    }
+
 private fun browserMediaCandidateTitle(
     session: BrowserToolSession,
     candidate: BrowserMediaCandidate,
@@ -116,4 +192,5 @@ internal fun createBrowserPlayerMediaRequest(
         source = PlayerMediaSource.BROWSER_CANDIDATE,
         sourceSessionId = sessionId,
         cookieScopeUrl = candidate.cookieScopeUrl,
+        sourcePageUrl = candidate.pageUrl,
     )

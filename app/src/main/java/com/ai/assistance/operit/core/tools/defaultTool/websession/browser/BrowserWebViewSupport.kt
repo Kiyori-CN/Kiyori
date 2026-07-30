@@ -684,29 +684,34 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
-        override fun onSelectSessionHistory(index: Int) {
-            runOnMainSync<Unit> {
-                val session = getActiveSessionOnMain() ?: return@runOnMainSync
-                ensureSessionAttachedOnMain(session.id)
-                val historyList = session.webView.copyBackForwardList()
-                val delta = index - historyList.currentIndex
-                if (delta != 0 && session.webView.canGoBackOrForward(delta)) {
-                    applyHistoryTargetUserAgent(session, delta)
-                    session.webView.goBackOrForward(delta)
-                    refreshNavigationStateAsync(session)
-                }
-            }
-        }
-
         override fun onOpenUrl(url: String) {
             runOnMainSync<Unit> {
                 openUrlOnMain(appContext, url)
             }
         }
 
-        override fun onClearHistory() {
+        override fun onOpenHistoryEntry(entry: WebSessionHistoryEntry): Boolean =
+            when (entry.category) {
+                WebSessionHistoryCategory.WEB,
+                WebSessionHistoryCategory.NOVEL,
+                WebSessionHistoryCategory.OTHER,
+                -> {
+                    runOnMainSync<Unit> {
+                        openUrlOnMain(appContext, entry.url)
+                    }
+                    true
+                }
+                WebSessionHistoryCategory.VIDEO,
+                WebSessionHistoryCategory.MUSIC,
+                -> playHistoryMedia(entry)
+            }
+
+        override fun onDeleteHistory(
+            category: WebSessionHistoryCategory?,
+            cutoffTimeMillis: Long?,
+        ) {
             ioScope.launch {
-                historyStore.clearHistory()
+                historyStore.deleteHistory(category, cutoffTimeMillis)
             }
         }
 
@@ -1421,8 +1426,6 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     )
                 }
             },
-        sessionHistory =
-            activeSession?.let { buildSessionHistory(it.webView) } ?: emptyList(),
         userscriptMenuCommands = userscriptManager.getMenuCommands(activeId),
         networkEntries =
             activeSession?.let { session ->
@@ -1564,31 +1567,6 @@ internal fun StandardBrowserSessionTools.clearSessionThumbnail(session: BrowserT
     session.thumbnailRequestGeneration += 1L
     session.thumbnail = null
     session.thumbnailUpdatedAt = 0L
-}
-
-internal fun StandardBrowserSessionTools.buildSessionHistory(
-    webView: WebView
-): List<WebSessionSessionHistoryItem> {
-    val historyList = webView.copyBackForwardList()
-    if (historyList.size == 0) {
-        return emptyList()
-    }
-
-    return buildList(historyList.size) {
-        for (index in 0 until historyList.size) {
-            val item = historyList.getItemAtIndex(index)
-            val url = item?.url.orEmpty().ifBlank { "about:blank" }
-            val title = item?.title.orEmpty().ifBlank { url }
-            add(
-                WebSessionSessionHistoryItem(
-                    index = index,
-                    title = title,
-                    url = url,
-                    isCurrent = index == historyList.currentIndex
-                )
-            )
-        }
-    }
 }
 
 internal fun StandardBrowserSessionTools.sessionDisplayTitle(

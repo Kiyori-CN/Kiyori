@@ -19,6 +19,7 @@ import com.ai.assistance.operit.core.player.runtime.toRuntimeConfig
 import com.ai.assistance.operit.core.player.runtime.toRuntimeId
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadApplicationDirectory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserDownloadPublicDirectory
 import com.ai.assistance.operit.util.AppLogger
@@ -40,6 +41,7 @@ import kotlinx.coroutines.withContext
 internal class PlayerSession private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val settingsStore = PlayerSettingsStore.getInstance(appContext)
+    private val historyStore = WebSessionHistoryStore.getInstance(appContext)
     private val shaderManager = Anime4KShaderManager(appContext)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _state = MutableStateFlow(PlayerSessionState())
@@ -519,6 +521,13 @@ internal class PlayerSession private constructor(context: Context) {
                 "headerCount=${request.headers.size}",
         )
         _state.value = transition.state
+        mainScope.launch(Dispatchers.IO) {
+            historyStore.recordMediaPlayback(
+                uri = request.uri,
+                title = request.title,
+                sourcePageUrl = request.sourcePageUrl.orEmpty(),
+            )
+        }
         prepareSurfaceLeaseForPresentation(presentation)
         pendingMediaLoad = null
         pendingThumbnailCommandId = null

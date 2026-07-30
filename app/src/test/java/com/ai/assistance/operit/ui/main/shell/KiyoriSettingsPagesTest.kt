@@ -634,6 +634,12 @@ class KiyoriSettingsPagesTest {
                 .map(KiyoriMinusOneDataItem::title),
         )
         assertEquals(
+            listOf("历史"),
+            kiyoriMinusOneDataItems
+                .filter { item -> item.action == KiyoriMinusOneDataAction.OPEN_HISTORY_DRAWER }
+                .map(KiyoriMinusOneDataItem::title),
+        )
+        assertEquals(
             listOf("新版", "手册", "版本", "搜索", "工具箱", "清理", "备份", "退出"),
             kiyoriMinusOneQuickTools.map(KiyoriMinusOneQuickTool::title),
         )

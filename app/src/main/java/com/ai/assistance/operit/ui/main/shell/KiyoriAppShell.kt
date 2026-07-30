@@ -179,6 +179,7 @@ internal fun KiyoriAppShell(
                 aiHostIsRoot = aiHostIsRoot,
                 isAiDrawerOpen = state.isAiDrawerOpen,
                 isBookmarkDrawerOpen = state.isBookmarkDrawerOpen,
+                isHistoryDrawerOpen = state.isHistoryDrawerOpen,
                 isDownloadDrawerOpen = state.isDownloadDrawerOpen,
             ),
     ) {
@@ -218,6 +219,7 @@ internal fun KiyoriAppShell(
                 state.child == null &&
                 !state.isAiDrawerOpen &&
                 !state.isBookmarkDrawerOpen &&
+                !state.isHistoryDrawerOpen &&
                 !state.isDownloadDrawerOpen
 
         HorizontalPager(
@@ -233,6 +235,9 @@ internal fun KiyoriAppShell(
                     KiyoriMinusOnePage(
                         onOpenBookmarkDrawer = {
                             latestOnStateChange(latestState.openBookmarkDrawer())
+                        },
+                        onOpenHistoryDrawer = {
+                            latestOnStateChange(latestState.openHistoryDrawer())
                         },
                         onOpenDownloadDrawer = {
                             latestOnStateChange(latestState.openDownloadDrawer())
@@ -404,6 +409,26 @@ internal fun KiyoriAppShell(
             modifier = Modifier.fillMaxSize().zIndex(30f),
         )
 
+        KiyoriHistoryDrawerHost(
+            isVisible =
+                shouldPresentKiyoriHistoryDrawer(
+                    isHistoryDrawerOpen = state.isHistoryDrawerOpen,
+                    aiHostIsRoot = aiHostIsRoot,
+                ),
+            onDismissRequest = {
+                latestOnStateChange(latestState.closeHistoryDrawer())
+            },
+            onOpenWebHistory = { url ->
+                onOpenBookmark(url)
+                latestOnStateChange(
+                    latestState
+                        .closeHistoryDrawer()
+                        .openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                )
+            },
+            modifier = Modifier.fillMaxSize().zIndex(30f),
+        )
+
         KiyoriBookmarkDrawerHost(
             isVisible =
                 shouldPresentKiyoriBookmarkDrawer(
@@ -493,12 +518,22 @@ internal fun shouldPresentKiyoriBookmarkDrawer(
     aiHostIsRoot: Boolean,
 ): Boolean = isBookmarkDrawerOpen
 
+internal fun shouldPresentKiyoriHistoryDrawer(
+    isHistoryDrawerOpen: Boolean,
+    aiHostIsRoot: Boolean,
+): Boolean = isHistoryDrawerOpen
+
 internal fun shouldEnableKiyoriShellBackHandler(
     aiHostIsRoot: Boolean,
     isAiDrawerOpen: Boolean,
     isBookmarkDrawerOpen: Boolean,
+    isHistoryDrawerOpen: Boolean,
     isDownloadDrawerOpen: Boolean,
-): Boolean = isBookmarkDrawerOpen || isDownloadDrawerOpen || (aiHostIsRoot && !isAiDrawerOpen)
+): Boolean =
+    isBookmarkDrawerOpen ||
+        isHistoryDrawerOpen ||
+        isDownloadDrawerOpen ||
+        (aiHostIsRoot && !isAiDrawerOpen)
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun calculateKiyoriPagerPageOffset(

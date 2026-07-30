@@ -40,6 +40,9 @@ class KiyoriShellStateTest {
                     softwareHomePage = SoftwareHomePage.MINUS_ONE,
                 ).openBookmarkDrawer(),
                 KiyoriShellState(
+                    softwareHomePage = SoftwareHomePage.MINUS_ONE,
+                ).openHistoryDrawer(),
+                KiyoriShellState(
                     primaryDestination = PrimaryDestination.SETTINGS_HOME,
                     softwareHomePage = SoftwareHomePage.AI_HOME,
                     child = KiyoriShellChild.DOWNLOAD_SETTINGS,
@@ -291,6 +294,24 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `shared history drawer is mutually exclusive and Back restores minus one`() {
+        val owner = KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE)
+        val historyDrawer = owner.openBookmarkDrawer().openHistoryDrawer()
+
+        assertTrue(historyDrawer.isHistoryDrawerOpen)
+        assertFalse(historyDrawer.isBookmarkDrawerOpen)
+        assertFalse(historyDrawer.isDownloadDrawerOpen)
+        assertFalse(historyDrawer.showsBottomBar)
+        assertEquals(
+            KiyoriShellBackTransition(
+                state = owner,
+                result = KiyoriShellBackResult.CONSUMED,
+            ),
+            historyDrawer.handleBack(),
+        )
+    }
+
+    @Test
     fun `hidden download drawer host is absent after its exit animation`() {
         assertFalse(
             shouldComposeKiyoriDownloadDrawer(
@@ -312,6 +333,18 @@ class KiyoriShellStateTest {
         )
         assertTrue(
             shouldComposeKiyoriBookmarkDrawer(
+                isVisible = true,
+                keepMountedUntilHidden = false,
+            ),
+        )
+        assertFalse(
+            shouldComposeKiyoriHistoryDrawer(
+                isVisible = false,
+                keepMountedUntilHidden = false,
+            ),
+        )
+        assertTrue(
+            shouldComposeKiyoriHistoryDrawer(
                 isVisible = true,
                 keepMountedUntilHidden = false,
             ),
@@ -349,12 +382,19 @@ class KiyoriShellStateTest {
                 aiHostIsRoot = false,
                 isAiDrawerOpen = false,
                 isBookmarkDrawerOpen = false,
+                isHistoryDrawerOpen = false,
                 isDownloadDrawerOpen = true,
             ),
         )
         assertTrue(
             shouldPresentKiyoriBookmarkDrawer(
                 isBookmarkDrawerOpen = true,
+                aiHostIsRoot = false,
+            ),
+        )
+        assertTrue(
+            shouldPresentKiyoriHistoryDrawer(
+                isHistoryDrawerOpen = true,
                 aiHostIsRoot = false,
             ),
         )

@@ -89,7 +89,8 @@ AI 助手设置由模态 AI 抽屉或设置首页进入同一页面与持久状�
 
 `SoftwareHomePage` 只在 `PrimaryDestination` 为软件首页时有效。AI 首页不是第六个底部入口，负一屏也不是独立顶层目的地。
 
-全屏网页搜索页、AI 一级页面、历史页和书签页属于明确的页面路由，不加入首页 Pager。
+全屏网页搜索页和 AI 一级页面属于明确的页面路由，不加入首页 Pager。书签与历史由 App Shell
+挂载共享下拉抽屉，不进入首页 Pager，也不创建第二页面 owner。
 
 ## 启动与页面可见性
 
@@ -150,7 +151,8 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
 - 小程序搜索
 - AI 提问与 AI 会话搜索
 
-历史页和书签页各自拥有搜索框、筛选状态和结果列表。它们可以复用文本输入组件，但不能与全屏网页搜索共享业务结果模型。
+历史抽屉和书签抽屉各自拥有搜索框、筛选状态和结果列表。它们可以复用文本输入组件，但不能与
+全屏网页搜索共享业务结果模型。
 
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
@@ -431,6 +433,13 @@ Browser Home 是沉浸式根页面。其浏览器专属底栏、全屏标签总�
 播放器同样只有一个 `PlayerSession` 和一个 mpv core。floating 与 fullscreen `PlayerSurfaceView` 只是 Surface lease owner：每个 owner 使用明确 role、实例 token 和单调 generation，状态机同时记录 current/pending owner、native detach 是否完成、transfer target 以及一次性 Activity launch/finish request。新 owner 可以先登记为 pending，但旧 owner 未通过 `surfaceDestroyed` 完成 native detach 前不能 attach。Surface 转挂不重新执行 `loadfile`，不改变 request、URL、headers、位置、暂停、速度、轨道、字幕、Anime4K 或 `loadGeneration`。
 
 书签管理同样属于这一个 Browser Runtime。`WebSessionHistoryStore` 在原有 `bookmarks_json` 上兼容增加稳定 ID、图标、文件夹、手动顺序和秘密空间字段，并在同一 DataStore 的 `bookmark_folders_json` 中保存目录树。浏览器菜单的加书签图标固定不变，未收藏页面先打开四字段编辑弹窗，已收藏页面只切换文字并移除普通空间中的当前网址；秘密空间状态不暴露给普通菜单。书签文件夹选择以 `/` 为首行，随后按同级手动顺序深度优先展开，只显示节点名称并按深度缩进。书签子抽屉继续使用下载抽屉的三态 viewport owner；搜索、路径、排序、长按菜单和秘密空间只是同一持久化状态的展示与 mutation 入口。两种抽屉的锚定菜单统一使用 `40dp` 选项、触发点定位和抽屉内遮罩，居中弹窗统一使用全窗口遮罩。负一屏书签卡观察普通空间书签数并挂载同一个书签抽屉。当前标签打开、后台新标签和前台新标签均调用现有 WebSession registry，禁止创建第二个浏览器或书签仓库。
+
+浏览历史也由同一个 `WebSessionHistoryStore` 持有。普通 Profile 的主框架访问写入 `WEB`，
+`PlayerSession` 接受媒体 request 时写入 `VIDEO` 并标记 `ONLINE` 或 `LOCAL`；媒体写入会移除同 URL
+的网页重复项。历史记录不保存 Cookie、Authorization 或 request headers。在线重播只在用户点击时，
+从活动 WebSession 读取当前 User-Agent、对应 Profile Cookie，并把记录的来源页作为 Referer；本地重播
+继续使用播放器现有同目录队列解析。浏览器菜单和负一屏挂载同一个三态历史抽屉，统一提供搜索、
+`全部 / 网页 / 视频 / 音乐 / 小说 / 其他` 筛选和按当前分类执行的一小时、24 小时、一周或所有时间删除。
 
 网络日志也属于单个 WebSession，而不是跨窗口持久化诊断库。现有 Android WebView `shouldInterceptRequest` 只记录当前请求能够确认的 method、URL、主框架标记、请求头与时间，并把最多 500 条内存记录投影给 App Shell Browser Home 与 AI 共用的 host；1×1 background anchor 不组合日志 UI。页面导航与用户清空只清该 session；搜索、六类筛选、第三方 host 提示和操作弹窗属于 presentation 状态。列表禁止加载远端缩略图，避免观察行为污染日志。复制和外部打开使用已记录 HTTP/HTTPS URL，下载复用 `BrowserDownloadManager`、当前默认 engine 与活动 Profile 请求身份。Android WebView 没有提供的响应状态、响应 MIME、拦截和播放器状态不得从 URL 猜测或从旧版 X5/hikerView 复制。
 

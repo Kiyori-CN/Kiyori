@@ -59,6 +59,7 @@ import com.ai.assistance.operit.ui.theme.resolveColors
 internal enum class KiyoriMinusOneDataAction {
     NONE,
     OPEN_BOOKMARK_DRAWER,
+    OPEN_HISTORY_DRAWER,
     OPEN_DOWNLOAD_DRAWER,
 }
 
@@ -96,6 +97,7 @@ internal val kiyoriMinusOneDataItems =
             count = 0,
             icon = Icons.Default.History,
             tone = KiyoriSemanticTone.ORANGE,
+            action = KiyoriMinusOneDataAction.OPEN_HISTORY_DRAWER,
         ),
         KiyoriMinusOneDataItem(
             title = "下载",
@@ -121,6 +123,7 @@ internal val kiyoriMinusOneQuickTools =
 @Composable
 internal fun KiyoriMinusOnePage(
     onOpenBookmarkDrawer: () -> Unit,
+    onOpenHistoryDrawer: () -> Unit,
     onOpenDownloadDrawer: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -130,6 +133,7 @@ internal fun KiyoriMinusOnePage(
     val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val downloadTasks by downloadManager.taskSnapshots.collectAsState()
     val bookmarks by historyStore.bookmarksFlow.collectAsState(initial = emptyList<WebSessionBookmark>())
+    val history by historyStore.historyFlow.collectAsState(initial = emptyList())
     Column(
         modifier =
             modifier
@@ -144,8 +148,10 @@ internal fun KiyoriMinusOnePage(
         ) {
             KiyoriMinusOneDataSection(
                 bookmarkCount = bookmarks.count { bookmark -> !bookmark.secret },
+                historyCount = history.size,
                 downloadCount = downloadTasks.size,
                 onOpenBookmarkDrawer = onOpenBookmarkDrawer,
+                onOpenHistoryDrawer = onOpenHistoryDrawer,
                 onOpenDownloadDrawer = onOpenDownloadDrawer,
             )
             KiyoriMinusOneQuickToolsSection()
@@ -185,8 +191,10 @@ private fun KiyoriMinusOneTopBar(onClose: () -> Unit) {
 @Composable
 private fun KiyoriMinusOneDataSection(
     bookmarkCount: Int,
+    historyCount: Int,
     downloadCount: Int,
     onOpenBookmarkDrawer: () -> Unit,
+    onOpenHistoryDrawer: () -> Unit,
     onOpenDownloadDrawer: () -> Unit,
 ) {
     Text(
@@ -224,6 +232,8 @@ private fun KiyoriMinusOneDataSection(
                                     KiyoriMinusOneDataAction.NONE -> Unit
                                     KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER ->
                                         onOpenBookmarkDrawer()
+                                    KiyoriMinusOneDataAction.OPEN_HISTORY_DRAWER ->
+                                        onOpenHistoryDrawer()
                                     KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER ->
                                         onOpenDownloadDrawer()
                                 }
@@ -257,6 +267,7 @@ private fun KiyoriMinusOneDataSection(
                             text =
                                 when (item.action) {
                                     KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER -> bookmarkCount.toString()
+                                    KiyoriMinusOneDataAction.OPEN_HISTORY_DRAWER -> historyCount.toString()
                                     KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER -> downloadCount.toString()
                                     KiyoriMinusOneDataAction.NONE -> item.count.toString()
                                 },

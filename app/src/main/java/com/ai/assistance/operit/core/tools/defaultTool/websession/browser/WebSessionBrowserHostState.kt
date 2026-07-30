@@ -40,14 +40,6 @@ internal data class WebSessionBrowserTab(
 )
 
 @Immutable
-internal data class WebSessionSessionHistoryItem(
-    val index: Int,
-    val title: String,
-    val url: String,
-    val isCurrent: Boolean
-)
-
-@Immutable
 internal data class WebSessionBrowserNetworkEntry(
     val method: String,
     val url: String,
@@ -133,7 +125,6 @@ internal data class WebSessionBrowserState(
     val overallDownloadProgress: Float? = null,
     val pendingDialog: WebSessionPendingDialogState? = null,
     val tabs: List<WebSessionBrowserTab> = emptyList(),
-    val sessionHistory: List<WebSessionSessionHistoryItem> = emptyList(),
     val userscriptMenuCommands: List<UserscriptPageMenuCommand> = emptyList(),
     val networkEntries: List<WebSessionBrowserNetworkEntry> = emptyList(),
     val mediaCandidates: List<WebSessionBrowserMediaCandidate> = emptyList(),
@@ -266,5 +257,8 @@ internal data class WebSessionBookmarkFolder(
 internal data class WebSessionHistoryEntry(
     val url: String,
     val title: String,
-    val visitedAt: Long
+    val visitedAt: Long,
+    val category: WebSessionHistoryCategory = WebSessionHistoryCategory.WEB,
+    val mediaOrigin: WebSessionHistoryMediaOrigin? = null,
+    val sourcePageUrl: String = "",
 )

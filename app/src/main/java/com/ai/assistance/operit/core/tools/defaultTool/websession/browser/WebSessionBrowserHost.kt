@@ -70,9 +70,9 @@ internal class WebSessionBrowserHost(
         fun onRemoveBookmark(url: String)
         fun onBookmarkMutation(mutation: WebSessionBookmarkMutation)
         fun onOpenBookmarkInTab(url: String, active: Boolean)
-        fun onSelectSessionHistory(index: Int)
         fun onOpenUrl(url: String)
-        fun onClearHistory()
+        fun onOpenHistoryEntry(entry: WebSessionHistoryEntry): Boolean
+        fun onDeleteHistory(category: WebSessionHistoryCategory?, cutoffTimeMillis: Long?)
         fun onClearNetworkLog()
         fun onSelectUserAgentMode(mode: WebSessionUserAgentMode)
         fun onSaveCustomGlobalUserAgent(userAgent: String)
@@ -232,9 +232,9 @@ internal class WebSessionBrowserHost(
             onRemoveBookmark = callbacks::onRemoveBookmark,
             onBookmarkMutation = callbacks::onBookmarkMutation,
             onOpenBookmarkInTab = callbacks::onOpenBookmarkInTab,
-            onSelectSessionHistory = callbacks::onSelectSessionHistory,
             onOpenUrl = callbacks::onOpenUrl,
-            onClearHistory = callbacks::onClearHistory,
+            onOpenHistoryEntry = callbacks::onOpenHistoryEntry,
+            onDeleteHistory = callbacks::onDeleteHistory,
             onClearNetworkLog = callbacks::onClearNetworkLog,
             onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
             onSaveCustomGlobalUserAgent = callbacks::onSaveCustomGlobalUserAgent,

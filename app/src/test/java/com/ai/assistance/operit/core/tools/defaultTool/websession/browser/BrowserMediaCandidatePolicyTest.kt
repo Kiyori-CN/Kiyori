@@ -230,6 +230,7 @@ class BrowserMediaCandidatePolicyTest {
         assertEquals(candidate.requestHeaders, request.headers)
         assertEquals("web-session", request.sourceSessionId)
         assertEquals(candidate.cookieScopeUrl, request.cookieScopeUrl)
+        assertEquals(candidate.pageUrl, request.sourcePageUrl)
     }
 
     @Test

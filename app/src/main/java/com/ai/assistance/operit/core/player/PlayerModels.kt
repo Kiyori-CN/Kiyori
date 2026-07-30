@@ -318,6 +318,7 @@ internal data class PlayerMediaRequest(
     val source: PlayerMediaSource,
     val sourceSessionId: String? = null,
     val cookieScopeUrl: String? = null,
+    val sourcePageUrl: String? = null,
 ) {
     init {
         require(requestId.isNotBlank()) { "Player request ID is blank" }
