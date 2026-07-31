@@ -1,5 +1,5 @@
 ---
-status: accepted_design
+status: implemented
 plan_version: 3
 last_reviewed: 2026-07-31
 ---
@@ -10,12 +10,16 @@ last_reviewed: 2026-07-31
 
 文档只能解释架构，自动门禁负责阻止新代码重新越过边界。
 
-本规范只定义未来实现，不在方案批准前创建脚本或配置。方案 v3 把该实现定义为 G-00，
-必须在 M-01 前完成：
+方案 v3 把该实现定义为 G-00，已经在 M-01 前完成首版实现：
 
 ```text
 config/architecture/
-└── package-ownership.toml
+├── README.md
+├── package-ownership.toml
+├── stable-identifiers.txt
+├── manifest-components.txt
+├── persistence-names.txt
+└── native-ipc-identifiers.txt
 
 ci/script/
 └── check_architecture_boundaries.py
@@ -66,7 +70,7 @@ required_tests = [
 - `required_tests` 必须映射到真实测试文件或明确的 future test
 - 临时 exception 必须有 expiry milestone 和理由
 
-## 计划中的诊断规则
+## 已实现的诊断规则
 
 | 代码 | 规则 | 严重性 |
 | --- | --- | --- |
@@ -75,12 +79,12 @@ required_tests = [
 | `ARCH003` | capability 导入具体 feature/runtime/UI | error |
 | `ARCH004` | feature 直接导入另一 feature 的内部实现 | error |
 | `ARCH005` | design/platform 拥有业务状态或依赖 feature | error |
-| `ARCH006` | 新 `Operit*` 产品所有权标识未登记 | error |
-| `ARCH007` | 新硬编码 `com.ai.assistance.operit.*` FQCN 未登记 | error |
+| `ARCH006` | 新 `Operit*` 产品所有权标识未登记 | 后续实现 |
+| `ARCH007` | 新硬编码 `com.ai.assistance.operit.*` FQCN 未登记 | 后续实现 |
 | `ARCH008` | Manifest component/action/authority 与 snapshot 无解释差异 | error |
 | `ARCH009` | DataStore、SharedPreferences、数据库、备份或路径合同变化 | error |
 | `ARCH010` | AIDL/JNI/native 名称在非专项里程碑变化 | error |
-| `ARCH011` | 同一 capability 出现多个 runtime/store owner | error |
+| `ARCH011` | 同一 capability 出现多个 runtime/store owner | 后续实现 |
 | `ARCH012` | source path 与 package declaration 不一致 | error |
 | `ARCH013` | ownership path 无文件或文件未被任何 owner 覆盖 | warning/error by phase |
 | `ARCH014` | terminal gitlink 或内容变化 | error |
@@ -106,7 +110,7 @@ historical_attribution
 
 ## stable contract snapshot
 
-建议生成并审阅：
+当前已生成并审阅：
 
 ```text
 config/architecture/
@@ -117,7 +121,8 @@ config/architecture/
 └── native-ipc-identifiers.txt
 ```
 
-这些文件由人工批准后进入 Git。脚本重新提取当前源码状态并与 snapshot 比较。
+这些文件由人工批准后进入 Git。脚本重新提取当前源码状态并以精确出现次数与
+snapshot 比较，因此新增和删除同类字面量都会触发检查。
 
 snapshot 更新要求：
 
@@ -139,7 +144,7 @@ M-01 还需要一份 candidate rule，引用
 
 ## 命令接口
 
-建议 CLI：
+当前 CLI：
 
 ```powershell
 .\.venv\Scripts\python.exe -B ci\script\check_architecture_boundaries.py `
@@ -152,9 +157,7 @@ M-01 还需要一份 candidate rule，引用
 
 ```text
 --base <commit>
---candidate <commit>
---phase <phase-id>
---report <path>
+--phase <auto|baseline|m01|post-m01>
 --json
 ```
 
@@ -166,9 +169,14 @@ M-01 还需要一份 candidate rule，引用
 - warning 不隐藏 error
 - 不自动修复源码
 
+`auto` 同时检查 base tree 与当前 tree：只有 base 仍包含
+`OperitApplication.kt`、当前 tree 已包含 `KiyoriApplication.kt` 时才进入 `m01`。
+M-01 完成后的 main 构建和未来 PR 使用 `post-m01`，继续核对新 Manifest 入口，但不会重复
+套用一次性的 16 文件纯改名清单。
+
 ## CI 接入
 
-批准并实现后：
+已接入：
 
 - `check_formal_readiness.py` 继续负责身份、子模块、品牌和仓库卫生
 - `check_architecture_boundaries.py` 负责 package、owner、合同和依赖方向
@@ -193,10 +201,23 @@ owner = "..."
 禁止：
 
 - 无期限 exception
-- 目录级宽泛忽略
+- 通配符或目录级宽泛忽略
+- 未被实际诊断使用的 exception
 - 因检查失败扩大 allowlist
 - 使用 exception 隐藏第二状态 owner
 - 在完成里程碑后留下过期 exception
+
+当前基线有 6 条 ARCH012 文件级例外，分别记录历史 package/path
+错位或 vendored UUID 来源；每条都绑定责任 owner 和 M-05 后续清债里程碑。
+
+## G-00 验收证据
+
+- 架构专测试：19 项通过，包含正向、负向、Windows 路径、例外和未暂存改名场景
+- 全量 `ci/test`：85 项通过
+- 当前工作树架构检查：`phase=baseline` PASS
+- formal readiness：PASS
+- fresh clone reproducibility：PASS
+- 未修改 Android 运行时代码、Manifest、资源、AIDL、native 或 terminal
 
 ## 门禁自身验收
 

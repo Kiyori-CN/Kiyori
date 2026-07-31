@@ -31,8 +31,11 @@ on:
       - .npmrc
       - app/**
       - build.gradle.kts
+      - config/architecture/**
+      - ci/script/check_architecture_boundaries.py
       - ci/script/download_android_dependencies.sh
       - ci/script/prepare_android_dependencies.py
+      - ci/test/test_architecture_boundaries.py
       - cmake/**
       - dragonbones/**
       - examples/**
@@ -94,6 +97,9 @@ jobs:
 
       - name: Check formal development readiness
         run: python3 -B ci/script/check_formal_readiness.py --repository "$GITHUB_WORKSPACE"
+
+      - name: Check architecture boundaries
+        run: python3 -B ci/script/check_architecture_boundaries.py --repository "$GITHUB_WORKSPACE"
 
       - name: Check fresh clone reproducibility
         run: python3 -B ci/script/check_fresh_clone.py --repository "$GITHUB_WORKSPACE"

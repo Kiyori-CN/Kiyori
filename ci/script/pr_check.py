@@ -71,6 +71,7 @@ CI_PATTERNS = (
     ".github/actions/**",
     ".github/workflows/**",
     "ci/**",
+    "config/architecture/**",
 )
 
 

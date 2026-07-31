@@ -101,6 +101,13 @@ class ScopeClassificationTest(unittest.TestCase):
         self.assertTrue(plan.android_full)
         self.assertFalse(plan.android_jvm)
 
+    def test_architecture_contract_snapshot_uses_ci_lane(self) -> None:
+        plan = classify_paths(["config/architecture/manifest-components.txt"])
+
+        self.assertTrue(plan.ci)
+        self.assertFalse(plan.android_jvm)
+        self.assertFalse(plan.android_full)
+
 
 class CandidateContractTest(unittest.TestCase):
     def test_stale_branch_uses_candidate_first_parent_diff(self) -> None:

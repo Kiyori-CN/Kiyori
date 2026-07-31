@@ -1,0 +1,250 @@
+schema_version = 1
+
+[[ownership]]
+id = "bundled-androidx-compose-compat"
+path = "app/src/main/java/androidx/compose/foundation/internal/**"
+owner = "vendored-compatibility"
+sync_zone = "D"
+phase = "current"
+
+[[ownership]]
+id = "bundled-sherpa-bindings"
+path = "app/src/main/java/com/k2fsa/sherpa/**"
+owner = "vendored-native-bindings"
+sync_zone = "D"
+phase = "current"
+
+[[ownership]]
+id = "bundled-kotlin-uuid"
+path = "app/src/main/java/kotlin/uuid/**"
+owner = "vendored-compatibility"
+sync_zone = "D"
+phase = "current"
+
+[[ownership]]
+id = "operit-api"
+path = "app/src/main/java/com/ai/assistance/operit/api/**"
+owner = "operit-ai"
+sync_zone = "A"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-core"
+path = "app/src/main/java/com/ai/assistance/operit/core/**"
+owner = "mixed-current"
+sync_zone = "B"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-data"
+path = "app/src/main/java/com/ai/assistance/operit/data/**"
+owner = "mixed-current"
+sync_zone = "B"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-integrations"
+path = "app/src/main/java/com/ai/assistance/operit/integrations/**"
+owner = "mixed-current"
+sync_zone = "B"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-plugins"
+path = "app/src/main/java/com/ai/assistance/operit/plugins/**"
+owner = "operit-ai"
+sync_zone = "A"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-provider"
+path = "app/src/main/java/com/ai/assistance/operit/provider/**"
+owner = "compatibility"
+sync_zone = "D"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-services"
+path = "app/src/main/java/com/ai/assistance/operit/services/**"
+owner = "mixed-current"
+sync_zone = "B"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-ui"
+path = "app/src/main/java/com/ai/assistance/operit/ui/**"
+owner = "mixed-current"
+sync_zone = "B"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-util"
+path = "app/src/main/java/com/ai/assistance/operit/util/**"
+owner = "mixed-current"
+sync_zone = "B"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-widget"
+path = "app/src/main/java/com/ai/assistance/operit/widget/**"
+owner = "compatibility"
+sync_zone = "D"
+phase = "current"
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "kiyori-app"
+path = "app/src/main/java/com/kiyori/app/**"
+owner = "kiyori-app"
+sync_zone = "C"
+phase = "planned"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature",
+  "com.kiyori.integration",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-capability"
+path = "app/src/main/java/com/kiyori/capability/**"
+owner = "kiyori-contracts"
+sync_zone = "C"
+phase = "planned"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+]
+
+[[ownership]]
+id = "kiyori-design"
+path = "app/src/main/java/com/kiyori/design/**"
+owner = "kiyori-design"
+sync_zone = "C"
+phase = "planned"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature"
+path = "app/src/main/java/com/kiyori/feature/**"
+owner = "kiyori-features"
+sync_zone = "C"
+phase = "planned"
+planned = true
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.integration",
+]
+
+[[ownership]]
+id = "kiyori-integration"
+path = "app/src/main/java/com/kiyori/integration/**"
+owner = "kiyori-integrations"
+sync_zone = "C"
+phase = "planned"
+planned = true
+forbidden_import_roots = [
+  "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "kiyori-platform"
+path = "app/src/main/java/com/kiyori/platform/**"
+owner = "kiyori-platform"
+sync_zone = "C"
+phase = "planned"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
+
+[[exception]]
+rule = "ARCH012"
+path = "app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/graph/GraphVisualizer.kt"
+reason = "Historical package declaration remains at the parent screens package while graph models use the child package."
+expires_after = "M-05-memory"
+owner = "kiyori-memory"
+
+[[exception]]
+rule = "ARCH012"
+path = "app/src/main/java/com/ai/assistance/operit/ui/features/packages/components/MCPInstallProgressDialog.kt"
+reason = "Historical source path does not match the existing screens.mcp package consumed by MCPConfigScreen."
+expires_after = "M-05-operit-packages"
+owner = "operit-packages"
+
+[[exception]]
+rule = "ARCH012"
+path = "app/src/main/java/com/ai/assistance/operit/ui/features/packages/model/MCPCategories.kt"
+reason = "Historical source path does not match the existing screens.mcp package."
+expires_after = "M-05-operit-packages"
+owner = "operit-packages"
+
+[[exception]]
+rule = "ARCH012"
+path = "app/src/main/java/com/ai/assistance/operit/ui/features/packages/viewmodel/MCPViewModel.kt"
+reason = "Historical source path does not match the existing screens.mcp package consumed by MCPConfigScreen."
+expires_after = "M-05-operit-packages"
+owner = "operit-packages"
+
+[[exception]]
+rule = "ARCH012"
+path = "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/components/NewFolderDialog.kt"
+reason = "Historical default-package source is imported by FileManagerScreen without a package qualifier."
+expires_after = "M-05-toolbox"
+owner = "operit-toolbox"
+
+[[exception]]
+rule = "ARCH012"
+path = "app/src/main/java/kotlin/uuid/Uuid.kt"
+reason = "Vendored MCP UUID compatibility source retains its upstream package in a legacy source location."
+expires_after = "M-05-vendored-compat"
+owner = "vendored-compatibility"

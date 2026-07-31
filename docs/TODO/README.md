@@ -31,8 +31,9 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 - [M-01 Application 原包改名精确影响清单](kiyori_architecture_refactor/15_m01_application_rename_exact_manifest.md)
 - [M-00 权威文档同步精确清单](kiyori_architecture_refactor/16_m00_document_authority_update_manifest.md)
 
-当前状态：`accepted_design`。正式实施严格按“本地备份与安全点 -> M-00 -> G-00 -> M-01”
-串行推进；不改 namespace、数据、协议、UI、功能或 terminal，不使用设备，不推送。
+当前状态：`G-00 completed`。正式实施严格按“本地备份与安全点 -> M-00 -> G-00
+-> M-01”串行推进；M-00 已提交，G-00 的门禁、测试和 Debug APK 验证均已通过；
+不改 namespace、数据、协议、UI、功能或 terminal，不使用设备，不推送。
 
 ## 2026-07-31 插件中心信息架构与日志交互优化
 

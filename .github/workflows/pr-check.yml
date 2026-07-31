@@ -60,6 +60,14 @@ jobs:
         continue-on-error: true
         run: python3 -B ci/script/check_formal_readiness.py --repository "$GITHUB_WORKSPACE"
 
+      - name: Check architecture boundaries
+        id: architecture
+        continue-on-error: true
+        run: |
+          python3 -B ci/script/check_architecture_boundaries.py \
+            --repository "$GITHUB_WORKSPACE" \
+            --base "${{ steps.plan.outputs.base_sha }}"
+
       - name: Check fresh clone reproducibility
         id: fresh_clone
         continue-on-error: true
@@ -154,6 +162,7 @@ jobs:
         env:
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
           READINESS_OUTCOME: ${{ steps.readiness.outcome }}
+          ARCHITECTURE_OUTCOME: ${{ steps.architecture.outcome }}
           FRESH_CLONE_OUTCOME: ${{ steps.fresh_clone.outcome }}
           GATE_TESTS_OUTCOME: ${{ steps.gate-tests.outcome }}
           HYGIENE_OUTCOME: ${{ steps.hygiene.outcome }}
@@ -189,6 +198,7 @@ jobs:
 
           check_stage candidate true "$PLAN_OUTCOME"
           check_stage readiness true "$READINESS_OUTCOME"
+          check_stage architecture true "$ARCHITECTURE_OUTCOME"
           check_stage fresh-clone true "$FRESH_CLONE_OUTCOME"
           check_stage gate-tests true "$GATE_TESTS_OUTCOME"
           check_stage hygiene true "$HYGIENE_OUTCOME"

@@ -54,7 +54,7 @@ git diff --check
 
 ## G-00 架构与稳定合同门禁
 
-计划命令：
+G-00 当前命令：
 
 ```powershell
 .\.venv\Scripts\python.exe -B ci\script\check_architecture_boundaries.py `
@@ -70,7 +70,7 @@ git diff --check
   ci.test.test_architecture_boundaries
 ```
 
-G-00 实现后，当前未修改基线必须通过；超范围文件、稳定合同变化、terminal 变化和 M-01
+G-00 当前基线必须通过；超范围文件、稳定合同计数变化、terminal 变化和 M-01
 非纯改名样例必须稳定失败。
 
 ## Application 与 App Shell

@@ -1,5 +1,5 @@
 ---
-status: accepted_design
+status: ready_for_implementation
 plan_version: 3
 baseline: 62464b054f6de00b70c5596295bc216eb8edf63d
 last_reviewed: 2026-07-31
