@@ -16,6 +16,11 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态和伪能力直接删除，不保留并行界面、兼容开关或回退路径。`com.ai.assistance.operit`、`operit://`、ToolPkg、MCP、Intent action、数据库和持久化格式等兼容标识继续遵守 `CONTEXT.md`。
 
+> 架构归属说明：本计划的 Browser/Player 行为合同和历史验收证据继续有效；未来源码所有权、
+> 目标包路径和 Operit 兼容岛由
+> [Kiyori 项目架构与 Operit 命名重构方案 v3](../kiyori_architecture_refactor/index.md)
+> 接管。本文及分项文档中的历史路径不追溯改写，只有真实迁移完成的里程碑才更新当前入口。
+
 2026-07-26 用户确认以 `GPL-3.0-or-later` 作为完整 mpv 播放器移植的分发边界。该决定只授权本地开发中的许可证与依赖设计，不授权公开发布；播放器依赖进入仓库时必须同时完成完整 GPL 正文、第三方 NOTICE、来源、版本、哈希、ABI、对应源码和动态/静态链接义务审计。旧 mpv AAR 与当前 FFmpegKit 的七个同名 `libav*.so` 不允许通过 packaging 选取规则掩盖，必须建立无重复 native 库的统一栈。
 
 当前 Goal 只复刻 `kiyori-android@24a2dfa9` 已有的 UI 和真实运行时能力。旧项目没有消费者的入口保留空页面或不可交互状态，不在 Kiyori 另行发明实现；旧项目已有消费者的状态接入当前唯一 Browser Runtime、Download Manager 或后续唯一 PlayerSession。

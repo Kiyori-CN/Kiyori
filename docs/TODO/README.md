@@ -4,6 +4,36 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-31 Kiyori 项目架构与 Operit 命名重构方案 v3
+
+方案 v3 已于 2026-07-31 获得实施授权。当前方案让 Kiyori 产品代码与
+Operit AI 兼容代码形成两个明确包根，先建立依赖边界和数据保护门禁，再按小里程碑迁移。
+v3 进一步把备份范围纠正为当前仓库和本机开发状态，不涉及手机、模拟器或 ADB；同时增加
+M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架构/稳定合同门禁基线。
+
+方案入口：
+
+- [Kiyori 项目架构与 Operit 命名重构](kiyori_architecture_refactor/index.md)
+- [当前架构与命名分类账](kiyori_architecture_refactor/1_current_architecture_and_naming_ledger.md)
+- [目标包结构与依赖规则](kiyori_architecture_refactor/2_target_package_architecture.md)
+- [分阶段迁移顺序](kiyori_architecture_refactor/3_migration_sequence.md)
+- [Operit AI 上游同步策略](kiyori_architecture_refactor/4_upstream_sync_strategy.md)
+- [开发数据、备份与回滚](kiyori_architecture_refactor/5_data_backup_and_rollback.md)
+- [验证矩阵与批准门禁](kiyori_architecture_refactor/6_validation_and_approval_gate.md)
+- [源码所有权与文件迁移矩阵](kiyori_architecture_refactor/7_file_ownership_and_migration_matrix.md)
+- [兼容合同与稳定标识清单](kiyori_architecture_refactor/8_compatibility_contract_inventory.md)
+- [工作区、基线与备份作战手册](kiyori_architecture_refactor/9_workspace_preflight_and_backup_runbook.md)
+- [里程碑执行模板与首批规格](kiyori_architecture_refactor/10_milestone_execution_template.md)
+- [风险登记与停止条件](kiyori_architecture_refactor/11_risk_register_and_stop_conditions.md)
+- [最终批准与实施就绪清单](kiyori_architecture_refactor/12_approval_and_implementation_readiness.md)
+- [架构门禁与机器可读所有权规范](kiyori_architecture_refactor/13_architecture_guard_specification.md)
+- [验证命令目录](kiyori_architecture_refactor/14_validation_command_catalog.md)
+- [M-01 Application 原包改名精确影响清单](kiyori_architecture_refactor/15_m01_application_rename_exact_manifest.md)
+- [M-00 权威文档同步精确清单](kiyori_architecture_refactor/16_m00_document_authority_update_manifest.md)
+
+当前状态：`accepted_design`。正式实施严格按“本地备份与安全点 -> M-00 -> G-00 -> M-01”
+串行推进；不改 namespace、数据、协议、UI、功能或 terminal，不使用设备，不推送。
+
 ## 2026-07-31 插件中心信息架构与日志交互优化
 
 本轮继续复用同一个 Browser Plugin Center、`UserscriptRepository` 和

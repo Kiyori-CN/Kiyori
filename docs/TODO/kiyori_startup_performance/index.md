@@ -5,6 +5,11 @@ status: verification_pending
 
 # Kiyori 启动性能优化
 
+> 架构迁移说明：当前基线类仍为
+> `com.ai.assistance.operit.core.application.OperitApplication`。已接受的架构重构方案 v3
+> 计划在 G-00 门禁后通过 M-01 在原包内改名为 `KiyoriApplication`。该命名计划不改变本文记录的
+> 首帧、初始化顺序、幂等、前台服务或性能结论；M-01 实际完成前不预先改写下文历史符号。
+
 ## 原本状况
 
 Android 12 及以上会为 Launcher Activity 强制创建系统启动窗口。当前 `Theme.Operit` 只指定背景色，没有指定启动图标，因此系统直接使用自适应 Launcher 图标并放大显示。该窗口一直保留到应用首帧绘制。

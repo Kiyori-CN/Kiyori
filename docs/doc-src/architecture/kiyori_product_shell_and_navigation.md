@@ -20,6 +20,21 @@ last_updated: 2026-07-29
 
 稳定术语以根目录 [CONTEXT.md](../../../CONTEXT.md) 为准。产品定位决策见 [Kiyori 产品定位与 Operit AI 边界](../decisions/0001_kiyori_product_positioning.md)，当前导航决策见 [模态 AI 左抽屉导航](../decisions/0004_modal_ai_drawer_navigation.md)，视觉规则见 [UI 设计来源层级](../decisions/0003_ui_design_source_hierarchy.md)。
 
+## 目标包所有权与迁移状态
+
+[Kiyori 项目架构与 Operit 命名重构方案 v3](../../TODO/kiyori_architecture_refactor/index.md)
+已经接受双包根方向：
+
+- Kiyori App Shell、首页、产品导航和启动装配长期迁入 `com.kiyori.app`
+- Browser、Player、Files、Settings 等产品域迁入对应 `com.kiyori.feature`
+- Operit AI screen registry、ToolPkg 动态页面和 AI 对话路由继续属于 `com.ai.assistance.operit`
+- 两侧路由转换只通过 `com.kiyori.integration.operit.navigation`
+- capability、platform 和 integration 不能拥有第二份 Shell、Browser、Player 或设置状态
+
+当前源码尚未完成上述路径迁移。本节只声明所有权方向，不改变本文既有 Pager、Back、抽屉、
+AI Home、window inset、presentation、主题或 UI 行为合同。历史文档中的旧路径继续记录当时
+真实实现，不追溯改写。
+
 ## 设计来源层级
 
 Kiyori 不建立与 AI 页面割裂的第二套视觉系统。来源层级固定为：
