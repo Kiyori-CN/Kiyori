@@ -24,6 +24,8 @@
 1	"mcp_local_server_prefs"
 1	"memory_search_settings_$profileId"
 1	"model_configs"
+4	"objectbox"
+2	"objectbox_$profileId"
 1	"payload/"
 1	"payload/datastore/"
 1	"payload/databases/"

@@ -10,20 +10,30 @@ state.
   `app/src/main/java` to one owner, records the sync zone, and declares
   package-dependency constraints for future `com.kiyori` roots. Planned
   capability, feature, and integration domains are file-exact package roots;
-  an undeclared future domain fails as unmanaged.
+  an undeclared future domain fails as unmanaged. Vendored roots are also
+  isolated from both Kiyori and Operit product packages.
 - `manifest-components.txt` is the reviewed Android Manifest contract
   snapshot. It preserves component classes plus action, category, authority,
   scheme, host, MIME type, process, and component permission multiplicity.
   M-01 has one explicit old/new application-class mapping.
+- `manifest-structure-hashes.txt` preserves the complete semantic Manifest
+  tree for each migration phase. XML formatting, attribute order, and sibling
+  order are ignored, while hierarchy and every element/attribute value remain
+  protected.
 - `stable-identifiers.txt` records product, ecosystem, serialization, and
   external-identity literals with exact expected occurrence counts.
 - `persistence-names.txt` records exact quoted DataStore, SharedPreferences,
   database, backup, and related persistence names with exact counts.
-- `native-ipc-identifiers.txt` records exact native/JNI/AIDL package and
-  library identifiers with exact counts.
+- `persistence-api-calls.txt` records every DataStore, SharedPreferences, Room,
+  and WorkManager unique-work contract call with its source path, API, selected
+  argument, and exact multiplicity. Formatting and comments do not affect it;
+  aliases or direct imports that could bypass extraction are rejected.
+- `native-ipc-identifiers.txt` records exact native/JNI/AIDL package, exported
+  JNI symbol, and library identifiers with exact counts.
 - `critical-file-hashes.txt` pins the complete bytes of AIDL contracts, Room
-  schema/entity sources, and ObjectBox UID models after CRLF-to-LF
-  normalization.
+  schema/entity sources, ObjectBox UID/path contracts, persisted WorkManager
+  worker/scheduler entrypoints, and backup/restore implementations after
+  CRLF-to-LF normalization.
 
 Counts are extracted only from Git-tracked files plus non-ignored untracked
 source files under `app/`, `examples/`, and `tools/`. Ignored dependency,

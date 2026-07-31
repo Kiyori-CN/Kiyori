@@ -38,6 +38,7 @@ last_reviewed: 2026-07-31
 | Room schema | version `20` | `FROZEN` per naming refactor | `AppDatabase.kt` SHA-256 |
 | Room tables | `chats`, `messages`, `message_variants` 等现有表 | `FROZEN` | database/entity source SHA-256 |
 | ObjectBox model/UID | 当前 generated model | `FROZEN` | model 与备份 model SHA-256 |
+| ObjectBox 目录 | `objectbox` / `objectbox_$profileId` | `FROZEN` | 字面量与 `ObjectBox.kt` SHA-256 |
 | raw snapshot format | `formatVersion = 1` | `FROZEN` | 格式版本、entry prefix snapshot |
 | raw snapshot prefix | `operit_raw_snapshot_` | `FROZEN` | path scan |
 | snapshot package guard | `com.kiyori` | `FROZEN` | manifest read |
@@ -115,7 +116,10 @@ ${type.wireValue}_publish_draft
 其中包含旧包名的 SharedPreferences 名称必须保留。类移动不能自动触发偏好迁移或复制。
 上述 DataStore 和 SharedPreferences 文件名已全部进入
 `config/architecture/persistence-names.txt`。同一文件名在多个调用点出现时保存精确计数，
-防止移动过程中静默复制第二个 owner。
+防止移动过程中静默复制第二个 owner。`persistence-api-calls.txt` 还保存每个 DataStore、
+SharedPreferences、Room 和 WorkManager unique-work 调用的源码路径、API、合同参数与
+重复次数；新增调用点、删除调用点、改名或把调用迁移到另一文件都会触发 ARCH009，
+而排版和注释变化不会触发。
 
 同一 snapshot 还固定：
 
@@ -179,7 +183,8 @@ com.ai.assistance.operit.data.backup.RoomDatabaseBackupWorker
 ```
 
 如果真实实现迁移，旧类只作为稳定 worker entrypoint，构造参数、input/output key、unique work name
-和结果语义不变。迁移前必须在已有任务存在的设备上验证重启、执行、取消和重新调度。
+和结果语义不变。两个 worker、对应 scheduler、raw snapshot 与 Room 备份/恢复实现已进入
+`critical-file-hashes.txt`；迁移前仍必须在已有任务存在的设备上验证重启、执行、取消和重新调度。
 
 ## Manifest、资源和外部组件
 
@@ -230,7 +235,9 @@ ${applicationId}.androidx-startup
 `applicationId` 保持 `com.kiyori`，所以 authority 解析值继续稳定。
 `manifest-components.txt` 已机器化保存组件、action、category、authority、scheme/host、
 MIME type、process 与组件 permission 的精确多重集合；同名 action 或 process 的重复次数
-也不能在未批准里程碑中变化。
+也不能在未批准里程碑中变化。`manifest-structure-hashes.txt` 同时保存各迁移阶段完整
+Manifest 语义树哈希，忽略 XML 格式、属性顺序和同级元素顺序，但保留节点归属和全部
+属性值；权限、导出状态、进程、launch mode、备份配置与 intent-filter 归属都不能静默漂移。
 
 ### 当前 Manifest 组件入口
 
@@ -339,6 +346,10 @@ com.ai.assistance.operit.provider
 - `NativeMarkdownSplitter`
 - `NativeXmlSplitter`
 - `ToolPkgWasmNative`
+
+8 个完整 JNI 导出符号及 `streamnative`、`toolpkgwasm`、`operit_ripgrep` 的
+`System.loadLibrary` 调用都已按精确出现次数进入 `native-ipc-identifiers.txt`；仅保持
+`Java_com_ai_assistance_operit_` 前缀数量不变但替换类名或方法名同样会失败。
 
 `NativeRipgrep` 使用 `liboperit_ripgrep.so`。除非单独迁移到显式 `RegisterNatives` 并完成 APK/native
 审计，否则 Java 包名、导出符号和库文件名保持不变。

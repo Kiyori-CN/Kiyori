@@ -18,7 +18,9 @@ config/architecture/
 ├── package-ownership.toml
 ├── stable-identifiers.txt
 ├── manifest-components.txt
+├── manifest-structure-hashes.txt
 ├── persistence-names.txt
+├── persistence-api-calls.txt
 ├── native-ipc-identifiers.txt
 └── critical-file-hashes.txt
 
@@ -75,7 +77,8 @@ required_tests = [
 machine schema 已按 browser、player、files、downloads、miniapp、home、settings、backup、
 recovery、Operit integration、Shower、Shizuku 和 Tasker 分开登记；新增未登记领域直接
 触发 unmanaged source。feature 只允许 capability、design、自身 feature 与 platform，
-仅 `integration.operit` 可以直接导入 `com.ai.assistance.operit`。
+仅 `integration.operit` 可以直接导入 `com.ai.assistance.operit`。仓库内 vendored
+AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 Kiyori 或 Operit 产品代码。
 
 ## 已实现的诊断规则
 
@@ -124,7 +127,9 @@ config/architecture/
 ├── package-ownership.toml
 ├── stable-identifiers.txt
 ├── manifest-components.txt
+├── manifest-structure-hashes.txt
 ├── persistence-names.txt
+├── persistence-api-calls.txt
 ├── native-ipc-identifiers.txt
 └── critical-file-hashes.txt
 ```
@@ -132,8 +137,16 @@ config/architecture/
 这些文件由人工批准后进入 Git。脚本重新提取当前源码状态并以精确出现次数与
 snapshot 比较，因此新增和删除同类字面量都会触发检查。Manifest snapshot 还保留
 component、action、category、authority、scheme、host、MIME type、process 和 permission
-的重复次数；关键文件 snapshot 直接核对 AIDL、Room schema/entity 与 ObjectBox model
+的重复次数；`manifest-structure-hashes.txt` 进一步对每个迁移阶段保存完整 XML 语义树
+哈希，忽略格式、属性顺序和同级元素顺序，但保留节点层级与全部属性值，因此权限删除、
+`exported`/`launchMode`/备份配置变化和 intent-filter 归属漂移都会失败。关键文件 snapshot
+直接核对 AIDL、Room schema/entity、ObjectBox model/目录映射、已持久化 WorkManager
+worker/scheduler 与备份/恢复实现
 经 CRLF-to-LF 规范化后的 SHA-256，确保 Windows/Linux checkout 一致。
+`persistence-api-calls.txt` 同时固定 65 个持久化 API 调用记录，扫描时忽略源码字符串、
+注释和排版差异，保存文件路径、API、目标参数与重复次数，防止只新增新名称而旧字面量
+计数不变时绕过 ARCH009；`preferencesDataStore` alias 和 `Room.databaseBuilder` 直接导入
+会被拒绝，避免改写调用名绕过扫描。
 
 snapshot 更新要求：
 
@@ -223,17 +236,19 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：25 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
+- 架构专测试：33 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
   Git ignored dependency tree、Java static import、重复 Manifest component 和关键文件
-  hash drift，以及 feature/Operit 双向依赖拒绝场景
-- 全量 `ci/test`：91 项通过
+  hash drift、完整 Manifest 语义漂移、JNI 完整符号替换、新持久化调用识别，
+  持久化 alias 绕过拒绝、vendored 反向依赖拒绝，以及 feature/Operit 双向依赖拒绝场景
+- 全量 `ci/test`：99 项通过
 - 当前工作树架构检查：`phase=post-m01` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS
 - 最终 bundle 恢复演练促使扫描范围收口为 Git tracked + non-ignored untracked，
   恢复克隆与开发工作树的 stable literal 计数一致
 - 深度合同审计补齐 Manifest Intent/authority/process、全部已登记 SharedPreferences、
-  provider AIDL、备份格式、WorkManager 名称，以及 AIDL/Room/ObjectBox 文件哈希
+  ObjectBox 目录、provider AIDL、备份格式、WorkManager 名称/worker 入口，以及
+  AIDL/Room/ObjectBox/backup 文件哈希
 - 未修改 Android 运行时代码、Manifest、资源、AIDL、native 或 terminal
 
 ## 门禁自身验收

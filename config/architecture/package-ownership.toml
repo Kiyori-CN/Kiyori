@@ -6,6 +6,9 @@ path = "app/src/main/java/androidx/compose/foundation/internal/**"
 owner = "vendored-compatibility"
 sync_zone = "D"
 phase = "current"
+allowed_import_roots = [
+  "androidx.compose.foundation.internal",
+]
 
 [[ownership]]
 id = "bundled-sherpa-bindings"
@@ -13,6 +16,9 @@ path = "app/src/main/java/com/k2fsa/sherpa/**"
 owner = "vendored-native-bindings"
 sync_zone = "D"
 phase = "current"
+allowed_import_roots = [
+  "com.k2fsa.sherpa",
+]
 
 [[ownership]]
 id = "bundled-kotlin-uuid"
@@ -20,6 +26,9 @@ path = "app/src/main/java/kotlin/uuid/**"
 owner = "vendored-compatibility"
 sync_zone = "D"
 phase = "current"
+allowed_import_roots = [
+  "kotlin.uuid",
+]
 
 [[ownership]]
 id = "operit-api"

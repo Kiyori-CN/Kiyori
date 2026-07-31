@@ -20,13 +20,16 @@ from check_architecture_boundaries import (  # noqa: E402
     check_literals,
     check_manifest,
     check_ownership,
+    check_persistence_api_calls,
     check_terminal_unchanged,
     check_tracked_artifacts,
     expected_manifest_components,
     import_matches_root,
     is_project_import,
+    manifest_semantic_hash,
     normalize_m01_text,
     path_matches,
+    persistence_api_records,
     repository_text,
     resolve_phase,
     working_tree_app_paths,
@@ -187,6 +190,96 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 ["ARCH008 unexpected manifest component: service .DuplicateService"],
             )
 
+    def test_manifest_semantic_hash_ignores_formatting_attribute_and_sibling_order(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "first.xml"
+            second = root / "second.xml"
+            first.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<uses-permission android:name="android.permission.INTERNET"/>'
+                '<application android:name=".App" android:allowBackup="true">'
+                '<activity android:name=".Main" android:exported="true"/>'
+                '<service android:name=".Sync" android:exported="false"/>'
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            second.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                '  <application android:allowBackup="true" android:name=".App">\n'
+                '    <service android:exported="false" android:name=".Sync" />\n'
+                '    <activity android:exported="true" android:name=".Main" />\n'
+                "  </application>\n"
+                '  <uses-permission android:name="android.permission.INTERNET" />\n'
+                "</manifest>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(manifest_semantic_hash(first), manifest_semantic_hash(second))
+
+    def test_manifest_semantic_hash_detects_non_component_contract_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "AndroidManifest.xml"
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<uses-permission android:name="android.permission.INTERNET"/>'
+                '<application android:name=".App">'
+                '<activity android:name=".Main" android:exported="true"/>'
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            original = manifest_semantic_hash(manifest)
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<application android:name=".App">'
+                '<activity android:name=".Main" android:exported="false"/>'
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            self.assertNotEqual(original, manifest_semantic_hash(manifest))
+
+    def test_manifest_semantic_snapshot_rejects_drift_missed_by_component_multiset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "app/src/main/AndroidManifest.xml"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<uses-permission android:name="android.permission.INTERNET"/>'
+                '<application android:name=".App">'
+                '<activity android:name=".Main" android:exported="true"/>'
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            snapshot = root / "manifest-components.txt"
+            snapshot.write_text(
+                "application\t.App\nactivity\t.Main\n",
+                encoding="utf-8",
+            )
+            semantic_snapshot = root / "manifest-structure-hashes.txt"
+            digest = manifest_semantic_hash(manifest)
+            semantic_snapshot.write_text(
+                f"baseline\t{digest}\nm01\t{digest}\npost-m01\t{digest}\n",
+                encoding="utf-8",
+            )
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<application android:name=".App">'
+                '<activity android:name=".Main" android:exported="false"/>'
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_manifest(
+                root,
+                snapshot,
+                "post-m01",
+                errors,
+                semantic_snapshot,
+            )
+            self.assertEqual(len(errors), 1)
+            self.assertTrue(errors[0].startswith("ARCH008 manifest semantic structure changed:"))
+
     def test_critical_file_hash_drift_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -249,6 +342,101 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                     "'stable' expected 1, found 2"
                 ],
             )
+
+    def test_native_symbol_replacement_is_rejected_when_prefix_count_is_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/cpp/native_bridge.cpp"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "Java_com_ai_assistance_operit_NativeBridge_open\n",
+                encoding="utf-8",
+            )
+            snapshot = root / "native-ipc-identifiers.txt"
+            snapshot.write_text(
+                "1\tJava_com_ai_assistance_operit_\n"
+                "1\tJava_com_ai_assistance_operit_NativeBridge_open\n",
+                encoding="utf-8",
+            )
+            source.write_text(
+                "Java_com_ai_assistance_operit_NativeBridge_close\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_literals(root, (snapshot,), errors)
+            self.assertEqual(
+                errors,
+                [
+                    "ARCH009/ARCH010 stable literal count changed: "
+                    "'Java_com_ai_assistance_operit_NativeBridge_open' expected 1, found 0"
+                ],
+            )
+
+    def test_new_persistence_api_call_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/java/com/example/Store.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                'val Context.old by preferencesDataStore(name = "old_store")\n',
+                encoding="utf-8",
+            )
+            git(root, "add", "app/src/main/java/com/example/Store.kt")
+            snapshot = root / "persistence-api-calls.txt"
+            snapshot.write_text(
+                "\n".join(persistence_api_records(root).elements()) + "\n",
+                encoding="utf-8",
+            )
+            source.write_text(
+                'val Context.old by preferencesDataStore(name = "old_store")\n'
+                'val Context.new by preferencesDataStore(name = "new_store")\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_persistence_api_calls(root, snapshot, errors)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("unexpected persistence API contract", errors[0])
+            self.assertIn('"new_store"', errors[0])
+
+    def test_persistence_api_call_scanner_ignores_comments_strings_and_formatting(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/java/com/example/Store.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                'val ignored = "getSharedPreferences(\\"fake\\", 0)"\n'
+                "// getSharedPreferences(\"comment\", 0)\n"
+                "val Context.store by preferencesDataStore(\n"
+                "    /* reviewed */ name = \"stable_store\",\n"
+                ")\n",
+                encoding="utf-8",
+            )
+            git(root, "add", "app/src/main/java/com/example/Store.kt")
+            records = persistence_api_records(root)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(
+                next(iter(records)),
+                "app/src/main/java/com/example/Store.kt"
+                '\tpreferencesDataStore\t"stable_store"',
+            )
+
+    def test_persistence_api_import_alias_cannot_bypass_scanner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/java/com/example/Store.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "import androidx.datastore.preferences.preferencesDataStore as privateStore\n"
+                'val Context.store by privateStore(name = "hidden_store")\n',
+                encoding="utf-8",
+            )
+            git(root, "add", "app/src/main/java/com/example/Store.kt")
+            with self.assertRaisesRegex(ValueError, "persistence API import bypass"):
+                persistence_api_records(root)
 
     def test_repository_text_excludes_git_ignored_dependency_trees(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -556,6 +744,36 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             check_ownership(root, ownership, errors)
             violations = [
                 error for error in errors if error.startswith("ARCH004 import outside allowed roots:")
+            ]
+            self.assertEqual(len(violations), 2)
+
+    def test_vendored_source_rejects_product_imports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "app/src/main/java/com/vendor/Binding.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "package com.vendor\n\n"
+                "import com.ai.assistance.operit.data.model.ChatEntity\n"
+                "import com.kiyori.platform.logging.KiyoriLogger\n",
+                encoding="utf-8",
+            )
+            ownership = root / "ownership.toml"
+            ownership.write_text(
+                'schema_version = 1\n'
+                '[[ownership]]\n'
+                'id = "bundled-vendor"\n'
+                'path = "app/src/main/java/com/vendor/**"\n'
+                'owner = "vendored"\n'
+                'sync_zone = "D"\n'
+                'phase = "current"\n'
+                'allowed_import_roots = ["com.vendor"]\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_ownership(root, ownership, errors)
+            violations = [
+                error for error in errors if error.startswith("ARCH005 import outside allowed roots:")
             ]
             self.assertEqual(len(violations), 2)
 

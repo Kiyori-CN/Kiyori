@@ -23,6 +23,7 @@ ANDROID_PERMISSION = "{http://schemas.android.com/apk/res/android}permission"
 ANDROID_PROCESS = "{http://schemas.android.com/apk/res/android}process"
 ANDROID_SCHEME = "{http://schemas.android.com/apk/res/android}scheme"
 VALID_SYNC_ZONES = {"A", "B", "C", "D"}
+VALID_MANIFEST_PHASES = {"baseline", "m01", "post-m01"}
 MANAGED_SOURCE_SUFFIXES = {".java", ".kt"}
 PROJECT_IMPORT_ROOTS = (
     "com.ai.assistance.operit",
@@ -72,6 +73,29 @@ PROHIBITED_TRACKED_PARTS = {
     "node_modules",
     "work",
 }
+PERSISTENCE_CALL_SPECS = {
+    "preferencesDataStore": ("named", "name"),
+    "getSharedPreferences": ("index", 0),
+    "Room.databaseBuilder": ("index", 2),
+    "enqueueUniquePeriodicWork": ("index", 0),
+    "enqueueUniqueWork": ("index", 0),
+    "cancelUniqueWork": ("index", 0),
+    "getWorkInfosForUniqueWork": ("index", 0),
+}
+PERSISTENCE_CALL_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_])("
+    + "|".join(
+        re.escape(name)
+        for name in sorted(PERSISTENCE_CALL_SPECS, key=len, reverse=True)
+    )
+    + r")\s*\("
+)
+PERSISTENCE_BYPASS_IMPORT_PATTERN = re.compile(
+    r"^\s*import\s+(?:static\s+)?(?:"
+    r"androidx\.room\.Room\.databaseBuilder"
+    r"|androidx\.datastore\.preferences\.preferencesDataStore\s+as\s+[A-Za-z_][A-Za-z0-9_]*"
+    r")"
+)
 
 
 def git(root: Path, *args: str, check: bool = True) -> str:
@@ -181,6 +205,29 @@ def read_hash_snapshot(path: Path) -> list[tuple[str, str]]:
     return entries
 
 
+def read_manifest_hash_snapshot(path: Path) -> dict[str, str]:
+    entries: dict[str, str] = {}
+    for line in read_snapshot(path):
+        fields = line.split("\t", maxsplit=1)
+        if (
+            len(fields) != 2
+            or fields[0] not in VALID_MANIFEST_PHASES
+            or not re.fullmatch(r"[0-9A-Fa-f]{64}", fields[1])
+        ):
+            raise ValueError(f"invalid manifest hash snapshot line: {line}")
+        if fields[0] in entries:
+            raise ValueError(f"duplicate manifest hash snapshot phase: {fields[0]}")
+        entries[fields[0]] = fields[1].upper()
+    missing = VALID_MANIFEST_PHASES - set(entries)
+    unexpected = set(entries) - VALID_MANIFEST_PHASES
+    if missing or unexpected:
+        raise ValueError(
+            "manifest hash snapshot phases differ: "
+            f"missing={sorted(missing)}, unexpected={sorted(unexpected)}"
+        )
+    return entries
+
+
 def repository_text(root: Path) -> str:
     chunks: list[str] = []
     relative_paths = sorted(
@@ -209,6 +256,274 @@ def repository_text(root: Path) -> str:
         ):
             chunks.append(path.read_text(encoding="utf-8", errors="replace"))
     return "\n".join(chunks)
+
+
+def source_code_mask(text: str) -> str:
+    masked = list(text)
+    index = 0
+    state = "code"
+    block_depth = 0
+    while index < len(text):
+        if state == "code":
+            if text.startswith("//", index):
+                masked[index : index + 2] = "  "
+                index += 2
+                state = "line-comment"
+                continue
+            if text.startswith("/*", index):
+                masked[index : index + 2] = "  "
+                index += 2
+                state = "block-comment"
+                block_depth = 1
+                continue
+            if text.startswith('"""', index):
+                masked[index : index + 3] = "   "
+                index += 3
+                state = "triple-string"
+                continue
+            if text[index] == '"':
+                masked[index] = " "
+                index += 1
+                state = "string"
+                continue
+            if text[index] == "'":
+                masked[index] = " "
+                index += 1
+                state = "character"
+                continue
+            index += 1
+            continue
+        if state == "line-comment":
+            masked[index] = "\n" if text[index] == "\n" else " "
+            if text[index] == "\n":
+                state = "code"
+            index += 1
+            continue
+        if state == "block-comment":
+            if text.startswith("/*", index):
+                masked[index : index + 2] = "  "
+                index += 2
+                block_depth += 1
+                continue
+            if text.startswith("*/", index):
+                masked[index : index + 2] = "  "
+                index += 2
+                block_depth -= 1
+                if block_depth == 0:
+                    state = "code"
+                continue
+            masked[index] = "\n" if text[index] == "\n" else " "
+            index += 1
+            continue
+        if state == "triple-string":
+            if text.startswith('"""', index):
+                masked[index : index + 3] = "   "
+                index += 3
+                state = "code"
+                continue
+            masked[index] = "\n" if text[index] == "\n" else " "
+            index += 1
+            continue
+        if text[index] == "\\":
+            masked[index] = " "
+            if index + 1 < len(text):
+                masked[index + 1] = " "
+            index += 2
+            continue
+        delimiter = '"' if state == "string" else "'"
+        masked[index] = "\n" if text[index] == "\n" else " "
+        if text[index] == delimiter:
+            state = "code"
+        index += 1
+    return "".join(masked)
+
+
+def compact_code_expression(expression: str) -> str:
+    compacted: list[str] = []
+    index = 0
+    state = "code"
+    block_depth = 0
+    while index < len(expression):
+        if state == "code":
+            if expression.startswith("//", index):
+                index += 2
+                state = "line-comment"
+                continue
+            if expression.startswith("/*", index):
+                index += 2
+                state = "block-comment"
+                block_depth = 1
+                continue
+            if expression.startswith('"""', index):
+                compacted.append('"""')
+                index += 3
+                state = "triple-string"
+                continue
+            character = expression[index]
+            if character == '"':
+                compacted.append(character)
+                index += 1
+                state = "string"
+                continue
+            if character == "'":
+                compacted.append(character)
+                index += 1
+                state = "character"
+                continue
+            if not character.isspace():
+                compacted.append(character)
+            index += 1
+            continue
+        if state == "line-comment":
+            if expression[index] == "\n":
+                state = "code"
+            index += 1
+            continue
+        if state == "block-comment":
+            if expression.startswith("/*", index):
+                index += 2
+                block_depth += 1
+                continue
+            if expression.startswith("*/", index):
+                index += 2
+                block_depth -= 1
+                if block_depth == 0:
+                    state = "code"
+                continue
+            index += 1
+            continue
+        if state == "triple-string":
+            if expression.startswith('"""', index):
+                compacted.append('"""')
+                index += 3
+                state = "code"
+                continue
+            compacted.append(expression[index])
+            index += 1
+            continue
+        character = expression[index]
+        compacted.append(character)
+        if character == "\\" and index + 1 < len(expression):
+            compacted.append(expression[index + 1])
+            index += 2
+            continue
+        delimiter = '"' if state == "string" else "'"
+        if character == delimiter:
+            state = "code"
+        index += 1
+    return "".join(compacted)
+
+
+def call_argument_ranges(mask: str, open_index: int) -> tuple[list[tuple[int, int]], int]:
+    ranges: list[tuple[int, int]] = []
+    start = open_index + 1
+    round_depth = 0
+    square_depth = 0
+    brace_depth = 0
+    index = start
+    while index < len(mask):
+        character = mask[index]
+        if character == "(":
+            round_depth += 1
+        elif character == ")":
+            if round_depth == 0 and square_depth == 0 and brace_depth == 0:
+                if mask[start:index].strip() or ranges:
+                    ranges.append((start, index))
+                return ranges, index
+            round_depth -= 1
+        elif character == "[":
+            square_depth += 1
+        elif character == "]":
+            square_depth -= 1
+        elif character == "{":
+            brace_depth += 1
+        elif character == "}":
+            brace_depth -= 1
+        elif (
+            character == ","
+            and round_depth == 0
+            and square_depth == 0
+            and brace_depth == 0
+        ):
+            ranges.append((start, index))
+            start = index + 1
+        if min(round_depth, square_depth, brace_depth) < 0:
+            raise ValueError("unbalanced persistence API call")
+        index += 1
+    raise ValueError("unterminated persistence API call")
+
+
+def persistence_api_records(root: Path) -> Counter[str]:
+    records: Counter[str] = Counter()
+    relative_paths = sorted(
+        Path(value)
+        for value in git(
+            root,
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            "app/src/main/java",
+        ).split("\0")
+        if value and Path(value).suffix in MANAGED_SOURCE_SUFFIXES
+    )
+    for relative_path in relative_paths:
+        path = root / relative_path
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        mask = source_code_mask(text)
+        for line_number, line in enumerate(mask.splitlines(), start=1):
+            if PERSISTENCE_BYPASS_IMPORT_PATTERN.match(line):
+                raise ValueError(
+                    "persistence API import bypass is not allowed: "
+                    f"{relative_path.as_posix()}:{line_number}"
+                )
+        for match in PERSISTENCE_CALL_PATTERN.finditer(mask):
+            call_name = match.group(1)
+            open_index = mask.find("(", match.start(), match.end())
+            ranges, _ = call_argument_ranges(mask, open_index)
+            selector_kind, selector = PERSISTENCE_CALL_SPECS[call_name]
+            selected: str | None = None
+            if selector_kind == "index":
+                argument_index = int(selector)
+                if argument_index < len(ranges):
+                    start, end = ranges[argument_index]
+                    selected = text[start:end]
+            else:
+                for start, end in ranges:
+                    masked_argument = mask[start:end]
+                    named_match = re.match(
+                        rf"^\s*{re.escape(str(selector))}\s*=",
+                        masked_argument,
+                    )
+                    if named_match:
+                        selected = text[start + named_match.end() : end]
+                        break
+            if selected is None:
+                raise ValueError(
+                    f"cannot resolve {call_name} contract argument in {relative_path.as_posix()}"
+                )
+            expression = compact_code_expression(selected)
+            if not expression:
+                raise ValueError(
+                    f"empty {call_name} contract argument in {relative_path.as_posix()}"
+                )
+            records[
+                f"{relative_path.as_posix()}\t{call_name}\t{expression}"
+            ] += 1
+    return records
+
+
+def check_persistence_api_calls(root: Path, snapshot_path: Path, errors: list[str]) -> None:
+    expected = Counter(read_snapshot(snapshot_path))
+    actual = persistence_api_records(root)
+    for record in sorted((expected - actual).elements()):
+        errors.append(f"ARCH009 missing persistence API contract: {record}")
+    for record in sorted((actual - expected).elements()):
+        errors.append(f"ARCH009 unexpected persistence API contract: {record}")
 
 
 def check_ownership(root: Path, ownership_path: Path, errors: list[str]) -> None:
@@ -442,13 +757,54 @@ def actual_manifest_components(manifest_path: Path) -> Counter[tuple[str, str]]:
     return components
 
 
-def check_manifest(root: Path, snapshot_path: Path, phase: str, errors: list[str]) -> None:
+def canonical_manifest_element(node: ET.Element) -> object:
+    attributes = sorted((key, value) for key, value in node.attrib.items())
+    children = sorted(
+        (canonical_manifest_element(child) for child in node),
+        key=lambda value: json.dumps(
+            value,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+    )
+    text = (node.text or "").strip()
+    return [node.tag, attributes, text, children]
+
+
+def manifest_semantic_hash(manifest_path: Path) -> str:
+    root = ET.parse(manifest_path).getroot()
+    canonical = canonical_manifest_element(root)
+    payload = json.dumps(
+        canonical,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest().upper()
+
+
+def check_manifest(
+    root: Path,
+    snapshot_path: Path,
+    phase: str,
+    errors: list[str],
+    semantic_snapshot_path: Path | None = None,
+) -> None:
     expected = expected_manifest_components(snapshot_path, phase)
-    actual = actual_manifest_components(root / "app/src/main/AndroidManifest.xml")
+    manifest_path = root / "app/src/main/AndroidManifest.xml"
+    actual = actual_manifest_components(manifest_path)
     for item in sorted((expected - actual).elements()):
         errors.append(f"ARCH008 missing manifest component: {item[0]} {item[1]}")
     for item in sorted((actual - expected).elements()):
         errors.append(f"ARCH008 unexpected manifest component: {item[0]} {item[1]}")
+    if semantic_snapshot_path is not None:
+        expected_hashes = read_manifest_hash_snapshot(semantic_snapshot_path)
+        actual_hash = manifest_semantic_hash(manifest_path)
+        expected_hash = expected_hashes[phase]
+        if actual_hash != expected_hash:
+            errors.append(
+                "ARCH008 manifest semantic structure changed: "
+                f"phase={phase} expected {expected_hash}, found {actual_hash}"
+            )
 
 
 def check_literals(root: Path, snapshot_paths: tuple[Path, ...], errors: list[str]) -> None:
@@ -666,6 +1022,7 @@ def main() -> int:
             architecture_root / "manifest-components.txt",
             phase,
             errors,
+            architecture_root / "manifest-structure-hashes.txt",
         ),
         lambda: check_literals(
             root,
@@ -674,6 +1031,11 @@ def main() -> int:
                 architecture_root / "persistence-names.txt",
                 architecture_root / "native-ipc-identifiers.txt",
             ),
+            errors,
+        ),
+        lambda: check_persistence_api_calls(
+            root,
+            architecture_root / "persistence-api-calls.txt",
             errors,
         ),
         lambda: check_file_hashes(
@@ -714,9 +1076,10 @@ def main() -> int:
     else:
         print(f"Architecture boundaries: PASS (phase={phase})")
         print("- package ownership coverage")
-        print("- manifest component snapshot")
+        print("- manifest component and semantic structure snapshots")
         print("- stable persistence/native/protocol literals")
-        print("- critical AIDL, Room, and ObjectBox file hashes")
+        print("- persistence API call surface")
+        print("- critical AIDL, Room, ObjectBox, WorkManager, and backup file hashes")
         print("- tracked artifact and terminal boundaries")
         if phase == "m01":
             print("- M-01 exact paths, normalized diff, package, and symbol counts")
