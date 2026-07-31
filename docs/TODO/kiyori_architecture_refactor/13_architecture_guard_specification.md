@@ -212,9 +212,9 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：20 项通过，包含正向、负向、Windows 路径、例外、未暂存改名和
-  Git ignored dependency tree 场景
-- 全量 `ci/test`：86 项通过
+- 架构专测试：22 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
+  Git ignored dependency tree、Java static import 和重复 Manifest component 场景
+- 全量 `ci/test`：88 项通过
 - 当前工作树架构检查：`phase=baseline` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS

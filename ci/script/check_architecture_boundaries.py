@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tomllib
 import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
 
 
@@ -93,7 +94,13 @@ def import_matches_root(imported: str, root: str) -> bool:
 def source_imports(path: Path) -> list[tuple[int, str]]:
     imports: list[tuple[int, str]] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        match = re.match(r"^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)", line)
+        # Java static imports represent the same dependency edge as ordinary
+        # imports. Ignoring "static" would let a forbidden package bypass the
+        # ownership graph without changing the referenced implementation.
+        match = re.match(
+            r"^\s*import\s+(?:static\s+)?([A-Za-z_][A-Za-z0-9_.]*)",
+            line,
+        )
         if match:
             imports.append((line_number, match.group(1)))
     return imports
@@ -348,34 +355,37 @@ def check_ownership(root: Path, ownership_path: Path, errors: list[str]) -> None
         errors.append(f"ARCH013 unused architecture exception: {rule} {path}")
 
 
-def expected_manifest_components(snapshot_path: Path, phase: str) -> set[tuple[str, str]]:
-    expected: set[tuple[str, str]] = set()
+def expected_manifest_components(
+    snapshot_path: Path,
+    phase: str,
+) -> Counter[tuple[str, str]]:
+    expected: Counter[tuple[str, str]] = Counter()
     for line in read_snapshot(snapshot_path):
         fields = line.split("\t")
         if len(fields) not in {2, 3}:
             raise ValueError(f"invalid manifest snapshot line: {line}")
         name = fields[2] if phase in {"m01", "post-m01"} and len(fields) == 3 else fields[1]
-        expected.add((fields[0], name))
+        expected[(fields[0], name)] += 1
     return expected
 
 
-def actual_manifest_components(manifest_path: Path) -> set[tuple[str, str]]:
+def actual_manifest_components(manifest_path: Path) -> Counter[tuple[str, str]]:
     root = ET.parse(manifest_path).getroot()
-    components: set[tuple[str, str]] = set()
+    components: Counter[tuple[str, str]] = Counter()
     for tag in ("application", "activity", "activity-alias", "service", "receiver", "provider"):
         for node in root.iter(tag):
             name = node.get(ANDROID_NAME)
             if name:
-                components.add((tag, name))
+                components[(tag, name)] += 1
     return components
 
 
 def check_manifest(root: Path, snapshot_path: Path, phase: str, errors: list[str]) -> None:
     expected = expected_manifest_components(snapshot_path, phase)
     actual = actual_manifest_components(root / "app/src/main/AndroidManifest.xml")
-    for item in sorted(expected - actual):
+    for item in sorted((expected - actual).elements()):
         errors.append(f"ARCH008 missing manifest component: {item[0]} {item[1]}")
-    for item in sorted(actual - expected):
+    for item in sorted((actual - expected).elements()):
         errors.append(f"ARCH008 unexpected manifest component: {item[0]} {item[1]}")
 
 

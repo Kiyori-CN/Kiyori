@@ -4,6 +4,7 @@ import sys
 import subprocess
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 
@@ -105,7 +106,12 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             )
             self.assertEqual(
                 actual_manifest_components(manifest),
-                {("application", ".App"), ("activity", ".MainActivity")},
+                Counter(
+                    {
+                        ("application", ".App"): 1,
+                        ("activity", ".MainActivity"): 1,
+                    }
+                ),
             )
 
     def test_manifest_drift_is_rejected_in_both_directions(self) -> None:
@@ -129,6 +135,31 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             check_manifest(root, snapshot, "baseline", errors)
             self.assertTrue(any("ARCH008 missing manifest component" in error for error in errors))
             self.assertTrue(any("ARCH008 unexpected manifest component" in error for error in errors))
+
+    def test_duplicate_manifest_component_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "app/src/main/AndroidManifest.xml"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<application android:name=".App">'
+                '<service android:name=".DuplicateService" />'
+                '<service android:name=".DuplicateService" />'
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            snapshot = root / "manifest-components.txt"
+            snapshot.write_text(
+                "application\t.App\nservice\t.DuplicateService\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_manifest(root, snapshot, "baseline", errors)
+            self.assertEqual(
+                errors,
+                ["ARCH008 unexpected manifest component: service .DuplicateService"],
+            )
 
     def test_missing_stable_literal_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -343,6 +374,38 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 any(
                     error.startswith("ARCH001 forbidden import:")
                     and "Feature.kt:3" in error
+                    for error in errors
+                )
+            )
+
+    def test_forbidden_java_static_import_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "app/src/main/java/com/legacy/Feature.java"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "package com.legacy;\n\n"
+                "import static com.kiyori.app.KiyoriApplication.INSTANCE;\n",
+                encoding="utf-8",
+            )
+            ownership = root / "ownership.toml"
+            ownership.write_text(
+                'schema_version = 1\n'
+                '[[ownership]]\n'
+                'id = "operit-legacy"\n'
+                'path = "app/src/main/java/com/legacy/**"\n'
+                'owner = "legacy"\n'
+                'sync_zone = "A"\n'
+                'phase = "current"\n'
+                'forbidden_import_roots = ["com.kiyori.app"]\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_ownership(root, ownership, errors)
+            self.assertTrue(
+                any(
+                    error.startswith("ARCH001 forbidden import:")
+                    and "Feature.java:3" in error
                     for error in errors
                 )
             )
