@@ -22,10 +22,11 @@ private fun IntArray.toInlineStableNodes(content: String): List<MarkdownNodeStab
 
         val type = typeOrdinal.toMarkdownTypeOrNull() ?: MarkdownProcessorType.PLAIN_TEXT
         val nodeContent =
-            if (type == MarkdownProcessorType.HTML_BREAK) {
-                "\n"
-            } else {
-                content.substring(start, end)
+            when (type) {
+                MarkdownProcessorType.HTML_BREAK -> "\n"
+                MarkdownProcessorType.INLINE_CODE ->
+                    stripMarkdownInlineCodeDelimiters(content.substring(start, end))
+                else -> content.substring(start, end)
             }
         nodes +=
             MarkdownNodeStable(
@@ -36,6 +37,23 @@ private fun IntArray.toInlineStableNodes(content: String): List<MarkdownNodeStab
     }
 
     return nodes
+}
+
+/**
+ * Native inline-code groups retain their outer backtick run so unmatched shorter runs inside a
+ * multi-backtick code span are not lost. AST consumers remove only one matching outer run.
+ */
+internal fun stripMarkdownInlineCodeDelimiters(content: String): String {
+    val openingLength = content.takeWhile { it == '`' }.length
+    if (openingLength == 0 || content.length < openingLength * 2) {
+        return content
+    }
+
+    val closingStart = content.length - openingLength
+    if ((closingStart until content.length).any { content[it] != '`' }) {
+        return content
+    }
+    return content.substring(openingLength, closingStart)
 }
 
 object NativeMarkdownSplitter {

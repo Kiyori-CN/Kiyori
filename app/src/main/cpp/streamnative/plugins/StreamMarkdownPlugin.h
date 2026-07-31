@@ -111,6 +111,7 @@ private:
     bool includeMarker_;
     PluginState state_;
     int matchIndex_;
+    bool stripContinuationSpace_;
 };
 
 class StreamMarkdownHorizontalRulePlugin final : public StreamPlugin {

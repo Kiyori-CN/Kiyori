@@ -5,6 +5,11 @@ import com.ai.assistance.operit.core.tools.javascript.OperitQuickJsEngine
 import java.nio.charset.StandardCharsets
 import org.json.JSONArray
 
+internal data class LatexConversionRequest(
+    val latex: String,
+    val displayMode: Boolean,
+)
+
 internal object LatexMathMlConverter {
     private const val TAG = "LatexMathMlConverter"
     private const val ASSET_PATH = "js/katex.min.js"
@@ -15,35 +20,41 @@ internal object LatexMathMlConverter {
     @Volatile
     private var engine: OperitQuickJsEngine? = null
 
-    fun convertAll(context: Context, formulas: List<String>): List<String> {
-        if (formulas.isEmpty()) return emptyList()
+    fun convertAll(context: Context, requests: List<LatexConversionRequest>): List<String> {
+        if (requests.isEmpty()) return emptyList()
 
         return try {
+            val formulas = requests.map(LatexConversionRequest::latex)
+            val displayModes = requests.map(LatexConversionRequest::displayMode)
             val results =
                 getEngine(context)
                     .callFunction<List<Any?>>(
                         functionName = FUNCTION_NAME,
-                        argsJson = JSONArray().put(JSONArray(formulas)).toString(),
+                        argsJson =
+                            JSONArray()
+                                .put(JSONArray(formulas))
+                                .put(JSONArray(displayModes))
+                                .toString(),
                         callSite = "latex-to-mathml-batch"
                     )
                     ?: error("KaTeX returned null")
 
-            formulas.mapIndexed { index, formula ->
+            requests.mapIndexed { index, request ->
                 val mathMl = results.getOrNull(index) as? String
                 if (mathMl == null) {
-                    AppLogger.w(TAG, "KaTeX could not parse formula: $formula")
-                    return@mapIndexed formula
+                    AppLogger.w(TAG, "KaTeX could not parse formula: ${request.latex}")
+                    return@mapIndexed request.latex
                 }
                 try {
                     MathMlPlainTextConverter.convert(mathMl)
                 } catch (error: Exception) {
-                    AppLogger.e(TAG, "Failed to convert MathML for formula: $formula", error)
-                    formula
+                    AppLogger.e(TAG, "Failed to convert MathML for formula: ${request.latex}", error)
+                    request.latex
                 }
             }
         } catch (error: Exception) {
             AppLogger.e(TAG, "Failed to convert LaTeX batch", error)
-            formulas
+            requests.map(LatexConversionRequest::latex)
         }
     }
 
@@ -77,11 +88,11 @@ internal object LatexMathMlConverter {
             if (!katex || typeof katex.renderToString !== "function") {
                 throw new Error("KaTeX runtime is unavailable");
             }
-            root.$FUNCTION_NAME = function(formulas) {
-                return formulas.map(function(latex) {
+            root.$FUNCTION_NAME = function(formulas, displayModes) {
+                return formulas.map(function(latex, index) {
                     try {
                         return katex.renderToString(String(latex), {
-                            displayMode: false,
+                            displayMode: displayModes[index] === true,
                             output: "mathml",
                             throwOnError: true,
                             strict: "ignore"

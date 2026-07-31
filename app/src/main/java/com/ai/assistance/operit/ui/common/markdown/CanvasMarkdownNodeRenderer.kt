@@ -13,8 +13,6 @@ import com.ai.assistance.operit.util.AppLogger
 import android.util.LruCache
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -53,18 +51,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnit.Companion.Unspecified
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.ai.assistance.operit.ui.common.displays.LatexCache
 import com.ai.assistance.operit.ui.theme.LocalAiMarkdownTextLayoutSettings
 import com.ai.assistance.operit.util.markdown.MarkdownNodeStable
 import com.ai.assistance.operit.util.markdown.MarkdownProcessorType
 import com.ai.assistance.operit.util.stream.Stream
 import java.util.concurrent.ConcurrentHashMap
 import android.graphics.Typeface
-import android.util.TypedValue
-import android.view.Gravity
-import android.widget.TextView
-import ru.noties.jlatexmath.JLatexMathDrawable
 import kotlin.math.floor
 
 private const val TAG = "CanvasMarkdownRenderer"
@@ -635,18 +627,40 @@ private fun renderNodeContent(
                         )
                         .padding(4.dp)
                 ) {
-                    val quoteText = content.lines().joinToString("\n") {
-                        it.removePrefix("> ").removePrefix(">")
-                    }
+                    if (stableNode.children.isNotEmpty()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            stableNode.children.forEachIndexed { childIndex, child ->
+                                CanvasMarkdownNodeRenderer(
+                                    nodeKey = "$nodeKey-quote-$childIndex",
+                                    node = child,
+                                    textColor = textColor,
+                                    fontSize = fontSizes.bodyMedium,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onLinkClick = onLinkClick,
+                                    index = childIndex,
+                                    xmlRenderer = xmlRenderer,
+                                    xmlStream = null,
+                                    enableDialogs = enableDialogs,
+                                    fillMaxWidth = true,
+                                    isLastNode =
+                                        isLastNode && childIndex == stableNode.children.lastIndex,
+                                )
+                            }
+                        }
+                    } else {
+                        val quoteText = content.lines().joinToString("\n") {
+                            it.removePrefix("> ").removePrefix(">")
+                        }
 
-                    SingleTextCanvas(
-                        text = quoteText,
-                        textColor = textColor,
-                        fontSize = fontSizes.bodyMedium,
-                        fontWeight = FontWeight.Normal,
-                        density = density,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        SingleTextCanvas(
+                            text = quoteText,
+                            textColor = textColor,
+                            fontSize = fontSizes.bodyMedium,
+                            fontWeight = FontWeight.Normal,
+                            density = density,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -712,65 +726,12 @@ private fun renderNodeContent(
                         .padding(vertical = 0.dp, horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // 提取LaTeX内容，移除各种分隔符
                     val latexContent = extractLatexContent(content.trimAll())
-                    val horizontalScrollState = rememberScrollState()
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(horizontalScrollState),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        // 使用AndroidView和JLatexMath渲染LaTeX公式
-                        AndroidView(
-                            factory = { context ->
-                                TextView(context).apply {
-                                    includeFontPadding = false
-                                    gravity = Gravity.CENTER
-                                    setPadding(0, 0, 0, 0)
-                                    setTextSize(TypedValue.COMPLEX_UNIT_PX, formulaTextSizePx)
-                                }
-                            },
-                            update = { textView ->
-                                try {
-                                    val drawable = LatexCache.getDrawable(
-                                        latexContent.trim(),
-                                        JLatexMathDrawable.builder(latexContent)
-                                            .textSize(formulaTextSizePx)
-                                            .padding(2)
-                                            .background(0x00000000)
-                                            .align(JLatexMathDrawable.ALIGN_CENTER)
-                                            .color(textColor.toArgb())
-                                    )
-                                    val formulaText =
-                                        SpannableStringBuilder(INLINE_LATEX_PLACEHOLDER.toString())
-                                    formulaText.setSpan(
-                                        LatexDrawableSpan(drawable),
-                                        0,
-                                        formulaText.length,
-                                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                                    )
-                                    textView.apply {
-                                        includeFontPadding = false
-                                        gravity = Gravity.CENTER
-                                        setPadding(0, 0, 0, 0)
-                                        setTextSize(TypedValue.COMPLEX_UNIT_PX, formulaTextSizePx)
-                                        setTextColor(textColor.toArgb())
-                                        typeface = Typeface.DEFAULT
-                                        text = formulaText
-                                    }
-                                } catch (e: Exception) {
-                                    AppLogger.w(TAG, "Block LaTeX render failed, fallback to raw text: $latexContent", e)
-                                    textView.text = content.trimAll()
-                                    textView.setTextColor(textColor.toArgb())
-                                    textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, formulaTextSizePx)
-                                    textView.typeface = Typeface.MONOSPACE
-                                }
-                            },
-                            modifier = Modifier.wrapContentWidth(unbounded = true)
-                        )
-                    }
+                    DisplayMathBlock(
+                        latexContent = latexContent,
+                        textSizePx = formulaTextSizePx,
+                        textColor = textColor,
+                    )
                 }
             }
         }

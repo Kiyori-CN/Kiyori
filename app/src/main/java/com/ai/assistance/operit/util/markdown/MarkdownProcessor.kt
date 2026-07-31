@@ -109,6 +109,9 @@ object NestedMarkdownProcessor {
                     StreamMarkdownOrderedListPlugin(),
                     StreamMarkdownUnorderedListPlugin(includeMarker = false),
                     StreamMarkdownHorizontalRulePlugin(),
+                    // block 解析先保护行内代码，Kotlin AST 组装阶段再把它并回段落子节点；
+                    // 否则代码 span 里的显示公式定界符会抢先进入 BLOCK_LATEX。
+                    StreamMarkdownInlineCodePlugin(includeTicks = true),
                     // LaTeX 块级公式：同时支持 $$...$$ 和 \\[...\\]
                     StreamMarkdownBlockLaTeXPlugin(includeDelimiters = false),
                     // 对 \[...\] 保留分隔符，避免在结束匹配失败分支吞掉反斜杠；
@@ -124,7 +127,7 @@ object NestedMarkdownProcessor {
             listOf(
                     StreamMarkdownBoldPlugin(includeAsterisks = false),
                     StreamMarkdownItalicPlugin(includeAsterisks = false),
-                    StreamMarkdownInlineCodePlugin(includeTicks = false),
+                    StreamMarkdownInlineCodePlugin(includeTicks = true),
                     StreamMarkdownLinkPlugin(),
                     StreamMarkdownStrikethroughPlugin(includeDelimiters = false),
                     StreamMarkdownUnderlinePlugin(),

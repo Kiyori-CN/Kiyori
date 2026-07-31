@@ -144,61 +144,51 @@ class StreamMarkdownInlineCodePlugin(private val includeTicks: Boolean = true) :
     override var state: PluginState = PluginState.IDLE
         private set
 
-    // Pattern to capture one or more backticks.
-    private var startMatcher: StreamKmpGraph =
-            StreamKmpGraphBuilder()
-                    .build(
-                            kmpPattern {
-                                group(GROUP_DELIMITER) { char('`') }
-                                noneOf('`', '\n')
-                            }
-                    )
-    private var endMatcher: StreamKmpGraph? = null
+    private var tickLength = 0
+    private var endMatchLength = 0
 
     override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
-        // As per original logic, inline code cannot span multiple lines.
-        // If we see a newline while processing, the match is considered failed.
         if (state == PluginState.PROCESSING && c == '\n') {
-            // This will cause `splitBy` to reprocess the buffered content as default text.
             reset()
-            return true // let the newline be processed by the default stream
+            return true
         }
 
         if (state == PluginState.PROCESSING) {
-            val matcher = endMatcher!!
-            when (matcher.processChar(c)) {
-                is StreamKmpMatchResult.Match -> {
+            if (c == '`') {
+                endMatchLength += 1
+                if (endMatchLength == tickLength) {
                     reset()
                     return includeTicks
                 }
-                is StreamKmpMatchResult.InProgress -> return includeTicks
-                is StreamKmpMatchResult.NoMatch -> return true
+                return includeTicks
             }
-        } else { // IDLE or TRYING
-            when (val result = startMatcher.processChar(c)) {
-                is StreamKmpMatchResult.Match -> {
-                    val ticks = result.groups[GROUP_DELIMITER]
-                    if (ticks != null) {
-                        state = PluginState.PROCESSING
-                        endMatcher = StreamKmpGraphBuilder().build(kmpPattern { literal(ticks) })
-                        startMatcher.reset()
-                    } else {
-                        reset()
-                    }
-                    return true
-                }
-                is StreamKmpMatchResult.InProgress -> {
+            endMatchLength = 0
+            return true
+        }
+
+        if (c == '`') {
+            when (state) {
+                PluginState.IDLE -> {
                     state = PluginState.TRYING
+                    tickLength = 1
                 }
-                is StreamKmpMatchResult.NoMatch -> {
-                    if (state == PluginState.TRYING) {
-                        reset()
-                    }
+                PluginState.TRYING -> {
+                    tickLength += 1
                 }
+                else -> Unit
             }
             return includeTicks
         }
-        return true // Should be unreachable
+
+        if (state == PluginState.TRYING) {
+            if (c == '\n') {
+                reset()
+                return true
+            }
+            state = PluginState.PROCESSING
+            endMatchLength = 0
+        }
+        return true
     }
 
     override fun initPlugin(): Boolean {
@@ -210,8 +200,8 @@ class StreamMarkdownInlineCodePlugin(private val includeTicks: Boolean = true) :
 
     override fun reset() {
         state = PluginState.IDLE
-        startMatcher.reset()
-        endMatcher = null
+        tickLength = 0
+        endMatchLength = 0
     }
 }
 
@@ -666,6 +656,7 @@ class StreamMarkdownImagePlugin(private val includeDelimiters: Boolean = true) :
 class StreamMarkdownBlockQuotePlugin(private val includeMarker: Boolean = true) : StreamPlugin {
     override var state: PluginState = PluginState.IDLE
         private set
+    private var stripContinuationSpace = false
 
     private val blockQuoteMatcher =
             StreamKmpGraphBuilder()
@@ -678,6 +669,7 @@ class StreamMarkdownBlockQuotePlugin(private val includeMarker: Boolean = true) 
 
     override fun processChar(c: Char, atStartOfLine: Boolean): Boolean {
         if (c == '\n') {
+            stripContinuationSpace = false
             if (state == PluginState.PROCESSING) {
                 state = PluginState.WAITFOR
             } else {
@@ -690,7 +682,8 @@ class StreamMarkdownBlockQuotePlugin(private val includeMarker: Boolean = true) 
             if (atStartOfLine) {
                 if (c == '>') {
                     state = PluginState.PROCESSING
-                    return true
+                    stripContinuationSpace = true
+                    return includeMarker
                 } else {
                     reset()
                     return true
@@ -704,6 +697,13 @@ class StreamMarkdownBlockQuotePlugin(private val includeMarker: Boolean = true) 
 
         if (state == PluginState.TRYING) {
             return handleMatch(c)
+        }
+
+        if (state == PluginState.PROCESSING && stripContinuationSpace) {
+            stripContinuationSpace = false
+            if (c == ' ') {
+                return includeMarker
+            }
         }
 
         return true
@@ -739,6 +739,7 @@ class StreamMarkdownBlockQuotePlugin(private val includeMarker: Boolean = true) 
 
     private fun resetInternal() {
         state = PluginState.IDLE
+        stripContinuationSpace = false
         blockQuoteMatcher.reset()
     }
 }

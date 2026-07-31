@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.common.markdown
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ai.assistance.operit.util.LatexConversionRequest
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,7 +14,9 @@ class MarkdownPlainTextRendererAndroidTest {
 
     private fun render(
         markdown: String,
-        latexToPlainText: (List<String>) -> List<String> = { it },
+        latexToPlainText: (List<LatexConversionRequest>) -> List<String> = {
+            requests -> requests.map(LatexConversionRequest::latex)
+        },
     ): String = runBlocking { markdownToPlainTextForCopy(markdown, latexToPlainText) }
 
     @Test fun markdownToPlainTextForCopy_removesFormattingMarkers() {
@@ -180,20 +183,55 @@ class MarkdownPlainTextRendererAndroidTest {
             """.trimIndent()
 
         var batchCalls = 0
-        var capturedFormulas = emptyList<String>()
+        var capturedRequests = emptyList<LatexConversionRequest>()
         val result =
-            render(content) { formulas ->
+            render(content) { requests ->
                 batchCalls++
-                capturedFormulas = formulas
-                formulas.indices.map { index -> "FORMULA_$index" }
+                capturedRequests = requests
+                requests.indices.map { index -> "FORMULA_$index" }
             }
 
         assertEquals(1, batchCalls)
-        assertEquals(18, capturedFormulas.size)
+        assertEquals(18, capturedRequests.size)
+        val capturedFormulas = capturedRequests.map(LatexConversionRequest::latex)
+        assertTrue(capturedRequests.any { request -> request.displayMode })
+        assertTrue(capturedRequests.any { request -> !request.displayMode })
         assertTrue(capturedFormulas.contains("""f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x - a)^n"""))
         assertTrue(capturedFormulas.contains("""f(x) = \frac{1}{\sigma\sqrt{2\pi}} \exp\left( -\frac{(x-\mu)^2}{2\sigma^2} \right)"""))
         assertTrue(capturedFormulas.contains("""1 + 2 + 3 + \cdots + n = \frac{n(n+1)}{2}"""))
         assertTrue(result.contains("FORMULA_17"))
         assertFalse(result.contains("\\frac"))
+    }
+
+    @Test fun markdownToPlainTextForCopy_preservesDisplayTagSemantics() {
+        val content =
+            """
+            \[
+            x = \frac{1}{2}
+            \tag{1}
+            \]
+            """.trimIndent()
+
+        var capturedRequests = emptyList<LatexConversionRequest>()
+        val result =
+            render(content) { requests ->
+                capturedRequests = requests
+                listOf("x = ½", "1")
+            }
+
+        assertEquals(
+            listOf(
+                LatexConversionRequest(
+                    latex = """x = \frac{1}{2}""",
+                    displayMode = true
+                ),
+                LatexConversionRequest(
+                    latex = "1",
+                    displayMode = false
+                )
+            ),
+            capturedRequests
+        )
+        assertEquals("x = ½ (1)", result)
     }
 }

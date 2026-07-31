@@ -191,7 +191,7 @@ bool StreamMarkdownInlineCodePlugin::processChar(char16_t c, bool /*atStartOfLin
         return true;
     }
 
-    // IDLE/TRYING
+    // IDLE/TRYING: collect the complete opening backtick run before the first code character.
     if (c == u'`') {
         if (state_ == PluginState::IDLE) {
             state_ = PluginState::TRYING;
@@ -199,9 +199,8 @@ bool StreamMarkdownInlineCodePlugin::processChar(char16_t c, bool /*atStartOfLin
             return includeTicks_;
         }
         if (state_ == PluginState::TRYING) {
-            // Kotlin start matcher is ` + noneOf('`','\n'), so a second backtick immediately fails.
-            reset();
-            return true;
+            tickLen_ += 1;
+            return includeTicks_;
         }
     }
 
@@ -475,7 +474,10 @@ bool StreamMarkdownLinkPlugin::processChar(char16_t c, bool /*atStartOfLine*/) {
 
 // --- Block quote ---
 StreamMarkdownBlockQuotePlugin::StreamMarkdownBlockQuotePlugin(bool includeMarker)
-        : includeMarker_(includeMarker), state_(PluginState::IDLE), matchIndex_(0) {
+        : includeMarker_(includeMarker),
+          state_(PluginState::IDLE),
+          matchIndex_(0),
+          stripContinuationSpace_(false) {
     reset();
 }
 
@@ -489,10 +491,12 @@ bool StreamMarkdownBlockQuotePlugin::initPlugin() {
 void StreamMarkdownBlockQuotePlugin::reset() {
     state_ = PluginState::IDLE;
     matchIndex_ = 0;
+    stripContinuationSpace_ = false;
 }
 
 bool StreamMarkdownBlockQuotePlugin::processChar(char16_t c, bool atStartOfLine) {
     if (c == u'\n') {
+        stripContinuationSpace_ = false;
         if (state_ == PluginState::PROCESSING) {
             state_ = PluginState::WAITFOR;
         } else {
@@ -506,8 +510,8 @@ bool StreamMarkdownBlockQuotePlugin::processChar(char16_t c, bool atStartOfLine)
             if (c == u'>') {
                 state_ = PluginState::PROCESSING;
                 matchIndex_ = 1;
-                // Kotlin returns true here even when includeMarker=false.
-                return true;
+                stripContinuationSpace_ = true;
+                return includeMarker_;
             }
             reset();
             return true;
@@ -536,6 +540,12 @@ bool StreamMarkdownBlockQuotePlugin::processChar(char16_t c, bool atStartOfLine)
     }
 
     if (state_ == PluginState::PROCESSING) {
+        if (stripContinuationSpace_) {
+            stripContinuationSpace_ = false;
+            if (c == u' ') {
+                return includeMarker_;
+            }
+        }
         return true;
     }
 

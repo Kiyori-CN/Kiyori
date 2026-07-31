@@ -65,6 +65,7 @@ import com.ai.assistance.operit.util.stream.splitBy as streamSplitBy
 import com.ai.assistance.operit.util.stream.stream
 import com.ai.assistance.operit.util.streamnative.nativeMarkdownSplitByBlock
 import com.ai.assistance.operit.util.streamnative.nativeMarkdownSplitByInline
+import com.ai.assistance.operit.util.streamnative.stripMarkdownInlineCodeDelimiters
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -463,19 +464,50 @@ fun StreamMarkdownRenderer(
                     return@collect
                 }
 
-                val isLatexBlock = blockType == MarkdownProcessorType.BLOCK_LATEX
+                if (blockType == MarkdownProcessorType.BLOCK_QUOTE) {
+                    val quoteContent = StringBuilder()
+                    blockGroup.stream.collect(quoteContent::append)
+                    if (pendingHtmlBreakCount > 0) {
+                        appendHtmlBreakNode(nodes, pendingHtmlBreakCount)
+                    }
+                    nodes.add(createNestedBlockQuoteNode(quoteContent.toString()))
+                    batchUpdater.requestUpdate()
+                    pendingHtmlBreakCount = 0
+                    return@collect
+                }
+
+                if (blockType == MarkdownProcessorType.BLOCK_LATEX) {
+                    if (pendingHtmlBreakCount > 0) {
+                        appendHtmlBreakNode(nodes, pendingHtmlBreakCount)
+                    }
+                    val latexContent = StringBuilder()
+                    blockGroup.stream.collect(latexContent::append)
+                    nodes.add(
+                        MarkdownNode(
+                            type = MarkdownProcessorType.BLOCK_LATEX,
+                            initialContent = latexContent.toString(),
+                        )
+                    )
+                    batchUpdater.requestUpdate()
+                    pendingHtmlBreakCount = 0
+                    return@collect
+                }
+
+                val isProtectedInlineCode = blockType == MarkdownProcessorType.INLINE_CODE
                 val tempBlockType =
-                    if (isLatexBlock) MarkdownProcessorType.PLAIN_TEXT else blockType
+                    if (isProtectedInlineCode) {
+                        MarkdownProcessorType.PLAIN_TEXT
+                    } else {
+                        blockType
+                    }
 
                 val isInlineContainer =
                     tempBlockType != MarkdownProcessorType.CODE_BLOCK &&
-                        tempBlockType != MarkdownProcessorType.BLOCK_LATEX &&
                         tempBlockType != MarkdownProcessorType.TABLE &&
                         tempBlockType != MarkdownProcessorType.XML_BLOCK
 
                 val mergeWithPrevious =
-                    pendingHtmlBreakCount > 0 &&
-                        tempBlockType == MarkdownProcessorType.PLAIN_TEXT &&
+                    tempBlockType == MarkdownProcessorType.PLAIN_TEXT &&
                         canMergeWithHtmlBreak(nodes.lastOrNull())
 
                 if (pendingHtmlBreakCount > 0 && !mergeWithPrevious) {
@@ -506,11 +538,56 @@ fun StreamMarkdownRenderer(
                     batchUpdater.requestUpdate()
                 }
 
-                if (isInlineContainer) {
+                if (isProtectedInlineCode) {
+                    val rawCode = StringBuilder()
+                    blockStream.collect(rawCode::append)
+                    val codeContent = stripMarkdownInlineCodeDelimiters(rawCode.toString())
+                    var codeNode: MarkdownNode? = null
+                    appendInlineChunk(
+                        parentNode = newNode,
+                        getOrCreateChildNode = {
+                            codeNode
+                                ?: MarkdownNode(
+                                    type = MarkdownProcessorType.INLINE_CODE
+                                ).also {
+                                    codeNode = it
+                                    newNode.children.add(it)
+                                }
+                        },
+                        chunk = codeContent,
+                        pendingLineBreakState =
+                            PendingLineBreakState(count = pendingHtmlBreakCount),
+                    )
+                    batchUpdater.requestUpdate()
+                } else if (isInlineContainer) {
                     var pendingLineBreakState = PendingLineBreakState(count = pendingHtmlBreakCount)
 
-                    blockStream.nativeMarkdownSplitByInline(flushIntervalMs = RENDER_INTERVAL_MS).collect { inlineGroup ->
+                    blockStream.nativeMarkdownSplitByInline(flushIntervalMs = RENDER_INTERVAL_MS).collect inlineGroupCollect@ { inlineGroup ->
                         val originalInlineType = inlineGroup.tag ?: MarkdownProcessorType.PLAIN_TEXT
+                        if (originalInlineType == MarkdownProcessorType.INLINE_CODE) {
+                            val rawCode = StringBuilder()
+                            inlineGroup.stream.collect(rawCode::append)
+                            val codeContent =
+                                stripMarkdownInlineCodeDelimiters(rawCode.toString())
+                            var codeNode: MarkdownNode? = null
+                            pendingLineBreakState =
+                                appendInlineChunk(
+                                    parentNode = newNode,
+                                    getOrCreateChildNode = {
+                                        codeNode
+                                            ?: MarkdownNode(
+                                                type = MarkdownProcessorType.INLINE_CODE
+                                            ).also {
+                                                codeNode = it
+                                                newNode.children.add(it)
+                                            }
+                                    },
+                                    chunk = codeContent,
+                                    pendingLineBreakState = pendingLineBreakState,
+                                )
+                            batchUpdater.requestUpdate()
+                            return@inlineGroupCollect
+                        }
                         val isInlineLatex = originalInlineType == MarkdownProcessorType.INLINE_LATEX
                         val tempInlineType =
                             if (isInlineLatex) MarkdownProcessorType.PLAIN_TEXT else originalInlineType
@@ -568,14 +645,6 @@ fun StreamMarkdownRenderer(
                     blockStream.collect { contentChunk ->
                         batchUpdater.appendBlockChunk(newNode, contentChunk)
                     }
-                }
-
-                if (isLatexBlock) {
-                    val latexContent = newNode.content.toString()
-                    val latexNode =
-                        MarkdownNode(type = MarkdownProcessorType.BLOCK_LATEX, initialContent = latexContent)
-                    nodes[nodeIndex] = latexNode
-                    batchUpdater.requestStructuralUpdate(nodeIndex)
                 }
 
                 pendingHtmlBreakCount = 0
@@ -703,19 +772,48 @@ internal suspend fun parseMarkdownToNodes(content: String): List<MarkdownNode> {
             return@collect
         }
 
-        val isLatexBlock = blockType == MarkdownProcessorType.BLOCK_LATEX
+        if (blockType == MarkdownProcessorType.BLOCK_QUOTE) {
+            val quoteContent = StringBuilder()
+            blockGroup.stream.collect(quoteContent::append)
+            if (pendingHtmlBreakCount > 0) {
+                appendHtmlBreakNode(parsedNodes, pendingHtmlBreakCount)
+            }
+            parsedNodes.add(createNestedBlockQuoteNode(quoteContent.toString()))
+            pendingHtmlBreakCount = 0
+            return@collect
+        }
+
+        if (blockType == MarkdownProcessorType.BLOCK_LATEX) {
+            if (pendingHtmlBreakCount > 0) {
+                appendHtmlBreakNode(parsedNodes, pendingHtmlBreakCount)
+            }
+            val latexContent = StringBuilder()
+            blockGroup.stream.collect(latexContent::append)
+            parsedNodes.add(
+                MarkdownNode(
+                    type = MarkdownProcessorType.BLOCK_LATEX,
+                    initialContent = latexContent.toString(),
+                )
+            )
+            pendingHtmlBreakCount = 0
+            return@collect
+        }
+
+        val isProtectedInlineCode = blockType == MarkdownProcessorType.INLINE_CODE
         val tempBlockType =
-            if (isLatexBlock) MarkdownProcessorType.PLAIN_TEXT else blockType
+            if (isProtectedInlineCode) {
+                MarkdownProcessorType.PLAIN_TEXT
+            } else {
+                blockType
+            }
 
         val isInlineContainer =
             tempBlockType != MarkdownProcessorType.CODE_BLOCK &&
-                tempBlockType != MarkdownProcessorType.BLOCK_LATEX &&
                 tempBlockType != MarkdownProcessorType.TABLE &&
                 tempBlockType != MarkdownProcessorType.XML_BLOCK
 
         val mergeWithPrevious =
-            pendingHtmlBreakCount > 0 &&
-                tempBlockType == MarkdownProcessorType.PLAIN_TEXT &&
+            tempBlockType == MarkdownProcessorType.PLAIN_TEXT &&
                 canMergeWithHtmlBreak(parsedNodes.lastOrNull())
 
         if (pendingHtmlBreakCount > 0 && !mergeWithPrevious) {
@@ -729,9 +827,26 @@ internal suspend fun parseMarkdownToNodes(content: String): List<MarkdownNode> {
             } else {
                 MarkdownNode(type = tempBlockType).also { parsedNodes.add(it) }
             }
-        val nodeIndex = parsedNodes.lastIndex
-
-        if (isInlineContainer) {
+        if (isProtectedInlineCode) {
+            val rawCode = StringBuilder()
+            blockGroup.stream.collect(rawCode::append)
+            val codeContent = stripMarkdownInlineCodeDelimiters(rawCode.toString())
+            var codeNode: MarkdownNode? = null
+            appendInlineChunk(
+                parentNode = newNode,
+                getOrCreateChildNode = {
+                    codeNode
+                        ?: MarkdownNode(
+                            type = MarkdownProcessorType.INLINE_CODE
+                        ).also {
+                            codeNode = it
+                            newNode.children.add(it)
+                        }
+                },
+                chunk = codeContent,
+                pendingLineBreakState = PendingLineBreakState(count = pendingHtmlBreakCount),
+            )
+        } else if (isInlineContainer) {
             val blockTextBuilder = StringBuilder()
             blockGroup.stream.collect { s ->
                 blockTextBuilder.append(s)
@@ -740,8 +855,31 @@ internal suspend fun parseMarkdownToNodes(content: String): List<MarkdownNode> {
 
             var pendingLineBreakState = PendingLineBreakState(count = pendingHtmlBreakCount)
 
-            stream { emit(blockText) }.nativeMarkdownSplitByInline().collect { inlineGroup ->
+            stream { emit(blockText) }.nativeMarkdownSplitByInline().collect inlineGroupCollect@ { inlineGroup ->
                 val originalInlineType = inlineGroup.tag ?: MarkdownProcessorType.PLAIN_TEXT
+                if (originalInlineType == MarkdownProcessorType.INLINE_CODE) {
+                    val rawCode = StringBuilder()
+                    inlineGroup.stream.collect(rawCode::append)
+                    val codeContent =
+                        stripMarkdownInlineCodeDelimiters(rawCode.toString())
+                    var codeNode: MarkdownNode? = null
+                    pendingLineBreakState =
+                        appendInlineChunk(
+                            parentNode = newNode,
+                            getOrCreateChildNode = {
+                                codeNode
+                                    ?: MarkdownNode(
+                                        type = MarkdownProcessorType.INLINE_CODE
+                                    ).also {
+                                        codeNode = it
+                                        newNode.children.add(it)
+                                    }
+                            },
+                            chunk = codeContent,
+                            pendingLineBreakState = pendingLineBreakState,
+                        )
+                    return@inlineGroupCollect
+                }
                 val isInlineLatex = originalInlineType == MarkdownProcessorType.INLINE_LATEX
                 val tempInlineType =
                     if (isInlineLatex) MarkdownProcessorType.PLAIN_TEXT else originalInlineType
@@ -798,16 +936,23 @@ internal suspend fun parseMarkdownToNodes(content: String): List<MarkdownNode> {
             }
         }
 
-        if (isLatexBlock) {
-            val latexContent = newNode.content.toString()
-            val latexNode =
-                MarkdownNode(type = MarkdownProcessorType.BLOCK_LATEX, initialContent = latexContent)
-            parsedNodes[nodeIndex] = latexNode
-        }
-
         pendingHtmlBreakCount = 0
     }
     return parsedNodes
+}
+
+/**
+ * Block quotes are containers, not terminal text nodes. Their content must pass through the same
+ * block parser again so a display formula inside a quote remains a BLOCK_LATEX child instead of
+ * being reduced to plain text by the top-level inline-only path.
+ */
+private suspend fun createNestedBlockQuoteNode(content: String): MarkdownNode {
+    val node = MarkdownNode(
+        type = MarkdownProcessorType.BLOCK_QUOTE,
+        initialContent = content,
+    )
+    node.children.addAll(parseMarkdownToNodes(content))
+    return node
 }
 
 /** 高性能静态Markdown渲染组件 接受一个完整的字符串，一次性解析和渲染，适用于静态内容显示。 */

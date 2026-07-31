@@ -383,6 +383,9 @@ MarkdownSession* createMarkdownBlockSession() {
     plugins.push_back({std::make_unique<StreamMarkdownOrderedListPlugin>(true), MD_ORDERED_LIST});
     plugins.push_back({std::make_unique<StreamMarkdownUnorderedListPlugin>(false), MD_UNORDERED_LIST});
     plugins.push_back({std::make_unique<StreamMarkdownHorizontalRulePlugin>(true), MD_HORIZONTAL_RULE});
+    // Inline code is a block-layer shield: it must win before display-math plugins, then Kotlin
+    // merges the fragment back into the surrounding paragraph as an INLINE_CODE child node.
+    plugins.push_back({std::make_unique<StreamMarkdownInlineCodePlugin>(true), MD_INLINE_CODE});
     plugins.push_back({std::make_unique<StreamMarkdownBlockLaTeXPlugin>(false), MD_BLOCK_LATEX});
     // Keep delimiters for \[...\] to avoid swallowing '\' in failed end-matcher branches.
     // Delimiters are removed later by extractLatexContent().
@@ -399,7 +402,7 @@ MarkdownSession* createMarkdownInlineSession() {
     // Order must match NestedMarkdownProcessor.getInlinePlugins()
     plugins.push_back({std::make_unique<StreamMarkdownBoldPlugin>(false), MD_BOLD});
     plugins.push_back({std::make_unique<StreamMarkdownItalicPlugin>(false), MD_ITALIC});
-    plugins.push_back({std::make_unique<StreamMarkdownInlineCodePlugin>(false), MD_INLINE_CODE});
+    plugins.push_back({std::make_unique<StreamMarkdownInlineCodePlugin>(true), MD_INLINE_CODE});
     plugins.push_back({std::make_unique<StreamMarkdownLinkPlugin>(), MD_LINK});
     plugins.push_back({std::make_unique<StreamMarkdownStrikethroughPlugin>(false), MD_STRIKETHROUGH});
     plugins.push_back({std::make_unique<StreamMarkdownUnderlinePlugin>(true), MD_UNDERLINE});
