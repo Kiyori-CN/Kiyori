@@ -81,8 +81,9 @@ internal object UserscriptMetadataParser {
                             ?.takeIf { it.isNotBlank() }
                             ?: fields.firstValue("icon64URL")?.takeIf { it.isNotBlank() },
                     defaultIcon = fields.firstValue("defaulticon")?.takeIf { it.isNotBlank() }
-                ),
+            ),
             tags = fields["tag"].orEmpty().map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+            injectInto = UserscriptInjectInto.fromRaw(fields.firstValue("inject-into")),
             sandbox = fields.firstValue("sandbox")?.takeIf { it.isNotBlank() },
             runIn = fields.firstValue("run-in")?.takeIf { it.isNotBlank() },
             unwrap =

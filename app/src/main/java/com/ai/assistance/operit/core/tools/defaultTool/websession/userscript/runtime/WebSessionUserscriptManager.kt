@@ -16,6 +16,8 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.pm.PackageInfoCompat
+import androidx.webkit.JavaScriptExecutionWorld
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.ScriptHandler
 import androidx.webkit.WebMessageCompat
@@ -24,6 +26,7 @@ import androidx.webkit.WebViewFeature
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ParsedUserscriptMetadata
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptCapabilityRegistry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallPreview
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
@@ -31,6 +34,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeStatus
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRuntimeCapabilities
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSupportState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.install.UserscriptImportCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.storage.UserscriptRepository
@@ -38,9 +42,11 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.
 import com.ai.assistance.operit.util.AppLogger
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -65,13 +71,36 @@ internal class WebSessionUserscriptManager(
     private val onMenuCommandsChanged: (sessionId: String?) -> Unit,
     private val onToast: (message: String) -> Unit
 ) {
+    private enum class BridgeScope {
+        PAGE,
+        ISOLATED,
+    }
+
+    private data class IsolatedRuntimeBinding(
+        val bridgeName: String,
+        val world: JavaScriptExecutionWorld,
+        val scriptAuthorizations: ConcurrentHashMap<String, UserscriptBridgeAuthorization> =
+            ConcurrentHashMap(),
+        val scriptGrants: ConcurrentHashMap<Long, Set<String>> = ConcurrentHashMap(),
+        val replyProxies: MutableSet<JavaScriptReplyProxy> = ConcurrentHashMap.newKeySet(),
+    )
+
     private data class SessionBinding(
         val sessionId: String,
         val webView: WebView,
         val cookieScope: String,
+        val cookieManager: CookieManager,
         val cookieService: UserscriptCookieService,
-        val scriptHandler: ScriptHandler?,
-        val menuCommands: LinkedHashMap<String, UserscriptPageMenuCommand> = linkedMapOf()
+        val scriptHandlers: List<ScriptHandler>,
+        val isolatedRuntime: IsolatedRuntimeBinding?,
+        val pageBootstrapReplyProxies: MutableSet<JavaScriptReplyProxy> =
+            ConcurrentHashMap.newKeySet(),
+        val menuCommands: LinkedHashMap<String, UserscriptPageMenuCommand> = linkedMapOf(),
+    )
+
+    private data class OpenedTabOwner(
+        val sessionId: String,
+        val userscriptId: Long,
     )
 
     private data class SessionPageState(
@@ -81,6 +110,7 @@ internal class WebSessionUserscriptManager(
 
     companion object {
         private const val TAG = "WebSessionUserscript"
+        private const val ISOLATED_WORLD_NAME = "kiyori-userscript-runtime"
         private const val NOTIFICATION_CHANNEL_ID = "userscript_notifications"
         private const val NOTIFICATION_ID = 50142
     }
@@ -92,6 +122,7 @@ internal class WebSessionUserscriptManager(
     private val storageNotifier = UserscriptStorageNotifier()
     private val tabStateStore = UserscriptTabStateStore()
     private val webRequestEngine = UserscriptWebRequestEngine()
+    private val secureRandom = SecureRandom()
     private val requestClient =
         OkHttpClient.Builder()
             .followRedirects(true)
@@ -103,15 +134,15 @@ internal class WebSessionUserscriptManager(
     private val sessionPageStates = ConcurrentHashMap<String, SessionPageState>()
     private val activeCalls = ConcurrentHashMap<String, Call>()
     private val abortedRequestKeys = ConcurrentHashMap.newKeySet<String>()
-    private val openedTabOwners = ConcurrentHashMap<String, String>()
+    private val openedTabOwners = ConcurrentHashMap<String, OpenedTabOwner>()
     private val audioMuteStates = ConcurrentHashMap<String, Boolean>()
+    private val webViewProviderLogged = AtomicBoolean(false)
     @Volatile
     private var visibleSessionId: String? = null
+    private val runtimeCapabilities = UserscriptRuntimeCapabilities.current()
     private val supportState =
         UserscriptSupportState(
-            isSupported =
-                WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) &&
-                    WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER),
+            isSupported = runtimeCapabilities.pageWorldSupported,
             reason =
                 when {
                     !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) ->
@@ -126,8 +157,19 @@ internal class WebSessionUserscriptManager(
 
     init {
         scope.launch {
+            repository.userScriptsAllowedFlow.collectLatest { allowed ->
+                uiStore.updateUserScriptsAllowed(allowed)
+                if (!allowed) {
+                    revokeActiveNetworkCalls()
+                    clearActiveRuntimeAuthorizations()
+                }
+                rebuildAllSessionBaselines()
+            }
+        }
+        scope.launch {
             repository.installedScriptsFlow.collectLatest { scripts ->
                 uiStore.updateScripts(scripts)
+                reconcileActiveRuntimeAuthorizations(scripts)
                 rebuildAllSessionBaselines()
             }
         }
@@ -173,6 +215,16 @@ internal class WebSessionUserscriptManager(
         if (!forceReset && state.pageUrl == pageUrl && state.scriptStatuses.isNotEmpty()) {
             return
         }
+        sessionBindings[sessionId]?.let { binding ->
+            binding.pageBootstrapReplyProxies.clear()
+            binding.isolatedRuntime?.scriptAuthorizations?.clear()
+            binding.isolatedRuntime?.scriptGrants?.clear()
+            binding.isolatedRuntime?.replyProxies?.clear()
+            if (binding.menuCommands.isNotEmpty()) {
+                binding.menuCommands.clear()
+                onMenuCommandsChanged(sessionId)
+            }
+        }
         state.pageUrl = pageUrl
         state.scriptStatuses.clear()
         webRequestEngine.clearSession(sessionId)
@@ -202,62 +254,210 @@ internal class WebSessionUserscriptManager(
             return
         }
         sessionPageStates.putIfAbsent(sessionId, SessionPageState())
-        val attachNow = {
-            runCatching { existing?.scriptHandler?.remove() }
+        val attachNow: () -> Unit = attachNow@{
+            logWebViewProviderOnce()
+            existing?.let { binding ->
+                clearRuntimeBindingState(binding)
+            }
             val cookieService =
                 cookieServices.computeIfAbsent(cookieScope) {
                     UserscriptCookieService(cookieManager)
                 }
-            val scriptHandler =
+            val scriptHandlers = mutableListOf<ScriptHandler>()
+            val pageScriptHandler =
                 runCatching {
+                    WebViewCompat.addWebMessageListener(
+                        webView,
+                        UserscriptBootstrapScript.BRIDGE_NAME,
+                        setOf("*"),
+                        bridgeListener(sessionId, BridgeScope.PAGE),
+                    )
                     WebViewCompat.addDocumentStartJavaScript(
                         webView,
                         UserscriptBootstrapScript.documentStartScript(),
-                        setOf("*")
+                        setOf("*"),
                     )
                 }.getOrElse { error ->
-                    AppLogger.e(TAG, "Failed to add document-start userscript runtime", error)
+                    AppLogger.e(TAG, "Failed to add page-world userscript runtime", error)
                     null
                 }
-            runCatching {
-                WebViewCompat.addWebMessageListener(
-                    webView,
-                    UserscriptBootstrapScript.BRIDGE_NAME,
-                    setOf("*"),
-                    object : WebViewCompat.WebMessageListener {
-                        override fun onPostMessage(
-                            view: WebView,
-                            message: WebMessageCompat,
-                            sourceOrigin: android.net.Uri,
-                            isMainFrame: Boolean,
-                            replyProxy: JavaScriptReplyProxy
-                        ) {
-                            handleBridgeMessage(
-                                sessionId = sessionId,
-                                webView = view,
-                                rawMessage = message.data.orEmpty(),
-                                replyProxy = replyProxy,
-                                isMainFrame = isMainFrame
+            if (pageScriptHandler != null) {
+                scriptHandlers += pageScriptHandler
+            }
+
+            val isolatedRuntime =
+                if (runtimeCapabilities.isolatedWorldSupported) {
+                    val bridgeName = UserscriptBootstrapScript.ISOLATED_BRIDGE_NAME
+                    val world =
+                        runCatching {
+                            WebViewCompat.getExecutionWorld(
+                                webView,
+                                ISOLATED_WORLD_NAME,
+                            )
+                        }.getOrElse { error ->
+                            AppLogger.e(
+                                TAG,
+                                "Failed to create the userscript isolated world",
+                                error,
+                            )
+                            null
+                        }
+                    world?.let { executionWorld ->
+                        val isolatedScriptHandler =
+                            runCatching {
+                                WebViewCompat.addWebMessageListener(
+                                    webView,
+                                    bridgeName,
+                                    setOf("*"),
+                                    executionWorld,
+                                    bridgeListener(
+                                        sessionId = sessionId,
+                                        bridgeScope = BridgeScope.ISOLATED,
+                                    ),
+                                )
+                                WebViewCompat.addJavaScriptOnEvent(
+                                    webView,
+                                    UserscriptBootstrapScript.documentStartScript(bridgeName),
+                                    WebViewCompat.INJECTION_EVENT_DOCUMENT_START,
+                                    setOf("*"),
+                                    executionWorld,
+                                )
+                            }.getOrElse { error ->
+                                AppLogger.e(
+                                    TAG,
+                                    "Failed to add the userscript isolated runtime",
+                                    error,
+                                )
+                                null
+                            }
+                        isolatedScriptHandler?.let { handler ->
+                            scriptHandlers += handler
+                            IsolatedRuntimeBinding(
+                                bridgeName = bridgeName,
+                                world = executionWorld,
                             )
                         }
                     }
-                )
-            }.onFailure { error ->
-                AppLogger.e(TAG, "Failed to add userscript message listener", error)
-            }
+                } else {
+                    null
+                }
+
             sessionBindings[sessionId] =
                 SessionBinding(
                     sessionId = sessionId,
                     webView = webView,
                     cookieScope = cookieScope,
+                    cookieManager = cookieManager,
                     cookieService = cookieService,
-                    scriptHandler = scriptHandler
+                    scriptHandlers = scriptHandlers,
+                    isolatedRuntime = isolatedRuntime,
                 )
+            AppLogger.i(
+                TAG,
+                "Attached stable userscript runtime: session=$sessionId, " +
+                    "page=${pageScriptHandler != null}, isolated=${isolatedRuntime != null}",
+            )
         }
         if (Looper.myLooper() == Looper.getMainLooper()) {
             attachNow()
         } else {
             mainHandler.post(attachNow)
+        }
+    }
+
+    private fun clearRuntimeBindingState(binding: SessionBinding) {
+        binding.pageBootstrapReplyProxies.clear()
+        binding.menuCommands.clear()
+        binding.isolatedRuntime?.scriptAuthorizations?.clear()
+        binding.isolatedRuntime?.scriptGrants?.clear()
+        binding.isolatedRuntime?.replyProxies?.clear()
+    }
+
+    private fun logWebViewProviderOnce() {
+        if (!webViewProviderLogged.compareAndSet(false, true)) {
+            return
+        }
+        val provider = WebViewCompat.getCurrentWebViewPackage(context)
+        AppLogger.i(
+            TAG,
+            "WebView provider: package=${provider?.packageName.orEmpty()}, " +
+                "versionName=${provider?.versionName.orEmpty()}, " +
+                "versionCode=${provider?.let(PackageInfoCompat::getLongVersionCode) ?: 0L}, " +
+                "isolatedWorld=${runtimeCapabilities.isolatedWorldSupported}",
+        )
+    }
+
+    private fun revokeActiveNetworkCalls() {
+        activeCalls.entries.toList().forEach { entry ->
+            abortedRequestKeys.add(entry.key)
+            if (activeCalls.remove(entry.key, entry.value)) {
+                runCatching { entry.value.cancel() }
+            }
+        }
+    }
+
+    private fun clearActiveRuntimeAuthorizations() {
+        val clearNow = {
+            sessionBindings.values.forEach { binding ->
+                binding.pageBootstrapReplyProxies.clear()
+                binding.isolatedRuntime?.scriptAuthorizations?.clear()
+                binding.isolatedRuntime?.scriptGrants?.clear()
+                binding.isolatedRuntime?.replyProxies?.clear()
+                webRequestEngine.clearSession(binding.sessionId)
+                if (binding.menuCommands.isNotEmpty()) {
+                    binding.menuCommands.clear()
+                    onMenuCommandsChanged(binding.sessionId)
+                }
+            }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            clearNow()
+        } else {
+            mainHandler.post(clearNow)
+        }
+    }
+
+    private fun reconcileActiveRuntimeAuthorizations(scripts: List<UserscriptListItem>) {
+        val validGrants =
+            scripts
+                .asSequence()
+                .filter { script -> script.enabled && script.blockedReasons.isEmpty() }
+                .associate { script ->
+                    script.id to
+                        UserscriptCapabilityRegistry
+                            .knownGrants(script.grants)
+                            .toSet()
+                }
+        val reconcileNow = {
+            sessionBindings.values.forEach { binding ->
+                val isolated = binding.isolatedRuntime
+                isolated?.scriptAuthorizations?.entries?.removeIf { entry ->
+                    validGrants[entry.value.scriptId] != entry.value.grants
+                }
+                val invalidScriptIds =
+                    isolated
+                        ?.scriptGrants
+                        ?.entries
+                        ?.filter { entry -> validGrants[entry.key] != entry.value }
+                        ?.map { entry -> entry.key }
+                        .orEmpty()
+                invalidScriptIds.forEach { scriptId ->
+                    isolated?.scriptGrants?.remove(scriptId)
+                    webRequestEngine.clearScript(binding.sessionId, scriptId)
+                }
+                val menuChanged =
+                    binding.menuCommands.entries.removeIf { entry ->
+                        entry.value.userscriptId !in validGrants
+                    }
+                if (menuChanged) {
+                    onMenuCommandsChanged(binding.sessionId)
+                }
+            }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            reconcileNow()
+        } else {
+            mainHandler.post(reconcileNow)
         }
     }
 
@@ -271,7 +471,12 @@ internal class WebSessionUserscriptManager(
             visibleSessionId = null
         }
         val removeNow = {
-            runCatching { binding.scriptHandler?.remove() }
+            // The owning browser closes and destroys this WebView immediately after detachSession.
+            // Explicitly removing document-start scripts or execution-world listeners while
+            // Chromium still has navigation tasks in flight can race its native registration
+            // state. Clear Kiyori-owned authorization state and let WebView.destroy() retire the
+            // provider-owned registrations together with the WebView.
+            clearRuntimeBindingState(binding)
             Unit
         }
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -289,19 +494,25 @@ internal class WebSessionUserscriptManager(
         webRequestEngine.clearSession(sessionId)
         tabStateStore.clearSession(sessionId)
         audioMuteStates.remove(sessionId)
-        openedTabOwners.remove(sessionId)?.let { ownerSessionId ->
+        openedTabOwners.remove(sessionId)?.let { owner ->
             dispatchHostEvent(
-                ownerSessionId,
-                "open_tab_closed",
-                JSONObject().put("sessionId", sessionId)
+                sessionId = owner.sessionId,
+                userscriptId = owner.userscriptId,
+                eventType = "open_tab_closed",
+                payload = JSONObject().put("sessionId", sessionId),
             )
+        }
+        openedTabOwners.forEach { (openedSessionId, owner) ->
+            if (owner.sessionId == sessionId) {
+                openedTabOwners.remove(openedSessionId, owner)
+            }
         }
         onMenuCommandsChanged(sessionId)
         publishVisibleStatuses()
     }
 
     fun getMenuCommands(sessionId: String?): List<UserscriptPageMenuCommand> {
-        if (sessionId.isNullOrBlank()) {
+        if (!uiStore.state.value.userScriptsAllowed || sessionId.isNullOrBlank()) {
             return emptyList()
         }
         return sessionBindings[sessionId]?.menuCommands?.values?.toList().orEmpty()
@@ -314,21 +525,13 @@ internal class WebSessionUserscriptManager(
         if (sessionId.isNullOrBlank() || commandId.isBlank()) {
             return
         }
-        val binding = sessionBindings[sessionId] ?: return
-        mainHandler.post {
-            val escaped = JSONObject.quote(commandId)
-            binding.webView.evaluateJavascript(
-                """
-                (function() {
-                    if (window.__operitUserscriptRuntime &&
-                        typeof window.__operitUserscriptRuntime.invokeMenuCommand === "function") {
-                        window.__operitUserscriptRuntime.invokeMenuCommand($escaped);
-                    }
-                })();
-                """.trimIndent(),
-                null
-            )
-        }
+        val command = sessionBindings[sessionId]?.menuCommands?.get(commandId) ?: return
+        dispatchHostEvent(
+            sessionId = sessionId,
+            userscriptId = command.userscriptId,
+            eventType = "menu_command",
+            payload = JSONObject().put("commandId", command.runtimeCommandId),
+        )
     }
 
     fun beginUrlInstall(rawUrl: String, sourceType: UserscriptInstallSourceType = UserscriptInstallSourceType.REMOTE_URL) {
@@ -429,6 +632,12 @@ internal class WebSessionUserscriptManager(
         }
     }
 
+    fun setUserScriptsAllowed(allowed: Boolean) {
+        scope.launch {
+            repository.setUserScriptsAllowed(allowed)
+        }
+    }
+
     fun deleteScript(scriptId: Long) {
         scope.launch {
             repository.deleteUserscript(scriptId)
@@ -463,6 +672,9 @@ internal class WebSessionUserscriptManager(
         sessionId: String,
         request: WebResourceRequest
     ): WebResourceResponse? {
+        if (!uiStore.state.value.userScriptsAllowed) {
+            return null
+        }
         val url = request.url?.toString().orEmpty()
         if (url.isBlank()) {
             return null
@@ -478,14 +690,16 @@ internal class WebSessionUserscriptManager(
         }
         resolution.matches.forEach { match ->
             dispatchHostEvent(
-                sessionId,
-                "web_request_event",
-                JSONObject()
-                    .put("registrationId", match.registrationId)
-                    .put("scriptId", match.scriptId)
-                    .put("url", url)
-                    .put("type", resolveWebRequestType(request))
-                    .put("source", match.source)
+                sessionId = sessionId,
+                userscriptId = match.scriptId,
+                eventType = "web_request_event",
+                payload =
+                    JSONObject()
+                        .put("registrationId", match.registrationId)
+                        .put("scriptId", match.scriptId)
+                        .put("url", url)
+                        .put("type", resolveWebRequestType(request))
+                        .put("source", match.source),
             )
         }
         val action = resolution.mergedAction
@@ -542,30 +756,172 @@ internal class WebSessionUserscriptManager(
         }
     }
 
+    private fun newAuthorizationToken(): String {
+        val bytes = ByteArray(32)
+        secureRandom.nextBytes(bytes)
+        return Base64.encodeToString(
+            bytes,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
+    }
+
+    private fun isBridgeMessageAuthorized(
+        sessionId: String,
+        messageType: String,
+        payload: JSONObject,
+    ): Boolean {
+        if (messageType == "bootstrap_request") {
+            return true
+        }
+        val isolated = sessionBindings[sessionId]?.isolatedRuntime ?: return false
+        val scriptId = payload.optLong("scriptId")
+        if (scriptId <= 0L) {
+            return false
+        }
+        val token = payload.optString("authorizationToken", "")
+        if (token.isBlank()) {
+            return false
+        }
+        val authorization = isolated.scriptAuthorizations[token] ?: return false
+        return UserscriptBridgeAuthorizationPolicy.isAuthorized(
+            expectedUserscriptId = authorization.scriptId,
+            messageType = messageType,
+            payloadUserscriptId = scriptId,
+            presentedToken = token,
+            authorization = authorization,
+        )
+    }
+
+    private fun bridgeListener(
+        sessionId: String,
+        bridgeScope: BridgeScope,
+    ): WebViewCompat.WebMessageListener =
+        object : WebViewCompat.WebMessageListener {
+            override fun onPostMessage(
+                view: WebView,
+                message: WebMessageCompat,
+                sourceOrigin: android.net.Uri,
+                isMainFrame: Boolean,
+                replyProxy: JavaScriptReplyProxy,
+            ) {
+                if (sessionBindings[sessionId]?.webView !== view) {
+                    return
+                }
+                handleBridgeMessage(
+                    sessionId = sessionId,
+                    rawMessage = message.data.orEmpty(),
+                    replyProxy = replyProxy,
+                    isMainFrame = isMainFrame,
+                    bridgeScope = bridgeScope,
+                    sourceOrigin = sourceOrigin.toString(),
+                )
+            }
+        }
+
     private fun handleBridgeMessage(
         sessionId: String,
-        webView: WebView,
         rawMessage: String,
         replyProxy: JavaScriptReplyProxy,
-        isMainFrame: Boolean
+        isMainFrame: Boolean,
+        bridgeScope: BridgeScope,
+        sourceOrigin: String,
     ) {
         val message = runCatching { JSONObject(rawMessage) }.getOrNull() ?: return
         val type = message.optString("type", "")
         val requestId = message.optString("requestId", "")
         val payload = message.optJSONObject("payload") ?: JSONObject()
+        if (!uiStore.state.value.userScriptsAllowed) {
+            if (requestId.isNotBlank()) {
+                postRpcError(replyProxy, requestId, "userscript_permission_required")
+            }
+            return
+        }
+        if (bridgeScope == BridgeScope.PAGE && type != "bootstrap_request") {
+            return
+        }
+        if (
+            bridgeScope == BridgeScope.ISOLATED &&
+                !isBridgeMessageAuthorized(
+                    sessionId = sessionId,
+                    messageType = type,
+                    payload = payload,
+                )
+        ) {
+            if (requestId.isNotBlank()) {
+                postRpcError(replyProxy, requestId, "userscript_bridge_not_authorized")
+            }
+            return
+        }
         when (type) {
             "bootstrap_request" -> {
+                val binding = sessionBindings[sessionId]
+                val isolated = binding?.isolatedRuntime
+                val registered =
+                    when (bridgeScope) {
+                        BridgeScope.PAGE -> binding?.pageBootstrapReplyProxies?.add(replyProxy) == true
+                        BridgeScope.ISOLATED -> isolated?.replyProxies?.add(replyProxy) == true
+                    }
+                if (!registered) {
+                    if (requestId.isNotBlank()) {
+                        postRpcError(replyProxy, requestId, "userscript_bootstrap_already_initialized")
+                    }
+                    return
+                }
+                val pageUrl =
+                    UserscriptBootstrapUrlPolicy.resolve(
+                        runtimeHref = payload.optString("href", ""),
+                        sourceOrigin = sourceOrigin,
+                        isolatedWorld = bridgeScope == BridgeScope.ISOLATED,
+                    )
+                if (pageUrl == null) {
+                    if (requestId.isNotBlank()) {
+                        postRpcError(replyProxy, requestId, "userscript_bootstrap_page_url_unavailable")
+                    }
+                    return
+                }
                 scope.launch {
                     runCatching {
-                        val href = payload.optString("href", "")
-                        val isTopFrame = payload.optBoolean("isTopFrame", isMainFrame)
-                        if (isMainFrame) {
-                            onPageChanged(sessionId, href)
-                        }
-                        val bootstrapPayload = repository.buildBootstrapPayload(sessionId, href, isTopFrame)
-                        if (isMainFrame) {
-                            val state = sessionPageStates.getOrPut(sessionId) { SessionPageState(pageUrl = href) }
-                            bootstrapPayload.scripts.forEach { script ->
+                        val executionWorld =
+                            when (bridgeScope) {
+                                BridgeScope.PAGE -> UserscriptExecutionWorld.PAGE
+                                BridgeScope.ISOLATED -> UserscriptExecutionWorld.ISOLATED
+                            }
+                        val bootstrapPayload =
+                            repository.buildBootstrapPayload(
+                                sessionId = sessionId,
+                                pageUrl = pageUrl,
+                                isTopFrame = isMainFrame,
+                                executionWorld = executionWorld,
+                                runtimeCapabilities = runtimeCapabilities,
+                            )
+                        val authorizedPayload =
+                            if (bridgeScope == BridgeScope.ISOLATED && isolated != null) {
+                                bootstrapPayload.copy(
+                                    scripts =
+                                        bootstrapPayload.scripts.map { script ->
+                                            val token = newAuthorizationToken()
+                                            isolated.scriptAuthorizations[token] =
+                                                UserscriptBridgeAuthorization(
+                                                    scriptId = script.scriptId,
+                                                    token = token,
+                                                    grants =
+                                                        UserscriptCapabilityRegistry
+                                                            .knownGrants(script.grants)
+                                                            .toSet(),
+                                                )
+                                            isolated.scriptGrants[script.scriptId] =
+                                                UserscriptCapabilityRegistry
+                                                    .knownGrants(script.grants)
+                                                    .toSet()
+                                            script.copy(authorizationToken = token)
+                                        },
+                                )
+                            } else {
+                                bootstrapPayload
+                            }
+                        if (isMainFrame && bridgeScope == BridgeScope.ISOLATED) {
+                            val state = sessionPageStates.getOrPut(sessionId) { SessionPageState(pageUrl = pageUrl) }
+                            authorizedPayload.scripts.forEach { script ->
                                 state.scriptStatuses[script.scriptId] =
                                     UserscriptPageRuntimeStatus(
                                         state = UserscriptPageRuntimeState.QUEUED,
@@ -580,7 +936,7 @@ internal class WebSessionUserscriptManager(
                             payload =
                                 JSONObject().put(
                                     "payloadJson",
-                                    json.encodeToString(bootstrapPayload)
+                                    json.encodeToString(authorizedPayload),
                                 )
                         )
                     }.onFailure { error ->
@@ -605,22 +961,15 @@ internal class WebSessionUserscriptManager(
             }
 
             "runtime_log" -> {
+                val pageUrl = trustedPageUrl(sessionId)
                 scope.launch {
                     repository.log(
                         userscriptId = payload.optLong("scriptId").takeIf { it > 0L },
                         level = payload.optString("level", "info"),
-                        pageUrl = payload.optString("pageUrl", "").ifBlank { null },
+                        pageUrl = pageUrl.ifBlank { null },
                         message = payload.optString("message", "userscript runtime message")
                     )
                 }
-            }
-
-            "menu_reset" -> {
-                if (!isMainFrame) {
-                    return
-                }
-                sessionBindings[sessionId]?.menuCommands?.clear()
-                onMenuCommandsChanged(sessionId)
             }
 
             "register_menu_command" -> {
@@ -632,11 +981,13 @@ internal class WebSessionUserscriptManager(
                 val userscriptId = payload.optLong("scriptId")
                 val binding = sessionBindings[sessionId]
                 if (binding != null && commandId.isNotBlank() && title.isNotBlank()) {
-                    binding.menuCommands[commandId] =
+                    val hostCommandId = "$userscriptId:$commandId"
+                    binding.menuCommands[hostCommandId] =
                         UserscriptPageMenuCommand(
-                            commandId = commandId,
+                            commandId = hostCommandId,
                             title = title,
-                            userscriptId = userscriptId
+                            userscriptId = userscriptId,
+                            runtimeCommandId = commandId,
                         )
                     onMenuCommandsChanged(sessionId)
                 }
@@ -647,7 +998,8 @@ internal class WebSessionUserscriptManager(
                     return
                 }
                 val commandId = payload.optString("commandId", "").trim()
-                sessionBindings[sessionId]?.menuCommands?.remove(commandId)
+                val userscriptId = payload.optLong("scriptId")
+                sessionBindings[sessionId]?.menuCommands?.remove("$userscriptId:$commandId")
                 onMenuCommandsChanged(sessionId)
             }
 
@@ -717,16 +1069,6 @@ internal class WebSessionUserscriptManager(
                 }
             }
 
-            "url_change" -> {
-                if (!isMainFrame) {
-                    return
-                }
-                val href = payload.optString("href", "").trim()
-                if (href.isNotBlank()) {
-                    syncUrlChange(sessionId, href)
-                }
-            }
-
             "gm_open_in_tab" -> {
                 val url = payload.optString("url", "").trim()
                 if (url.isBlank()) {
@@ -739,7 +1081,11 @@ internal class WebSessionUserscriptManager(
                     val openedSessionId =
                         onOpenTab(sessionId, url, payload.optBoolean("active", true))
                     if (!openedSessionId.isNullOrBlank()) {
-                        openedTabOwners[openedSessionId] = sessionId
+                        openedTabOwners[openedSessionId] =
+                            OpenedTabOwner(
+                                sessionId = sessionId,
+                                userscriptId = payload.optLong("scriptId"),
+                            )
                         if (requestId.isNotBlank()) {
                             postRpcSuccess(
                                 replyProxy,
@@ -754,9 +1100,32 @@ internal class WebSessionUserscriptManager(
             }
 
             "gm_focus_tab" -> {
+                val userscriptId = payload.optLong("scriptId")
                 val targetSessionId = payload.optString("sessionId", sessionId).trim()
+                val owner = openedTabOwners[targetSessionId]
+                val grants =
+                    sessionBindings[sessionId]
+                        ?.isolatedRuntime
+                        ?.scriptGrants
+                        ?.get(userscriptId)
+                        .orEmpty()
+                val canControl =
+                    UserscriptTabControlPolicy.canControl(
+                        sourceSessionId = sessionId,
+                        targetSessionId = targetSessionId,
+                        userscriptId = userscriptId,
+                        grants = grants,
+                        controlKind = payload.optString("controlKind", ""),
+                        currentSessionGrant = "window.focus",
+                        ownerSessionId = owner?.sessionId,
+                        ownerUserscriptId = owner?.userscriptId,
+                    )
                 mainHandler.post {
-                    if (targetSessionId.isBlank() || !sessionBindings.containsKey(targetSessionId)) {
+                    if (
+                        targetSessionId.isBlank() ||
+                            !canControl ||
+                            !sessionBindings.containsKey(targetSessionId)
+                    ) {
                         if (requestId.isNotBlank()) {
                             postRpcError(replyProxy, requestId, "focus_tab_failed")
                         }
@@ -770,10 +1139,29 @@ internal class WebSessionUserscriptManager(
             }
 
             "gm_close_tab" -> {
+                val userscriptId = payload.optLong("scriptId")
                 val targetSessionId = payload.optString("sessionId", sessionId).trim()
+                val owner = openedTabOwners[targetSessionId]
+                val grants =
+                    sessionBindings[sessionId]
+                        ?.isolatedRuntime
+                        ?.scriptGrants
+                        ?.get(userscriptId)
+                        .orEmpty()
+                val canControl =
+                    UserscriptTabControlPolicy.canControl(
+                        sourceSessionId = sessionId,
+                        targetSessionId = targetSessionId,
+                        userscriptId = userscriptId,
+                        grants = grants,
+                        controlKind = payload.optString("controlKind", ""),
+                        currentSessionGrant = "window.close",
+                        ownerSessionId = owner?.sessionId,
+                        ownerUserscriptId = owner?.userscriptId,
+                    )
                 mainHandler.post {
                     val closed =
-                        if (targetSessionId.isNotBlank()) {
+                        if (targetSessionId.isNotBlank() && canControl) {
                             onCloseSession(targetSessionId)
                         } else {
                             false
@@ -801,8 +1189,9 @@ internal class WebSessionUserscriptManager(
             "gm_xmlhttp_request" -> handleXmlHttpRequest(sessionId, payload, replyProxy, requestId)
             "gm_abort_request" -> {
                 val gmRequestId = payload.optString("requestId", "").trim()
+                val userscriptId = payload.optLong("scriptId")
                 if (gmRequestId.isNotBlank()) {
-                    val requestKey = "$sessionId:$gmRequestId"
+                    val requestKey = "$sessionId:$userscriptId:$gmRequestId"
                     abortedRequestKeys.add(requestKey)
                     activeCalls.remove(requestKey)?.cancel()
                 }
@@ -962,7 +1351,12 @@ internal class WebSessionUserscriptManager(
         val payload = storageNotifier.toPayload(change)
         sessionBindings.keys.forEach { targetSessionId ->
             if (targetSessionId != sourceSessionId) {
-                dispatchHostEvent(targetSessionId, "storage_changed", payload)
+                dispatchHostEvent(
+                    sessionId = targetSessionId,
+                    userscriptId = change.scriptId,
+                    eventType = "storage_changed",
+                    payload = payload,
+                )
             }
         }
     }
@@ -1031,7 +1425,11 @@ internal class WebSessionUserscriptManager(
             return
         }
         val details = payload.optJSONObject("details") ?: JSONObject()
-        val pageUrl = payload.optString("pageUrl", "")
+        val pageUrl = trustedPageUrl(sessionId)
+        if (pageUrl.isBlank()) {
+            postRpcError(replyProxy, requestId, "trusted_page_url_unavailable")
+            return
+        }
         runCatching {
             when (payload.optString("action", "").trim()) {
                 "list" -> {
@@ -1088,10 +1486,11 @@ internal class WebSessionUserscriptManager(
                         val muted = payload.optBoolean("muted", false)
                         WebViewCompat.setAudioMuted(binding.webView, muted)
                         audioMuteStates[sessionId] = muted
-                        dispatchHostEvent(
-                            sessionId,
-                            "audio_state_changed",
-                            JSONObject().put("muted", muted)
+                        dispatchHostEventToGrant(
+                            sessionId = sessionId,
+                            requiredGrant = "GM.audio",
+                            eventType = "audio_state_changed",
+                            payload = JSONObject().put("muted", muted),
                         )
                         postRpcSuccess(
                             replyProxy,
@@ -1139,11 +1538,12 @@ internal class WebSessionUserscriptManager(
         requestId: String
     ) {
         val registrationId = payload.optString("registrationId", "").trim()
-        if (registrationId.isBlank()) {
+        val scriptId = payload.optLong("scriptId")
+        if (registrationId.isBlank() || scriptId <= 0L) {
             postRpcError(replyProxy, requestId, "invalid_registration_id")
             return
         }
-        val removed = webRequestEngine.unregister(registrationId)
+        val removed = webRequestEngine.unregister(registrationId, scriptId)
         if (removed) {
             postRpcSuccess(replyProxy, requestId, JSONObject().put("registrationId", registrationId))
         } else {
@@ -1160,8 +1560,8 @@ internal class WebSessionUserscriptManager(
         val gmRequestId = payload.optString("requestId", "").trim()
         val scriptId = payload.optLong("scriptId")
         val targetUrl = payload.optString("url", "").trim()
-        val pageUrl = payload.optString("pageUrl", "").trim()
-        if (gmRequestId.isBlank() || scriptId <= 0L || targetUrl.isBlank()) {
+        val pageUrl = trustedPageUrl(sessionId)
+        if (gmRequestId.isBlank() || scriptId <= 0L || targetUrl.isBlank() || pageUrl.isBlank()) {
             postRpcError(replyProxy, requestId, "invalid_xhr_request")
             return
         }
@@ -1209,14 +1609,16 @@ internal class WebSessionUserscriptManager(
         val webRequestResolution = webRequestEngine.resolve(sessionId, url, requestType)
         webRequestResolution.matches.forEach { match ->
             dispatchHostEvent(
-                sessionId,
-                "web_request_event",
-                JSONObject()
-                    .put("registrationId", match.registrationId)
-                    .put("scriptId", match.scriptId)
-                    .put("url", url)
-                    .put("type", requestType)
-                    .put("source", match.source)
+                sessionId = sessionId,
+                userscriptId = match.scriptId,
+                eventType = "web_request_event",
+                payload =
+                    JSONObject()
+                        .put("registrationId", match.registrationId)
+                        .put("scriptId", match.scriptId)
+                        .put("url", url)
+                        .put("type", requestType)
+                        .put("source", match.source),
             )
         }
         val action = webRequestResolution.mergedAction
@@ -1257,7 +1659,7 @@ internal class WebSessionUserscriptManager(
         if (timeoutMs > 0L) {
             call.timeout().timeout(timeoutMs, TimeUnit.MILLISECONDS)
         }
-        val requestKey = "$sessionId:$gmRequestId"
+        val requestKey = "$sessionId:$scriptId:$gmRequestId"
         activeCalls[requestKey] = call
         postXhrEvent(
             replyProxy = replyProxy,
@@ -1476,6 +1878,8 @@ internal class WebSessionUserscriptManager(
         return when {
             !script.enabled ->
                 UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.DISABLED)
+            !uiStore.state.value.userScriptsAllowed ->
+                UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.PERMISSION_REQUIRED)
             script.blockedReasons.isNotEmpty() ->
                 UserscriptPageRuntimeStatus(
                     UserscriptPageRuntimeState.UNSUPPORTED,
@@ -1524,34 +1928,54 @@ internal class WebSessionUserscriptManager(
         uiStore.updateCurrentPageStatuses(visibleStatuses)
     }
 
-    private fun dispatchHostEvent(
+    private fun trustedPageUrl(sessionId: String): String =
+        sessionPageStates[sessionId]?.pageUrl.orEmpty().trim()
+
+    private fun dispatchHostEventToGrant(
         sessionId: String,
+        requiredGrant: String,
         eventType: String,
-        payload: JSONObject
+        payload: JSONObject,
     ) {
         val binding = sessionBindings[sessionId] ?: return
+        binding.isolatedRuntime
+            ?.scriptGrants
+            ?.filterValues { grants -> requiredGrant in grants }
+            ?.keys
+            ?.forEach { userscriptId ->
+                dispatchHostEvent(
+                    sessionId = sessionId,
+                    userscriptId = userscriptId,
+                    eventType = eventType,
+                    payload = payload,
+                )
+            }
+    }
+
+    private fun dispatchHostEvent(
+        sessionId: String,
+        userscriptId: Long,
+        eventType: String,
+        payload: JSONObject,
+    ) {
+        val isolated =
+            sessionBindings[sessionId]
+                ?.isolatedRuntime
+                ?: return
+        if (!isolated.scriptGrants.containsKey(userscriptId)) {
+            return
+        }
         val rawMessage =
             JSONObject()
                 .put("type", eventType)
                 .put("payload", payload)
                 .toString()
-        val escapedMessage = JSONObject.quote(rawMessage)
-        mainHandler.post {
-            runCatching {
-                binding.webView.evaluateJavascript(
-                    """
-                    (function() {
-                        const runtime = window.__operitUserscriptRuntime;
-                        if (!runtime || typeof runtime.dispatchHostEvent !== "function") {
-                            return;
-                        }
-                        runtime.dispatchHostEvent(JSON.parse($escapedMessage));
-                    })();
-                    """.trimIndent(),
-                    null
-                )
-            }.onFailure { error ->
-                AppLogger.w(TAG, "Failed to dispatch userscript host event: ${error.message}")
+        isolated.replyProxies.toList().forEach { replyProxy ->
+            mainHandler.post {
+                runCatching { replyProxy.postMessage(rawMessage) }
+                    .onFailure { error ->
+                        AppLogger.w(TAG, "Failed to dispatch userscript host event: ${error.message}")
+                    }
             }
         }
     }
@@ -1597,6 +2021,7 @@ internal class WebSessionUserscriptManager(
             resources = resources,
             icons = icons,
             tags = tags,
+            injectInto = injectInto,
             sandbox = sandbox,
             runIn = runIn,
             unwrap = unwrap,

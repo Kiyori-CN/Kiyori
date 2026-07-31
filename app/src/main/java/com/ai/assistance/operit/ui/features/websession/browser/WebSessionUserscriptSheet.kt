@@ -14,14 +14,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -31,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,13 +44,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserPluginCenterFacade
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallPreview
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeStatus
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUnsafeWindowMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 
 @Composable
@@ -57,17 +64,37 @@ internal fun WebSessionUserscriptSheet(
     onImportLocal: () -> Unit,
     onConfirmInstall: () -> Unit,
     onCancelInstall: () -> Unit,
+    onSetUserScriptsAllowed: (Boolean) -> Unit,
     onSetScriptEnabled: (Long, Boolean) -> Unit,
     onDeleteScript: (Long) -> Unit,
     onCheckUpdate: (Long) -> Unit,
     onInvokeMenuCommand: (String) -> Unit,
+    onNavigateBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var installUrl by rememberSaveable { mutableStateOf("") }
+    var scriptSearchQuery by rememberSaveable { mutableStateOf("") }
+    val visibleScripts =
+        remember(state.installedScripts, scriptSearchQuery) {
+            state.installedScripts.filter { script ->
+                BrowserPluginCenterFacade.matchesUserscriptSearch(script, scriptSearchQuery)
+            }
+        }
 
     WebSessionSheetScaffold(
-        title = stringResource(R.string.web_session_userscripts),
+        title = stringResource(R.string.web_session_userscript_manager_title),
         subtitle = stringResource(R.string.web_session_userscripts_subtitle),
+        navigationIcon =
+            onNavigateBack?.let { navigateBack ->
+                {
+                    IconButton(onClick = navigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                }
+            },
         modifier = modifier
     ) {
         Column(
@@ -88,6 +115,55 @@ internal fun WebSessionUserscriptSheet(
                     tone = KiyoriSemanticTone.RED,
                 )
                 return@Column
+            }
+
+            WebSessionSectionLabel(
+                text = stringResource(R.string.web_session_userscript_runtime_permission),
+                tone = KiyoriSemanticTone.PURPLE,
+            )
+            WebSessionItemCard(
+                highlighted = state.userScriptsAllowed,
+                highlightTone = KiyoriSemanticTone.PURPLE,
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    KiyoriSemanticIconBadge(
+                        imageVector = Icons.Filled.Extension,
+                        tone = KiyoriSemanticTone.PURPLE,
+                        contentDescription = null,
+                        containerSize = 38.dp,
+                        iconSize = 20.dp,
+                        shape = CircleShape,
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.web_session_userscript_allow_runtime),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.web_session_userscript_allow_runtime_summary,
+                                ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.userScriptsAllowed,
+                        onCheckedChange = onSetUserScriptsAllowed,
+                    )
+                }
             }
 
             WebSessionSectionLabel(
@@ -141,6 +217,7 @@ internal fun WebSessionUserscriptSheet(
                 )
                 PendingInstallCard(
                     preview = preview,
+                    userScriptsAllowed = state.userScriptsAllowed,
                     onConfirmInstall = onConfirmInstall,
                     onCancelInstall = onCancelInstall
                 )
@@ -193,17 +270,41 @@ internal fun WebSessionUserscriptSheet(
                 text = stringResource(R.string.web_session_userscript_library),
                 tone = KiyoriSemanticTone.PURPLE,
             )
+            if (state.installedScripts.isNotEmpty()) {
+                OutlinedTextField(
+                    value = scriptSearchQuery,
+                    onValueChange = { scriptSearchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                        )
+                    },
+                    placeholder = {
+                        Text(text = stringResource(R.string.web_session_userscript_search_hint))
+                    },
+                )
+            }
             if (state.installedScripts.isEmpty()) {
                 WebSessionEmptyState(
                     icon = Icons.Filled.Description,
                     title = stringResource(R.string.web_session_userscript_none),
                     tone = KiyoriSemanticTone.PURPLE,
                 )
+            } else if (visibleScripts.isEmpty()) {
+                WebSessionEmptyState(
+                    icon = Icons.Filled.Search,
+                    title = stringResource(R.string.web_session_userscript_search_empty),
+                    tone = KiyoriSemanticTone.PURPLE,
+                )
             } else {
-                state.installedScripts.forEach { script ->
+                visibleScripts.forEach { script ->
                     InstalledUserscriptCard(
                         script = script,
                         runtimeStatus = state.currentPageStatuses[script.id],
+                        userScriptsAllowed = state.userScriptsAllowed,
                         onSetScriptEnabled = onSetScriptEnabled,
                         onDeleteScript = onDeleteScript,
                         onCheckUpdate = onCheckUpdate
@@ -217,6 +318,7 @@ internal fun WebSessionUserscriptSheet(
 @Composable
 private fun PendingInstallCard(
     preview: UserscriptInstallPreview,
+    userScriptsAllowed: Boolean,
     onConfirmInstall: () -> Unit,
     onCancelInstall: () -> Unit
 ) {
@@ -246,6 +348,18 @@ private fun PendingInstallCard(
                 label = stringResource(R.string.web_session_userscript_grants),
                 value = preview.metadata.grants.joinToString().ifBlank { "-" }
             )
+            preview.executionWorld?.let { executionWorld ->
+                PreviewMetaLine(
+                    label = stringResource(R.string.web_session_userscript_execution_world),
+                    value = executionWorldLabel(executionWorld),
+                )
+            }
+            if (preview.unsafeWindowMode != UserscriptUnsafeWindowMode.NONE) {
+                PreviewMetaLine(
+                    label = stringResource(R.string.web_session_userscript_page_context_access),
+                    value = unsafeWindowModeLabel(preview.unsafeWindowMode),
+                )
+            }
             PreviewMetaLine(
                 label = stringResource(R.string.web_session_userscript_connects),
                 value = preview.metadata.connects.joinToString().ifBlank { "*" }
@@ -330,6 +444,16 @@ private fun PendingInstallCard(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+            if (!userScriptsAllowed) {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.web_session_userscript_permission_install_notice,
+                        ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -364,6 +488,7 @@ private fun PendingInstallCard(
 private fun InstalledUserscriptCard(
     script: UserscriptListItem,
     runtimeStatus: UserscriptPageRuntimeStatus?,
+    userScriptsAllowed: Boolean,
     onSetScriptEnabled: (Long, Boolean) -> Unit,
     onDeleteScript: (Long) -> Unit,
     onCheckUpdate: (Long) -> Unit
@@ -396,7 +521,7 @@ private fun InstalledUserscriptCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     RuntimeStatusLine(
-                        status = runtimeStatus ?: fallbackStatusFor(script),
+                        status = runtimeStatus ?: derivedStatusFor(script, userScriptsAllowed),
                         script = script
                     )
                 }
@@ -412,7 +537,8 @@ private fun InstalledUserscriptCard(
                 )
                 Switch(
                     checked = script.enabled,
-                    onCheckedChange = { enabled -> onSetScriptEnabled(script.id, enabled) }
+                    onCheckedChange = { enabled -> onSetScriptEnabled(script.id, enabled) },
+                    enabled = script.blockedReasons.isEmpty(),
                 )
             }
 
@@ -429,6 +555,28 @@ private fun InstalledUserscriptCard(
                     PreviewMetaLine(
                         label = stringResource(R.string.web_session_userscript_grants),
                         value = script.grants.joinToString()
+                    )
+                }
+
+                script.executionWorld?.let { executionWorld ->
+                    PreviewMetaLine(
+                        label = stringResource(R.string.web_session_userscript_execution_world),
+                        value = executionWorldLabel(executionWorld),
+                    )
+                }
+
+                if (script.unsafeWindowMode != UserscriptUnsafeWindowMode.NONE) {
+                    PreviewMetaLine(
+                        label = stringResource(R.string.web_session_userscript_page_context_access),
+                        value = unsafeWindowModeLabel(script.unsafeWindowMode),
+                    )
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.web_session_userscript_page_context_security_summary,
+                            ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -562,6 +710,8 @@ private fun RuntimeStatusLine(
     val statusLabel =
         when (status.state) {
             UserscriptPageRuntimeState.DISABLED -> stringResource(R.string.web_session_userscript_status_disabled)
+            UserscriptPageRuntimeState.PERMISSION_REQUIRED ->
+                stringResource(R.string.web_session_userscript_status_permission_required)
             UserscriptPageRuntimeState.UNSUPPORTED -> stringResource(R.string.web_session_userscript_status_unsupported)
             UserscriptPageRuntimeState.NOT_MATCHED -> stringResource(R.string.web_session_userscript_status_not_matched)
             UserscriptPageRuntimeState.QUEUED -> stringResource(R.string.web_session_userscript_status_queued)
@@ -604,6 +754,7 @@ private fun statusColor(state: UserscriptPageRuntimeState) =
     when (state) {
         UserscriptPageRuntimeState.DISABLED,
         UserscriptPageRuntimeState.NOT_MATCHED -> MaterialTheme.colorScheme.outline
+        UserscriptPageRuntimeState.PERMISSION_REQUIRED -> MaterialTheme.colorScheme.tertiary
         UserscriptPageRuntimeState.UNSUPPORTED,
         UserscriptPageRuntimeState.ERROR -> MaterialTheme.colorScheme.error
         UserscriptPageRuntimeState.QUEUED -> MaterialTheme.colorScheme.tertiary
@@ -611,14 +762,38 @@ private fun statusColor(state: UserscriptPageRuntimeState) =
         UserscriptPageRuntimeState.SUCCESS -> MaterialTheme.colorScheme.secondary
     }
 
-private fun fallbackStatusFor(script: UserscriptListItem): UserscriptPageRuntimeStatus =
+private fun derivedStatusFor(
+    script: UserscriptListItem,
+    userScriptsAllowed: Boolean,
+): UserscriptPageRuntimeStatus =
     when {
         !script.enabled ->
             UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.DISABLED)
+        !userScriptsAllowed ->
+            UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.PERMISSION_REQUIRED)
         script.blockedReasons.isNotEmpty() ->
             UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.UNSUPPORTED)
         else ->
             UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.NOT_MATCHED)
+    }
+
+@Composable
+private fun executionWorldLabel(world: UserscriptExecutionWorld): String =
+    when (world) {
+        UserscriptExecutionWorld.PAGE ->
+            stringResource(R.string.web_session_userscript_execution_world_page)
+        UserscriptExecutionWorld.ISOLATED ->
+            stringResource(R.string.web_session_userscript_execution_world_isolated)
+    }
+
+@Composable
+private fun unsafeWindowModeLabel(mode: UserscriptUnsafeWindowMode): String =
+    when (mode) {
+        UserscriptUnsafeWindowMode.NONE -> ""
+        UserscriptUnsafeWindowMode.DIRECT_PAGE ->
+            stringResource(R.string.web_session_userscript_page_context_direct)
+        UserscriptUnsafeWindowMode.ISOLATED_PAGE_BRIDGE ->
+            stringResource(R.string.web_session_userscript_page_context_bridge)
     }
 
 private fun formatIconSummary(vararg values: String?): String? =

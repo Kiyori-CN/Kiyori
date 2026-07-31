@@ -119,7 +119,7 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
             context = context.applicationContext,
             onOpenUserscriptUi = {
                 mainHandler.post {
-                    openUserscriptSheetOnMain()
+                    openUserscriptManagerOnMain()
                 }
             },
             onOpenTab = { sourceSessionId, url, active ->

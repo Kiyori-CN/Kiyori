@@ -49,6 +49,17 @@ class WebSessionBrowserBackPolicyTest {
             resolveWebSessionBrowserBackAction(base.copy(textSelectionActions = null)),
         )
         assertEquals(
+            WebSessionBrowserBackAction.SHOW_PLUGIN_OVERVIEW,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    textSelectionActions = null,
+                    downloadPrompt = null,
+                    sheetRoute = WebSessionBrowserSheetRoute.PLUGINS,
+                    pluginPage = WebSessionBrowserPluginPage.USERSCRIPTS,
+                ),
+            ),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.CLOSE_SHEET,
             resolveWebSessionBrowserBackAction(
                 base.copy(textSelectionActions = null, downloadPrompt = null),

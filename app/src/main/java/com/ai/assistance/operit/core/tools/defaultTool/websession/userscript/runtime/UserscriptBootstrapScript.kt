@@ -2,18 +2,47 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ru
 
 internal object UserscriptBootstrapScript {
     const val BRIDGE_NAME = "OperitUserscriptBridge"
+    const val ISOLATED_BRIDGE_NAME = "OperitUserscriptBridge_isolated"
 
-    fun documentStartScript(): String =
-        """
+    fun documentStartScript(bridgeName: String = BRIDGE_NAME): String {
+        val unsafeWindowBridgeSource =
+            UserscriptUnsafeWindowBridgeScript.runtimeSource(
+                pageWorldRuntime = bridgeName == BRIDGE_NAME,
+            )
+        val unsafeWindowValue =
+            if (bridgeName == BRIDGE_NAME) {
+                "window"
+            } else {
+                "createUnsafeWindowProxy()"
+            }
+        return """
         (function() {
             if (window.__operitUserscriptBootstrapInstalled) {
                 return;
             }
             window.__operitUserscriptBootstrapInstalled = true;
-            const bridge = window.${BRIDGE_NAME};
+            const bridge = window.$bridgeName;
             if (!bridge || typeof bridge.postMessage !== 'function') {
                 return;
             }
+            const bridgePostMessage = bridge.postMessage.bind(bridge);
+            const serialize = JSON.stringify.bind(JSON);
+            const objectKeys = Object.keys.bind(Object);
+            const ScriptFunction = Function;
+            const scriptAuthorizationTokens = new Map();
+            $unsafeWindowBridgeSource
+            const authorizedPayload = function(payload) {
+                const source = payload && typeof payload === "object" ? payload : {};
+                const normalized = {};
+                objectKeys(source).forEach((key) => {
+                    normalized[key] = source[key];
+                });
+                const scriptId = Number(normalized.scriptId || 0);
+                if (scriptId > 0) {
+                    normalized.authorizationToken = scriptAuthorizationTokens.get(scriptId) || "";
+                }
+                return normalized;
+            };
 
             const runtime = {
                 pending: new Map(),
@@ -27,19 +56,19 @@ internal object UserscriptBootstrapScript {
                 urlChangeInstalled: false,
                 lastHref: String(location.href || ""),
                 post(type, payload) {
-                    const message = JSON.stringify({ type, payload: payload || {} });
-                    bridge.postMessage(message);
+                    const message = serialize({ type, payload: authorizedPayload(payload) });
+                    bridgePostMessage(message);
                 },
                 request(type, payload) {
                     const requestId = "req_" + (++runtime.sequence) + "_" + Date.now();
-                    const message = JSON.stringify({ type, requestId, payload: payload || {} });
+                    const message = serialize({ type, requestId, payload: authorizedPayload(payload) });
                     return new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => {
                             runtime.pending.delete(requestId);
                             reject(new Error("userscript_host_timeout:" + type));
                         }, 20000);
                         runtime.pending.set(requestId, { resolve, reject, timeout });
-                        bridge.postMessage(message);
+                        bridgePostMessage(message);
                     });
                 },
                 resolvePending(message) {
@@ -55,9 +84,9 @@ internal object UserscriptBootstrapScript {
                         pending.resolve(message.payload);
                     }
                 },
-                normalizeValue(value, fallbackValue) {
+                normalizeValue(value, defaultValue) {
                     if (typeof value === "undefined") {
-                        return fallbackValue;
+                        return defaultValue;
                     }
                     return value;
                 },
@@ -86,14 +115,14 @@ internal object UserscriptBootstrapScript {
                     });
                     return parsed;
                 },
-                parseJsonValue(rawValue, fallbackValue) {
+                parseJsonValue(rawValue, defaultValue) {
                     if (typeof rawValue !== "string" || rawValue === "") {
-                        return fallbackValue;
+                        return defaultValue;
                     }
                     try {
                         return JSON.parse(rawValue);
                     } catch (_) {
-                        return fallbackValue;
+                        return defaultValue;
                     }
                 },
                 addStyle(cssText) {
@@ -202,6 +231,9 @@ internal object UserscriptBootstrapScript {
                             }
                             return;
                         }
+                        case "menu_command":
+                            runtime.invokeMenuCommand(String(payload.commandId || ""));
+                            return;
                     }
                 },
                 installUrlChangeHooks() {
@@ -221,7 +253,6 @@ internal object UserscriptBootstrapScript {
                         event.href = href;
                         event.prevHref = previous;
                         window.dispatchEvent(event);
-                        runtime.post("url_change", { href: href, previous: previous, source: source });
                     };
                     const patchHistoryMethod = function(name) {
                         const original = history[name];
@@ -255,12 +286,18 @@ internal object UserscriptBootstrapScript {
                         get(target, property) {
                             if (enableFocus && property === "focus") {
                                 return function() {
-                                    return runtime.request("gm_focus_tab", { sessionId: script.sessionId });
+                                    return runtime.request("gm_focus_tab", {
+                                        scriptId: script.scriptId,
+                                        sessionId: script.sessionId
+                                    });
                                 };
                             }
                             if (enableClose && property === "close") {
                                 return function() {
-                                    return runtime.request("gm_close_tab", { sessionId: script.sessionId });
+                                    return runtime.request("gm_close_tab", {
+                                        scriptId: script.scriptId,
+                                        sessionId: script.sessionId
+                                    });
                                 };
                             }
                             if (enableUrlChange && property === "onurlchange") {
@@ -286,6 +323,11 @@ internal object UserscriptBootstrapScript {
                     });
                 },
                 installScript(script) {
+                    const authorizationToken = String(script.authorizationToken || "");
+                    if (authorizationToken) {
+                        scriptAuthorizationTokens.set(Number(script.scriptId || 0), authorizationToken);
+                        script.authorizationToken = "";
+                    }
                     const metadata = JSON.parse(script.metadataJson || "{}");
                     const grants = new Set(script.capabilities || []);
                     const grantNone = grants.has("none");
@@ -411,8 +453,8 @@ internal object UserscriptBootstrapScript {
                         }
                         if (keysOrDefaults && typeof keysOrDefaults === "object") {
                             const result = {};
-                            Object.entries(keysOrDefaults).forEach(([key, fallbackValue]) => {
-                                result[key] = runtime.normalizeValue(storage[key], fallbackValue);
+                            Object.entries(keysOrDefaults).forEach(([key, defaultValue]) => {
+                                result[key] = runtime.normalizeValue(storage[key], defaultValue);
                             });
                             return result;
                         }
@@ -476,7 +518,10 @@ internal object UserscriptBootstrapScript {
                                 if (typeof requestDetails.onabort === "function") {
                                     requestDetails.onabort({ status: 0, readyState: 4, responseText: "" });
                                 }
-                                runtime.post("gm_abort_request", { requestId: requestId });
+                                runtime.post("gm_abort_request", {
+                                    scriptId: script.scriptId,
+                                    requestId: requestId
+                                });
                                 runtime.xhrRequests.delete(requestId);
                             }
                         };
@@ -704,7 +749,11 @@ internal object UserscriptBootstrapScript {
                                 if (!handle.sessionId || handle.closed) {
                                     return Promise.resolve(false);
                                 }
-                                return runtime.request("gm_close_tab", { sessionId: handle.sessionId }).then(() => {
+                                return runtime.request("gm_close_tab", {
+                                    scriptId: script.scriptId,
+                                    sessionId: handle.sessionId,
+                                    controlKind: "opened_tab"
+                                }).then(() => {
                                     handle.closed = true;
                                     return true;
                                 });
@@ -713,7 +762,11 @@ internal object UserscriptBootstrapScript {
                                 if (!handle.sessionId) {
                                     return Promise.resolve();
                                 }
-                                return runtime.request("gm_focus_tab", { sessionId: handle.sessionId });
+                                return runtime.request("gm_focus_tab", {
+                                    scriptId: script.scriptId,
+                                    sessionId: handle.sessionId,
+                                    controlKind: "opened_tab"
+                                });
                             }
                         };
                         const promise =
@@ -769,7 +822,10 @@ internal object UserscriptBootstrapScript {
                                             return;
                                         }
                                         runtime.webRequestListeners.delete(handle.registrationId);
-                                        runtime.request("gm_web_request_unregister", { registrationId: handle.registrationId })
+                                        runtime.request("gm_web_request_unregister", {
+                                            scriptId: script.scriptId,
+                                            registrationId: handle.registrationId
+                                        })
                                             .catch((error) => runtime.log("error", String(error), script.scriptId, location.href));
                                     }
                                 };
@@ -969,11 +1025,23 @@ internal object UserscriptBootstrapScript {
                     const exposedWindow = usesProxyWindow ? windowProxy : window;
                     const exposedClose =
                         hasGrant("window.close")
-                            ? function() { return runtime.request("gm_close_tab", { sessionId: script.sessionId }); }
+                            ? function() {
+                                return runtime.request("gm_close_tab", {
+                                    scriptId: script.scriptId,
+                                    sessionId: script.sessionId,
+                                    controlKind: "current_session"
+                                });
+                            }
                             : (typeof window.close === "function" ? window.close.bind(window) : undefined);
                     const exposedFocus =
                         hasGrant("window.focus")
-                            ? function() { return runtime.request("gm_focus_tab", { sessionId: script.sessionId }); }
+                            ? function() {
+                                return runtime.request("gm_focus_tab", {
+                                    scriptId: script.scriptId,
+                                    sessionId: script.sessionId,
+                                    controlKind: "current_session"
+                                });
+                            }
                             : (typeof window.focus === "function" ? window.focus.bind(window) : undefined);
 
                     try {
@@ -988,7 +1056,7 @@ internal object UserscriptBootstrapScript {
                             "\n" +
                             String(script.code || "") +
                             "\n//# sourceURL=userscript:" + encodeURIComponent(String(script.name || "script"));
-                        const executor = new Function(
+                        const executor = new ScriptFunction(
                             "GM",
                             "GM_info",
                             "GM_getValue",
@@ -1056,7 +1124,9 @@ internal object UserscriptBootstrapScript {
                             legacy.GM_cookie,
                             legacy.GM_audio,
                             legacy.GM_webRequest,
-                            hasGrant("unsafeWindow") ? window : undefined,
+                            hasGrant("unsafeWindow")
+                                ? $unsafeWindowValue
+                                : undefined,
                             exposedWindow,
                             exposedClose,
                             exposedFocus
@@ -1092,13 +1162,19 @@ internal object UserscriptBootstrapScript {
                         const slot = grouped[String(script.runAt || "document-end")] || grouped["document-end"];
                         slot.push(script);
                     });
-                    grouped["document-start"].forEach(runtime.installScript);
+                    const installAll = function(items) {
+                        for (let index = 0; index < items.length; index += 1) {
+                            runtime.installScript(items[index]);
+                        }
+                        items.length = 0;
+                    };
+                    installAll(grouped["document-start"]);
                     const runEnd = function() {
-                        grouped["document-end"].forEach(runtime.installScript);
+                        installAll(grouped["document-end"]);
                     };
                     const runIdle = function() {
                         const idleRunner = function() {
-                            grouped["document-idle"].forEach(runtime.installScript);
+                            installAll(grouped["document-idle"]);
                         };
                         if (typeof requestIdleCallback === "function") {
                             requestIdleCallback(idleRunner);
@@ -1185,12 +1261,9 @@ internal object UserscriptBootstrapScript {
                 }
             };
 
-            window.__operitUserscriptRuntime = runtime;
             runtime.installUrlChangeHooks();
-            runtime.post("menu_reset", {});
             runtime.request("bootstrap_request", {
-                href: String(location.href || ""),
-                isTopFrame: window.top === window
+                href: String(location.href || "")
             }).then(function(payload) {
                 const parsed = JSON.parse(String((payload && payload.payloadJson) || "{\"scripts\":[]}"));
                 runtime.scheduleScripts(parsed.scripts || []);
@@ -1199,4 +1272,5 @@ internal object UserscriptBootstrapScript {
             });
         })();
         """.trimIndent()
+    }
 }

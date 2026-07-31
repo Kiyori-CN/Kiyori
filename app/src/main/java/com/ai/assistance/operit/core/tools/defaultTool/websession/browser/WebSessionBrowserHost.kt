@@ -93,11 +93,12 @@ internal class WebSessionBrowserHost(
         fun onCopyCurrentUrl()
         fun onOpenPageSource()
         fun onCopyPageSource()
-        fun onOpenUserscripts()
+        fun onOpenPlugins()
         fun onImportUserscript()
         fun onInstallUserscriptFromUrl(url: String)
         fun onConfirmUserscriptInstall()
         fun onCancelUserscriptInstall()
+        fun onSetUserScriptsAllowed(allowed: Boolean)
         fun onSetUserscriptEnabled(scriptId: Long, enabled: Boolean)
         fun onDeleteUserscript(scriptId: Long)
         fun onCheckUserscriptUpdate(scriptId: Long)
@@ -248,11 +249,12 @@ internal class WebSessionBrowserHost(
             onCopyCurrentUrl = callbacks::onCopyCurrentUrl,
             onOpenPageSource = callbacks::onOpenPageSource,
             onCopyPageSource = callbacks::onCopyPageSource,
-            onOpenUserscripts = callbacks::onOpenUserscripts,
+            onOpenPlugins = callbacks::onOpenPlugins,
             onImportUserscript = callbacks::onImportUserscript,
             onInstallUserscriptFromUrl = callbacks::onInstallUserscriptFromUrl,
             onConfirmUserscriptInstall = callbacks::onConfirmUserscriptInstall,
             onCancelUserscriptInstall = callbacks::onCancelUserscriptInstall,
+            onSetUserScriptsAllowed = callbacks::onSetUserScriptsAllowed,
             onSetUserscriptEnabled = callbacks::onSetUserscriptEnabled,
             onDeleteUserscript = callbacks::onDeleteUserscript,
             onCheckUserscriptUpdate = callbacks::onCheckUserscriptUpdate,
@@ -549,9 +551,18 @@ internal class WebSessionBrowserHost(
                 callbacks.onCancelBrowserDownload(requireNotNull(hostState.downloadPrompt).requestId)
                 true
             }
+            WebSessionBrowserBackAction.SHOW_PLUGIN_OVERVIEW -> {
+                updateHostState { current ->
+                    current.copy(pluginPage = WebSessionBrowserPluginPage.OVERVIEW)
+                }
+                true
+            }
             WebSessionBrowserBackAction.CLOSE_SHEET -> {
                 updateHostState { current ->
-                    current.copy(sheetRoute = WebSessionBrowserSheetRoute.NONE)
+                    current.copy(
+                        sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                        pluginPage = WebSessionBrowserPluginPage.OVERVIEW,
+                    )
                 }
                 true
             }
@@ -629,6 +640,15 @@ internal class WebSessionBrowserHost(
 
     fun showSheet(route: WebSessionBrowserSheetRoute) {
         updateHostState { it.copy(sheetRoute = route) }
+    }
+
+    fun showPluginPage(page: WebSessionBrowserPluginPage) {
+        updateHostState {
+            it.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.PLUGINS,
+                pluginPage = page,
+            )
+        }
     }
 
     fun beginPageSourceRead() {

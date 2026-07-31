@@ -418,6 +418,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
             override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
                 super.doUpdateVisitedHistory(view, url, isReload)
                 session.currentUrl = url
+                userscriptManager.syncUrlChange(session.id, url)
                 val pageTitle = view.title.orEmpty()
                 notifySessionStateChanged(session)
                 refreshNavigationStateFromWebView(view, session)
@@ -867,9 +868,9 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             StandardBrowserSessionTools.browserHost?.copyPageSourceToClipboard()
         }
 
-        override fun onOpenUserscripts() {
+        override fun onOpenPlugins() {
             runOnMainSync<Unit> {
-                openUserscriptSheetOnMain()
+                openPluginCenterOnMain()
             }
         }
 
@@ -887,6 +888,10 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
 
         override fun onCancelUserscriptInstall() {
             userscriptManager.cancelPendingInstall()
+        }
+
+        override fun onSetUserScriptsAllowed(allowed: Boolean) {
+            userscriptManager.setUserScriptsAllowed(allowed)
         }
 
         override fun onSetUserscriptEnabled(scriptId: Long, enabled: Boolean) {
@@ -1185,15 +1190,27 @@ internal fun StandardBrowserSessionTools.destroyBrowserPresentationOnMain() {
     StandardBrowserSessionTools.browserHost = null
 }
 
-internal fun StandardBrowserSessionTools.openUserscriptSheetOnMain() {
+internal fun StandardBrowserSessionTools.openPluginCenterOnMain() {
     val host = ensureBrowserPresentationOnMain(context.applicationContext)
     if (!host.hasAppPresentation()) {
-        host.showSheet(WebSessionBrowserSheetRoute.USERSCRIPTS)
+        host.showPluginPage(WebSessionBrowserPluginPage.OVERVIEW)
         createBrowserHostCallbacks(context.applicationContext).onOpenAppShellBrowser()
         refreshSessionUiOnMain()
         return
     }
-    host.showSheet(WebSessionBrowserSheetRoute.USERSCRIPTS)
+    host.showPluginPage(WebSessionBrowserPluginPage.OVERVIEW)
+    refreshSessionUiOnMain()
+}
+
+internal fun StandardBrowserSessionTools.openUserscriptManagerOnMain() {
+    val host = ensureBrowserPresentationOnMain(context.applicationContext)
+    if (!host.hasAppPresentation()) {
+        host.showPluginPage(WebSessionBrowserPluginPage.USERSCRIPTS)
+        createBrowserHostCallbacks(context.applicationContext).onOpenAppShellBrowser()
+        refreshSessionUiOnMain()
+        return
+    }
+    host.showPluginPage(WebSessionBrowserPluginPage.USERSCRIPTS)
     refreshSessionUiOnMain()
 }
 
@@ -1741,7 +1758,7 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
         "http", "https" -> {
             if (isUserscriptInstallUri(uri)) {
                 userscriptManager.beginUrlInstall(rawUrl, UserscriptInstallSourceType.PAGE_LINK)
-                openUserscriptSheetOnMain()
+                openUserscriptManagerOnMain()
                 true
             } else {
                 false

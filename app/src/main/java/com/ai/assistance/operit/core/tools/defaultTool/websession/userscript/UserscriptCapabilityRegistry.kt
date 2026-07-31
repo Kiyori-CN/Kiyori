@@ -195,7 +195,6 @@ internal object UserscriptCapabilityRegistry {
             UserscriptCapability(
                 canonicalGrant = "window.onurlchange",
                 runtimeSymbols = setOf("window.onurlchange"),
-                hostMessages = setOf("url_change"),
                 requiresDocumentStartInjection = true
             ),
             UserscriptCapability("none")
@@ -241,4 +240,9 @@ internal object UserscriptCapabilityRegistry {
                 .forEach(::add)
         }
     }
+
+    fun grantsForHostMessage(messageType: String): Set<String> =
+        capabilities
+            .filter { capability -> messageType in capability.hostMessages }
+            .mapTo(linkedSetOf()) { capability -> capability.canonicalGrant }
 }

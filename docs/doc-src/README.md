@@ -27,6 +27,8 @@
 ## Kiyori 产品架构入口
 
 - [Kiyori 产品壳与导航架构](architecture/kiyori_product_shell_and_navigation.md)
+- [浏览器插件平台与插件中心架构](architecture/browser_plugin_platform.md)
+  - 覆盖 userscript、`.kbx`、WebExtension 导入、隔离世界、权限、安装事务、AI 创作和实施门禁
 - [Kiyori 产品定位与 Operit AI 边界](decisions/0001_kiyori_product_positioning.md)
 - [模态 AI 左抽屉导航](decisions/0004_modal_ai_drawer_navigation.md)
 - [已取代：产品壳与 AI 中心导航](decisions/0002_product_shell_and_ai_center_navigation.md)

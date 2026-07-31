@@ -6,6 +6,7 @@ import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,6 +20,7 @@ internal class UserscriptJsonStore private constructor(context: Context) {
     private data class StoreState(
         val nextScriptId: Long = 1L,
         val nextResourceId: Long = 1L,
+        val userScriptsAllowed: Boolean = false,
         val scripts: List<UserscriptEntity> = emptyList(),
         val resources: List<UserscriptResourceEntity> = emptyList()
     )
@@ -59,6 +61,11 @@ internal class UserscriptJsonStore private constructor(context: Context) {
         stateFlow.map { state ->
             state.scripts.sortedWith(compareBy<UserscriptEntity> { it.name.lowercase(Locale.ROOT) }.thenBy { it.id })
         }
+
+    fun observeUserScriptsAllowed(): Flow<Boolean> =
+        stateFlow
+            .map { state -> state.userScriptsAllowed }
+            .distinctUntilChanged()
 
     fun observeRecentLogs(limit: Int): Flow<List<UserscriptLogEntity>> =
         logFlow.map { state ->
@@ -140,6 +147,17 @@ internal class UserscriptJsonStore private constructor(context: Context) {
             )
         }
     }
+
+    suspend fun setUserScriptsAllowed(allowed: Boolean): Boolean =
+        mutex.withLock {
+            val state = stateFlow.value
+            if (state.userScriptsAllowed == allowed) {
+                false
+            } else {
+                writeStoreState(state.copy(userScriptsAllowed = allowed))
+                true
+            }
+        }
 
     suspend fun insertResources(resources: List<UserscriptResourceEntity>) {
         if (resources.isEmpty()) {

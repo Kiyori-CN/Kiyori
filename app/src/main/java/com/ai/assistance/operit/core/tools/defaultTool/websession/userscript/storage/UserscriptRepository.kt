@@ -5,8 +5,11 @@ import android.util.Base64
 import android.webkit.MimeTypeMap
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ParsedUserscriptMetadata
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptCapabilityRegistry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptCompatibilityPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptBootstrapPayload
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionPayload
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorldPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallPreview
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
@@ -16,6 +19,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRequireEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptResourceEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptResourcePayload
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRuntimeCapabilities
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRunAt
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
@@ -69,6 +73,8 @@ internal class UserscriptRepository private constructor(
             entities.map(::entityToListItem)
         }
 
+    val userScriptsAllowedFlow: Flow<Boolean> = store.observeUserScriptsAllowed()
+
     fun observeRecentLogs(limit: Int = 50): Flow<List<UserscriptLogItem>> =
         store.observeRecentLogs(limit).map { logs ->
             logs.map { log ->
@@ -94,7 +100,16 @@ internal class UserscriptRepository private constructor(
         val metadata = UserscriptMetadataParser.parse(rawSource)
         val knownGrants = UserscriptCapabilityRegistry.knownGrants(metadata.grants)
         val unknownGrants = UserscriptCapabilityRegistry.unknownGrants(metadata.grants)
-        val blockedReasons = UserscriptCapabilityRegistry.blockedReasons(metadata.grants)
+        val worldResolution =
+            UserscriptExecutionWorldPolicy.resolve(
+                metadata = metadata,
+                capabilities = UserscriptRuntimeCapabilities.current(),
+            )
+        val blockedReasons =
+            (
+                UserscriptCapabilityRegistry.blockedReasons(metadata.grants) +
+                    worldResolution.blockedReasons
+                ).distinct()
         return UserscriptInstallPreview(
             metadata = metadata,
             rawSource = rawSource,
@@ -104,6 +119,8 @@ internal class UserscriptRepository private constructor(
             knownGrants = knownGrants,
             unknownGrants = unknownGrants,
             blockedReasons = blockedReasons,
+            executionWorld = worldResolution.world,
+            unsafeWindowMode = worldResolution.unsafeWindowMode,
             isUpdate = isUpdate,
             existingScriptId = existingScriptId
         )
@@ -143,6 +160,11 @@ internal class UserscriptRepository private constructor(
         val scriptFile = File(scriptsDir, "$fileStem.user.js")
         scriptFile.parentFile?.mkdirs()
         scriptFile.writeText(preview.rawSource)
+        val installBlockedReasons =
+            UserscriptCompatibilityPolicy.blockedReasons(
+                metadata = preview.metadata,
+                runtimeCapabilities = UserscriptRuntimeCapabilities.current(),
+            )
 
         val entity =
             UserscriptEntity(
@@ -159,7 +181,9 @@ internal class UserscriptRepository private constructor(
                 updateUrl = preview.metadata.updateUrl,
                 runAt = preview.metadata.runAt.rawValue,
                 noFrames = preview.metadata.noFrames,
-                enabled = true,
+                enabled =
+                    installBlockedReasons.isEmpty() &&
+                        (existing?.enabled ?: true),
                 sourceHash = sourceHash,
                 scriptFilePath = scriptFile.absolutePath,
                 installSourceType = preview.sourceType.name,
@@ -226,12 +250,46 @@ internal class UserscriptRepository private constructor(
 
     suspend fun setEnabled(scriptId: Long, enabled: Boolean) {
         val entity = store.getUserscriptById(scriptId) ?: return
+        if (enabled) {
+            val metadata = entityToMetadata(entity)
+            val blockedReasons =
+                UserscriptCompatibilityPolicy.blockedReasons(
+                    metadata = metadata,
+                    runtimeCapabilities = UserscriptRuntimeCapabilities.current(),
+                )
+            if (blockedReasons.isNotEmpty()) {
+                log(
+                    userscriptId = scriptId,
+                    level = "error",
+                    pageUrl = null,
+                    message = "Cannot enable userscript ${entity.name}: ${blockedReasons.joinToString()}",
+                )
+                return
+            }
+        }
         store.updateUserscript(entity.copy(enabled = enabled, updatedAt = System.currentTimeMillis()))
         log(
             userscriptId = scriptId,
             level = "info",
             pageUrl = null,
             message = if (enabled) "Enabled userscript ${entity.name}" else "Disabled userscript ${entity.name}"
+        )
+    }
+
+    suspend fun setUserScriptsAllowed(allowed: Boolean) {
+        if (!store.setUserScriptsAllowed(allowed)) {
+            return
+        }
+        log(
+            userscriptId = null,
+            level = "info",
+            pageUrl = null,
+            message =
+                if (allowed) {
+                    "Allowed userscript execution"
+                } else {
+                    "Revoked userscript execution permission"
+                },
         )
     }
 
@@ -260,7 +318,10 @@ internal class UserscriptRepository private constructor(
     suspend fun buildBootstrapPayload(
         sessionId: String,
         pageUrl: String,
-        isTopFrame: Boolean
+        isTopFrame: Boolean,
+        executionWorld: UserscriptExecutionWorld,
+        runtimeCapabilities: UserscriptRuntimeCapabilities,
+        userscriptId: Long? = null,
     ): UserscriptBootstrapPayload = withContext(Dispatchers.IO) {
         val entities = store.getAllUserscripts()
         if (entities.isEmpty()) {
@@ -269,11 +330,26 @@ internal class UserscriptRepository private constructor(
 
         val matched =
             entities.filter { entity ->
+                if (userscriptId != null && entity.id != userscriptId) {
+                    return@filter false
+                }
                 if (!entity.enabled) {
                     return@filter false
                 }
                 val metadata = entityToMetadata(entity)
-                if (UserscriptCapabilityRegistry.blockedReasons(metadata.grants).isNotEmpty()) {
+                if (
+                    UserscriptCompatibilityPolicy
+                        .blockedReasons(metadata, runtimeCapabilities)
+                        .isNotEmpty()
+                ) {
+                    return@filter false
+                }
+                val worldResolution =
+                    UserscriptExecutionWorldPolicy.resolve(metadata, runtimeCapabilities)
+                if (
+                    worldResolution.world != executionWorld ||
+                        worldResolution.blockedReasons.isNotEmpty()
+                ) {
                     return@filter false
                 }
                 UserscriptMatcher.matches(
@@ -473,7 +549,16 @@ internal class UserscriptRepository private constructor(
     private fun entityToListItem(entity: UserscriptEntity): UserscriptListItem {
         val metadata = entityToMetadata(entity)
         val unknownGrants = UserscriptCapabilityRegistry.unknownGrants(metadata.grants)
-        val blockedReasons = UserscriptCapabilityRegistry.blockedReasons(metadata.grants)
+        val worldResolution =
+            UserscriptExecutionWorldPolicy.resolve(
+                metadata = metadata,
+                capabilities = UserscriptRuntimeCapabilities.current(),
+            )
+        val blockedReasons =
+            (
+                UserscriptCapabilityRegistry.blockedReasons(metadata.grants) +
+                    worldResolution.blockedReasons
+                ).distinct()
         return UserscriptListItem(
             id = entity.id,
             name = entity.name,
@@ -484,6 +569,8 @@ internal class UserscriptRepository private constructor(
             enabled = entity.enabled,
             unknownGrants = unknownGrants,
             blockedReasons = blockedReasons,
+            executionWorld = worldResolution.world,
+            unsafeWindowMode = worldResolution.unsafeWindowMode,
             grants = metadata.grants,
             matches = metadata.matches,
             includes = metadata.includes,
@@ -497,6 +584,7 @@ internal class UserscriptRepository private constructor(
             supportUrl = metadata.supportUrl,
             icons = metadata.icons,
             tags = metadata.tags,
+            injectInto = metadata.injectInto,
             sandbox = metadata.sandbox,
             runIn = metadata.runIn,
             unwrap = metadata.unwrap,

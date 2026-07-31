@@ -18,7 +18,8 @@
 - 阅读模式、标记广告、网站配置和工具箱继续保持空占位
 - 无痕模式复用全屏搜索右上角的真实默认 Profile 切换与短时提示；当前标签 Profile 保持不可变，
   菜单保持显示，不复制旧版共享 Cookie 模式
-- 网页插件入口继续复用现有 userscript owner；不新增第二个插件仓库
+- 网页插件入口已经升级为 Browser Plugin Center；顶层统一投影插件，本轮仍只注册内置 userscript
+  provider，不新增第二个插件仓库
 
 ### 依赖播放器后实现
 
@@ -61,6 +62,37 @@
 - 普通和无痕窗口分别遵守 Profile 生命周期；无痕关闭后不保留站点会话数据
 - AI 操作当前 session 时 UI 状态不分叉
 - Debug APK 与本地门禁通过；提交和推送仅在用户另行授权时执行
+
+## 2026-07-30 Browser Plugin Center 里程碑一
+
+- 浏览器菜单第 1 行第 5 项保持“插件”名称和原图标，点击后进入新的 `PLUGINS` 可拖动子抽屉；
+  未发布的旧 `USERSCRIPTS` UI 路由已删除
+- `BrowserPluginCenterFacade` 是无存储纯投影，首期把现有 userscript manager 映射为不可卸载的内置
+  “油猴脚本”插件，并发布已安装、已启用、本页命中、页面菜单、支持状态和待确认安装
+- 插件中心提供“本页 / 已安装”、搜索、添加和来源快捷弹窗；来源固定为 Greasy Fork、ScriptCat、
+  OpenUserJS、Userscript.Zone 和 GitHub userscript topics，并通过现有 WebSession registry
+  创建前台新标签
+- 宿主增加 `OVERVIEW / USERSCRIPTS` 子页面。菜单进入概览，userscript 链接和安装预览直达管理页；
+  系统 Back 与标题返回先回概览，再关闭下拉抽屉
+- AI ToolPkg、Skill、MCP、工作流和包管理继续属于 AI 产品域；Chrome/Edge 扩展直接安装、通用
+  WebExtension runtime、沉浸式翻译和 AI 自动安装不在本里程碑实现
+- 详细长期分层、安全、AI 创作和扩展兼容合同见
+  [`browser_plugin_platform.md`](../../doc-src/architecture/browser_plugin_platform.md)
+
+## 2026-07-31 用户脚本运行授权与 `unsafeWindow`
+
+- 插件概览卡和油猴脚本管理页共用持久化“允许用户脚本”开关，默认关闭
+- 页面与共享隔离运行时按 WebView 生命周期各注册一次；权限关闭时已安装脚本保留启用意图、状态显示
+  “需要授权”，运行时保持惰性且不返回脚本 payload
+- 权限撤销会清除 token、reply proxy、页面菜单、webRequest，并取消活动 GM 网络请求
+- `auto` 或 `content` 下的 `unsafeWindow + privileged grants` 在共享隔离运行时执行，通过无 native
+  权限的同步页面对象桥访问网页原始 `window`
+- 显式 `@inject-into page + privileged grants` 继续标记不兼容
+- 脚本安装预览和已安装详情显示执行世界、页面 `window` 直连或隔离世界页面对象桥
+- 2026-07-31 vivo Android 16 首轮设备报告出现脚本未命中与 WebView 主进程 SIGSEGV；已修复基础匹配
+  语义和 document-start URL，并把按脚本世界及原生动态重配收敛为单 WebView 单隔离世界
+- 本地 46 项插件/userscript JVM 测试与真实 Chrome 双世界属性、方法、回调、Promise、DOM 节点测试通过；
+  修复版 Android WebView 真机验收仍独立保留
 
 ## 历史抽屉实现合同
 

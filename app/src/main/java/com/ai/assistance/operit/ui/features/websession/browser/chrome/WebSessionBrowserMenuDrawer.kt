@@ -53,7 +53,7 @@ internal fun WebSessionBrowserMenuDrawer(
     onOpenBookmarks: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenDownloads: () -> Unit,
-    onOpenUserscripts: () -> Unit,
+    onOpenPlugins: () -> Unit,
     onOpenFloatingSniffer: () -> Unit,
     onOpenUserAgent: () -> Unit,
     onOpenNetworkLog: () -> Unit,
@@ -136,7 +136,7 @@ internal fun WebSessionBrowserMenuDrawer(
                         MenuAction(stringResource(R.string.web_session_bookmarks), R.drawable.ic_kiyori_tool_bookmarks, onOpenBookmarks, tone = KiyoriSemanticTone.PURPLE),
                         MenuAction(stringResource(R.string.web_session_history), R.drawable.ic_kiyori_tool_history, onOpenHistory, tone = KiyoriSemanticTone.ORANGE),
                         MenuAction(stringResource(R.string.web_session_downloads), R.drawable.ic_kiyori_tool_download, onOpenDownloads, tone = KiyoriSemanticTone.GREEN),
-                        MenuAction(stringResource(R.string.web_session_userscripts), R.drawable.ic_kiyori_tool_plugin, onOpenUserscripts, tone = KiyoriSemanticTone.PURPLE),
+                        MenuAction(stringResource(R.string.web_session_plugins), R.drawable.ic_kiyori_tool_plugin, onOpenPlugins, tone = KiyoriSemanticTone.PURPLE),
                     )
                     MenuRow(
                         MenuAction(stringResource(R.string.web_session_floating_sniffer), R.drawable.ic_kiyori_tool_sniffer, onOpenFloatingSniffer, tone = KiyoriSemanticTone.CYAN),

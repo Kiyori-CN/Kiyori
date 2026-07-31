@@ -72,6 +72,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginPage
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
@@ -155,11 +156,12 @@ internal fun WebSessionBrowserScreen(
     onCopyCurrentUrl: () -> Unit,
     onOpenPageSource: () -> Unit,
     onCopyPageSource: () -> Unit,
-    onOpenUserscripts: () -> Unit,
+    onOpenPlugins: () -> Unit,
     onImportUserscript: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
     onConfirmUserscriptInstall: () -> Unit,
     onCancelUserscriptInstall: () -> Unit,
+    onSetUserScriptsAllowed: (Boolean) -> Unit,
     onSetUserscriptEnabled: (Long, Boolean) -> Unit,
     onDeleteUserscript: (Long) -> Unit,
     onCheckUserscriptUpdate: (Long) -> Unit,
@@ -247,6 +249,7 @@ internal fun WebSessionBrowserScreen(
         onHostStateChange { current ->
             current.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                pluginPage = WebSessionBrowserPluginPage.OVERVIEW,
                 placeholderPage = null,
             )
         }
@@ -775,9 +778,14 @@ internal fun WebSessionBrowserScreen(
                     onOpenBookmarks = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.BOOKMARKS) } },
                     onOpenHistory = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.HISTORY) } },
                     onOpenDownloads = { onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.DOWNLOADS) } },
-                    onOpenUserscripts = {
-                        onHostStateChange { it.copy(sheetRoute = WebSessionBrowserSheetRoute.USERSCRIPTS) }
-                        onOpenUserscripts()
+                    onOpenPlugins = {
+                        onHostStateChange {
+                            it.copy(
+                                sheetRoute = WebSessionBrowserSheetRoute.PLUGINS,
+                                pluginPage = WebSessionBrowserPluginPage.OVERVIEW,
+                            )
+                        }
+                        onOpenPlugins()
                     },
                     onOpenFloatingSniffer = {
                         onHostStateChange {
@@ -861,11 +869,11 @@ internal fun WebSessionBrowserScreen(
                             onCopyPageSource = onCopyPageSource,
                             onHostStateChange = onHostStateChange,
                             hostState = hostState,
-                            onOpenUserscripts = onOpenUserscripts,
                             onImportUserscript = onImportUserscript,
                             onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
                             onConfirmUserscriptInstall = onConfirmUserscriptInstall,
                             onCancelUserscriptInstall = onCancelUserscriptInstall,
+                            onSetUserScriptsAllowed = onSetUserScriptsAllowed,
                             onSetUserscriptEnabled = onSetUserscriptEnabled,
                             onDeleteUserscript = onDeleteUserscript,
                             onCheckUserscriptUpdate = onCheckUserscriptUpdate,
@@ -1131,11 +1139,11 @@ private fun WebSessionBrowserDrawerContent(
     onCopyPageSource: () -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
     hostState: WebSessionBrowserHostState,
-    onOpenUserscripts: () -> Unit,
     onImportUserscript: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
     onConfirmUserscriptInstall: () -> Unit,
     onCancelUserscriptInstall: () -> Unit,
+    onSetUserScriptsAllowed: (Boolean) -> Unit,
     onSetUserscriptEnabled: (Long, Boolean) -> Unit,
     onDeleteUserscript: (Long) -> Unit,
     onCheckUserscriptUpdate: (Long) -> Unit,
@@ -1212,18 +1220,34 @@ private fun WebSessionBrowserDrawerContent(
                 modifier = Modifier.fillMaxSize(),
             )
 
-        WebSessionBrowserSheetRoute.USERSCRIPTS ->
-            WebSessionUserscriptSheet(
-                state = userscriptUiState,
+        WebSessionBrowserSheetRoute.PLUGINS ->
+            WebSessionBrowserPluginSheet(
+                page = hostState.pluginPage,
+                userscriptState = userscriptUiState,
                 currentPageMenuCommands = browserState.userscriptMenuCommands,
-                onInstallFromUrl = onInstallUserscriptFromUrl,
-                onImportLocal = onImportUserscript,
-                onConfirmInstall = onConfirmUserscriptInstall,
-                onCancelInstall = onCancelUserscriptInstall,
-                onSetScriptEnabled = onSetUserscriptEnabled,
-                onDeleteScript = onDeleteUserscript,
-                onCheckUpdate = onCheckUserscriptUpdate,
-                onInvokeMenuCommand = onInvokeUserscriptMenu,
+                onOpenUserscriptManager = {
+                    onHostStateChange { current ->
+                        current.copy(pluginPage = WebSessionBrowserPluginPage.USERSCRIPTS)
+                    }
+                },
+                onOpenPluginLibrarySource = { url ->
+                    onOpenBookmarkInTab(url, true)
+                    onDismiss()
+                },
+                onNavigateToOverview = {
+                    onHostStateChange { current ->
+                        current.copy(pluginPage = WebSessionBrowserPluginPage.OVERVIEW)
+                    }
+                },
+                onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
+                onImportUserscript = onImportUserscript,
+                onConfirmUserscriptInstall = onConfirmUserscriptInstall,
+                onCancelUserscriptInstall = onCancelUserscriptInstall,
+                onSetUserScriptsAllowed = onSetUserScriptsAllowed,
+                onSetUserscriptEnabled = onSetUserscriptEnabled,
+                onDeleteUserscript = onDeleteUserscript,
+                onCheckUserscriptUpdate = onCheckUserscriptUpdate,
+                onInvokeUserscriptMenu = onInvokeUserscriptMenu,
                 modifier = Modifier.fillMaxSize(),
             )
 

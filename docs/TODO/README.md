@@ -4,6 +4,104 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-31 用户脚本运行授权、`unsafeWindow` 特权兼容与插件搜索
+
+本轮继续开发浏览器下拉抽屉“插件”按钮内的 Browser Plugin Center，不涉及 AI 对话页 ToolPkg、
+Skill、MCP 或包管理。阻塞
+`unsafeWindow cannot be combined with privileged grants in the current runtime`
+来自旧执行世界策略：特权 grant 必须留在隔离世界，而旧 bootstrap 只能把当前世界的 `window` 传给
+`unsafeWindow`，所以策略直接拒绝两者组合。
+
+本轮完成：
+
+1. [DONE] 在现有 userscript registry 中增加持久化“允许用户脚本”总授权，默认关闭，不建立第二状态源
+2. [DONE] 插件概览卡与油猴管理页共用同一授权开关；权限关闭时脚本显示“需要授权”，不误报“不兼容”
+3. [DONE] 页面与共享隔离运行时按 WebView 生命周期各注册一次；权限关闭时运行时保持惰性、不返回脚本
+   payload，并撤销 token、reply proxy、页面菜单、webRequest 与活动 GM 网络请求
+4. [DONE] `auto / content` 下的 `unsafeWindow + privileged grants` 保持隔离执行，通过同步
+   页面对象桥访问网页原始 `window`
+5. [DONE] 页面对象桥不包含 native bridge、authorization token 或 GM 方法；页面只能观察或影响
+   `unsafeWindow` 自身的网页对象操作
+6. [DONE] 页面对象桥支持属性读写、方法、构造、回调、Promise、`fetch / Response`、普通对象、
+   DOM 节点、`in` 与删除，并限制单次请求/响应和单文档引用数量
+7. [DONE] 显式 `@inject-into page + privileged grants` 继续判定不兼容
+8. [DONE] 安装预览和脚本详情显示页面世界、隔离世界、页面直连或隔离页面对象桥
+9. [DONE] 插件中心搜索同时命中内部脚本；油猴管理页本地搜索覆盖名称、命名空间、描述、来源、
+   grant、匹配网站、`@connect` 和标签
+10. [DONE] 七语种 UI 文案、正式架构、`CONTEXT.md`、根 `README.md` 和浏览器 TODO 同步完成
+11. [DONE] 处理 2026-07-31 vivo Android 16 设备报告：移除按脚本创建世界及权限/列表变化时的原生
+    handler/listener 动态拆装，收敛为单 WebView 单隔离世界；WebView 关闭时由紧邻的 `destroy()` 退休注册
+12. [DONE] 修复“未命中”：无 `@match/@include` 时按全页面匹配，支持正则 include/exclude，
+    `@match` 忽略 query/fragment，document-start 使用当前文档 URL 并校验页面世界 `sourceOrigin`
+13. [PENDING] 使用修复版 APK 在 Android System WebView 真机验证脚本命中、连续导航、授权启停、
+    `unsafeWindow` 跨 world DOM 事件、iframe 和目标 userscript 不再触发主进程 SIGSEGV
+
+本地验证证据：
+
+- 插件/userscript 定向 JVM 测试 `46/46`，零失败、零错误、零跳过
+- 真实 Chrome main world / isolated world 测试通过属性、方法接收者、回调、Promise、
+  `fetch / Response`、DOM 参数与返回对象、构造、删除及临时 DOM 标记清理
+- formal readiness、7 份本地化 XML 与 16 个新增键、34 个 Markdown 相对链接、
+  旧阻塞字符串在运行时代码中零引用、页面对象桥敏感能力零引用和 `git diff --check` 均通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 完成 233 个任务，
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-31 14:01:09 +08:00`，大小 `494083710` 字节，SHA-256
+  `21917BD1C1CF80E1B00128A621DABE6CDB9110B56067C6B29331C0F3EA29E90D`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、compile 36；Android Debug V2
+  签名通过，`zipalign -c -P 16 -v 4` 为 `Verification successful`
+
+## 2026-07-30 浏览器插件中心与内置油猴脚本里程碑一
+
+本轮正式启动浏览器下拉抽屉菜单“插件”按钮对应的 Browser Plugin Center。它属于浏览器产品域，
+不连接 AI 对话页的 ToolPkg、Skill、MCP、工作流或包管理。完整长期合同见
+[`browser_plugin_platform.md`](../doc-src/architecture/browser_plugin_platform.md)。
+后续 Phase 0 至 Phase 8 的详细任务、顺序和独立验收门禁见
+[`browser_plugin_platform/`](browser_plugin_platform/index.md)。
+
+Kiyori 与该入口尚未发布，因此直接清理旧 `USERSCRIPTS` UI 路由；已安装 userscript、仓库、
+运行状态和日志继续由现有 `UserscriptRepository` 与 `WebSessionUserscriptManager` 唯一持有，
+不得迁移、复制或清空。
+
+里程碑一实施与验收门禁：
+
+1. [DONE] 审计 Kiyori 浏览器抽屉、Back 状态机、userscript manager、安装预览和共享
+   `StandardBrowserSessionTools` 调用链
+2. [DONE] 只读参考 `D:\10_Project\hikerView` 的统一列表、编辑入口和页面生命周期注入原则，
+   不复刻缺失 `JSManager`、旧 Activity 或事件总线
+3. [DONE] 固化插件、userscript、未来原生插件、WebExtension 与 AI ToolPkg 的产品和运行时边界
+4. [DONE] 固化 AI 生成脚本/插件的草稿、检查、权限审查、用户确认和安装事务
+5. [DONE] 新增统一 Browser Plugin 模型与纯投影 facade，不建立第二插件仓库
+6. [DONE] 把浏览器抽屉 `USERSCRIPTS` 路由替换为 `PLUGINS`
+7. [DONE] 增加 `OVERVIEW / USERSCRIPTS` 子页面，菜单进入概览，脚本安装预览直达管理页
+8. [DONE] 建立“本页 / 已安装”、搜索、添加和内置“油猴脚本”插件卡
+9. [DONE] 增加经过核实的 Greasy Fork、ScriptCat、OpenUserJS、Userscript.Zone 和 GitHub
+   userscript 来源快捷弹窗，在共享 Browser Runtime 新标签打开
+10. [DONE] 系统 Back 与标题返回从油猴脚本子页先回插件概览，再关闭下拉抽屉
+11. [DONE] 补充插件投影、当前页统计、路由和 Back 策略测试
+12. [DONE] 更新 `CONTEXT.md`、根 `README.md` 和浏览器能力资料
+13. [DONE] formal readiness、5 项定向测试、7 份 strings 解析、旧路由零引用、
+   `git diff --check` 和 Debug APK 构建核验均通过
+14. [PENDING] 目标设备验收抽屉拖动、窄屏布局、来源弹窗、新标签跳转、安装预览和返回手势
+
+本轮明确不实现通用 WebExtension runtime、CRX/Edge 扩展直接安装、沉浸式翻译移植、原生插件包协议、
+AI 自动安装或 userscript 数据/注入引擎重写。
+
+本地验证证据：
+
+- `BrowserPluginCenterFacadeTest`、`WebSessionBrowserBackPolicyTest` 和
+  `WebSessionBrowserUserAgentRoutingTest` 合计 `5/5`，零失败、零错误、零跳过
+- 7 份 `strings.xml` 均可解析，新插件文案键完整且无重复；旧
+  `WebSessionBrowserSheetRoute.USERSCRIPTS`、`onOpenUserscripts` 和
+  `openUserscriptSheetOnMain` 引用为零
+- formal readiness 与 `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 完成 `233` 个任务、
+  零失败，`:app:verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `482641438` 字节，
+  SHA-256 `F69E8FFB6B9EB5E926F7A0EA9BBA43619D7503B87A30B58F8C8468707B283CEC`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34；Android Debug V2 签名和
+  `zipalign -c -P 16 -v 4` 通过
+
 ## 2026-07-30 浏览器统一历史下拉抽屉与负一屏入口
 
 本轮继续使用

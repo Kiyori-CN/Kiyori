@@ -43,9 +43,9 @@ internal class UserscriptCookieService(
 
     fun list(
         details: JSONObject,
-        fallbackUrl: String
+        pageUrl: String
     ): List<UserscriptCookieRecord> {
-        val targetUrl = details.optString("url").ifBlank { fallbackUrl }
+        val targetUrl = details.optString("url").ifBlank { pageUrl }
         val targetUri = runCatching { URI(targetUrl) }.getOrNull()
         val targetHost = targetUri?.host?.lowercase(Locale.ROOT)
         val targetPath = targetUri?.path?.ifBlank { "/" } ?: "/"
@@ -99,9 +99,9 @@ internal class UserscriptCookieService(
 
     fun set(
         details: JSONObject,
-        fallbackUrl: String
+        pageUrl: String
     ): UserscriptCookieRecord {
-        val targetUrl = details.optString("url").ifBlank { fallbackUrl }
+        val targetUrl = details.optString("url").ifBlank { pageUrl }
         val targetUri = runCatching { URI(targetUrl) }.getOrNull()
         val name = details.optString("name").trim()
         require(name.isNotBlank()) { "GM_cookie.set requires name" }
@@ -156,9 +156,9 @@ internal class UserscriptCookieService(
 
     fun delete(
         details: JSONObject,
-        fallbackUrl: String
+        pageUrl: String
     ): Boolean {
-        val targetUrl = details.optString("url").ifBlank { fallbackUrl }
+        val targetUrl = details.optString("url").ifBlank { pageUrl }
         val targetUri = runCatching { URI(targetUrl) }.getOrNull()
         val name = details.optString("name").trim()
         require(name.isNotBlank()) { "GM_cookie.delete requires name" }

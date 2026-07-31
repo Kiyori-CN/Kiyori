@@ -5,13 +5,49 @@ import kotlinx.serialization.Serializable
 internal enum class UserscriptRunAt(val rawValue: String) {
     DOCUMENT_START("document-start"),
     DOCUMENT_END("document-end"),
-    DOCUMENT_IDLE("document-idle");
+    DOCUMENT_IDLE("document-idle"),
+    UNSUPPORTED("unsupported");
 
     companion object {
-        fun fromRaw(raw: String?): UserscriptRunAt =
-            entries.firstOrNull { it.rawValue.equals(raw?.trim(), ignoreCase = true) }
-                ?: DOCUMENT_END
+        fun fromRaw(raw: String?): UserscriptRunAt {
+            val normalized = raw?.trim().orEmpty()
+            if (normalized.isBlank()) {
+                return DOCUMENT_END
+            }
+            return entries.firstOrNull { it.rawValue.equals(normalized, ignoreCase = true) }
+                ?: UNSUPPORTED
+        }
     }
+}
+
+@Serializable
+internal enum class UserscriptInjectInto(val rawValue: String) {
+    AUTO("auto"),
+    CONTENT("content"),
+    PAGE("page"),
+    UNSUPPORTED("unsupported");
+
+    companion object {
+        fun fromRaw(raw: String?): UserscriptInjectInto {
+            val normalized = raw?.trim().orEmpty()
+            if (normalized.isBlank()) {
+                return AUTO
+            }
+            return entries.firstOrNull { it.rawValue.equals(normalized, ignoreCase = true) }
+                ?: UNSUPPORTED
+        }
+    }
+}
+
+internal enum class UserscriptExecutionWorld {
+    PAGE,
+    ISOLATED,
+}
+
+internal enum class UserscriptUnsafeWindowMode {
+    NONE,
+    DIRECT_PAGE,
+    ISOLATED_PAGE_BRIDGE,
 }
 
 internal enum class UserscriptInstallSourceType {
@@ -69,6 +105,7 @@ internal data class ParsedUserscriptMetadata(
     val resources: List<UserscriptResourceEntry> = emptyList(),
     val icons: UserscriptIconSet = UserscriptIconSet(),
     val tags: List<String> = emptyList(),
+    val injectInto: UserscriptInjectInto = UserscriptInjectInto.AUTO,
     val sandbox: String? = null,
     val runIn: String? = null,
     val unwrap: Boolean = false,
@@ -87,6 +124,8 @@ internal data class UserscriptInstallPreview(
     val knownGrants: List<String> = emptyList(),
     val unknownGrants: List<String> = emptyList(),
     val blockedReasons: List<String> = emptyList(),
+    val executionWorld: UserscriptExecutionWorld? = null,
+    val unsafeWindowMode: UserscriptUnsafeWindowMode = UserscriptUnsafeWindowMode.NONE,
     val isUpdate: Boolean = false,
     val existingScriptId: Long? = null
 )
@@ -111,7 +150,8 @@ internal data class UserscriptExecutionPayload(
     val code: String,
     val requires: List<String>,
     val values: Map<String, String>,
-    val resources: Map<String, UserscriptResourcePayload>
+    val resources: Map<String, UserscriptResourcePayload>,
+    val authorizationToken: String = "",
 )
 
 @Serializable
@@ -130,6 +170,8 @@ internal data class UserscriptListItem(
     val enabled: Boolean,
     val unknownGrants: List<String>,
     val blockedReasons: List<String>,
+    val executionWorld: UserscriptExecutionWorld?,
+    val unsafeWindowMode: UserscriptUnsafeWindowMode,
     val grants: List<String>,
     val matches: List<String>,
     val includes: List<String>,
@@ -143,6 +185,7 @@ internal data class UserscriptListItem(
     val supportUrl: String?,
     val icons: UserscriptIconSet,
     val tags: List<String>,
+    val injectInto: UserscriptInjectInto,
     val sandbox: String?,
     val runIn: String?,
     val unwrap: Boolean,
@@ -166,7 +209,8 @@ internal data class UserscriptLogItem(
 internal data class UserscriptPageMenuCommand(
     val commandId: String,
     val title: String,
-    val userscriptId: Long
+    val userscriptId: Long,
+    val runtimeCommandId: String = commandId,
 )
 
 internal data class UserscriptSupportState(
@@ -176,6 +220,7 @@ internal data class UserscriptSupportState(
 
 internal enum class UserscriptPageRuntimeState {
     DISABLED,
+    PERMISSION_REQUIRED,
     UNSUPPORTED,
     NOT_MATCHED,
     QUEUED,

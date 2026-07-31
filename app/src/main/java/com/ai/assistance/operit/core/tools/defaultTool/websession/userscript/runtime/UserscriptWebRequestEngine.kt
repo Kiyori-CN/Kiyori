@@ -69,11 +69,28 @@ internal class UserscriptWebRequestEngine {
         return registrationId
     }
 
-    fun unregister(registrationId: String): Boolean =
-        registrations.remove(registrationId) != null
+    fun unregister(
+        registrationId: String,
+        scriptId: Long,
+    ): Boolean {
+        val registration = registrations[registrationId] ?: return false
+        if (registration.scriptId != scriptId) {
+            return false
+        }
+        return registrations.remove(registrationId, registration)
+    }
 
     fun clearSession(sessionId: String) {
         registrations.entries.removeIf { it.value.sessionId == sessionId }
+    }
+
+    fun clearScript(
+        sessionId: String,
+        scriptId: Long,
+    ) {
+        registrations.entries.removeIf {
+            it.value.sessionId == sessionId && it.value.scriptId == scriptId
+        }
     }
 
     fun resolve(

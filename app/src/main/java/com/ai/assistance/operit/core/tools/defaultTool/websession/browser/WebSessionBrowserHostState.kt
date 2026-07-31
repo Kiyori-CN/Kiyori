@@ -12,12 +12,17 @@ internal enum class WebSessionBrowserSheetRoute {
     DOWNLOADS,
     HISTORY,
     BOOKMARKS,
-    USERSCRIPTS,
+    PLUGINS,
     USER_AGENT,
     NETWORK_LOG,
     MEDIA_CANDIDATES,
     PAGE_SOURCE,
     PLACEHOLDER,
+}
+
+internal enum class WebSessionBrowserPluginPage {
+    OVERVIEW,
+    USERSCRIPTS,
 }
 
 internal enum class WebSessionBrowserPlaceholderPage {
@@ -178,6 +183,7 @@ internal data class BrowserDownloadPromptState(
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
+    val pluginPage: WebSessionBrowserPluginPage = WebSessionBrowserPluginPage.OVERVIEW,
     val selectedProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
     val isSearchVisible: Boolean = false,
@@ -201,6 +207,7 @@ internal enum class WebSessionBrowserBackAction {
     DISMISS_TEXT_SELECTION,
     DISMISS_PENDING_DIALOG,
     CANCEL_DOWNLOAD_PROMPT,
+    SHOW_PLUGIN_OVERVIEW,
     CLOSE_SHEET,
     CLOSE_SEARCH_ENGINE_PANEL,
     CLOSE_SEARCH,
@@ -218,6 +225,9 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.DISMISS_PENDING_DIALOG
         state.downloadPrompt != null ->
             WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT
+        state.sheetRoute == WebSessionBrowserSheetRoute.PLUGINS &&
+            state.pluginPage == WebSessionBrowserPluginPage.USERSCRIPTS ->
+            WebSessionBrowserBackAction.SHOW_PLUGIN_OVERVIEW
         state.sheetRoute != WebSessionBrowserSheetRoute.NONE ->
             WebSessionBrowserBackAction.CLOSE_SHEET
         state.isSearchEnginePanelVisible ->
