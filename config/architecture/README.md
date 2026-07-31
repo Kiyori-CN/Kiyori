@@ -27,9 +27,10 @@ state.
 - `persistence-api-calls.txt` records every DataStore, SharedPreferences, Room,
   and WorkManager unique-work contract call with its source path, API, selected
   argument, and exact multiplicity. Formatting and comments do not affect it;
-  aliases or direct imports that could bypass extraction are rejected.
+  aliases or direct imports that could bypass extraction are rejected. A new
+  persistence creation API must first gain an explicit extractor and snapshot.
 - `native-ipc-identifiers.txt` records exact native/JNI/AIDL package, exported
-  JNI symbol, and library identifiers with exact counts.
+  JNI symbol, and every `System.loadLibrary` identifier with exact counts.
 - `critical-file-hashes.txt` pins the complete bytes of AIDL contracts, Room
   schema/entity sources, ObjectBox UID/path contracts, persisted WorkManager
   worker/scheduler entrypoints, and backup/restore implementations after

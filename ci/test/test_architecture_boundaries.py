@@ -438,6 +438,25 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "persistence API import bypass"):
                 persistence_api_records(root)
 
+    def test_unreviewed_persistence_api_requires_an_extractor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/java/com/example/Store.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "val store = PreferenceDataStoreFactory.create(\n"
+                '    produceFile = { context.dataStoreFile("hidden_store") },\n'
+                ")\n",
+                encoding="utf-8",
+            )
+            git(root, "add", "app/src/main/java/com/example/Store.kt")
+            with self.assertRaisesRegex(
+                ValueError,
+                "unreviewed persistence API requires a contract extractor",
+            ):
+                persistence_api_records(root)
+
     def test_repository_text_excludes_git_ignored_dependency_trees(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

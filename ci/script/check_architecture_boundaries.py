@@ -93,8 +93,23 @@ PERSISTENCE_CALL_PATTERN = re.compile(
 PERSISTENCE_BYPASS_IMPORT_PATTERN = re.compile(
     r"^\s*import\s+(?:static\s+)?(?:"
     r"androidx\.room\.Room\.databaseBuilder"
-    r"|androidx\.datastore\.preferences\.preferencesDataStore\s+as\s+[A-Za-z_][A-Za-z0-9_]*"
+    r"|androidx\.datastore\.preferences\.preferencesDataStore\s+as\s+\S+"
     r")"
+)
+UNREVIEWED_PERSISTENCE_CALL_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_])(?:"
+    r"PreferenceManager\.getDefaultSharedPreferences"
+    r"|DataStoreFactory\.create"
+    r"|PreferenceDataStoreFactory\.create"
+    r"|Room\.inMemoryDatabaseBuilder"
+    r"|SQLiteDatabase\.openDatabase"
+    r"|createDataStore"
+    r"|getPreferences"
+    r"|openOrCreateDatabase"
+    r")\s*\("
+)
+UNREVIEWED_PERSISTENCE_IMPORT_PATTERN = re.compile(
+    r"^\s*import\s+androidx\.datastore\.dataStore(?:\s+as\s+\S+)?"
 )
 
 
@@ -481,6 +496,18 @@ def persistence_api_records(root: Path) -> Counter[str]:
                     "persistence API import bypass is not allowed: "
                     f"{relative_path.as_posix()}:{line_number}"
                 )
+            if UNREVIEWED_PERSISTENCE_IMPORT_PATTERN.match(line):
+                raise ValueError(
+                    "unreviewed persistence API requires a contract extractor: "
+                    f"{relative_path.as_posix()}:{line_number}"
+                )
+        unreviewed_match = UNREVIEWED_PERSISTENCE_CALL_PATTERN.search(mask)
+        if unreviewed_match:
+            line_number = mask.count("\n", 0, unreviewed_match.start()) + 1
+            raise ValueError(
+                "unreviewed persistence API requires a contract extractor: "
+                f"{relative_path.as_posix()}:{line_number}"
+            )
         for match in PERSISTENCE_CALL_PATTERN.finditer(mask):
             call_name = match.group(1)
             open_index = mask.find("(", match.start(), match.end())

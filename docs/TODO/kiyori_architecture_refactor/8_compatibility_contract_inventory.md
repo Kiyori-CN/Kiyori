@@ -119,7 +119,9 @@ ${type.wireValue}_publish_draft
 防止移动过程中静默复制第二个 owner。`persistence-api-calls.txt` 还保存每个 DataStore、
 SharedPreferences、Room 和 WorkManager unique-work 调用的源码路径、API、合同参数与
 重复次数；新增调用点、删除调用点、改名或把调用迁移到另一文件都会触发 ARCH009，
-而排版和注释变化不会触发。
+而排版和注释变化不会触发。`DataStoreFactory`、`PreferenceDataStoreFactory`、默认
+SharedPreferences、原生 SQLite 等尚无当前调用面的持久化创建 API 会直接失败；必须先
+补充提取规则、快照、数据兼容设计和负向测试，不能借另一套 API 绕过门禁。
 
 同一 snapshot 还固定：
 
@@ -347,8 +349,9 @@ com.ai.assistance.operit.provider
 - `NativeXmlSplitter`
 - `ToolPkgWasmNative`
 
-8 个完整 JNI 导出符号及 `streamnative`、`toolpkgwasm`、`operit_ripgrep` 的
-`System.loadLibrary` 调用都已按精确出现次数进入 `native-ipc-identifiers.txt`；仅保持
+8 个完整 JNI 导出符号，以及 `sherpa-ncnn-jni`、`sherpa-mnn-jni`、`streamnative`、
+`toolpkgwasm`、`operit_ripgrep` 的全部 8 个 `System.loadLibrary` 调用都已按精确出现次数
+进入 `native-ipc-identifiers.txt`；仅保持
 `Java_com_ai_assistance_operit_` 前缀数量不变但替换类名或方法名同样会失败。
 
 `NativeRipgrep` 使用 `liboperit_ripgrep.so`。除非单独迁移到显式 `RegisterNatives` 并完成 APK/native

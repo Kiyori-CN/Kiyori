@@ -188,7 +188,7 @@ G-00 应复用
 - `:app:compileDebugKotlin` 通过
 - 3 组启动/App Shell 定向测试通过
 - 完整 `:app:testDebugUnitTest`：`771` 项，`0` failure、`0` error、`0` skipped
-- formal readiness、99 项 CI 门禁测试、lint baseline checksum 和 M-01 architecture gate 通过
+- formal readiness、100 项 CI 门禁测试、lint baseline checksum 和 M-01 architecture gate 通过
 - `:app:assembleDebug` 通过，player native packaging gate 通过
 - APK 为 `com.kiyori`、versionCode `45`、versionName `0.1.0`、`arm64-v8a`，
   v2 签名与 16 KB zipalign 通过

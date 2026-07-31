@@ -10,6 +10,9 @@
 1	Java_com_ai_assistance_operit_util_ToolPkgWasmNative_load
 1	Java_com_ai_assistance_operit_util_ToolPkgWasmNative_call
 1	Java_com_ai_assistance_operit_util_ToolPkgWasmNative_close
+8	System.loadLibrary(
+1	System.loadLibrary("sherpa-ncnn-jni")
+3	System.loadLibrary("sherpa-mnn-jni")
 2	System.loadLibrary("streamnative")
 1	System.loadLibrary("toolpkgwasm")
 1	System.loadLibrary("operit_ripgrep")

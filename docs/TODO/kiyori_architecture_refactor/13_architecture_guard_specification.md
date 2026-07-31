@@ -146,7 +146,8 @@ worker/scheduler 与备份/恢复实现
 `persistence-api-calls.txt` 同时固定 65 个持久化 API 调用记录，扫描时忽略源码字符串、
 注释和排版差异，保存文件路径、API、目标参数与重复次数，防止只新增新名称而旧字面量
 计数不变时绕过 ARCH009；`preferencesDataStore` alias 和 `Room.databaseBuilder` 直接导入
-会被拒绝，避免改写调用名绕过扫描。
+会被拒绝，避免改写调用名绕过扫描；尚未建模的 DataStore/default SharedPreferences/
+SQLite 创建 API 也会失败，必须先增加提取器和合同设计。
 
 snapshot 更新要求：
 
@@ -236,11 +237,12 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：33 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
+- 架构专测试：34 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
   Git ignored dependency tree、Java static import、重复 Manifest component 和关键文件
   hash drift、完整 Manifest 语义漂移、JNI 完整符号替换、新持久化调用识别，
-  持久化 alias 绕过拒绝、vendored 反向依赖拒绝，以及 feature/Operit 双向依赖拒绝场景
-- 全量 `ci/test`：99 项通过
+  未建模持久化 API 拒绝、持久化 alias 绕过拒绝、vendored 反向依赖拒绝，
+  以及 feature/Operit 双向依赖拒绝场景
+- 全量 `ci/test`：100 项通过
 - 当前工作树架构检查：`phase=post-m01` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS
