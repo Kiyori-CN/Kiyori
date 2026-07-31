@@ -40,13 +40,14 @@ Operit 标识用于准确表达 AI 子系统来源、外部生态或运行时兼
 - 不推送远端
 - 备份范围是 `D:\10_Project\Kiyori` 当前仓库、本地未提交文件、必要私有开发配置和基线 APK
 - 不连接或操作手机、模拟器、ADB，也不把应用运行数据作为本轮源码重构前置条件
-- 当前阶段只落方案；未经再次批准不修改业务源码
+- 方案阶段已结束；当前已按批准范围完成 M-00、G-00 与 M-01，M-02 及后续源码迁移仍需单独规划和授权
 
 ## 现状证据
 
-源码基线为 `main@62464b05`，与 `origin/main` 一致。当前工作树只包含本方案文档差异；
-业务源码没有改动。`terminal` gitlink 干净，`tools/hotbuild/OperitNightlyRelease`
-保持未初始化状态。
+实施前源码基线为 `main@62464b05`，与 `origin/main` 一致；当前 `main` 已通过已审计的本地
+里程碑提交向前推进，`origin/main` 仍未改变且没有执行推送。M-01 只在原包内完成
+`OperitApplication -> KiyoriApplication` 纯改名，G-00 与后续加固门禁、测试和恢复证据已落地。
+`terminal` gitlink 始终为 `8d5c2c22`，`tools/hotbuild/OperitNightlyRelease` 始终保持未初始化状态。
 
 主应用在 `com.ai.assistance.operit` 下约有 1146 个 Kotlin/Java 文件，一级分布为：
 
@@ -134,13 +135,13 @@ app/src/main/java/
 ## 与现有正式架构文档的关系
 
 当前 [Kiyori 产品壳与导航架构](../../doc-src/architecture/kiyori_product_shell_and_navigation.md)
-和 Browser TODO 仍把长期 Browser 目录写在 `com.ai.assistance.operit` 下。本方案在
-`ready_for_approval` 阶段不替代它们。
+和 Browser TODO 仍把长期 Browser 目录写在 `com.ai.assistance.operit` 下。方案在
+`ready_for_approval` 阶段不替代它们；本轮实施也没有移动 Browser、Player 或设置源码。
 
-如果用户批准本方案 v3，第一项仓库变更是同步更新 `CONTEXT.md`、正式架构文档和相关 Browser /
-Player TODO 的目录归属，然后才开始源码迁移。已有行为合同继续有效，包括单一 Browser Runtime、
-单一 PlayerSession、人工 UI 与 AI 共用状态、无第二数据 owner，以及现有 Back、presentation
-和 Surface lease 规则。
+方案批准后的第一阶段已完成权威文档同步、G-00 门禁和 M-01 原包改名；下一源码里程碑前仍需
+按本方案更新对应 Browser / Player TODO 的当前所有权记录。已有行为合同继续有效，包括单一
+Browser Runtime、单一 PlayerSession、人工 UI 与 AI 共用状态、无第二数据 owner，以及现有
+Back、presentation 和 Surface lease 规则。
 
 `refactor_building_sys` 中的 Feature 模块隔离仍是独立草稿。本方案只规定先消除包级依赖环，
 不把该草稿中的 Gradle 模块拆分视为已批准工作。
