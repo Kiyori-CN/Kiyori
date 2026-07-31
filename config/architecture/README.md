@@ -58,9 +58,11 @@ Run the same checker locally and in CI:
 ```
 
 The checker is read-only. It rejects unmanaged source files, package/path
-mismatches, forbidden or out-of-layer imports, Manifest drift, stable-contract
-count or critical-file hash drift, tracked private/build artifacts, terminal
-changes, and M-01 changes outside its exact candidate manifest.
+mismatches, forbidden or out-of-layer imports and fully qualified project
+references, Manifest drift, stable-contract count or critical-file hash drift,
+tracked private/build artifacts, terminal changes, and M-01 changes outside its
+exact candidate manifest. Dependency extraction masks comments and string
+literals, and it does not treat package declarations as dependency edges.
 
 ## Exceptions
 

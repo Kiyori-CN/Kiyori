@@ -29,6 +29,11 @@ PROJECT_IMPORT_ROOTS = (
     "com.ai.assistance.operit",
     "com.kiyori",
 )
+PROJECT_REFERENCE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_])"
+    r"((?:com\.ai\.assistance\.operit|com\.kiyori)"
+    r"(?:\.[A-Za-z_][A-Za-z0-9_]*)+)"
+)
 TEXT_SUFFIXES = {
     ".aidl",
     ".cpp",
@@ -154,6 +159,28 @@ def source_imports(path: Path) -> list[tuple[int, str]]:
         if match:
             imports.append((line_number, match.group(1)))
     return imports
+
+
+def source_dependency_edges(path: Path) -> list[tuple[int, str, str]]:
+    text = path.read_text(encoding="utf-8")
+    edges = [
+        (line_number, imported, "import")
+        for line_number, imported in source_imports(path)
+    ]
+    seen = set(edges)
+    mask = source_code_mask(text)
+    for line_number, line in enumerate(mask.splitlines(), start=1):
+        # Imports already produce one dependency edge above. Package declarations
+        # describe the current source rather than a dependency. Skipping both also
+        # prevents a fully qualified matcher from duplicating their diagnostics.
+        if re.match(r"^\s*(?:package|import)\b", line):
+            continue
+        for match in PROJECT_REFERENCE_PATTERN.finditer(line):
+            edge = (line_number, match.group(1), "fully-qualified reference")
+            if edge not in seen:
+                edges.append(edge)
+                seen.add(edge)
+    return edges
 
 
 def source_package(path: Path) -> str | None:
@@ -699,7 +726,7 @@ def check_ownership(root: Path, ownership_path: Path, errors: list[str]) -> None
         raw_forbidden = record.get("forbidden_import_roots", [])
         allowed = tuple(value for value in raw_allowed if isinstance(value, str))
         forbidden = tuple(value for value in raw_forbidden if isinstance(value, str))
-        for line_number, imported in source_imports(root / path):
+        for line_number, imported, reference_kind in source_dependency_edges(root / path):
             forbidden_match = next(
                 (value for value in forbidden if import_matches_root(imported, value)),
                 None,
@@ -709,7 +736,8 @@ def check_ownership(root: Path, ownership_path: Path, errors: list[str]) -> None
                 add_violation(
                     rule,
                     path,
-                    f"forbidden import: {path}:{line_number} imports {imported} from {identifier}",
+                    f"forbidden {reference_kind}: {path}:{line_number} "
+                    f"references {imported} from {identifier}",
                 )
                 continue
             if allowed and is_project_import(imported) and not any(
@@ -719,8 +747,8 @@ def check_ownership(root: Path, ownership_path: Path, errors: list[str]) -> None
                 add_violation(
                     rule,
                     path,
-                    f"import outside allowed roots: {path}:{line_number} "
-                    f"imports {imported} from {identifier}",
+                    f"{reference_kind} outside allowed roots: {path}:{line_number} "
+                    f"references {imported} from {identifier}",
                 )
 
     for record in valid_records:

@@ -68,7 +68,7 @@ required_tests = [
 - `path` 必须匹配至少一个受管文件，除非 phase 尚未开始并显式声明 `planned = true`
 - `owner` 对应文档中的唯一状态 owner
 - `sync_zone` 只能是 `A/B/C/D`
-- `allowed_import_roots` 使用包前缀
+- `allowed_import_roots` 使用包前缀，同时约束普通/static import 与源码中的完全限定项目引用
 - `stable_contracts` 必须能在兼容合同清单中找到
 - `required_tests` 必须映射到真实测试文件或明确的 future test
 - 临时 exception 必须有 expiry milestone 和理由
@@ -77,17 +77,19 @@ required_tests = [
 machine schema 已按 browser、player、files、downloads、miniapp、home、settings、backup、
 recovery、Operit integration、Shower、Shizuku 和 Tasker 分开登记；新增未登记领域直接
 触发 unmanaged source。feature 只允许 capability、design、自身 feature 与 platform，
-仅 `integration.operit` 可以直接导入 `com.ai.assistance.operit`。仓库内 vendored
+仅 `integration.operit` 可以直接依赖 `com.ai.assistance.operit`。仓库内 vendored
 AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 Kiyori 或 Operit 产品代码。
+依赖提取同时覆盖普通/static import 和源码中的完全限定 `com.ai.assistance.operit`/
+`com.kiyori` 引用；注释、字符串、package 声明不会形成依赖边。
 
 ## 已实现的诊断规则
 
 | 代码 | 规则 | 严重性 |
 | --- | --- | --- |
-| `ARCH001` | `com.ai.assistance.operit` 直接导入 `com.kiyori.app` | error |
-| `ARCH002` | Operit AI 直接导入 Kiyori feature UI/ViewModel | error |
-| `ARCH003` | capability 导入具体 feature/runtime/UI | error |
-| `ARCH004` | feature 直接导入另一 feature 的内部实现 | error |
+| `ARCH001` | `com.ai.assistance.operit` 直接依赖 `com.kiyori.app` | error |
+| `ARCH002` | Operit AI 直接依赖 Kiyori feature UI/ViewModel | error |
+| `ARCH003` | capability 依赖具体 feature/runtime/UI | error |
+| `ARCH004` | feature 直接依赖另一 feature 的内部实现 | error |
 | `ARCH005` | design/platform 拥有业务状态或依赖 feature | error |
 | `ARCH006` | 新 `Operit*` 产品所有权标识未登记 | 后续实现 |
 | `ARCH007` | 新硬编码 `com.ai.assistance.operit.*` FQCN 未登记 | 后续实现 |
@@ -237,12 +239,12 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：34 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
+- 架构专测试：36 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
   Git ignored dependency tree、Java static import、重复 Manifest component 和关键文件
   hash drift、完整 Manifest 语义漂移、JNI 完整符号替换、新持久化调用识别，
   未建模持久化 API 拒绝、持久化 alias 绕过拒绝、vendored 反向依赖拒绝，
-  以及 feature/Operit 双向依赖拒绝场景
-- 全量 `ci/test`：100 项通过
+  普通/static import 与完全限定项目引用绕过拒绝，以及 feature/Operit 双向依赖拒绝场景
+- 全量 `ci/test`：102 项通过
 - 当前工作树架构检查：`phase=post-m01` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS

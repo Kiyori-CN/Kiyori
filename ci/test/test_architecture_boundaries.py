@@ -32,6 +32,7 @@ from check_architecture_boundaries import (  # noqa: E402
     persistence_api_records,
     repository_text,
     resolve_phase,
+    source_dependency_edges,
     working_tree_app_paths,
 )
 
@@ -664,6 +665,90 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 any(
                     error.startswith("ARCH001 forbidden import:")
                     and "Feature.java:3" in error
+                    for error in errors
+                )
+            )
+
+    def test_forbidden_fully_qualified_dependency_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "app/src/main/java/com/legacy/Feature.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "package com.legacy\n\n"
+                "class Feature {\n"
+                "    val app = com.kiyori.app.KiyoriApplication.instance\n"
+                '    val literal = "com.kiyori.app.NotADependency"\n'
+                "    // com.kiyori.app.CommentOnly\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            ownership = root / "ownership.toml"
+            ownership.write_text(
+                'schema_version = 1\n'
+                '[[ownership]]\n'
+                'id = "operit-legacy"\n'
+                'path = "app/src/main/java/com/legacy/**"\n'
+                'owner = "legacy"\n'
+                'sync_zone = "A"\n'
+                'phase = "current"\n'
+                'forbidden_import_roots = ["com.kiyori.app"]\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_ownership(root, ownership, errors)
+            violations = [
+                error
+                for error in errors
+                if error.startswith("ARCH001 forbidden fully-qualified reference:")
+            ]
+            self.assertEqual(len(violations), 1)
+            self.assertIn("Feature.kt:4", violations[0])
+
+    def test_fully_qualified_dependency_respects_allowed_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "app/src/main/java/com/kiyori/feature/browser/BrowserFeature.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "package com.kiyori.feature.browser\n\n"
+                "class BrowserFeature {\n"
+                "    val player = com.kiyori.feature.player.PlayerState\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            ownership = root / "ownership.toml"
+            ownership.write_text(
+                'schema_version = 1\n'
+                '[[ownership]]\n'
+                'id = "kiyori-feature-browser"\n'
+                'path = "app/src/main/java/com/kiyori/feature/browser/**"\n'
+                'owner = "kiyori-browser"\n'
+                'sync_zone = "C"\n'
+                'phase = "browser"\n'
+                'allowed_import_roots = [\n'
+                '  "com.kiyori.capability",\n'
+                '  "com.kiyori.feature.browser",\n'
+                ']\n',
+                encoding="utf-8",
+            )
+            edges = source_dependency_edges(source)
+            self.assertIn(
+                (
+                    4,
+                    "com.kiyori.feature.player.PlayerState",
+                    "fully-qualified reference",
+                ),
+                edges,
+            )
+            errors: list[str] = []
+            check_ownership(root, ownership, errors)
+            self.assertTrue(
+                any(
+                    error.startswith(
+                        "ARCH004 fully-qualified reference outside allowed roots:"
+                    )
+                    and "BrowserFeature.kt:4" in error
                     for error in errors
                 )
             )

@@ -44,9 +44,9 @@ python3 -B ci/script/normalize_lint_baseline.py --check
 
 - 所有改动：空白、冲突标记、JSON/XML 语法和门禁单元测试；变更 YAML 时使用 Psych AST 与 actionlint 1.7.12 检查
 - 所有改动：按 `config/architecture/` 的机器可读清单检查源码 owner、Kiyori/Operit
-  依赖方向、Manifest 组件/Intent/authority/process 合同、持久化与 native/IPC 稳定标识、
-  AIDL/Room/ObjectBox 关键文件哈希及 terminal/制品边界；M-01 额外核对精确文件集、
-  49 次符号映射和规范化纯改名
+  import 与完全限定项目引用的依赖方向、Manifest 组件/Intent/authority/process 合同、
+  持久化与 native/IPC 稳定标识、AIDL/Room/ObjectBox 关键文件哈希及 terminal/制品边界；
+  M-01 额外核对精确文件集、49 次符号映射和规范化纯改名
 - 所有改动：比较 base/candidate 两棵 Git tree，只阻断 candidate 新增的本地断链；删除被文档引用的非 Markdown 文件也会检查
 - 本地化：按 locale、资源类型和 key 比较，只阻断 candidate 引入或实际触碰的错误
 - 翻译资源：运行 AAPT2 resource compile 检查资源语法，不执行 resource link 或完整 Android 构建
