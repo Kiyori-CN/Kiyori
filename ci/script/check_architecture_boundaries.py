@@ -98,6 +98,10 @@ def import_matches_root(imported: str, root: str) -> bool:
     return imported == root or imported.startswith(f"{root}.")
 
 
+def is_project_import(imported: str) -> bool:
+    return any(import_matches_root(imported, root) for root in PROJECT_IMPORT_ROOTS)
+
+
 def source_imports(path: Path) -> list[tuple[int, str]]:
     imports: list[tuple[int, str]] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
@@ -124,9 +128,13 @@ def source_package(path: Path) -> str | None:
 def dependency_rule(identifier: str, imported: str) -> str:
     if identifier.startswith("operit-"):
         return "ARCH001" if import_matches_root(imported, "com.kiyori.app") else "ARCH002"
-    if identifier == "kiyori-capability":
+    if identifier == "kiyori-capability" or identifier.startswith("kiyori-capability-"):
         return "ARCH003"
-    if identifier in {"kiyori-app", "kiyori-feature", "kiyori-integration"}:
+    if (
+        identifier == "kiyori-app"
+        or identifier.startswith("kiyori-feature")
+        or identifier.startswith("kiyori-integration")
+    ):
         return "ARCH004"
     return "ARCH005"
 
@@ -362,7 +370,7 @@ def check_ownership(root: Path, ownership_path: Path, errors: list[str]) -> None
                     f"forbidden import: {path}:{line_number} imports {imported} from {identifier}",
                 )
                 continue
-            if allowed and imported.startswith(PROJECT_IMPORT_ROOTS) and not any(
+            if allowed and is_project_import(imported) and not any(
                 import_matches_root(imported, value) for value in allowed
             ):
                 rule = dependency_rule(identifier, imported)

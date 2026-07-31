@@ -8,7 +8,9 @@ state.
 
 - `package-ownership.toml` maps every Kotlin/Java source file under
   `app/src/main/java` to one owner, records the sync zone, and declares
-  package-dependency constraints for future `com.kiyori` roots.
+  package-dependency constraints for future `com.kiyori` roots. Planned
+  capability, feature, and integration domains are file-exact package roots;
+  an undeclared future domain fails as unmanaged.
 - `manifest-components.txt` is the reviewed Android Manifest contract
   snapshot. It preserves component classes plus action, category, authority,
   scheme, host, MIME type, process, and component permission multiplicity.

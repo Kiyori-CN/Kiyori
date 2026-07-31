@@ -71,6 +71,12 @@ required_tests = [
 - `required_tests` 必须映射到真实测试文件或明确的 future test
 - 临时 exception 必须有 expiry milestone 和理由
 
+规划中的 `com.kiyori` 不能只用一个宽泛 `feature/**` 或 `integration/**` owner。当前
+machine schema 已按 browser、player、files、downloads、miniapp、home、settings、backup、
+recovery、Operit integration、Shower、Shizuku 和 Tasker 分开登记；新增未登记领域直接
+触发 unmanaged source。feature 只允许 capability、design、自身 feature 与 platform，
+仅 `integration.operit` 可以直接导入 `com.ai.assistance.operit`。
+
 ## 已实现的诊断规则
 
 | 代码 | 规则 | 严重性 |
@@ -217,10 +223,10 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：23 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
+- 架构专测试：25 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
   Git ignored dependency tree、Java static import、重复 Manifest component 和关键文件
-  hash drift 场景
-- 全量 `ci/test`：89 项通过
+  hash drift，以及 feature/Operit 双向依赖拒绝场景
+- 全量 `ci/test`：91 项通过
 - 当前工作树架构检查：`phase=post-m01` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS

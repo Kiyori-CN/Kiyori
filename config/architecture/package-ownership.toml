@@ -27,6 +27,11 @@ path = "app/src/main/java/com/ai/assistance/operit/api/**"
 owner = "operit-ai"
 sync_zone = "A"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -38,6 +43,11 @@ path = "app/src/main/java/com/ai/assistance/operit/core/**"
 owner = "mixed-current"
 sync_zone = "B"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -49,6 +59,11 @@ path = "app/src/main/java/com/ai/assistance/operit/data/**"
 owner = "mixed-current"
 sync_zone = "B"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -60,6 +75,11 @@ path = "app/src/main/java/com/ai/assistance/operit/integrations/**"
 owner = "mixed-current"
 sync_zone = "B"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -71,6 +91,11 @@ path = "app/src/main/java/com/ai/assistance/operit/plugins/**"
 owner = "operit-ai"
 sync_zone = "A"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -82,6 +107,11 @@ path = "app/src/main/java/com/ai/assistance/operit/provider/**"
 owner = "compatibility"
 sync_zone = "D"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -93,6 +123,11 @@ path = "app/src/main/java/com/ai/assistance/operit/services/**"
 owner = "mixed-current"
 sync_zone = "B"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -104,6 +139,11 @@ path = "app/src/main/java/com/ai/assistance/operit/ui/**"
 owner = "mixed-current"
 sync_zone = "B"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -115,6 +155,11 @@ path = "app/src/main/java/com/ai/assistance/operit/util/**"
 owner = "mixed-current"
 sync_zone = "B"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -126,6 +171,11 @@ path = "app/src/main/java/com/ai/assistance/operit/widget/**"
 owner = "compatibility"
 sync_zone = "D"
 phase = "current"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.platform",
+]
 forbidden_import_roots = [
   "com.kiyori.app",
   "com.kiyori.feature",
@@ -148,14 +198,58 @@ allowed_import_roots = [
 ]
 
 [[ownership]]
-id = "kiyori-capability"
-path = "app/src/main/java/com/kiyori/capability/**"
-owner = "kiyori-contracts"
+id = "kiyori-capability-browser"
+path = "app/src/main/java/com/kiyori/capability/browser/**"
+owner = "kiyori-browser-contracts"
 sync_zone = "C"
-phase = "planned"
+phase = "browser"
 planned = true
 allowed_import_roots = [
-  "com.kiyori.capability",
+  "com.kiyori.capability.browser",
+]
+
+[[ownership]]
+id = "kiyori-capability-player"
+path = "app/src/main/java/com/kiyori/capability/player/**"
+owner = "kiyori-player-contracts"
+sync_zone = "C"
+phase = "player"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability.player",
+]
+
+[[ownership]]
+id = "kiyori-capability-files"
+path = "app/src/main/java/com/kiyori/capability/files/**"
+owner = "kiyori-files-contracts"
+sync_zone = "C"
+phase = "files"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability.files",
+]
+
+[[ownership]]
+id = "kiyori-capability-downloads"
+path = "app/src/main/java/com/kiyori/capability/downloads/**"
+owner = "kiyori-download-contracts"
+sync_zone = "C"
+phase = "downloads"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability.downloads",
+]
+
+[[ownership]]
+id = "kiyori-capability-miniapp"
+path = "app/src/main/java/com/kiyori/capability/miniapp/**"
+owner = "kiyori-miniapp-contracts"
+sync_zone = "C"
+phase = "miniapp"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability.miniapp",
 ]
 
 [[ownership]]
@@ -172,27 +266,168 @@ allowed_import_roots = [
 ]
 
 [[ownership]]
-id = "kiyori-feature"
-path = "app/src/main/java/com/kiyori/feature/**"
-owner = "kiyori-features"
+id = "kiyori-feature-home"
+path = "app/src/main/java/com/kiyori/feature/home/**"
+owner = "kiyori-home"
 sync_zone = "C"
-phase = "planned"
+phase = "home"
 planned = true
-forbidden_import_roots = [
-  "com.kiyori.app",
-  "com.kiyori.integration",
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.home",
+  "com.kiyori.platform",
 ]
 
 [[ownership]]
-id = "kiyori-integration"
-path = "app/src/main/java/com/kiyori/integration/**"
-owner = "kiyori-integrations"
+id = "kiyori-feature-browser"
+path = "app/src/main/java/com/kiyori/feature/browser/**"
+owner = "kiyori-browser"
 sync_zone = "C"
-phase = "planned"
+phase = "browser"
 planned = true
-forbidden_import_roots = [
-  "com.kiyori.app",
-  "com.kiyori.feature",
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.browser",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature-player"
+path = "app/src/main/java/com/kiyori/feature/player/**"
+owner = "kiyori-player"
+sync_zone = "C"
+phase = "player"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.player",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature-files"
+path = "app/src/main/java/com/kiyori/feature/files/**"
+owner = "kiyori-files"
+sync_zone = "C"
+phase = "files"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.files",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature-miniapp"
+path = "app/src/main/java/com/kiyori/feature/miniapp/**"
+owner = "kiyori-miniapp"
+sync_zone = "C"
+phase = "miniapp"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.miniapp",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature-settings"
+path = "app/src/main/java/com/kiyori/feature/settings/**"
+owner = "kiyori-settings"
+sync_zone = "C"
+phase = "settings"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.settings",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature-backup"
+path = "app/src/main/java/com/kiyori/feature/backup/**"
+owner = "kiyori-backup"
+sync_zone = "C"
+phase = "backup"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.backup",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-feature-recovery"
+path = "app/src/main/java/com/kiyori/feature/recovery/**"
+owner = "kiyori-recovery"
+sync_zone = "C"
+phase = "recovery"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.design",
+  "com.kiyori.feature.recovery",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-integration-operit"
+path = "app/src/main/java/com/kiyori/integration/operit/**"
+owner = "kiyori-operit-integration"
+sync_zone = "C"
+phase = "operit-integration"
+planned = true
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.capability",
+  "com.kiyori.integration.operit",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-integration-shower"
+path = "app/src/main/java/com/kiyori/integration/shower/**"
+owner = "kiyori-shower-integration"
+sync_zone = "C"
+phase = "shower"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.integration.shower",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-integration-shizuku"
+path = "app/src/main/java/com/kiyori/integration/shizuku/**"
+owner = "kiyori-shizuku-integration"
+sync_zone = "C"
+phase = "shizuku"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.integration.shizuku",
+  "com.kiyori.platform",
+]
+
+[[ownership]]
+id = "kiyori-integration-tasker"
+path = "app/src/main/java/com/kiyori/integration/tasker/**"
+owner = "kiyori-tasker-integration"
+sync_zone = "C"
+phase = "tasker"
+planned = true
+allowed_import_roots = [
+  "com.kiyori.capability",
+  "com.kiyori.integration.tasker",
+  "com.kiyori.platform",
 ]
 
 [[ownership]]

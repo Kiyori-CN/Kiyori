@@ -181,6 +181,12 @@ com.ai.assistance.operit
 - 一个 feature -> 另一个 feature 的内部实现
 - 任何 UI -> 另一个领域的数据库实体作为写入入口
 
+`package-ownership.toml` 已按上述目标树把 capability、feature 与 integration 拆为
+领域级 planned owner，不保留可吞掉任意未来目录的通用 `feature/**` 或
+`integration/**` 规则。未知领域必须先补 owner、依赖和验证设计；feature 只能导入
+capability、design、自身 feature 与 platform，只有 `integration.operit` 能直接导入
+Operit 兼容岛。
+
 ## Browser 目标映射
 
 当前 Browser Runtime 被分散在：

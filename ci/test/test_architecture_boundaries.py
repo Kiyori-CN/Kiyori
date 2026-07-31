@@ -24,6 +24,7 @@ from check_architecture_boundaries import (  # noqa: E402
     check_tracked_artifacts,
     expected_manifest_components,
     import_matches_root,
+    is_project_import,
     normalize_m01_text,
     path_matches,
     repository_text,
@@ -73,6 +74,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         )
         self.assertTrue(import_matches_root("com.kiyori.app.shell.Root", "com.kiyori.app"))
         self.assertFalse(import_matches_root("com.kiyori.application.Root", "com.kiyori.app"))
+        self.assertTrue(is_project_import("com.kiyori.feature.browser.BrowserState"))
+        self.assertFalse(is_project_import("com.kiyorix.feature.browser.BrowserState"))
 
     def test_manifest_snapshot_switches_only_the_application_for_m01(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -458,6 +461,42 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 )
             )
 
+    def test_operit_owner_allows_only_kiyori_contract_and_platform_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "app/src/main/java/com/legacy/Feature.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "package com.legacy\n\n"
+                "import com.kiyori.capability.browser.BrowserCapability\n"
+                "import com.kiyori.platform.logging.KiyoriLogger\n"
+                "import com.kiyori.design.theme.KiyoriTheme\n"
+                "import com.kiyori.integration.operit.Adapter\n",
+                encoding="utf-8",
+            )
+            ownership = root / "ownership.toml"
+            ownership.write_text(
+                'schema_version = 1\n'
+                '[[ownership]]\n'
+                'id = "operit-legacy"\n'
+                'path = "app/src/main/java/com/legacy/**"\n'
+                'owner = "legacy"\n'
+                'sync_zone = "A"\n'
+                'phase = "current"\n'
+                'allowed_import_roots = [\n'
+                '  "com.ai.assistance.operit",\n'
+                '  "com.kiyori.capability",\n'
+                '  "com.kiyori.platform",\n'
+                ']\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_ownership(root, ownership, errors)
+            violations = [
+                error for error in errors if error.startswith("ARCH002 import outside allowed roots:")
+            ]
+            self.assertEqual(len(violations), 2)
+
     def test_allowed_dependency_roots_reject_project_layer_escape(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -484,6 +523,41 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             self.assertTrue(
                 any(error.startswith("ARCH003 import outside allowed roots:") for error in errors)
             )
+
+    def test_feature_owner_rejects_cross_feature_and_legacy_imports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "app/src/main/java/com/kiyori/feature/browser/BrowserFeature.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "package com.kiyori.feature.browser\n\n"
+                "import com.kiyori.feature.player.PlayerState\n"
+                "import com.ai.assistance.operit.data.model.ChatEntity\n",
+                encoding="utf-8",
+            )
+            ownership = root / "ownership.toml"
+            ownership.write_text(
+                'schema_version = 1\n'
+                '[[ownership]]\n'
+                'id = "kiyori-feature-browser"\n'
+                'path = "app/src/main/java/com/kiyori/feature/browser/**"\n'
+                'owner = "kiyori-browser"\n'
+                'sync_zone = "C"\n'
+                'phase = "browser"\n'
+                'allowed_import_roots = [\n'
+                '  "com.kiyori.capability",\n'
+                '  "com.kiyori.design",\n'
+                '  "com.kiyori.feature.browser",\n'
+                '  "com.kiyori.platform",\n'
+                ']\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_ownership(root, ownership, errors)
+            violations = [
+                error for error in errors if error.startswith("ARCH004 import outside allowed roots:")
+            ]
+            self.assertEqual(len(violations), 2)
 
     def test_tracked_private_and_build_artifacts_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
