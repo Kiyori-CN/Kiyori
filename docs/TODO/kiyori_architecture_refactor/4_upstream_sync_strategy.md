@@ -80,9 +80,9 @@ last_reviewed: 2026-07-31
 - 上游同步和 Kiyori 重构都不得顺手改名
 - 任何变化需要独立兼容设计和数据验证
 
-## 计划中的机器可读清单
+## 已落地的机器可读清单
 
-正式重构阶段新增一个机器可读 ownership 清单，例如：
+G-00 已建立机器可读 ownership 清单：
 
 ```text
 config/architecture/
@@ -98,7 +98,8 @@ config/architecture/
 - allowed dependency targets
 - required validation
 
-CI 脚本读取同一清单，防止文档与实际门禁分离。该文件在方案批准后再创建。
+`ci/script/check_architecture_boundaries.py` 与 GitHub CI 读取同一清单，并同时核对
+Manifest、持久化、native/IPC 和稳定标识 snapshot，防止文档与实际门禁分离。
 
 ## 同步工作流
 
@@ -140,11 +141,28 @@ CI 脚本读取同一清单，防止文档与实际门禁分离。该文件在�
 - 上游新增产品壳功能先判断 owner，不直接复制到 Kiyori Shell
 - 重命名提交保持纯粹，方便 Git 识别移动历史
 
+## 冻结 upstream 快照中的 M-01 重叠分类账
+
+以本地基线 `62464b054f6de00b70c5596295bc216eb8edf63d` 和已冻结的
+`upstream/main=0921f749a087c4a52a2202abdf32491ae335dd41` 比较，M-01 的 16 个
+Android 实现文件中有 4 个与 upstream 变化重叠：
+
+| 文件 | 区域 | upstream 状态 | 后续同步规则 |
+| --- | --- | --- | --- |
+| `app/src/main/AndroidManifest.xml` | B/D | upstream 仍引用 `.core.application.OperitApplication`，且同时包含大量组件、权限和 intent filter 差异 | 禁止整文件选择任一侧；先按组件 owner 逐项合并，再强制恢复 `KiyoriApplication` 与 Kiyori Manifest snapshot |
+| `app/lint-baseline.xml` | CI 控制面 | upstream 删除该文件 | 保留 Kiyori 已审阅 baseline；完成源码语义合并后按正式归一化流程重新核对，不接受删除或整文件替换 |
+| `app/src/main/java/com/ai/assistance/operit/plugins/toolpkg/ToolPkgHookBridgeSupport.kt` | A | upstream 新增 chat-message hook，同时仍导入和访问 `OperitApplication` | 合入真实 ToolPkg 能力后只重放 `OperitApplication -> KiyoriApplication` 映射，并运行 M-01 规范化比较 |
+| `app/src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt` | B | upstream 有大范围启动、Intent、更新和导航变化，同时仍使用 `OperitApplication` | 必须逐段语义合并，按当前 Kiyori shell/state owner 分流，然后重放 Application 名称映射与启动合同测试 |
+
+`OperitApplication.kt` 本身以及其余 11 个直接 Kotlin 消费者，在该 local-baseline 与
+upstream 快照比较中没有变化。上述结果只建立未来同步清单，不授权在 M-01 中执行 merge。
+每次真正同步前仍须重新 fetch、重算交集，并以新 SHA 覆盖本冻结快照结论。
+
 ## 当前风险
 
 本地 Kiyori 与 upstream 已分别前进，当前已刷新引用显示 `54 / 43` 的左右提交差异，
-且有 85 个同文件修改重叠。最新 upstream 增量没有修改 M-01 的 Application、Manifest 或
-Lint baseline 精确范围，但增加了 memory、settings、route、assets 和多语言重叠。
-重构前不先建立所有权清单，会让未来每次同步重复讨论同一问题。
+且有 85 个同文件修改重叠。M-01 精确范围内已有上述 4 个同步热点；此外还有 memory、
+settings、route、assets 和多语言重叠。当前 `git merge-tree` 预演显示整个仓库存在多处
+双边修改、双边新增和删除/修改冲突，因此后续同步必须单独立项，不得与源码迁移混合。
 
 因此 upstream sync strategy 是架构重构的一部分，不是重构完成后的补充文档。
