@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import unittest
 import xml.etree.ElementTree as ET
-import zipfile
 from pathlib import Path
 
 
@@ -41,23 +39,6 @@ EXPECTED_SHADER_LICENSE_MARKERS = {
         if not file_name.startswith("Anime4K_AutoDownscalePre_")
     },
 }
-EXPECTED_MPV_AAR_SHA256 = "fc983b7ed0c8b8be1938283fe94108dfdc593aa31608d55dd1ce119ae201c32c"
-EXPECTED_FFMPEG_AAR_SHA256 = "1a30a94226bf2157927ec6edbb20154f9a1c1c53580f59cf55efe46db87a5ab3"
-MPV_FFMPEG_NAMESPACE = {
-    "libavcodec.so": "libmpcodec.so",
-    "libavdevice.so": "libmpdevice.so",
-    "libavfilter.so": "libmpfilter.so",
-    "libavformat.so": "libmpformat.so",
-    "libavutil.so": "libmputil.so",
-    "libswresample.so": "libmpresample.so",
-    "libswscale.so": "libmpscale.so",
-}
-REQUIRED_LIBCXX_SYMBOLS = {
-    b"_ZNSt6__ndk127__from_chars_floating_pointIfEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
-    b"_ZNSt6__ndk127__from_chars_floating_pointIdEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
-}
-
-
 class PlayerAssetsTest(unittest.TestCase):
     def test_video_view_intent_is_owned_by_player_activity(self) -> None:
         manifest = ET.parse(REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml")
@@ -120,67 +101,6 @@ class PlayerAssetsTest(unittest.TestCase):
             build_script,
         )
         self.assertIn("verifyDebugPlayerRuntimePackaging", build_script)
-
-    def test_player_aars_have_disjoint_native_ownership_and_required_runtime(self) -> None:
-        mpv_aar_path = REPO_ROOT / "app" / "libs" / "mpv-player-arm64.aar"
-        ffmpeg_aar_path = REPO_ROOT / "app" / "libs" / "ffmpeg-kit-player-arm64.aar"
-        self.assertEqual(
-            EXPECTED_MPV_AAR_SHA256,
-            hashlib.sha256(mpv_aar_path.read_bytes()).hexdigest(),
-        )
-        self.assertEqual(
-            EXPECTED_FFMPEG_AAR_SHA256,
-            hashlib.sha256(ffmpeg_aar_path.read_bytes()).hexdigest(),
-        )
-        with zipfile.ZipFile(mpv_aar_path) as aar:
-            with zipfile.ZipFile(io.BytesIO(aar.read("classes.jar"))) as classes:
-                names = set(classes.namelist())
-            mpv_native_names = {
-                name for name in aar.namelist() if name.startswith("jni/")
-            }
-            mpv_payload = aar.read("jni/arm64-v8a/libmpv.so")
-            mpv_avformat_payload = aar.read("jni/arm64-v8a/libmpformat.so")
-            libcxx_payload = aar.read("jni/arm64-v8a/libc++_shared.so")
-        self.assertTrue(
-            {
-                "is/xyz/mpv/MPVLib.class",
-                "is/xyz/mpv/MPVLib$EventObserver.class",
-                "is/xyz/mpv/MPVLib$LogObserver.class",
-                "is/xyz/mpv/MPVNode.class",
-                "is/xyz/mpv/Utils.class",
-            }.issubset(names)
-        )
-        self.assertEqual(
-            {
-                "jni/arm64-v8a/libc++_shared.so",
-                *{
-                    f"jni/arm64-v8a/{name}"
-                    for name in MPV_FFMPEG_NAMESPACE.values()
-                },
-                "jni/arm64-v8a/libmpv.so",
-                "jni/arm64-v8a/libplayer.so",
-            },
-            mpv_native_names,
-        )
-        for source_name, namespaced_name in MPV_FFMPEG_NAMESPACE.items():
-            self.assertNotIn(source_name.encode("ascii"), mpv_payload)
-            self.assertIn(namespaced_name.encode("ascii"), mpv_payload)
-        self.assertIn(b"--enable-mbedtls", mpv_avformat_payload)
-        self.assertIn(b"mbedtls_ssl_handshake", mpv_avformat_payload)
-        for symbol in REQUIRED_LIBCXX_SYMBOLS:
-            self.assertIn(symbol, mpv_payload)
-            self.assertIn(symbol, libcxx_payload)
-
-        with zipfile.ZipFile(ffmpeg_aar_path) as aar:
-            ffmpeg_native_names = {
-                name for name in aar.namelist() if name.startswith("jni/")
-            }
-        self.assertEqual(9, len(ffmpeg_native_names))
-        self.assertTrue(
-            all(name.startswith("jni/arm64-v8a/") for name in ffmpeg_native_names)
-        )
-        self.assertNotIn("jni/arm64-v8a/libc++_shared.so", ffmpeg_native_names)
-        self.assertTrue(mpv_native_names.isdisjoint(ffmpeg_native_names))
 
     def test_mpv_binding_is_isolated_and_background_candidate_capture_uses_session_state(self) -> None:
         java_root = REPO_ROOT / "app" / "src" / "main" / "java"

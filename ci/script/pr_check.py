@@ -48,6 +48,7 @@ ANDROID_FULL_PATTERNS = (
     "cmake/**",
     "ci/script/download_android_dependencies.sh",
     "ci/script/prepare_android_dependencies.py",
+    "ci/script/prepare_mpv_player_dependency.py",
     "gradle/**",
     "gradle.properties",
     "gradlew",

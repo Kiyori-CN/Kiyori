@@ -33,6 +33,10 @@ python3 -B ci/script/normalize_lint_baseline.py --check
 ```
 
 本地分支不是 GitHub merge candidate，因此本地结果用于提交前检查；PR 页面上的 `Candidate checks` 才验证与当前 `main` 合并后的实际树。
+`ci/test` 只读取 Git tree 中可复现的源码与固定测试夹具，因此可在未物化 Android
+依赖的 fresh clone 中运行。被 `.gitignore` 排除的 player AAR 由
+`prepare_android_dependencies.py` 生成，并由 Gradle `verifyPlayerNativeInputs`
+在 Android JVM/full lane 中严格核对哈希、成员、ABI、native 所有权、TLS 和 C++ 符号。
 
 ## PR check lanes
 
@@ -45,6 +49,8 @@ python3 -B ci/script/normalize_lint_baseline.py --check
 - 翻译资源：运行 AAPT2 resource compile 检查资源语法，不执行 resource link 或完整 Android 构建
 - Kotlin/Java 和普通 Android 资源：运行 JVM unit tests 与 Android lint
 - Native、Gradle 和构建输入：运行 assemble、JVM unit tests 与 Android lint
+- player dependency preparer：进入 full Android lane，物化 AAR 后执行
+  `verifyPlayerNativeInputs`
 - WebChat：运行 TypeScript typecheck 与 Vite build
 - ToolPkg：重建并核对 GitHub 示例，按独立锁文件编译 WASM 示例，再构建测试集合和生产白名单集合；JSON manifest 声明的入口与 WASM 文件必须存在且进入归档
 

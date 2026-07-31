@@ -55,6 +55,13 @@ class ScopeClassificationTest(unittest.TestCase):
         self.assertFalse(plan.android_jvm)
         self.assertTrue(plan.android_full)
 
+    def test_player_dependency_preparer_uses_full_lane(self) -> None:
+        plan = classify_paths(["ci/script/prepare_mpv_player_dependency.py"])
+
+        self.assertTrue(plan.ci)
+        self.assertTrue(plan.android_full)
+        self.assertFalse(plan.android_jvm)
+
     def test_upstream_only_docs_are_not_part_of_candidate_paths(self) -> None:
         plan = classify_paths(["app/src/main/res/values-ro/strings.xml"])
 

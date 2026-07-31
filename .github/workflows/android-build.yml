@@ -35,6 +35,7 @@ on:
       - ci/script/check_architecture_boundaries.py
       - ci/script/download_android_dependencies.sh
       - ci/script/prepare_android_dependencies.py
+      - ci/script/prepare_mpv_player_dependency.py
       - ci/test/test_architecture_boundaries.py
       - cmake/**
       - dragonbones/**
