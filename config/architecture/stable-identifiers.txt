@@ -4,7 +4,7 @@
 1	namespace = "com.ai.assistance.operit"
 3	"app_database"
 1	"operit_raw_snapshot_"
-19	"__type"
+8	"__type"
 2	".operit/config.json"
 1	"OPERIT_MARKET_COMPAT_VERSION"
 71	com.operit.

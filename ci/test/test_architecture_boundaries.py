@@ -23,6 +23,7 @@ from check_architecture_boundaries import (  # noqa: E402
     import_matches_root,
     normalize_m01_text,
     path_matches,
+    repository_text,
     resolve_phase,
     working_tree_app_paths,
 )
@@ -132,6 +133,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
     def test_missing_stable_literal_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            git(root, "init", "-b", "main")
             source = root / "app/src/main/java/com/example/Contract.kt"
             source.parent.mkdir(parents=True)
             source.write_text('const val CONTRACT = "present"\n', encoding="utf-8")
@@ -150,6 +152,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
     def test_stable_literal_addition_is_rejected_by_count(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            git(root, "init", "-b", "main")
             source = root / "app/src/main/java/com/example/Contract.kt"
             source.parent.mkdir(parents=True)
             source.write_text('"stable" + "stable"\n', encoding="utf-8")
@@ -164,6 +167,27 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                     "'stable' expected 1, found 2"
                 ],
             )
+
+    def test_repository_text_excludes_git_ignored_dependency_trees(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            tracked = root / "app/src/main/java/com/example/Contract.kt"
+            tracked.parent.mkdir(parents=True)
+            tracked.write_text('const val CONTRACT = "stable"\n', encoding="utf-8")
+            ignored = root / "examples/demo/node_modules/library/index.js"
+            ignored.parent.mkdir(parents=True)
+            ignored.write_text('"stable" + "stable"\n', encoding="utf-8")
+            untracked = root / "tools/local-check.ts"
+            untracked.parent.mkdir(parents=True)
+            untracked.write_text('"untracked-contract"\n', encoding="utf-8")
+            (root / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+            git(root, "add", ".gitignore", "app/src/main/java/com/example/Contract.kt")
+
+            text = repository_text(root)
+
+            self.assertEqual(text.count('"stable"'), 1)
+            self.assertIn('"untracked-contract"', text)
 
     def test_unmanaged_source_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

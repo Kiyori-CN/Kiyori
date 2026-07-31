@@ -212,11 +212,14 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：19 项通过，包含正向、负向、Windows 路径、例外和未暂存改名场景
-- 全量 `ci/test`：85 项通过
+- 架构专测试：20 项通过，包含正向、负向、Windows 路径、例外、未暂存改名和
+  Git ignored dependency tree 场景
+- 全量 `ci/test`：86 项通过
 - 当前工作树架构检查：`phase=baseline` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS
+- 最终 bundle 恢复演练促使扫描范围收口为 Git tracked + non-ignored untracked，
+  恢复克隆与开发工作树的 stable literal 计数一致
 - 未修改 Android 运行时代码、Manifest、资源、AIDL、native 或 terminal
 
 ## 门禁自身验收

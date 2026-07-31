@@ -143,22 +143,31 @@ def read_count_snapshot(path: Path) -> list[tuple[int, str]]:
 
 def repository_text(root: Path) -> str:
     chunks: list[str] = []
-    search_roots = (
-        root / "app",
-        root / "examples",
-        root / "tools",
+    relative_paths = sorted(
+        Path(value)
+        for value in git(
+            root,
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            "app",
+            "examples",
+            "tools",
+        ).split("\0")
+        if value
     )
-    for search_root in search_roots:
-        if not search_root.exists():
-            continue
-        for path in sorted(search_root.rglob("*")):
-            if (
-                path.is_file()
-                and path.suffix.lower() in TEXT_SUFFIXES
-                and "build" not in path.parts
-                and ".cxx" not in path.parts
-            ):
-                chunks.append(path.read_text(encoding="utf-8", errors="replace"))
+    for relative_path in relative_paths:
+        path = root / relative_path
+        excluded_parts = PROHIBITED_TRACKED_PARTS | {".cxx", "build"}
+        if (
+            path.is_file()
+            and path.suffix.lower() in TEXT_SUFFIXES
+            and not set(relative_path.parts) & excluded_parts
+        ):
+            chunks.append(path.read_text(encoding="utf-8", errors="replace"))
     return "\n".join(chunks)
 
 

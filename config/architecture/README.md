@@ -18,6 +18,11 @@ state.
 - `native-ipc-identifiers.txt` records exact native/JNI/AIDL package and
   library identifiers with exact counts.
 
+Counts are extracted only from Git-tracked files plus non-ignored untracked
+source files under `app/`, `examples/`, and `tools/`. Ignored dependency,
+generated, cache, and build trees do not affect the result, so a fresh clone
+and an active development checkout evaluate the same contracts.
+
 Snapshots are not a replacement for a migration design. Updating one is
 allowed only when the corresponding contract change is in the approved
 milestone, the formal document is updated first, and the diff explains the old
