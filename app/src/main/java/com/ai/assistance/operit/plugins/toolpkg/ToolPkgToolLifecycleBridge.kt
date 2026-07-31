@@ -1,6 +1,6 @@
 package com.ai.assistance.operit.plugins.toolpkg
 
-import com.ai.assistance.operit.core.application.OperitApplication
+import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.core.tools.AIToolHook
 import com.ai.assistance.operit.core.tools.AIToolHookDecision
 import com.ai.assistance.operit.core.tools.AIToolHandler
@@ -51,7 +51,7 @@ internal object ToolPkgToolLifecycleBridge : AIToolHook {
         if (!installed.compareAndSet(false, true)) {
             return
         }
-        val application = OperitApplication.instance.applicationContext
+        val application = KiyoriApplication.instance.applicationContext
         AIToolHandler.getInstance(application).addToolHook(this)
         val manager = toolPkgPackageManager()
         manager.addToolPkgRuntimeChangeListener(runtimeChangeListener)

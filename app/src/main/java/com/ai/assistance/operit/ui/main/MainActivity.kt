@@ -35,7 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.AIForegroundService
-import com.ai.assistance.operit.core.application.OperitApplication
+import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
@@ -234,7 +234,7 @@ class MainActivity : ComponentActivity() {
         // Handle the intent that started the activity
         handleIntent(intent)
 
-        (application as OperitApplication).initializeMainUiPrerequisites()
+        (application as KiyoriApplication).initializeMainUiPrerequisites()
 
         // 语言设置已在Application中初始化，这里无需重复
 
@@ -262,7 +262,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scheduleMainApplicationInitialization(performInitialChecks: Boolean) {
-        val operitApplication = application as OperitApplication
+        val kiyoriApplication = application as KiyoriApplication
 
         // 完整初始化不能占用 Android 系统 Splash 等待的首帧。先提交一帧，再从后台完成
         // 非首屏职责；否则 PDFBox、编辑器语言和磁盘扫描会延长启动图标停留时间。
@@ -274,7 +274,7 @@ class MainActivity : ComponentActivity() {
                 anrMonitor.start()
                 lifecycleScope.launch {
                     withContext(Dispatchers.Default) {
-                        operitApplication.initializeMainApplication()
+                        kiyoriApplication.initializeMainApplication()
                     }
                     restoreRuntimeTaskViewVisibilityIfNeeded()
                     processPendingGitHubAuth()

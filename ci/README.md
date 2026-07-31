@@ -68,7 +68,7 @@ JVM lane 只下载 `libs.zip`，完整 Android lane 下载四个固定归档。`
 
 Android lint 使用 `app/lint-baseline.xml` 记录启用 PR 检查前已有的问题。新增 error 仍会使 `:app:lintDebug` 失败；新增 warning 按 Android lint 默认策略报告。
 
-初始 baseline 使用 AGP 8.13.2 并启用依赖检查，从上游提交 `1fe3b5eddb1f5c6ed795465f80716dda8c36cc65` 生成，对应 [GitHub Actions 运行](https://github.com/luojiaping/Operit/actions/runs/29661867372)。2026-07-24 在 AGP 9.3.1 下生成临时完整 baseline，与已审阅 baseline 求交集：原样保留 `5843` 条仍存在的记录，删除 `200` 条失效记录，不吸收 `30` 条当时可见问题。当前归一化 SHA-256 为 `240ba1c6941485004d362ed8b74a464773b23b0fe62815e469488f3d3c64efa7`。
+初始 baseline 使用 AGP 8.13.2 并启用依赖检查，从上游提交 `1fe3b5eddb1f5c6ed795465f80716dda8c36cc65` 生成，对应 [GitHub Actions 运行](https://github.com/luojiaping/Operit/actions/runs/29661867372)。2026-07-24 在 AGP 9.3.1 下生成临时完整 baseline，与已审阅 baseline 求交集：原样保留 `5843` 条仍存在的记录，删除 `200` 条失效记录，不吸收 `30` 条当时可见问题。2026-07-31 的 M-01 只把 6 个 `OperitApplication.kt` location 路径改为 `KiyoriApplication.kt`，issue、message、line 和 column 均不变；当前归一化 SHA-256 为 `28dfc1ad238f8e3c39bc266e077b512ce749ca7bf9106e8dd0a7f63b0e9451e4`。
 
 baseline 维护必须把完整结果写入 `app/build/`，再用结构化 XML 交集脚本只删除失效记录：
 

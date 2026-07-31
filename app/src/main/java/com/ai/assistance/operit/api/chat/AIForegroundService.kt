@@ -35,7 +35,7 @@ import com.ai.assistance.operit.api.speech.PersonalWakeListener
 import com.ai.assistance.operit.api.speech.SpeechPrerollStore
 import com.ai.assistance.operit.api.speech.SpeechService
 import com.ai.assistance.operit.api.speech.SpeechServiceFactory
-import com.ai.assistance.operit.core.application.OperitApplication
+import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.core.chat.AIMessageManager
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.application.ForegroundServiceCompat
@@ -936,7 +936,7 @@ class AIForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning.set(true)
-        (application as OperitApplication).initializeMainApplication()
+        (application as KiyoriApplication).initializeMainApplication()
         wakeListeningSuspendedForIme = lastRequestedImeVisible
         AppLogger.d(TAG, "AI 前台服务创建。")
         chatRuntimeHolder

@@ -2,7 +2,7 @@ package com.ai.assistance.operit.util
 
 import android.content.Context
 import android.util.Log
-import com.ai.assistance.operit.core.application.OperitApplication
+import com.ai.assistance.operit.core.application.KiyoriApplication
 import java.io.File
 import java.io.FileWriter
 import java.io.IOException
@@ -91,7 +91,7 @@ object AppLogger {
 
         return try {
             val appContext: Context = try {
-                OperitApplication.instance.applicationContext
+                KiyoriApplication.instance.applicationContext
             } catch (_: Throwable) {
                 boundContext ?: return null
             }
@@ -113,7 +113,7 @@ object AppLogger {
 
         return try {
             val appContext: Context = try {
-                OperitApplication.instance.applicationContext
+                KiyoriApplication.instance.applicationContext
             } catch (_: Throwable) {
                 boundContext ?: return null
             }
@@ -121,7 +121,7 @@ object AppLogger {
             if (!dir.exists()) {
                 dir.mkdirs()
             }
-            val startupMs = OperitApplication.appStartupTimeMs.takeIf { it > 0L } ?: System.currentTimeMillis()
+            val startupMs = KiyoriApplication.appStartupTimeMs.takeIf { it > 0L } ?: System.currentTimeMillis()
             val fileName = startupFileDateFormat.format(Date(startupMs)) + ".log"
             File(dir, fileName).also { file ->
                 packageLogFile = file
@@ -242,7 +242,7 @@ object AppLogger {
     @JvmStatic
     fun resetLogFile() {
         try {
-            val appContext: Context = OperitApplication.instance.applicationContext
+            val appContext: Context = KiyoriApplication.instance.applicationContext
             val dir = File(appContext.filesDir, LOG_DIR_NAME)
             val file = File(dir, LOG_FILE_NAME)
             if (file.exists()) {

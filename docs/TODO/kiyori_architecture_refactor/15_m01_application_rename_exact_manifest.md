@@ -1,5 +1,5 @@
 ---
-status: ready_for_implementation
+status: implemented
 plan_version: 3
 baseline: 62464b054f6de00b70c5596295bc216eb8edf63d
 last_reviewed: 2026-07-31
@@ -136,6 +136,18 @@ M-01 前后必须保持：
 7. 数据、协议、Intent、WorkManager、AIDL、JNI 和 native snapshot 零变化。
 8. terminal gitlink、未初始化 hotbuild gitlink 和私密配置零变化。
 
+## 派生控制面元数据
+
+16 个实现文件仍是完整且不可扩大的 Android 差异范围。由于
+`app/lint-baseline.xml` 的 6 个受审计 location 路径发生纯文件名变化，
+`ci/script/normalize_lint_baseline.py` 中的 `EXPECTED_SHA256` 和
+`ci/README.md` 中记录的当前归一化 SHA-256 必须同步更新。它们是由已批准
+lint baseline 路径改名机械派生的 CI 元数据，不属于 Android 实现文件，不改变 lint issue
+集合、运行行为、数据或协议。
+
+若新校验和对应的 diff 除 6 个 Application 文件路径外还有任何 lint issue、message、line
+或 column 变化，立即停止 M-01。
+
 G-00 应复用
 [架构门禁与机器可读所有权规范](13_architecture_guard_specification.md)，不能为 M-01 建立
 一次性脚本后遗留在仓库。
@@ -167,3 +179,27 @@ G-00 应复用
 - 需要同时改变 package、namespace、初始化职责或状态 owner
 
 最后一项表示当前工作已超出纯改名，应重新规划 M-02，不能扩大 M-01。
+
+## 实施与验证结果
+
+- 16 个 Android 实现文件精确命中，规范化后逐文件等价
+- Kotlin 旧符号 `0`，新符号 `42`；Manifest `1`；lint baseline location `6`，总计 `49`
+- package 仍为 `com.ai.assistance.operit.core.application`
+- `:app:compileDebugKotlin` 通过
+- 3 组启动/App Shell 定向测试通过
+- 完整 `:app:testDebugUnitTest`：`771` 项，`0` failure、`0` error、`0` skipped
+- formal readiness、85 项 CI 门禁测试、lint baseline checksum 和 M-01 architecture gate 通过
+- `:app:assembleDebug` 通过，player native packaging gate 通过
+- APK 为 `com.kiyori`、versionCode `45`、versionName `0.1.0`、`arm64-v8a`，
+  v2 签名与 16 KB zipalign 通过
+- APK Manifest 入口为
+  `com.ai.assistance.operit.core.application.KiyoriApplication`
+- 新 APK SHA-256 为
+  `B90852255517C003CAFBDC32E28E624D379D88397CBE6D2B7DAAB8BD2BB51D4A`
+- 与基线 APK 的 5,799 个 ZIP 条目集合完全一致；内容变化仅 Manifest 和 11 个 dex，
+  压缩内容总量只差 180 字节。基线 APK 的额外体积来自约 26.4 MB 历史条目间空洞，
+  干净构建后不再保留，不是资产或 native 缺失
+
+额外执行的 `:app:lintDebug` 报告 27 个 error，全部位于 3 个未修改文件，
+与 M-01 允许文件交集为 0，且没有 Application 类名相关诊断。该既有 lint 债务不在本里程碑
+范围内，未通过更新 baseline 或修改无关源码掩盖。

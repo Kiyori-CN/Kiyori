@@ -1,6 +1,6 @@
 package com.ai.assistance.operit.plugins.toolbox
 
-import com.ai.assistance.operit.core.application.OperitApplication
+import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.ToolPkgContainerRuntime
@@ -148,7 +148,7 @@ object ToolboxPlugin : OperitPlugin {
         }
         AppLifecycleHookPluginRegistry.register(ToolPkgAppLifecycleHookPlugin)
 
-        val context = OperitApplication.instance.applicationContext
+        val context = KiyoriApplication.instance.applicationContext
         val packageManager = PackageManager.getInstance(context, AIToolHandler.getInstance(context))
         packageManager.addToolPkgRuntimeChangeListener(runtimeChangeListener)
     }

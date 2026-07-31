@@ -249,7 +249,7 @@ rg -n "Java_com_ai_assistance_operit|System\.loadLibrary" app/src/main
 ## 未来设备验收目录
 
 方案 v3 当前范围不使用手机、模拟器或 ADB。以下目录只为未来需要真实 Android 行为证据的
-里程碑保留，不能作为 G-00 或 M-01 已执行的暗示。
+里程碑保留；G-00 与 M-01 均未执行这些设备操作。
 
 ### Application/Shell
 

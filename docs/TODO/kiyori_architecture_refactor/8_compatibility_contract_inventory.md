@@ -216,7 +216,7 @@ ${applicationId}.androidx-startup
 
 | 类型 | 当前入口 | 迁移策略 |
 | --- | --- | --- |
-| application | `.core.application.OperitApplication` | G-00 后按 M-01 精确清单原包改名，后续单独迁移 |
+| application | `.core.application.KiyoriApplication` | M-01 已完成原包改名；包迁移仍需后续独立里程碑 |
 | activity | `.core.tools.defaultTool.websession.browser.WebSessionPermissionRequestActivity` | Browser capability 迁移后保持入口 |
 | activity | `.core.tools.defaultTool.websession.browser.WebSessionDirectoryPickerActivity` | Browser capability 迁移后保持入口 |
 | activity | `.core.tools.defaultTool.websession.userscript.install.UserscriptImportPickerActivity` | userscript 兼容入口 |

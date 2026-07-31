@@ -1466,7 +1466,7 @@
         errorLine1="                    config.setLocales(localeList)"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt"
+            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
             line="554"
             column="21"/>
     </issue>
@@ -20660,7 +20660,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt"
+            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
             line="112"
             column="17"/>
     </issue>
@@ -20671,7 +20671,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt"
+            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
             line="507"
             column="17"/>
     </issue>
@@ -20682,7 +20682,7 @@
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt"
+            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
             line="551"
             column="21"/>
     </issue>
@@ -20693,7 +20693,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt"
+            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
             line="576"
             column="17"/>
     </issue>
@@ -20704,7 +20704,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt"
+            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
             line="618"
             column="17"/>
     </issue>

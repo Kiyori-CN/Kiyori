@@ -18,7 +18,7 @@ Kiyori 已经不是 Operit 的简单换皮：
 
 源码结构仍主要延续 Operit：
 
-- Application 为 `core/application/OperitApplication.kt`
+- Application 为 `core/application/KiyoriApplication.kt`，仍保留原包路径
 - 根 Composable 为 `ui/main/OperitApp.kt`
 - `MainActivity` 同时承担启动门禁、Intent、权限、显示策略和 UI 装配
 - Browser Runtime 大量位于 `core/tools/defaultTool/websession/`
@@ -51,7 +51,7 @@ Kiyori 已经不是 Operit 的简单换皮：
 
 | 当前标识 | 目标标识 | 处理 |
 | --- | --- | --- |
-| `OperitApplication` | `KiyoriApplication` | G-00 后按精确影响清单在原包内改名，隔离全局访问后再移动 |
+| `KiyoriApplication` | `com.kiyori.app.KiyoriApplication` | M-01 已完成原包内改名；隔离全局访问后再移动 |
 | `OperitApp` | `KiyoriApp` | Application 稳定后单独迁移 |
 | `OperitTheme` | `KiyoriTheme` | 完成主题 owner 审计后迁移 |
 | `OperitUtilityTheme` | `KiyoriUtilityTheme` 或并入统一设计系统 | 不与视觉调整混做 |

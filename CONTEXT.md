@@ -26,7 +26,7 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - `com.kiyori.capability` and `com.kiyori.integration.operit` are the only planned cross-root contract and adapter boundaries. Neither side may create a second Browser Runtime, PlayerSession, download owner, userscript repository, settings store, or other factual state owner.
 - This is an incremental target, not a claim that source files have already moved. Until a milestone is implemented and verified, current paths under `com.ai.assistance.operit` remain authoritative.
 - Gradle `namespace` remains `com.ai.assistance.operit` during the initial package migration. Changing namespace, persisted data, protocol identifiers, AIDL/JNI names, Android stable components, or terminal ownership requires separate approved work.
-- The accepted implementation order is M-00 documentation authority, G-00 machine-readable ownership and stable-contract gates, then M-01's original-package `OperitApplication` to `KiyoriApplication` rename. Detailed scope lives in `docs/TODO/kiyori_architecture_refactor/`.
+- M-00 documentation authority, G-00 machine-readable ownership/stable-contract gates, and M-01's original-package rename are implemented. The current Application entry is `com.ai.assistance.operit.core.application.KiyoriApplication`; package movement and global-access isolation remain later milestones. Detailed scope lives in `docs/TODO/kiyori_architecture_refactor/`.
 
 ## UI design sources
 

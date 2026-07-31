@@ -5,16 +5,15 @@ status: verification_pending
 
 # Kiyori 启动性能优化
 
-> 架构迁移说明：当前基线类仍为
-> `com.ai.assistance.operit.core.application.OperitApplication`。已接受的架构重构方案 v3
-> 计划在 G-00 门禁后通过 M-01 在原包内改名为 `KiyoriApplication`。该命名计划不改变本文记录的
-> 首帧、初始化顺序、幂等、前台服务或性能结论；M-01 实际完成前不预先改写下文历史符号。
+> 架构迁移说明：M-01 已在原包内把当前类改名为
+> `com.ai.assistance.operit.core.application.KiyoriApplication`。这次纯改名没有改变本文记录的
+> 首帧、初始化顺序、幂等、前台服务或性能结论。
 
 ## 原本状况
 
 Android 12 及以上会为 Launcher Activity 强制创建系统启动窗口。当前 `Theme.Operit` 只指定背景色，没有指定启动图标，因此系统直接使用自适应 Launcher 图标并放大显示。该窗口一直保留到应用首帧绘制。
 
-`MainActivity.onCreate` 在 `setContent` 前同步执行完整的 `OperitApplication.initializeMainApplication`。这条链路除首屏必需状态外，还包含 WorkManager、后台服务职责、PDFBox、编辑器语言、缓存池、调度器和预热任务，使系统启动窗口的可见时间被非首屏工作延长。
+`MainActivity.onCreate` 在 `setContent` 前同步执行完整的 `KiyoriApplication.initializeMainApplication`。这条链路除首屏必需状态外，还包含 WorkManager、后台服务职责、PDFBox、编辑器语言、缓存池、调度器和预热任务，使系统启动窗口的可见时间被非首屏工作延长。
 
 ## 目标
 
@@ -34,7 +33,7 @@ kiyori_startup_performance/
 	3_validation.md
 ```
 
-实现范围限定在启动主题、`MainActivity` 启动顺序、`OperitApplication` 初始化阶段和相称的验证文档。现有下载、终端、浏览器与构建脚本改动不属于本任务。
+实现范围限定在启动主题、`MainActivity` 启动顺序、`KiyoriApplication` 初始化阶段和相称的验证文档。现有下载、终端、浏览器与构建脚本改动不属于本任务。
 
 ## 验收
 

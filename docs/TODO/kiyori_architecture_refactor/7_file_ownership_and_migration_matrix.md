@@ -98,7 +98,7 @@ Manifest、AIDL、native、资源或 CI 的变化如果不是纯路径引用修�
 
 | 文件组 | 第一阶段 | 后续目标 |
 | --- | --- | --- |
-| `core/application/OperitApplication.kt` | 原包内纯符号改名 | 全局访问收口后移入 `com.kiyori.app` |
+| `core/application/KiyoriApplication.kt` | M-01 已完成原包内纯符号改名 | 全局访问收口后移入 `com.kiyori.app` |
 | `ui/main/OperitApp.kt` | 不与 Application 同批 | `com.kiyori.app.KiyoriApp` |
 | `ui/main/MainActivity.kt` | 保持 Android 入口稳定 | 抽出 `KiyoriActivityHost` 和 Intent/startup coordinator |
 | `ui/main/shell/Kiyori*.kt` | 保持行为不变 | `com.kiyori.app.shell` |

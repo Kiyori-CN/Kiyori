@@ -287,7 +287,7 @@ Android 8 至 Android 10 使用 Binder death、PID、runtime generation 和 Play
 
 ## 进程感知的异常处理
 
-`OperitApplication` 在 `onCreate()` 识别进程角色：
+`KiyoriApplication` 在 `onCreate()` 识别进程角色：
 
 - 主进程：写入 `APP_FATAL` 报告，启动 `:crash` 页面后终止主进程
 - `:player`：写入 `PLAYER_RUNTIME_FATAL` Java 报告并终止；主进程 Binder death 负责读取并展示同一报告
@@ -460,7 +460,7 @@ app/src/main/java/com/ai/assistance/operit/util/crash/
 
 ```text
 app/src/main/AndroidManifest.xml
-app/src/main/java/com/ai/assistance/operit/core/application/OperitApplication.kt
+app/src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt
 app/src/main/java/com/ai/assistance/operit/core/player/PlayerSession.kt
 app/src/main/java/com/ai/assistance/operit/core/player/PlayerModels.kt
 app/src/main/java/com/ai/assistance/operit/core/player/PlayerSurfaceLeasePolicy.kt

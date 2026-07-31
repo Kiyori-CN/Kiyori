@@ -76,8 +76,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-/** Application class for Operit */
-class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
+/** Application class for Kiyori */
+class KiyoriApplication : Application(), ImageLoaderFactory, WorkConfiguration.Provider {
 
     companion object {
         /** Global JSON instance with custom serializers */
@@ -89,14 +89,14 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             private set
 
         // 全局应用实例
-        lateinit var instance: OperitApplication
+        lateinit var instance: KiyoriApplication
             private set
 
         // 全局 ImageLoader 延迟到首次实际使用或首帧后的完整初始化，避免阻塞进程首帧。
         val globalImageLoader: ImageLoader
             get() = instance.imageLoader
 
-        private const val TAG = "OperitApplication"
+        private const val TAG = "KiyoriApplication"
     }
 
     // 应用级协程作用域
@@ -345,7 +345,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.d(TAG, "【启动计时】媒体池磁盘预加载完成（异步/串行） - ${System.currentTimeMillis() - mediaPreloadStartTime}ms")
 
             val toolStartTime = System.currentTimeMillis()
-            val toolHandler = AIToolHandler.getInstance(this@OperitApplication)
+            val toolHandler = AIToolHandler.getInstance(this@KiyoriApplication)
             toolHandler.registerDefaultTools()
             AppLogger.d(TAG, "【启动计时】AIToolHandler初始化并注册工具完成（异步/串行） - ${System.currentTimeMillis() - toolStartTime}ms")
         }
@@ -375,7 +375,7 @@ class OperitApplication : Application(), ImageLoaderFactory, WorkConfiguration.P
             AppLogger.d(TAG, "【启动计时】开始预绑定无障碍服务提供者...")
             val bindStartTime = System.currentTimeMillis()
             try {
-                val bound = com.ai.assistance.operit.data.repository.UIHierarchyManager.bindToService(this@OperitApplication)
+                val bound = com.ai.assistance.operit.data.repository.UIHierarchyManager.bindToService(this@KiyoriApplication)
                 AppLogger.d(TAG, "【启动计时】无障碍服务预绑定完成（异步） - 结果: $bound, 耗时: ${System.currentTimeMillis() - bindStartTime}ms")
             } catch (e: Exception) {
                 AppLogger.e(TAG, "无障碍服务预绑定失败", e)

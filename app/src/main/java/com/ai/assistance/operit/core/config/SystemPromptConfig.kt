@@ -289,7 +289,7 @@ AVAILABLE_TOOLS_SECTION""".trimIndent()
     }
     val skillPackages = try {
         SkillRepository.getInstance(
-            com.ai.assistance.operit.core.application.OperitApplication.instance.applicationContext
+            com.ai.assistance.operit.core.application.KiyoriApplication.instance.applicationContext
         ).getAiVisibleSkillPackages().filterKeys { skillName ->
             allowedSkillNames?.contains(skillName) ?: true
         }
