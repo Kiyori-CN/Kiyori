@@ -34,11 +34,11 @@ last_reviewed: 2026-07-31
 
 | 合同 | 当前值/位置 | 类别 | 验证 |
 | --- | --- | --- | --- |
-| Room database | `app_database` | `FROZEN` | 基线启动和 snapshot |
-| Room schema | version `20` | `FROZEN` per naming refactor | schema/migration check |
-| Room tables | `chats`, `messages`, `message_variants` 等现有表 | `FROZEN` | schema export/dump |
-| ObjectBox model/UID | 当前 generated model | `FROZEN` | model diff |
-| raw snapshot format | `formatVersion = 1` | `FROZEN` | export/restore |
+| Room database | `app_database` | `FROZEN` | 字面量 snapshot |
+| Room schema | version `20` | `FROZEN` per naming refactor | `AppDatabase.kt` SHA-256 |
+| Room tables | `chats`, `messages`, `message_variants` 等现有表 | `FROZEN` | database/entity source SHA-256 |
+| ObjectBox model/UID | 当前 generated model | `FROZEN` | model 与备份 model SHA-256 |
+| raw snapshot format | `formatVersion = 1` | `FROZEN` | 格式版本、entry prefix snapshot |
 | raw snapshot prefix | `operit_raw_snapshot_` | `FROZEN` | path scan |
 | snapshot package guard | `com.kiyori` | `FROZEN` | manifest read |
 | backup directories | `Download/Kiyori/backup/*` | `FROZEN` | directory inventory |
@@ -113,6 +113,26 @@ ${type.wireValue}_publish_draft
 ```
 
 其中包含旧包名的 SharedPreferences 名称必须保留。类移动不能自动触发偏好迁移或复制。
+上述 DataStore 和 SharedPreferences 文件名已全部进入
+`config/architecture/persistence-names.txt`。同一文件名在多个调用点出现时保存精确计数，
+防止移动过程中静默复制第二个 owner。
+
+同一 snapshot 还固定：
+
+```text
+payload/
+payload/shared_prefs/
+payload/datastore/
+payload/databases/
+room_db_backup_
+room_db_manual_backup_
+room_db_daily_backup
+room_db_manual_backup
+workflow_
+workflow_id
+```
+
+这些值分别保护 raw snapshot entry、Room 备份文件、unique work name 和 worker input key。
 
 ## Web、Player 与产品公共路径
 
@@ -208,6 +228,9 @@ ${applicationId}.androidx-startup
 ```
 
 `applicationId` 保持 `com.kiyori`，所以 authority 解析值继续稳定。
+`manifest-components.txt` 已机器化保存组件、action、category、authority、scheme/host、
+MIME type、process 与组件 permission 的精确多重集合；同名 action 或 process 的重复次数
+也不能在未批准里程碑中变化。
 
 ### 当前 Manifest 组件入口
 
@@ -299,8 +322,15 @@ com.ai.assistance.operit.TRIGGER_WORKFLOW
 com.ai.assistance.operit.core.player.runtime
 ```
 
+无障碍 provider AIDL 当前位于：
+
+```text
+com.ai.assistance.operit.provider
+```
+
 包名、Parcelable 字段、callback 顺序、transaction 语义和 `:player` service 不能混入普通 Kotlin
-包移动。
+包移动。两组共 8 个 AIDL 文件已进入 `critical-file-hashes.txt`，因此只保持 package
+字面量不变但修改字段、方法或顺序同样会触发门禁。
 
 ### JNI
 

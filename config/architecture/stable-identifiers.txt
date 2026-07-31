@@ -2,7 +2,11 @@
 # Counts cover app/, examples/, and tools/ source-like files while excluding generated build trees.
 1	applicationId = "com.kiyori"
 1	namespace = "com.ai.assistance.operit"
+1	versionCode = 45
+1	versionName = "0.1.0"
 3	"app_database"
+1	version = 20
+1	private const val FORMAT_VERSION = 1
 1	"operit_raw_snapshot_"
 8	"__type"
 2	".operit/config.json"

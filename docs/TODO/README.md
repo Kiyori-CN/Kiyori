@@ -34,8 +34,9 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 当前状态：`M-01 completed`。正式实施严格按“本地备份与安全点 -> M-00 -> G-00
 -> M-01”串行推进；M-00、G-00 和 M-01 的门禁、测试和 Debug APK 验证均已通过；
 后续 G-00 加固已关闭 fresh-clone、Java static import 和重复 Manifest component
-检查缺口，并在纯 bundle 恢复副本中通过 88 项门禁。不改 namespace、数据、协议、UI、
-功能或 terminal，不使用设备，不推送。
+检查缺口，并扩展 Manifest、持久化、AIDL、Room 与 ObjectBox 合同覆盖；当前 89 项门禁
+可在纯 Git tree 中运行。不改 namespace、数据、协议、UI、功能或 terminal，不使用设备，
+不推送。
 
 ## 2026-07-31 插件中心信息架构与日志交互优化
 

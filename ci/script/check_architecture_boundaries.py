@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -11,10 +12,16 @@ import sys
 import tomllib
 import xml.etree.ElementTree as ET
 from collections import Counter
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 ANDROID_NAME = "{http://schemas.android.com/apk/res/android}name"
+ANDROID_AUTHORITIES = "{http://schemas.android.com/apk/res/android}authorities"
+ANDROID_HOST = "{http://schemas.android.com/apk/res/android}host"
+ANDROID_MIME_TYPE = "{http://schemas.android.com/apk/res/android}mimeType"
+ANDROID_PERMISSION = "{http://schemas.android.com/apk/res/android}permission"
+ANDROID_PROCESS = "{http://schemas.android.com/apk/res/android}process"
+ANDROID_SCHEME = "{http://schemas.android.com/apk/res/android}scheme"
 VALID_SYNC_ZONES = {"A", "B", "C", "D"}
 MANAGED_SOURCE_SUFFIXES = {".java", ".kt"}
 PROJECT_IMPORT_ROOTS = (
@@ -145,6 +152,24 @@ def read_count_snapshot(path: Path) -> list[tuple[int, str]]:
         if expected_count < 1 or not fields[1]:
             raise ValueError(f"invalid counted snapshot line: {line}")
         entries.append((expected_count, fields[1]))
+    return entries
+
+
+def read_hash_snapshot(path: Path) -> list[tuple[str, str]]:
+    entries: list[tuple[str, str]] = []
+    seen_paths: set[str] = set()
+    for line in read_snapshot(path):
+        fields = line.split("\t", maxsplit=1)
+        if len(fields) != 2 or not re.fullmatch(r"[0-9A-Fa-f]{64}", fields[0]):
+            raise ValueError(f"invalid hash snapshot line: {line}")
+        relative_path = PurePosixPath(fields[1])
+        if relative_path.is_absolute() or ".." in relative_path.parts:
+            raise ValueError(f"invalid hash snapshot path: {fields[1]}")
+        normalized = relative_path.as_posix()
+        if normalized in seen_paths:
+            raise ValueError(f"duplicate hash snapshot path: {normalized}")
+        seen_paths.add(normalized)
+        entries.append((fields[0].upper(), normalized))
     return entries
 
 
@@ -377,6 +402,35 @@ def actual_manifest_components(manifest_path: Path) -> Counter[tuple[str, str]]:
             name = node.get(ANDROID_NAME)
             if name:
                 components[(tag, name)] += 1
+            process = node.get(ANDROID_PROCESS)
+            if process:
+                components[("process", process)] += 1
+            permission = node.get(ANDROID_PERMISSION)
+            if permission:
+                components[("permission", permission)] += 1
+    for node in root.iter("action"):
+        name = node.get(ANDROID_NAME)
+        if name:
+            components[("action", name)] += 1
+    for node in root.iter("category"):
+        name = node.get(ANDROID_NAME)
+        if name:
+            components[("category", name)] += 1
+    for node in root.iter("provider"):
+        authorities = node.get(ANDROID_AUTHORITIES)
+        if authorities:
+            for authority in authorities.split(";"):
+                if authority.strip():
+                    components[("authority", authority.strip())] += 1
+    for node in root.iter("data"):
+        for kind, attribute in (
+            ("data-host", ANDROID_HOST),
+            ("data-scheme", ANDROID_SCHEME),
+            ("mime-type", ANDROID_MIME_TYPE),
+        ):
+            value = node.get(attribute)
+            if value:
+                components[(kind, value)] += 1
     return components
 
 
@@ -399,6 +453,24 @@ def check_literals(root: Path, snapshot_paths: tuple[Path, ...], errors: list[st
                     "ARCH009/ARCH010 stable literal count changed: "
                     f"{literal!r} expected {expected_count}, found {actual_count}"
                 )
+
+
+def check_file_hashes(root: Path, snapshot_path: Path, errors: list[str]) -> None:
+    for expected_hash, relative_path in read_hash_snapshot(snapshot_path):
+        path = root.joinpath(*PurePosixPath(relative_path).parts)
+        if not path.is_file():
+            errors.append(f"ARCH009/ARCH010 critical contract file missing: {relative_path}")
+            continue
+        # Hash the current working tree, not the Git index, so unstaged contract
+        # changes are visible. Normalizing CRLF keeps the same approved digest
+        # across Windows and Linux checkouts without ignoring content changes.
+        normalized = path.read_bytes().replace(b"\r\n", b"\n")
+        actual_hash = hashlib.sha256(normalized).hexdigest().upper()
+        if actual_hash != expected_hash:
+            errors.append(
+                "ARCH009/ARCH010 critical contract file changed: "
+                f"{relative_path} expected {expected_hash}, found {actual_hash}"
+            )
 
 
 def check_tracked_artifacts(root: Path, errors: list[str]) -> None:
@@ -596,6 +668,11 @@ def main() -> int:
             ),
             errors,
         ),
+        lambda: check_file_hashes(
+            root,
+            architecture_root / "critical-file-hashes.txt",
+            errors,
+        ),
         lambda: check_tracked_artifacts(root, errors),
         lambda: check_terminal_unchanged(root, args.base, errors),
     )
@@ -631,6 +708,7 @@ def main() -> int:
         print("- package ownership coverage")
         print("- manifest component snapshot")
         print("- stable persistence/native/protocol literals")
+        print("- critical AIDL, Room, and ObjectBox file hashes")
         print("- tracked artifact and terminal boundaries")
         if phase == "m01":
             print("- M-01 exact paths, normalized diff, package, and symbol counts")

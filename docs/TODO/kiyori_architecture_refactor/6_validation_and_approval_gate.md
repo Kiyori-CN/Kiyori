@@ -47,6 +47,7 @@ last_reviewed: 2026-07-31
 - 新旧包名和符号反向搜索
 - Manifest component、action、authority 清单对比
 - 数据库、偏好、WorkManager、序列化和路径字符串清单对比
+- AIDL、Room schema/entity 与 ObjectBox model 的规范化 SHA-256 对比
 - architecture ownership 和依赖规则检查
 - 无未跟踪构建产物、私密配置或工作区 checkpoint
 

@@ -1,5 +1,6 @@
 # Format: expected occurrence count<TAB>exact literal.
 6	package com.ai.assistance.operit.core.player.runtime;
+2	package com.ai.assistance.operit.provider;
 8	Java_com_ai_assistance_operit_
 1	System.loadLibrary("operit_ripgrep")
 2	liboperit_ripgrep.so

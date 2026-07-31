@@ -9,7 +9,9 @@ state.
 - `package-ownership.toml` maps every Kotlin/Java source file under
   `app/src/main/java` to one owner, records the sync zone, and declares
   package-dependency constraints for future `com.kiyori` roots.
-- `manifest-components.txt` is the reviewed Android component snapshot.
+- `manifest-components.txt` is the reviewed Android Manifest contract
+  snapshot. It preserves component classes plus action, category, authority,
+  scheme, host, MIME type, process, and component permission multiplicity.
   M-01 has one explicit old/new application-class mapping.
 - `stable-identifiers.txt` records product, ecosystem, serialization, and
   external-identity literals with exact expected occurrence counts.
@@ -17,6 +19,9 @@ state.
   database, backup, and related persistence names with exact counts.
 - `native-ipc-identifiers.txt` records exact native/JNI/AIDL package and
   library identifiers with exact counts.
+- `critical-file-hashes.txt` pins the complete bytes of AIDL contracts, Room
+  schema/entity sources, and ObjectBox UID models after CRLF-to-LF
+  normalization.
 
 Counts are extracted only from Git-tracked files plus non-ignored untracked
 source files under `app/`, `examples/`, and `tools/`. Ignored dependency,
@@ -41,8 +46,8 @@ Run the same checker locally and in CI:
 
 The checker is read-only. It rejects unmanaged source files, package/path
 mismatches, forbidden or out-of-layer imports, Manifest drift, stable-contract
-count drift, tracked private/build artifacts, terminal changes, and M-01
-changes outside its exact candidate manifest.
+count or critical-file hash drift, tracked private/build artifacts, terminal
+changes, and M-01 changes outside its exact candidate manifest.
 
 ## Exceptions
 

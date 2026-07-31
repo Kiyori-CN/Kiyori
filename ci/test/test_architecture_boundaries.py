@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sys
 import subprocess
 import tempfile
@@ -15,6 +16,7 @@ from check_architecture_boundaries import (  # noqa: E402
     M01_NEW_PATH,
     M01_OLD_PATH,
     actual_manifest_components,
+    check_file_hashes,
     check_literals,
     check_manifest,
     check_ownership,
@@ -100,7 +102,18 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             manifest.write_text(
                 '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
                 '<application android:name=".App">'
-                '<activity android:name=".MainActivity" />'
+                '<activity android:name=".MainActivity" android:process=":ui" '
+                'android:permission="com.example.ACTIVITY">'
+                '<intent-filter>'
+                '<action android:name="android.intent.action.VIEW" />'
+                '<category android:name="android.intent.category.DEFAULT" />'
+                '<data android:scheme="operit" android:host="callback" '
+                'android:mimeType="text/plain" />'
+                '</intent-filter>'
+                '</activity>'
+                '<provider android:name=".Provider" '
+                'android:authorities="${applicationId}.provider" '
+                'android:permission="com.example.PROVIDER" />'
                 "</application></manifest>",
                 encoding="utf-8",
             )
@@ -110,6 +123,16 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                     {
                         ("application", ".App"): 1,
                         ("activity", ".MainActivity"): 1,
+                        ("provider", ".Provider"): 1,
+                        ("process", ":ui"): 1,
+                        ("permission", "com.example.ACTIVITY"): 1,
+                        ("permission", "com.example.PROVIDER"): 1,
+                        ("action", "android.intent.action.VIEW"): 1,
+                        ("category", "android.intent.category.DEFAULT"): 1,
+                        ("authority", "${applicationId}.provider"): 1,
+                        ("data-scheme", "operit"): 1,
+                        ("data-host", "callback"): 1,
+                        ("mime-type", "text/plain"): 1,
                     }
                 ),
             )
@@ -160,6 +183,31 @@ class ArchitectureBoundaryTest(unittest.TestCase):
                 errors,
                 ["ARCH008 unexpected manifest component: service .DuplicateService"],
             )
+
+    def test_critical_file_hash_drift_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contract = root / "app/src/main/aidl/com/example/Contract.aidl"
+            contract.parent.mkdir(parents=True)
+            contract.write_text("package com.example;\n", encoding="utf-8")
+            normalized = contract.read_bytes().replace(b"\r\n", b"\n")
+            digest = hashlib.sha256(normalized).hexdigest()
+            snapshot = root / "critical-file-hashes.txt"
+            snapshot.write_text(
+                f"{digest}\tapp/src/main/aidl/com/example/Contract.aidl\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_file_hashes(root, snapshot, errors)
+            self.assertEqual(errors, [])
+
+            contract.write_bytes(b"package com.example;\r\n")
+            check_file_hashes(root, snapshot, errors)
+            self.assertEqual(errors, [])
+
+            contract.write_text("package com.changed;\n", encoding="utf-8")
+            check_file_hashes(root, snapshot, errors)
+            self.assertTrue(any("critical contract file changed" in error for error in errors))
 
     def test_missing_stable_literal_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

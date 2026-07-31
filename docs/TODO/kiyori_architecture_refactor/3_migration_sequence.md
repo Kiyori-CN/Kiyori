@@ -70,7 +70,8 @@ last_reviewed: 2026-07-31
 交付：
 
 - `config/architecture/package-ownership.toml`
-- stable identifiers、Manifest component、persistence、native/IPC snapshot
+- stable identifiers、Manifest contract、persistence、native/IPC 与
+  AIDL/Room/ObjectBox critical-file hash snapshot
 - 通用 `check_architecture_boundaries.py`
 - 对应 Python 单元测试
 - M-01 允许文件、规范化纯改名和 Lint baseline 约束

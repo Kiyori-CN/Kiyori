@@ -70,8 +70,8 @@ G-00 当前命令：
   ci.test.test_architecture_boundaries
 ```
 
-G-00 当前基线必须通过；超范围文件、稳定合同计数变化、terminal 变化和 M-01
-非纯改名样例必须稳定失败。
+G-00 当前基线必须通过；超范围文件、Manifest 多重集合、稳定合同计数、
+AIDL/Room/ObjectBox 规范化文件哈希、terminal 变化和 M-01 非纯改名样例必须稳定失败。
 
 ## Application 与 App Shell
 

@@ -19,7 +19,8 @@ config/architecture/
 ├── stable-identifiers.txt
 ├── manifest-components.txt
 ├── persistence-names.txt
-└── native-ipc-identifiers.txt
+├── native-ipc-identifiers.txt
+└── critical-file-hashes.txt
 
 ci/script/
 └── check_architecture_boundaries.py
@@ -118,11 +119,15 @@ config/architecture/
 ├── stable-identifiers.txt
 ├── manifest-components.txt
 ├── persistence-names.txt
-└── native-ipc-identifiers.txt
+├── native-ipc-identifiers.txt
+└── critical-file-hashes.txt
 ```
 
 这些文件由人工批准后进入 Git。脚本重新提取当前源码状态并以精确出现次数与
-snapshot 比较，因此新增和删除同类字面量都会触发检查。
+snapshot 比较，因此新增和删除同类字面量都会触发检查。Manifest snapshot 还保留
+component、action、category、authority、scheme、host、MIME type、process 和 permission
+的重复次数；关键文件 snapshot 直接核对 AIDL、Room schema/entity 与 ObjectBox model
+经 CRLF-to-LF 规范化后的 SHA-256，确保 Windows/Linux checkout 一致。
 
 snapshot 更新要求：
 
@@ -212,14 +217,17 @@ owner = "..."
 
 ## G-00 验收证据
 
-- 架构专测试：22 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
-  Git ignored dependency tree、Java static import 和重复 Manifest component 场景
-- 全量 `ci/test`：88 项通过
-- 当前工作树架构检查：`phase=baseline` PASS
+- 架构专测试：23 项通过，包含正向、负向、Windows 路径、例外、未暂存改名、
+  Git ignored dependency tree、Java static import、重复 Manifest component 和关键文件
+  hash drift 场景
+- 全量 `ci/test`：89 项通过
+- 当前工作树架构检查：`phase=post-m01` PASS
 - formal readiness：PASS
 - fresh clone reproducibility：PASS
 - 最终 bundle 恢复演练促使扫描范围收口为 Git tracked + non-ignored untracked，
   恢复克隆与开发工作树的 stable literal 计数一致
+- 深度合同审计补齐 Manifest Intent/authority/process、全部已登记 SharedPreferences、
+  provider AIDL、备份格式、WorkManager 名称，以及 AIDL/Room/ObjectBox 文件哈希
 - 未修改 Android 运行时代码、Manifest、资源、AIDL、native 或 terminal
 
 ## 门禁自身验收

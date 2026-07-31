@@ -195,7 +195,7 @@ Player TODO 的目录归属，然后才开始源码迁移。已有行为合同�
 ## 当前状态
 
 本方案 v3 已获批准。M-00 与 G-00 已完成并提交；M-01 已在原包内完成
-`OperitApplication -> KiyoriApplication` 纯改名，88 项门禁测试、771 项 JVM 单测、
+`OperitApplication -> KiyoriApplication` 纯改名，89 项门禁测试、771 项 JVM 单测、
 Debug APK 和精确差异验证通过。M-01 保持独立本地提交，后续 G-00 加固另行提交并通过
-bundle fresh-clone 的 88 项门禁回归。namespace、数据、协议、UI、功能、terminal 和设备
+bundle fresh-clone 的 89 项门禁回归。namespace、数据、协议、UI、功能、terminal 和设备
 均未改变或操作；下一源码里程碑必须单独规划。
