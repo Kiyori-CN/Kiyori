@@ -143,9 +143,9 @@ Manifest、持久化、native/IPC 和稳定标识 snapshot，防止文档与实�
 
 ## 冻结 upstream 快照中的 M-01 重叠分类账
 
-以本地基线 `62464b054f6de00b70c5596295bc216eb8edf63d` 和已冻结的
-`upstream/main=0921f749a087c4a52a2202abdf32491ae335dd41` 比较，M-01 的 16 个
-Android 实现文件中有 4 个与 upstream 变化重叠：
+以共同祖先 `ef00abc5099187b4665957e9697cb743c81fa154` 为起点，审计已冻结的
+`upstream/main=0921f749a087c4a52a2202abdf32491ae335dd41` 带来的 incoming 变化；
+M-01 的 16 个 Android 实现文件中有 4 个与 upstream incoming 变化重叠：
 
 | 文件 | 区域 | upstream 状态 | 后续同步规则 |
 | --- | --- | --- | --- |
@@ -160,8 +160,9 @@ upstream 快照比较中没有变化。上述结果只建立未来同步清单�
 
 ## 当前风险
 
-本地 Kiyori 与 upstream 已分别前进，当前已刷新引用显示 `54 / 43` 的左右提交差异，
-且有 85 个同文件修改重叠。M-01 精确范围内已有上述 4 个同步热点；此外还有 memory、
+本地 Kiyori 与 upstream 已分别前进，当前已刷新引用显示 `54 / 43` 的左右提交差异。
+以共同祖先为起点，本地基线一侧改变 830 个路径，upstream 一侧改变 241 个路径，
+双边同文件交集为 85 个。M-01 精确范围与 upstream incoming 的交集为上述 4 个同步热点；此外还有 memory、
 settings、route、assets 和多语言重叠。当前 `git merge-tree` 预演显示整个仓库存在多处
 双边修改、双边新增和删除/修改冲突，因此后续同步必须单独立项，不得与源码迁移混合。
 

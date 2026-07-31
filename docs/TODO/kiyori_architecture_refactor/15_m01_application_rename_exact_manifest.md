@@ -199,8 +199,9 @@ G-00 应复用
 - 与基线 APK 的 5,799 个 ZIP 条目集合完全一致；内容变化仅 Manifest 和 11 个 dex，
   压缩内容总量只差 180 字节。基线 APK 的额外体积来自约 26.4 MB 历史条目间空洞，
   干净构建后不再保留，不是资产或 native 缺失
-- 冻结的 `upstream/main=0921f749` 与本地基线比较时，在本清单中命中 Manifest、
-  lint baseline、`ToolPkgHookBridgeSupport.kt` 和 `MainActivity.kt` 4 个未来同步热点；
+- 以共同祖先 `ef00abc5` 为起点审计冻结的 `upstream/main=0921f749` incoming 变化时，
+  在本清单中命中 Manifest、lint baseline、`ToolPkgHookBridgeSupport.kt` 和
+  `MainActivity.kt` 4 个未来同步热点；
   本里程碑未执行 upstream merge，逐文件处理规则见
   [Operit AI 上游同步策略](4_upstream_sync_strategy.md)
 
