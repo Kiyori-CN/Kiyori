@@ -906,6 +906,72 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             userscriptManager.checkForUpdate(scriptId)
         }
 
+        override fun onCheckAllUserscriptUpdates() {
+            userscriptManager.checkAllUpdates()
+        }
+
+        override fun onApplyUserscriptUpdate(scriptId: Long) {
+            userscriptManager.applyUpdate(scriptId)
+        }
+
+        override fun onApplyAllSafeUserscriptUpdates() {
+            userscriptManager.applyAllSafeUpdates()
+        }
+
+        override fun onSetUserscriptsEnabled(scriptIds: Set<Long>, enabled: Boolean) {
+            userscriptManager.setScriptsEnabled(scriptIds, enabled)
+        }
+
+        override fun onDeleteUserscripts(scriptIds: Set<Long>) {
+            userscriptManager.deleteScripts(scriptIds)
+        }
+
+        override fun onLoadUserscriptDetail(scriptId: Long) {
+            userscriptManager.loadScriptDetail(scriptId)
+        }
+
+        override fun onOpenNewUserscriptEditor() {
+            userscriptManager.openNewEditor()
+        }
+
+        override fun onOpenExistingUserscriptEditor(scriptId: Long) {
+            userscriptManager.openExistingEditor(scriptId)
+        }
+
+        override fun onOpenUserscriptDraftEditor(draftId: String) {
+            userscriptManager.openDraftEditor(draftId)
+        }
+
+        override fun onUpdateUserscriptEditorBuffer(draftId: String, source: String) {
+            userscriptManager.updateEditorBuffer(draftId, source)
+        }
+
+        override fun onPersistUserscriptDraft(
+            draftId: String,
+            onComplete: (() -> Unit)?,
+        ) {
+            userscriptManager.persistEditorDraft(draftId, onComplete)
+        }
+
+        override fun onDiscardUserscriptDraft(
+            draftId: String,
+            onComplete: (() -> Unit)?,
+        ) {
+            userscriptManager.discardEditorDraft(draftId, onComplete)
+        }
+
+        override fun onValidateUserscriptDraft(draftId: String) {
+            userscriptManager.validateEditorDraft(draftId)
+        }
+
+        override fun onFormatUserscriptDraft(draftId: String) {
+            userscriptManager.formatEditorDraft(draftId)
+        }
+
+        override fun onApplyUserscriptDraft(draftId: String) {
+            userscriptManager.applyEditorDraft(draftId)
+        }
+
         override fun onInvokeUserscriptMenu(commandId: String) {
             userscriptManager.invokeMenuCommand(resolvePreferredSessionId(), commandId)
         }
@@ -1193,24 +1259,59 @@ internal fun StandardBrowserSessionTools.destroyBrowserPresentationOnMain() {
 internal fun StandardBrowserSessionTools.openPluginCenterOnMain() {
     val host = ensureBrowserPresentationOnMain(context.applicationContext)
     if (!host.hasAppPresentation()) {
-        host.showPluginPage(WebSessionBrowserPluginPage.OVERVIEW)
+        host.showPluginRoute(WebSessionBrowserPluginRoute.Overview)
         createBrowserHostCallbacks(context.applicationContext).onOpenAppShellBrowser()
         refreshSessionUiOnMain()
         return
     }
-    host.showPluginPage(WebSessionBrowserPluginPage.OVERVIEW)
+    host.showPluginRoute(WebSessionBrowserPluginRoute.Overview)
     refreshSessionUiOnMain()
 }
 
-internal fun StandardBrowserSessionTools.openUserscriptManagerOnMain() {
+internal fun StandardBrowserSessionTools.openUserscriptManagerOnMain(
+    initialTab: WebSessionUserscriptWorkbenchTab = WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
+    initialSearchQuery: String = "",
+) {
     val host = ensureBrowserPresentationOnMain(context.applicationContext)
     if (!host.hasAppPresentation()) {
-        host.showPluginPage(WebSessionBrowserPluginPage.USERSCRIPTS)
+        host.showPluginRoute(
+            WebSessionBrowserPluginRoute.Userscripts(
+                initialTab = initialTab,
+                initialSearchQuery = initialSearchQuery,
+            ),
+        )
         createBrowserHostCallbacks(context.applicationContext).onOpenAppShellBrowser()
         refreshSessionUiOnMain()
         return
     }
-    host.showPluginPage(WebSessionBrowserPluginPage.USERSCRIPTS)
+    host.showPluginRoute(
+        WebSessionBrowserPluginRoute.Userscripts(
+            initialTab = initialTab,
+            initialSearchQuery = initialSearchQuery,
+        ),
+    )
+    refreshSessionUiOnMain()
+}
+
+internal fun StandardBrowserSessionTools.openUserscriptDetailOnMain(scriptId: Long) {
+    val host = ensureBrowserPresentationOnMain(context.applicationContext)
+    if (!host.hasAppPresentation()) {
+        host.showPluginRoute(
+            WebSessionBrowserPluginRoute.UserscriptDetail(
+                scriptId = scriptId,
+                returnTab = WebSessionUserscriptWorkbenchTab.INSTALLED,
+            ),
+        )
+        createBrowserHostCallbacks(context.applicationContext).onOpenAppShellBrowser()
+        refreshSessionUiOnMain()
+        return
+    }
+    host.showPluginRoute(
+        WebSessionBrowserPluginRoute.UserscriptDetail(
+            scriptId = scriptId,
+            returnTab = WebSessionUserscriptWorkbenchTab.INSTALLED,
+        ),
+    )
     refreshSessionUiOnMain()
 }
 

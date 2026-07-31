@@ -19,9 +19,14 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensure
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.getActiveSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUrlOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openPluginCenterOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUserscriptDetailOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUserscriptManagerOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.showToast
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.flow.StateFlow
 
@@ -62,6 +67,7 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     private val tools = ToolGetter.getBrowserSessionTools(appContext)
     val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
     val browserSettings: StateFlow<WebSessionBrowserSettings> = tools.browserSettingsStore.state
+    val userscriptState: StateFlow<WebSessionUserscriptUiState> = tools.userscriptManager.uiStore.state
 
     fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): BrowserAppPresentationLease =
         tools.runOnMainSync {
@@ -188,6 +194,31 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 
     fun setAutomaticFloatingPlaybackEnabled(enabled: Boolean) {
         tools.browserSettingsStore.setAutomaticFloatingPlaybackEnabled(enabled)
+    }
+
+    fun setUserScriptsAllowed(enabled: Boolean) {
+        tools.userscriptManager.setUserScriptsAllowed(enabled)
+    }
+
+    fun openPluginCenter() {
+        tools.runOnMainSync<Unit> {
+            tools.openPluginCenterOnMain()
+        }
+    }
+
+    fun openUserscriptManager(
+        initialTab: WebSessionUserscriptWorkbenchTab = WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
+        initialSearchQuery: String = "",
+    ) {
+        tools.runOnMainSync<Unit> {
+            tools.openUserscriptManagerOnMain(initialTab, initialSearchQuery)
+        }
+    }
+
+    fun openUserscriptDetail(scriptId: Long) {
+        tools.runOnMainSync<Unit> {
+            tools.openUserscriptDetailOnMain(scriptId)
+        }
     }
 
     fun openUrlInNewSession(

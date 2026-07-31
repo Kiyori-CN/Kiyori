@@ -36,11 +36,22 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriBrowserSettingsAction {
     NONE,
+    TOGGLE_USER_SCRIPTS_ALLOWED,
+    OPEN_PLUGIN_CENTER,
+    OPEN_USERSCRIPT_MANAGER,
+    OPEN_PLUGIN_PERMISSIONS,
+    OPEN_CURRENT_PAGE_PLUGIN_DIAGNOSTICS,
+    OPEN_USERSCRIPT_LOGS,
     OPEN_HOME_CUSTOMIZATION,
     TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
     TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
@@ -69,23 +80,40 @@ internal data class KiyoriBrowserSettingsGroupSpec(
 internal val kiyoriBrowserSettingsGroups =
     listOf(
         KiyoriBrowserSettingsGroupSpec(
-            title = "插件与会话",
-            description = "管理网页扩展以及标签返回、启动恢复等会话行为",
+            title = "网页插件与脚本",
+            description = "管理用户脚本运行授权、声明权限、网站范围和当前页诊断",
             entries =
                 listOf(
-                    browserNavigation(
-                        title = "网页插件管理",
-                        description = "管理已安装的网页脚本与扩展能力",
-                    ),
                     browserToggle(
-                        title = "返回不重载",
-                        description = "返回标签时保留页面状态，避免重新加载",
+                        title = "允许用户脚本",
+                        description = "允许已启用脚本在匹配网页中运行；关闭后保留脚本和启用状态",
                         staticToggleValue = false,
+                        action = KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
                     ),
                     browserNavigation(
-                        title = "启动时恢复标签",
-                        description = "选择启动浏览器时恢复标签的策略",
-                        value = "不恢复",
+                        title = "插件中心",
+                        description = "查看当前网页中的插件提供者和已安装插件",
+                        action = KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER,
+                    ),
+                    browserNavigation(
+                        title = "油猴脚本管理",
+                        description = "安装、更新、编辑、启停或删除用户脚本",
+                        action = KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_MANAGER,
+                    ),
+                    browserNavigation(
+                        title = "插件权限与网站范围",
+                        description = "查看每个脚本声明的 GM 权限、联网范围和页面规则",
+                        action = KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
+                    ),
+                    browserNavigation(
+                        title = "当前页脚本诊断",
+                        description = "查看当前网页中的命中、执行、异常和排除规则",
+                        action = KiyoriBrowserSettingsAction.OPEN_CURRENT_PAGE_PLUGIN_DIAGNOSTICS,
+                    ),
+                    browserNavigation(
+                        title = "脚本日志",
+                        description = "查看、复制或导出用户脚本运行日志",
+                        action = KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_LOGS,
                     ),
                 ),
         ),
@@ -103,6 +131,16 @@ internal val kiyoriBrowserSettingsGroups =
                         title = "标签栏样式",
                         description = "选择网页标签在浏览器中的展示方式",
                         value = "图文卡片",
+                    ),
+                    browserToggle(
+                        title = "返回不重载",
+                        description = "返回标签时保留页面状态，避免重新加载",
+                        staticToggleValue = false,
+                    ),
+                    browserNavigation(
+                        title = "启动时恢复标签",
+                        description = "选择启动浏览器时恢复标签的策略",
+                        value = "不恢复",
                     ),
                     browserToggle(
                         title = "手势前进后退",
@@ -252,6 +290,7 @@ private fun browserToggle(
 
 private enum class KiyoriBrowserSettingsSubPage {
     HOME_CUSTOMIZATION,
+    PLUGIN_PERMISSIONS,
 }
 
 @Composable
@@ -268,6 +307,7 @@ internal fun KiyoriBrowserSettingsPage(
     val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val scope = rememberCoroutineScope()
     val settings by coordinator.browserSettings.collectAsState()
+    val userscriptState by coordinator.userscriptState.collectAsState()
     val searchEngine by
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
     var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -288,7 +328,22 @@ internal fun KiyoriBrowserSettingsPage(
         null ->
             KiyoriBrowserSettingsDetailPage(
                 settings = settings,
+                userscriptState = userscriptState,
                 onBack = ::closeCurrentPage,
+                onSetUserScriptsAllowed = coordinator::setUserScriptsAllowed,
+                onOpenPluginCenter = coordinator::openPluginCenter,
+                onOpenUserscriptManager = {
+                    coordinator.openUserscriptManager(WebSessionUserscriptWorkbenchTab.INSTALLED)
+                },
+                onOpenPluginPermissions = {
+                    subPageName = KiyoriBrowserSettingsSubPage.PLUGIN_PERMISSIONS.name
+                },
+                onOpenCurrentPagePluginDiagnostics = {
+                    coordinator.openUserscriptManager(WebSessionUserscriptWorkbenchTab.CURRENT_PAGE)
+                },
+                onOpenUserscriptLogs = {
+                    coordinator.openUserscriptManager(WebSessionUserscriptWorkbenchTab.LOGS)
+                },
                 onOpenHomeCustomization = {
                     subPageName = KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION.name
                 },
@@ -330,6 +385,24 @@ internal fun KiyoriBrowserSettingsPage(
                         Toast.LENGTH_SHORT,
                     ).show()
                 },
+                modifier = modifier,
+            )
+        KiyoriBrowserSettingsSubPage.PLUGIN_PERMISSIONS ->
+            KiyoriBrowserPluginPermissionsPage(
+                state = userscriptState,
+                onBack = ::closeCurrentPage,
+                onSetUserScriptsAllowed = coordinator::setUserScriptsAllowed,
+                onOpenPluginCenter = coordinator::openPluginCenter,
+                onOpenUserscriptManager = {
+                    coordinator.openUserscriptManager(WebSessionUserscriptWorkbenchTab.INSTALLED)
+                },
+                onOpenCurrentPagePluginDiagnostics = {
+                    coordinator.openUserscriptManager(WebSessionUserscriptWorkbenchTab.CURRENT_PAGE)
+                },
+                onOpenUserscriptLogs = {
+                    coordinator.openUserscriptManager(WebSessionUserscriptWorkbenchTab.LOGS)
+                },
+                onOpenUserscriptDetail = coordinator::openUserscriptDetail,
                 modifier = modifier,
             )
     }
@@ -381,7 +454,14 @@ internal fun KiyoriBrowserSettingsPage(
 @Composable
 private fun KiyoriBrowserSettingsDetailPage(
     settings: WebSessionBrowserSettings,
+    userscriptState: WebSessionUserscriptUiState,
     onBack: () -> Unit,
+    onSetUserScriptsAllowed: (Boolean) -> Unit,
+    onOpenPluginCenter: () -> Unit,
+    onOpenUserscriptManager: () -> Unit,
+    onOpenPluginPermissions: () -> Unit,
+    onOpenCurrentPagePluginDiagnostics: () -> Unit,
+    onOpenUserscriptLogs: () -> Unit,
     onOpenHomeCustomization: () -> Unit,
     onSetShowMediaCandidateBadge: (Boolean) -> Unit,
     onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
@@ -401,17 +481,41 @@ private fun KiyoriBrowserSettingsDetailPage(
                 description = group.description,
             ) {
                 group.entries.forEachIndexed { index, entry ->
-                    val enabled = isBrowserSettingEnabled(entry)
-                    val checked = browserSettingToggleValue(entry, settings)
+                    val enabled =
+                        isBrowserSettingEnabled(entry) &&
+                            isBrowserSettingRuntimeEnabled(entry, userscriptState)
+                    val checked =
+                        browserSettingToggleValue(
+                            entry = entry,
+                            settings = settings,
+                            userscriptState = userscriptState,
+                        )
                     KiyoriSettingsRow(
                         title = entry.title,
                         description = entry.description,
                         kind = entry.kind,
-                        value = browserSettingValue(entry, settings),
+                        value =
+                            browserSettingValue(
+                                entry = entry,
+                                settings = settings,
+                                userscriptState = userscriptState,
+                            ),
                         checked = checked,
                         enabled = enabled,
                         onClick = {
                             when (entry.action) {
+                                KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
+                                    onSetUserScriptsAllowed(!checked)
+                                KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER ->
+                                    onOpenPluginCenter()
+                                KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_MANAGER ->
+                                    onOpenUserscriptManager()
+                                KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS ->
+                                    onOpenPluginPermissions()
+                                KiyoriBrowserSettingsAction.OPEN_CURRENT_PAGE_PLUGIN_DIAGNOSTICS ->
+                                    onOpenCurrentPagePluginDiagnostics()
+                                KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_LOGS ->
+                                    onOpenUserscriptLogs()
                                 KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
                                     onOpenHomeCustomization()
                                 KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
@@ -441,14 +545,35 @@ private fun KiyoriBrowserSettingsDetailPage(
 internal fun isBrowserSettingEnabled(entry: KiyoriBrowserSettingsEntrySpec): Boolean =
     entry.action != KiyoriBrowserSettingsAction.NONE
 
+internal fun isBrowserSettingRuntimeEnabled(
+    entry: KiyoriBrowserSettingsEntrySpec,
+    userscriptState: WebSessionUserscriptUiState,
+): Boolean =
+    when (entry.action) {
+        KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
+            userscriptState.supportState.isSupported
+        else -> true
+    }
+
 internal fun browserSettingValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
+    userscriptState: WebSessionUserscriptUiState = WebSessionUserscriptUiState(),
 ): String? =
     if (entry.kind != KiyoriSettingsRowKind.NAVIGATION) {
         null
     } else {
         when (entry.action) {
+            KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER ->
+                browserPluginCenterSummary(userscriptState)
+            KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_MANAGER ->
+                browserPluginManagementSummary(userscriptState)
+            KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS ->
+                browserPluginPermissionSummary(userscriptState)
+            KiyoriBrowserSettingsAction.OPEN_CURRENT_PAGE_PLUGIN_DIAGNOSTICS ->
+                browserPluginCurrentPageSummary(userscriptState)
+            KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_LOGS ->
+                browserPluginLogSummary(userscriptState)
             KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
                 formatBrowserHomeUrl(settings.homeUrl)
             KiyoriBrowserSettingsAction.CLEAR_COOKIES -> null
@@ -460,8 +585,11 @@ internal fun browserSettingValue(
 private fun browserSettingToggleValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
+    userscriptState: WebSessionUserscriptUiState,
 ): Boolean =
     when (entry.action) {
+        KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
+            userscriptState.userScriptsAllowed
         KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
             settings.showMediaCandidateBadge
         KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
@@ -473,8 +601,237 @@ private fun browserSettingToggleValue(
         else -> entry.staticToggleValue
     }
 
+internal fun browserPluginManagementSummary(state: WebSessionUserscriptUiState): String =
+    "已安装 ${state.installedScripts.size} · 已启用 " +
+        state.installedScripts.count(UserscriptListItem::enabled)
+
+internal fun browserPluginCenterSummary(state: WebSessionUserscriptUiState): String =
+    "1 个插件 · ${state.installedScripts.size} 个脚本"
+
+internal fun browserPluginLogSummary(state: WebSessionUserscriptUiState): String =
+    "${state.recentLogs.size} 条保留日志"
+
+internal fun browserPluginPermissionSummary(state: WebSessionUserscriptUiState): String {
+    if (state.installedScripts.isEmpty()) {
+        return "暂无已安装脚本"
+    }
+    val grantCount = state.installedScripts.sumOf { script -> script.grants.distinct().size }
+    val siteCount =
+        state.installedScripts.sumOf { script ->
+            (script.matches + script.includes + script.connects).distinct().size
+        }
+    return "${state.installedScripts.size} 个脚本 · $grantCount 项权限 · $siteCount 个范围"
+}
+
+internal fun browserPluginCurrentPageSummary(state: WebSessionUserscriptUiState): String {
+    if (!state.supportState.isSupported) {
+        return "运行环境不可用"
+    }
+    if (!state.userScriptsAllowed) {
+        return "用户脚本未授权"
+    }
+    if (state.currentPageUrl.isNullOrBlank() || state.currentPageUrl == "about:blank") {
+        return "无活动页面"
+    }
+    val statuses = state.currentPageStatuses.values
+    val errorCount = statuses.count { status -> status.state == UserscriptPageRuntimeState.ERROR }
+    if (errorCount > 0) {
+        return "$errorCount 个异常"
+    }
+    val activeCount =
+        statuses.count { status ->
+            status.state in
+                setOf(
+                    UserscriptPageRuntimeState.MATCHED,
+                    UserscriptPageRuntimeState.QUEUED,
+                    UserscriptPageRuntimeState.RUNNING,
+                    UserscriptPageRuntimeState.SUCCESS,
+                )
+        }
+    val notMatchedCount =
+        statuses.count { status -> status.state == UserscriptPageRuntimeState.NOT_MATCHED }
+    return when {
+        activeCount > 0 && notMatchedCount > 0 ->
+            "$activeCount 个命中 · $notMatchedCount 个未命中"
+        activeCount > 0 -> "$activeCount 个命中"
+        notMatchedCount > 0 -> "$notMatchedCount 个未命中"
+        else -> "当前页无脚本状态"
+    }
+}
+
+internal fun browserPluginScriptPermissionDescription(script: UserscriptListItem): String {
+    val executionWorld =
+        when (script.executionWorld) {
+            UserscriptExecutionWorld.PAGE -> "页面世界"
+            UserscriptExecutionWorld.ISOLATED -> "隔离世界"
+            null -> "执行世界未确定"
+        }
+    val pageRules =
+        (script.matches + script.includes + script.excludes + script.excludeMatches)
+            .distinct()
+    val connectRules = script.connects.distinct()
+    return buildList {
+        add(executionWorld)
+        add("${script.grants.distinct().size} 项权限")
+        add(
+            if (pageRules.isEmpty()) {
+                "页面：全部页面"
+            } else {
+                "页面：" + summarizeBrowserPluginRules(pageRules)
+            },
+        )
+        add(
+            if (connectRules.isEmpty()) {
+                "联网：仅页面同源"
+            } else {
+                "联网：" + summarizeBrowserPluginRules(connectRules)
+            },
+        )
+        if (script.unknownGrants.isNotEmpty()) {
+            add("${script.unknownGrants.size} 项未知权限")
+        }
+        if (script.blockedReasons.isNotEmpty()) {
+            add("${script.blockedReasons.size} 项阻塞")
+        }
+    }.joinToString(" · ")
+}
+
+private fun summarizeBrowserPluginRules(rules: List<String>): String {
+    val visible = rules.take(2).joinToString("、")
+    return if (rules.size > 2) {
+        "$visible 等 ${rules.size} 项"
+    } else {
+        visible
+    }
+}
+
 internal fun formatBrowserHomeUrl(url: String): String =
     if (url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)) "空白页" else url
+
+@Composable
+private fun KiyoriBrowserPluginPermissionsPage(
+    state: WebSessionUserscriptUiState,
+    onBack: () -> Unit,
+    onSetUserScriptsAllowed: (Boolean) -> Unit,
+    onOpenPluginCenter: () -> Unit,
+    onOpenUserscriptManager: () -> Unit,
+    onOpenCurrentPagePluginDiagnostics: () -> Unit,
+    onOpenUserscriptLogs: () -> Unit,
+    onOpenUserscriptDetail: (Long) -> Unit,
+    modifier: Modifier,
+) {
+    KiyoriCollapsingSettingsPage(
+        title = "插件权限与网站范围",
+        onBack = onBack,
+        modifier = modifier,
+    ) {
+        item {
+            KiyoriSettingsGroupSection(
+                title = "运行授权",
+                description = "总授权由 userscript registry 唯一持有；关闭后不会删除脚本或修改启用状态",
+            ) {
+                KiyoriSettingsRow(
+                    title = "允许用户脚本",
+                    description = "允许已启用脚本在匹配网页中运行",
+                    kind = KiyoriSettingsRowKind.TOGGLE,
+                    checked = state.userScriptsAllowed,
+                    enabled = state.supportState.isSupported,
+                    onClick = { onSetUserScriptsAllowed(!state.userScriptsAllowed) },
+                )
+                KiyoriSettingsDivider()
+                KiyoriSettingsRow(
+                    title = "运行环境",
+                    description =
+                        state.supportState.reason
+                            ?: "当前 Android System WebView 支持用户脚本运行时",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = if (state.supportState.isSupported) "可用" else "不可用",
+                    enabled = false,
+                    onClick = {},
+                )
+                KiyoriSettingsDivider()
+                KiyoriSettingsRow(
+                    title = "当前页脚本诊断",
+                    description = "查看命中规则、执行状态、错误堆栈和页面菜单",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = browserPluginCurrentPageSummary(state),
+                    onClick = onOpenCurrentPagePluginDiagnostics,
+                )
+                KiyoriSettingsDivider()
+                KiyoriSettingsRow(
+                    title = "脚本日志",
+                    description = "查看、复制或导出当前保留的全部用户脚本日志",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = browserPluginLogSummary(state),
+                    onClick = onOpenUserscriptLogs,
+                )
+            }
+        }
+        item {
+            KiyoriSettingsGroupSection(
+                title = "插件管理",
+                description = "权限由脚本 metadata 声明；安装或更新时必须经过权限和网站范围审查",
+            ) {
+                KiyoriSettingsRow(
+                    title = "插件中心",
+                    description = "查看当前网页中的插件提供者和已安装插件",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = browserPluginCenterSummary(state),
+                    onClick = onOpenPluginCenter,
+                )
+                KiyoriSettingsDivider()
+                KiyoriSettingsRow(
+                    title = "油猴脚本管理",
+                    description = "安装、更新、编辑、启停或删除用户脚本",
+                    kind = KiyoriSettingsRowKind.NAVIGATION,
+                    value = browserPluginManagementSummary(state),
+                    onClick = onOpenUserscriptManager,
+                )
+            }
+        }
+        item {
+            KiyoriSettingsGroupSection(
+                title = "脚本声明权限与网站",
+                description =
+                    if (state.installedScripts.isEmpty()) {
+                        "尚未安装网页脚本"
+                    } else {
+                        "点击脚本进入完整管理页；这里不把脚本声明权限伪装成独立授权开关"
+                    },
+            ) {
+                if (state.installedScripts.isEmpty()) {
+                    KiyoriSettingsRow(
+                        title = "暂无已安装脚本",
+                        description = "可从油猴脚本管理右上角加号通过 URL、本地文件或插件库安装",
+                        kind = KiyoriSettingsRowKind.NAVIGATION,
+                        value = "0",
+                        enabled = false,
+                        onClick = {},
+                    )
+                } else {
+                    state.installedScripts.forEachIndexed { index, script ->
+                        KiyoriSettingsRow(
+                            title = script.name,
+                            description = browserPluginScriptPermissionDescription(script),
+                            kind = KiyoriSettingsRowKind.NAVIGATION,
+                            value =
+                                when {
+                                    script.blockedReasons.isNotEmpty() -> "不可运行"
+                                    script.unknownGrants.isNotEmpty() -> "需审查"
+                                    script.enabled -> "已启用"
+                                    else -> "已停用"
+                                },
+                            onClick = { onOpenUserscriptDetail(script.id) },
+                        )
+                        if (index != state.installedScripts.lastIndex) {
+                            KiyoriSettingsDivider()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun KiyoriBrowserHomepageCustomizationPage(

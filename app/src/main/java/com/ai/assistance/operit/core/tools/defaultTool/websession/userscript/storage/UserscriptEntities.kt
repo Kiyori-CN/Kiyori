@@ -20,6 +20,8 @@ internal data class UserscriptEntity(
     val enabled: Boolean,
     val sourceHash: String,
     val scriptFilePath: String,
+    val activeRevisionId: String = "",
+    val revisionNumber: Long = 0L,
     val installSourceType: String,
     val metadataJson: String = "",
     val grantsJson: String,
@@ -46,6 +48,7 @@ internal data class UserscriptValueEntity(
 internal data class UserscriptResourceEntity(
     val id: Long = 0,
     val userscriptId: Long,
+    val revisionId: String = "",
     val entryType: String,
     val resourceKey: String,
     val remoteUrl: String,
@@ -54,6 +57,56 @@ internal data class UserscriptResourceEntity(
     val etag: String? = null,
     val lastModifiedHeader: String? = null,
     val updatedAt: Long
+)
+
+@Serializable
+internal data class UserscriptRevisionManifest(
+    val schemaVersion: Int = 1,
+    val userscriptId: Long,
+    val revisionId: String,
+    val revisionNumber: Long,
+    val name: String,
+    val namespace: String? = null,
+    val version: String,
+    val sourceHash: String,
+    val sourceType: String,
+    val sourceUrl: String? = null,
+    val sourceEtag: String? = null,
+    val sourceLastModifiedHeader: String? = null,
+    val createdAt: Long,
+    val resources: List<UserscriptRevisionResource> = emptyList(),
+)
+
+@Serializable
+internal data class UserscriptRevisionResource(
+    val entryType: String,
+    val resourceKey: String,
+    val remoteUrl: String,
+    val relativePath: String,
+    val contentHash: String,
+    val mimeType: String? = null,
+    val etag: String? = null,
+    val lastModifiedHeader: String? = null,
+)
+
+@Serializable
+internal data class UserscriptDraftEntity(
+    val draftId: String,
+    val userscriptId: Long? = null,
+    val baseRevisionId: String? = null,
+    val sourceHash: String,
+    val source: String,
+    val updatedAt: Long,
+)
+
+@Serializable
+internal data class UserscriptTransactionJournal(
+    val schemaVersion: Int = 1,
+    val transactionId: String,
+    val userscriptId: Long,
+    val revisionId: String,
+    val isNewScript: Boolean,
+    val createdAt: Long,
 )
 
 @Serializable

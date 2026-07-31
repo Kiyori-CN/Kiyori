@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Par
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptCapabilityRegistry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptCompatibilityPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptBootstrapPayload
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptDraft
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionPayload
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorldPolicy
@@ -14,23 +15,27 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptLogItem
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptEditorReview
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptManagementPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptMatcher
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptMetadataParser
-import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRequireEntry
-import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptResourceEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptResourcePayload
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRevisionInfo
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRuntimeCapabilities
-import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRunAt
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSourceTools
 import com.ai.assistance.operit.util.AppLogger
-import com.ai.assistance.operit.util.OperitPaths
 import java.io.File
 import java.net.URI
 import java.net.URLDecoder
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -46,6 +51,13 @@ internal class UserscriptRepository private constructor(
         private const val LOG_LIMIT = 200
         private const val ENTRY_TYPE_REQUIRE = "require"
         private const val ENTRY_TYPE_RESOURCE = "resource"
+        private const val MAX_SOURCE_BYTES = 10L * 1024L * 1024L
+        private const val MAX_REQUIRE_BYTES = 5L * 1024L * 1024L
+        private const val MAX_RESOURCE_BYTES = 10L * 1024L * 1024L
+        private const val MAX_DEPENDENCY_BYTES = 50L * 1024L * 1024L
+        private const val MAX_REQUIRE_COUNT = 128
+        private const val MAX_RESOURCE_COUNT = 128
+        private const val NEW_DRAFT_PREFIX = "new-"
 
         @Volatile
         private var instance: UserscriptRepository? = null
@@ -57,11 +69,11 @@ internal class UserscriptRepository private constructor(
         }
     }
 
+    private val appContext = context.applicationContext
     private val store = UserscriptJsonStore.getInstance(context)
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private val rootDir = OperitPaths.webSessionUserscriptsDir()
-    private val scriptsDir = File(rootDir, "scripts").apply { mkdirs() }
-    private val cacheDir = File(rootDir, "cache").apply { mkdirs() }
+    private val installMutex = Mutex()
+    private val sourceTools = UserscriptSourceTools(appContext)
     private val httpClient =
         OkHttpClient.Builder()
             .followRedirects(true)
@@ -75,7 +87,7 @@ internal class UserscriptRepository private constructor(
 
     val userScriptsAllowedFlow: Flow<Boolean> = store.observeUserScriptsAllowed()
 
-    fun observeRecentLogs(limit: Int = 50): Flow<List<UserscriptLogItem>> =
+    fun observeRecentLogs(limit: Int = LOG_LIMIT): Flow<List<UserscriptLogItem>> =
         store.observeRecentLogs(limit).map { logs ->
             logs.map { log ->
                 UserscriptLogItem(
@@ -97,7 +109,16 @@ internal class UserscriptRepository private constructor(
         isUpdate: Boolean = false,
         existingScriptId: Long? = null
     ): UserscriptInstallPreview {
+        require(rawSource.toByteArray(Charsets.UTF_8).size <= MAX_SOURCE_BYTES) {
+            "Userscript source exceeds the 10 MiB limit"
+        }
         val metadata = UserscriptMetadataParser.parse(rawSource)
+        require(metadata.requires.size <= MAX_REQUIRE_COUNT) {
+            "Userscript declares more than $MAX_REQUIRE_COUNT @require entries"
+        }
+        require(metadata.resources.size <= MAX_RESOURCE_COUNT) {
+            "Userscript declares more than $MAX_RESOURCE_COUNT @resource entries"
+        }
         val knownGrants = UserscriptCapabilityRegistry.knownGrants(metadata.grants)
         val unknownGrants = UserscriptCapabilityRegistry.unknownGrants(metadata.grants)
         val worldResolution =
@@ -137,98 +158,208 @@ internal class UserscriptRepository private constructor(
             response.close()
             throw IllegalStateException("Failed to load userscript: HTTP ${response.code}")
         }
-        val body = response.body?.string().orEmpty()
-        response.close()
-        return prepareInstallPreview(
-            rawSource = body,
-            sourceType = sourceType,
-            sourceUrl = normalizedUrl,
-            sourceDisplay = normalizedUrl
-        )
-    }
-
-    suspend fun install(preview: UserscriptInstallPreview): UserscriptListItem = withContext(Dispatchers.IO) {
-        val existing = resolveExistingScript(preview)
-        if (existing != null && compareVersions(preview.metadata.version, existing.version) < 0) {
-            throw IllegalStateException(
-                "Refusing to install older userscript version ${preview.metadata.version} over ${existing.version}"
-            )
-        }
-        val now = System.currentTimeMillis()
-        val sourceHash = sha256(preview.rawSource)
-        val fileStem = buildFileStem(preview.metadata)
-        val scriptFile = File(scriptsDir, "$fileStem.user.js")
-        scriptFile.parentFile?.mkdirs()
-        scriptFile.writeText(preview.rawSource)
-        val installBlockedReasons =
-            UserscriptCompatibilityPolicy.blockedReasons(
-                metadata = preview.metadata,
-                runtimeCapabilities = UserscriptRuntimeCapabilities.current(),
-            )
-
-        val entity =
-            UserscriptEntity(
-                id = existing?.id ?: 0L,
-                name = preview.metadata.name,
-                namespace = preview.metadata.namespace,
-                version = preview.metadata.version,
-                description = preview.metadata.description,
-                author = preview.metadata.author,
-                homepageUrl = preview.metadata.homepage,
-                sourceUrl = preview.sourceUrl,
-                sourceDisplay = preview.sourceDisplay,
-                downloadUrl = preview.metadata.downloadUrl,
-                updateUrl = preview.metadata.updateUrl,
-                runAt = preview.metadata.runAt.rawValue,
-                noFrames = preview.metadata.noFrames,
-                enabled =
-                    installBlockedReasons.isEmpty() &&
-                        (existing?.enabled ?: true),
-                sourceHash = sourceHash,
-                scriptFilePath = scriptFile.absolutePath,
-                installSourceType = preview.sourceType.name,
-                metadataJson = json.encodeToString(preview.metadata),
-                grantsJson = json.encodeToString(preview.metadata.grants),
-                matchesJson = json.encodeToString(preview.metadata.matches),
-                includesJson = json.encodeToString(preview.metadata.includes),
-                excludesJson = json.encodeToString(preview.metadata.excludes),
-                excludeMatchesJson = json.encodeToString(preview.metadata.excludeMatches),
-                connectsJson = json.encodeToString(preview.metadata.connects),
-                requiresJson = json.encodeToString(preview.metadata.requires),
-                resourcesJson = json.encodeToString(preview.metadata.resources),
-                installedAt = existing?.installedAt ?: now,
-                updatedAt = now
-            )
-
-        val scriptId =
-            if (existing == null) {
-                store.insertUserscript(entity)
-            } else {
-                store.updateUserscript(entity)
-                entity.id
+        val body = response.body
+            ?: run {
+                response.close()
+                throw IllegalStateException("No response body for $normalizedUrl")
             }
-
-        val resourceEntities =
-            fetchAndCacheResources(
-                metadata = preview.metadata,
-                userscriptId = scriptId,
-                sourceUrl = preview.sourceUrl
-            )
-        store.replaceResources(scriptId = scriptId, resources = resourceEntities)
-
-        log(
-            userscriptId = scriptId,
-            level = "info",
-            pageUrl = null,
-            message =
-                if (existing == null) {
-                    "Installed userscript ${preview.metadata.name} ${preview.metadata.version}"
-                } else {
-                    "Updated userscript ${preview.metadata.name} ${preview.metadata.version}"
+        val declaredLength = body.contentLength()
+        if (declaredLength > MAX_SOURCE_BYTES) {
+            response.close()
+            throw IllegalStateException("Userscript source exceeds the 10 MiB limit")
+        }
+        val finalUrl = response.request.url.toString()
+        val etag = response.header("ETag")
+        val lastModified = response.header("Last-Modified")
+        val bodyBytes =
+            try {
+                body.byteStream().use { input ->
+                    input.readUserscriptLimitedBytes(MAX_SOURCE_BYTES)
                 }
+            } finally {
+                response.close()
+            }
+        return prepareInstallPreview(
+            rawSource = bodyBytes.toString(Charsets.UTF_8),
+            sourceType = sourceType,
+            sourceUrl = finalUrl,
+            sourceDisplay = normalizedUrl,
+        ).copy(
+            sourceEtag = etag,
+            sourceLastModifiedHeader = lastModified,
         )
-        entityToListItem(entity.copy(id = scriptId))
     }
+
+    suspend fun install(preview: UserscriptInstallPreview): UserscriptListItem =
+        withContext(Dispatchers.IO) {
+            installMutex.withLock {
+                val existing = resolveExistingScript(preview)
+                // 更新检查和提交是两个用户动作；基准 revision 变化后必须重新检查，不能覆盖较新的本地编辑。
+                preview.expectedRevisionId?.let { expectedRevisionId ->
+                    require(existing?.activeRevisionId == expectedRevisionId) {
+                        "Userscript changed after this update was checked"
+                    }
+                }
+                if (
+                    existing != null &&
+                        compareVersions(preview.metadata.version, existing.version) < 0
+                ) {
+                    throw IllegalStateException(
+                        "Refusing to install older userscript version " +
+                            "${preview.metadata.version} over ${existing.version}",
+                    )
+                }
+                if (preview.sourceType == UserscriptInstallSourceType.UPDATE && existing != null) {
+                    require(preview.metadata.name == existing.name) {
+                        "Userscript update changed the script name"
+                    }
+                    require(preview.metadata.namespace == existing.namespace) {
+                        "Userscript update changed the script namespace"
+                    }
+                }
+
+                val now = System.currentTimeMillis()
+                val sourceHash = sha256(preview.rawSource)
+                val scriptId = existing?.id ?: store.getNextScriptId()
+                val revisionNumber = (existing?.revisionNumber ?: 0L) + 1L
+                val revisionId =
+                    buildRevisionId(
+                        now = now,
+                        sourceHash = sourceHash,
+                    )
+                val transactionId = UUID.randomUUID().toString()
+                val journal =
+                    UserscriptTransactionJournal(
+                        transactionId = transactionId,
+                        userscriptId = scriptId,
+                        revisionId = revisionId,
+                        isNewScript = existing == null,
+                        createdAt = now,
+                    )
+                store.beginTransaction(journal)
+
+                val entity: UserscriptEntity
+                try {
+                    val stagedRevisionDir = store.layout.stagedRevisionDir(transactionId)
+                    val finalRevisionDir = store.layout.revisionDir(scriptId, revisionId)
+                    val stagedSourceFile = File(stagedRevisionDir, "source.user.js")
+                    writeSyncedBytes(
+                        stagedSourceFile,
+                        preview.rawSource.toByteArray(Charsets.UTF_8),
+                    )
+                    require(sha256(stagedSourceFile.readBytes()) == sourceHash) {
+                        "Userscript staging source hash mismatch"
+                    }
+
+                    val stagedResources =
+                        fetchAndStageResources(
+                            metadata = preview.metadata,
+                            userscriptId = scriptId,
+                            revisionId = revisionId,
+                            sourceUrl = preview.sourceUrl ?: existing?.sourceUrl,
+                            stagedRevisionDir = stagedRevisionDir,
+                            finalRevisionDir = finalRevisionDir,
+                        )
+                    val manifest =
+                        UserscriptRevisionManifest(
+                            userscriptId = scriptId,
+                            revisionId = revisionId,
+                            revisionNumber = revisionNumber,
+                            name = preview.metadata.name,
+                            namespace = preview.metadata.namespace,
+                            version = preview.metadata.version,
+                            sourceHash = sourceHash,
+                            sourceType = preview.sourceType.name,
+                            sourceUrl = preview.sourceUrl ?: existing?.sourceUrl,
+                            sourceEtag = preview.sourceEtag,
+                            sourceLastModifiedHeader = preview.sourceLastModifiedHeader,
+                            createdAt = now,
+                            resources =
+                                stagedResources.map { staged ->
+                                    staged.manifestResource
+                                },
+                        )
+                    writeAtomicText(
+                        File(stagedRevisionDir, "manifest.json"),
+                        json.encodeToString(manifest),
+                    )
+                    moveDirectoryAtomically(stagedRevisionDir, finalRevisionDir)
+
+                    val installBlockedReasons =
+                        UserscriptCompatibilityPolicy.blockedReasons(
+                            metadata = preview.metadata,
+                            runtimeCapabilities = UserscriptRuntimeCapabilities.current(),
+                        )
+                    entity =
+                        UserscriptEntity(
+                            id = scriptId,
+                            name = preview.metadata.name,
+                            namespace = preview.metadata.namespace,
+                            version = preview.metadata.version,
+                            description = preview.metadata.description,
+                            author = preview.metadata.author,
+                            homepageUrl = preview.metadata.homepage,
+                            sourceUrl = preview.sourceUrl ?: existing?.sourceUrl,
+                            sourceDisplay = preview.sourceDisplay ?: existing?.sourceDisplay,
+                            downloadUrl = preview.metadata.downloadUrl,
+                            updateUrl = preview.metadata.updateUrl,
+                            runAt = preview.metadata.runAt.rawValue,
+                            noFrames = preview.metadata.noFrames,
+                            enabled =
+                                installBlockedReasons.isEmpty() &&
+                                    (existing?.enabled ?: true),
+                            sourceHash = sourceHash,
+                            scriptFilePath =
+                                File(finalRevisionDir, "source.user.js").absolutePath,
+                            activeRevisionId = revisionId,
+                            revisionNumber = revisionNumber,
+                            installSourceType = preview.sourceType.name,
+                            metadataJson = json.encodeToString(preview.metadata),
+                            grantsJson = json.encodeToString(preview.metadata.grants),
+                            matchesJson = json.encodeToString(preview.metadata.matches),
+                            includesJson = json.encodeToString(preview.metadata.includes),
+                            excludesJson = json.encodeToString(preview.metadata.excludes),
+                            excludeMatchesJson =
+                                json.encodeToString(preview.metadata.excludeMatches),
+                            connectsJson = json.encodeToString(preview.metadata.connects),
+                            requiresJson = json.encodeToString(preview.metadata.requires),
+                            resourcesJson = json.encodeToString(preview.metadata.resources),
+                            installedAt = existing?.installedAt ?: now,
+                            updatedAt = now,
+                        )
+                    store.commitUserscriptRevision(
+                        entity = entity,
+                        resources = stagedResources.map(StagedUserscriptResource::entity),
+                        isNewScript = existing == null,
+                    )
+                } catch (error: Throwable) {
+                    withContext(NonCancellable) {
+                        store.abortTransaction(journal)
+                    }
+                    throw error
+                }
+
+                store.completeTransaction(journal)
+                runCatching {
+                    log(
+                        userscriptId = scriptId,
+                        level = "info",
+                        pageUrl = null,
+                        message =
+                            if (existing == null) {
+                                "Installed userscript ${preview.metadata.name} " +
+                                    preview.metadata.version
+                            } else {
+                                "Updated userscript ${preview.metadata.name} " +
+                                    preview.metadata.version
+                            },
+                    )
+                }.onFailure { error ->
+                    AppLogger.e(TAG, "Userscript revision committed but audit log failed", error)
+                }
+                entityToListItem(entity)
+            }
+        }
 
     suspend fun checkForUpdate(scriptId: Long): UserscriptInstallPreview? {
         val entity = store.getUserscriptById(scriptId) ?: return null
@@ -239,7 +370,8 @@ internal class UserscriptRepository private constructor(
                 sourceType = UserscriptInstallSourceType.UPDATE
             ).copy(
                 isUpdate = true,
-                existingScriptId = scriptId
+                existingScriptId = scriptId,
+                expectedRevisionId = entity.activeRevisionId,
             )
         return if (compareVersions(preview.metadata.version, entity.version) > 0) {
             preview
@@ -295,24 +427,188 @@ internal class UserscriptRepository private constructor(
 
     suspend fun deleteUserscript(scriptId: Long) {
         val entity = store.getUserscriptById(scriptId) ?: return
-        store.getResourcesForScript(scriptId).forEach { resource ->
-            runCatching { File(resource.localPath).delete() }
-        }
-        runCatching { File(entity.scriptFilePath).delete() }
-        log(
-            userscriptId = scriptId,
-            level = "info",
-            pageUrl = null,
-            message = "Deleted userscript ${entity.name}"
-        )
         store.deleteUserscriptById(scriptId)
+        val revisionDir = store.layout.revisionScriptDir(scriptId)
+        if (revisionDir.exists() && !revisionDir.deleteRecursively()) {
+            AppLogger.w(TAG, "Unable to remove userscript revisions at ${revisionDir.absolutePath}")
+        }
+        AppLogger.i(TAG, "Deleted userscript ${entity.name}")
     }
 
     suspend fun readSource(scriptId: Long): String? =
         withContext(Dispatchers.IO) {
-            store.getUserscriptById(scriptId)?.let { entity ->
-                runCatching { File(entity.scriptFilePath).readText() }.getOrNull()
+            val entity = store.getUserscriptById(scriptId) ?: return@withContext null
+            val sourceFile = File(entity.scriptFilePath)
+            require(sourceFile.isFile) {
+                "Userscript $scriptId active source is missing"
             }
+            sourceFile.readText()
+        }
+
+    suspend fun createDraft(
+        source: String = defaultNewUserscriptSource(),
+    ): UserscriptDraft =
+        withContext(Dispatchers.IO) {
+            val draft =
+                UserscriptDraftEntity(
+                    draftId = NEW_DRAFT_PREFIX + UUID.randomUUID().toString().replace("-", ""),
+                    sourceHash = sha256(source),
+                    source = source,
+                    updatedAt = System.currentTimeMillis(),
+                )
+            store.saveDraft(draft)
+            draft.toModel()
+        }
+
+    suspend fun saveDraft(
+        draftId: String,
+        source: String,
+    ): UserscriptDraft =
+        withContext(Dispatchers.IO) {
+            require(source.isNotBlank()) { "Userscript draft is empty" }
+            val currentDraft = store.readDraft(draftId)
+            val userscriptId =
+                currentDraft?.userscriptId
+                    ?: draftId
+                        .removePrefix("script-")
+                        .takeIf { draftId.startsWith("script-") }
+                        ?.toLongOrNull()
+            val entity =
+                userscriptId?.let { scriptId ->
+                    store.getUserscriptById(scriptId)
+                        ?: throw IllegalArgumentException("Userscript $scriptId does not exist")
+                }
+            val draft =
+                UserscriptDraftEntity(
+                    draftId = draftId,
+                    userscriptId = userscriptId,
+                    baseRevisionId = currentDraft?.baseRevisionId ?: entity?.activeRevisionId,
+                    sourceHash = sha256(source),
+                    source = source,
+                    updatedAt = System.currentTimeMillis(),
+                )
+            store.saveDraft(draft)
+            draft.toModel()
+        }
+
+    suspend fun readDraft(draftId: String): UserscriptDraft? =
+        withContext(Dispatchers.IO) {
+            store.readDraft(draftId)?.toModel()
+        }
+
+    suspend fun listDrafts(): List<UserscriptDraft> =
+        withContext(Dispatchers.IO) {
+            store.listDrafts().map { draft -> draft.toModel() }
+        }
+
+    suspend fun discardDraft(draftId: String) {
+        withContext(Dispatchers.IO) {
+            store.deleteDraft(draftId)
+        }
+    }
+
+    suspend fun installDraft(draftId: String): UserscriptListItem =
+        withContext(Dispatchers.IO) {
+            val draft =
+                store.readDraft(draftId)
+                    ?: throw IllegalStateException("Userscript draft $draftId does not exist")
+            val entity =
+                draft.userscriptId?.let { scriptId ->
+                    store.getUserscriptById(scriptId)
+                        ?: throw IllegalArgumentException("Userscript $scriptId does not exist")
+                }
+            if (entity != null) {
+                require(draft.baseRevisionId == entity.activeRevisionId) {
+                    "Userscript changed after this draft was created"
+                }
+            }
+            sourceTools.validateSyntax(draft.source)?.let { error ->
+                throw IllegalArgumentException(error)
+            }
+            val preview =
+                prepareInstallPreview(
+                    rawSource = draft.source,
+                    sourceType = UserscriptInstallSourceType.TOOL_INPUT,
+                    sourceUrl = entity?.sourceUrl,
+                    sourceDisplay = entity?.sourceDisplay,
+                    isUpdate = entity != null,
+                    existingScriptId = entity?.id,
+                )
+            install(preview).also {
+                store.deleteDraft(draftId)
+            }
+        }
+
+    suspend fun reviewDraft(draftId: String): UserscriptEditorReview =
+        withContext(Dispatchers.IO) {
+            val draft =
+                store.readDraft(draftId)
+                    ?: throw IllegalStateException("Userscript draft $draftId does not exist")
+            val current =
+                draft.userscriptId?.let { scriptId ->
+                    store.getUserscriptById(scriptId)?.let(::entityToListItem)
+                }
+            val activeSource =
+                draft.userscriptId?.let { scriptId ->
+                    readSource(scriptId)
+                }.orEmpty()
+            val syntaxError = sourceTools.validateSyntax(draft.source)
+            val previewResult =
+                runCatching {
+                    prepareInstallPreview(
+                        rawSource = draft.source,
+                        sourceType = UserscriptInstallSourceType.TOOL_INPUT,
+                        sourceUrl = current?.sourceUrl,
+                        sourceDisplay = current?.sourceDisplay,
+                        isUpdate = current != null,
+                        existingScriptId = current?.id,
+                    )
+                }
+            val preview = previewResult.getOrNull()
+            UserscriptEditorReview(
+                preview = preview,
+                syntaxError = syntaxError ?: previewResult.exceptionOrNull()?.message,
+                updateDiff =
+                    if (current != null && preview != null) {
+                        UserscriptManagementPolicy.buildUpdateDiff(current, preview)
+                    } else {
+                        null
+                    },
+                sourceDiff =
+                    UserscriptManagementPolicy.buildSourceDiff(
+                        original = activeSource,
+                        revised = draft.source,
+                    ),
+            )
+        }
+
+    suspend fun formatDraftSource(draftId: String): UserscriptDraft =
+        withContext(Dispatchers.IO) {
+            val draft =
+                store.readDraft(draftId)
+                    ?: throw IllegalStateException("Userscript draft $draftId does not exist")
+            saveDraft(
+                draftId = draftId,
+                source = sourceTools.format(draft.source),
+            )
+        }
+
+    suspend fun listRevisions(scriptId: Long): List<UserscriptRevisionInfo> =
+        withContext(Dispatchers.IO) {
+            val entity =
+                store.getUserscriptById(scriptId)
+                    ?: return@withContext emptyList()
+            store.listRevisionManifests(scriptId).map { manifest ->
+                manifest.toModel(activeRevisionId = entity.activeRevisionId)
+            }
+        }
+
+    suspend fun readRevisionSource(
+        scriptId: Long,
+        revisionId: String,
+    ): String =
+        withContext(Dispatchers.IO) {
+            store.readRevisionSource(scriptId, revisionId)
         }
 
     suspend fun buildBootstrapPayload(
@@ -367,8 +663,12 @@ internal class UserscriptRepository private constructor(
                 .groupBy { it.userscriptId }
 
         val payloads =
-            matched.mapNotNull { entity ->
-                val source = runCatching { File(entity.scriptFilePath).readText() }.getOrNull() ?: return@mapNotNull null
+            matched.map { entity ->
+                val sourceFile = File(entity.scriptFilePath)
+                require(sourceFile.isFile) {
+                    "Userscript ${entity.id} active source is missing"
+                }
+                val source = sourceFile.readText()
                 val metadata = entityToMetadata(entity)
                 val values =
                     store.getValuesForScript(entity.id).associate { value ->
@@ -378,26 +678,31 @@ internal class UserscriptRepository private constructor(
                 val requireBodies =
                     resourceEntities
                         .filter { it.entryType == ENTRY_TYPE_REQUIRE }
-                        .mapNotNull { resource -> runCatching { File(resource.localPath).readText() }.getOrNull() }
+                        .map { resource ->
+                            val file = File(resource.localPath)
+                            require(file.isFile) {
+                                "Userscript ${entity.id} require is missing: ${resource.resourceKey}"
+                            }
+                            file.readText()
+                        }
                 val resourcePayloads =
                     resourceEntities
                         .filter { it.entryType == ENTRY_TYPE_RESOURCE }
-                        .associateNotNull { resource ->
+                        .associate { resource ->
                             val file = File(resource.localPath)
-                            if (!file.exists()) {
-                                null
-                            } else {
-                                val bytes = file.readBytes()
-                                val mimeType = resource.mimeType ?: "application/octet-stream"
-                                val dataUrl =
-                                    "data:$mimeType;base64," +
-                                        Base64.encodeToString(bytes, Base64.NO_WRAP)
-                                resource.resourceKey to
-                                    UserscriptResourcePayload(
-                                        text = runCatching { bytes.toString(Charsets.UTF_8) }.getOrNull(),
-                                        dataUrl = dataUrl
-                                    )
+                            require(file.isFile) {
+                                "Userscript ${entity.id} resource is missing: ${resource.resourceKey}"
                             }
+                            val bytes = file.readBytes()
+                            val mimeType = resource.mimeType ?: "application/octet-stream"
+                            val dataUrl =
+                                "data:$mimeType;base64," +
+                                    Base64.encodeToString(bytes, Base64.NO_WRAP)
+                            resource.resourceKey to
+                                UserscriptResourcePayload(
+                                    text = bytes.toString(Charsets.UTF_8),
+                                    dataUrl = dataUrl,
+                                )
                         }
                 UserscriptExecutionPayload(
                     scriptId = entity.id,
@@ -494,56 +799,103 @@ internal class UserscriptRepository private constructor(
         }
     }
 
-    private suspend fun fetchAndCacheResources(
+    private fun fetchAndStageResources(
         metadata: ParsedUserscriptMetadata,
         userscriptId: Long,
-        sourceUrl: String?
-    ): List<UserscriptResourceEntity> {
-        val requireResources =
-            metadata.requires.mapIndexed { index, entry ->
+        revisionId: String,
+        sourceUrl: String?,
+        stagedRevisionDir: File,
+        finalRevisionDir: File,
+    ): List<StagedUserscriptResource> {
+        val stagedResources = ArrayList<StagedUserscriptResource>()
+        var totalDependencyBytes = 0L
+        metadata.requires.forEachIndexed { index, entry ->
                 val absoluteUrl = resolveRemoteUrl(sourceUrl, entry.url)
-                val target =
-                    File(
-                        cacheDir,
-                        "${buildSafeCachePrefix(metadata)}_require_${index.toString().padStart(4, '0')}.js"
-                    )
-                val fetched = fetchRemoteAsset(absoluteUrl, target)
-                UserscriptResourceEntity(
+                val staged = stageResource(
                     userscriptId = userscriptId,
+                    revisionId = revisionId,
                     entryType = ENTRY_TYPE_REQUIRE,
                     resourceKey = "require:${index.toString().padStart(4, '0')}",
-                    remoteUrl = absoluteUrl,
-                    localPath = fetched.file.absolutePath,
-                    mimeType = fetched.mimeType,
-                    etag = fetched.etag,
-                    lastModifiedHeader = fetched.lastModified,
-                    updatedAt = System.currentTimeMillis()
+                    absoluteUrl = absoluteUrl,
+                    relativePath =
+                        "requires/${index.toString().padStart(4, '0')}.js",
+                    stagedRevisionDir = stagedRevisionDir,
+                    finalRevisionDir = finalRevisionDir,
+                    maxBytes = MAX_REQUIRE_BYTES,
                 )
+                totalDependencyBytes += staged.length
+                require(totalDependencyBytes <= MAX_DEPENDENCY_BYTES) {
+                    "Userscript dependencies exceed the 50 MiB total limit"
+                }
+                stagedResources += staged
             }
 
-        val namedResources =
-            metadata.resources.mapIndexed { index, entry ->
+        metadata.resources.forEachIndexed { index, entry ->
                 val absoluteUrl = resolveRemoteUrl(sourceUrl, entry.url)
                 val extension = MimeTypeMap.getFileExtensionFromUrl(absoluteUrl).takeIf { !it.isNullOrBlank() }
-                val target =
-                    File(
-                        cacheDir,
-                        "${buildSafeCachePrefix(metadata)}_resource_${index.toString().padStart(4, '0')}.${extension ?: "bin"}"
-                    )
-                val fetched = fetchRemoteAsset(absoluteUrl, target)
-                UserscriptResourceEntity(
+                val staged = stageResource(
                     userscriptId = userscriptId,
+                    revisionId = revisionId,
                     entryType = ENTRY_TYPE_RESOURCE,
                     resourceKey = entry.name,
-                    remoteUrl = absoluteUrl,
-                    localPath = fetched.file.absolutePath,
+                    absoluteUrl = absoluteUrl,
+                    relativePath =
+                        "resources/${index.toString().padStart(4, '0')}.${extension ?: "bin"}",
+                    stagedRevisionDir = stagedRevisionDir,
+                    finalRevisionDir = finalRevisionDir,
+                    maxBytes = MAX_RESOURCE_BYTES,
+                )
+                totalDependencyBytes += staged.length
+                require(totalDependencyBytes <= MAX_DEPENDENCY_BYTES) {
+                    "Userscript dependencies exceed the 50 MiB total limit"
+                }
+                stagedResources += staged
+            }
+        return stagedResources
+    }
+
+    private fun stageResource(
+        userscriptId: Long,
+        revisionId: String,
+        entryType: String,
+        resourceKey: String,
+        absoluteUrl: String,
+        relativePath: String,
+        stagedRevisionDir: File,
+        finalRevisionDir: File,
+        maxBytes: Long,
+    ): StagedUserscriptResource {
+        val stagedFile = File(stagedRevisionDir, relativePath)
+        val fetched = fetchRemoteAsset(absoluteUrl, stagedFile, maxBytes)
+        val contentHash = sha256(fetched.file.readBytes())
+        val updatedAt = System.currentTimeMillis()
+        return StagedUserscriptResource(
+            entity =
+                UserscriptResourceEntity(
+                    userscriptId = userscriptId,
+                    revisionId = revisionId,
+                    entryType = entryType,
+                    resourceKey = resourceKey,
+                    remoteUrl = fetched.finalUrl,
+                    localPath = File(finalRevisionDir, relativePath).absolutePath,
                     mimeType = fetched.mimeType,
                     etag = fetched.etag,
                     lastModifiedHeader = fetched.lastModified,
-                    updatedAt = System.currentTimeMillis()
-                )
-            }
-        return requireResources + namedResources
+                    updatedAt = updatedAt,
+                ),
+            manifestResource =
+                UserscriptRevisionResource(
+                    entryType = entryType,
+                    resourceKey = resourceKey,
+                    remoteUrl = fetched.finalUrl,
+                    relativePath = relativePath,
+                    contentHash = contentHash,
+                    mimeType = fetched.mimeType,
+                    etag = fetched.etag,
+                    lastModifiedHeader = fetched.lastModified,
+                ),
+            length = fetched.length,
+        )
     }
 
     private fun entityToListItem(entity: UserscriptEntity): UserscriptListItem {
@@ -571,6 +923,7 @@ internal class UserscriptRepository private constructor(
             blockedReasons = blockedReasons,
             executionWorld = worldResolution.world,
             unsafeWindowMode = worldResolution.unsafeWindowMode,
+            runAt = metadata.runAt,
             grants = metadata.grants,
             matches = metadata.matches,
             includes = metadata.includes,
@@ -587,6 +940,7 @@ internal class UserscriptRepository private constructor(
             injectInto = metadata.injectInto,
             sandbox = metadata.sandbox,
             runIn = metadata.runIn,
+            noFrames = metadata.noFrames,
             unwrap = metadata.unwrap,
             webRequestRules = metadata.webRequestRules,
             sourceUrl = entity.sourceUrl,
@@ -613,55 +967,25 @@ internal class UserscriptRepository private constructor(
     }
 
     private fun entityToMetadata(entity: UserscriptEntity): ParsedUserscriptMetadata {
-        if (entity.metadataJson.isNotBlank()) {
-            runCatching { json.decodeFromString<ParsedUserscriptMetadata>(entity.metadataJson) }
-                .getOrNull()
-                ?.let { return it }
+        require(entity.metadataJson.isNotBlank()) {
+            "Userscript ${entity.id} has no canonical metadata"
         }
-        return ParsedUserscriptMetadata(
-            name = entity.name,
-            namespace = entity.namespace,
-            version = entity.version,
-            description = entity.description,
-            author = entity.author,
-            homepage = entity.homepageUrl,
-            downloadUrl = entity.downloadUrl,
-            updateUrl = entity.updateUrl,
-            runAt = UserscriptRunAt.fromRaw(entity.runAt),
-            grants = decodeStringList(entity.grantsJson),
-            matches = decodeStringList(entity.matchesJson),
-            includes = decodeStringList(entity.includesJson),
-            excludes = decodeStringList(entity.excludesJson),
-            excludeMatches = decodeStringList(entity.excludeMatchesJson),
-            connects = decodeStringList(entity.connectsJson),
-            requires = decodeRequireList(entity.requiresJson),
-            resources = decodeResourceList(entity.resourcesJson),
-            noFrames = entity.noFrames
-        )
-    }
-
-    private fun decodeStringList(raw: String): List<String> =
-        runCatching { json.decodeFromString<List<String>>(raw) }.getOrElse { emptyList() }
-
-    private fun decodeRequireList(raw: String): List<UserscriptRequireEntry> =
-        runCatching { json.decodeFromString<List<UserscriptRequireEntry>>(raw) }.getOrElse { emptyList() }
-
-    private fun decodeResourceList(raw: String): List<UserscriptResourceEntry> =
-        runCatching { json.decodeFromString<List<UserscriptResourceEntry>>(raw) }.getOrElse { emptyList() }
-
-    private fun buildFileStem(metadata: ParsedUserscriptMetadata): String =
-        buildSafeCachePrefix(metadata) + "_" + sha256("${metadata.namespace.orEmpty()}::${metadata.name}").take(12)
-
-    private fun buildSafeCachePrefix(metadata: ParsedUserscriptMetadata): String {
-        val raw = "${metadata.namespace.orEmpty()}_${metadata.name}".lowercase(Locale.ROOT)
-        val normalized = raw.replace("[^a-z0-9._-]+".toRegex(), "_").trim('_')
-        return normalized.ifBlank { "userscript" }
+        return json.decodeFromString(entity.metadataJson)
     }
 
     private fun sha256(raw: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
+        return sha256(raw.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun sha256(bytes: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
         return digest.joinToString("") { "%02x".format(it) }
     }
+
+    private fun buildRevisionId(
+        now: Long,
+        sourceHash: String,
+    ): String = "$now-${sourceHash.take(16)}-${UUID.randomUUID().toString().take(8)}"
 
     private fun resolveRemoteUrl(baseUrl: String?, candidate: String): String {
         val trimmed = candidate.trim()
@@ -679,7 +1003,11 @@ internal class UserscriptRepository private constructor(
         return URI(base).resolve(trimmed).toString()
     }
 
-    private fun fetchRemoteAsset(url: String, targetFile: File): FetchedAsset {
+    private fun fetchRemoteAsset(
+        url: String,
+        targetFile: File,
+        maxBytes: Long,
+    ): FetchedAsset {
         if (url.startsWith("data:", ignoreCase = true)) {
             val header = url.substringAfter("data:", "").substringBefore(',', "")
             val payload = url.substringAfter(',', "")
@@ -690,9 +1018,18 @@ internal class UserscriptRepository private constructor(
                 } else {
                     URLDecoder.decode(payload, Charsets.UTF_8.name()).toByteArray(Charsets.UTF_8)
                 }
-            targetFile.parentFile?.mkdirs()
-            targetFile.writeBytes(bytes)
-            return FetchedAsset(file = targetFile, mimeType = mimeType, etag = null, lastModified = null)
+            require(bytes.size <= maxBytes) {
+                "Userscript dependency exceeds its size limit: $url"
+            }
+            writeSyncedBytes(targetFile, bytes)
+            return FetchedAsset(
+                file = targetFile,
+                mimeType = mimeType,
+                etag = null,
+                lastModified = null,
+                length = bytes.size.toLong(),
+                finalUrl = url,
+            )
         }
         val response = httpClient.newCall(Request.Builder().url(url).get().build()).execute()
         if (!response.isSuccessful) {
@@ -703,23 +1040,36 @@ internal class UserscriptRepository private constructor(
             response.close()
             throw IllegalStateException("No response body for $url")
         }
-        val bytes = body.bytes()
+        val declaredLength = body.contentLength()
+        if (declaredLength > maxBytes) {
+            response.close()
+            throw IllegalStateException("Userscript dependency exceeds its size limit: $url")
+        }
+        val finalUrl = response.request.url.toString()
         val mimeType =
             response.header("Content-Type")
                 ?.substringBefore(';')
                 ?.trim()
                 ?.takeIf { it.isNotBlank() }
-                ?: guessMimeTypeFromUrl(url)
+                ?: guessMimeTypeFromUrl(finalUrl)
         val etag = response.header("ETag")
         val lastModified = response.header("Last-Modified")
-        response.close()
-        targetFile.parentFile?.mkdirs()
-        targetFile.writeBytes(bytes)
+        val bytes =
+            try {
+                body.byteStream().use { input ->
+                    input.readUserscriptLimitedBytes(maxBytes)
+                }
+            } finally {
+                response.close()
+            }
+        writeSyncedBytes(targetFile, bytes)
         return FetchedAsset(
             file = targetFile,
             mimeType = mimeType,
             etag = etag,
-            lastModified = lastModified
+            lastModified = lastModified,
+            length = bytes.size.toLong(),
+            finalUrl = finalUrl,
         )
     }
 
@@ -764,17 +1114,59 @@ internal class UserscriptRepository private constructor(
         val file: File,
         val mimeType: String?,
         val etag: String?,
-        val lastModified: String?
+        val lastModified: String?,
+        val length: Long,
+        val finalUrl: String,
     )
 
-    private inline fun <K, V> Iterable<V>.associateNotNull(
-        transform: (V) -> Pair<K, UserscriptResourcePayload>?
-    ): Map<K, UserscriptResourcePayload> {
-        val result = LinkedHashMap<K, UserscriptResourcePayload>()
-        for (item in this) {
-            val pair = transform(item) ?: continue
-            result[pair.first] = pair.second
-        }
-        return result
-    }
+    private data class StagedUserscriptResource(
+        val entity: UserscriptResourceEntity,
+        val manifestResource: UserscriptRevisionResource,
+        val length: Long,
+    )
+
+    private fun UserscriptDraftEntity.toModel(): UserscriptDraft =
+        UserscriptDraft(
+            draftId = draftId,
+            userscriptId = userscriptId,
+            baseRevisionId = baseRevisionId,
+            sourceHash = sourceHash,
+            source = source,
+            updatedAt = updatedAt,
+        )
+
+    private fun UserscriptRevisionManifest.toModel(
+        activeRevisionId: String,
+    ): UserscriptRevisionInfo =
+        UserscriptRevisionInfo(
+            userscriptId = userscriptId,
+            revisionId = revisionId,
+            revisionNumber = revisionNumber,
+            version = version,
+            sourceHash = sourceHash,
+            sourceType = UserscriptInstallSourceType.valueOf(sourceType),
+            sourceUrl = sourceUrl,
+            sourceEtag = sourceEtag,
+            sourceLastModifiedHeader = sourceLastModifiedHeader,
+            createdAt = createdAt,
+            active = revisionId == activeRevisionId,
+        )
+
+    private fun defaultNewUserscriptSource(): String =
+        """
+        // ==UserScript==
+        // @name New userscript
+        // @namespace kiyori.local
+        // @version 0.1.0
+        // @description Created in Kiyori
+        // @match https://*/*
+        // @grant none
+        // ==/UserScript==
+
+        (() => {
+            "use strict";
+
+        })();
+        """.trimIndent() + "\n"
+
 }

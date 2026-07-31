@@ -70,4 +70,20 @@ class UserscriptBootstrapScriptSecurityTest {
             ),
         )
     }
+
+    @Test
+    fun `every script receives local GM info and document body has its own scheduler`() {
+        val source = UserscriptBootstrapScript.documentStartScript()
+
+        assertTrue(source.contains("\"document-body\": []"))
+        assertTrue(source.contains("installAll(grouped[\"document-body\"])"))
+        assertTrue(source.contains("const scriptInfo = makeInfo();"))
+        assertTrue(source.contains("gmObject.info = scriptInfo;"))
+        assertTrue(source.contains("legacy.GM_info = scriptInfo;"))
+        assertFalse(source.contains("if (hasGrant(\"GM.info\") || grantNone)"))
+        assertTrue(source.contains("author: metadata.author || null"))
+        assertTrue(source.contains("homepageURL: homepageValue"))
+        assertTrue(source.contains("\"run-at\": runAtValue"))
+        assertTrue(source.contains("grant: grantList"))
+    }
 }

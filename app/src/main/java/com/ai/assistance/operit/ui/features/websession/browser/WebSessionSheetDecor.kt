@@ -1,31 +1,189 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
 import com.ai.assistance.operit.ui.theme.resolveColors
+
+@Composable
+internal fun WebSessionDrawerHeader(
+    title: String,
+    leadingIcon: ImageVector,
+    tone: KiyoriSemanticTone,
+    modifier: Modifier = Modifier,
+    countText: String? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .padding(start = if (navigationIcon == null) 18.dp else 4.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        navigationIcon?.invoke()
+        KiyoriSemanticIconBadge(
+            imageVector = leadingIcon,
+            tone = tone,
+            contentDescription = null,
+            containerSize = 34.dp,
+            iconSize = 18.dp,
+            shape = RoundedCornerShape(10.dp),
+        )
+        Text(
+            text = title,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+        if (!countText.isNullOrBlank()) {
+            Text(
+                text = countText,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 10.dp),
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        actions()
+    }
+}
+
+@Composable
+internal fun WebSessionSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit,
+    placeholder: String,
+    tone: KiyoriSemanticTone,
+    modifier: Modifier = Modifier,
+) {
+    val colors = tone.resolveColors()
+    Surface(
+        modifier = modifier.fillMaxWidth().height(40.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(17.dp),
+            )
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                singleLine = true,
+                textStyle =
+                    TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 13.sp,
+                    ),
+                cursorBrush = SolidColor(colors.icon),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (value.isBlank()) {
+                            Text(
+                                text = placeholder,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
+            )
+            if (value.isNotBlank()) {
+                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun WebSessionFilterChip(
+    label: String,
+    selected: Boolean,
+    tone: KiyoriSemanticTone,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = tone.resolveColors()
+    Surface(
+        modifier =
+            modifier
+                .height(36.dp)
+                .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) colors.container else MaterialTheme.colorScheme.surface,
+        border =
+            BorderStroke(
+                1.dp,
+                if (selected) colors.icon else MaterialTheme.colorScheme.outlineVariant,
+            ),
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                color = if (selected) colors.icon else MaterialTheme.colorScheme.onSurface,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
+    }
+}
 
 @Composable
 internal fun WebSessionSheetScaffold(

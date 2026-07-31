@@ -347,20 +347,66 @@ internal object UserscriptBootstrapScript {
                             metadataBlockText
                                 ? "// ==UserScript==\n" + metadataBlockText + "\n// ==/UserScript=="
                                 : "";
+                        const grantList =
+                            Array.isArray(metadata.grants) ? metadata.grants.slice() : [];
+                        const matchList =
+                            Array.isArray(metadata.matches) ? metadata.matches.slice() : [];
+                        const includeList =
+                            Array.isArray(metadata.includes) ? metadata.includes.slice() : [];
+                        const excludeList =
+                            Array.isArray(metadata.excludes) ? metadata.excludes.slice() : [];
+                        const excludeMatchList =
+                            Array.isArray(metadata.excludeMatches) ? metadata.excludeMatches.slice() : [];
+                        const connectList =
+                            Array.isArray(metadata.connects) ? metadata.connects.slice() : [];
+                        const resourceList =
+                            Array.isArray(metadata.resources) ? metadata.resources.slice() : [];
+                        const requireList =
+                            Array.isArray(metadata.requires)
+                                ? metadata.requires.map((entry) => {
+                                    if (typeof entry === "string") {
+                                        return entry;
+                                    }
+                                    return entry && typeof entry === "object"
+                                        ? String(entry.url || "")
+                                        : "";
+                                }).filter((value) => value)
+                                : [];
+                        const runAtValue = String(script.runAt || "document-end");
+                        const homepageValue = metadata.homepage || metadata.website || null;
+                        const icons =
+                            metadata.icons && typeof metadata.icons === "object"
+                                ? metadata.icons
+                                : {};
                         const scriptInfo = {
                             name: String(metadata.name || script.name || ""),
                             namespace: metadata.namespace || script.namespace || "",
                             version: String(metadata.version || script.version || ""),
                             description: metadata.description || "",
-                            matches: Array.isArray(metadata.matches) ? metadata.matches.slice() : [],
-                            includes: Array.isArray(metadata.includes) ? metadata.includes.slice() : [],
-                            excludes: Array.isArray(metadata.excludes) ? metadata.excludes.slice() : [],
-                            excludeMatches: Array.isArray(metadata.excludeMatches) ? metadata.excludeMatches.slice() : [],
-                            grants: Array.isArray(metadata.grants) ? metadata.grants.slice() : [],
-                            resources: Array.isArray(metadata.resources) ? metadata.resources.slice() : [],
-                            requires: Array.isArray(metadata.requires) ? metadata.requires.slice() : [],
-                            runAt: String(metadata.runAt || script.runAt || "document-end"),
+                            author: metadata.author || null,
+                            homepage: homepageValue,
+                            homepageURL: homepageValue,
+                            website: metadata.website || homepageValue,
+                            supportURL: metadata.supportUrl || null,
+                            downloadURL: metadata.downloadUrl || null,
+                            updateURL: metadata.updateUrl || null,
+                            icon: icons.icon || null,
+                            icon64: icons.icon64 || null,
+                            matches: matchList,
+                            includes: includeList,
+                            excludes: excludeList,
+                            excludeMatches: excludeMatchList,
+                            connects: connectList,
+                            grant: grantList,
+                            grants: grantList.slice(),
+                            resources: resourceList,
+                            requires: requireList,
+                            "run-at": runAtValue,
+                            runAt: runAtValue,
+                            "run-in": metadata.runIn ? [String(metadata.runIn)] : null,
+                            runIn: metadata.runIn || null,
                             noframes: !!metadata.noFrames,
+                            noFrames: !!metadata.noFrames,
                             unwrap: !!metadata.unwrap
                         };
                         return {
@@ -899,10 +945,12 @@ internal object UserscriptBootstrapScript {
                     };
                     const gmObject = {};
                     const legacy = {};
-                    if (hasGrant("GM.info") || grantNone) {
-                        gmObject.info = makeInfo();
-                        legacy.GM_info = makeInfo();
-                    }
+                    // GM_info is script metadata, not a host capability. Real-world scripts commonly
+                    // read GM_info.script without declaring a dedicated grant, so both API forms must
+                    // always receive the same local object while privileged GM methods remain gated.
+                    const scriptInfo = makeInfo();
+                    gmObject.info = scriptInfo;
+                    legacy.GM_info = scriptInfo;
                     if (hasGrant("GM.getValue")) {
                         gmObject.getValue = function(key, defaultValue) { return Promise.resolve(runtime.normalizeValue(storage[key], defaultValue)); };
                         legacy.GM_getValue = function(key, defaultValue) { return runtime.normalizeValue(storage[key], defaultValue); };
@@ -1155,6 +1203,7 @@ internal object UserscriptBootstrapScript {
                 scheduleScripts(scripts) {
                     const grouped = {
                         "document-start": [],
+                        "document-body": [],
                         "document-end": [],
                         "document-idle": []
                     };
@@ -1169,6 +1218,28 @@ internal object UserscriptBootstrapScript {
                         items.length = 0;
                     };
                     installAll(grouped["document-start"]);
+                    const runBody = function() {
+                        if (document.body) {
+                            installAll(grouped["document-body"]);
+                            return true;
+                        }
+                        return false;
+                    };
+                    if (!runBody() && grouped["document-body"].length > 0) {
+                        const bodyObserver = new MutationObserver(function() {
+                            if (runBody()) {
+                                bodyObserver.disconnect();
+                            }
+                        });
+                        bodyObserver.observe(document.documentElement || document, {
+                            childList: true,
+                            subtree: true
+                        });
+                        document.addEventListener("DOMContentLoaded", function() {
+                            runBody();
+                            bodyObserver.disconnect();
+                        }, { once: true });
+                    }
                     const runEnd = function() {
                         installAll(grouped["document-end"]);
                     };

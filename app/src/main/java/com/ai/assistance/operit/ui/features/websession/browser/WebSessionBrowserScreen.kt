@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -72,8 +73,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginPage
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.currentPluginRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.popBrowserPluginRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.pushBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
@@ -165,6 +170,22 @@ internal fun WebSessionBrowserScreen(
     onSetUserscriptEnabled: (Long, Boolean) -> Unit,
     onDeleteUserscript: (Long) -> Unit,
     onCheckUserscriptUpdate: (Long) -> Unit,
+    onCheckAllUserscriptUpdates: () -> Unit,
+    onApplyUserscriptUpdate: (Long) -> Unit,
+    onApplyAllSafeUserscriptUpdates: () -> Unit,
+    onSetUserscriptsEnabled: (Set<Long>, Boolean) -> Unit,
+    onDeleteUserscripts: (Set<Long>) -> Unit,
+    onLoadUserscriptDetail: (Long) -> Unit,
+    onOpenNewUserscriptEditor: () -> Unit,
+    onOpenExistingUserscriptEditor: (Long) -> Unit,
+    onOpenUserscriptDraftEditor: (String) -> Unit,
+    onUpdateUserscriptEditorBuffer: (String, String) -> Unit,
+    onPersistUserscriptDraft: (String, (() -> Unit)?) -> Unit,
+    onDiscardUserscriptDraft: (String, (() -> Unit)?) -> Unit,
+    onValidateUserscriptDraft: (String) -> Unit,
+    onFormatUserscriptDraft: (String) -> Unit,
+    onApplyUserscriptDraft: (String) -> Unit,
+    onRequestPluginBack: () -> Unit,
     onInvokeUserscriptMenu: (String) -> Unit,
     playerSession: PlayerSession,
     playerState: PlayerSessionState,
@@ -249,7 +270,7 @@ internal fun WebSessionBrowserScreen(
         onHostStateChange { current ->
             current.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.NONE,
-                pluginPage = WebSessionBrowserPluginPage.OVERVIEW,
+                pluginRouteStack = listOf(WebSessionBrowserPluginRoute.Overview),
                 placeholderPage = null,
             )
         }
@@ -289,6 +310,8 @@ internal fun WebSessionBrowserScreen(
         }
     }
     val activeSheetRoute = hostState.sheetRoute
+    val pluginEditorRoute =
+        hostState.currentPluginRoute as? WebSessionBrowserPluginRoute.UserscriptEditor
     var tabOverviewMounted by remember { mutableStateOf(false) }
     var mountedDrawerRoute by remember { mutableStateOf(WebSessionBrowserSheetRoute.NONE) }
     var profileFeedback by remember { mutableStateOf<String?>(null) }
@@ -782,7 +805,8 @@ internal fun WebSessionBrowserScreen(
                         onHostStateChange {
                             it.copy(
                                 sheetRoute = WebSessionBrowserSheetRoute.PLUGINS,
-                                pluginPage = WebSessionBrowserPluginPage.OVERVIEW,
+                                pluginRouteStack =
+                                    listOf(WebSessionBrowserPluginRoute.Overview),
                             )
                         }
                         onOpenPlugins()
@@ -828,7 +852,10 @@ internal fun WebSessionBrowserScreen(
                     }
                 }
             }
-            if (mountedDrawerRoute.isBrowserChildDrawerRoute()) {
+            if (
+                mountedDrawerRoute.isBrowserChildDrawerRoute() &&
+                    pluginEditorRoute == null
+            ) {
                 WebSessionBrowserBottomDrawer(
                     isVisible = activeSheetRoute.isBrowserChildDrawerRoute(),
                     layout = chromeLayout,
@@ -877,6 +904,16 @@ internal fun WebSessionBrowserScreen(
                             onSetUserscriptEnabled = onSetUserscriptEnabled,
                             onDeleteUserscript = onDeleteUserscript,
                             onCheckUserscriptUpdate = onCheckUserscriptUpdate,
+                            onCheckAllUserscriptUpdates = onCheckAllUserscriptUpdates,
+                            onApplyUserscriptUpdate = onApplyUserscriptUpdate,
+                            onApplyAllSafeUserscriptUpdates = onApplyAllSafeUserscriptUpdates,
+                            onSetUserscriptsEnabled = onSetUserscriptsEnabled,
+                            onDeleteUserscripts = onDeleteUserscripts,
+                            onLoadUserscriptDetail = onLoadUserscriptDetail,
+                            onOpenNewUserscriptEditor = onOpenNewUserscriptEditor,
+                            onOpenExistingUserscriptEditor = onOpenExistingUserscriptEditor,
+                            onOpenUserscriptDraftEditor = onOpenUserscriptDraftEditor,
+                            onRequestPluginBack = onRequestPluginBack,
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
                             onPlayMediaCandidate = onPlayMediaCandidate,
                             onDownloadMediaCandidate = onDownloadMediaCandidate,
@@ -904,6 +941,88 @@ internal fun WebSessionBrowserScreen(
                     }
                 }
             }
+        }
+
+        pluginEditorRoute?.let { editorRoute ->
+            WebSessionUserscriptEditorPage(
+                draftId = editorRoute.draftId,
+                userscriptId = editorRoute.scriptId,
+                userscriptState = userscriptUiState,
+                onRequestBack = onRequestPluginBack,
+                onBufferChanged = onUpdateUserscriptEditorBuffer,
+                onPersistDraft = onPersistUserscriptDraft,
+                onValidateDraft = onValidateUserscriptDraft,
+                onFormatDraft = onFormatUserscriptDraft,
+                onApplyDraft = onApplyUserscriptDraft,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        hostState.pluginEditorExitPromptDraftId?.let { draftId ->
+            AlertDialog(
+                onDismissRequest = {
+                    onHostStateChange { current ->
+                        current.copy(pluginEditorExitPromptDraftId = null)
+                    }
+                },
+                title = {
+                    Text(stringResource(R.string.web_session_userscript_editor_leave_title))
+                },
+                text = {
+                    Text(stringResource(R.string.web_session_userscript_editor_leave_message))
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onPersistUserscriptDraft(draftId) {
+                                onHostStateChange { current ->
+                                    current.copy(
+                                        pluginRouteStack =
+                                            popBrowserPluginRoute(current.pluginRouteStack),
+                                        pluginEditorExitPromptDraftId = null,
+                                    )
+                                }
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.web_session_userscript_editor_keep_draft))
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                onDiscardUserscriptDraft(draftId) {
+                                    onHostStateChange { current ->
+                                        current.copy(
+                                            pluginRouteStack =
+                                                popBrowserPluginRoute(current.pluginRouteStack),
+                                            pluginEditorExitPromptDraftId = null,
+                                        )
+                                    }
+                                }
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.web_session_userscript_editor_discard_draft,
+                                    ),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                onHostStateChange { current ->
+                                    current.copy(pluginEditorExitPromptDraftId = null)
+                                }
+                            },
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                },
+            )
         }
 
         hostState.downloadPrompt?.let { prompt ->
@@ -1147,6 +1266,16 @@ private fun WebSessionBrowserDrawerContent(
     onSetUserscriptEnabled: (Long, Boolean) -> Unit,
     onDeleteUserscript: (Long) -> Unit,
     onCheckUserscriptUpdate: (Long) -> Unit,
+    onCheckAllUserscriptUpdates: () -> Unit,
+    onApplyUserscriptUpdate: (Long) -> Unit,
+    onApplyAllSafeUserscriptUpdates: () -> Unit,
+    onSetUserscriptsEnabled: (Set<Long>, Boolean) -> Unit,
+    onDeleteUserscripts: (Set<Long>) -> Unit,
+    onLoadUserscriptDetail: (Long) -> Unit,
+    onOpenNewUserscriptEditor: () -> Unit,
+    onOpenExistingUserscriptEditor: (Long) -> Unit,
+    onOpenUserscriptDraftEditor: (String) -> Unit,
+    onRequestPluginBack: () -> Unit,
     onInvokeUserscriptMenu: (String) -> Unit,
     onPlayMediaCandidate: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
@@ -1222,23 +1351,39 @@ private fun WebSessionBrowserDrawerContent(
 
         WebSessionBrowserSheetRoute.PLUGINS ->
             WebSessionBrowserPluginSheet(
-                page = hostState.pluginPage,
+                route = hostState.currentPluginRoute,
                 userscriptState = userscriptUiState,
                 currentPageMenuCommands = browserState.userscriptMenuCommands,
-                onOpenUserscriptManager = {
+                onOpenUserscriptManager = { initialTab, initialSearchQuery ->
                     onHostStateChange { current ->
-                        current.copy(pluginPage = WebSessionBrowserPluginPage.USERSCRIPTS)
+                        current.copy(
+                            pluginRouteStack =
+                                pushBrowserPluginRoute(
+                                    current.pluginRouteStack,
+                                    WebSessionBrowserPluginRoute.Userscripts(
+                                        initialTab = initialTab,
+                                        initialSearchQuery = initialSearchQuery,
+                                    ),
+                                ),
+                        )
+                    }
+                },
+                onOpenUserscriptDetail = { scriptId ->
+                    onHostStateChange { current ->
+                        current.copy(
+                            pluginRouteStack =
+                                pushBrowserPluginRoute(
+                                    current.pluginRouteStack,
+                                    WebSessionBrowserPluginRoute.UserscriptDetail(scriptId),
+                                ),
+                        )
                     }
                 },
                 onOpenPluginLibrarySource = { url ->
                     onOpenBookmarkInTab(url, true)
                     onDismiss()
                 },
-                onNavigateToOverview = {
-                    onHostStateChange { current ->
-                        current.copy(pluginPage = WebSessionBrowserPluginPage.OVERVIEW)
-                    }
-                },
+                onNavigateToOverview = onRequestPluginBack,
                 onInstallUserscriptFromUrl = onInstallUserscriptFromUrl,
                 onImportUserscript = onImportUserscript,
                 onConfirmUserscriptInstall = onConfirmUserscriptInstall,
@@ -1247,6 +1392,15 @@ private fun WebSessionBrowserDrawerContent(
                 onSetUserscriptEnabled = onSetUserscriptEnabled,
                 onDeleteUserscript = onDeleteUserscript,
                 onCheckUserscriptUpdate = onCheckUserscriptUpdate,
+                onCheckAllUserscriptUpdates = onCheckAllUserscriptUpdates,
+                onApplyUserscriptUpdate = onApplyUserscriptUpdate,
+                onApplyAllSafeUserscriptUpdates = onApplyAllSafeUserscriptUpdates,
+                onSetUserscriptsEnabled = onSetUserscriptsEnabled,
+                onDeleteUserscripts = onDeleteUserscripts,
+                onLoadUserscriptDetail = onLoadUserscriptDetail,
+                onOpenNewUserscriptEditor = onOpenNewUserscriptEditor,
+                onOpenExistingUserscriptEditor = onOpenExistingUserscriptEditor,
+                onOpenUserscriptDraftEditor = onOpenUserscriptDraftEditor,
                 onInvokeUserscriptMenu = onInvokeUserscriptMenu,
                 modifier = Modifier.fillMaxSize(),
             )

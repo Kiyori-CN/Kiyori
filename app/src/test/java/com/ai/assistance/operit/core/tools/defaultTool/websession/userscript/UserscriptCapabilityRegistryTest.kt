@@ -34,4 +34,26 @@ class UserscriptCapabilityRegistryTest {
         assertTrue(UserscriptCapabilityRegistry.grantsForHostMessage("url_change").isEmpty())
         assertTrue(UserscriptCapabilityRegistry.grantsForHostMessage("unknown_operation").isEmpty())
     }
+
+    @Test
+    fun `light novel library declared grants are all recognized`() {
+        val grants =
+            listOf(
+                "GM_getResourceText",
+                "GM_registerMenuCommand",
+                "GM_setValue",
+                "GM_getValue",
+                "GM_listValues",
+                "GM_deleteValue",
+                "GM_addValueChangeListener",
+                "GM_removeValueChangeListener",
+                "GM_log",
+                "GM_addElement",
+                "GM_xmlhttpRequest",
+                "GM_setClipboard",
+            )
+
+        assertTrue(UserscriptCapabilityRegistry.unknownGrants(grants).isEmpty())
+        assertEquals(grants.size, UserscriptCapabilityRegistry.knownGrants(grants).size)
+    }
 }

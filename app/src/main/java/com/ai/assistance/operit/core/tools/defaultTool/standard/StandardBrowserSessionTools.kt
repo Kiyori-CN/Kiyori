@@ -122,6 +122,23 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
                     openUserscriptManagerOnMain()
                 }
             },
+            onOpenUserscriptDetail = { scriptId ->
+                mainHandler.post {
+                    browserHost?.showPluginRoute(
+                        WebSessionBrowserPluginRoute.UserscriptDetail(scriptId),
+                    )
+                }
+            },
+            onOpenUserscriptEditor = { draftId, userscriptId ->
+                mainHandler.post {
+                    browserHost?.showPluginRoute(
+                        WebSessionBrowserPluginRoute.UserscriptEditor(
+                            draftId = draftId,
+                            scriptId = userscriptId,
+                        ),
+                    )
+                }
+            },
             onOpenTab = { sourceSessionId, url, active ->
                 runOnMainSync<String?> {
                     openUserscriptTabOnMain(

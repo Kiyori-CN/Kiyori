@@ -6,6 +6,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeStatus
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRunAt
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSupportState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUnsafeWindowMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
@@ -45,6 +46,7 @@ class BrowserPluginCenterFacadeTest {
 
         val snapshot = BrowserPluginCenterFacade.project(state, menuCommands)
         val plugin = snapshot.installedPlugins.single()
+        val currentPageProvider = snapshot.currentPageProviders.single()
 
         assertEquals(BUILT_IN_USERSCRIPT_PLUGIN_ID, plugin.id)
         assertEquals(BrowserPluginInstallationKind.BUILT_IN, plugin.installationKind)
@@ -53,10 +55,21 @@ class BrowserPluginCenterFacadeTest {
         assertTrue(BrowserPluginAction.INSTALL_ITEM in plugin.supportedActions)
         assertEquals(2, plugin.installedItemCount)
         assertEquals(1, plugin.enabledItemCount)
-        assertEquals(4, plugin.currentPageItemCount)
+        assertEquals(2, plugin.currentPageItemCount)
         assertEquals(2, plugin.currentPageMenuCommandCount)
         assertFalse(plugin.hasPendingInstall)
-        assertEquals(listOf(plugin), snapshot.currentPagePlugins)
+        assertEquals(plugin, currentPageProvider.summary)
+        assertEquals(
+            listOf("userscript:2", "userscript:1"),
+            currentPageProvider.currentPageEntries.map { entry -> entry.id },
+        )
+        assertEquals(
+            listOf("First"),
+            currentPageProvider.currentPageEntries
+                .single { entry -> entry.sourceItemId == 1L }
+                .commands
+                .map { command -> command.title },
+        )
     }
 
     @Test
@@ -74,7 +87,7 @@ class BrowserPluginCenterFacadeTest {
                 currentPageMenuCommands = emptyList(),
             )
 
-        assertTrue(snapshot.currentPagePlugins.isEmpty())
+        assertTrue(snapshot.currentPageProviders.isEmpty())
         assertEquals(
             BrowserPluginAvailability.UNSUPPORTED,
             snapshot.installedPlugins.single().availability,
@@ -101,7 +114,7 @@ class BrowserPluginCenterFacadeTest {
 
         assertFalse(plugin.runtimeAllowed)
         assertTrue(BrowserPluginAction.SET_PLUGIN_PERMISSION in plugin.supportedActions)
-        assertTrue(snapshot.currentPagePlugins.isEmpty())
+        assertTrue(snapshot.currentPageProviders.isEmpty())
     }
 
     @Test
@@ -136,6 +149,134 @@ class BrowserPluginCenterFacadeTest {
         assertFalse(BrowserPluginCenterFacade.matchesUserscriptSearch(script, "unrelated"))
     }
 
+    @Test
+    fun `current page projection groups commands by userscript and preserves command order`() {
+        val state =
+            WebSessionUserscriptUiState(
+                supportState = UserscriptSupportState(isSupported = true),
+                userScriptsAllowed = true,
+                installedScripts =
+                    listOf(
+                        userscript(id = 1L, enabled = true).copy(name = "东方永夜机"),
+                        userscript(id = 2L, enabled = true).copy(name = "网页增强"),
+                    ),
+                currentPageStatuses =
+                    mapOf(
+                        1L to UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.SUCCESS),
+                        2L to UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.SUCCESS),
+                    ),
+            )
+        val snapshot =
+            BrowserPluginCenterFacade.project(
+                state,
+                listOf(
+                    UserscriptPageMenuCommand("1:first", "第一项", 1L),
+                    UserscriptPageMenuCommand("2:only", "网页增强", 2L),
+                    UserscriptPageMenuCommand("1:second", "第二项", 1L),
+                ),
+            )
+
+        val entries = snapshot.currentPageProviders.single().currentPageEntries
+
+        assertEquals(listOf("东方永夜机", "网页增强"), entries.map { entry -> entry.title })
+        assertEquals(
+            listOf("第一项", "第二项"),
+            entries.single { entry -> entry.sourceItemId == 1L }.commands.map { command -> command.title },
+        )
+    }
+
+    @Test
+    fun `current page search keeps all commands for script matches and only matching commands otherwise`() {
+        val entries =
+            BrowserPluginCenterFacade
+                .project(
+                    WebSessionUserscriptUiState(
+                        supportState = UserscriptSupportState(isSupported = true),
+                        userScriptsAllowed = true,
+                        installedScripts =
+                            listOf(
+                                userscript(id = 1L, enabled = true).copy(
+                                    name = "东方永夜机",
+                                    description = "页面控制器",
+                                ),
+                            ),
+                        currentPageStatuses =
+                            mapOf(
+                                1L to UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.SUCCESS),
+                            ),
+                    ),
+                    listOf(
+                        UserscriptPageMenuCommand("1:translate", "翻译页面", 1L),
+                        UserscriptPageMenuCommand("1:settings", "打开设置", 1L),
+                    ),
+                )
+                .currentPageProviders
+                .single()
+                .currentPageEntries
+
+        assertEquals(
+            2,
+            BrowserPluginCenterFacade
+                .filterCurrentPageEntries(entries, "东方")
+                .single()
+                .commands
+                .size,
+        )
+        assertEquals(
+            listOf("翻译页面"),
+            BrowserPluginCenterFacade
+                .filterCurrentPageEntries(entries, "翻译")
+                .single()
+                .commands
+                .map { command -> command.title },
+        )
+        assertTrue(BrowserPluginCenterFacade.filterCurrentPageEntries(entries, "不存在").isEmpty())
+    }
+
+    @Test
+    fun `current page overview keeps provider summary without exposing script rows`() {
+        val snapshot =
+            BrowserPluginCenterFacade.project(
+                WebSessionUserscriptUiState(
+                    supportState = UserscriptSupportState(isSupported = true),
+                    userScriptsAllowed = true,
+                    installedScripts =
+                        listOf(
+                            userscript(1L, true).copy(name = "轻小说文库+"),
+                        ),
+                    currentPageStatuses =
+                        mapOf(
+                            1L to UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.SUCCESS),
+                        ),
+                ),
+                listOf(UserscriptPageMenuCommand("menu", "打开设置", 1L)),
+            )
+
+        val overview =
+            BrowserPluginCenterFacade
+                .projectCurrentPageOverview(snapshot, "轻小说")
+                .single()
+
+        assertEquals(BUILT_IN_USERSCRIPT_PLUGIN_ID, overview.summary.id)
+        assertEquals(1, overview.currentPageItemCount)
+        assertEquals(1, overview.currentPageMenuCommandCount)
+    }
+
+    @Test
+    fun `current page projection rejects stale commands without an installed script owner`() {
+        val snapshot =
+            BrowserPluginCenterFacade.project(
+                WebSessionUserscriptUiState(
+                    supportState = UserscriptSupportState(isSupported = true),
+                    userScriptsAllowed = true,
+                ),
+                listOf(UserscriptPageMenuCommand("missing", "Ghost", 99L)),
+            )
+
+        assertTrue(snapshot.currentPageProviders.isEmpty())
+        assertEquals(0, snapshot.installedPlugins.single().currentPageMenuCommandCount)
+    }
+
     private fun userscript(
         id: Long,
         enabled: Boolean,
@@ -152,6 +293,7 @@ class BrowserPluginCenterFacadeTest {
             blockedReasons = emptyList(),
             executionWorld = null,
             unsafeWindowMode = UserscriptUnsafeWindowMode.NONE,
+            runAt = UserscriptRunAt.DOCUMENT_END,
             grants = emptyList(),
             matches = emptyList(),
             includes = emptyList(),
@@ -168,6 +310,7 @@ class BrowserPluginCenterFacadeTest {
             injectInto = UserscriptInjectInto.AUTO,
             sandbox = null,
             runIn = null,
+            noFrames = false,
             unwrap = false,
             webRequestRules = emptyList(),
             sourceUrl = null,

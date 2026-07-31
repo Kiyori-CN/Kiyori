@@ -37,6 +37,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -56,6 +57,8 @@ fun CodeEditor(
     readOnly: Boolean = false,
     showLineNumbers: Boolean = true,
     enableCompletion: Boolean = true,
+    showSymbolBar: Boolean = true,
+    symbolBarHeight: Dp = 40.dp,
     editorRef: ((NativeCodeEditor?) -> Unit)? = null
 ) {
     val theme = getThemeForLanguage(language)
@@ -181,27 +184,29 @@ fun CodeEditor(
                 }
             }
 
-            Surface(
-                modifier = Modifier.fillMaxWidth().height(40.dp),
-                color = theme.gutterBackground,
-                contentColor = theme.textColor,
-                shadowElevation = 4.dp
-            ) {
-                LazyRow(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (showSymbolBar) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(symbolBarHeight),
+                    color = theme.gutterBackground,
+                    contentColor = theme.textColor,
+                    shadowElevation = 4.dp
                 ) {
-                    items(
-                        listOf(
-                            "{", "}", "(", ")", "[", "]", "=", ".", ",", ";", ":",
-                            "\"", "'", "+", "-", "*", "/", "_", "<", ">", "&", "|",
-                            "!", "?"
-                        )
-                        ) { symbol ->
-                        SymbolButton(symbol = symbol, theme = theme) {
-                            editorRefState.value?.insertSymbol(symbol)
+                    LazyRow(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items(
+                            listOf(
+                                "{", "}", "(", ")", "[", "]", "=", ".", ",", ";", ":",
+                                "\"", "'", "+", "-", "*", "/", "_", "<", ">", "&", "|",
+                                "!", "?"
+                            )
+                            ) { symbol ->
+                            SymbolButton(symbol = symbol, theme = theme) {
+                                editorRefState.value?.insertSymbol(symbol)
+                            }
                         }
                     }
                 }
@@ -343,6 +348,16 @@ class NativeCodeEditor @JvmOverloads constructor(
             return
         }
         canvasEditorView.replaceAllText(newText)
+    }
+
+    fun selectRange(
+        start: Int,
+        end: Int,
+    ) {
+        if (isReleased) {
+            return
+        }
+        canvasEditorView.selectRange(start, end)
     }
 
     fun getCursorScreenPosition(): Point =

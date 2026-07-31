@@ -121,6 +121,10 @@ object OperitPaths {
         return ensureDir(File(webSessionDir(), USERSCRIPTS_DIR_NAME))
     }
 
+    fun privateWebSessionUserscriptsDir(context: Context): File {
+        return ensureDir(File(File(context.filesDir, WEBSESSION_DIR_NAME), USERSCRIPTS_DIR_NAME))
+    }
+
     fun browserDownloadsDir(): File {
         return ensureDir(File(File(kiyoriRootDir(), BROWSER_DIR_NAME), BROWSER_DOWNLOADS_DIR_NAME))
     }

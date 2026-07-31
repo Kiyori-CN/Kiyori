@@ -102,6 +102,21 @@ internal class WebSessionBrowserHost(
         fun onSetUserscriptEnabled(scriptId: Long, enabled: Boolean)
         fun onDeleteUserscript(scriptId: Long)
         fun onCheckUserscriptUpdate(scriptId: Long)
+        fun onCheckAllUserscriptUpdates()
+        fun onApplyUserscriptUpdate(scriptId: Long)
+        fun onApplyAllSafeUserscriptUpdates()
+        fun onSetUserscriptsEnabled(scriptIds: Set<Long>, enabled: Boolean)
+        fun onDeleteUserscripts(scriptIds: Set<Long>)
+        fun onLoadUserscriptDetail(scriptId: Long)
+        fun onOpenNewUserscriptEditor()
+        fun onOpenExistingUserscriptEditor(scriptId: Long)
+        fun onOpenUserscriptDraftEditor(draftId: String)
+        fun onUpdateUserscriptEditorBuffer(draftId: String, source: String)
+        fun onPersistUserscriptDraft(draftId: String, onComplete: (() -> Unit)? = null)
+        fun onDiscardUserscriptDraft(draftId: String, onComplete: (() -> Unit)? = null)
+        fun onValidateUserscriptDraft(draftId: String)
+        fun onFormatUserscriptDraft(draftId: String)
+        fun onApplyUserscriptDraft(draftId: String)
         fun onInvokeUserscriptMenu(commandId: String)
         fun onPlayMediaCandidate(candidateId: String): Boolean
         fun onPlayMediaCandidateFloating(candidateId: String): Boolean
@@ -258,6 +273,22 @@ internal class WebSessionBrowserHost(
             onSetUserscriptEnabled = callbacks::onSetUserscriptEnabled,
             onDeleteUserscript = callbacks::onDeleteUserscript,
             onCheckUserscriptUpdate = callbacks::onCheckUserscriptUpdate,
+            onCheckAllUserscriptUpdates = callbacks::onCheckAllUserscriptUpdates,
+            onApplyUserscriptUpdate = callbacks::onApplyUserscriptUpdate,
+            onApplyAllSafeUserscriptUpdates = callbacks::onApplyAllSafeUserscriptUpdates,
+            onSetUserscriptsEnabled = callbacks::onSetUserscriptsEnabled,
+            onDeleteUserscripts = callbacks::onDeleteUserscripts,
+            onLoadUserscriptDetail = callbacks::onLoadUserscriptDetail,
+            onOpenNewUserscriptEditor = callbacks::onOpenNewUserscriptEditor,
+            onOpenExistingUserscriptEditor = callbacks::onOpenExistingUserscriptEditor,
+            onOpenUserscriptDraftEditor = callbacks::onOpenUserscriptDraftEditor,
+            onUpdateUserscriptEditorBuffer = callbacks::onUpdateUserscriptEditorBuffer,
+            onPersistUserscriptDraft = callbacks::onPersistUserscriptDraft,
+            onDiscardUserscriptDraft = callbacks::onDiscardUserscriptDraft,
+            onValidateUserscriptDraft = callbacks::onValidateUserscriptDraft,
+            onFormatUserscriptDraft = callbacks::onFormatUserscriptDraft,
+            onApplyUserscriptDraft = callbacks::onApplyUserscriptDraft,
+            onRequestPluginBack = ::requestPluginBack,
             onInvokeUserscriptMenu = callbacks::onInvokeUserscriptMenu,
             playerSession = playerSession,
             playerState = playerState,
@@ -538,6 +569,17 @@ internal class WebSessionBrowserHost(
     fun handleBack(): Boolean {
         // Top-bar Back and system Back both enter this single ordering so browser chrome,
         // transient UI, and WebView history cannot diverge.
+        val editorRoute = hostState.currentPluginRoute as? WebSessionBrowserPluginRoute.UserscriptEditor
+        if (
+            hostState.pluginEditorExitPromptDraftId == null &&
+                editorRoute != null &&
+                userscriptStore.state.value.editors[editorRoute.draftId]?.hasUnappliedChanges == true
+        ) {
+            updateHostState { current ->
+                current.copy(pluginEditorExitPromptDraftId = editorRoute.draftId)
+            }
+            return true
+        }
         return when (resolveWebSessionBrowserBackAction(hostState)) {
             WebSessionBrowserBackAction.DISMISS_TEXT_SELECTION -> {
                 hideTextSelectionActionsOverlay()
@@ -551,9 +593,18 @@ internal class WebSessionBrowserHost(
                 callbacks.onCancelBrowserDownload(requireNotNull(hostState.downloadPrompt).requestId)
                 true
             }
-            WebSessionBrowserBackAction.SHOW_PLUGIN_OVERVIEW -> {
+            WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT -> {
                 updateHostState { current ->
-                    current.copy(pluginPage = WebSessionBrowserPluginPage.OVERVIEW)
+                    current.copy(pluginEditorExitPromptDraftId = null)
+                }
+                true
+            }
+            WebSessionBrowserBackAction.POP_PLUGIN_ROUTE -> {
+                updateHostState { current ->
+                    current.copy(
+                        pluginRouteStack =
+                            popBrowserPluginRoute(current.pluginRouteStack),
+                    )
                 }
                 true
             }
@@ -561,7 +612,8 @@ internal class WebSessionBrowserHost(
                 updateHostState { current ->
                     current.copy(
                         sheetRoute = WebSessionBrowserSheetRoute.NONE,
-                        pluginPage = WebSessionBrowserPluginPage.OVERVIEW,
+                        pluginRouteStack =
+                            listOf(WebSessionBrowserPluginRoute.Overview),
                     )
                 }
                 true
@@ -642,11 +694,31 @@ internal class WebSessionBrowserHost(
         updateHostState { it.copy(sheetRoute = route) }
     }
 
-    fun showPluginPage(page: WebSessionBrowserPluginPage) {
+    fun showPluginRoute(route: WebSessionBrowserPluginRoute) {
         updateHostState {
             it.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.PLUGINS,
-                pluginPage = page,
+                pluginRouteStack = browserPluginRouteStackFor(route),
+                pluginEditorExitPromptDraftId = null,
+            )
+        }
+    }
+
+    private fun requestPluginBack() {
+        val editorRoute = hostState.currentPluginRoute as? WebSessionBrowserPluginRoute.UserscriptEditor
+        if (
+            editorRoute != null &&
+                userscriptStore.state.value.editors[editorRoute.draftId]?.hasUnappliedChanges == true
+        ) {
+            updateHostState { current ->
+                current.copy(pluginEditorExitPromptDraftId = editorRoute.draftId)
+            }
+            return
+        }
+        updateHostState { current ->
+            current.copy(
+                pluginRouteStack = popBrowserPluginRoute(current.pluginRouteStack),
+                pluginEditorExitPromptDraftId = null,
             )
         }
     }

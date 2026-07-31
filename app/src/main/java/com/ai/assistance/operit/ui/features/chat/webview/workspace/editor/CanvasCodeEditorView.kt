@@ -405,6 +405,22 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         onDocumentMutated()
     }
 
+    fun selectRange(
+        start: Int,
+        end: Int,
+    ) {
+        val safeStart = start.coerceIn(0, document.length())
+        val safeEnd = end.coerceIn(0, document.length())
+        document.setSelection(safeStart, safeEnd)
+        preferredColumnCells = null
+        actionMode?.finish()
+        hideCompletions()
+        ensureCursorVisible()
+        notifySelectionChanged()
+        inputMethodManager?.restartInput(this)
+        requestRender()
+    }
+
     fun insertSymbol(symbol: String) {
         if (readOnly) {
             return

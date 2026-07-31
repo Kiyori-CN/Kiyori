@@ -20,9 +20,37 @@ internal enum class WebSessionBrowserSheetRoute {
     PLACEHOLDER,
 }
 
-internal enum class WebSessionBrowserPluginPage {
-    OVERVIEW,
-    USERSCRIPTS,
+@Immutable
+internal enum class WebSessionUserscriptWorkbenchTab {
+    CURRENT_PAGE,
+    INSTALLED,
+    UPDATES,
+    LOGS,
+}
+
+@Immutable
+internal sealed interface WebSessionBrowserPluginRoute {
+    @Immutable
+    data object Overview : WebSessionBrowserPluginRoute
+
+    @Immutable
+    data class Userscripts(
+        val initialTab: WebSessionUserscriptWorkbenchTab = WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
+        val initialSearchQuery: String = "",
+    ) : WebSessionBrowserPluginRoute
+
+    @Immutable
+    data class UserscriptDetail(
+        val scriptId: Long,
+        val returnTab: WebSessionUserscriptWorkbenchTab =
+            WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
+    ) : WebSessionBrowserPluginRoute
+
+    @Immutable
+    data class UserscriptEditor(
+        val draftId: String,
+        val scriptId: Long?,
+    ) : WebSessionBrowserPluginRoute
 }
 
 internal enum class WebSessionBrowserPlaceholderPage {
@@ -183,7 +211,9 @@ internal data class BrowserDownloadPromptState(
 internal data class WebSessionBrowserHostState(
     val browserState: WebSessionBrowserState = WebSessionBrowserState(),
     val sheetRoute: WebSessionBrowserSheetRoute = WebSessionBrowserSheetRoute.NONE,
-    val pluginPage: WebSessionBrowserPluginPage = WebSessionBrowserPluginPage.OVERVIEW,
+    val pluginRouteStack: List<WebSessionBrowserPluginRoute> =
+        listOf(WebSessionBrowserPluginRoute.Overview),
+    val pluginEditorExitPromptDraftId: String? = null,
     val selectedProfile: WebSessionProfile = WebSessionProfile.NORMAL,
     val placeholderPage: WebSessionBrowserPlaceholderPage? = null,
     val isSearchVisible: Boolean = false,
@@ -207,7 +237,8 @@ internal enum class WebSessionBrowserBackAction {
     DISMISS_TEXT_SELECTION,
     DISMISS_PENDING_DIALOG,
     CANCEL_DOWNLOAD_PROMPT,
-    SHOW_PLUGIN_OVERVIEW,
+    DISMISS_PLUGIN_EDITOR_EXIT_PROMPT,
+    POP_PLUGIN_ROUTE,
     CLOSE_SHEET,
     CLOSE_SEARCH_ENGINE_PANEL,
     CLOSE_SEARCH,
@@ -225,9 +256,11 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.DISMISS_PENDING_DIALOG
         state.downloadPrompt != null ->
             WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT
+        state.pluginEditorExitPromptDraftId != null ->
+            WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT
         state.sheetRoute == WebSessionBrowserSheetRoute.PLUGINS &&
-            state.pluginPage == WebSessionBrowserPluginPage.USERSCRIPTS ->
-            WebSessionBrowserBackAction.SHOW_PLUGIN_OVERVIEW
+            state.pluginRouteStack.size > 1 ->
+            WebSessionBrowserBackAction.POP_PLUGIN_ROUTE
         state.sheetRoute != WebSessionBrowserSheetRoute.NONE ->
             WebSessionBrowserBackAction.CLOSE_SHEET
         state.isSearchEnginePanelVisible ->
@@ -238,6 +271,60 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY
         else ->
             WebSessionBrowserBackAction.EXIT_BROWSER
+    }
+
+internal val WebSessionBrowserHostState.currentPluginRoute: WebSessionBrowserPluginRoute
+    get() = pluginRouteStack.lastOrNull() ?: WebSessionBrowserPluginRoute.Overview
+
+internal fun browserPluginRouteStackFor(
+    route: WebSessionBrowserPluginRoute,
+): List<WebSessionBrowserPluginRoute> =
+    when (route) {
+        WebSessionBrowserPluginRoute.Overview ->
+            listOf(WebSessionBrowserPluginRoute.Overview)
+        is WebSessionBrowserPluginRoute.Userscripts ->
+            listOf(
+                WebSessionBrowserPluginRoute.Overview,
+                route,
+            )
+        is WebSessionBrowserPluginRoute.UserscriptDetail ->
+            listOf(
+                WebSessionBrowserPluginRoute.Overview,
+                WebSessionBrowserPluginRoute.Userscripts(route.returnTab),
+                route,
+            )
+        is WebSessionBrowserPluginRoute.UserscriptEditor ->
+            buildList {
+                add(WebSessionBrowserPluginRoute.Overview)
+                add(WebSessionBrowserPluginRoute.Userscripts())
+                route.scriptId?.let { scriptId ->
+                    add(WebSessionBrowserPluginRoute.UserscriptDetail(scriptId))
+                }
+                add(route)
+            }
+    }
+
+internal fun pushBrowserPluginRoute(
+    stack: List<WebSessionBrowserPluginRoute>,
+    route: WebSessionBrowserPluginRoute,
+): List<WebSessionBrowserPluginRoute> {
+    val normalized =
+        stack.takeIf(List<WebSessionBrowserPluginRoute>::isNotEmpty)
+            ?: listOf(WebSessionBrowserPluginRoute.Overview)
+    return if (normalized.last() == route) {
+        normalized
+    } else {
+        normalized + route
+    }
+}
+
+internal fun popBrowserPluginRoute(
+    stack: List<WebSessionBrowserPluginRoute>,
+): List<WebSessionBrowserPluginRoute> =
+    if (stack.size <= 1) {
+        listOf(WebSessionBrowserPluginRoute.Overview)
+    } else {
+        stack.dropLast(1)
     }
 
 @Serializable

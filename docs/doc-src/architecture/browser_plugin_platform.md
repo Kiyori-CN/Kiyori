@@ -1,7 +1,7 @@
 ---
 status: accepted_detailed_design
-implementation: phase_0_local_verified
-next_gate: phase_0_device_acceptance
+implementation: phase_1_local_verified
+next_gate: phase_2_userscript_storage
 last_updated: 2026-07-31
 ---
 
@@ -47,6 +47,20 @@ Skill、MCP、工作流或包管理入口。
 禁止创建第二个浏览器、第二份标签页注册表、第二个活动页状态、第二个 userscript 仓库，或只供插件运行的
 平行 WebSession。
 
+### 2.1 2026-07-31 实施确认
+
+用户确认按以下顺序正式实施：
+
+- 先把插件中心改为 Provider 驱动，并完成当前页 userscript 按脚本 ID 分组、默认收起的菜单界面
+- 再完成 userscript 私有 revision、draft、原子安装与批量更新事务
+- 最后接通四标签管理页、脚本详情、多选操作和复用 `NativeCodeEditor` 的浏览器内全屏编辑器
+- 沉浸式翻译先以 userscript 形态作为真实兼容样本
+- `.kbx` 先定义 `NewTabProvider`，用于后续新标签页插件；官方 iTab Chrome 包直接兼容留到
+  WebExtension 分析与转换阶段
+
+Phase 0 的 Android 真机验收继续保持待验证。Provider、UI、私有存储和编辑器不改变页面注入安全边界，
+可以先完成本地实施与构建；设备门禁通过前不得据此宣称 userscript 或 WebExtension 真机兼容已经完成。
+
 ## 3. 已验证事实
 
 ### 3.1 Kiyori 当前实现
@@ -64,6 +78,27 @@ Skill、MCP、工作流或包管理入口。
 - ToolPkg 有 manifest、ZIP 读取和 QuickJS 运行经验，但它属于 AI 产品域，现有路径规范化也不足以直接作为
   不可信浏览器插件安装器
 - Browser Plugin Center 里程碑一只有 userscript 一种硬编码类型，当前 UI 仍需改成 Provider 驱动
+
+截至 2026-07-31 的当前未提交实现已经把上述基线推进为：
+
+- AndroidX WebKit 已升级到 `1.16.0`；userscript 运行总授权、共享隔离世界、页面对象桥和固定
+  WebView 生命周期注册已完成本地源码与测试门禁，真机复测仍待执行
+- userscript registry v2、私有 immutable revision、staging、transaction journal、原子 registry、
+  日志和值写入已经接通；运行时只读取 `context.filesDir` 中 active revision
+- 新建和编辑使用应用私有 draft，草稿不会被 runtime 读取；离开全屏编辑器时可保留或丢弃，
+  未安装草稿在管理页保留恢复入口
+- 安装与更新先完整下载源码、`@require`、`@resource`，校验 manifest、哈希、大小和来源信息后，
+  才原子切换 active revision
+- 油猴管理工作台使用“本页 / 已安装 / 更新 / 日志”四标签；已安装列表支持长按多选与批量启停或删除，
+  更新页把只读“检查全部”与写入“更新全部安全项”分开
+- 单项和批量更新比较脚本身份、grant、`@connect`、页面范围和排除规则；来源身份变化或权限扩大必须
+  进入逐项确认，不能由批量更新自动应用
+- 脚本详情展示概览、匹配规则、权限、依赖、源码、日志和 immutable revision 历史
+- 编辑器复用 `NativeCodeEditor`，作为浏览器内全屏子页面提供查找替换、撤销重做、结构化 metadata、
+  Terser 语法与格式化、权限检查、统一源码差异和显式“应用更改”
+
+当前 Browser Plugin Center 的顶层 Provider 仍只有内置 userscript provider。`.kbx`、catalog、
+WebExtension 与 QuickJS background worker 仍属于后续阶段，不能从当前管理 UI 推断为已支持。
 
 ### 3.2 hikerView 参考边界
 
@@ -124,12 +159,16 @@ GeckoView 提供正式的 WebExtension 接入能力。将浏览器引擎整体�
   WebView 关闭时由紧邻的 `WebView.destroy()` 一并退休 provider 注册
 - document-start 匹配使用注入文档报告的 `location.href`；隔离世界可直接信任自身 URL，页面世界必须与
   WebMessage 的 `sourceOrigin` 一致，不再依赖可能指向上一文档的 `WebView.url`
-- 无 `@match/@include` 的脚本按全页面匹配；`@include/@exclude` 支持正则形式，`@match` 不把 query 和
-  fragment 混入路径判断
+- 无 `@match/@include` 的脚本按全页面匹配；`@include/@exclude` 支持正则与 flags；
+  `@match` 支持 `http*`、常见主机通配和显式端口，且不把 query 和 fragment 混入路径判断
+- `@connect example.com` 同时授权该域名及其子域，`*`、`self` 和显式端口保持独立语义；
+  GM XHR 的初始地址、webRequest 重定向和 HTTP 重定向每一跳都重新检查同一权限
 - storage、菜单、webRequest、标签页关闭通知和音频状态按目标 userscript 或明确 grant 分发
 - 标签页控制、XHR 取消和 webRequest 注销增加对象所有权校验
 - `@inject-into` 和未知 `@run-at` 使用严格解析；未实现的 `@sandbox`、`@run-in` 和 `@unwrap`
   会显示不兼容并保持禁用
+- `document-start / document-body / document-end / document-idle` 使用独立调度时机；
+  `context-menu` 仍明确标记为未支持
 - 内置油猴插件增加持久化的“允许用户脚本”总授权；关闭后现有 WebView 生命周期注册保持惰性且不返回
   脚本 payload，同时撤销 capability token、reply proxy、页面菜单、webRequest 与活动 GM 网络请求
 - `unsafeWindow` 与特权 grant 在 `auto` 或 `content` 模式下继续运行于 WebView 的共享隔离运行时，通过不含
@@ -143,6 +182,100 @@ GeckoView 提供正式的 WebExtension 接入能力。将浏览器引擎整体�
 
 这些是源码、单元测试和本地编译证据。Android 设备上的 WebViewFeature、真实 isolated world、导航时序、
 iframe origin 和沉浸式翻译行为仍需单独验收。
+
+### 3.6 Phase 1 Provider 与插件中心界面事实
+
+截至 2026-07-31，本地工作树已完成：
+
+- `BrowserPluginCenterFacade` 改为 Provider 投影，当前页实体由真实已安装 userscript 与页面运行状态合成
+- 页面菜单按 `userscriptId` 归属到脚本，陈旧状态或没有已安装 owner 的命令不会进入插件中心
+- 脚本默认收起；搜索命中脚本时保留该脚本全部命令，命中命令时只显示匹配命令，并只临时展开搜索投影
+- 插件中心采用 provider-only 的“本页 / 已安装”紧凑标签，单个 userscript 不在油猴插件卡片下重复出现；
+  插件库来源移入右上角加号菜单，油猴管理页复用相同标题、搜索和脚本分组组件
+- 插件子页面由主机级 route stack 持有，系统 Back 先弹出子路由再关闭抽屉
+- `BrowserPluginCenterFacadeTest` 8 项和 `WebSessionBrowserBackPolicyTest` 2 项通过
+- `:app:assembleDebug` 成功；APK 为 494,083,710 字节，SHA-256 为
+  `AC6394885B0B3C915AEB525E139FB6CC4B97103B60F36F76C74314FE116AF8BC`，V2 签名与 16 KiB
+  zip alignment 核验通过
+
+上述结论仍是本地源码、单元测试和构建证据；抽屉尺寸、触控、长脚本列表和真机运行时行为尚待设备验收。
+
+### 3.7 Phase 1 二次 UI、状态与匹配诊断事实
+
+截至 2026-07-31，本地工作树进一步完成：
+
+- 全屏 userscript 编辑器背景继续覆盖系统栏，内容列使用 `statusBarsPadding()`；顶栏固定为
+  44dp，格式化、结构化 Metadata 和差异进入统一更多菜单
+- 编辑器请求 `SOFT_INPUT_ADJUST_RESIZE`；输入法显示时隐藏校验/差异/应用操作栏，只显示
+  36dp 符号栏；输入法隐藏后显示复用浏览器 44dp 动作几何和导航栏 Insets 的底部操作栏
+- `WebSessionUserscriptUiState` 发布活动页面 URL；状态区分 `NO_ACTIVE_PAGE`、`MATCHED`、
+  `QUEUED`、运行结果和真实 `NOT_MATCHED`，空状态不再自动推导为未命中
+- 页面世界脚本没有 native 状态桥时仍记录“已命中”；隔离世界继续上报待运行、运行中、成功或错误
+- `UserscriptMatcher` 同时供 bootstrap、manager baseline 和 UI 诊断使用；命中与排除状态显示实际
+  `@match`、`@include`、`@exclude` 或 `@exclude-match` 规则
+- 插件概览添加菜单直接对应新建、URL 安装和本地导入；URL 不满足绝对 `http/https` 地址时确认按钮不可用
+- 安装与更新预览按执行世界、页面对象访问、grant、`@connect`、页面范围、未知 grant 和阻塞原因分组
+- 详情页分别展示 `@run-at`、`@inject-into`、`@run-in` 与 `@noframes`；结构化 Metadata 编辑覆盖
+  match/include/exclude、运行时机、注入世界和 noframes，错误直接留在弹窗内显示
+
+- userscript、插件中心、编辑器 UI、浏览器 Back 和 runtime 相关定向 JVM 测试共 `70/70`，零失败、
+  零错误、零跳过；七份实际 `strings.xml` 可解析且名称集合无重复
+- `:app:compileDebugKotlin`、formal readiness、`git diff --check` 和
+  `:app:assembleDebug --no-daemon --console=plain` 均通过；构建共 233 个任务，32 个执行、
+  201 个缓存命中
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `494139942` 字节，
+  SHA-256 为 `B70F85F46C579419604E3C3870F8296D8E84466F81C2BC13488FE00930BE5324`；
+  `com.kiyori`、`45 / 0.1.0`、min 26、target 34、arm64-v8a，Android Debug V2 签名和
+  16 KiB zip alignment 核验通过
+
+这些是本地源码、JVM、XML、构建和 APK 产物证据；状态栏、输入法、页面世界状态、真实脚本匹配、
+GM XHR 重定向权限、窄屏按钮和长脚本行为仍需要目标 Android WebView 真机验收。
+
+### 3.8 真实脚本 `GM_info` 与浏览器设置事实
+
+2026-07-31 的 vivo Android 16 截图显示，“轻小说文库+”`2.31.2` 已在 wenku8 阅读页进入
+`RUNNING`，随后因 `GM_info.script` 为 `undefined` 进入 `ERROR`。这证明其
+`http*://*.wenku8.com/.net/.cc/*` 页面规则已经命中，问题不在 matcher。
+
+根因与当前合同：
+
+- 旧 bootstrap 仅在 canonical grants 包含 `GM.info` 或 `none` 时创建 `GM_info`；带有其他特权
+  grant、但未显式声明 `GM_info` 的常见脚本因此得到 `undefined`
+- `GM_info` 与 `GM.info` 现在始终引用同一个本地信息对象；它不发送 host message，也不增加
+  capability token 或 native bridge 权限
+- 信息对象从 canonical metadata 投影名称、命名空间、版本、作者、主页、支持页、安装/更新地址、
+  icon、grant、connect、match/include/exclude、require/resource、noframes 和 raw run-at
+- “轻小说文库+”真实 metadata 的 3 个 match、13 个 require、4 个 resource、5 个 connect 和
+  12 个 grant 已进入 parser、matcher、capability registry 和 bootstrap 回归测试
+- `BrowserPresentationCoordinator` 只投影现有 `WebSessionUserscriptManager.uiStore.state`，并把
+  总授权、打开插件中心和打开 userscript 管理器委托回同一 owner
+- 网页浏览器设置第一组改为“网页插件与脚本”，包含总授权、管理、权限与网站范围、当前页诊断；
+  原会话占位项移入主页/标签组
+- 权限子页显示 runtime 支持状态、安装/启用数量和逐脚本执行世界、grant、connect、页面规则、
+  未知权限与阻塞原因；这些 metadata 声明不是单项可撤销授权，不显示伪开关
+
+本地验证覆盖 `86/86` 相关 JVM 测试、formal readiness、`git diff --check` 和 Debug 构建。
+最终 APK 为 `com.kiyori 45 / 0.1.0`、min 26、target 34、arm64-v8a，SHA-256
+`2956E71105E5672D2F28F61AD341E11407CA82302FEF53467E646DC86D5948F3`；
+Android Debug V2 签名与 `zipalign -P 16` 检查通过。
+
+本地实现和窄测试不能代替目标设备上的脚本启动、菜单、存储、资源、网络和设置导航验收。
+
+### 3.9 插件中心信息架构与日志交互事实
+
+2026-07-31 的第二次 UI 收口确立以下不变量：
+
+- `BrowserPluginCenterFacade.projectCurrentPageOverview` 只向 Overview 提供 provider-level
+  摘要；Overview 的“本页”不再渲染单个 userscript 条目，条目只由 Userscript Workbench 的
+  “本页”工作区渲染
+- 插件库从 Overview 页签移入两个右上角加号菜单；每个已核实 HTTPS 来源仍在唯一 Browser Runtime
+  创建前台新标签，不持有第二个 WebSession registry
+- Userscript 路由携带初始工作区，设置页可以分别打开插件中心、已安装管理、当前页诊断和日志；
+  权限概览中的脚本行直接进入该脚本详情
+- 日志 UI 使用仓库保留上限 `200` 条作为完整可见/导出集合。单击日志打开滚动详情并提供复制，
+  长按只执行当前条目复制，不创建重复菜单；“复制全部”和“导出全部”不受搜索和级别筛选影响
+- 文本导出使用 `Download/Kiyori/exports`，复制和导出都是明确用户动作；日志内容可能包含脚本消息和
+  页面地址，界面不宣称这些内容经过脱敏
 
 ## 4. 方案比较与定案
 
@@ -549,13 +682,22 @@ Kiyori 原生设置使用 `kiyori.options_schema` 生成 Compose 表单，不执
 
 ```text
 context.filesDir/
-	browser-userscripts/
-		registry/
-		revisions/
-		resources/
-		values/
-		diagnostics/
-		staging/
+	websession/
+		userscripts/
+			state/
+				registry.json
+				logs.json
+				values/
+				transaction-journal/
+			revisions/
+				<userscript-id>/
+					<revision-id>/
+						source.user.js
+						manifest.json
+						requires/
+						resources/
+			drafts/
+			transactions/
 	browser-plugins/
 		registry/
 			plugins.json
@@ -580,7 +722,8 @@ Download/Kiyori/
 		exports/
 ```
 
-正式实现时通过 `OperitPaths` 增加需要 `Context` 的内部目录入口，以及显式导入导出的公共目录入口。
+正式实现通过 `OperitPaths.privateWebSessionUserscriptsDir(context)` 持有 userscript 内部目录；后续 `.kbx`
+同样通过 `OperitPaths` 增加内部目录入口和显式导入导出的公共目录入口。
 UI 和 Provider 不拼接路径。现有 `Download/Kiyori/websession/userscripts` 只作为一次性迁移来源，迁移完成后
 不再由 runtime 执行其中的源码。
 
@@ -897,13 +1040,15 @@ userscript 增加 `@inject-into` 解析：
 规则：
 
 - 声明 GM 特权 API的脚本默认进入隔离世界
-- `@grant none` 进入主世界且没有 native bridge
+- 所有脚本都可读取本地构造的只读 `GM_info / GM.info`；`@grant none` 进入主世界且没有
+  native bridge，不开放 storage、XHR、Cookie、通知、下载或其他 native/GM 特权 API
 - `@inject-into page` 与 GM 特权 grant 同时出现时标记不兼容
 - `auto` 下只有 `unsafeWindow` 且没有特权 grant 时进入主世界并直接取得页面 `window`
 - `auto` 下同时声明 `unsafeWindow` 与特权 grant 时进入 WebView 的共享隔离运行时，`unsafeWindow` 使用同步
   页面对象桥
 - `content` 下声明 `unsafeWindow` 时保持隔离世界，`unsafeWindow` 使用同一页面对象桥
 - 未知 `@inject-into` 和 `@run-at` 明确标记不兼容
+- `document-body` 在页面首次出现 `document.body` 时运行；`context-menu` 仍属于未知运行时机
 - 当前未实现的 `@sandbox`、`@run-in` 和 `@unwrap` 明确标记不兼容并禁止启用
 - 不在设备缺少隔离世界时把特权脚本放入主世界
 
@@ -1569,8 +1714,9 @@ v1 不提供 blocking webRequest。
 6. 原子切换 schema version
 7. 迁移日志记录数量和 hash
 
-迁移完成前不删除 `Download/Kiyori/websession/userscripts` 中的旧文件。确认内部 v2 registry 完整后，
-旧文件进入显式清理任务。
+迁移完成前不删除 `Download/Kiyori/websession/userscripts` 中的旧文件。源码、资源、日志和值全部校验，
+内部 v2 registry 作为最后一个原子提交点写入后，同一次初始化只清理这个精确旧根目录；清理失败会记录诊断，
+但 runtime 仍只认私有 v2 registry，不再读取旧目录。
 
 ### 29.3 AndroidX WebKit
 

@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 internal enum class UserscriptRunAt(val rawValue: String) {
     DOCUMENT_START("document-start"),
+    DOCUMENT_BODY("document-body"),
     DOCUMENT_END("document-end"),
     DOCUMENT_IDLE("document-idle"),
     UNSUPPORTED("unsupported");
@@ -121,13 +122,16 @@ internal data class UserscriptInstallPreview(
     val sourceType: UserscriptInstallSourceType,
     val sourceUrl: String? = null,
     val sourceDisplay: String? = null,
+    val sourceEtag: String? = null,
+    val sourceLastModifiedHeader: String? = null,
     val knownGrants: List<String> = emptyList(),
     val unknownGrants: List<String> = emptyList(),
     val blockedReasons: List<String> = emptyList(),
     val executionWorld: UserscriptExecutionWorld? = null,
     val unsafeWindowMode: UserscriptUnsafeWindowMode = UserscriptUnsafeWindowMode.NONE,
     val isUpdate: Boolean = false,
-    val existingScriptId: Long? = null
+    val existingScriptId: Long? = null,
+    val expectedRevisionId: String? = null,
 )
 
 @Serializable
@@ -172,6 +176,7 @@ internal data class UserscriptListItem(
     val blockedReasons: List<String>,
     val executionWorld: UserscriptExecutionWorld?,
     val unsafeWindowMode: UserscriptUnsafeWindowMode,
+    val runAt: UserscriptRunAt,
     val grants: List<String>,
     val matches: List<String>,
     val includes: List<String>,
@@ -188,6 +193,7 @@ internal data class UserscriptListItem(
     val injectInto: UserscriptInjectInto,
     val sandbox: String?,
     val runIn: String?,
+    val noFrames: Boolean,
     val unwrap: Boolean,
     val webRequestRules: List<String>,
     val sourceUrl: String?,
@@ -195,6 +201,29 @@ internal data class UserscriptListItem(
     val downloadUrl: String?,
     val installedAt: Long,
     val updatedAt: Long
+)
+
+internal data class UserscriptDraft(
+    val draftId: String,
+    val userscriptId: Long?,
+    val baseRevisionId: String?,
+    val sourceHash: String,
+    val source: String,
+    val updatedAt: Long,
+)
+
+internal data class UserscriptRevisionInfo(
+    val userscriptId: Long,
+    val revisionId: String,
+    val revisionNumber: Long,
+    val version: String,
+    val sourceHash: String,
+    val sourceType: UserscriptInstallSourceType,
+    val sourceUrl: String?,
+    val sourceEtag: String?,
+    val sourceLastModifiedHeader: String?,
+    val createdAt: Long,
+    val active: Boolean,
 )
 
 internal data class UserscriptLogItem(
@@ -219,10 +248,12 @@ internal data class UserscriptSupportState(
 )
 
 internal enum class UserscriptPageRuntimeState {
+    NO_ACTIVE_PAGE,
     DISABLED,
     PERMISSION_REQUIRED,
     UNSUPPORTED,
     NOT_MATCHED,
+    MATCHED,
     QUEUED,
     RUNNING,
     SUCCESS,

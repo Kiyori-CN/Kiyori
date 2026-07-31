@@ -49,13 +49,27 @@ class WebSessionBrowserBackPolicyTest {
             resolveWebSessionBrowserBackAction(base.copy(textSelectionActions = null)),
         )
         assertEquals(
-            WebSessionBrowserBackAction.SHOW_PLUGIN_OVERVIEW,
+            WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    textSelectionActions = null,
+                    downloadPrompt = null,
+                    pluginEditorExitPromptDraftId = "script-1",
+                ),
+            ),
+        )
+        assertEquals(
+            WebSessionBrowserBackAction.POP_PLUGIN_ROUTE,
             resolveWebSessionBrowserBackAction(
                 base.copy(
                     textSelectionActions = null,
                     downloadPrompt = null,
                     sheetRoute = WebSessionBrowserSheetRoute.PLUGINS,
-                    pluginPage = WebSessionBrowserPluginPage.USERSCRIPTS,
+                    pluginRouteStack =
+                        listOf(
+                            WebSessionBrowserPluginRoute.Overview,
+                            WebSessionBrowserPluginRoute.Userscripts(),
+                        ),
                 ),
             ),
         )
@@ -101,6 +115,58 @@ class WebSessionBrowserBackPolicyTest {
         assertEquals(
             WebSessionBrowserBackAction.EXIT_BROWSER,
             resolveWebSessionBrowserBackAction(WebSessionBrowserHostState()),
+        )
+    }
+
+    @Test
+    fun `plugin route stack retains the overview root and pops one child at a time`() {
+        val userscripts =
+            pushBrowserPluginRoute(
+                listOf(WebSessionBrowserPluginRoute.Overview),
+                WebSessionBrowserPluginRoute.Userscripts(),
+            )
+
+        assertEquals(
+            listOf(
+                WebSessionBrowserPluginRoute.Overview,
+                WebSessionBrowserPluginRoute.Userscripts(),
+            ),
+            userscripts,
+        )
+        assertEquals(
+            listOf(WebSessionBrowserPluginRoute.Overview),
+            popBrowserPluginRoute(userscripts),
+        )
+        assertEquals(
+            listOf(WebSessionBrowserPluginRoute.Overview),
+            popBrowserPluginRoute(emptyList()),
+        )
+
+        val detail =
+            browserPluginRouteStackFor(
+                WebSessionBrowserPluginRoute.UserscriptDetail(7L),
+            )
+        assertEquals(
+            listOf(
+                WebSessionBrowserPluginRoute.Overview,
+                WebSessionBrowserPluginRoute.Userscripts(),
+                WebSessionBrowserPluginRoute.UserscriptDetail(7L),
+            ),
+            detail,
+        )
+
+        assertEquals(
+            detail +
+                WebSessionBrowserPluginRoute.UserscriptEditor(
+                    draftId = "script-7",
+                    scriptId = 7L,
+                ),
+            browserPluginRouteStackFor(
+                WebSessionBrowserPluginRoute.UserscriptEditor(
+                    draftId = "script-7",
+                    scriptId = 7L,
+                ),
+            ),
         )
     }
 }

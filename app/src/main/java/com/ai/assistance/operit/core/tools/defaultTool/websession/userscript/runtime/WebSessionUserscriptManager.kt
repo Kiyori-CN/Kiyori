@@ -30,18 +30,25 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallPreview
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptManagementPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptMatcher
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeStatus
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageStatusPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRuntimeCapabilities
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSupportState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.toParsedMetadata
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.install.UserscriptImportCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.storage.UserscriptRepository
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.storage.UserscriptStorageLayout
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.UserscriptDetailUiState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.UserscriptEditorUiState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiStateStore
 import com.ai.assistance.operit.util.AppLogger
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -64,6 +71,8 @@ import org.json.JSONObject
 internal class WebSessionUserscriptManager(
     private val context: Context,
     private val onOpenUserscriptUi: () -> Unit,
+    private val onOpenUserscriptDetail: (Long) -> Unit,
+    private val onOpenUserscriptEditor: (draftId: String, userscriptId: Long?) -> Unit,
     private val onOpenTab: (sourceSessionId: String, url: String, active: Boolean) -> String?,
     private val onActivateSession: (sessionId: String) -> Unit,
     private val onCloseSession: (sessionId: String) -> Boolean,
@@ -108,6 +117,11 @@ internal class WebSessionUserscriptManager(
         val scriptStatuses: ConcurrentHashMap<Long, UserscriptPageRuntimeStatus> = ConcurrentHashMap()
     )
 
+    private data class UserscriptConnectAuthorization(
+        val metadata: ParsedUserscriptMetadata,
+        val pageUrl: String,
+    )
+
     companion object {
         private const val TAG = "WebSessionUserscript"
         private const val ISOLATED_WORLD_NAME = "kiyori-userscript-runtime"
@@ -127,6 +141,26 @@ internal class WebSessionUserscriptManager(
         OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
+            // Network interceptors run once per concrete network hop. The request tag is copied by
+            // OkHttp's follow-up Request.Builder, so every redirect target is checked against the
+            // same script metadata instead of inheriting authorization from only the first URL.
+            .addNetworkInterceptor { chain ->
+                val request = chain.request()
+                val authorization =
+                    request.tag(UserscriptConnectAuthorization::class.java)
+                        ?: return@addNetworkInterceptor chain.proceed(request)
+                val targetUrl = request.url.toString()
+                if (
+                    !UserscriptMatcher.isConnectAllowed(
+                        metadata = authorization.metadata,
+                        pageUrl = authorization.pageUrl,
+                        targetUrl = targetUrl,
+                    )
+                ) {
+                    throw IOException("GM_xmlhttpRequest blocked by @connect: $targetUrl")
+                }
+                chain.proceed(request)
+            }
             .build()
 
     private val sessionBindings = ConcurrentHashMap<String, SessionBinding>()
@@ -169,6 +203,7 @@ internal class WebSessionUserscriptManager(
         scope.launch {
             repository.installedScriptsFlow.collectLatest { scripts ->
                 uiStore.updateScripts(scripts)
+                uiStore.retainInstalledState(scripts.mapTo(linkedSetOf(), UserscriptListItem::id))
                 reconcileActiveRuntimeAuthorizations(scripts)
                 rebuildAllSessionBaselines()
             }
@@ -178,6 +213,7 @@ internal class WebSessionUserscriptManager(
                 uiStore.updateLogs(logs)
             }
         }
+        refreshDrafts()
     }
 
     fun supportState(): UserscriptSupportState = supportState
@@ -191,11 +227,7 @@ internal class WebSessionUserscriptManager(
             val state = sessionPageStates.getOrPut(sessionId) { SessionPageState() }
             if (state.pageUrl != pageUrl) {
                 state.pageUrl = pageUrl
-                if (state.scriptStatuses.isEmpty()) {
-                    rebuildSessionBaseline(sessionId)
-                    return
-                }
-                publishVisibleStatuses()
+                rebuildSessionBaseline(sessionId)
                 return
             }
             if (state.scriptStatuses.isEmpty() && pageUrl != "about:blank") {
@@ -237,7 +269,7 @@ internal class WebSessionUserscriptManager(
     ) {
         val state = sessionPageStates.getOrPut(sessionId) { SessionPageState() }
         state.pageUrl = pageUrl
-        publishVisibleStatuses()
+        rebuildSessionBaseline(sessionId)
     }
 
     fun attachSession(
@@ -601,6 +633,8 @@ internal class WebSessionUserscriptManager(
                 repository.install(preview)
             }.onSuccess { installed ->
                 uiStore.setPendingInstall(null)
+                uiStore.removeUpdateCandidate(installed.id)
+                loadScriptDetail(installed.id)
                 mainHandler.post {
                     onToast(
                         context.getString(
@@ -648,17 +682,568 @@ internal class WebSessionUserscriptManager(
     }
 
     fun checkForUpdate(scriptId: Long) {
+        uiStore.setUpdateChecking(scriptId, true)
         scope.launch {
-            val preview = repository.checkForUpdate(scriptId)
-            if (preview != null) {
-                uiStore.setPendingInstall(preview)
-                mainHandler.post(onOpenUserscriptUi)
-            } else {
+            try {
+                val current = repository.getInstalledScript(scriptId)
+                val preview = repository.checkForUpdate(scriptId)
+                if (current != null && preview != null) {
+                    uiStore.setUpdateCandidate(
+                        UserscriptManagementPolicy.buildUpdateCandidate(current, preview),
+                    )
+                } else {
+                    uiStore.removeUpdateCandidate(scriptId)
+                    mainHandler.post {
+                        onToast(context.getString(R.string.web_session_userscript_no_update))
+                    }
+                }
+            } catch (error: Throwable) {
+                repository.log(
+                    userscriptId = scriptId,
+                    level = "error",
+                    pageUrl = null,
+                    message = error.message ?: "userscript update check failed",
+                )
                 mainHandler.post {
-                    onToast(context.getString(R.string.web_session_userscript_no_update))
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            } finally {
+                uiStore.setUpdateChecking(scriptId, false)
+            }
+        }
+    }
+
+    fun checkAllUpdates() {
+        if (uiStore.state.value.isCheckingAllUpdates) {
+            return
+        }
+        uiStore.setCheckingAllUpdates(true)
+        scope.launch {
+            var availableCount = 0
+            var failureCount = 0
+            try {
+                uiStore.state.value.installedScripts.forEach { current ->
+                    if (
+                        current.updateUrl.isNullOrBlank() &&
+                            current.downloadUrl.isNullOrBlank() &&
+                            current.sourceUrl.isNullOrBlank()
+                    ) {
+                        return@forEach
+                    }
+                    uiStore.setUpdateChecking(current.id, true)
+                    try {
+                        val preview = repository.checkForUpdate(current.id)
+                        if (preview == null) {
+                            uiStore.removeUpdateCandidate(current.id)
+                        } else {
+                            uiStore.setUpdateCandidate(
+                                UserscriptManagementPolicy.buildUpdateCandidate(current, preview),
+                            )
+                            availableCount += 1
+                        }
+                    } catch (error: Throwable) {
+                        failureCount += 1
+                        repository.log(
+                            userscriptId = current.id,
+                            level = "error",
+                            pageUrl = null,
+                            message = error.message ?: "userscript update check failed",
+                        )
+                    } finally {
+                        uiStore.setUpdateChecking(current.id, false)
+                    }
+                }
+            } finally {
+                uiStore.setCheckingAllUpdates(false)
+            }
+            mainHandler.post {
+                onToast(
+                    when {
+                        failureCount > 0 ->
+                            context.getString(
+                                R.string.web_session_userscript_update_check_summary_failed,
+                                availableCount,
+                                failureCount,
+                            )
+                        else ->
+                            context.getString(
+                                R.string.web_session_userscript_update_check_summary,
+                                availableCount,
+                            )
+                    },
+                )
+            }
+        }
+    }
+
+    fun applyUpdate(scriptId: Long) {
+        val candidate = uiStore.state.value.updateCandidates[scriptId] ?: return
+        if (!candidate.safeToAutoApply) {
+            uiStore.setPendingInstall(candidate.preview)
+            return
+        }
+        scope.launch {
+            runCatching {
+                repository.install(candidate.preview)
+            }.onSuccess { installed ->
+                uiStore.removeUpdateCandidate(installed.id)
+                loadScriptDetail(installed.id)
+                mainHandler.post {
+                    onToast(
+                        context.getString(
+                            R.string.web_session_userscript_updated,
+                            installed.name,
+                        ),
+                    )
+                }
+            }.onFailure { error ->
+                repository.log(
+                    userscriptId = scriptId,
+                    level = "error",
+                    pageUrl = null,
+                    message = error.message ?: "userscript update failed",
+                )
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
                 }
             }
         }
+    }
+
+    fun applyAllSafeUpdates() {
+        if (uiStore.state.value.isApplyingSafeUpdates) {
+            return
+        }
+        val safeCandidates =
+            uiStore.state.value.updateCandidates.values.filter { candidate ->
+                candidate.safeToAutoApply
+            }
+        if (safeCandidates.isEmpty()) {
+            mainHandler.post {
+                onToast(context.getString(R.string.web_session_userscript_no_safe_updates))
+            }
+            return
+        }
+        uiStore.setApplyingSafeUpdates(true)
+        scope.launch {
+            var completedCount = 0
+            var failureCount = 0
+            try {
+                safeCandidates.forEach { candidate ->
+                    runCatching {
+                        repository.install(candidate.preview)
+                    }.onSuccess { installed ->
+                        completedCount += 1
+                        uiStore.removeUpdateCandidate(installed.id)
+                        loadScriptDetail(installed.id)
+                    }.onFailure { error ->
+                        failureCount += 1
+                        repository.log(
+                            userscriptId = candidate.scriptId,
+                            level = "error",
+                            pageUrl = null,
+                            message = error.message ?: "userscript batch update failed",
+                        )
+                    }
+                }
+            } finally {
+                uiStore.setApplyingSafeUpdates(false)
+            }
+            mainHandler.post {
+                onToast(
+                    context.getString(
+                        R.string.web_session_userscript_update_apply_summary,
+                        completedCount,
+                        failureCount,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun setScriptsEnabled(
+        scriptIds: Set<Long>,
+        enabled: Boolean,
+    ) {
+        if (scriptIds.isEmpty()) {
+            return
+        }
+        scope.launch {
+            scriptIds.forEach { scriptId ->
+                repository.setEnabled(scriptId, enabled)
+            }
+        }
+    }
+
+    fun deleteScripts(scriptIds: Set<Long>) {
+        if (scriptIds.isEmpty()) {
+            return
+        }
+        scope.launch {
+            scriptIds.forEach { scriptId ->
+                repository.deleteUserscript(scriptId)
+            }
+            mainHandler.post {
+                onToast(
+                    context.getString(
+                        R.string.web_session_userscript_deleted_count,
+                        scriptIds.size,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun loadScriptDetail(scriptId: Long) {
+        uiStore.updateDetail(
+            UserscriptDetailUiState(
+                userscriptId = scriptId,
+                isLoading = true,
+            ),
+        )
+        scope.launch {
+            runCatching {
+                val activeSource =
+                    repository.readSource(scriptId)
+                        ?: throw IllegalArgumentException("Userscript $scriptId does not exist")
+                val draftId = UserscriptStorageLayout.draftIdForScript(scriptId)
+                UserscriptDetailUiState(
+                    userscriptId = scriptId,
+                    activeSource = activeSource,
+                    draft = repository.readDraft(draftId),
+                    revisions = repository.listRevisions(scriptId),
+                )
+            }.onSuccess(uiStore::updateDetail)
+                .onFailure { error ->
+                    uiStore.updateDetail(
+                        UserscriptDetailUiState(
+                            userscriptId = scriptId,
+                            error = error.message ?: "Unable to load userscript details",
+                        ),
+                    )
+                }
+        }
+    }
+
+    fun openNewEditor() {
+        scope.launch {
+            runCatching {
+                repository.createDraft()
+            }.onSuccess { draft ->
+                refreshDrafts()
+                uiStore.updateEditor(
+                    UserscriptEditorUiState(
+                        draftId = draft.draftId,
+                        userscriptId = null,
+                        buffer = draft.source,
+                        persistedSourceHash = draft.sourceHash,
+                    ),
+                )
+                mainHandler.post {
+                    onOpenUserscriptEditor(draft.draftId, null)
+                }
+            }.onFailure { error ->
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            }
+        }
+    }
+
+    fun openExistingEditor(scriptId: Long) {
+        val draftId = UserscriptStorageLayout.draftIdForScript(scriptId)
+        uiStore.updateEditor(
+            UserscriptEditorUiState(
+                draftId = draftId,
+                userscriptId = scriptId,
+                isLoading = true,
+            ),
+        )
+        scope.launch {
+            runCatching {
+                val activeSource =
+                    repository.readSource(scriptId)
+                        ?: throw IllegalArgumentException("Userscript $scriptId does not exist")
+                val draft = repository.readDraft(draftId)
+                UserscriptEditorUiState(
+                    draftId = draftId,
+                    userscriptId = scriptId,
+                    activeSource = activeSource,
+                    buffer = draft?.source ?: activeSource,
+                    persistedSourceHash = draft?.sourceHash ?: sha256(activeSource),
+                )
+            }.onSuccess { editor ->
+                uiStore.updateEditor(editor)
+                mainHandler.post {
+                    onOpenUserscriptEditor(draftId, scriptId)
+                }
+            }.onFailure { error ->
+                uiStore.updateEditor(
+                    UserscriptEditorUiState(
+                        draftId = draftId,
+                        userscriptId = scriptId,
+                        error = error.message ?: "Unable to open userscript editor",
+                    ),
+                )
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            }
+        }
+    }
+
+    fun updateEditorBuffer(
+        draftId: String,
+        source: String,
+    ) {
+        uiStore.updateEditor(draftId) { editor ->
+            // 格式化和应用都基于一个已持久化快照；期间接收输入会让旧结果覆盖新缓冲区。
+            if (editor.isFormatting || editor.isApplying) {
+                return@updateEditor editor
+            }
+            editor.copy(
+                buffer = source,
+                hasUnpersistedChanges = true,
+                review = null,
+                error = null,
+            )
+        }
+    }
+
+    fun persistEditorDraft(
+        draftId: String,
+        onComplete: (() -> Unit)? = null,
+    ) {
+        uiStore.updateEditor(draftId) { editor -> editor.copy(isPersisting = true, error = null) }
+        scope.launch {
+            runCatching {
+                persistEditorDraftNow(draftId)
+            }.onSuccess { draft ->
+                refreshDrafts()
+                uiStore.updateEditor(draftId) { editor ->
+                    editor.copy(
+                        persistedSourceHash = draft.sourceHash,
+                        hasUnpersistedChanges = editor.buffer != draft.source,
+                        isPersisting = false,
+                    )
+                }
+                onComplete?.let { callback -> mainHandler.post(callback) }
+            }.onFailure { error ->
+                uiStore.updateEditor(draftId) { editor ->
+                    editor.copy(
+                        isPersisting = false,
+                        error = error.message ?: "Unable to save userscript draft",
+                    )
+                }
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            }
+        }
+    }
+
+    fun discardEditorDraft(
+        draftId: String,
+        onComplete: (() -> Unit)? = null,
+    ) {
+        scope.launch {
+            runCatching {
+                repository.discardDraft(draftId)
+            }.onSuccess {
+                refreshDrafts()
+                uiStore.removeEditor(draftId)
+                onComplete?.let { callback -> mainHandler.post(callback) }
+            }.onFailure { error ->
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            }
+        }
+    }
+
+    fun validateEditorDraft(draftId: String) {
+        uiStore.updateEditor(draftId) { editor -> editor.copy(isValidating = true, error = null) }
+        scope.launch {
+            runCatching {
+                val persisted = persistEditorDraftNow(draftId)
+                persisted to repository.reviewDraft(draftId)
+            }.onSuccess { (persisted, review) ->
+                refreshDrafts()
+                uiStore.updateEditor(draftId) { editor ->
+                    val sourceUnchanged = editor.buffer == persisted.source
+                    editor.copy(
+                        persistedSourceHash = persisted.sourceHash,
+                        hasUnpersistedChanges = !sourceUnchanged,
+                        review = review.takeIf { sourceUnchanged },
+                        isValidating = false,
+                    )
+                }
+            }.onFailure { error ->
+                uiStore.updateEditor(draftId) { editor ->
+                    editor.copy(
+                        isValidating = false,
+                        error = error.message ?: "Unable to validate userscript draft",
+                    )
+                }
+            }
+        }
+    }
+
+    fun formatEditorDraft(draftId: String) {
+        val sourceToFormat = uiStore.state.value.editors[draftId]?.buffer ?: return
+        uiStore.updateEditor(draftId) { editor -> editor.copy(isFormatting = true, error = null) }
+        scope.launch {
+            runCatching {
+                persistEditorDraftNow(draftId, sourceToFormat)
+                repository.formatDraftSource(draftId)
+            }.onSuccess { draft ->
+                refreshDrafts()
+                uiStore.updateEditor(draftId) { editor ->
+                    if (editor.buffer == sourceToFormat) {
+                        editor.copy(
+                            buffer = draft.source,
+                            persistedSourceHash = draft.sourceHash,
+                            hasUnpersistedChanges = false,
+                            review = null,
+                            isFormatting = false,
+                        )
+                    } else {
+                        editor.copy(
+                            persistedSourceHash = draft.sourceHash,
+                            hasUnpersistedChanges = true,
+                            review = null,
+                            isFormatting = false,
+                        )
+                    }
+                }
+            }.onFailure { error ->
+                uiStore.updateEditor(draftId) { editor ->
+                    editor.copy(
+                        isFormatting = false,
+                        error = error.message ?: "Unable to format userscript source",
+                    )
+                }
+            }
+        }
+    }
+
+    fun applyEditorDraft(draftId: String) {
+        val sourceToApply = uiStore.state.value.editors[draftId]?.buffer ?: return
+        uiStore.updateEditor(draftId) { editor -> editor.copy(isApplying = true, error = null) }
+        scope.launch {
+            runCatching {
+                val persisted = persistEditorDraftNow(draftId, sourceToApply)
+                uiStore.updateEditor(draftId) { editor ->
+                    editor.copy(
+                        persistedSourceHash = persisted.sourceHash,
+                        hasUnpersistedChanges = editor.buffer != persisted.source,
+                    )
+                }
+                val review = repository.reviewDraft(draftId)
+                require(review.canApply) {
+                    review.syntaxError
+                        ?: review.preview?.blockedReasons?.joinToString()
+                        ?: review.preview?.unknownGrants?.joinToString()
+                        ?: "Userscript draft validation failed"
+                }
+                require(uiStore.state.value.editors[draftId]?.buffer == sourceToApply) {
+                    "Userscript source changed during application"
+                }
+                repository.installDraft(draftId)
+            }.onSuccess { installed ->
+                refreshDrafts()
+                uiStore.removeEditor(draftId)
+                uiStore.removeUpdateCandidate(installed.id)
+                loadScriptDetail(installed.id)
+                mainHandler.post {
+                    onToast(
+                        context.getString(
+                            R.string.web_session_userscript_draft_applied,
+                            installed.name,
+                        ),
+                    )
+                    onOpenUserscriptDetail(installed.id)
+                }
+            }.onFailure { error ->
+                uiStore.updateEditor(draftId) { editor ->
+                    editor.copy(
+                        isApplying = false,
+                        error = error.message ?: "Unable to apply userscript draft",
+                    )
+                }
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            }
+        }
+    }
+
+    private suspend fun persistEditorDraftNow(
+        draftId: String,
+        source: String =
+            uiStore.state.value.editors[draftId]?.buffer
+                ?: throw IllegalStateException("Userscript editor $draftId is not open"),
+    ) =
+        repository.saveDraft(
+            draftId = draftId,
+            source = source,
+        )
+
+    fun openDraftEditor(draftId: String) {
+        uiStore.updateEditor(
+            UserscriptEditorUiState(
+                draftId = draftId,
+                userscriptId = null,
+                isLoading = true,
+            ),
+        )
+        scope.launch {
+            runCatching {
+                val draft =
+                    repository.readDraft(draftId)
+                        ?: throw IllegalArgumentException("Userscript draft $draftId does not exist")
+                val activeSource =
+                    draft.userscriptId?.let { scriptId ->
+                        repository.readSource(scriptId)
+                    }
+                UserscriptEditorUiState(
+                    draftId = draft.draftId,
+                    userscriptId = draft.userscriptId,
+                    activeSource = activeSource,
+                    buffer = draft.source,
+                    persistedSourceHash = draft.sourceHash,
+                )
+            }.onSuccess { editor ->
+                uiStore.updateEditor(editor)
+                mainHandler.post {
+                    onOpenUserscriptEditor(editor.draftId, editor.userscriptId)
+                }
+            }.onFailure { error ->
+                uiStore.removeEditor(draftId)
+                mainHandler.post {
+                    onToast(error.message ?: context.getString(R.string.web_session_userscript_install_failed))
+                }
+            }
+        }
+    }
+
+    private fun refreshDrafts() {
+        scope.launch {
+            runCatching {
+                repository.listDrafts()
+            }.onSuccess(uiStore::updateDrafts)
+                .onFailure { error ->
+                    AppLogger.e(TAG, "Failed to refresh userscript drafts", error)
+                }
+        }
+    }
+
+    private fun sha256(value: String): String {
+        val digest =
+            java.security.MessageDigest
+                .getInstance("SHA-256")
+                .digest(value.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { byte -> "%02x".format(byte) }
     }
 
     fun currentInstalledScript(scriptId: Long, callback: (UserscriptListItem?) -> Unit) {
@@ -919,13 +1504,24 @@ internal class WebSessionUserscriptManager(
                             } else {
                                 bootstrapPayload
                             }
-                        if (isMainFrame && bridgeScope == BridgeScope.ISOLATED) {
+                        if (isMainFrame) {
                             val state = sessionPageStates.getOrPut(sessionId) { SessionPageState(pageUrl = pageUrl) }
+                            state.pageUrl = pageUrl
                             authorizedPayload.scripts.forEach { script ->
                                 state.scriptStatuses[script.scriptId] =
                                     UserscriptPageRuntimeStatus(
-                                        state = UserscriptPageRuntimeState.QUEUED,
-                                        detail = script.runAt
+                                        state =
+                                            if (bridgeScope == BridgeScope.ISOLATED) {
+                                                UserscriptPageRuntimeState.QUEUED
+                                            } else {
+                                                UserscriptPageRuntimeState.MATCHED
+                                            },
+                                        detail =
+                                            if (bridgeScope == BridgeScope.ISOLATED) {
+                                                script.runAt
+                                            } else {
+                                                "page · ${script.runAt}"
+                                            },
                                     )
                             }
                             publishVisibleStatuses()
@@ -1571,14 +2167,22 @@ internal class WebSessionUserscriptManager(
                 postRpcError(replyProxy, requestId, "userscript_not_found")
                 return@launch
             }
-            val metadata = installed.toMetadata()
+            val metadata = installed.toParsedMetadata()
             if (!UserscriptMatcher.isConnectAllowed(metadata, pageUrl, targetUrl)) {
                 repository.log(scriptId, "error", pageUrl, "GM_xmlhttpRequest blocked by @connect: $targetUrl")
                 postRpcError(replyProxy, requestId, "connect_not_allowed")
                 return@launch
             }
             runCatching {
-                startXmlHttpRequest(sessionId, gmRequestId, scriptId, pageUrl, payload, replyProxy)
+                startXmlHttpRequest(
+                    sessionId = sessionId,
+                    gmRequestId = gmRequestId,
+                    scriptId = scriptId,
+                    pageUrl = pageUrl,
+                    metadata = metadata,
+                    payload = payload,
+                    replyProxy = replyProxy,
+                )
                 postRpcSuccess(replyProxy, requestId, JSONObject().put("accepted", true))
             }.onFailure { error ->
                 repository.log(scriptId, "error", pageUrl, error.message ?: "GM_xmlhttpRequest failed")
@@ -1592,6 +2196,7 @@ internal class WebSessionUserscriptManager(
         gmRequestId: String,
         scriptId: Long,
         pageUrl: String,
+        metadata: ParsedUserscriptMetadata,
         payload: JSONObject,
         replyProxy: JavaScriptReplyProxy
     ) {
@@ -1628,7 +2233,16 @@ internal class WebSessionUserscriptManager(
         val targetUrl = action.redirectUrl ?: url
         headers.putAll(action.requestHeaders)
 
-        val requestBuilder = Request.Builder().url(targetUrl)
+        val requestBuilder =
+            Request.Builder()
+                .url(targetUrl)
+                .tag(
+                    UserscriptConnectAuthorization::class.java,
+                    UserscriptConnectAuthorization(
+                        metadata = metadata,
+                        pageUrl = pageUrl,
+                    ),
+                )
         headers.forEach { (key, value) ->
             requestBuilder.header(key, value)
         }
@@ -1691,7 +2305,7 @@ internal class WebSessionUserscriptManager(
                 val response = call.execute()
                 if (!anonymous) {
                     cookieService.acceptResponseCookies(
-                        targetUrl,
+                        response.request.url.toString(),
                         response.headers("Set-Cookie"),
                     )
                 }
@@ -1860,7 +2474,8 @@ internal class WebSessionUserscriptManager(
         }
         existing.forEach { (scriptId, status) ->
             val baseline = pageState.scriptStatuses[scriptId] ?: return@forEach
-            if (baseline.state == UserscriptPageRuntimeState.QUEUED ||
+            if (baseline.state == UserscriptPageRuntimeState.MATCHED ||
+                baseline.state == UserscriptPageRuntimeState.QUEUED ||
                 baseline.state == UserscriptPageRuntimeState.RUNNING ||
                 baseline.state == UserscriptPageRuntimeState.SUCCESS ||
                 baseline.state == UserscriptPageRuntimeState.ERROR
@@ -1874,29 +2489,14 @@ internal class WebSessionUserscriptManager(
     private fun baselineStatus(
         script: UserscriptListItem,
         pageUrl: String
-    ): UserscriptPageRuntimeStatus {
-        return when {
-            !script.enabled ->
-                UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.DISABLED)
-            !uiStore.state.value.userScriptsAllowed ->
-                UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.PERMISSION_REQUIRED)
-            script.blockedReasons.isNotEmpty() ->
-                UserscriptPageRuntimeStatus(
-                    UserscriptPageRuntimeState.UNSUPPORTED,
-                    detail = script.blockedReasons.joinToString()
-                )
-            pageUrl.isBlank() || pageUrl == "about:blank" ->
-                UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.NOT_MATCHED)
-            UserscriptMatcher.matches(
-                metadata = script.toMetadata(),
-                pageUrl = pageUrl,
-                isTopFrame = true
-            ) ->
-                UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.QUEUED)
-            else ->
-                UserscriptPageRuntimeStatus(UserscriptPageRuntimeState.NOT_MATCHED)
-        }
-    }
+    ): UserscriptPageRuntimeStatus =
+        UserscriptPageStatusPolicy.resolve(
+            script = script,
+            userScriptsAllowed = uiStore.state.value.userScriptsAllowed,
+            pageUrl = pageUrl,
+            runtimeSupported = supportState.isSupported,
+            runtimeUnsupportedReason = supportState.reason,
+        )
 
     private fun upsertRuntimeStatus(
         sessionId: String,
@@ -1921,11 +2521,11 @@ internal class WebSessionUserscriptManager(
     }
 
     private fun publishVisibleStatuses() {
-        val visibleStatuses =
-            visibleSessionId
-                ?.let { sessionPageStates[it]?.scriptStatuses?.toMap() }
-                .orEmpty()
-        uiStore.updateCurrentPageStatuses(visibleStatuses)
+        val visibleState = visibleSessionId?.let(sessionPageStates::get)
+        uiStore.updateCurrentPageSnapshot(
+            pageUrl = visibleState?.pageUrl,
+            statuses = visibleState?.scriptStatuses?.toMap().orEmpty(),
+        )
     }
 
     private fun trustedPageUrl(sessionId: String): String =
@@ -1999,34 +2599,6 @@ internal class WebSessionUserscriptManager(
             else -> "other"
         }
     }
-
-    private fun UserscriptListItem.toMetadata(): ParsedUserscriptMetadata =
-        ParsedUserscriptMetadata(
-            name = name,
-            namespace = namespace,
-            version = version,
-            description = description,
-            homepage = homepage,
-            website = website,
-            supportUrl = supportUrl,
-            downloadUrl = downloadUrl,
-            updateUrl = updateUrl,
-            grants = grants,
-            matches = matches,
-            includes = includes,
-            excludes = excludes,
-            excludeMatches = excludeMatches,
-            connects = connects,
-            requires = requires,
-            resources = resources,
-            icons = icons,
-            tags = tags,
-            injectInto = injectInto,
-            sandbox = sandbox,
-            runIn = runIn,
-            unwrap = unwrap,
-            webRequestRules = webRequestRules
-        )
 
     private fun postRpcSuccess(
         replyProxy: JavaScriptReplyProxy,

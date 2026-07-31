@@ -4,6 +4,168 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-07-31 插件中心信息架构与日志交互优化
+
+本轮继续复用同一个 Browser Plugin Center、`UserscriptRepository` 和
+`WebSessionUserscriptManager`，修正插件中心重复展示和日志不可操作的问题。
+
+实施与验收门禁：
+
+1. [DONE] 审计本页、油猴脚本、插件库、日志和浏览器设置的入口与状态所有权
+2. [DONE] 插件中心“本页”改为 provider-only；油猴脚本条目只在油猴脚本工作区显示
+3. [DONE] 插件库从独立页签迁移到右上角加号，保留 Greasy Fork、ScriptCat、OpenUserJS、
+   Userscript.Zone 和 GitHub 五个已核实 HTTPS 来源
+4. [DONE] 日志支持单击详情与复制、长按直接复制、复制全部和导出全部；完整保留日志提升到 200 条
+5. [DONE] 设置页拆分插件中心、油猴脚本管理、权限与网站范围、当前页诊断和脚本日志入口；
+   权限行直接打开对应脚本详情
+6. [DONE] 定向测试 `244/244` 通过，零失败、零错误、零跳过
+7. [DONE] 更新正式文档、formal readiness、最终 Debug APK 和产物核验
+8. [PENDING] 目标 Android WebView 真机复测窄屏、长按、日志弹窗、复制、导出和设置路由
+
+当前非目标：
+
+- 不创建第二 Browser Runtime、第二 userscript 仓库或第二日志状态源
+- 不把长按日志设计成重复的二级菜单；长按只作为直接复制快捷操作
+- 不提交、不推送、不安装设备
+
+## 2026-07-31 真实 userscript 异常与浏览器插件设置收口
+
+本轮继续复用同一个 Browser Plugin Center、`UserscriptRepository` 与
+`WebSessionUserscriptManager`。用户提供的 vivo Android 16 截图显示，“轻小说文库+”
+`2.31.2` 已在 wenku8 阅读页进入执行阶段，实际状态是异常而不是未命中：
+`GM_info.script` 读取到了 `undefined`。真实脚本源码同时证明其三组
+`http*://*.wenku8.com/.net/.cc/*` 匹配规则已经生效。
+
+实施与验收门禁：
+
+1. [DONE] 获取 Greasy Fork 脚本 `539514` 当前真实源码、metadata、GM API 使用集合和设备错误堆栈
+2. [DONE] 定位 `GM_info` 根因：bootstrap 只在显式 `@grant GM_info` 或 `@grant none` 时创建信息对象
+3. [DONE] 让 `GM_info` 与 `GM.info` 对所有 userscript 提供同一个只读脚本信息对象，同时不扩大
+   native host 权限
+4. [DONE] 为 `http*://*.wenku8.com/.net/.cc/*` 和脚本实际 grants 增加真实样本回归测试
+5. [DONE] 重构网页浏览器设置的第一组，接通“允许用户脚本”“网页插件管理”“插件权限与网站范围”
+   和“当前页脚本诊断”
+6. [DONE] 设置页只观察现有 userscript 状态流；总授权继续写入现有 registry，不建立第二设置 owner
+7. [DONE] 权限页显示 runtime 支持状态、安装/启用数量、每个脚本的执行世界、grant、`@connect`、
+   页面范围、未知权限和阻塞原因；脚本声明权限不伪装成可单项开关
+8. [DONE] 更新语义文档，执行 userscript 与设置页定向测试、Kotlin 编译、formal readiness、
+   `git diff --check` 和最终 Debug APK 构建核验
+9. [PENDING] 目标设备安装后复测“轻小说文库+”启动、菜单、存储、资源、GM XHR 与设置入口；
+   本轮未获设备操作授权，不安装 APK
+
+本轮新增本地证据：
+
+- userscript runtime、matcher、metadata、storage、插件中心、浏览器 Back 和设置页相关定向测试
+  共 `86/86`，零失败、零错误、零跳过
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main` 与
+  `git diff --check` 通过；差异检查仅报告工作树既有 CRLF 到 LF 提示，没有 whitespace error
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 51s`，233 个任务零失败，末尾
+  `:app:verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-31 21:46:40 +08:00`，大小 `494139942` 字节，SHA-256
+  `2956E71105E5672D2F28F61AD341E11407CA82302FEF53467E646DC86D5948F3`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、arm64-v8a；Android Debug V2
+  签名与 `zipalign -c -P 16 -v 4` 均通过
+
+当前非目标：
+
+- 不新增第二 Browser Runtime、userscript 仓库或浏览器设置状态源
+- 不把脚本声明的 grant 改造成与真实授权模型不一致的逐项开关
+- 不承诺未实测的全部第三方脚本兼容，不实现 `.kbx` 或 WebExtension runtime
+- 不提交、不推送、不操作设备
+
+## 2026-07-31 浏览器插件中心二次 UI、编辑器与 userscript 匹配诊断
+
+本轮在既有 Browser Plugin Center、`UserscriptRepository` 与
+`WebSessionUserscriptManager` 上进行第二次深度收口。目标是修复插件编辑器的系统栏遮挡和
+底部操作区过高，消除把“没有当前页面状态”误报为“未命中”，并让常见 userscript 匹配、
+权限与状态在界面中可解释。Kiyori 当前仍为未发布内部版本，保留此前同一工作树中的未提交改动；
+不创建第二 Browser Runtime、第二 userscript 仓库或兼容回退链。
+
+实施门禁：
+
+1. [DONE] 只读审计编辑器根布局、系统 Insets、输入法、浏览器底栏几何和全部插件按钮回调
+2. [DONE] 只读审计 userscript 匹配、页面世界/隔离世界状态回报、`@grant`、`@connect` 和
+   当前“未命中”推导链
+3. [DONE] 确定写码前设计：编辑器 44dp 顶栏、浏览器同款底部动作几何、输入法期间单层底部
+   工具、`NO_ACTIVE_PAGE`/`MATCHED` 状态和统一匹配诊断
+4. [DONE] 扩展匹配器：`http*`、端口、常见主机通配、正则 flags、`@connect` 子域和可解释
+   的命中/排除规则；保持 query/fragment 语义正确
+5. [DONE] 收口运行时状态：页面世界已匹配状态、活动页面 URL、无活动页面与未初始化状态，
+   不再用空状态猜测 `NOT_MATCHED`
+6. [DONE] 收口权限语义：所有脚本都可读取本地只读 `GM_info / GM.info`，而 `@grant none` 不暴露 native/GM 特权 API；
+   安装/详情/更新预览分组展示 grant、
+   connect、页面范围、执行世界和不兼容原因
+7. [DONE] 重构插件中心按钮：概览添加菜单只进入已实现动作；URL 输入校验；更新/安装确认、
+   详情和日志按钮状态与真实异步结果一致
+8. [DONE] 优化编辑器：状态栏 Insets、44dp 顶栏、更多菜单、紧凑查找替换、浏览器同款底部
+   动作栏、输入法期间符号栏单层显示和 Metadata 错误可见
+9. [DONE] 修复详情页规则字段显示，分别展示 `@run-at`、`@inject-into`、`@run-in`、
+   `@noframes`，并补充相关文案
+10. [DONE] 增加匹配器、状态推导、权限和 UI 投影定向测试；执行 `git diff --check`、
+    formal readiness 与项目要求的 Debug APK 构建核验
+11. [PENDING] 目标 Android 设备上复测状态栏、输入法、窄屏按钮、真实脚本命中与权限行为；
+    本轮不在未获设备操作授权时安装或操作设备
+
+本轮最终本地证据：
+
+- userscript、插件中心、编辑器 UI、浏览器 Back 和 runtime 相关定向测试共 `70/70`，零失败、
+  零错误、零跳过；测试任务重新执行了 `:app:compileDebugKotlin`
+- 七份实际 `strings.xml` 均可解析，名称集合无重复且包含本轮新增文案键；`formal readiness`
+  与 `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：PASS，233 个任务，
+  32 个执行、201 个缓存命中；`:app:verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-31 20:39:03 +08:00`，大小 `494139942` 字节，SHA-256
+  `B70F85F46C579419604E3C3870F8296D8E84466F81C2BC13488FE00930BE5324`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、arm64-v8a；Android Debug V2
+  签名与 `zipalign -c -P 16 -v 4` 均通过
+
+当前非目标：
+
+- 不实现 `.kbx`、Chrome 扩展包直接安装、新标签页 Provider 或 WebExtension runtime
+- 不把未实现的 `@run-in`、`@sandbox`、`@unwrap` 伪装为已支持
+- 不提交、不推送、不部署、不覆盖或清理工作树已有改动
+
+## 2026-07-31 浏览器油猴脚本管理闭环与全屏编辑器
+
+本轮在同一个 Browser Plugin Center、`UserscriptRepository` 与 `WebSessionUserscriptManager`
+上继续完成 Phase 1 管理闭环，不引入第二 Browser Runtime、第二脚本仓库、WebView 编辑器或回退执行链。
+界面继续使用浏览器书签、下载等子抽屉的紧凑标题、搜索、标签、卡片和确认风格；源码编辑器作为浏览器
+宿主内全屏原生页面打开。
+
+实施与验收门禁：
+
+1. [DONE] registry v2、应用私有 immutable revision、draft、staging、transaction journal 与原子迁移
+2. [DONE] “本页 / 已安装 / 更新 / 日志”四个工作区、脚本搜索、紧凑权限提示与草稿恢复入口
+3. [DONE] 脚本详情展示匹配规则、权限、`@connect`、依赖、源码、日志与版本历史
+4. [DONE] 已安装脚本长按多选、批量启用、批量禁用与确认后批量删除
+5. [DONE] 单项及批量检查更新；检查保持只读，批量应用只提交权限和来源不扩大的安全更新
+6. [DONE] 风险更新在应用前展示新增权限、范围变化、来源变化和统一源码差异
+7. [DONE] 浏览器内全屏 `NativeCodeEditor` 支持查找替换、撤销重做、格式化和结构化 metadata
+8. [DONE] 编辑器私有草稿自动保存、语法/权限检查、差异预览、显式应用与离开决策
+9. [DONE] 新建草稿、已安装脚本草稿和中断后未安装草稿均可恢复，不提前覆盖活动 revision
+10. [DONE] 定向测试、七语种资源校验、正式开发门禁、差异审查和 Debug APK 构建核验
+11. [PENDING] 目标设备验收窄屏四标签、多选、详情/编辑器 Back、草稿恢复、更新审查和真实脚本应用
+12. [PENDING] 后续补充 userscript 导出与删除时的脚本数据保留选择
+
+本地验证证据：
+
+- `BrowserPluginCenterFacadeTest`、`WebSessionBrowserBackPolicyTest`、
+  `UserscriptStorageTransactionTest`、`UserscriptManagementPolicyTest` 与
+  `UserscriptMetadataParserTest` 合计 `23/23`，零失败、零错误、零跳过
+- `:app:compileDebugKotlin`、formal readiness 与 `git diff --check` 通过
+- 七份 `strings.xml` 均可解析；本轮新增 `76` 个文案键在中文、英语、西班牙语、印尼语、
+  韩语、马来语和巴西葡萄牙语中名称集合一致且无本轮重复键
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 完成 `233` 个任务，
+  `28` 个执行、`205` 个缓存命中，`:app:verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，时间
+  `2026-07-31 19:12:39 +08:00`，大小 `494137206` 字节，SHA-256
+  `C65D30791DA9B054428FFAF63169B58407BEE107D25BDDC1540B25A0820C8267`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min 26、target 34、compile 36；
+  Android Debug V2 签名与 `zipalign -c -P 16 -v 4` 均通过
+
 ## 2026-07-31 AI 对话公式编号、方框字形与 Markdown 节点边界修复
 
 本轮只修改 Operit AI 对话已有 Markdown/LaTeX 渲染链，不切换公式引擎，不引入第二套
