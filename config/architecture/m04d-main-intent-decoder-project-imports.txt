@@ -1,0 +1,3 @@
+com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
+com.ai.assistance.operit.widget.ToolPkgDesktopWidgetHost
+com.kiyori.app.shell.KiyoriShellExternalDestination

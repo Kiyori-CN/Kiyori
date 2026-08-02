@@ -36,9 +36,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.resolveColors
 
 internal const val KIYORI_SETTINGS_ROW_VERTICAL_PADDING_DP = 16
 internal const val KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP = 26

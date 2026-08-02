@@ -44,8 +44,8 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.ui.features.packages.components.EmptyState
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 
 @Composable
 fun PackageTabContent(

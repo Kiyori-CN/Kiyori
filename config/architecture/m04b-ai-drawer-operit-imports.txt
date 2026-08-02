@@ -1,0 +1,13 @@
+com.ai.assistance.operit.R
+com.ai.assistance.operit.core.tools.AIToolHandler
+com.ai.assistance.operit.core.tools.packTool.PackageManager
+com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
+com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
+com.ai.assistance.operit.core.tools.system.action.ActionListenerFactory
+com.ai.assistance.operit.data.preferences.androidPermissionPreferences
+com.ai.assistance.operit.data.repository.WorkflowRepository
+com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
+com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+com.kiyori.design.theme.KiyoriSemanticTone
+com.kiyori.design.theme.resolveColors

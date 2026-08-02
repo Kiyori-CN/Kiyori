@@ -9,7 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.application.KiyoriApplication
+import com.kiyori.platform.android.ApplicationContextAccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
@@ -71,15 +71,15 @@ class WakeWordPreferences(private val context: Context) {
 
         // Default string values using R.string references
         val DEFAULT_WAKE_PHRASE: String by lazy {
-            runCatching { KiyoriApplication.instance.getString(R.string.wake_word_default) }
+            runCatching { ApplicationContextAccess.current.getString(R.string.wake_word_default) }
                 .getOrDefault("")
         }
         val DEFAULT_WAKE_GREETING_TEXT: String by lazy {
-            runCatching { KiyoriApplication.instance.getString(R.string.wake_word_response) }
+            runCatching { ApplicationContextAccess.current.getString(R.string.wake_word_response) }
                 .getOrDefault("")
         }
         val DEFAULT_AUTO_NEW_CHAT_GROUP: String by lazy {
-            runCatching { KiyoriApplication.instance.getString(R.string.wake_word_global_assistant) }
+            runCatching { ApplicationContextAccess.current.getString(R.string.wake_word_global_assistant) }
                 .getOrDefault("")
         }
 

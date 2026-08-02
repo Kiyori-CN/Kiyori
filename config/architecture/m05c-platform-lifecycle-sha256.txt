@@ -1,0 +1,3 @@
+77D8AA35E7FED2D9939D57D589713FA553D700B977C6AE282B8F35267690508A	app/src/main/java/com/kiyori/platform/lifecycle/KiyoriActivityLifecycle.kt
+818DC34D0E30AB98C44DC7907C0CBFB95A9A4E8CB945CBF0DF26715B8973546C	app/src/main/java/com/ai/assistance/operit/core/application/OperitActivityLifecycleIntegration.kt
+AEC6FB329E70D70502B6B0559F4157C15511EBF65469FF6BDD4EE170F9DB6D7B	app/src/main/java/com/ai/assistance/operit/core/application/ActivityLifecycleManager.kt

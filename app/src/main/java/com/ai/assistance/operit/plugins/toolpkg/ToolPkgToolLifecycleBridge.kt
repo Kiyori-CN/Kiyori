@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.plugins.toolpkg
 
-import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.core.tools.AIToolHook
 import com.ai.assistance.operit.core.tools.AIToolHookDecision
 import com.ai.assistance.operit.core.tools.AIToolHandler
@@ -10,6 +9,7 @@ import com.ai.assistance.operit.core.tools.packTool.TOOLPKG_EVENT_TOOL_LIFECYCLE
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.android.ApplicationContextAccess
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +51,7 @@ internal object ToolPkgToolLifecycleBridge : AIToolHook {
         if (!installed.compareAndSet(false, true)) {
             return
         }
-        val application = KiyoriApplication.instance.applicationContext
+        val application = ApplicationContextAccess.current
         AIToolHandler.getInstance(application).addToolHook(this)
         val manager = toolPkgPackageManager()
         manager.addToolPkgRuntimeChangeListener(runtimeChangeListener)

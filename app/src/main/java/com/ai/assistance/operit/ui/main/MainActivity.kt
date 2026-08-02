@@ -1,9 +1,6 @@
 package com.ai.assistance.operit.ui.main
 
-import android.Manifest
-import android.app.ActivityManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -14,17 +11,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -34,20 +21,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.api.chat.AIForegroundService
-import com.ai.assistance.operit.core.application.KiyoriApplication
-import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
-import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.repository.ChatHistoryManager
 import com.ai.assistance.operit.ui.common.NavItem
-import com.ai.assistance.operit.ui.features.agreement.screens.AgreementScreen
-import com.ai.assistance.operit.ui.features.permission.screens.PermissionGuideScreen
 import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingScreenWithState
 import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingState
-import com.ai.assistance.operit.ui.features.startup.screens.LocalPluginLoadingState
 import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingStateRegistry
-import com.ai.assistance.operit.ui.theme.OperitTheme
 import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.util.AnrMonitor
 import com.ai.assistance.operit.util.LocaleUtils
@@ -58,75 +37,62 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.content.Intent
-import android.net.Uri
-import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.core.player.PlayerPresentation
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import com.ai.assistance.operit.ui.features.player.PlayerActivity
-import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubOAuthCoordinator
-import com.ai.assistance.operit.ui.main.shell.KiyoriShellExternalDestination
-import com.ai.assistance.operit.widget.ToolPkgDesktopWidgetHost
+import com.kiyori.app.theme.KiyoriTheme
+import com.kiyori.app.shell.KiyoriShellExternalDestination
+import com.kiyori.app.startup.KiyoriMainContentHost
+import com.kiyori.app.startup.KiyoriMainIntentCommand
+import com.kiyori.app.startup.KiyoriMainIntentContract
+import com.kiyori.app.startup.KiyoriMainDisplayCoordinator
+import com.kiyori.app.startup.KiyoriMainNotificationPermissionCoordinator
+import com.kiyori.app.startup.KiyoriMainOrientationCoordinator
+import com.kiyori.app.startup.KiyoriMainOrientationDialog
+import com.kiyori.app.startup.KiyoriMainPendingRequests
+import com.kiyori.app.startup.KiyoriMainSharedContentCoordinator
+import com.kiyori.app.startup.KiyoriMainStartupGate
+import com.kiyori.app.startup.KiyoriMainStartupGateCoordinator
+import com.kiyori.app.startup.KiyoriMainTaskVisibilityCoordinator
+import com.kiyori.app.startup.decodeKiyoriMainIntent
+import com.kiyori.platform.lifecycle.MainApplicationInitialization
 import org.json.JSONObject
 
-internal fun resolveKiyoriShellExternalDestination(
-    action: String?,
-): KiyoriShellExternalDestination? =
-    when (action) {
-        MainActivity.ACTION_OPEN_KIYORI_BROWSER ->
-            KiyoriShellExternalDestination.BROWSER_HOME
-        MainActivity.ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR ->
-            KiyoriShellExternalDestination.BROWSER_HOME_FROM_MINIMIZED_INDICATOR
-        MainActivity.ACTION_OPEN_KIYORI_DOWNLOADS ->
-            KiyoriShellExternalDestination.DOWNLOADS
-        MainActivity.ACTION_OPEN_KIYORI_BROWSER_SETTINGS ->
-            KiyoriShellExternalDestination.BROWSER_SETTINGS
-        MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS ->
-            KiyoriShellExternalDestination.DOWNLOAD_SETTINGS
-        else -> null
-    }
-
-internal fun resolveKiyoriDownloadTaskId(
-    action: String?,
-    taskId: String?,
-): String? =
-    taskId
-        ?.trim()
-        ?.takeIf { value ->
-            action == MainActivity.ACTION_OPEN_KIYORI_DOWNLOAD_TASK && value.isNotBlank()
-        }
+private data class KiyoriMainIntentHandlingResult(
+    val handledShortcutIntent: Boolean,
+    val processPendingSharedContent: Boolean,
+)
 
 class MainActivity : ComponentActivity() {
     companion object {
-        const val ACTION_OPEN_SETTINGS_SHORTCUT = "com.ai.assistance.operit.action.OPEN_SETTINGS_SHORTCUT"
-        const val ACTION_OPEN_KIYORI_BROWSER = "com.kiyori.action.OPEN_BROWSER"
+        const val ACTION_OPEN_SETTINGS_SHORTCUT =
+            KiyoriMainIntentContract.ACTION_OPEN_SETTINGS_SHORTCUT
+        const val ACTION_OPEN_KIYORI_BROWSER =
+            KiyoriMainIntentContract.ACTION_OPEN_KIYORI_BROWSER
         const val ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR =
-            "com.kiyori.action.RESTORE_BROWSER_FROM_INDICATOR"
-        const val ACTION_OPEN_KIYORI_DOWNLOADS = "com.kiyori.action.OPEN_DOWNLOADS"
+            KiyoriMainIntentContract.ACTION_RESTORE_KIYORI_BROWSER_FROM_INDICATOR
+        const val ACTION_OPEN_KIYORI_DOWNLOADS =
+            KiyoriMainIntentContract.ACTION_OPEN_KIYORI_DOWNLOADS
         const val ACTION_OPEN_KIYORI_DOWNLOAD_TASK =
-            "com.kiyori.action.OPEN_DOWNLOAD_TASK"
+            KiyoriMainIntentContract.ACTION_OPEN_KIYORI_DOWNLOAD_TASK
         const val EXTRA_KIYORI_DOWNLOAD_TASK_ID =
-            "com.kiyori.extra.DOWNLOAD_TASK_ID"
+            KiyoriMainIntentContract.EXTRA_KIYORI_DOWNLOAD_TASK_ID
         const val ACTION_OPEN_KIYORI_BROWSER_SETTINGS =
-            "com.kiyori.action.OPEN_BROWSER_SETTINGS"
+            KiyoriMainIntentContract.ACTION_OPEN_KIYORI_BROWSER_SETTINGS
         const val ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS =
-            "com.kiyori.action.OPEN_DOWNLOAD_SETTINGS"
+            KiyoriMainIntentContract.ACTION_OPEN_KIYORI_DOWNLOAD_SETTINGS
         const val ACTION_RESTART_PLAYER_AFTER_CRASH =
-            "com.kiyori.action.RESTART_PLAYER_AFTER_CRASH"
+            KiyoriMainIntentContract.ACTION_RESTART_PLAYER_AFTER_CRASH
         const val EXTRA_PLAYER_RUNTIME_GENERATION =
-            "com.kiyori.extra.PLAYER_RUNTIME_GENERATION"
+            KiyoriMainIntentContract.EXTRA_PLAYER_RUNTIME_GENERATION
     }
 
     private val TAG = "MainActivity"
 
-    // ======== 屏幕方向变更状态 ========
-    private var showOrientationChangeDialog by mutableStateOf(false)
-
-    private var lastOrientation: Int? = null
-
     // ======== 工具和管理器 ========
-    private lateinit var agreementPreferences: AgreementPreferences
+    private lateinit var startupGateCoordinator: KiyoriMainStartupGateCoordinator
     private lateinit var anrMonitor: AnrMonitor
 
     // ======== MCP插件状态 ========
@@ -136,71 +102,15 @@ class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0
     private val backPressedInterval: Long = 2000 // 两次点击的时间间隔，单位为毫秒
 
-    // 是否显示权限引导界面
-    private var showPermissionGuide by mutableStateOf(false)
-
-    // 存储待处理的分享文件URIs
-    private var pendingSharedFileUris: List<Uri>? = null
-
-    private var pendingSharedText: String? = null
-    private var pendingBrowserUrl by mutableStateOf<String?>(null)
-    private var pendingBrowserRequestId by mutableStateOf(0L)
-    private var pendingGitHubAuthUri: Uri? = null
-    private var pendingShortcutNavItem: NavItem? = null
-    private var pendingShortcutRequestId: Long = 0L
-    private var currentMainNavItem: NavItem = NavItem.AiChat
-    private var pendingRouteId: String? = null
-    private var pendingRouteArgs: Map<String, Any?> = emptyMap()
-    private var pendingRouteRequestId: Long = 0L
-    private var pendingKiyoriShellDestination by
-        mutableStateOf<KiyoriShellExternalDestination?>(null)
-    private var pendingKiyoriShellRequestId by mutableStateOf(0L)
-
-    // 通知权限请求启动器
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            AppLogger.d(TAG, "通知权限已授予")
-        } else {
-            AppLogger.d(TAG, "通知权限被拒绝")
-            Toast.makeText(this, getString(R.string.notification_permission_denied), Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun processPendingSharedText() {
-        if (pendingSharedFileUris != null) {
-            AppLogger.d(TAG, "Pending shared text will be processed with shared files")
-            return
-        }
-
-        val text = pendingSharedText?.trim()
-        if (text.isNullOrBlank()) {
-            AppLogger.d(TAG, "No pending shared text to process")
-            return
-        }
-
-        SharedFileHandler.setSharedText(text)
-        AppLogger.d(TAG, "Successfully passed shared text to SharedFileHandler")
-        pendingSharedText = null
-    }
-
-    private fun restoreRuntimeTaskViewVisibilityIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return
-        if (AIForegroundService.isRunning.get()) return
-
-        try {
-            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-            activityManager?.appTasks?.forEach { task ->
-                try {
-                    task.setExcludeFromRecents(false)
-                } catch (e: Exception) {
-                    AppLogger.e(TAG, "恢复最近任务可见性失败", e)
-                }
-            }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "恢复运行时任务视图可见性失败", e)
-        }
+    private val notificationPermissionCoordinator =
+        KiyoriMainNotificationPermissionCoordinator(this)
+    private val orientationCoordinator = KiyoriMainOrientationCoordinator()
+    private val pendingRequests = KiyoriMainPendingRequests()
+    private val sharedContentCoordinator by lazy(LazyThreadSafetyMode.NONE) {
+        KiyoriMainSharedContentCoordinator(
+            activity = this,
+            pendingRequests = pendingRequests,
+        )
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -228,18 +138,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        lastOrientation = resources.configuration.orientation
+        orientationCoordinator.initialize(resources.configuration.orientation)
         AppLogger.d(TAG, "onCreate: Android SDK version: ${Build.VERSION.SDK_INT}")
 
         // Handle the intent that started the activity
         handleIntent(intent)
 
-        (application as KiyoriApplication).initializeMainUiPrerequisites()
+        (application as MainApplicationInitialization).initializeMainUiPrerequisites()
 
         // 语言设置已在Application中初始化，这里无需重复
 
         initializeComponents()
-        configureDisplaySettings()
+        KiyoriMainDisplayCoordinator.configure(this)
 
         // 设置上下文以便获取插件元数据
         pluginLoadingState.setAppContext(this)
@@ -262,7 +172,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scheduleMainApplicationInitialization(performInitialChecks: Boolean) {
-        val kiyoriApplication = application as KiyoriApplication
+        val mainApplicationInitialization = application as MainApplicationInitialization
 
         // 完整初始化不能占用 Android 系统 Splash 等待的首帧。先提交一帧，再从后台完成
         // 非首屏职责；否则 PDFBox、编辑器语言和磁盘扫描会延长启动图标停留时间。
@@ -274,9 +184,9 @@ class MainActivity : ComponentActivity() {
                 anrMonitor.start()
                 lifecycleScope.launch {
                     withContext(Dispatchers.Default) {
-                        kiyoriApplication.initializeMainApplication()
+                        mainApplicationInitialization.initializeMainApplication()
                     }
-                    restoreRuntimeTaskViewVisibilityIfNeeded()
+                    KiyoriMainTaskVisibilityCoordinator.restoreIfNeeded(this@MainActivity)
                     processPendingGitHubAuth()
                     if (performInitialChecks) {
                         performInitialChecks()
@@ -290,152 +200,150 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent) // 重要：更新当前Intent
         AppLogger.d(TAG, "onNewIntent: Received intent with action: ${intent?.action}")
-        restoreRuntimeTaskViewVisibilityIfNeeded()
-        val handledShortcutIntent = handleIntent(intent)
+        KiyoriMainTaskVisibilityCoordinator.restoreIfNeeded(this)
+        val handlingResult = handleIntent(intent)
 
-        if (handledShortcutIntent) {
+        if (handlingResult.handledShortcutIntent) {
             processPendingGitHubAuth()
             setAppContent()
             return
         }
-        
-        // 如果是分享或打开内容，立即处理
-        if (intent?.action == Intent.ACTION_VIEW ||
-            intent?.action == Intent.ACTION_SEND ||
-            intent?.action == Intent.ACTION_SEND_MULTIPLE
-        ) {
-            processPendingSharedFiles()
-            processPendingSharedText()
+
+        if (handlingResult.processPendingSharedContent) {
+            sharedContentCoordinator.processPendingSharedFiles()
+            sharedContentCoordinator.processPendingSharedText()
         }
     }
 
-    private fun handleIntent(intent: Intent?): Boolean {
-        if (intent?.action == ACTION_RESTART_PLAYER_AFTER_CRASH) {
-            val runtimeGeneration =
-                intent.getLongExtra(EXTRA_PLAYER_RUNTIME_GENERATION, 0L)
-            val presentation =
-                PlayerSession.getInstance(this).restartAfterCrash(runtimeGeneration)
-            intent.action = null
-            if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
-                startActivity(PlayerActivity.createReuseSessionIntent(this))
-            }
-            return presentation != null
-        }
+    private fun handleIntent(intent: Intent?): KiyoriMainIntentHandlingResult {
+        val decoding = decodeKiyoriMainIntent(intent)
+        val handledShortcutIntent =
+            when (val command = decoding.command) {
+                KiyoriMainIntentCommand.None -> false
 
-        resolveKiyoriDownloadTaskId(
-            action = intent?.action,
-            taskId = intent?.getStringExtra(EXTRA_KIYORI_DOWNLOAD_TASK_ID),
-        )?.let { taskId ->
-            intent?.action = null
-            if (!BrowserDownloadManager.getInstance(this).openDownloadedFile(taskId)) {
-                pendingKiyoriShellDestination = KiyoriShellExternalDestination.DOWNLOADS
-                pendingKiyoriShellRequestId = System.currentTimeMillis()
-                Toast.makeText(
-                    this,
-                    R.string.web_session_download_open_failed,
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-            return true
-        }
-
-        resolveKiyoriShellExternalDestination(intent?.action)?.let { destination ->
-            pendingKiyoriShellDestination = destination
-            pendingKiyoriShellRequestId = System.currentTimeMillis()
-            AppLogger.d(TAG, "Requested opening Kiyori shell destination: $destination")
-            return true
-        }
-
-        if (intent?.action == ACTION_OPEN_SETTINGS_SHORTCUT) {
-            pendingShortcutNavItem = NavItem.Settings
-            pendingShortcutRequestId = System.currentTimeMillis()
-            currentMainNavItem = NavItem.Settings
-            AppLogger.d(TAG, "Shortcut requested opening settings")
-            return true
-        }
-
-        val pendingWidgetRouteId =
-            intent?.getStringExtra(ToolPkgDesktopWidgetHost.EXTRA_OPEN_ROUTE_ID)?.trim().orEmpty()
-        if (pendingWidgetRouteId.isNotBlank()) {
-            pendingRouteId = pendingWidgetRouteId
-            pendingRouteArgs =
-                parseRouteArgsJson(
-                    intent?.getStringExtra(ToolPkgDesktopWidgetHost.EXTRA_OPEN_ROUTE_ARGS_JSON)
-                )
-            pendingRouteRequestId = System.currentTimeMillis()
-            AppLogger.d(TAG, "Shortcut requested opening route: $pendingWidgetRouteId")
-            return true
-        }
-
-        val intentUri = intent?.data
-        if (GitHubAuthPreferences.isOAuthRedirectUri(intentUri)) {
-            pendingGitHubAuthUri = intentUri
-            AppLogger.d(TAG, "Received GitHub OAuth redirect: $intentUri")
-            return true
-        }
-        
-        // Handle opened and shared files
-        when (intent?.action) {
-            Intent.ACTION_VIEW -> {
-                // Handle "Open with" action
-                intent.data?.let { uri ->
-                    if (
-                        uri.scheme.equals("http", ignoreCase = true) ||
-                            uri.scheme.equals("https", ignoreCase = true)
-                    ) {
-                        pendingBrowserUrl = uri.toString()
-                        pendingBrowserRequestId = System.currentTimeMillis()
-                        AppLogger.d(TAG, "Received browser URL to open: $uri")
-                    } else {
-                        pendingSharedFileUris = listOf(uri)
-                        AppLogger.d(TAG, "Received file to open: $uri")
+                is KiyoriMainIntentCommand.RestartPlayer -> {
+                    val presentation =
+                        PlayerSession
+                            .getInstance(this)
+                            .restartAfterCrash(command.runtimeGeneration)
+                    intent?.action = null
+                    if (presentation == PlayerPresentation.FULLSCREEN_PLAYER) {
+                        startActivity(PlayerActivity.createReuseSessionIntent(this))
                     }
-                }
-            }
-            Intent.ACTION_SEND -> {
-                // Handle "Share" action
-                @Suppress("DEPRECATION")
-                val uri = if (Build.VERSION.SDK_INT >= 33) { // Build.VERSION_CODES.TIRAMISU
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-                }
-                uri?.let {
-                    pendingSharedFileUris = listOf(it)
-                    AppLogger.d(TAG, "Received shared file: $it")
+                    presentation != null
                 }
 
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                if (!sharedText.isNullOrBlank()) {
-                    pendingSharedText = sharedText
-                    AppLogger.d(TAG, "Received shared text")
-                }
-            }
-            Intent.ACTION_SEND_MULTIPLE -> {
-                @Suppress("DEPRECATION")
-                val uris = if (Build.VERSION.SDK_INT >= 33) {
-                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
-                }
-                if (!uris.isNullOrEmpty()) {
-                    pendingSharedFileUris = uris
-                    AppLogger.d(TAG, "Received shared files: ${uris.size}")
+                is KiyoriMainIntentCommand.OpenDownloadedTask -> {
+                    intent?.action = null
+                    if (
+                        !BrowserDownloadManager
+                            .getInstance(this)
+                            .openDownloadedFile(command.taskId)
+                    ) {
+                        pendingRequests.recordShellDestination(
+                            destination = KiyoriShellExternalDestination.DOWNLOADS,
+                            requestId = System.currentTimeMillis(),
+                        )
+                        Toast.makeText(
+                            this,
+                            R.string.web_session_download_open_failed,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    true
                 }
 
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                if (!sharedText.isNullOrBlank()) {
-                    pendingSharedText = sharedText
-                    AppLogger.d(TAG, "Received shared text")
+                is KiyoriMainIntentCommand.OpenShellDestination -> {
+                    pendingRequests.recordShellDestination(
+                        destination = command.destination,
+                        requestId = System.currentTimeMillis(),
+                    )
+                    AppLogger.d(
+                        TAG,
+                        "Requested opening Kiyori shell destination: ${command.destination}",
+                    )
+                    true
+                }
+
+                KiyoriMainIntentCommand.OpenSettingsShortcut -> {
+                    pendingRequests.recordShortcut(
+                        navItem = NavItem.Settings,
+                        requestId = System.currentTimeMillis(),
+                    )
+                    AppLogger.d(TAG, "Shortcut requested opening settings")
+                    true
+                }
+
+                is KiyoriMainIntentCommand.OpenRoute -> {
+                    pendingRequests.recordRoute(
+                        routeId = command.routeId,
+                        routeArgs = parseRouteArgsJson(command.routeArgsJson),
+                        requestId = System.currentTimeMillis(),
+                    )
+                    AppLogger.d(
+                        TAG,
+                        "Shortcut requested opening route: ${command.routeId}",
+                    )
+                    true
+                }
+
+                is KiyoriMainIntentCommand.CompleteGitHubAuth -> {
+                    pendingRequests.recordGitHubAuth(command.uri)
+                    AppLogger.d(TAG, "Received GitHub OAuth redirect: ${command.uri}")
+                    true
+                }
+
+                is KiyoriMainIntentCommand.OpenBrowser -> {
+                    pendingRequests.recordBrowser(
+                        url = command.url,
+                        requestId = System.currentTimeMillis(),
+                    )
+                    AppLogger.d(TAG, "Received browser URL to open: ${command.url}")
+                    false
+                }
+
+                is KiyoriMainIntentCommand.OpenSharedFile -> {
+                    pendingRequests.recordSharedFiles(listOf(command.uri))
+                    AppLogger.d(TAG, "Received file to open: ${command.uri}")
+                    false
+                }
+
+                is KiyoriMainIntentCommand.ShareSingle -> {
+                    command.uri?.let { uri ->
+                        pendingRequests.recordSharedFiles(listOf(uri))
+                        AppLogger.d(TAG, "Received shared file: $uri")
+                    }
+                    command.text?.let { text ->
+                        pendingRequests.recordSharedText(text)
+                        AppLogger.d(TAG, "Received shared text")
+                    }
+                    false
+                }
+
+                is KiyoriMainIntentCommand.ShareMultiple -> {
+                    if (command.uris.isNotEmpty()) {
+                        pendingRequests.recordSharedFiles(command.uris)
+                        AppLogger.d(
+                            TAG,
+                            "Received shared files: ${command.uris.size}",
+                        )
+                    }
+                    command.text?.let { text ->
+                        pendingRequests.recordSharedText(text)
+                        AppLogger.d(TAG, "Received shared text")
+                    }
+                    false
                 }
             }
-        }
-        return false
+
+        return KiyoriMainIntentHandlingResult(
+            handledShortcutIntent = handledShortcutIntent,
+            processPendingSharedContent = decoding.processPendingSharedContent,
+        )
     }
 
     private fun processPendingGitHubAuth() {
-        val authUri = pendingGitHubAuthUri ?: return
-        pendingGitHubAuthUri = null
+        val authUri = pendingRequests.takeGitHubAuthUri() ?: return
 
         lifecycleScope.launch {
             val coordinator = GitHubOAuthCoordinator(this@MainActivity)
@@ -515,15 +423,15 @@ class MainActivity : ComponentActivity() {
     private fun performInitialChecks() {
         lifecycleScope.launch {
             // 1. 检查通知权限（Android 13+）
-            checkNotificationPermission()
+            notificationPermissionCoordinator.checkAndRequest()
 
             // 2. 检查权限级别设置
-            checkPermissionLevelSet()
+            startupGateCoordinator.refreshPermissionLevel()
 
             prepareStartupChatIfNeeded()
 
             // 3. 在协议已接受且无需权限引导时，启动插件加载
-            if (!showPermissionGuide && agreementPreferences.isAgreementAccepted()) {
+            if (startupGateCoordinator.isReadyForContent) {
                 startPluginLoading()
             }
         }
@@ -542,39 +450,6 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             delay(500)
             pluginLoadingState.initializeMCPServer(this@MainActivity, lifecycleScope)
-        }
-    }
-
-    // ======== 处理待处理的分享文件 ========
-    private fun processPendingSharedFiles() {
-        val uris = pendingSharedFileUris
-        if (uris == null) {
-            AppLogger.d(TAG, "No pending shared files to process")
-            return
-        }
-        
-        AppLogger.d(TAG, "Processing ${uris.size} pending shared file(s)")
-        uris.forEachIndexed { index, uri ->
-            AppLogger.d(TAG, "  [$index] URI: $uri")
-        }
-        
-        lifecycleScope.launch {
-            try {
-                // Pass the URIs to the chat screen via SharedFileHandler
-                val sharedText = pendingSharedText?.trim()
-                SharedFileHandler.setSharedFiles(uris, sharedText)
-                AppLogger.d(TAG, "Successfully passed shared files to SharedFileHandler")
-                pendingSharedFileUris = null
-                pendingSharedText = null
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to process shared files", e)
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.chat_process_shared_files_failed, e.message ?: ""),
-                    Toast.LENGTH_LONG
-                ).show()
-                pendingSharedFileUris = null
-            }
         }
     }
 
@@ -629,219 +504,52 @@ class MainActivity : ComponentActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        AppLogger.d(TAG, "onConfigurationChanged: new orientation=${newConfig.orientation}, last orientation=${lastOrientation}")
 
         // 屏幕方向变化时，确保加载界面不可见
         pluginLoadingState.hide()
-
-        // 仅当方向确实发生变化时才处理
-        if (newConfig.orientation != lastOrientation) {
-            // 记录变化前的方向
-            val orientationBeforeChange = lastOrientation
-            // 更新最后的方向记录
-            lastOrientation = newConfig.orientation
-
-            // 检查是否是“转回去”的操作
-            if (showOrientationChangeDialog && newConfig.orientation == orientationBeforeChange) {
-                // 如果是，隐藏弹窗并结束
-                showOrientationChangeDialog = false
-                return
-            }
-            
-            // 如果不是“转回去”，或者弹窗还未显示，则显示弹窗
-            showOrientationChangeDialog = true
-        }
+        orientationCoordinator.onConfigurationChanged(newConfig.orientation)
     }
 
     // ======== 初始化组件 ========
     private fun initializeComponents() {
         anrMonitor = AnrMonitor(this, lifecycleScope)
 
-        // 初始化协议偏好管理器
-        agreementPreferences = AgreementPreferences(this)
-
-    }
-
-    // ======== 检查通知权限 ========
-    private fun checkNotificationPermission() {
-        // Android 13 (API 33) 及以上需要请求通知权限
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permission = Manifest.permission.POST_NOTIFICATIONS
-            when {
-                ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED -> {
-                    AppLogger.d(TAG, "通知权限已授予")
-                }
-                shouldShowRequestPermissionRationale(permission) -> {
-                    // 用户之前拒绝过，显示说明并再次请求
-                    AppLogger.d(TAG, "需要显示通知权限说明")
-                    Toast.makeText(
-                        this,
-                        getString(R.string.notification_permission_rationale),
-                        Toast.LENGTH_LONG
-                    ).show()
-                    notificationPermissionLauncher.launch(permission)
-                }
-                else -> {
-                    // 直接请求权限
-                    AppLogger.d(TAG, "请求通知权限")
-                    notificationPermissionLauncher.launch(permission)
-                }
-            }
-        } else {
-            // Android 13 以下不需要运行时通知权限
-            AppLogger.d(TAG, "Android 版本 < 13，无需请求通知权限")
-        }
-    }
-
-    // ======== 检查权限级别设置 ========
-    private fun checkPermissionLevelSet() {
-        // 检查是否已设置权限级别
-        val permissionLevel = androidPermissionPreferences.getPreferredPermissionLevel()
-        AppLogger.d(TAG, "当前权限级别: $permissionLevel")
-        showPermissionGuide = permissionLevel == null
-        AppLogger.d(
-                TAG,
-                "权限级别检查: 已设置=${!showPermissionGuide}, 将${if(showPermissionGuide) "" else "不"}显示权限引导界面"
-        )
-    }
-
-    // ======== 显示与性能配置 ========
-    private fun configureDisplaySettings() {
-        // 1. 请求持续的高性能模式 (API 31+)
-        // 这会提示系统为应用提供持续的高性能，避免CPU/GPU降频。
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                window.setSustainedPerformanceMode(true)
-                AppLogger.d(TAG, "已成功请求持续高性能模式。")
-            } catch (e: Exception) {
-                // 在某些设备上，此模式可能不可用或不支持。
-                AppLogger.w(TAG, "请求持续高性能模式失败。", e)
-            }
-        }
-
-        // 2. 设置应用以最高刷新率运行
-        // 高刷新率优化：通过设置窗口属性确保流畅
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // 为Android 11+设备优化高刷新率
-            val highestMode = getHighestRefreshRate()
-            if (highestMode > 0) {
-                window.attributes.preferredDisplayModeId = highestMode
-                AppLogger.d(TAG, "设置窗口首选显示模式ID: $highestMode")
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // 为Android 6.0-10设备优化高刷新率
-            val refreshRate = getDeviceRefreshRate()
-            if (refreshRate > 60f) {
-                window.attributes.preferredRefreshRate = refreshRate
-                AppLogger.d(TAG, "设置窗口首选刷新率: $refreshRate Hz")
-            }
-        }
-
-        // 启用硬件加速以提高渲染性能
-        window.setFlags(
-                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-                android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
-        )
+        startupGateCoordinator = KiyoriMainStartupGateCoordinator(this)
     }
 
     // ======== 设置应用内容 ========
     private fun setAppContent() {
         setContent {
-            OperitTheme {
+            KiyoriTheme {
                 Box {
-                    // 检查是否需要显示用户协议
-                        if (!agreementPreferences.isAgreementAccepted()) {
-                            AgreementScreen(
-                                    onAgreementAccepted = {
-                                        agreementPreferences.acceptCurrentAgreement()
-                                        // 协议接受后，检查权限级别设置
-                                        lifecycleScope.launch {
-                                            // 确保使用非阻塞方式更新UI
-                                            delay(300) // 短暂延迟确保UI状态更新
-                                            checkPermissionLevelSet()
-                                            if (!showPermissionGuide) {
-                                                startPluginLoading()
-                                            }
-                                            // 重新设置应用内容
-                                            setAppContent()
-                                        }
-                                    }
-                            )
-                        }
-                        // 检查是否需要显示权限引导界面
-                        else if (showPermissionGuide) {
-                            PermissionGuideScreen(
-                                    onComplete = {
-                                        showPermissionGuide = false
-                                        // 权限设置完成后，启动插件加载并更新内容
-                                        startPluginLoading()
-                                        setAppContent()
-                                    }
-                            )
-                        }
-                        // 显示主应用界面
-                        else {
-                            // 处理待处理的分享文件
-                            processPendingSharedFiles()
-                            processPendingSharedText()
-                            val shortcutNavItem = pendingShortcutNavItem
-                            val shortcutNavRequestId = pendingShortcutRequestId
-                            val routeNavRequest = pendingRouteId
-                            val routeNavArgs = pendingRouteArgs
-                            val routeNavRequestId = pendingRouteRequestId
-                            val browserOpenRequest = pendingBrowserUrl
-                            val browserOpenRequestId = pendingBrowserRequestId
-                            val kiyoriShellDestinationRequest = pendingKiyoriShellDestination
-                            val kiyoriShellRequestId = pendingKiyoriShellRequestId
-                            val initialNavItem = when {
-                                shortcutNavItem != null -> shortcutNavItem
-                                else -> currentMainNavItem
+                    KiyoriMainStartupGate(
+                        destination = startupGateCoordinator.destination,
+                        onAgreementAccepted = {
+                            startupGateCoordinator.acceptCurrentAgreement()
+                            // 协议接受后，检查权限级别设置
+                            lifecycleScope.launch {
+                                // 确保使用非阻塞方式更新UI
+                                delay(300) // 短暂延迟确保UI状态更新
+                                startupGateCoordinator.refreshPermissionLevel()
+                                if (startupGateCoordinator.isReadyForContent) {
+                                    startPluginLoading()
+                                }
+                                // 重新设置应用内容
+                                setAppContent()
                             }
-
-                            CompositionLocalProvider(LocalPluginLoadingState provides pluginLoadingState) {
-                                // 主应用界面 (始终存在于底层)
-                                OperitApp(
-                                        initialNavItem = initialNavItem,
-                                        shortcutNavRequest = shortcutNavItem,
-                                        shortcutNavRequestId = shortcutNavRequestId,
-                                        routeNavRequest = routeNavRequest,
-                                        routeNavArgs = routeNavArgs,
-                                        routeNavRequestId = routeNavRequestId,
-                                        browserOpenRequest = browserOpenRequest,
-                                        browserOpenRequestId = browserOpenRequestId,
-                                        kiyoriShellDestinationRequest = kiyoriShellDestinationRequest,
-                                        kiyoriShellRequestId = kiyoriShellRequestId,
-                                        onShortcutNavHandled = { handledRequestId ->
-                                            if (pendingShortcutRequestId == handledRequestId) {
-                                                pendingShortcutNavItem = null
-                                                pendingShortcutRequestId = 0L
-                                            }
-                                        },
-                                        onCurrentNavItemChanged = { navItem ->
-                                            currentMainNavItem = navItem
-                                        },
-                                        onRouteNavHandled = { handledRequestId ->
-                                            if (pendingRouteRequestId == handledRequestId) {
-                                                pendingRouteId = null
-                                                pendingRouteArgs = emptyMap()
-                                                pendingRouteRequestId = 0L
-                                            }
-                                        },
-                                        onBrowserOpenHandled = { handledRequestId ->
-                                            if (pendingBrowserRequestId == handledRequestId) {
-                                                pendingBrowserUrl = null
-                                                pendingBrowserRequestId = 0L
-                                            }
-                                        },
-                                        onKiyoriShellRequestHandled = { handledRequestId ->
-                                            if (pendingKiyoriShellRequestId == handledRequestId) {
-                                                pendingKiyoriShellDestination = null
-                                                pendingKiyoriShellRequestId = 0L
-                                            }
-                                        },
-                                )
-                            }
-                        }
+                        },
+                        onPermissionGuideComplete = {
+                            startupGateCoordinator.completePermissionGuide()
+                            // 权限设置完成后，启动插件加载并更新内容
+                            startPluginLoading()
+                            setAppContent()
+                        },
+                    ) {
+                        KiyoriMainContentHost(
+                            pendingRequests = pendingRequests,
+                            sharedContentCoordinator = sharedContentCoordinator,
+                            pluginLoadingState = pluginLoadingState,
+                        )
                     }
                     // 插件加载界面 (带有淡出效果) - 始终在最上层
                     PluginLoadingScreenWithState(
@@ -851,85 +559,21 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // 方向改变时显示对话框
-                if (showOrientationChangeDialog) {
-                    OrientationChangeDialog(
+                if (orientationCoordinator.showChangeDialog) {
+                    KiyoriMainOrientationDialog(
                         onConfirm = {
-                            showOrientationChangeDialog = false
+                            orientationCoordinator.dismissChangeDialog()
                             // 重新创建Activity以重新加载页面
                             recreate()
                         },
                         onDismiss = {
-                            showOrientationChangeDialog = false
+                            orientationCoordinator.dismissChangeDialog()
                         }
                     )
                 }
             }
         }
 
-
-    private fun getHighestRefreshRate(): Int {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val displayModes = display?.supportedModes ?: return 0
-            var maxRefreshRate = 60f // Default to 60Hz
-            var highestModeId = 0
-
-            for (mode in displayModes) {
-                if (mode.refreshRate > maxRefreshRate) {
-                    maxRefreshRate = mode.refreshRate
-                    highestModeId = mode.modeId
-                }
-            }
-            AppLogger.d(TAG, "Selected display mode with refresh rate: $maxRefreshRate Hz")
-            return highestModeId
-        }
-        return 0
-    }
-
-    private fun getDeviceRefreshRate(): Float {
-        val windowManager = getSystemService(WINDOW_SERVICE) as android.view.WindowManager
-        val display =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    display
-                } else {
-                    @Suppress("DEPRECATION") windowManager.defaultDisplay
-                }
-
-        var refreshRate = 60f // Default refresh rate
-
-        if (display != null) {
-            try {
-                @Suppress("DEPRECATION") val modes = display.supportedModes
-                for (mode in modes) {
-                    if (mode.refreshRate > refreshRate) {
-                        refreshRate = mode.refreshRate
-                    }
-                }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Error getting refresh rate", e)
-            }
-        }
-
-        AppLogger.d(TAG, "Selected refresh rate: $refreshRate Hz")
-        return refreshRate
-    }
-
 }
 
-@Composable
-private fun OrientationChangeDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(id = R.string.dialog_title_orientation_change)) },
-        text = { Text(text = stringResource(id = R.string.dialog_message_orientation_change)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(id = R.string.dialog_button_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(id = R.string.dialog_button_dismiss))
-            }
-        }
-    )
 }

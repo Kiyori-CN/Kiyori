@@ -29,8 +29,8 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.speech.SpeechService
 import com.ai.assistance.operit.api.speech.SpeechServiceFactory
 import kotlinx.coroutines.launch
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import com.ai.assistance.operit.util.AppLogger
 
 /** 语音识别演示屏幕 */

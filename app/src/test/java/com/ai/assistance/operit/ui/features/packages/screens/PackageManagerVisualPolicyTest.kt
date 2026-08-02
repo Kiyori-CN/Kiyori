@@ -1,7 +1,7 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
 import com.ai.assistance.operit.ui.features.packages.components.PackageTab
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSemanticTone
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.plugins.toolbox
 
-import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.core.tools.packTool.ToolPkgContainerRuntime
@@ -12,6 +11,7 @@ import com.ai.assistance.operit.plugins.lifecycle.AppLifecycleHookPluginRegistry
 import com.ai.assistance.operit.plugins.lifecycle.AppLifecycleReplayEvent
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAppLifecycleHookRegistration
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.android.ApplicationContextAccess
 import kotlinx.coroutines.CoroutineScope
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
@@ -148,7 +148,7 @@ object ToolboxPlugin : OperitPlugin {
         }
         AppLifecycleHookPluginRegistry.register(ToolPkgAppLifecycleHookPlugin)
 
-        val context = KiyoriApplication.instance.applicationContext
+        val context = ApplicationContextAccess.current
         val packageManager = PackageManager.getInstance(context, AIToolHandler.getInstance(context))
         packageManager.addToolPkgRuntimeChangeListener(runtimeChangeListener)
     }

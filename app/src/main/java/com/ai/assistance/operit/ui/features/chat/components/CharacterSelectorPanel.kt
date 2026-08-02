@@ -47,8 +47,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.flow.flowOf
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 
 private enum class CharacterSelectorSortOption {
     DEFAULT,

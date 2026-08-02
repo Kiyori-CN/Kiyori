@@ -145,6 +145,9 @@ OperitApplication -> KiyoriApplication
 - 把平台合同变成 Service Locator
 - 在本批顺手移动 UI 或数据类
 
+精确影响、合同名称、13 个消费者映射、ARCH017、测试替身、回滚与停止条件见
+[M-02 Application 全局访问平台化精确清单](17_m02_application_platform_access_manifest.md)。
+
 ### M-03：Application 移入 Kiyori app
 
 前置：
@@ -165,12 +168,15 @@ com.ai.assistance.operit.core.application.KiyoriApplication
 - 旧包中没有同名实现
 - main、crash、repair、player 进程行为没有变化
 
+精确文件、规范化源码哈希、43-import snapshot、Lint path、Manifest hash 与过渡 exception
+见 [M-03 KiyoriApplication 包迁移精确清单](18_m03_application_package_move_manifest.md)。
+
 ### M-04：Kiyori Root Composition 与 Shell
 
 顺序：
 
 1. `OperitApp -> KiyoriApp`
-2. CompositionLocal 按职责拆分
+2. CompositionLocal 按职责拆分（M-04A1 已先锁定 Operit host contract）
 3. Kiyori Shell 迁入 `com.kiyori.app.shell`
 4. AI route 与 ToolPkg registry 迁入 integration
 5. MainActivity 内部 host 提取
@@ -199,6 +205,11 @@ design/platform
 ```
 
 Browser 和 Player 不在同一里程碑；数据合同和 Android 组件合同不作为目录整理附带变更。
+
+M-05 进一步拆为 A1 pure color/browser/settings design、A2 semantic design、A3 root
+theme/system-bar、B logging、C lifecycle、D Android permission capability 和 E paths/storage。
+每个子里程碑沿用本模板，精确清单见
+[M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)。
 
 ## 每个里程碑的执行顺序
 

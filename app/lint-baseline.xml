@@ -24,28 +24,6 @@
     </issue>
 
     <issue
-        id="ApplySharedPref"
-        message="Consider using `apply()` instead; `commit` writes its data to persistent storage immediately, whereas `apply` will handle it in the background"
-        errorLine1="            .commit()"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/CrashRecoveryState.kt"
-            line="14"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ApplySharedPref"
-        message="Consider using `apply()` instead; `commit` writes its data to persistent storage immediately, whereas `apply` will handle it in the background"
-        errorLine1="            prefs.edit().remove(KEY_PRESERVE_LOGS_FOR_CRASH_REPORT).commit()"
-        errorLine2="                                                                    ~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/CrashRecoveryState.kt"
-            line="21"
-            column="69"/>
-    </issue>
-
-    <issue
         id="DefaultLocale"
         message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
         errorLine1="                                    String.format(&quot;%.1f&quot;, baseContextLengthInK)"
@@ -1055,17 +1033,6 @@
 
     <issue
         id="RequiresFeature"
-        message="`remove` should only be called if the feature `DOCUMENT_START_SCRIPT` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="            runCatching { existing?.scriptHandler?.remove() }"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="202"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
         message="`addDocumentStartJavaScript` should only be called if the feature `DOCUMENT_START_SCRIPT` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
         errorLine1="                    WebViewCompat.addDocumentStartJavaScript("
         errorLine2="                    ^">
@@ -1084,17 +1051,6 @@
             file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
             line="215"
             column="17"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
-        message="`remove` should only be called if the feature `DOCUMENT_START_SCRIPT` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="            runCatching { binding.scriptHandler?.remove() }"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="261"
-            column="27"/>
     </issue>
 
     <issue
@@ -1265,11 +1221,11 @@
     <issue
         id="SdCardPath"
         message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="        return &quot;/sdcard/Download/$OPERIT_DIR_NAME&quot;"
+        errorLine1="        return &quot;/sdcard/Download/$KIYORI_DIR_NAME&quot;"
         errorLine2="                ~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/util/OperitPaths.kt"
-            line="122"
+            file="src/main/java/com/kiyori/platform/storage/KiyoriPaths.kt"
+            line="178"
             column="17"/>
     </issue>
 
@@ -1461,17 +1417,6 @@
     </issue>
 
     <issue
-        id="AppBundleLocaleChanges"
-        message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
-        errorLine1="                    config.setLocales(localeList)"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
-            line="554"
-            column="21"/>
-    </issue>
-
-    <issue
         id="BatteryLife"
         message="Use of `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html"
         errorLine1="                                                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
@@ -1513,17 +1458,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/theme/AppBackgroundLayer.kt"
             line="160"
             column="83"/>
-    </issue>
-
-    <issue
-        id="InflateParams"
-        message="Avoid passing `null` as the view root (needed to resolve layout parameters on the inflated layout&apos;s root element)"
-        errorLine1="                                        null,"
-        errorLine2="                                        ~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="453"
-            column="41"/>
     </issue>
 
     <issue
@@ -1743,17 +1677,6 @@
         <location
             file="../gradle/libs.versions.toml"
             line="34"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.webkit:webkit than 1.12.1 is available: 1.16.0"
-        errorLine1="webkit = &quot;1.12.1&quot;"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="35"
             column="10"/>
     </issue>
 
@@ -2162,17 +2085,6 @@
             file="../gradle/libs.versions.toml"
             line="54"
             column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.jsoup:jsoup than 1.16.2 is available: 1.22.2"
-        errorLine1="jsoup = &quot;1.16.2&quot;"
-        errorLine2="        ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="55"
-            column="9"/>
     </issue>
 
     <issue
@@ -3673,17 +3585,6 @@
 
     <issue
         id="ConfigurationScreenWidthHeight"
-        message="Using Configuration.screenWidthDp instead of LocalWindowInfo.current.containerSize"
-        errorLine1="    val screenWidthDp = configuration.screenWidthDp"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/OperitApp.kt"
-            line="327"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="ConfigurationScreenWidthHeight"
         message="Using Configuration.screenHeightDp instead of LocalWindowInfo.current.containerSize"
         errorLine1="    val maxDialogHeight = configuration.screenHeightDp.dp * 0.8f"
         errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -5148,45 +5049,12 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                                contentDescription = if (permission.granted) context.getString(R.string.granted) else context.getString(R.string.not_granted),"
-        errorLine2="                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/apppermissions/AppPermissionsScreen.kt"
-            line="1034"
-            column="78"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                contentDescription = if (permission.granted) context.getString(R.string.granted) else context.getString(R.string.not_granted),"
-        errorLine2="                                                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/apppermissions/AppPermissionsScreen.kt"
-            line="1034"
-            column="119"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                append(context.getString(R.string.artifact_publish_file_locked))"
         errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/ArtifactPublishScreen.kt"
             line="303"
             column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        }.ifBlank { context.getString(R.string.artifact_publish_only_description_versions_editable) }"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/ArtifactPublishScreen.kt"
-            line="305"
-            column="37"/>
     </issue>
 
     <issue
@@ -9801,17 +9669,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                ) { Text(context.getString(android.R.string.cancel)) }"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/FileManagerScreen.kt"
-            line="183"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="            captureError = result.error ?: context.getString(R.string.screen_ocr_capture_failed)"
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -11693,17 +11550,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="    var networkType by remember { mutableStateOf(context.getString(R.string.not_connected)) }"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/OperitApp.kt"
-            line="359"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                                        toolPkgToggleError = context.getString(R.string.pkg_toolpkg_subpackage_toggle_failed)"
         errorLine2="                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -12551,34 +12397,12 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                                                                        context.getString(R.string.clear_cookies_success),"
-        errorLine2="                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/SettingsScreen.kt"
-            line="341"
-            column="73"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                            Text(context.getString(com.ai.assistance.operit.terminal.R.string.visit_project))"
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
             line="341"
             column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                                        context.getString(R.string.clear_cookies_failed),"
-        errorLine2="                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/SettingsScreen.kt"
-            line="348"
-            column="73"/>
     </issue>
 
     <issue
@@ -19990,28 +19814,6 @@
     <issue
         id="WebViewClientOnReceivedSslError"
         message="Permitting connections with SSL-related errors could allow eavesdroppers to intercept data sent by your app, which impacts the privacy of your users. Consider canceling the connections by invoking `SslErrorHandler#cancel()`."
-        errorLine1="                handler.proceed()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt"
-            line="387"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="WebViewClientOnReceivedSslError"
-        message="Permitting connections with SSL-related errors could allow eavesdroppers to intercept data sent by your app, which impacts the privacy of your users. Consider canceling the connections by invoking `SslErrorHandler#cancel()`."
-        errorLine1="                handler.proceed()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt"
-            line="387"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="WebViewClientOnReceivedSslError"
-        message="Permitting connections with SSL-related errors could allow eavesdroppers to intercept data sent by your app, which impacts the privacy of your users. Consider canceling the connections by invoking `SslErrorHandler#cancel()`."
         errorLine1="                                                        handler.proceed()"
         errorLine2="                                                        ~~~~~~~~~~~~~~~~~">
         <location
@@ -20612,17 +20414,6 @@
 
     <issue
         id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is never &lt; 26"
-        errorLine1="        if (Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.LOLLIPOP) return"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt"
-            line="144"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -20630,17 +20421,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt"
             line="168"
             column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `Build.VERSION.SDK_INT >= Build.VERSION_CODES.M` is always true here (`SDK_INT` ≥ 26 and &lt; 30)"
-        errorLine1="        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt"
-            line="631"
-            column="20"/>
     </issue>
 
     <issue
@@ -20660,7 +20440,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
+            file="src/main/java/com/kiyori/app/KiyoriApplication.kt"
             line="112"
             column="17"/>
     </issue>
@@ -20671,7 +20451,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
+            file="src/main/java/com/kiyori/app/KiyoriApplication.kt"
             line="507"
             column="17"/>
     </issue>
@@ -20682,7 +20462,7 @@
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
+            file="src/main/java/com/kiyori/app/KiyoriApplication.kt"
             line="551"
             column="21"/>
     </issue>
@@ -20693,7 +20473,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
+            file="src/main/java/com/kiyori/app/KiyoriApplication.kt"
             line="576"
             column="17"/>
     </issue>
@@ -20704,7 +20484,7 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
+            file="src/main/java/com/kiyori/app/KiyoriApplication.kt"
             line="618"
             column="17"/>
     </issue>
@@ -21306,17 +21086,6 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="1271"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -21450,17 +21219,6 @@
         <location
             file="src/main/java/com/ai/assistance/operit/plugins/lifecycle/AppLifecycleHookPluginRegistry.kt"
             line="63"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields; this is a memory leak"
-        errorLine1="    @Volatile"
-        errorLine2="    ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/AppLogger.kt"
-            line="73"
             column="5"/>
     </issue>
 
@@ -21891,17 +21649,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/sqlviewer/SqlViewerViewModel.kt"
             line="17"
             column="26"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `WebSessionBrowserHost` which has field `selectionActionsView` pointing to `View`); this is a memory leak"
-        errorLine1="        @Volatile internal var browserHost: WebSessionBrowserHost? = null"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardBrowserSessionTools.kt"
-            line="96"
-            column="9"/>
     </issue>
 
     <issue
@@ -22930,39 +22677,6 @@
     <issue
         id="AutoboxingStateCreation"
         message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var navigationRevision by remember { mutableStateOf(0) }"
-        errorLine2="                                         ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/OperitApp.kt"
-            line="106"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableLongStateOf` instead of `mutableStateOf`"
-        errorLine1="    var lastHandledShortcutRequestId by remember { mutableStateOf(0L) }"
-        errorLine2="                                                   ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/OperitApp.kt"
-            line="133"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableLongStateOf` instead of `mutableStateOf`"
-        errorLine1="    var lastHandledRouteRequestId by remember { mutableStateOf(0L) }"
-        errorLine2="                                                ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/main/OperitApp.kt"
-            line="134"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
         errorLine1="        mutableStateOf(initialIndex)"
         errorLine2="        ~~~~~~~~~~~~~~">
         <location
@@ -22995,17 +22709,6 @@
 
     <issue
         id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="private val SettingsScreenScrollPosition = mutableStateOf(0)"
-        errorLine2="                                           ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/SettingsScreen.kt"
-            line="46"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
         message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
         errorLine1="    var fontSize by remember { mutableStateOf(fontConfigManager.getFontSize()) }"
         errorLine2="                               ~~~~~~~~~~~~~~">
@@ -23024,17 +22727,6 @@
             file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
             line="87"
             column="33"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="        var sliderValue by remember(value) { mutableStateOf(value) }"
-        errorLine2="                                             ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/SettingsScreen.kt"
-            line="511"
-            column="46"/>
     </issue>
 
     <issue
@@ -23299,61 +22991,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
             line="62"
             column="38"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var customStatusBarColorInput by remember { mutableStateOf(customStatusBarColor ?: defaultStatusBarColor) }"
-        errorLine2="                                                ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="226"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var customAppBarColorInput by remember { mutableStateOf(customAppBarColor ?: defaultAppBarColor) }"
-        errorLine2="                                             ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="229"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="        mutableStateOf(customNavigationDrawerBackgroundColor ?: defaultNavigationDrawerBackgroundColor)"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="236"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="        mutableStateOf(customNavigationDrawerAccentColor ?: defaultNavigationDrawerAccentColor)"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="242"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var historyIconColorInput by remember { mutableStateOf(historyIconColor ?: defaultHeaderIconColor) }"
-        errorLine2="                                            ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsBasicTab.kt"
-            line="252"
-            column="45"/>
     </issue>
 
     <issue
@@ -23706,39 +23343,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
             line="92"
             column="46"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="        mutableStateOf(customNavigationDrawerBackgroundColor ?: defaultNavigationDrawerBackgroundColor)"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
-            line="99"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="        mutableStateOf(customNavigationDrawerAccentColor ?: defaultNavigationDrawerAccentColor)"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
-            line="105"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var historyIconColorInput by remember { mutableStateOf(historyIconColor ?: defaultHeaderIconColor) }"
-        errorLine2="                                            ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/theme/ThemeSettingsInterfaceTab.kt"
-            line="115"
-            column="45"/>
     </issue>
 
     <issue
@@ -30310,17 +29914,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.speech_services_settings_desc` appears to be unused"
-        errorLine1="    &lt;string name=&quot;speech_services_settings_desc&quot;>配置文本转语音和语音识别设置&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2273"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.wifi` appears to be unused"
         errorLine1="    &lt;string name=&quot;wifi&quot;>WiFi&lt;/string>"
         errorLine2="            ~~~~~~~~~~~">
@@ -31009,17 +30602,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="2408"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.file_manager_permission_denied` appears to be unused"
-        errorLine1="    &lt;string name=&quot;file_manager_permission_denied&quot;>权限不足，无法访问此目录&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="2409"
             column="13"/>
     </issue>
 
@@ -33429,28 +33011,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="3333"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.collapse_verb` appears to be unused"
-        errorLine1="    &lt;string name=&quot;collapse_verb&quot;>收起&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3339"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.expand_verb` appears to be unused"
-        errorLine1="    &lt;string name=&quot;expand_verb&quot;>展开&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3340"
             column="13"/>
     </issue>
 
@@ -43098,28 +42658,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="7816"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.web_session_userscript_logs` appears to be unused"
-        errorLine1="    &lt;string name=&quot;web_session_userscript_logs&quot;>最近日志&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7893"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.web_session_userscript_logs_empty` appears to be unused"
-        errorLine1="    &lt;string name=&quot;web_session_userscript_logs_empty&quot;>最近还没有脚本日志&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7894"
             column="13"/>
     </issue>
 
@@ -61869,28 +61407,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/CrashRecoveryState.kt"
-            line="10"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit().remove(KEY_PRESERVE_LOGS_FOR_CRASH_REPORT).commit()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/CrashRecoveryState.kt"
-            line="21"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX function `createBitmap` instead?"
         errorLine1="                val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)"
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -63365,50 +62881,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `Int.toDrawable` instead?"
-        errorLine1="                                            android.graphics.drawable.ColorDrawable("
-        errorLine2="                                            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="465"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Int.toDrawable` instead?"
-        errorLine1="                                            android.graphics.drawable.ColorDrawable("
-        errorLine2="                                            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="465"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Int.toDrawable` instead?"
-        errorLine1="                                        android.graphics.drawable.ColorDrawable("
-        errorLine2="                                        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="484"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Int.toDrawable` instead?"
-        errorLine1="                                        android.graphics.drawable.ColorDrawable("
-        errorLine2="                                        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/theme/Theme.kt"
-            line="484"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                                    rememberAsyncImagePainter(Uri.parse(backgroundImageUriInput)),"
         errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -63739,39 +63211,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val pageUri = Uri.parse(pageUrl)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/UserscriptMatcher.kt"
-            line="43"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val targetUri = Uri.parse(targetUrl)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/UserscriptMatcher.kt"
-            line="44"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val uri = Uri.parse(url)"
-        errorLine2="                      ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/UserscriptMatcher.kt"
-            line="77"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX function `createBitmap` instead?"
         errorLine1="            val bitmap = Bitmap.createBitmap("
         errorLine2="                         ^">
@@ -63845,17 +63284,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserScreen.kt"
             line="773"
             column="19"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val uri = Uri.parse(trimmed)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/WebSessionHistoryStore.kt"
-            line="219"
-            column="23"/>
     </issue>
 
     <issue

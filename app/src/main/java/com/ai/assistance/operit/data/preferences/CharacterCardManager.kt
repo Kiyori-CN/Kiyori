@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
-import com.ai.assistance.operit.data.backup.OperitBackupDirs
+import com.kiyori.platform.storage.KiyoriBackupPaths
 import com.ai.assistance.operit.data.model.CharacterCard
 import com.ai.assistance.operit.data.model.CharacterCardChatModelBindingMode
 import com.ai.assistance.operit.data.model.CharacterCardMemoryProfileBindingMode
@@ -622,7 +622,7 @@ class CharacterCardManager private constructor(private val context: Context) {
             val attachedTags = referencedTagIds.mapNotNull { tagId ->
                 runCatching { tagManager.getPromptTagFlow(tagId).first() }.getOrNull()
             }
-            val exportDir = OperitBackupDirs.characterCardsDir()
+            val exportDir = KiyoriBackupPaths.characterCardsDir()
             val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
             val timestamp = dateFormat.format(Date())
             val exportFile = File(exportDir, "character_cards_backup_$timestamp.json")

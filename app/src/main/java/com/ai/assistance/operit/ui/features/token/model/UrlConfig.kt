@@ -7,7 +7,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.application.KiyoriApplication
+import com.kiyori.platform.android.ApplicationContextAccess
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -21,10 +21,10 @@ data class UrlConfig(
     val name: String = "DeepSeek",
     val signInUrl: String = "https://platform.deepseek.com/sign_in",
     val tabs: List<TabConfig> = listOf(
-        TabConfig(KiyoriApplication.instance.getString(R.string.url_config_api_key), "https://platform.deepseek.com/api_keys"),
-        TabConfig(KiyoriApplication.instance.getString(R.string.url_config_usage), "https://platform.deepseek.com/usage"),
-        TabConfig(KiyoriApplication.instance.getString(R.string.url_config_top_up), "https://platform.deepseek.com/top_up"),
-        TabConfig(KiyoriApplication.instance.getString(R.string.url_config_profile), "https://platform.deepseek.com/profile")
+        TabConfig(ApplicationContextAccess.current.getString(R.string.url_config_api_key), "https://platform.deepseek.com/api_keys"),
+        TabConfig(ApplicationContextAccess.current.getString(R.string.url_config_usage), "https://platform.deepseek.com/usage"),
+        TabConfig(ApplicationContextAccess.current.getString(R.string.url_config_top_up), "https://platform.deepseek.com/top_up"),
+        TabConfig(ApplicationContextAccess.current.getString(R.string.url_config_profile), "https://platform.deepseek.com/profile")
     )
 )
 
@@ -42,4 +42,4 @@ fun getIconForIndex(index: Int): ImageVector = when (index) {
     2 -> Icons.Default.CreditCard
     3 -> Icons.Default.Person
     else -> Icons.Default.Key
-} 
+}

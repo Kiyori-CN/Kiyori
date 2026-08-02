@@ -36,11 +36,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.ai.assistance.operit.terminal.TerminalManager
 import com.ai.assistance.operit.terminal.rememberTerminalEnv
-import com.ai.assistance.operit.ui.main.LocalAppNavigationModel
+import com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.kiyoriSemanticToneForStableId
+import com.kiyori.design.theme.kiyoriSemanticToneForStableId
 
 data class Tool(
         val id: String,

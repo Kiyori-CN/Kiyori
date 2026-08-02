@@ -1,0 +1,7 @@
+app/src/main/java/com/ai/assistance/operit/data/backup/OperitBackupDirs.kt
+app/src/main/java/com/ai/assistance/operit/data/backup/RawSnapshotBackupManager.kt
+app/src/main/java/com/ai/assistance/operit/data/backup/RoomDatabaseBackupManager.kt
+app/src/main/java/com/ai/assistance/operit/data/backup/RoomDatabaseRestoreManager.kt
+app/src/main/java/com/ai/assistance/operit/data/preferences/CharacterCardManager.kt
+app/src/main/java/com/ai/assistance/operit/data/repository/ChatHistoryManager.kt
+app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ChatBackupSettingsScreen.kt

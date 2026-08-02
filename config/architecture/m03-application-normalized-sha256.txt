@@ -1,0 +1,3 @@
+# SHA-256 after CRLF-to-LF normalization and replacing the package declaration
+# with package __M03_APPLICATION_PACKAGE__.
+F280A34D1EDBF69E5546EFA1B1CCE9D2092B5FB8A698B4487F44B8E55FCF9AE1

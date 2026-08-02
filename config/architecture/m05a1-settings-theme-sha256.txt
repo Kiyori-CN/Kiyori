@@ -1,0 +1,1 @@
+12079306E3546980B85854A548A75546DE6694E1359E6715224024C1019FA9A4	app/src/main/java/com/kiyori/design/theme/KiyoriSettingsTheme.kt

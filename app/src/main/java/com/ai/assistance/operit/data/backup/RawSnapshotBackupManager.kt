@@ -7,7 +7,8 @@ import android.os.Looper
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.data.db.ObjectBoxManager
 import com.ai.assistance.operit.util.AppLogger
-import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.storage.KiyoriBackupPaths
+import com.kiyori.platform.storage.KiyoriPaths
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
@@ -107,7 +108,7 @@ object RawSnapshotBackupManager {
         mutex.withLock {
             AppLogger.i(TAG, "export start (includeTerminalData=${options.includeTerminalData})")
             withContext(Dispatchers.Main) { onProgress?.invoke(ExportProgressInfo(ExportProgress.PREPARING)) }
-            val exportDir = OperitBackupDirs.rawSnapshotDir()
+            val exportDir = KiyoriBackupPaths.rawSnapshotDir()
             val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
             val outFile = File(exportDir, "$ZIP_PREFIX$timestamp.zip")
             val tmpFile = File(exportDir, "${outFile.name}.tmp")
@@ -151,7 +152,7 @@ object RawSnapshotBackupManager {
                 zos.write(json.encodeToString(manifest).toByteArray(Charsets.UTF_8))
                 zos.closeEntry()
 
-                val alwaysExcluded = OperitPaths.rawSnapshotExcludedFilesTopLevelDirNames()
+                val alwaysExcluded = KiyoriPaths.rawSnapshotExcludedFilesTopLevelDirNames()
                 val excludedNames = if (options.includeTerminalData) {
                     alwaysExcluded
                 } else {
@@ -292,7 +293,7 @@ object RawSnapshotBackupManager {
                 val payloadDir = File(workDir, "payload")
                 val externalFilesPayloadDir = File(payloadDir, "external_files")
 
-                val alwaysExcluded = OperitPaths.rawSnapshotExcludedFilesTopLevelDirNames()
+                val alwaysExcluded = KiyoriPaths.rawSnapshotExcludedFilesTopLevelDirNames()
 
                 val preserveTerminal = !manifest.includeTerminalData
                 val preservedTerminalNames = if (preserveTerminal) terminalTopLevelDirNames else emptySet()

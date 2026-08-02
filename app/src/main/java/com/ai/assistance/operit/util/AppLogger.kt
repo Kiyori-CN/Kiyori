@@ -1,399 +1,98 @@
 package com.ai.assistance.operit.util
 
 import android.content.Context
-import android.util.Log
-import com.ai.assistance.operit.core.application.KiyoriApplication
+import com.kiyori.platform.logging.KiyoriLogger
+import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
-import java.io.FileWriter
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.concurrent.Executors
-import java.util.concurrent.RejectedExecutionException
-import java.util.regex.Pattern
 
 /**
- * App-wide logger with an API closely mirroring [com.ai.assistance.operit.util.AppLogger].
+ * Operit 源码、上游补丁与现有测试使用的稳定日志入口。
  *
- * It forwards all logs to the system Log and also persists them to
- * an internal file so that the app can export logs for debugging.
+ * 该对象不持有 executor、Context 或文件状态；全部行为委派给唯一 [KiyoriLogger] owner。
  */
 object AppLogger {
 
-    // Mirror com.ai.assistance.operit.util.AppLogger priority constants
-    const val VERBOSE: Int = Log.VERBOSE
-    const val DEBUG: Int = Log.DEBUG
-    const val INFO: Int = Log.INFO
-    const val WARN: Int = Log.WARN
-    const val ERROR: Int = Log.ERROR
-    const val ASSERT: Int = Log.ASSERT
+    const val VERBOSE: Int = KiyoriLogger.VERBOSE
+    const val DEBUG: Int = KiyoriLogger.DEBUG
+    const val INFO: Int = KiyoriLogger.INFO
+    const val WARN: Int = KiyoriLogger.WARN
+    const val ERROR: Int = KiyoriLogger.ERROR
+    const val ASSERT: Int = KiyoriLogger.ASSERT
 
-    // Log file configuration
-    private const val LOG_DIR_NAME = "logs"
-    private const val LOG_FILE_NAME = "operit.log"
-    private const val PACKAGE_LOG_DIR_NAME = "packageLogs"
-    private const val TOOLPKG_LOG_TAG = "ToolPkg"
-    private const val MAX_LOG_MESSAGE_CHARS = 12_000
-    private const val MAX_LOG_THROWABLE_CHARS = 24_000
-
-    // Simple date formatter for log lines
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
-    private val startupFileDateFormat = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
-    private val packageIdRegexes = listOf(
-        Pattern.compile("""\btoolPkgId=([A-Za-z0-9._:-]+)\b"""),
-        Pattern.compile("""\bpackage(?:/subpackage)?=([A-Za-z0-9._:-]+)\b"""),
-        Pattern.compile("""\bcontainer=([A-Za-z0-9._:-]+)\b"""),
-        Pattern.compile("""\btarget=([A-Za-z0-9._:-]+)\b""")
-    )
-    private val scriptRegexes = listOf(
-        Pattern.compile("""\bscript=([^\s,]+)"""),
-        Pattern.compile("""\bpath=([^\s,]+)"""),
-        Pattern.compile("""\bscreen=([^\s,]+)"""),
-        Pattern.compile("""\bfunction=([A-Za-z0-9_.$:-]+)\b""")
-    )
-    private val pluginRegexes = listOf(
-        Pattern.compile("""\bplugin=([A-Za-z0-9._:-]+)\b"""),
-        Pattern.compile("""\bpluginId=([A-Za-z0-9._:-]+)\b"""),
-        Pattern.compile("""\bhookId=([A-Za-z0-9._:-]+)\b""")
-    )
-
-    /**
-     * Optional external switch to completely disable file logging if needed.
-     * System AppLogger.* calls will still be performed.
-     */
-    @Volatile
-    var enableFileLogging: Boolean = true
-
-    @Volatile
-    private var logFile: File? = null
-    @Volatile
-    private var packageLogFile: File? = null
-
-    @Volatile
-    private var boundContext: Context? = null
-    private val fileLogExecutor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "OperitAppLogger").apply {
-            isDaemon = true
+    var enableFileLogging: Boolean
+        get() = KiyoriLogger.enableFileLogging
+        set(value) {
+            KiyoriLogger.enableFileLogging = value
         }
-    }
 
     @JvmStatic
     fun bindContext(context: Context) {
-        if (boundContext == null) {
-            boundContext = context.applicationContext
-        }
-    }
-
-    private fun resolveLogFile(): File? {
-        val existing = logFile
-        if (existing != null) return existing
-
-        return try {
-            val appContext: Context = try {
-                KiyoriApplication.instance.applicationContext
-            } catch (_: Throwable) {
-                boundContext ?: return null
-            }
-            val dir = File(appContext.filesDir, LOG_DIR_NAME)
-            if (!dir.exists()) {
-                dir.mkdirs()
-            }
-            File(dir, LOG_FILE_NAME).also { file ->
-                logFile = file
-            }
-        } catch (e: Throwable) {
-            null
-        }
-    }
-
-    private fun resolvePackageLogFile(): File? {
-        val existing = packageLogFile
-        if (existing != null) return existing
-
-        return try {
-            val appContext: Context = try {
-                KiyoriApplication.instance.applicationContext
-            } catch (_: Throwable) {
-                boundContext ?: return null
-            }
-            val dir = File(OperitPaths.kiyoriRootDir(), PACKAGE_LOG_DIR_NAME)
-            if (!dir.exists()) {
-                dir.mkdirs()
-            }
-            val startupMs = KiyoriApplication.appStartupTimeMs.takeIf { it > 0L } ?: System.currentTimeMillis()
-            val fileName = startupFileDateFormat.format(Date(startupMs)) + ".log"
-            File(dir, fileName).also { file ->
-                packageLogFile = file
-            }
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    // --- Public API mirroring com.ai.assistance.operit.util.AppLogger ---
-
-    @JvmStatic
-    fun v(tag: String, msg: String): Int {
-        writeToFile(VERBOSE, tag, msg, null)
-        return Log.v(tag, msg)
+        KiyoriLogger.bindContext(context, KiyoriPaths::kiyoriRootDir)
     }
 
     @JvmStatic
-    fun v(tag: String, msg: String, tr: Throwable): Int {
-        writeToFile(VERBOSE, tag, msg, tr)
-        return Log.v(tag, msg, tr)
-    }
+    fun v(tag: String, msg: String): Int = KiyoriLogger.v(tag, msg)
 
     @JvmStatic
-    fun d(tag: String, msg: String): Int {
-        writeToFile(DEBUG, tag, msg, null)
-        return Log.d(tag, msg)
-    }
+    fun v(tag: String, msg: String, tr: Throwable): Int =
+        KiyoriLogger.v(tag, msg, tr)
 
     @JvmStatic
-    fun d(tag: String, msg: String, tr: Throwable): Int {
-        writeToFile(DEBUG, tag, msg, tr)
-        return Log.d(tag, msg, tr)
-    }
+    fun d(tag: String, msg: String): Int = KiyoriLogger.d(tag, msg)
 
     @JvmStatic
-    fun i(tag: String, msg: String): Int {
-        writeToFile(INFO, tag, msg, null)
-        return Log.i(tag, msg)
-    }
+    fun d(tag: String, msg: String, tr: Throwable): Int =
+        KiyoriLogger.d(tag, msg, tr)
 
     @JvmStatic
-    fun i(tag: String, msg: String, tr: Throwable): Int {
-        writeToFile(INFO, tag, msg, tr)
-        return Log.i(tag, msg, tr)
-    }
+    fun i(tag: String, msg: String): Int = KiyoriLogger.i(tag, msg)
 
     @JvmStatic
-    fun w(tag: String, msg: String): Int {
-        writeToFile(WARN, tag, msg, null)
-        return Log.w(tag, msg)
-    }
+    fun i(tag: String, msg: String, tr: Throwable): Int =
+        KiyoriLogger.i(tag, msg, tr)
 
     @JvmStatic
-    fun w(tag: String, msg: String, tr: Throwable): Int {
-        writeToFile(WARN, tag, msg, tr)
-        return Log.w(tag, msg, tr)
-    }
+    fun w(tag: String, msg: String): Int = KiyoriLogger.w(tag, msg)
 
     @JvmStatic
-    fun w(tag: String, tr: Throwable): Int {
-        writeToFile(WARN, tag, "", tr)
-        return Log.w(tag, tr)
-    }
+    fun w(tag: String, msg: String, tr: Throwable): Int =
+        KiyoriLogger.w(tag, msg, tr)
 
     @JvmStatic
-    fun e(tag: String, msg: String): Int {
-        writeToFile(ERROR, tag, msg, null)
-        return Log.e(tag, msg)
-    }
+    fun w(tag: String, tr: Throwable): Int = KiyoriLogger.w(tag, tr)
 
     @JvmStatic
-    fun e(tag: String, msg: String, tr: Throwable): Int {
-        writeToFile(ERROR, tag, msg, tr)
-        return Log.e(tag, msg, tr)
-    }
+    fun e(tag: String, msg: String): Int = KiyoriLogger.e(tag, msg)
 
     @JvmStatic
-    fun wtf(tag: String, msg: String): Int {
-        writeToFile(ASSERT, tag, msg, null)
-        return Log.wtf(tag, msg)
-    }
+    fun e(tag: String, msg: String, tr: Throwable): Int =
+        KiyoriLogger.e(tag, msg, tr)
 
     @JvmStatic
-    fun wtf(tag: String, msg: String, tr: Throwable): Int {
-        writeToFile(ASSERT, tag, msg, tr)
-        return Log.wtf(tag, msg, tr)
-    }
+    fun wtf(tag: String, msg: String): Int = KiyoriLogger.wtf(tag, msg)
 
     @JvmStatic
-    fun wtf(tag: String, tr: Throwable): Int {
-        writeToFile(ASSERT, tag, "", tr)
-        return Log.wtf(tag, tr)
-    }
+    fun wtf(tag: String, msg: String, tr: Throwable): Int =
+        KiyoriLogger.wtf(tag, msg, tr)
 
     @JvmStatic
-    fun isLoggable(tag: String, level: Int): Boolean {
-        return Log.isLoggable(tag, level)
-    }
+    fun wtf(tag: String, tr: Throwable): Int = KiyoriLogger.wtf(tag, tr)
 
     @JvmStatic
-    fun println(priority: Int, tag: String, msg: String): Int {
-        writeToFile(priority, tag, msg, null)
-        return Log.println(priority, tag, msg)
-    }
+    fun isLoggable(tag: String, level: Int): Boolean =
+        KiyoriLogger.isLoggable(tag, level)
 
     @JvmStatic
-    fun getStackTraceString(tr: Throwable): String {
-        return ThrowableTextFormatter.format(tr, MAX_LOG_THROWABLE_CHARS)
-    }
-
-    /**
-     * Returns the current log file (if available) so that callers can export it.
-     */
-    @JvmStatic
-    fun getLogFile(): File? = resolveLogFile()
+    fun println(priority: Int, tag: String, msg: String): Int =
+        KiyoriLogger.println(priority, tag, msg)
 
     @JvmStatic
-    fun resetLogFile() {
-        try {
-            val appContext: Context = KiyoriApplication.instance.applicationContext
-            val dir = File(appContext.filesDir, LOG_DIR_NAME)
-            val file = File(dir, LOG_FILE_NAME)
-            if (file.exists()) {
-                file.delete()
-            }
-            logFile = null
-            packageLogFile = null
-        } catch (e: Throwable) {
-            // Ignore errors during reset to avoid crashing on startup
-        }
-    }
+    fun getStackTraceString(tr: Throwable): String =
+        KiyoriLogger.getStackTraceString(tr)
 
-    // --- Internal helpers ---
+    @JvmStatic
+    fun getLogFile(): File? = KiyoriLogger.getLogFile()
 
-    private fun writeToFile(priority: Int, tag: String, msg: String, tr: Throwable?) {
-        if (!enableFileLogging) return
-        try {
-            fileLogExecutor.execute {
-                writeToFileSync(priority, tag, msg, tr)
-            }
-        } catch (_: RejectedExecutionException) {
-        }
-    }
-
-    private fun writeToFileSync(priority: Int, tag: String, msg: String, tr: Throwable?) {
-        if (!enableFileLogging) return
-        val file = resolveLogFile() ?: return
-
-        val time = dateFormat.format(Date())
-        val normalizedMessage = normalizeLogMessage(msg)
-        val throwableText = tr?.let { ThrowableTextFormatter.format(it, MAX_LOG_THROWABLE_CHARS) }
-        val levelChar = when (priority) {
-            VERBOSE -> 'V'
-            DEBUG -> 'D'
-            INFO -> 'I'
-            WARN -> 'W'
-            ERROR -> 'E'
-            ASSERT -> 'A'
-            else -> '?'
-        }
-
-        val builder = StringBuilder()
-        builder.append(time)
-            .append(" ")
-            .append(levelChar)
-            .append("/")
-            .append(tag)
-            .append(": ")
-            .append(normalizedMessage)
-
-        if (throwableText != null) {
-            builder.append("\n").append(throwableText)
-        }
-
-        builder.append('\n')
-
-        try {
-            FileWriter(file, true).use { writer ->
-                writer.write(builder.toString())
-            }
-        } catch (e: IOException) {
-            // Avoid recursive logging here; swallow to prevent crashes
-        }
-
-        writeToPackageLogIfNeeded(
-            tag = tag,
-            msg = normalizedMessage,
-            throwableText = throwableText,
-            time = time,
-            levelChar = levelChar
-        )
-    }
-
-    private fun writeToPackageLogIfNeeded(
-        tag: String,
-        msg: String,
-        throwableText: String?,
-        time: String,
-        levelChar: Char
-    ) {
-        if (!shouldMirrorToPackageLog(tag, msg)) {
-            return
-        }
-        val file = resolvePackageLogFile() ?: return
-        val packageId = extractFirstMatch(msg, packageIdRegexes)
-        val scriptId = extractFirstMatch(msg, scriptRegexes)
-        val pluginId = extractFirstMatch(msg, pluginRegexes)
-
-        val builder = StringBuilder()
-        builder.append(time)
-            .append(" ")
-            .append(levelChar)
-            .append("/")
-            .append(TOOLPKG_LOG_TAG)
-            .append(" ")
-
-        if (!packageId.isNullOrBlank()) {
-            builder.append("[PKG:")
-                .append(packageId)
-                .append("]")
-        }
-        if (!scriptId.isNullOrBlank()) {
-            builder.append("[SCRIPT:")
-                .append(scriptId)
-                .append("]")
-        }
-        if (!pluginId.isNullOrBlank()) {
-            builder.append("[PLUGIN:")
-                .append(pluginId)
-                .append("]")
-        }
-        if (builder.isNotEmpty() && builder[builder.length - 1] != ' ') {
-            builder.append(" ")
-        }
-        builder
-            .append(msg)
-
-        if (throwableText != null) {
-            builder.append("\n").append(throwableText)
-        }
-        builder.append('\n')
-
-        try {
-            FileWriter(file, true).use { writer ->
-                writer.write(builder.toString())
-            }
-        } catch (_: IOException) {
-        }
-    }
-
-    private fun shouldMirrorToPackageLog(tag: String, msg: String): Boolean {
-        if (!tag.equals(TOOLPKG_LOG_TAG, ignoreCase = true)) {
-            return false
-        }
-        return true
-    }
-
-    private fun normalizeLogMessage(msg: String): String {
-        return ThrowableTextFormatter.truncateText(msg, MAX_LOG_MESSAGE_CHARS)
-    }
-
-    private fun extractFirstMatch(text: String, patterns: List<Pattern>): String? {
-        for (pattern in patterns) {
-            val matcher = pattern.matcher(text)
-            if (matcher.find()) {
-                val value = matcher.group(1)?.trim().orEmpty()
-                if (value.isNotEmpty()) {
-                    return value
-                }
-            }
-        }
-        return null
-    }
+    @JvmStatic
+    fun resetLogFile() = KiyoriLogger.resetLogFile()
 }

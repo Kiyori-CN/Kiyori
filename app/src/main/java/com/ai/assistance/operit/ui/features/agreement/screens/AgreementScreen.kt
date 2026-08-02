@@ -21,7 +21,7 @@ import androidx.core.text.HtmlCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSemanticTone
 import kotlinx.coroutines.delay
 
 @Composable

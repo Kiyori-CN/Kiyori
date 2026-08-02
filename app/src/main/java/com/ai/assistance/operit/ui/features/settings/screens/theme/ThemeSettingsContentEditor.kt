@@ -24,7 +24,7 @@ import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.features.settings.sections.SaveThemeSettingsAction
-import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch

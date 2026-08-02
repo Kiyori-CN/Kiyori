@@ -34,8 +34,8 @@ import com.ai.assistance.operit.data.model.ExecuteNode
 import com.ai.assistance.operit.data.model.ConditionNode
 import com.ai.assistance.operit.data.model.LogicNode
 import com.ai.assistance.operit.data.model.ExtractNode
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

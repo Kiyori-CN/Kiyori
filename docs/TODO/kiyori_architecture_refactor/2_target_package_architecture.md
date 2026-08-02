@@ -116,12 +116,20 @@ Composable、数据库实体或内部 manager。
 AI 对话的背景、气泡、头像、局部字体等个性化仍由 Operit AI 页面负责；Kiyori 设计系统只提供
 宿主色彩与通用组件合同。
 
+纯 Kiyori design token 和无状态 Compose theme wrapper 可以被
+`com.ai.assistance.operit.ui` 消费，以便嵌入式 Operit UI 与 Kiyori 宿主共享同一视觉合同。
+该许可只属于 UI presentation，不扩展到 Operit api/core/data/integrations/plugins/provider/
+services/util/widget，也不允许 Operit UI 依赖 `com.kiyori.app` 或 feature UI。
+
 ### `platform`
 
 保存跨 feature 的 Android 平台能力，例如日志、生命周期、权限和存储路径。
 这里不放无法明确归属的通用工具。每个类名必须说明具体职责。
 
-`OperitPaths` 未来迁入这里并重命名时，所有目录字符串保持原值。
+M-05E 已把唯一真实路径计算迁入
+`com.kiyori.platform.storage.KiyoriPaths`，并以 `KiyoriBackupPaths` 提供纯备份路径投影。
+旧 `OperitPaths` / `OperitBackupDirs` 只保留完整 API 委派；所有目录字符串、大小写、层级、
+创建语义、plugin ID 算法与 raw snapshot 合同保持原值。
 
 ### `integration`
 
@@ -169,6 +177,7 @@ integration.operit
 
 com.ai.assistance.operit
 ├── 可依赖稳定的 com.kiyori.capability 与 com.kiyori.platform 合同
+├── 其中 ui presentation 可依赖纯 com.kiyori.design 合同
 └── 不依赖 com.kiyori.app 或 com.kiyori.feature.*.ui
 ```
 

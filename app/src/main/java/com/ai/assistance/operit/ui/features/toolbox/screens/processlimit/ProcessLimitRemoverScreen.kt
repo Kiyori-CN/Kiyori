@@ -33,8 +33,8 @@ import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 
 /**
  * 进程限制操作记录

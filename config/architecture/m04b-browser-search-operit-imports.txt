@@ -1,0 +1,8 @@
+com.ai.assistance.operit.R
+com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
+com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
+com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
+com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
+com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
+com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
+com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen

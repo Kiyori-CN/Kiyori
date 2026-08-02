@@ -58,8 +58,8 @@ import com.ai.assistance.operit.ui.features.settings.components.ThemeModeOption
 import com.ai.assistance.operit.ui.features.chat.components.ChatStyle
 import com.ai.assistance.operit.ui.features.chat.components.style.bubble.BubbleImageBackgroundSurface
 import com.ai.assistance.operit.ui.features.chat.components.style.bubble.BubbleImageStyleConfig
-import com.ai.assistance.operit.ui.theme.applyFontFamilyToTypography
 import com.ai.assistance.operit.ui.theme.resolveConfiguredFontFamily
+import com.kiyori.design.theme.applyFontFamilyToTypography
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.storage.KiyoriBackupPaths
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -23,8 +24,8 @@ object RoomDatabaseRestoreManager {
     private const val MANUAL_BACKUP_FILE_PREFIX = "room_db_manual_backup_"
 
     fun listRecentAutoBackups(context: Context, limit: Int = 3): List<File> {
-        val newDir = OperitBackupDirs.roomDbDir()
-        val legacyLayoutDir = OperitBackupDirs.kiyoriRootDir()
+        val newDir = KiyoriBackupPaths.roomDbDir()
+        val legacyLayoutDir = KiyoriBackupPaths.kiyoriRootDir()
 
         val backups = sequenceOf(newDir, legacyLayoutDir)
             .flatMap { dir ->
@@ -39,8 +40,8 @@ object RoomDatabaseRestoreManager {
     }
 
     fun listRecentBackups(context: Context, limit: Int = 3): List<File> {
-        val newDir = OperitBackupDirs.roomDbDir()
-        val legacyLayoutDir = OperitBackupDirs.kiyoriRootDir()
+        val newDir = KiyoriBackupPaths.roomDbDir()
+        val legacyLayoutDir = KiyoriBackupPaths.kiyoriRootDir()
 
         val backups = sequenceOf(newDir, legacyLayoutDir)
             .flatMap { dir ->

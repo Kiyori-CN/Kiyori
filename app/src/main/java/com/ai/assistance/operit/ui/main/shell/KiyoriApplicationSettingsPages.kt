@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.ui.features.github.GitHubLoginWebViewDialog
 import com.ai.assistance.operit.ui.main.components.LocalKiyoriEmbeddedSettingsNavigation
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSemanticTone
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriAiAssistantSettingsAction {

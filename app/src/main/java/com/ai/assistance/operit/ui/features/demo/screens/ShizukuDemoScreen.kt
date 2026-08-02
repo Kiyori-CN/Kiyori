@@ -36,7 +36,7 @@ import com.ai.assistance.operit.ui.features.demo.wizards.OperitTerminalWizardCar
 import com.ai.assistance.operit.ui.features.demo.wizards.RootWizardCard
 import com.ai.assistance.operit.ui.features.demo.wizards.ShizukuWizardCard
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSemanticTone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

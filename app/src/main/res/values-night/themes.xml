@@ -19,5 +19,5 @@
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
-    <style name="Theme.Operit" parent="@style/KiyoriThemeBase" />
+    <style name="Theme.Kiyori" parent="@style/KiyoriThemeBase" />
 </resources>

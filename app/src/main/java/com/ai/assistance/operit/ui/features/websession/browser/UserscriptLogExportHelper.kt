@@ -6,7 +6,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.annotation.RequiresApi
-import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
@@ -91,7 +91,7 @@ internal object UserscriptLogExportHelper {
         fileName: String,
         report: String,
     ): String {
-        val file = File(OperitPaths.exportsDir(), fileName)
+        val file = File(KiyoriPaths.exportsDir(), fileName)
         file.writeText(report, StandardCharsets.UTF_8)
         require(file.isFile && file.length() > 0L) { "用户脚本日志导出文件写入失败" }
         return file.absolutePath

@@ -8,8 +8,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
-import com.ai.assistance.operit.ui.theme.Typography
 import com.ai.assistance.operit.ui.theme.resolveThemeColorScheme
+import com.kiyori.design.theme.KiyoriTypography
 
 @Composable
 fun OperitUtilityTheme(content: @Composable () -> Unit) {
@@ -28,7 +28,7 @@ fun OperitUtilityTheme(content: @Composable () -> Unit) {
 
     MaterialTheme(
         colorScheme = resolveThemeColorScheme(darkTheme),
-        typography = Typography,
+        typography = KiyoriTypography,
         content = content,
     )
 }

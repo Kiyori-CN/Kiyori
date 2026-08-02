@@ -1,0 +1,16 @@
+com.ai.assistance.operit.core.tools.packTool.PackageManager
+com.ai.assistance.operit.core.tools.packTool.TOOLPKG_NAV_SURFACE_MAIN_SIDEBAR_PLUGINS
+com.ai.assistance.operit.core.tools.packTool.TOOLPKG_NAV_SURFACE_TOOLBOX
+com.ai.assistance.operit.ui.common.NavItem
+com.ai.assistance.operit.ui.common.icons.MaterialIconNameResolver
+com.ai.assistance.operit.ui.main.navigation.AppNavigationModel
+com.ai.assistance.operit.ui.main.navigation.NavigationEntryActionSpec
+com.ai.assistance.operit.ui.main.navigation.NavigationEntryKind
+com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
+com.ai.assistance.operit.ui.main.navigation.NavigationSurface
+com.ai.assistance.operit.ui.main.navigation.RouteEntry
+com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
+com.ai.assistance.operit.ui.main.navigation.RouteRuntime
+com.ai.assistance.operit.ui.main.navigation.RouteSpec
+com.ai.assistance.operit.ui.main.screens.Screen
+com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry

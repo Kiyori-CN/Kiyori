@@ -24,7 +24,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import com.ai.assistance.operit.core.application.ForegroundServiceCompat
-import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.AIForegroundService
 import com.ai.assistance.operit.api.chat.ChatRuntimeHolder
@@ -48,6 +47,7 @@ import com.ai.assistance.operit.ui.floating.FloatingMode
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.FileUtils
 import com.ai.assistance.operit.util.WaifuMessageProcessor
+import com.kiyori.platform.lifecycle.MainApplicationInitialization
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -206,7 +206,7 @@ class FloatingChatService : Service(), FloatingWindowCallback {
 
     override fun onCreate() {
         super.onCreate()
-        (application as KiyoriApplication).initializeMainApplication()
+        (application as MainApplicationInitialization).initializeMainApplication()
         AppLogger.d(TAG, "onCreate")
 
         instance = this
@@ -313,7 +313,7 @@ class FloatingChatService : Service(), FloatingWindowCallback {
                 wakeLock =
                         powerManager.newWakeLock(
                                 PowerManager.PARTIAL_WAKE_LOCK,
-                                "OperitApp:FloatingChatServiceWakeLock"
+                                "KiyoriApp:FloatingChatServiceWakeLock"
                         )
                 wakeLock?.setReferenceCounted(false)
             }

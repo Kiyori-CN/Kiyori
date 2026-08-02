@@ -47,8 +47,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.extrac
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionUserAgentDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionPresetUserAgent
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 
 private enum class UserAgentDialogPage {
     CHOOSER,

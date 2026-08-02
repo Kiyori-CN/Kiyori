@@ -2,7 +2,7 @@
 status: accepted_design
 plan_version: 3
 baseline: 62464b054f6de00b70c5596295bc216eb8edf63d
-last_reviewed: 2026-07-31
+last_reviewed: 2026-08-01
 ---
 
 # 当前架构与命名分类账
@@ -18,7 +18,8 @@ Kiyori 已经不是 Operit 的简单换皮：
 
 源码结构仍主要延续 Operit：
 
-- Application 为 `core/application/KiyoriApplication.kt`，仍保留原包路径
+- Application 为 `com.kiyori.app.KiyoriApplication`；Operit AI 已通过 `com.kiyori.platform`
+  的 context、Json、startup time 和主初始化合同与具体类解耦
 - 根 Composable 为 `ui/main/OperitApp.kt`
 - `MainActivity` 同时承担启动门禁、Intent、权限、显示策略和 UI 装配
 - Browser Runtime 大量位于 `core/tools/defaultTool/websession/`
@@ -31,7 +32,7 @@ Kiyori 已经不是 Operit 的简单换皮：
 
 | 领域 | 难度 | 主要原因 |
 | --- | --- | --- |
-| Application 根类 | 中 | 约 42 个引用，涉及 WorkManager、全局 JSON、ImageLoader 和多进程启动 |
+| Application 根类 | 中 | M-02 已清除 13 个 concrete 消费者；M-03 已完成 Manifest、Lint、多进程与纯包迁移审计 |
 | 根 Composable 与 App Shell | 高 | 路由、CompositionLocal、AI 稳定宿主、Pager、抽屉和外部入口汇合 |
 | 主题与通用 UI | 高 | Kiyori 固定主题与 Operit AI 局部个性化共用调用面，且是上游冲突热点 |
 | Browser Runtime | 很高 | 运行时埋在 AI tool 路径，人工 UI 与 AI 共用 WebView、下载、脚本和 presentation |
@@ -51,7 +52,7 @@ Kiyori 已经不是 Operit 的简单换皮：
 
 | 当前标识 | 目标标识 | 处理 |
 | --- | --- | --- |
-| `KiyoriApplication` | `com.kiyori.app.KiyoriApplication` | M-01 已完成原包内改名；隔离全局访问后再移动 |
+| `KiyoriApplication` | `com.kiyori.app.KiyoriApplication` | M-01 原包内改名、M-02 全局访问隔离和 M-03 包迁移已完成 |
 | `OperitApp` | `KiyoriApp` | Application 稳定后单独迁移 |
 | `OperitTheme` | `KiyoriTheme` | 完成主题 owner 审计后迁移 |
 | `OperitUtilityTheme` | `KiyoriUtilityTheme` 或并入统一设计系统 | 不与视觉调整混做 |
@@ -63,8 +64,8 @@ Kiyori 已经不是 Operit 的简单换皮：
 
 | 当前标识 | 当前问题 | 目标 |
 | --- | --- | --- |
-| `OperitPaths` | 实际全部指向 Kiyori 当前路径，但被 AI、浏览器、备份和工具共同调用 | `KiyoriStoragePaths`，路径字符串不变 |
-| `OperitBackupDirs` | 实际根目录是 `Download/Kiyori/backup`，名称与所有权不符 | `KiyoriBackupPaths`，备份布局不变 |
+| `OperitPaths` | M-05E 前混合 AI、浏览器、备份和工具调用；公开 JVM API 需要兼容 | 唯一 owner 已迁为 `KiyoriPaths`；旧对象保留纯委派，路径字符串不变 |
+| `OperitBackupDirs` | 实际根目录是 `Download/Kiyori/backup`，名称与所有权不符 | `KiyoriBackupPaths` 已成为无状态领域投影；旧对象保留纯委派，备份布局不变 |
 | `MainActivity` | 名称无品牌问题，但职责过多且 FQCN 被系统资源引用 | 保留稳定入口或抽出 `KiyoriActivityHost` |
 | `ui/main/` | 混合 Kiyori Shell 与 Operit AI 路由 | 按文件所有权拆到 `app/` 与 `integration/operit/` |
 | `core/tools/defaultTool/websession/` | Browser Runtime 被目录表达为 AI 默认工具 | Browser owner 迁入 `feature/browser`，旧工具只留适配入口 |

@@ -1,0 +1,2 @@
+com.ai.assistance.operit.ui.common.NavItem
+com.kiyori.app.shell.KiyoriShellExternalDestination

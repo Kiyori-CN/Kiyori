@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSemanticTone
 
 private const val PROJECT_URL = "https://github.com/Kiyori-CN/Kiyori"
 private const val ISSUES_URL = "$PROJECT_URL/issues"

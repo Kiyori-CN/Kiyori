@@ -1,0 +1,13 @@
+app/src/main/java/com/ai/assistance/operit/api/chat/AIForegroundService.kt
+app/src/main/java/com/ai/assistance/operit/api/chat/EnhancedAIService.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardBrowserSessionTools.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserDownloadSupport.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/WebSessionPermissionRequestActivity.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/install/UserscriptImportCoordinator.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/javascript/JsEngine.kt
+app/src/main/java/com/ai/assistance/operit/core/tools/javascript/README.md
+app/src/main/java/com/ai/assistance/operit/util/crash/PlayerCrashCoordinator.kt
+app/src/main/java/com/kiyori/app/KiyoriApplication.kt
+examples/java_bridge.js
+examples/java_bridge.ts

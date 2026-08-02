@@ -79,10 +79,10 @@ import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.api.MarketV2Comment
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
-import com.ai.assistance.operit.ui.main.LocalTopBarTitleContent
-import com.ai.assistance.operit.ui.main.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarTitleContent
+import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone

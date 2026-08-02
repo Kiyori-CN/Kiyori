@@ -1,11 +1,11 @@
 package com.ai.assistance.operit.data.api
 
 import android.os.SystemClock
-import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.data.preferences.GitHubAuthPreferences
 import com.ai.assistance.operit.data.preferences.GitHubUser
 import com.ai.assistance.operit.ui.features.packages.market.normalizeMarketArtifactId
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.android.ApplicationContextAccess
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -493,7 +493,7 @@ class MarketStatsApiService {
 
     private val staticClient = STATIC_CLIENT
     private val dynamicClient = DYNAMIC_CLIENT
-    private val authPreferences = GitHubAuthPreferences.getInstance(KiyoriApplication.instance)
+    private val authPreferences = GitHubAuthPreferences.getInstance(ApplicationContextAccess.current)
 
     suspend fun getManifest(): Result<MarketV2ManifestResponse> =
         withContext(Dispatchers.IO) {

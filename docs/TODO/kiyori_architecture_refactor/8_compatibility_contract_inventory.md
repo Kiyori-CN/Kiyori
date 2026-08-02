@@ -49,6 +49,22 @@ raw snapshot 当前覆盖 `files`、`external_files`、`shared_prefs`、`datasto
 `Download/Kiyori` 必须作为独立范围处理，不能把 raw snapshot 误称为完整应用数据备份。
 方案 v3 当前只保护仓库和本机开发状态，不执行该迁移。
 
+## 启动通知权限
+
+| 合同 | 类别 | 规则 |
+| --- | --- | --- |
+| Manifest `android.permission.POST_NOTIFICATIONS` | `FROZEN` | 继续恰好声明一次 |
+| `com.kiyori.app.startup.KiyoriMainNotificationPermissionCoordinator` | `BRIDGED` | 保留一参数 `ComponentActivity` 构造器与 `checkAndRequest()` JVM 面 |
+| `notification_permission_denied` / `notification_permission_rationale` | `FROZEN` per M-05D | 资源名、现有多语言值和 long Toast 语义不改 |
+| API < 33 / granted / rationale / request 决策顺序 | `FROZEN` | platform 每次读取系统事实，不保存第二权限状态 |
+| `android_permission_preferences` | `FROZEN` persistence | 用户首选执行模式，不作为系统 grant/rationale 事实 |
+
+M-05D 只把启动请求的 Android API owner 迁入
+`com.kiyori.platform.permission.KiyoriNotificationPermissionCapability`，并用
+`com.kiyori.integration.operit.permission.OperitNotificationPermissionResources` 桥接原资源
+ID。Browser download/userscript 通知能力检查、相机/定位/麦克风/WebSession 权限流均不是该
+兼容桥的一部分。
+
 ## DataStore 与 SharedPreferences
 
 ### DataStore 文件名
@@ -153,7 +169,10 @@ workflow_id
 | `.operit/config.json` | `FROZEN` | Operit ecosystem identifier |
 | `/data/data/com.kiyori` | `FROZEN` | 当前 app sandbox |
 
-路径 helper 可改名为 `KiyoriStoragePaths`，但不得改变目录、大小写或相对层级。
+M-05E 已建立 `com.kiyori.platform.storage.KiyoriPaths` 作为唯一真实路径 owner，并以
+`KiyoriBackupPaths` 提供无状态备份领域投影。旧 `OperitPaths` 与 `OperitBackupDirs`
+保留完整 JVM API 作为纯委派兼容入口；任何入口都不得改变目录、大小写、相对层级、
+创建语义、plugin ID 算法、raw snapshot 排除集合或备份布局。
 
 ## Serialization 与 reflection
 
@@ -248,7 +267,7 @@ Manifest 语义树哈希，忽略 XML 格式、属性顺序和同级元素顺序
 
 | 类型 | 当前入口 | 迁移策略 |
 | --- | --- | --- |
-| application | `.core.application.KiyoriApplication` | M-01 已完成原包改名；包迁移仍需后续独立里程碑 |
+| application | `com.kiyori.app.KiyoriApplication` | M-03 已完成绝对 FQCN 迁移；ARCH008/ARCH018 锁定唯一入口和 Manifest 语义 |
 | activity | `.core.tools.defaultTool.websession.browser.WebSessionPermissionRequestActivity` | Browser capability 迁移后保持入口 |
 | activity | `.core.tools.defaultTool.websession.browser.WebSessionDirectoryPickerActivity` | Browser capability 迁移后保持入口 |
 | activity | `.core.tools.defaultTool.websession.userscript.install.UserscriptImportPickerActivity` | userscript 兼容入口 |

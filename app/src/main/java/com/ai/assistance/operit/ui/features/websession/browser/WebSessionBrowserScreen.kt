@@ -103,7 +103,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowser
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPlaceholderSheet
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
-import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
+import com.kiyori.design.theme.KiyoriBrowserTheme
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.platform.storage.KiyoriBackupPaths
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -79,7 +80,7 @@ object RoomDatabaseBackupManager {
             AppLogger.w(TAG, "wal_checkpoint failed", e)
         }
 
-        val operitDir = OperitBackupDirs.roomDbDir()
+        val operitDir = KiyoriBackupPaths.roomDbDir()
 
         val targetFile = File(operitDir, "${AUTO_BACKUP_FILE_PREFIX}${day}.zip")
         val tmpFile = File(operitDir, "${targetFile.name}.tmp")
@@ -121,7 +122,7 @@ object RoomDatabaseBackupManager {
             AppLogger.w(TAG, "wal_checkpoint failed", e)
         }
 
-        val operitDir = OperitBackupDirs.roomDbDir()
+        val operitDir = KiyoriBackupPaths.roomDbDir()
 
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
         val targetFile = File(operitDir, "${MANUAL_BACKUP_FILE_PREFIX}${timestamp}.zip")
@@ -155,8 +156,8 @@ object RoomDatabaseBackupManager {
     private fun enforceMaxBackupCount(context: Context, keepLatest: Int) {
         val safeKeepLatest = keepLatest.coerceIn(1, 100)
 
-        val newDir = OperitBackupDirs.roomDbDir()
-        val legacyLayoutDir = OperitBackupDirs.kiyoriRootDir()
+        val newDir = KiyoriBackupPaths.roomDbDir()
+        val legacyLayoutDir = KiyoriBackupPaths.kiyoriRootDir()
         val dirs = listOf(newDir, legacyLayoutDir)
 
         val candidates = dirs

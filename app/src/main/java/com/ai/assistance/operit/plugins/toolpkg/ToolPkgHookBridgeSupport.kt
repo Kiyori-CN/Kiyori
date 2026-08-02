@@ -1,10 +1,10 @@
 package com.ai.assistance.operit.plugins.toolpkg
 
-import com.ai.assistance.operit.core.application.KiyoriApplication
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.javascript.JsJavaBridgeDelegates
 import com.ai.assistance.operit.core.tools.javascript.extractJsExecutionErrorMessage
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
+import com.kiyori.platform.android.ApplicationContextAccess
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -83,7 +83,7 @@ internal data class ToolPkgAiProviderRegistration(
 )
 
 internal fun toolPkgPackageManager(): PackageManager {
-    val application = KiyoriApplication.instance.applicationContext
+    val application = ApplicationContextAccess.current
     return PackageManager.getInstance(application, AIToolHandler.getInstance(application))
 }
 

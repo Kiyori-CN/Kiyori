@@ -3,7 +3,7 @@ package com.ai.assistance.operit.util.crash
 import android.content.Context
 import android.os.Process
 import android.util.AtomicFile
-import com.ai.assistance.operit.util.ThrowableTextFormatter
+import com.kiyori.platform.logging.KiyoriLogTextFormatter
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
@@ -31,7 +31,7 @@ internal object CrashReportStore {
                 processId = Process.myPid(),
                 threadName = thread.name.take(256),
                 throwableText =
-                    ThrowableTextFormatter.format(
+                    KiyoriLogTextFormatter.format(
                         throwable,
                         CrashReportRecord.MAX_THROWABLE_CHARS,
                     ),
@@ -54,7 +54,7 @@ internal object CrashReportStore {
                     processId = draft.processId,
                     threadName = draft.threadName?.take(256),
                     throwableText =
-                        ThrowableTextFormatter.truncateText(
+                        KiyoriLogTextFormatter.truncateText(
                             draft.throwableText,
                             CrashReportRecord.MAX_THROWABLE_CHARS,
                         ),
@@ -65,7 +65,7 @@ internal object CrashReportStore {
                     processImportance = draft.processImportance,
                     processStateSummary = draft.processStateSummary?.take(512),
                     playerJournal =
-                        ThrowableTextFormatter.truncateText(
+                        KiyoriLogTextFormatter.truncateText(
                             draft.playerJournal,
                             CrashReportRecord.MAX_PLAYER_JOURNAL_CHARS,
                         ),

@@ -151,10 +151,26 @@ phase = "current"
 allowed_import_roots = [
   "com.ai.assistance.operit",
   "com.kiyori.capability",
+  "com.kiyori.design",
   "com.kiyori.platform",
 ]
 forbidden_import_roots = [
   "com.kiyori.app",
+  "com.kiyori.feature",
+]
+
+[[ownership]]
+id = "operit-main-activity-compatibility"
+path = "app/src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt"
+owner = "kiyori-app-entry-compatibility"
+sync_zone = "D"
+phase = "m04e"
+allowed_import_roots = [
+  "com.ai.assistance.operit",
+  "com.kiyori.app",
+  "com.kiyori.platform",
+]
+forbidden_import_roots = [
   "com.kiyori.feature",
 ]
 
@@ -195,8 +211,7 @@ id = "kiyori-app"
 path = "app/src/main/java/com/kiyori/app/**"
 owner = "kiyori-app"
 sync_zone = "C"
-phase = "planned"
-planned = true
+phase = "m03"
 allowed_import_roots = [
   "com.kiyori.app",
   "com.kiyori.capability",
@@ -206,13 +221,110 @@ allowed_import_roots = [
   "com.kiyori.platform",
 ]
 
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/KiyoriApplication.kt"
+reason = "M-03 is a package-only move; the exact existing Operit startup imports are separately locked by ARCH018 until integration ownership is extracted."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/KiyoriApp.kt"
+reason = "M-04C moved route catalog, PackageManager, ToolPkg listener, and gateway lifecycle into the unique Operit navigation integration owner; ARCH020 locks the remaining exact Operit host, Browser, AI, settings, and platform imports until their M-04D/M-06/M-07 owners migrate."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainPendingRequests.kt"
+reason = "M-04D1 extracts the unique MainActivity pending-request state owner; ARCH030 locks its exact NavItem bridge until Operit navigation contracts are isolated."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainIntentDecoder.kt"
+reason = "M-04D2 extracts side-effect-free MainActivity Intent decoding; ARCH031 locks the exact GitHub OAuth and ToolPkg widget contract bridges until Operit integration ownership is isolated."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainSharedContentCoordinator.kt"
+reason = "M-04D4 extracts lifecycle-bound pending share transfer without moving the existing SharedFileHandler state owner; ARCH033 locks the exact resource and handler bridges until files ownership migrates."
+expires_after = "M-06-files-domain-migration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainTaskVisibilityCoordinator.kt"
+reason = "M-04D5 extracts stateless recent-task visibility restoration without moving the existing AI foreground runtime owner; ARCH034 locks the exact service bridge until Operit integration ownership migrates."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainOrientationCoordinator.kt"
+reason = "M-04D6 extracts the unique MainActivity orientation state and dialog presentation; ARCH035 locks the exact resource bridge until presentation resources migrate."
+expires_after = "M-05-design-platform-migration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainStartupGateCoordinator.kt"
+reason = "M-04D8 extracts the MainActivity agreement and permission-level startup gate without moving the existing preferences or feature screens; ARCH037 locks the exact Operit preference, presentation, and permission-level bridges until Operit integration ownership migrates."
+expires_after = "M-05-design-platform-migration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainContentHost.kt"
+reason = "M-04D9 extracts the unique MainActivity Kiyori content assembly without moving the existing Operit NavItem or PluginLoadingState contracts; ARCH038 locks the exact projection, provider, KiyoriApp mapping, and Activity boundary until product-domain and Operit integration ownership migrate."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/shell/KiyoriAppShell.kt"
+reason = "M-04B3 is an App Shell package-only move; ARCH024 locks the exact existing Operit page, theme, and navigation imports until their product-domain owners and integration adapters are extracted."
+expires_after = "M-06-product-domain-migrations"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/shell/KiyoriAiDrawer.kt"
+reason = "M-04B4 is an AI Drawer package-only move; ARCH025 locks the exact existing Operit AI status, navigation, and design imports until the Operit integration boundary is extracted."
+expires_after = "M-07-operit-integration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/shell/KiyoriPrimaryNavigation.kt"
+reason = "M-04B5 extracts the primary destination presentation group; ARCH026 locks its exact existing resource, browser-chrome metric, product-page, and theme imports until those owners migrate."
+expires_after = "M-06-product-domain-migrations"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/shell/KiyoriSoftwareHome.kt"
+reason = "M-04B6 extracts the Software Home declaration group; ARCH027 locks its exact existing resource, browser-window metric, AI quick-action, weather, and theme imports until those owners migrate."
+expires_after = "M-06-product-domain-migrations"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/shell/KiyoriBrowserSearch.kt"
+reason = "M-04B7 extracts the residual Browser Search declaration group; ARCH028 locks its exact existing Browser runtime, history, profile, search-screen, address-resolution, and resource imports until the Browser domain migration."
+expires_after = "M-06-browser-domain-migration"
+owner = "kiyori-app"
+
 [[ownership]]
 id = "kiyori-capability-browser"
 path = "app/src/main/java/com/kiyori/capability/browser/**"
 owner = "kiyori-browser-contracts"
 sync_zone = "C"
-phase = "browser"
-planned = true
+phase = "m04b"
 allowed_import_roots = [
   "com.kiyori.capability.browser",
 ]
@@ -266,8 +378,7 @@ id = "kiyori-design"
 path = "app/src/main/java/com/kiyori/design/**"
 owner = "kiyori-design"
 sync_zone = "C"
-phase = "planned"
-planned = true
+phase = "m05a1"
 allowed_import_roots = [
   "com.kiyori.capability",
   "com.kiyori.design",
@@ -391,8 +502,7 @@ id = "kiyori-integration-operit"
 path = "app/src/main/java/com/kiyori/integration/operit/**"
 owner = "kiyori-operit-integration"
 sync_zone = "C"
-phase = "operit-integration"
-planned = true
+phase = "m04b"
 allowed_import_roots = [
   "com.ai.assistance.operit",
   "com.kiyori.capability",
@@ -444,12 +554,25 @@ id = "kiyori-platform"
 path = "app/src/main/java/com/kiyori/platform/**"
 owner = "kiyori-platform"
 sync_zone = "C"
-phase = "planned"
-planned = true
+phase = "m05a3"
 allowed_import_roots = [
   "com.kiyori.capability",
   "com.kiyori.platform",
 ]
+
+[[exception]]
+rule = "ARCH004"
+path = "app/src/main/java/com/kiyori/app/theme/KiyoriTheme.kt"
+reason = "M-05A3 isolates the unique Kiyori app theme host while existing UserPreferences, configured typography, and Glass state owners remain in Operit UI; ARCH042 locks the exact bridge until settings and visual effect ownership migrate."
+expires_after = "M-06-settings-design-migration"
+owner = "kiyori-app"
+
+[[exception]]
+rule = "ARCH001"
+path = "app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetConfigActivity.kt"
+reason = "M-05A3 keeps the stable Operit widget configuration Activity while it reuses the unique Kiyori app theme host; ARCH042 locks this one app dependency until widget integration ownership migrates."
+expires_after = "M-07-widget-integration"
+owner = "compatibility"
 
 [[exception]]
 rule = "ARCH012"

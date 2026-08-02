@@ -17,7 +17,7 @@ last_reviewed: 2026-07-31
 
 ## 阶段 0：方案确认
 
-当前阶段。
+已完成。当前实施位置是阶段 4 Browser 产品域。
 
 交付：
 
@@ -114,7 +114,7 @@ G-00 必须复用同一套 ownership 与 snapshot，不建立只服务一次改�
 
 这样可以先消除错误的产品名，同时避免 Operit AI 子系统立刻反向依赖 `com.kiyori.app`。
 
-### 里程碑 2.2：Application 全局访问收口与包迁移
+### 里程碑 2.2：Application 全局访问收口（M-02）
 
 先建立稳定的 `com.kiyori.platform` 合同，逐项替代对 Application 具体类型的访问：
 
@@ -123,30 +123,76 @@ G-00 必须复用同一套 ownership 与 snapshot，不建立只服务一次改�
 - app startup time
 - 主进程初始化请求
 
-确认 `com.ai.assistance.operit` 不再导入 Kiyori app 具体类后，才把
-`KiyoriApplication` 移到 `com.kiyori.app`。
+本里程碑只移除 Operit AI 对 `KiyoriApplication` concrete class 的直接依赖。
+在 M-02 完成状态中，`KiyoriApplication` 仍留在原包，并作为主进程初始化接口的唯一真实实现。
 
 这一步不改变初始化阶段、线程、顺序、异常处理或多进程行为。
 
-### 里程碑 2.3：根 Composable
+精确文件、合同、测试与停止条件见
+[M-02 Application 全局访问平台化精确清单](17_m02_application_platform_access_manifest.md)。
 
-只做：
+### 里程碑 2.3：Application 包迁移（M-03）
+
+只有 M-02 的旧包 concrete dependency 清零并完整验证后，才把：
+
+```text
+com.ai.assistance.operit.core.application.KiyoriApplication
+-> com.kiyori.app.KiyoriApplication
+```
+
+本里程碑只处理 Application 文件与 Manifest/测试/ProGuard 的精确包路径变化，不再次修改
+四类 platform 合同、初始化逻辑、数据、协议或 UI。
+
+M-03 已完成：唯一 Application 位于 `com.kiyori.app.KiyoriApplication`，原同包
+`ActivityLifecycleManager` 依赖改为显式 import，ARCH018 锁定方法体、43 个过渡 Operit
+import、Manifest 和 Lint 路径。旧 Application 路径与旧运行时 FQCN 均已清除。
+
+### 里程碑 2.4：根 Composable
+
+已完成：
 
 - `OperitApp` 重命名为 `KiyoriApp`
 - CompositionLocal 拆到职责明确的文件
 - Kiyori Shell 继续使用同一状态 owner 和 route
+- ARCH019/ARCH020 锁定唯一 CompositionLocal owner、根组合纯移动、唯一 host 与旧符号清理
 
-不做：
+本里程碑未做：
 
 - 不调整导航行为
 - 不改变 Pager、Back、抽屉、AI Home 挂载或主题
 
-### 里程碑 2.4：Kiyori App Shell
+### 里程碑 2.5：Kiyori App Shell
+
+M-04A 至 M-04E 已完成并通过总封板；后续 M-05 design/theme/platform 也已完成。当前进入
+阶段 4 Browser 产品域。
+
+M-04B1 已把 AI route/stack policy 移入 `integration.operit.navigation`；M-04B2 已把
+Browser exit presentation contract 与唯一纯 Shell state/back owner 移入 Kiyori 包；
+M-04B3 已把 `KiyoriAppShell` host 纯移动到 `com.kiyori.app.shell`，保持同一 Pager、
+Back、drawer 和 state owner；M-04B4 已把 Modal AI Drawer host 纯移动到同一 Shell
+owner；M-04B5 已把 primary destination visual、root dispatch 与 bottom navigation
+提取到同一 Shell owner；M-04B6 已把 Software Home 完整声明组提取到
+`com.kiyori.app.shell.KiyoriSoftwareHome`。当前 M-04B7 只提取 residual Browser Search
+声明组；M-04B7 已将其移入 `com.kiyori.app.shell.KiyoriBrowserSearch`，删除旧混合文件，
+不改写 Browser Runtime、history、profile 或搜索行为。当前进入 M-04C，开始收口 Operit
+navigation integration。M-04C 已将 route catalog、唯一 PackageManager-backed navigation
+revision、ToolPkg listener、gateway lifecycle 与 route-root helper 移入
+`com.kiyori.integration.operit.navigation`。M-04D1 已把 MainActivity 的 pending
+shared/browser/OAuth/shortcut/route/Shell request state 收口到唯一
+`com.kiyori.app.startup.KiyoriMainPendingRequests`；当前继续 M-04D remaining internal
+host。M-04D2 已进一步把 Intent payload 读取和 action 优先级提取到无副作用
+`KiyoriMainIntentDecoder`，Activity 继续执行全部 Android/runtime side effect。M-04D3
+已把窗口性能、刷新率和硬件加速配置提取到无状态 `KiyoriMainDisplayCoordinator`。
+M-04D4 已把 pending shared files/text 转交提取到生命周期绑定的
+`KiyoriMainSharedContentCoordinator`，不移动 `SharedFileHandler` StateFlow owner。
+M-04D5 至 M-04D9 已依次完成 task visibility、orientation、notification permission、
+startup gate 与 content host 拆分。M-04E 已在不移动 Activity 或新增 host 的前提下删除
+到期例外、锁定稳定兼容入口，并完成 M-04 owner 内的行为保持型质量收口。
 
 按文件而不是按旧目录整体迁移：
 
-- `KiyoriAppShell`
-- `KiyoriShellState`
+- `KiyoriAppShell`（已完成）
+- `KiyoriShellState`（已完成）
 - Kiyori 首页、负一屏、设置宿主和产品导航
 - 产品级 route model
 
@@ -159,19 +205,102 @@ G-00 必须复用同一套 ownership 与 snapshot，不建立只服务一次改�
 
 建立 `integration.operit.navigation` 作为唯一连接点。
 
-### 里程碑 2.5：MainActivity 责任拆分
+### 里程碑 2.6：MainActivity 责任拆分
 
 先增加特征测试，再把以下职责从 Activity 提取：
 
-- 外部 Intent 解析
-- 启动门禁状态
-- Kiyori 内容装配
-- 显示与系统栏策略
+- [DONE M-04D1] 待处理外部请求状态与 requestId 精确消费
+- [DONE M-04D2] 外部 Intent 纯解析、稳定 action/extra 常量合同和密封 command
+- [DONE M-04D8] 协议/权限级别/内容三态启动门禁与唯一 UI 投影
+- [DONE M-04D9] Kiyori 内容装配：一次性 request projection、shared-content
+  交接、`LocalPluginLoadingState` provider 与唯一 `KiyoriApp` 挂载
+- [DONE M-04D3] 显示性能与刷新率策略
+- [DONE M-04D4] pending external files/text 转交与清理
+- [DONE M-04D5] 最近任务可见性恢复与 AI foreground-runtime 判定
+- [DONE M-04D6] 方向变化状态、确认对话框与 Activity recreate 边界
+- [DONE M-04D7] MainActivity 启动通知权限 launcher/request/result owner
+- [DONE M-04D8] 权限级别与协议接受后的启动门禁
+- [DONE M-04E] 删除已到期的 MainActivity ARCH001 文件例外，以精确路径 ownership record
+  表达稳定 Android 兼容入口；精确 owner 覆盖宽泛目录 owner，重叠宽泛 glob 仍失败
+- [DONE M-04E] ARCH039 锁定 Activity package/FQCN、Manifest launcher、精确项目 imports、
+  `com.kiyori.feature` 零依赖、唯一 content host 和旧例外清零
+- [DONE M-04E] 只清理 M-04 owner 内可证明不改变行为的 lint；其余项目债务留在对应后续阶段，
+  不扩大 baseline
 
-是否移动 `MainActivity` FQCN，取决于 Android 稳定组件策略确认。即使保留旧入口，真实 UI 逻辑也应迁入
-Kiyori app 包。
+application system-bar/edge-to-edge owner 已确认位于主题实现，Player 全屏 system-bar owner
+位于 PlayerActivity；二者分别留给 design/platform 与 Player 领域迁移，不在 MainActivity
+责任拆分中制造平行 owner。
+
+`MainActivity` FQCN 作为稳定 Android 组件入口保持不变；内部实现按职责迁入 Kiyori app
+包。Intent 解析、时间戳生成和 Android 副作用不得进入纯 pending-request owner。
 
 ## 阶段 3：设计系统与平台能力
+
+本阶段已完成。M-05 按精确文件与 owner 清单、视觉/系统行为特征测试和失败优先架构门禁，
+完成最小迁移；主题命名、platform owner 迁移、行为调整和全量 `util` 整理没有混为一批。
+
+精确子里程碑：
+
+1. M-05A1：纯 ColorScheme、Browser theme、Settings theme
+2. M-05A2：Kiyori semantic design
+3. M-05A3：root theme/style 命名、preference host 与 system-bar owner
+4. M-05B：platform logging
+5. M-05C：platform lifecycle
+6. M-05D：Android permission capability
+7. M-05E：paths/storage
+
+M-05A1 已封板：纯 ColorScheme、Browser theme 与 Settings theme 由
+`com.kiyori.design.theme` 唯一拥有，旧 preference resolver 只保留偏好决策并委派 design
+resolver，旧 Browser/Settings theme 路径已删除。ARCH040 failure-first、正反向 fixture、
+消费者/ownership/test gate、完整 architecture、全量 Python/JVM、formal readiness、
+lint、Markdown、规定 Debug APK 与制品审计全部通过；设备/UI 仍待验证。M-05A2 也已封板：
+纯 semantic color contract 与 Compose MaterialTheme adapter 已分离后迁入
+`com.kiyori.design.theme`，58 个消费者、102 条 import、测试所有权和三份受影响 M-04B
+snapshot 均由 ARCH041 与 ARCH025/026/027 精确锁定；颜色、映射和 UI 未改变。完整
+architecture、Python `156/156`、JVM `810/810`、formal/fresh-clone、范围内 lint、规定
+Debug APK 与制品审计通过；仓库范围 full lint 仍保留 316 个既有 current-only issue，
+不属于 A2 改动。M-05A3 也已封板：旧 root theme 已拆成 pure design
+`KiyoriTheme/KiyoriTypography`、app preference/font/Glass host 与 platform Application
+system-bar owner；两个生产调用者复用唯一 app host，`Theme.Operit` 的 6 个声明和 6 个
+Manifest 引用已精确改名为 `Theme.Kiyori`。Type 的配置字体与 AI 局部适配、Liquid/Water
+Glass 算法和 Player fullscreen system-bar 均保持；OperitUtilityTheme、
+FloatingWindowTheme 与三个纯字体应用消费者只迁移到 design import。ARCH042 与完整
+architecture、Python `158/158`、JVM `810/810`、formal/fresh-clone、范围内 lint、规定
+Debug APK 与制品审计通过。M-05B 也已封板：唯一
+`com.kiyori.platform.logging.KiyoriLogger` 持有 executor/提前解析的内部 filesDir/file/switch
+状态，进程 Context 继续只由 `ApplicationContextAccess` 持有，旧
+`com.ai.assistance.operit.util.AppLogger` 保留无状态兼容 facade，日志 formatter 迁入 platform，
+8 个 Kiyori app owner 直接使用新 logger，Operit 消费者保持旧入口。ARCH043 failure-first、
+正反向 fixture、真实 gate、ARCH018/020/032～037、完整 architecture、Python `160/160`、
+JVM `135 suites / 813 tests`、formal/fresh-clone、working-tree Markdown 和
+`git diff --check` 均通过。新鲜 full lint 保持既有 `27 errors / 287 warnings / 2 hints`；
+logger/formatter/test 三个新 owner 为 0 命中，结构化 baseline 只删除迁移后失效的旧
+`AppLogger.kt` `StaticFieldLeak`，结果为 `5791 retained / 0 stale / 316 current-only`。
+规定 Debug 构建和 APK 审计通过；设备与多进程文件写入仍待验证。M-05C 已完成唯一
+`KiyoriActivityLifecycle` facts/callback owner、Operit side-effect owner 与旧完整 ABI facade
+实现；ARCH044 failure-first、正反向 fixture、真实/完整 architecture、Python `162/162`、
+JVM `136 suites / 817 tests`、formal/fresh-clone、fresh lint 影响面、Markdown、diff、
+规定 Debug APK 与制品审计全部通过。fresh full lint 保持既有
+`27 errors / 287 warnings / 2 hints`，M-05C 四条路径为 0 命中。APK 为 `477957302`
+bytes，SHA-256 `3792DD58C87D1DDD4F977BB8CD4B4407458EB911EC17CB0CB48CB8876184D2D3`，
+身份、SDK、Application、稳定 launcher、多进程、arm64 53 native、10 个播放器目标库、
+Debug v2 与 16 KB 对齐保持。M-05C 已封板。M-05D 已完成 production owner：platform
+capability 唯一持有 API 33、system grant/rationale、RequestPermission launcher 与 action
+resolver；无状态 Operit bridge 唯一映射 denied/rationale 资源 ID；旧 app coordinator
+只保留原日志/Toast projection。旧 coordinator 的一参数构造与 `checkAndRequest()` javap
+精确保持，MainActivity 不改早注册/单调用，`AndroidPermissionPreferences` 与两个非启动
+通知检查不改。ARCH045 failure-first、ARCH036/045 正反向 fixture、真实/完整 architecture、
+生产编译、完整 Python `164/164`、完整 JVM `136 suites / 817 tests`、readiness、Markdown、
+diff、lint 影响面、规定 Debug 构建与 APK 审计通过；fresh full lint 保持既有
+`27 errors / 287 warnings / 2 hints` 且 M-05D 四条路径为 0 命中。APK 为 `477957302`
+bytes，SHA-256 `BB370BC2602880CA4DCE488F67DA4AB9F105C1CFF07A0E4D2FF31A3D3CC38B34`。
+M-05D 已封板。M-05E 已把路径计算收口到唯一 `KiyoriPaths`，以纯
+`KiyoriBackupPaths` 投影备份目录，并保留旧 `OperitPaths` / `OperitBackupDirs` 完整 ABI
+兼容 facade；ARCH046、Python `166/166`、JVM `137 suites / 822 tests`、readiness、
+fresh lint、Markdown、diff、规定 Debug 构建和 APK 审计均通过。M-05E 已封板，阶段 3
+design/theme/platform 完成；阶段 4 Browser 产品域尚未开始。
+精确范围见
+[M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)。
 
 ### 里程碑 3.1：Kiyori 主题命名
 

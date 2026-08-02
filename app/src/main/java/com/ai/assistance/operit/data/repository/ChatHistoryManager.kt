@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.data.backup.OperitBackupDirs
+import com.kiyori.platform.storage.KiyoriBackupPaths
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.data.model.ChatEntity
 import com.ai.assistance.operit.data.model.ChatHistory
@@ -1835,7 +1835,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
             try {
                 val chatHistoriesBasic = chatHistoriesFlow.first()
 
-                val exportDir = OperitBackupDirs.chatDir()
+                val exportDir = KiyoriBackupPaths.chatDir()
 
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
                 val timestamp = dateFormat.format(Date())

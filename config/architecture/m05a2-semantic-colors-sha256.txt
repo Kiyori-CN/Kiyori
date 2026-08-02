@@ -1,0 +1,1 @@
+F4F74610C81D3080B2BA085B5D2CD20F3BC6249B8DBCE75A7786899AB9B716D2	app/src/main/java/com/kiyori/design/theme/KiyoriSemanticColors.kt

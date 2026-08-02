@@ -1,7 +1,7 @@
 ---
 status: implemented
 plan_version: 3
-last_reviewed: 2026-07-31
+last_reviewed: 2026-08-01
 ---
 
 # 架构门禁与机器可读所有权规范
@@ -66,6 +66,8 @@ required_tests = [
 
 - `id` 全局唯一且稳定
 - `path` 必须匹配至少一个受管文件，除非 phase 尚未开始并显式声明 `planned = true`
+- 当一个源文件同时命中一个无 glob 元字符的精确 `path` 和一个或多个宽泛 glob 时，只由
+  该精确 record 管理；没有精确 record 时，多个宽泛 glob 命中仍是 multiple-owner error
 - `owner` 对应文档中的唯一状态 owner
 - `sync_zone` 只能是 `A/B/C/D`
 - `allowed_import_roots` 使用包前缀，同时约束普通/static import 与源码中的完全限定项目引用
@@ -102,6 +104,265 @@ AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 K
 | `ARCH014` | terminal gitlink 或内容变化 | error |
 | `ARCH015` | build/APK/bundle/仓库外备份/private config 进入 Git 索引 | error |
 | `ARCH016` | M-01 超出精确允许文件或出现非规范化命名差异 | error |
+| `ARCH017` | M-02 contract 不完整、Operit concrete Application 依赖残留、第二 owner 或 Service Locator | error |
+| `ARCH018` | M-03 Application 移动不纯、import snapshot/Lint path/Manifest phase 或过渡 exception 漂移 | error |
+| `ARCH019` | M-04 根组合与 Operit host CompositionLocal 出现重复 owner、旧 import 或 app 反向依赖 | error |
+| `ARCH020` | M-04A2 根 Composable 路径、package、源码 SHA、Operit import 集合、唯一 owner、M-04D9 content host 或旧运行时符号漂移 | error |
+| `ARCH021` | M-04B Operit navigation policy 未由 integration 唯一拥有、Shell state 仍依赖 Operit navigation、源码 SHA/import 集合或 KiyoriApp 接线漂移 | error |
+| `ARCH022` | M-04B Browser exit presentation capability contract 的 package、源码 SHA、唯一 owner、固定消费者或旧 import 漂移 | error |
+| `ARCH023` | M-04B 纯 Shell state 路径/package/唯一 owner、项目 import、KiyoriApp 接线或当前 MainActivity 过渡桥接漂移 | error |
+| `ARCH024` | M-04B3 App Shell host 路径/package/规范化源码、精确 Operit import、唯一 helper owner、KiyoriApp host 或测试接线漂移 | error |
+| `ARCH025` | M-04B4 AI Drawer host 路径/package/规范化源码、精确 Operit import、唯一 owner、App Shell host 或测试接线漂移 | error |
+| `ARCH026` | M-04B5 primary destination presentation 拆分后的源码 SHA、精确 import、唯一声明组、App Shell host 或测试接线漂移 | error |
+| `ARCH027` | M-04B6 Software Home 拆分后的路径/package、源码 SHA、9 个精确 Operit import、完整唯一声明组、App Shell host 或 27 个策略测试 import 漂移 | error |
+| `ARCH028` | M-04B7 residual Browser Search 旧路径、源码 SHA、8 个精确 Operit import、页面/request/resolver 唯一 owner、App Shell/KiyoriApp/test 接线漂移 | error |
+| `ARCH029` | M-04C route catalog 旧路径、新 catalog/runtime 源码 SHA 与精确 import、唯一 assembly owner、PackageManager/listener/gateway lifecycle、KiyoriApp/test 接线漂移 | error |
+| `ARCH030` | M-04D1 pending-request owner 缺失、package/源码 SHA/精确项目 import/唯一声明漂移，MainActivity 第二状态 owner、Activity/shared-content/content-host 组合边界中的消费 API 接线缺失、owner 吸收平台副作用或合同测试缺失 | error |
+| `ARCH031` | M-04D2 Intent decoder 缺失、package/源码 SHA/精确项目 import/唯一 symbol 漂移，decoder 吸收 host side effect、MainActivity 继续直接解析 payload、稳定常量桥接或合同测试漂移 | error |
+| `ARCH032` | M-04D3 display coordinator 缺失、package/源码 SHA/精确项目 import/唯一 symbol/API 计数漂移，coordinator 吸收无关职责、MainActivity 残留显示配置或策略测试缺失 | error |
+| `ARCH033` | M-04D4 shared-content coordinator 缺失、package/源码 SHA/精确项目 import/唯一 symbol/转交计数漂移，第二状态 owner、MainActivity 残留转交实现、Activity/content-host 分层调用数、总调用数或策略测试缺失 | error |
+| `ARCH034` | M-04D5 task-visibility coordinator 缺失、package/源码 SHA/精确项目 import/唯一 symbol/API 判定漂移，coordinator 吸收状态或无关职责、MainActivity 残留最近任务实现、两个调用点或策略测试缺失 | error |
+| `ARCH035` | M-04D6 orientation coordinator 缺失、package/源码 SHA/精确项目 import/唯一 state/reducer/dialog owner 漂移，coordinator 吸收无关职责或 `recreate()`，MainActivity 残留方向状态/presentation、Plugin Loading hide 顺序、调用数或行为测试缺失 | error |
+| `ARCH036` | M-04D7 notification-permission coordinator 缺失、package/源码 SHA/精确 platform/resource bridge import、日志/Toast 投影计数或 MainActivity 早注册/单调用漂移，coordinator 回流系统权限 API、第二权限状态或 platform 策略测试缺失 | error |
+| `ARCH037` | M-04D8 startup-gate coordinator 缺失、package/源码 SHA/精确项目 import/三态 resolver/唯一 UI 投影或 presentation owner 漂移，coordinator 复制协议/权限持久状态或吸收 lifecycle/plugin/content side effect，MainActivity 残留旧字段/import/页面分发、调用数、初始检查与两条完成回调顺序或策略测试缺失 | error |
+| `ARCH038` | M-04D9 content host 缺失、package/源码 SHA/精确项目 import/唯一 request projection 或 host 漂移，host 复制 pending/plugin 状态或吸收 `setContent`/主题/startup/lifecycle/runtime side effect，MainActivity 残留直接 KiyoriApp/provider/参数装配、shared-content 调用数、执行顺序或合同测试缺失 | error |
+| `ARCH039` | M-04E 精确 ownership 优先级未实现或允许重叠宽泛 glob，MainActivity 精确 owner 字段、稳定 package/FQCN/Manifest launcher、精确项目 import snapshot、`com.kiyori.feature` 零依赖、唯一 content host 或到期 ARCH001 例外清零发生漂移 | error |
+| `ARCH040` | M-05A1 纯 ColorScheme/Browser/Settings design owner 缺失，旧/new 双 owner、preference/platform/Operit 依赖混入 design、consumer import/adapter/test/ownership 允许方向或固定视觉合同漂移 | error |
+| `ARCH041` | M-05A2 semantic color/Compose adapter owner 缺失，旧/new 双 owner、枚举/色值/稳定 ID/底栏/天气/luminance 合同、58 个消费者、102 条 import、测试所有权或 ARCH025/026/027 snapshot 发生漂移 | error |
+| `ARCH042` | M-05A3 pure root theme/Typography、app preference host、Application system-bar owner 或 `Theme.Kiyori` style 缺失，旧 `OperitTheme`/`Theme.Operit` 残留，偏好/Glass/字体/system-bar 职责重复，MainActivity/widget/ARCH039/Manifest snapshot 漂移，或 Player fullscreen system-bar 被吸收 | error |
+| `ARCH043` | M-05B platform logger/formatter 或旧 AppLogger facade 缺失，executor/内部 filesDir/文件/开关状态出现第二 owner，logger 重新静态持有 Context，日志文件/格式/ToolPkg 合同、8 个 Kiyori consumer、旧 static-mock 兼容、formatter test、ownership exception 或 ARCH018/020/032～037 snapshot 漂移 | error |
+| `ARCH044` | M-05C platform Activity lifecycle facts owner、Operit side-effect owner 或旧 ActivityLifecycleManager facade 缺失，callback 注册/弱引用/activity count/started count/foreground 状态出现第二 owner，旧完整 ABI、13 个旧 FQCN consumer、plugin/AI/Player/窗口副作用、JVM facts test 或 ownership 漂移 | error |
+| `ARCH045` | M-05D platform notification permission capability、Operit resource bridge 或 app projection 缺失，API 33/grant/rationale/launcher 出现第二 owner，资源或持久偏好混入 platform，旧 coordinator ABI/早注册/日志/Toast、三条直接 consumer、Manifest 声明、policy tests 或 ownership exception 清理漂移 | error |
+| `ARCH046` | M-05E Kiyori paths 或 backup projection 缺失，目录字面量/Environment/ensureDir/plugin ID/raw snapshot 排除出现第二 owner，旧 OperitPaths/OperitBackupDirs ABI 或纯委派漂移，9/7/37/0 consumer 集合、路径合同测试、M-03/M-05B/critical snapshot 漂移 | error |
+
+`ARCH017` 在四个 M-02 platform contract 尚未出现时不改变 M-01 后基线。任一 contract
+出现后，四个文件必须闭合，`com.ai.assistance.operit` 除唯一 Application 实现外不得再引用
+`KiyoriApplication`，Application companion 不得继续持有 `instance`、`json`、
+`appStartupTimeMs` 或无消费者的 `globalImageLoader`。process 安装入口只能由唯一
+Application 调用，platform 中不得建立统一 registry 或按 key/class 解析的 Service Locator。
+完整规则和精确消费者见
+[M-02 Application 全局访问平台化精确清单](17_m02_application_platform_access_manifest.md)。
+
+M-04A1 的宿主 CompositionLocal 合同、唯一声明和消费者迁移，以及 M-04A2 根组合纯移动
+的 SHA/import/唯一 owner 锁定见
+[M-04 根组合与 Shell 精确实施清单](19_m04_root_composition_and_shell_manifest.md)。
+
+M-04E 不延长 `MainActivity.kt` 的 ARCH001 例外。稳定 Android launcher 使用精确
+ownership record `operit-main-activity-compatibility` 管理，允许
+`com.ai.assistance.operit`、`com.kiyori.app` 与 `com.kiyori.platform`，禁止
+`com.kiyori.feature`。checker 只能在精确 path 与宽泛 glob 同时命中时选择精确 record；
+两个宽泛 glob 同时命中必须继续报 multiple-owner，避免用新增宽泛规则掩盖所有权重叠。
+ARCH039 还必须直接验证旧 exception 不存在、MainActivity 声明 package 与稳定 FQCN
+一致、Manifest 中该 launcher 的 MAIN/LAUNCHER 入口保持、项目 imports 与
+`m04e-main-activity-project-imports.txt` 完全一致，以及 `KiyoriMainContentHost` 仍只
+import 和挂载一次。
+
+M-05A1 的 design owner、精确路径、消费者、非目标和失败优先要求见
+[M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)。
+ARCH040 必须在 production source 出现前先稳定报告
+`M-05A1 design theme missing`。实现后只有 `com.ai.assistance.operit.ui` ownership 可以
+新增 `com.kiyori.design` allowed root；其他 Operit records 不得变化。新 design source
+不得 import Operit 或读取 preference，也不得出现 Activity/Window/system-bar/lifecycle/
+permission/storage/repository/ViewModel。旧 preference resolver 只保留 snapshot/context
+决策并委派唯一 bool design resolver，旧 Browser/Settings theme 与 ColorScheme 声明必须
+清零。
+
+M-05A1 实现后，ARCH024 的 App Shell import snapshot 继续表示完整项目 import 集合，而不是
+只允许 Operit 根。snapshot 条目必须全部属于 `com.ai.assistance.operit` 或 `com.kiyori`
+项目根、不得重复，并与源码的项目 import `Counter` 精确相等；因此两条批准的
+`com.kiyori.design.theme` import 不会放宽其余九条 Operit import，也不能掩盖新增、缺失或
+重复依赖。M-05A1 的 ARCH024/ARCH040 正反向测试与完整 architecture 已通过，最终封板仍以
+全量测试、构建和 APK 审计为准。当前 M-05A1 已通过这些封板证据；后续 M-05A2 不得复用
+ARCH040 代替独立的 semantic design failure-first gate。
+
+M-05A2 使用 ARCH041 独立封板。新纯合同文件
+`com/kiyori/design/theme/KiyoriSemanticColors.kt` 唯一拥有：
+
+- `KiyoriSemanticTone` 的 `BLUE/GREEN/PURPLE/ORANGE/RED/CYAN/PINK` 固定顺序
+- `kiyoriSemanticToneForStableId` 的 `Math.floorMod(hashCode, entries.size)` 映射
+- `KiyoriSemanticColors`、14 组浅深 icon/container pair 与纯 resolver
+- `KiyoriBottomNavigationSelectedFillColor = #FFC153`
+- `resolveKiyoriWeatherSunColor` 的浅色 `#C57C00` 与深色 `#FFD166`
+
+`com/kiyori/design/theme/KiyoriSemanticTheme.kt` 只保留两个 Compose adapter：
+`KiyoriSemanticTone.resolveColors()` 与 `kiyoriWeatherSunColor()`；二者只能按
+`MaterialTheme.colorScheme.background.luminance() < 0.5f` 委派纯 resolver，不得持有色值、
+preference、状态、Android window/lifecycle/permission/storage 或 Operit 依赖。旧
+`ui/theme/KiyoriSemanticTheme.kt` 必须删除，全部声明只能有一个 owner。
+
+ARCH041 必须读取精确 consumer-import snapshot，锁定 54 个生产消费者、4 个测试消费者和
+102 条 `com.kiyori.design.theme` import；任何旧 package import、完全限定旧 FQCN、缺失、
+新增或重复边都失败。Operit 消费者只能位于已有 `operit-ui` ownership，不能为 core/data/
+services 扩大 design permission。A2 同时把三个 M-04B snapshot 从 Operit-only 输入校验改为
+完整项目 import multiset：AI Drawer、Primary Navigation 与 Software Home 分别只接受批准的
+semantic design import 变化，ARCH025/026/027 的其余依赖、源码 hash、owner 和测试接线继续
+精确锁定。
+
+M-05A2 已于 2026-08-02 通过 ARCH041 正反向 fixture、failure-first 缺失源证据、真实
+ARCH025/026/027/040/041、完整 architecture、全量 Python/JVM、formal/fresh-clone、
+范围内 lint、规定 Debug 构建与 APK 静态审计。仓库 full lint 仍报告既有 current-only
+问题，但两个新 design source 为 0 命中，唯一受影响路径命中不在 A2 改动行；该事实不放宽
+ARCH041，也不把范围外 lint 债务伪装为本切片失败。M-05A3 必须建立独立后续门禁，不能
+复用 ARCH041 代替 root theme、preference host 或 system-bar ownership 验证。
+
+M-05A3 使用 ARCH042 独立封板。必须新增：
+
+- `com/kiyori/design/theme/KiyoriTheme.kt`：只接收已解析 `ColorScheme`、标准命名的背景
+  effect `modifier` 与 `Typography`，保持
+  `fillMaxSize -> background -> effect modifier -> content` 顺序；不得读取 Context、
+  UserPreferences、Flow、Activity、Window、system-bar 或 Operit
+- `com/kiyori/design/theme/KiyoriTypography.kt`：唯一固定零 tracking Typography 与纯
+  `applyFontFamilyToTypography`；不得读取字体文件、Context、UserPreferences 或日志
+- `com/kiyori/app/theme/KiyoriTheme.kt`：唯一 `KiyoriTheme(content)` app host，精确订阅现有
+  `useSystemTheme/themeMode/statusBarHidden/useCustomFont/fontType/systemFontName/customFontPath/fontScale`
+  八个 Flow，以既有 initial 值计算 dark theme、调用现有配置字体 adapter、创建现有 Glass
+  状态，并委派 pure design theme 与 platform system-bar
+- `com/kiyori/platform/window/KiyoriApplicationSystemBars.kt`：唯一 Application
+  `enableEdgeToEdge`、透明 status bar、navigation background、status-bar hide/show、
+  transient-by-swipe 与 API 29 navigation contrast owner；不得读取 preference 或 Operit
+
+旧 `ui/theme/Theme.kt` 必须删除。MainActivity 与
+`ToolPkgDesktopWidgetConfigActivity` 只能各导入一次 app host；后者通过文件精确 ARCH001 例外
+复用唯一 host，不能放宽整个 `operit-widget` 到 `com.kiyori.app`。app host 对旧
+UserPreferences/Type/Glass 的过渡依赖同样只允许文件精确 ARCH004 例外并由 ARCH042 锁定。
+
+固定 `Typography` 与 `applyFontFamilyToTypography` 从旧 Type owner 移入 design，旧 Type 只
+保留配置字体、文件读取、UserPreferences 常量与日志适配；`OperitUtilityTheme`、
+`FloatingWindowTheme` 和三个纯字体应用消费者改为 design import，七条外部 import 由
+consumer snapshot 精确锁定。旧 `KiyoriThemeTest` 删除，零 tracking 断言迁入
+`KiyoriDesignThemeTest`。
+
+资源层必须把 6 个 values 变体声明和 Manifest 6 个引用从 `Theme.Operit` 精确改为
+`Theme.Kiyori`，保持 `KiyoriThemeBase`、全部 item、parent、浅深/v27/v29 行为和 Manifest
+组件集合不变，并更新 m03 semantic Manifest hash。ARCH039 MainActivity 完整项目 import
+snapshot 只把旧 theme import 改为 `com.kiyori.app.theme.KiyoriTheme`。
+
+PlayerActivity 的 LF-normalized SHA-256 必须继续为
+`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`；其
+`setDecorFitsSystemWindows(false)`、transient system-bars 与 hide(systemBars) 只能继续由
+PlayerActivity 拥有。LiquidGlass/WaterGlass 算法、CompositionLocal 和 capability 判断保持
+原 owner；A3 不新增 alias、facade、旧 style、fallback、第二偏好流或第二 system-bar owner。
+
+M-05A3 已按该合同封板：ARCH042 failure-first、正反向 fixture、真实工作树检查与完整
+architecture `phase=m03` 均通过。四个新 owner、七条 consumer import、两个文件精确 ownership
+exception、6 个 style 声明、Manifest 6 个引用、m03/ARCH039 snapshot 和 PlayerActivity 原 hash
+均由门禁锁定；旧 Theme owner、旧 symbol、旧 style 和旧测试清零。
+
+M-05B 使用 ARCH043 独立封板。`com/kiyori/platform/logging/KiyoriLogger.kt` 是唯一
+executor、提前解析的内部 filesDir、package-log root provider、`logFile`、`packageLogFile`
+和 `enableFileLogging` owner；进程 Context 继续只由 `ApplicationContextAccess` 持有，它只能
+导入 `ApplicationContextAccess` 与
+`ApplicationStartupTime` 两个项目内 platform contract，不得导入 Operit、feature、preference
+或 lifecycle manager。`KiyoriLogTextFormatter` 唯一持有 cause/stack/circular/truncation
+实现，旧 `ThrowableTextFormatter.kt` 必须删除。
+
+旧 `com.ai.assistance.operit.util.AppLogger` 必须继续存在并保留 priority、property 与全部
+`@JvmStatic` API，但只能委派 `KiyoriLogger`。facade 中 `@Volatile`、executor、FileWriter、
+formatter、正则、Context 和文件引用都必须为 0。Provider 的 `bindContext` 只把
+`applicationContext.filesDir` 解析为 `File` 后交给 logger，日志导出的
+`getLogFile/resetLogFile` 以及两个 `Mockito.mockStatic(AppLogger::class.java)` 测试继续锁定
+旧入口可解析。
+
+ARCH043 读取 `m05b-platform-logging-sha256.txt` 与
+`m05b-kiyori-logger-consumers.txt`，精确锁定四个 logging/Crash source 和 8 个 Kiyori app
+消费者。Kiyori source 旧 logger import 与完全限定引用必须为 0；Operit 消费者不批量迁移。
+`KiyoriApplication` 和 `MemoryDocumentsProvider` 分别保持 Application/Provider 时序下的
+早期目录绑定。M-05B 封板时 package-log 根目录由 `OperitPaths::kiyoriRootDir` 提供；
+M-05E 后两个绑定点均改为 `KiyoriPaths::kiyoriRootDir`，旧 facade 继续可解析但 platform
+logger 不复制 `Download/Kiyori` 目录计算。Display coordinator 的 logging 例外必须清零，
+其余精确例外只保留仍存在的 resource、state 或 Operit integration bridge。
+
+M-05B 的 failure-first 真实证据必须只报告缺少
+`app/src/main/java/com/kiyori/platform/logging/KiyoriLogger.kt`。正反向 fixture 必须覆盖
+platform 导入 Operit、facade 重新持有状态、文件名漂移、旧 formatter 残留、consumer 回流、
+static-mock/formatter test 删除和过期 exception 回流。完整合同与非目标见
+[M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)。
+
+M-05C 使用 ARCH044 独立封板。`KiyoriActivityLifecycle.kt` 必须是唯一
+`Application.ActivityLifecycleCallbacks` 注册 owner，并由唯一
+`KiyoriActivityLifecycleFacts` 保存 current Activity 弱引用、activity/started count 与
+foreground boolean；platform 文件不得导入任何项目代码，也不得出现 ApiPreferences、
+AppLogger、plugin、AI、Player、VirtualDisplay、Shower、WindowManager、CoroutineScope 或
+keep-screen-on 状态。
+
+`OperitActivityLifecycleIntegration.kt` 只保留原 keep-screen-on 偏好/计数和
+plugin/External Chat/microphone/PlayerCrash/VirtualDisplay/Shower 副作用，不得注册 callback、
+保存 Context、WeakReference、activity/started count 或 foreground state。plugin 的六个
+Activity event 与 application foreground/background event、`application_foreground` reason、
+`2500L` 阈值、`FLAG_KEEP_SCREEN_ON` 和最后 Activity `<= 0` 清理边界必须保持。
+
+旧 `ActivityLifecycleManager` 必须继续实现 `Application.ActivityLifecycleCallbacks`，保留
+`INSTANCE`、4 个业务方法和 7 个 callback 的 JVM ABI，并逐项委派 platform/integration；
+facade 中不得出现注册、Context、协程、偏好、状态或运行时副作用。ARCH044 读取
+`m05c-platform-lifecycle-sha256.txt` 与 `m05c-legacy-lifecycle-consumers.txt`，锁定三个生产
+owner 和 13 个旧 FQCN 引用路径；`KiyoriApplication` 继续唯一调用旧
+`initialize(this)`。四条 JVM 测试锁定 current Activity identity、前后台零边界、destroy
+count 与唯一 callback 注册。failure-first 必须先只报告缺少
+`com/kiyori/platform/lifecycle/KiyoriActivityLifecycle.kt`；正反向 fixture 必须拒绝状态回流、
+platform 反向依赖、第二注册、旧 consumer 丢失和测试断言删除。
+
+M-05C 已按该合同封板：ARCH044 failure-first、正反向 fixture、真实工作树与完整 architecture
+`phase=m03` 通过；三个生产 owner hash、13 个旧 FQCN consumer、完整旧 JVM ABI、唯一
+callback/facts owner、Operit side-effect owner 与 4 条 JVM facts test 均由门禁锁定。
+
+M-05D 使用 ARCH045 独立封板。`KiyoriNotificationPermissionCapability.kt` 必须是启动阶段
+`POST_NOTIFICATIONS` API 33 guard、system grant/rationale、`RequestPermission` launcher 与
+纯 action resolver 的唯一 owner；platform 不得 import 项目代码，不得出现 Toast、资源、
+日志、DataStore、SharedPreferences、其他权限或持久状态。
+
+`OperitNotificationPermissionResources.kt` 只允许桥接现有 denied/rationale 两个
+`R.string` ID，不复制文案、不读取权限、不持有状态。旧
+`KiyoriMainNotificationPermissionCoordinator` 保留 FQCN、
+`KiyoriMainNotificationPermissionCoordinator(ComponentActivity)` 和 `checkAndRequest()` 的
+精确 JVM ABI，继续拥有 6 条日志与 2 个 Toast 投影，但不得再出现 Build/Manifest/
+PackageManager/RequestPermission/ContextCompat/rationale/launcher 或直接 `R` import。
+`MainActivity` 继续一参数直接字段构造和一次 startup 调用，不接收 platform 或 resource
+实现。
+
+ARCH045 读取 `m05d-notification-permission-sha256.txt` 与
+`m05d-direct-notification-permission-consumers.txt`，锁定四个 owner/non-owner hash、
+三条直接 Kotlin consumer、一份 Manifest 声明、未改 `AndroidPermissionPreferences` hash、
+新 platform 4 条 JVM policy tests、旧 app action/resolver/test 清零以及 coordinator
+ARCH004 例外清零。failure-first 必须先只报告缺少
+`com/kiyori/platform/permission/KiyoriNotificationPermissionCapability.kt`；正反向 fixture
+必须拒绝反向依赖、状态/权限范围扩张、资源或 Activity 回流、consumer/preference/test 漂移
+和旧 exception 回流。
+
+M-05D 已按该合同封板：ARCH045 failure-first、ARCH036/045 正反向 fixture、真实工作树与
+完整 architecture `phase=m03` 通过；四个 hash、三条直接 consumer、一份 Manifest 声明、
+旧 coordinator 精确 ABI/日志/Toast、4 条 platform policy tests、未改 preference owner 与
+到期 exception 清零均由门禁锁定。
+
+M-05E 使用 ARCH046 独立封板。`com/kiyori/platform/storage/KiyoriPaths.kt` 必须是全部
+Kiyori public/internal/cache/files/backup 路径字面量、唯一 `Environment` public-download
+读取、唯一 `ensureDir` 和 plugin ID trim/Regex/hash 算法 owner；不得 import 项目代码，不得
+读取业务状态或执行 Browser/Player/Backup 流程。
+
+`KiyoriBackupPaths.kt` 只允许无状态委派 `KiyoriPaths`，不得声明目录字面量、排除集合、
+`Environment`、`mkdirs` 或 `ensureDir`。旧 `OperitPaths` 与 `OperitBackupDirs` 必须保留
+原 object、公开常量和方法 JVM ABI，但只能逐项委派；facade 中目录字符串、Regex、hash、
+排除集合和创建逻辑必须清零。
+
+ARCH046 读取 `m05e-storage-paths-sha256.txt`、
+`m05e-direct-kiyori-path-consumers.txt`、
+`m05e-direct-kiyori-backup-path-consumers.txt` 与
+`m05e-legacy-operit-path-consumers.txt`，精确锁定四个 owner/facade hash 和
+`9 direct path / 7 direct backup / 37 legacy path / 0 legacy backup external`
+consumer 集合。`KiyoriPathsTest` 必须保留 public 路径、raw snapshot 排除、plugin ID、
+backup hierarchy 和 pool hierarchy 五类断言。M-03 Application、M-05B logging 与
+`critical-file-hashes.txt` 中三个备份实现必须随合法 import 迁移更新 snapshot，而不得
+放宽旧行为合同。
+
+failure-first 必须先只报告缺少
+`com/kiyori/platform/storage/KiyoriPaths.kt`；正反向 fixture 必须拒绝 platform 反向依赖、
+projection/facade 第二计算、consumer 集合漂移、旧 backup consumer 回流和合同测试删除。
+完整范围、兼容边界与验证证据见
+[M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)。
+
+M-05E 已按该合同封板：ARCH046 failure-first、M-05B/M-05E 正反向 fixture、真实
+M-03/M-05B/M-05E/critical 检查与最终完整 architecture `phase=m03` 均通过；四个 source
+hash、`9 / 7 / 37 / 0` consumer 集合、旧 facade 完整 ABI、五条 JVM 路径合同和唯一
+calculation owner 均由门禁锁定。
 
 ## 旧标识登记
 

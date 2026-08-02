@@ -29,9 +29,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.ai.assistance.operit.ui.components.CustomScaffold
-import com.ai.assistance.operit.ui.main.LocalTopBarActions
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarActions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -57,8 +57,8 @@ import com.ai.assistance.operit.ui.features.token.model.NavDestination
 import com.ai.assistance.operit.ui.features.token.model.getIconForIndex
 import com.ai.assistance.operit.ui.features.token.preferences.UrlConfigManager
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
-import com.ai.assistance.operit.ui.theme.kiyoriSemanticToneForStableId
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.kiyoriSemanticToneForStableId
+import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.launch
 
 /** Token配置屏幕 */

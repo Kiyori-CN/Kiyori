@@ -1,6 +1,6 @@
 # Component rows use kind<TAB>value. Repeated rows preserve exact multiplicity.
 # The application row has baseline and post-M-01 values.
-application	.core.application.OperitApplication	.core.application.KiyoriApplication
+application	.core.application.OperitApplication	.core.application.KiyoriApplication	com.kiyori.app.KiyoriApplication
 activity	.core.tools.defaultTool.websession.browser.WebSessionDirectoryPickerActivity
 activity	.core.tools.defaultTool.websession.browser.WebSessionPermissionRequestActivity
 activity	.core.tools.defaultTool.websession.userscript.install.UserscriptImportPickerActivity

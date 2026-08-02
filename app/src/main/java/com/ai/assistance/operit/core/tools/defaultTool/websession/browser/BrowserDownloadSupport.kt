@@ -19,7 +19,7 @@ import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.util.AppLogger
-import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -1266,7 +1266,7 @@ internal class BrowserDownloadManager private constructor(
             runCatching {
                 val task = requireCompletedTask(taskId)
                 require(!task.isM3u8Package) { "M3U8离线包需要保留在应用下载目录" }
-                val publicDirectory = OperitPaths.browserDownloadsDir()
+                val publicDirectory = KiyoriPaths.browserDownloadsDir()
                 require(
                     task.destinationPath.isBlank() ||
                         File(task.destinationPath).parentFile?.canonicalFile != publicDirectory.canonicalFile,
@@ -3368,7 +3368,7 @@ private fun launchBrowserExternalIntent(context: Context, intent: Intent): Boole
 }
 
 private fun reserveUniquePublicDestinationFile(suggestedFileName: String): File {
-    val directory = OperitPaths.browserDownloadsDir()
+    val directory = KiyoriPaths.browserDownloadsDir()
     require(directory.isDirectory || directory.mkdirs()) {
         "Unable to create public browser download directory: ${directory.absolutePath}"
     }
@@ -3396,7 +3396,7 @@ internal fun browserDownloadApplicationDirectory(context: Context): File {
     return directory
 }
 
-internal fun browserDownloadPublicDirectory(): File = OperitPaths.browserDownloadsDir()
+internal fun browserDownloadPublicDirectory(): File = KiyoriPaths.browserDownloadsDir()
 
 private fun resolveUniqueBrowserDownloadFile(
     directory: File,

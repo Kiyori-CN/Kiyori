@@ -40,8 +40,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
-import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.KiyoriSettingsTheme
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
 
 internal enum class KiyoriSettingsNavigationIcon {
     BACK,

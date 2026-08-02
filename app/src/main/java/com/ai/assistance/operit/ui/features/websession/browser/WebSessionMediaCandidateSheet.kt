@@ -64,8 +64,8 @@ import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserMediaCandidateVideoFormat
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserMediaCandidate
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import java.util.Locale
 
 private const val ALL_VIDEO_FORMATS = "ALL"

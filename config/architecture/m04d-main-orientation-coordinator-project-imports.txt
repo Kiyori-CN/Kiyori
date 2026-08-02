@@ -1,0 +1,2 @@
+com.ai.assistance.operit.R
+com.kiyori.platform.logging.KiyoriLogger

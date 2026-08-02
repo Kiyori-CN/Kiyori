@@ -25,7 +25,7 @@ import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceTransferPhase
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadDestination
-import com.ai.assistance.operit.ui.theme.KiyoriBrowserTheme
+import com.kiyori.design.theme.KiyoriBrowserTheme
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged

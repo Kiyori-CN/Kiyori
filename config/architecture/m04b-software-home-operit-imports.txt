@@ -1,0 +1,9 @@
+com.ai.assistance.operit.R
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserWindowCountIcon
+com.ai.assistance.operit.ui.main.AiHomeQuickAction
+com.ai.assistance.operit.ui.main.weather.KiyoriWeatherRepository
+com.ai.assistance.operit.ui.main.weather.KiyoriWeatherState
+com.ai.assistance.operit.ui.main.weather.KiyoriWeatherVisual
+com.kiyori.design.theme.KiyoriSemanticTone
+com.kiyori.design.theme.kiyoriWeatherSunColor
+com.kiyori.design.theme.resolveColors

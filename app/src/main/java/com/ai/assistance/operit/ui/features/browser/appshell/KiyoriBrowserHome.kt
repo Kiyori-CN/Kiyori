@@ -17,7 +17,7 @@ import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentation
 import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentationLease
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
-import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserExitPresentation
+import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
 
 @Composable
 internal fun KiyoriBrowserHome(

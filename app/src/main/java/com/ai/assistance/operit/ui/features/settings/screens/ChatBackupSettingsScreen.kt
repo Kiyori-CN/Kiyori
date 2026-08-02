@@ -69,7 +69,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.ImportStrategy
 import com.ai.assistance.operit.data.model.MemorySpace
-import com.ai.assistance.operit.data.backup.OperitBackupDirs
+import com.kiyori.platform.storage.KiyoriBackupPaths
 import com.ai.assistance.operit.data.backup.RawSnapshotBackupManager
 import com.ai.assistance.operit.data.backup.RoomDatabaseBackupManager
 import com.ai.assistance.operit.data.backup.RoomDatabaseBackupPreferences
@@ -267,7 +267,7 @@ fun ChatBackupSettingsScreen() {
         scope.launch {
             isScanning = true
             try {
-                val legacyDir = OperitBackupDirs.kiyoriRootDir()
+                val legacyDir = KiyoriBackupPaths.kiyoriRootDir()
                 val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
 
                 fun mergedFiles(newDir: File): List<File> {
@@ -277,11 +277,11 @@ fun ChatBackupSettingsScreen() {
                         .distinctBy { it.name }
                 }
 
-                val chatFiles = mergedFiles(OperitBackupDirs.chatDir())
-                val characterCardFiles = mergedFiles(OperitBackupDirs.characterCardsDir())
-                val memoryFiles = mergedFiles(OperitBackupDirs.memoryDir())
-                val modelConfigFiles = mergedFiles(OperitBackupDirs.modelConfigDir())
-                val roomDbFiles = mergedFiles(OperitBackupDirs.roomDbDir())
+                val chatFiles = mergedFiles(KiyoriBackupPaths.chatDir())
+                val characterCardFiles = mergedFiles(KiyoriBackupPaths.characterCardsDir())
+                val memoryFiles = mergedFiles(KiyoriBackupPaths.memoryDir())
+                val modelConfigFiles = mergedFiles(KiyoriBackupPaths.modelConfigDir())
+                val roomDbFiles = mergedFiles(KiyoriBackupPaths.roomDbDir())
 
                 chatBackupFileCount = chatFiles.count { file ->
                     file.name.startsWith("chat_backup_") && file.extension == "json" ||
@@ -493,7 +493,7 @@ fun ChatBackupSettingsScreen() {
                     scope.launch {
                         isScanning = true
                         try {
-                            val legacyDir = OperitBackupDirs.kiyoriRootDir()
+                            val legacyDir = KiyoriBackupPaths.kiyoriRootDir()
                             val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
 
                             fun mergedFiles(newDir: File): List<File> {
@@ -503,11 +503,11 @@ fun ChatBackupSettingsScreen() {
                                     .distinctBy { it.name }
                             }
 
-                            val chatFiles = mergedFiles(OperitBackupDirs.chatDir())
-                            val characterCardFiles = mergedFiles(OperitBackupDirs.characterCardsDir())
-                            val memoryFiles = mergedFiles(OperitBackupDirs.memoryDir())
-                            val modelConfigFiles = mergedFiles(OperitBackupDirs.modelConfigDir())
-                            val roomDbFiles = mergedFiles(OperitBackupDirs.roomDbDir())
+                            val chatFiles = mergedFiles(KiyoriBackupPaths.chatDir())
+                            val characterCardFiles = mergedFiles(KiyoriBackupPaths.characterCardsDir())
+                            val memoryFiles = mergedFiles(KiyoriBackupPaths.memoryDir())
+                            val modelConfigFiles = mergedFiles(KiyoriBackupPaths.modelConfigDir())
+                            val roomDbFiles = mergedFiles(KiyoriBackupPaths.roomDbDir())
 
                             chatBackupFileCount = chatFiles.count { file ->
                                 file.name.startsWith("chat_backup_") && file.extension == "json" ||
@@ -633,7 +633,7 @@ fun ChatBackupSettingsScreen() {
                         modelConfigOperationState = ModelConfigOperation.EXPORTING
                         try {
                             val jsonContent = modelConfigManager.exportAllConfigs()
-                            val exportDir = OperitBackupDirs.modelConfigDir()
+                            val exportDir = KiyoriBackupPaths.modelConfigDir()
                             val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
                             val timestamp = dateFormat.format(Date())
                             val exportFile = File(exportDir, "model_config_backup_$timestamp.json")
@@ -747,9 +747,9 @@ fun ChatBackupSettingsScreen() {
                                         RoomDatabaseBackupManager.pruneExcessBackups(context)
                                         isScanning = true
                                         try {
-                                            val legacyDir = OperitBackupDirs.kiyoriRootDir()
+                                            val legacyDir = KiyoriBackupPaths.kiyoriRootDir()
                                             val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
-                                            val newFiles = OperitBackupDirs.roomDbDir().listFiles()?.toList() ?: emptyList()
+                                            val newFiles = KiyoriBackupPaths.roomDbDir().listFiles()?.toList() ?: emptyList()
                                             val roomDbFiles = (newFiles + legacyFiles)
                                                 .filter { it.isFile }
                                                 .distinctBy { it.name }
@@ -801,9 +801,9 @@ fun ChatBackupSettingsScreen() {
 
                                         isScanning = true
                                         try {
-                                            val legacyDir = OperitBackupDirs.kiyoriRootDir()
+                                            val legacyDir = KiyoriBackupPaths.kiyoriRootDir()
                                             val legacyFiles = legacyDir.listFiles()?.toList() ?: emptyList()
-                                            val newFiles = OperitBackupDirs.roomDbDir().listFiles()?.toList() ?: emptyList()
+                                            val newFiles = KiyoriBackupPaths.roomDbDir().listFiles()?.toList() ?: emptyList()
                                             val roomDbFiles = (newFiles + legacyFiles)
                                                 .filter { it.isFile }
                                                 .distinctBy { it.name }
@@ -1598,7 +1598,7 @@ private suspend fun exportMemories(_context: Context, memoryRepository: MemoryRe
         try {
             val jsonString = memoryRepository.exportMemoriesToJson()
 
-            val exportDir = OperitBackupDirs.memoryDir()
+            val exportDir = KiyoriBackupPaths.memoryDir()
 
             val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
             val timestamp = dateFormat.format(Date())

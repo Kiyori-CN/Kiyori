@@ -34,8 +34,8 @@ import java.net.ProtocolException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import com.ai.assistance.operit.api.voice.TtsException
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 
 /** 文本转语音演示屏幕 */
 @OptIn(ExperimentalMaterial3Api::class)

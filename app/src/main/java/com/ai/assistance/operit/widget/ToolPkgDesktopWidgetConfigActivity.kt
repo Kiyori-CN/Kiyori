@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.lifecycle.lifecycleScope
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
-import com.ai.assistance.operit.ui.theme.OperitTheme
+import com.kiyori.app.theme.KiyoriTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -63,7 +63,7 @@ class ToolPkgDesktopWidgetConfigActivity : ComponentActivity() {
         }
 
         setContent {
-            OperitTheme {
+            KiyoriTheme {
                 ToolPkgDesktopWidgetConfigScreen(
                     appWidgetId = appWidgetId,
                     onCancel = { finish() },

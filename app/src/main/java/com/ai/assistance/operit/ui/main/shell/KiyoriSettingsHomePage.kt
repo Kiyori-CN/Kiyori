@@ -49,10 +49,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.KiyoriSettingsTheme
-import com.ai.assistance.operit.ui.theme.LocalKiyoriSettingsColors
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSettingsTheme
+import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.design.theme.resolveColors
 
 internal data class KiyoriSettingsHomeEntry(
     val title: String,

@@ -722,8 +722,9 @@ Download/Kiyori/
 		exports/
 ```
 
-正式实现通过 `OperitPaths.privateWebSessionUserscriptsDir(context)` 持有 userscript 内部目录；后续 `.kbx`
-同样通过 `OperitPaths` 增加内部目录入口和显式导入导出的公共目录入口。
+正式实现通过 `KiyoriPaths.privateWebSessionUserscriptsDir(context)` 持有 userscript 内部目录；
+后续 `.kbx` 同样通过唯一 `KiyoriPaths` owner 增加内部目录入口和显式导入导出的公共目录入口。
+旧 `OperitPaths` 只作为 Operit consumer 的兼容委派，不拥有第二路径计算。
 UI 和 Provider 不拼接路径。现有 `Download/Kiyori/websession/userscripts` 只作为一次性迁移来源，迁移完成后
 不再由 runtime 执行其中的源码。
 

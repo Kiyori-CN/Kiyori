@@ -41,8 +41,8 @@ import com.ai.assistance.operit.ui.features.settings.sections.SaveThemeSettingsA
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsFontSection
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsSectionTitle
 import com.ai.assistance.operit.ui.features.settings.sections.ThemeSettingsThemeModeSection
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.FileUtils
 import kotlinx.coroutines.launch

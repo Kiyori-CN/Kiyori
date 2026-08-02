@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.ui.main
 
-import com.ai.assistance.operit.ui.main.shell.KiyoriShellExternalDestination
+import com.kiyori.app.shell.KiyoriShellExternalDestination
+import com.kiyori.app.startup.resolveKiyoriDownloadTaskId
+import com.kiyori.app.startup.resolveKiyoriShellExternalDestination
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -35,11 +35,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.main.LocalTopBarActions
-import com.ai.assistance.operit.ui.main.LocalTopBarTitleContent
-import com.ai.assistance.operit.ui.main.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.components.LocalAppBarContentColor
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarActions
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarTitleContent
+import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
 
 @Composable
 fun BindMarketSearchToTopBar(

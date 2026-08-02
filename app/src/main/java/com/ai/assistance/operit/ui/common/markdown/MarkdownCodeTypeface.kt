@@ -2,7 +2,7 @@ package com.ai.assistance.operit.ui.common.markdown
 
 import android.content.Context
 import android.graphics.Typeface
-import com.ai.assistance.operit.core.application.KiyoriApplication
+import com.kiyori.platform.android.ApplicationContextAccess
 
 private object MarkdownCodeTypefaceCache {
     @Volatile
@@ -27,5 +27,5 @@ internal fun getMarkdownCodeTypeface(context: Context): Typeface {
 }
 
 internal fun getMarkdownCodeTypeface(): Typeface {
-    return getMarkdownCodeTypeface(KiyoriApplication.instance.applicationContext)
+    return getMarkdownCodeTypeface(ApplicationContextAccess.current)
 }

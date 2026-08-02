@@ -7,7 +7,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptResourceEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRunAt
 import com.ai.assistance.operit.util.AppLogger
-import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
 import java.security.MessageDigest
 import java.util.Locale
@@ -63,10 +63,10 @@ internal class UserscriptJsonStore private constructor(context: Context) {
             encodeDefaults = true
             prettyPrint = true
         }
-    private val legacyRootDir = OperitPaths.webSessionUserscriptsDir()
+    private val legacyRootDir = KiyoriPaths.webSessionUserscriptsDir()
     internal val layout =
         UserscriptStorageLayout(
-            OperitPaths.privateWebSessionUserscriptsDir(context),
+            KiyoriPaths.privateWebSessionUserscriptsDir(context),
         ).apply {
             ensureDirectories()
         }

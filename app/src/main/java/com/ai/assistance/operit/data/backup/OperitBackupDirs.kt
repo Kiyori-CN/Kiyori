@@ -1,46 +1,28 @@
 package com.ai.assistance.operit.data.backup
 
-import com.ai.assistance.operit.util.OperitPaths
+import com.kiyori.platform.storage.KiyoriBackupPaths
 import java.io.File
 
+/**
+ * 旧备份路径 FQCN 的兼容入口。
+ *
+ * 该对象保留原方法 ABI，但不再拥有目录名、层级或创建逻辑。
+ */
 object OperitBackupDirs {
 
-    fun kiyoriRootDir(): File {
-        return OperitPaths.kiyoriRootDir()
-    }
+    fun kiyoriRootDir(): File = KiyoriBackupPaths.kiyoriRootDir()
 
-    fun backupRootDir(): File {
-        return ensureDir(File(kiyoriRootDir(), "backup"))
-    }
+    fun backupRootDir(): File = KiyoriBackupPaths.backupRootDir()
 
-    fun rawSnapshotDir(): File {
-        return ensureDir(File(backupRootDir(), "raw_snapshot"))
-    }
+    fun rawSnapshotDir(): File = KiyoriBackupPaths.rawSnapshotDir()
 
-    fun roomDbDir(): File {
-        return ensureDir(File(backupRootDir(), "room_db"))
-    }
+    fun roomDbDir(): File = KiyoriBackupPaths.roomDbDir()
 
-    fun chatDir(): File {
-        return ensureDir(File(backupRootDir(), "chat"))
-    }
+    fun chatDir(): File = KiyoriBackupPaths.chatDir()
 
-    fun memoryDir(): File {
-        return ensureDir(File(backupRootDir(), "memory"))
-    }
+    fun memoryDir(): File = KiyoriBackupPaths.memoryDir()
 
-    fun modelConfigDir(): File {
-        return ensureDir(File(backupRootDir(), "model_config"))
-    }
+    fun modelConfigDir(): File = KiyoriBackupPaths.modelConfigDir()
 
-    fun characterCardsDir(): File {
-        return ensureDir(File(backupRootDir(), "character_cards"))
-    }
-
-    private fun ensureDir(dir: File): File {
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        return dir
-    }
+    fun characterCardsDir(): File = KiyoriBackupPaths.characterCardsDir()
 }

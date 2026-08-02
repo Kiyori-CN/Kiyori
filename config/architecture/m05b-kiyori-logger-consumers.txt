@@ -1,0 +1,8 @@
+app/src/main/java/com/kiyori/app/KiyoriApp.kt
+app/src/main/java/com/kiyori/app/KiyoriApplication.kt
+app/src/main/java/com/kiyori/app/startup/KiyoriMainDisplayCoordinator.kt
+app/src/main/java/com/kiyori/app/startup/KiyoriMainNotificationPermissionCoordinator.kt
+app/src/main/java/com/kiyori/app/startup/KiyoriMainOrientationCoordinator.kt
+app/src/main/java/com/kiyori/app/startup/KiyoriMainSharedContentCoordinator.kt
+app/src/main/java/com/kiyori/app/startup/KiyoriMainStartupGateCoordinator.kt
+app/src/main/java/com/kiyori/app/startup/KiyoriMainTaskVisibilityCoordinator.kt

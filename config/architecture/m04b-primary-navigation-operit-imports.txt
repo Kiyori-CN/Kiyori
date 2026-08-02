@@ -1,0 +1,10 @@
+com.ai.assistance.operit.R
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_ACTION_SIZE_DP
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_BOTTOM_PADDING_DP
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_CENTER_ICON_SIZE_DP
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_ICON_SIZE_DP
+com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_TOP_PADDING_DP
+com.ai.assistance.operit.ui.main.shell.KiyoriFileManagementPage
+com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
+com.kiyori.design.theme.KiyoriBottomNavigationSelectedFillColor

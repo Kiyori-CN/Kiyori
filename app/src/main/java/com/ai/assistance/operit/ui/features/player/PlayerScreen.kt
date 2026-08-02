@@ -72,8 +72,8 @@ import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
 import com.ai.assistance.operit.core.player.buildPlayerDebugLogReport
-import com.ai.assistance.operit.ui.theme.KiyoriSemanticTone
-import com.ai.assistance.operit.ui.theme.resolveColors
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -680,7 +680,7 @@ private fun PlayerLogEntryRow(entry: PlayerDebugLogLine) {
     val levelColors =
         when (entry.level) {
             PlayerDebugLogLevel.DEBUG ->
-                com.ai.assistance.operit.ui.theme.KiyoriSemanticColors(
+                com.kiyori.design.theme.KiyoriSemanticColors(
                     icon = MaterialTheme.colorScheme.onSurfaceVariant,
                     container = MaterialTheme.colorScheme.surfaceVariant
                 )

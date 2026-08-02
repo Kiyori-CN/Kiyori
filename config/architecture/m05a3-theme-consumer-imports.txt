@@ -1,0 +1,7 @@
+app/src/main/java/com/ai/assistance/operit/ui/common/OperitUtilityTheme.kt	com.kiyori.design.theme.KiyoriTypography
+app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/bubble/BubbleAiMessageComposable.kt	com.kiyori.design.theme.applyFontFamilyToTypography
+app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/bubble/BubbleUserMessageComposable.kt	com.kiyori.design.theme.applyFontFamilyToTypography
+app/src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ThemeSettingsCoreSections.kt	com.kiyori.design.theme.applyFontFamilyToTypography
+app/src/main/java/com/ai/assistance/operit/ui/floating/FloatingWindowTheme.kt	com.kiyori.design.theme.KiyoriTypography
+app/src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt	com.kiyori.app.theme.KiyoriTheme
+app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetConfigActivity.kt	com.kiyori.app.theme.KiyoriTheme

@@ -163,11 +163,11 @@ import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
 import com.ai.assistance.operit.ui.common.markdown.DefaultXmlRenderer
 import com.ai.assistance.operit.ui.common.markdown.StreamMarkdownRenderer
 import com.ai.assistance.operit.ui.components.CustomScaffold
-import com.ai.assistance.operit.ui.main.LocalTopBarTitleContent
-import com.ai.assistance.operit.ui.main.TopBarTitleContent
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarTitleContent
+import com.ai.assistance.operit.ui.main.navigation.TopBarTitleContent
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
 import com.ai.assistance.operit.ui.theme.getSystemFontFamily
 import com.ai.assistance.operit.ui.theme.loadCustomFontFamily

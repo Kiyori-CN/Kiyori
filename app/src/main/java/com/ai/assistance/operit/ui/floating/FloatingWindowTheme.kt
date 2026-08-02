@@ -5,8 +5,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.ui.unit.sp
-import com.ai.assistance.operit.ui.theme.KiyoriLightColorScheme
-import com.ai.assistance.operit.ui.theme.Typography as KiyoriTypography
+import com.kiyori.design.theme.KiyoriLightColorScheme
+import com.kiyori.design.theme.KiyoriTypography
 
 /**
  * 为悬浮窗提供的独立主题
