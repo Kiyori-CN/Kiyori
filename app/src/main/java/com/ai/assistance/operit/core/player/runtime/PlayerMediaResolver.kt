@@ -1,9 +1,9 @@
 package com.ai.assistance.operit.core.player.runtime
 
 import android.content.Context
-import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.core.net.toUri
 import java.io.File
 import java.util.Locale
 
@@ -13,7 +13,7 @@ internal class PlayerMediaResolver(context: Context) {
 
     fun resolve(uriText: String): String {
         close()
-        val uri = Uri.parse(uriText)
+        val uri = uriText.toUri()
         return when (uri.scheme?.lowercase(Locale.ROOT)) {
             "content" -> {
                 val descriptor =

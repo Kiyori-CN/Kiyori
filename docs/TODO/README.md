@@ -36,11 +36,15 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 - [M-05 Design 与 Platform 精确实施清单](kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md)
 - [Stage 4 前质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
 
-当前状态：`M-05 complete / M-05E sealed / quality gate QD-02 in progress`。QD-01 已补齐
+当前状态：`M-05 complete / M-05E sealed / quality gate QD-03 in progress`。QD-01 已补齐
 五个非默认语言目录中的 22 个 Browser history 字符串，并把 Compose 动态资源读取改为
 `LocalResources`/`stringResource`；XML、占位符、Kotlin 编译、三组 WebSession 单测和 fresh
 full lint 均通过，current-only Lint 已从 `27 errors / 287 warnings / 3 hints` 收敛到
-`0 errors / 287 warnings / 3 hints`，没有修改 baseline 或新增 suppress。正式实施严格按
+`0 errors / 287 warnings / 3 hints`。QD-02 又以行为保持方式完成 52 处 SharedPreferences
+KTX、7 处图形/URI KTX、3 个不可达 SDK 分支、2 个 `Modifier` 参数顺序和 2 个 primitive
+state 修复；完整 JVM `137 suites / 822 tests`、Kotlin 编译、fresh lint、formal readiness
+和 Debug APK 构建均通过，当前为 `0 errors / 223 warnings / 1 baseline hint`，没有修改
+baseline 或新增 suppress。正式实施严格按
 “本地备份与安全点 -> M-00 -> G-00 -> M-01 -> M-02 -> M-03 -> M-04”串行推进；
 M-00、G-00 和 M-01 的门禁、测试和 Debug APK 验证均已通过；
 后续 G-00 加固已关闭 fresh-clone、Java static import、完全限定项目引用和重复

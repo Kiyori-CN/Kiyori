@@ -3159,7 +3159,7 @@ private fun StandardBrowserSessionTools.enqueueSystemBrowserDownload(
     }
     val settings = BrowserDownloadSettingsStore.getInstance(context).current
     val systemRequest =
-        DownloadManager.Request(Uri.parse(request.url)).apply {
+        DownloadManager.Request(request.url.toUri()).apply {
             request.mimeType?.takeIf { value -> value.isNotBlank() }?.let(::setMimeType)
             setAllowedOverMetered(
                 settings.networkPolicy == BrowserDownloadNetworkPolicy.ANY,

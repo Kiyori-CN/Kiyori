@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.core.net.toUri
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.Locale
@@ -15,7 +16,7 @@ internal object PlayerQueueResolver {
         current: PlayerMediaRequest,
     ): List<PlayerMediaRequest> {
         if (current.source != PlayerMediaSource.EXTERNAL_INTENT) return listOf(current)
-        val uri = Uri.parse(current.uri)
+        val uri = current.uri.toUri()
         return when (uri.scheme?.lowercase(Locale.ROOT)) {
             "file" -> resolveFileQueue(current, uri)
             "content" -> resolveMediaStoreQueue(context, current, uri)

@@ -731,11 +731,11 @@ private fun BoxScope.FloatingPlayerLockedUnlockButtons(
 private fun FloatingPlayerResourceButton(
     description: String,
     resId: Int,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     size: androidx.compose.ui.unit.Dp = 34.dp,
     iconSize: androidx.compose.ui.unit.Dp = 20.dp,
     onClick: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     IconButton(
         onClick = onClick,

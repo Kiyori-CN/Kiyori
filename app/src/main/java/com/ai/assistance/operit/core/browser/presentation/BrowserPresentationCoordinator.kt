@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.core.browser.presentation
 
 import android.content.Context
-import android.os.Build
 import android.provider.Settings
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
@@ -104,10 +103,7 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.runOnMainSync<Unit> {
             val keepInBackgroundAnchor =
                 mode == BrowserAppPresentationReleaseMode.MINIMIZE &&
-                    (
-                        Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-                            Settings.canDrawOverlays(appContext)
-                    )
+                    Settings.canDrawOverlays(appContext)
             presentation.releaseAppPresentation(
                 webViewHost = webViewHost,
                 keepInBackgroundAnchor = keepInBackgroundAnchor,

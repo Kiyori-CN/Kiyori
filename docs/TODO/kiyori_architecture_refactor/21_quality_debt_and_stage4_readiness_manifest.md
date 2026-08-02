@@ -1,7 +1,7 @@
 ---
 status: debt_cleanup_in_progress
 baseline_commit: 6b6493a0bfd12072116e45fb733d551fad13e32b
-current_phase: qd-02-kotlin-compose-modernization
+current_phase: qd-03-resource-and-asset-cleanup
 device_scope: excluded
 release_scope: excluded
 ---
@@ -38,17 +38,17 @@ release_scope: excluded
 
 ## 当前 Lint 债务
 
-质量清理初始报告包含 `317` 条未基线化记录。QD-01 完成后的 fresh full lint 报告包含
-`290` 条 XML 记录：
+质量清理初始报告包含 `317` 条未基线化记录。QD-02 完成后的 fresh full lint 报告包含
+`224` 条 XML 记录：
 
 | 严重级别 | 数量 | 说明 |
 | --- | ---: | --- |
 | Error | 0 | QD-01 已清除 22 条缺失翻译和 5 条 Compose 资源读取错误 |
-| Warning | 287 | 资源、KTX、位图目录、WebView feature、复数、平台和依赖问题 |
-| Hint | 3 | 2 条 primitive state，1 条现有 baseline 状态提示 |
+| Warning | 223 | 资源、位图目录、WebView feature、复数、平台和依赖问题 |
+| Hint | 1 | 现有 baseline 状态提示 |
 
 Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因此同一次执行摘要为
-`287 warnings / 2 hints`。本清单的结构化数量以
+`223 warnings`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
 当前 `app/lint-baseline.xml` 另有 `5791` 条历史记录，结构化统计为
@@ -92,7 +92,7 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 ### QD-02：行为保持型 Kotlin 与 Compose 现代化
 
-状态：`in_progress`
+状态：`completed`
 
 范围：
 
@@ -111,7 +111,24 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 完成信号：上述四类 current-only 记录为 `0`，相关 JVM/编译检查通过。
 
+验证证据：
+
+- 52 处 SharedPreferences 写入改用 AndroidX KTX `edit`，仍使用默认异步
+  `apply`，持久化键、值、条件删除和内存状态更新顺序不变
+- 7 处 URI/Bitmap/Canvas/Drawable 调用改用等价 KTX API；缩略图仍按同一
+  translate -> scale -> draw 顺序渲染
+- 3 个 minSdk 26 下不可达的 SDK 分支已删除，未增加兼容回退
+- 2 个 Composable 只调整 `Modifier` 参数位置，现有调用均使用命名参数；2 个整数状态改用
+  `mutableIntStateOf`
+- `:app:compileDebugKotlin` 和完整 `:app:testDebugUnitTest` 通过：
+  `137 suites / 822 tests / 0 failures / 0 errors / 0 skipped`
+- fresh `:app:lintDebug` 成功；`UseKtx=0`、`ObsoleteSdkInt=0`、
+  `ModifierParameter=0`、`AutoboxingStateCreation=0`
+- `:app:assembleDebug` 和 formal readiness 通过；未修改 baseline 或新增 suppress
+
 ### QD-03：资源、图片目录与复数
+
+状态：`in_progress`
 
 范围：
 
@@ -130,6 +147,8 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 完成信号：三类 current-only 记录为 `0`，资源合并、翻译和 Debug 构建通过。
 
 ### QD-04：Android 与 Browser 平台合同
+
+状态：`pending`
 
 范围：
 
@@ -151,6 +170,8 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 - 动态语言切换、Android 14 selected media、JobScheduler ID、窗口宽度和播放器方向必须
   使用官方稳定合同，并保持现有产品行为或在未发布内部方案中完整替换旧实现
 - 自定义 View 补齐工具构造合同，不复制渲染状态
+- Kotlin 编译当前另报告同一 `WebSettings.databaseEnabled` 位置的 2 条弃用警报；该 API
+  必须在本批按当前 WebView 合同移除或替换，禁止通过 suppress 保留
 
 完成信号：上述八类 current-only 记录为 `0`，Browser/Player/启动定向测试通过。
 

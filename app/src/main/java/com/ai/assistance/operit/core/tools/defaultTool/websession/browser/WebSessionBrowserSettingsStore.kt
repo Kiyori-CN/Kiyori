@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,27 +32,27 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
 
     fun setHomeUrl(url: String) {
         require(isSupportedBrowserHomeUrl(url)) { "Unsupported browser home URL: $url" }
-        preferences.edit().putString(KEY_HOME_URL, url).apply()
+        preferences.edit { putString(KEY_HOME_URL, url) }
         _state.value = _state.value.copy(homeUrl = url)
     }
 
     fun setAllowWebPageOpenApp(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_ALLOW_WEB_PAGE_OPEN_APP, enabled).apply()
+        preferences.edit { putBoolean(KEY_ALLOW_WEB_PAGE_OPEN_APP, enabled) }
         _state.value = _state.value.copy(allowWebPageOpenApp = enabled)
     }
 
     fun setAllowWebPageGeolocation(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_ALLOW_WEB_PAGE_GEOLOCATION, enabled).apply()
+        preferences.edit { putBoolean(KEY_ALLOW_WEB_PAGE_GEOLOCATION, enabled) }
         _state.value = _state.value.copy(allowWebPageGeolocation = enabled)
     }
 
     fun setShowMediaCandidateBadge(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, enabled).apply()
+        preferences.edit { putBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, enabled) }
         _state.value = _state.value.copy(showMediaCandidateBadge = enabled)
     }
 
     fun setAutomaticFloatingPlaybackEnabled(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_AUTOMATIC_FLOATING_PLAYBACK, enabled).apply()
+        preferences.edit { putBoolean(KEY_AUTOMATIC_FLOATING_PLAYBACK, enabled) }
         _state.value = _state.value.copy(automaticFloatingPlaybackEnabled = enabled)
     }
 
@@ -61,17 +62,17 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                 "Custom global user-agent must be saved before selecting its mode"
             }
         }
-        preferences.edit().putString(KEY_USER_AGENT_MODE, mode.persistedId).apply()
+        preferences.edit { putString(KEY_USER_AGENT_MODE, mode.persistedId) }
         _state.value = _state.value.copy(userAgentMode = mode)
     }
 
     fun setCustomGlobalUserAgentAndSelect(userAgent: String) {
         val normalized = userAgent.trim()
         require(normalized.isNotEmpty()) { "Custom global user-agent must not be blank" }
-        preferences.edit()
-            .putString(KEY_CUSTOM_GLOBAL_USER_AGENT, normalized)
-            .putString(KEY_USER_AGENT_MODE, WebSessionUserAgentMode.CUSTOM_GLOBAL.persistedId)
-            .apply()
+        preferences.edit {
+            putString(KEY_CUSTOM_GLOBAL_USER_AGENT, normalized)
+            putString(KEY_USER_AGENT_MODE, WebSessionUserAgentMode.CUSTOM_GLOBAL.persistedId)
+        }
         _state.value =
             _state.value.copy(
                 userAgentMode = WebSessionUserAgentMode.CUSTOM_GLOBAL,
@@ -141,7 +142,7 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     private fun writeSiteUserAgentRules(rules: List<WebSessionSiteUserAgentRule>) {
         val encoded = JSONObject()
         rules.forEach { rule -> encoded.put(rule.domain, rule.userAgent) }
-        preferences.edit().putString(KEY_SITE_USER_AGENTS, encoded.toString()).apply()
+        preferences.edit { putString(KEY_SITE_USER_AGENTS, encoded.toString()) }
         _state.value = _state.value.copy(siteUserAgentRules = rules)
     }
 

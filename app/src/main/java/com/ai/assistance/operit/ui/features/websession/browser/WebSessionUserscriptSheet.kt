@@ -98,6 +98,7 @@ private enum class UserscriptLogFilter {
 @Composable
 internal fun WebSessionUserscriptSheet(
     state: WebSessionUserscriptUiState,
+    modifier: Modifier = Modifier,
     initialTab: WebSessionUserscriptWorkbenchTab = WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
     initialSearchQuery: String = "",
     currentPageMenuCommands: List<UserscriptPageMenuCommand>,
@@ -121,7 +122,6 @@ internal fun WebSessionUserscriptSheet(
     onOpenPluginLibrarySource: (String) -> Unit,
     onInvokeMenuCommand: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current

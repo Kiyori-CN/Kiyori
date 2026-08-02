@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,7 +106,7 @@ internal fun PlayerGestureLayer(
     var verticalProgress by remember { mutableStateOf<Float?>(null) }
     var verticalOnRight by remember { mutableStateOf(false) }
     var verticalIsBrightness by remember { mutableStateOf(false) }
-    var verticalPercent by remember { mutableStateOf(0) }
+    var verticalPercent by remember { mutableIntStateOf(0) }
     var lastTapTimeMillis by remember { mutableLongStateOf(0L) }
     var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
     var pendingSingleTap by remember { mutableStateOf<Job?>(null) }

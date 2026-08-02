@@ -29,6 +29,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
@@ -1436,10 +1438,7 @@ internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: 
     val appContext = context.applicationContext
     val host = ensureBrowserPresentationOnMain(appContext)
     if (!host.hasAppPresentation() && !host.hasBackgroundAnchorPresentation()) {
-        check(
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-                Settings.canDrawOverlays(appContext),
-        ) {
+        check(Settings.canDrawOverlays(appContext)) {
             "Overlay permission is required for browser tools while Browser Home is not mounted."
         }
         ensureBackgroundAnchorOnMain(appContext)
@@ -1644,7 +1643,7 @@ internal fun StandardBrowserSessionTools.requestSessionThumbnailOnMain(
                         return
                     }
                     val bitmap =
-                        Bitmap.createBitmap(
+                        createBitmap(
                             BROWSER_TAB_THUMBNAIL_WIDTH_PX,
                             BROWSER_TAB_THUMBNAIL_HEIGHT_PX,
                             Bitmap.Config.ARGB_8888,
@@ -1656,11 +1655,10 @@ internal fun StandardBrowserSessionTools.requestSessionThumbnailOnMain(
                             sourceWidth = sourceWidth,
                             sourceHeight = sourceHeight,
                         ) ?: return
-                    canvas.save()
-                    canvas.translate(transform.offsetX, transform.offsetY)
-                    canvas.scale(transform.scale, transform.scale)
-                    webView.draw(canvas)
-                    canvas.restore()
+                    canvas.withTranslation(transform.offsetX, transform.offsetY) {
+                        scale(transform.scale, transform.scale)
+                        webView.draw(this)
+                    }
                     session.thumbnail = bitmap
                     session.thumbnailUpdatedAt = System.currentTimeMillis()
                     refreshSessionUiOnMain(session.id)

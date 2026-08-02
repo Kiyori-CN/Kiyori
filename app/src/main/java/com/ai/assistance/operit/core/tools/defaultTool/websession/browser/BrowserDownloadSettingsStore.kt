@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,11 +91,10 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         get() = _state.value
 
     fun setDefaultEngine(value: BrowserDownloadEngine) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putString(KEY_DEFAULT_ENGINE, value.persistedId)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putString(KEY_DEFAULT_ENGINE, value.persistedId)
+        }
         _state.value = _state.value.copy(defaultEngine = value)
     }
 
@@ -104,13 +104,12 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         val previousUri = _state.value.customDirectoryUri
         require(normalizedUri.isNotBlank()) { "Custom browser download directory URI is blank" }
         require(normalizedName.isNotBlank()) { "Custom browser download directory name is blank" }
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putString(KEY_CUSTOM_DIRECTORY_URI, normalizedUri)
-            .putString(KEY_CUSTOM_DIRECTORY_NAME, normalizedName)
-            .putBoolean(KEY_AUTO_TRANSFER_TO_PUBLIC_DIRECTORY, false)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putString(KEY_CUSTOM_DIRECTORY_URI, normalizedUri)
+            putString(KEY_CUSTOM_DIRECTORY_NAME, normalizedName)
+            putBoolean(KEY_AUTO_TRANSFER_TO_PUBLIC_DIRECTORY, false)
+        }
         _state.value =
             _state.value.copy(
                 customDirectoryUri = normalizedUri,
@@ -125,12 +124,11 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
 
     fun clearCustomDirectory() {
         val previousUri = _state.value.customDirectoryUri
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .remove(KEY_CUSTOM_DIRECTORY_URI)
-            .remove(KEY_CUSTOM_DIRECTORY_NAME)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            remove(KEY_CUSTOM_DIRECTORY_URI)
+            remove(KEY_CUSTOM_DIRECTORY_NAME)
+        }
         _state.value = _state.value.copy(customDirectoryUri = "", customDirectoryName = "")
         if (previousUri.isNotBlank()) {
             BrowserDownloadManager.getInstance(preferencesContext)
@@ -151,11 +149,10 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         ) {
             "Browser download concurrency exceeds the active thread limit: $value"
         }
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putInt(KEY_MAX_CONCURRENT_TASKS, value)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putInt(KEY_MAX_CONCURRENT_TASKS, value)
+        }
         _state.value = _state.value.copy(maxConcurrentTasks = value)
     }
 
@@ -173,12 +170,11 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                     m3u8ThreadCount = _state.value.m3u8ThreadCount,
                 ),
             )
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putInt(KEY_SEGMENT_THREAD_COUNT, value)
-            .putInt(KEY_MAX_CONCURRENT_TASKS, nextMaxConcurrentTasks)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putInt(KEY_SEGMENT_THREAD_COUNT, value)
+            putInt(KEY_MAX_CONCURRENT_TASKS, nextMaxConcurrentTasks)
+        }
         _state.value =
             _state.value.copy(
                 segmentThreadCount = value,
@@ -198,12 +194,11 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                     m3u8ThreadCount = value,
                 ),
             )
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putInt(KEY_M3U8_THREAD_COUNT, value)
-            .putInt(KEY_MAX_CONCURRENT_TASKS, nextMaxConcurrentTasks)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putInt(KEY_M3U8_THREAD_COUNT, value)
+            putInt(KEY_MAX_CONCURRENT_TASKS, nextMaxConcurrentTasks)
+        }
         _state.value =
             _state.value.copy(
                 m3u8ThreadCount = value,
@@ -212,27 +207,23 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
     }
 
     fun setPackageM3u8Offline(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_PACKAGE_M3U8_OFFLINE, enabled)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_PACKAGE_M3U8_OFFLINE, enabled)
+        }
         _state.value = _state.value.copy(packageM3u8Offline = enabled)
     }
 
     fun setAutoTransferToPublicDirectory(enabled: Boolean) {
         val previousUri = _state.value.customDirectoryUri
-        val editor =
-            preferences
-                .edit()
-                .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-                .putBoolean(KEY_AUTO_TRANSFER_TO_PUBLIC_DIRECTORY, enabled)
-        if (enabled) {
-            editor
-                .remove(KEY_CUSTOM_DIRECTORY_URI)
-                .remove(KEY_CUSTOM_DIRECTORY_NAME)
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_AUTO_TRANSFER_TO_PUBLIC_DIRECTORY, enabled)
+            if (enabled) {
+                remove(KEY_CUSTOM_DIRECTORY_URI)
+                remove(KEY_CUSTOM_DIRECTORY_NAME)
+            }
         }
-        editor.apply()
         _state.value =
             _state.value.copy(
                 customDirectoryUri = if (enabled) "" else _state.value.customDirectoryUri,
@@ -249,65 +240,58 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         require(isSupportedBrowserDownloadChunkSizeKb(value)) {
             "Unsupported browser download chunk size: $value"
         }
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putInt(KEY_CHUNK_SIZE_KB, value)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putInt(KEY_CHUNK_SIZE_KB, value)
+        }
         _state.value = _state.value.copy(chunkSizeKb = value)
     }
 
     fun setAutoCleanApk(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_AUTO_CLEAN_APK, enabled)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_AUTO_CLEAN_APK, enabled)
+        }
         _state.value = _state.value.copy(autoCleanApk = enabled)
     }
 
     fun setEnableHttp2(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_ENABLE_HTTP2, enabled)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_ENABLE_HTTP2, enabled)
+        }
         _state.value = _state.value.copy(enableHttp2 = enabled)
     }
 
     fun setNetworkPolicy(value: BrowserDownloadNetworkPolicy) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putString(KEY_NETWORK_POLICY, value.persistedId)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putString(KEY_NETWORK_POLICY, value.persistedId)
+        }
         _state.value = _state.value.copy(networkPolicy = value)
     }
 
     fun setAllowRoaming(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_ALLOW_ROAMING, enabled)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_ALLOW_ROAMING, enabled)
+        }
         _state.value = _state.value.copy(allowRoaming = enabled)
     }
 
     fun setSkipConfirmation(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_SKIP_CONFIRMATION, enabled)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_SKIP_CONFIRMATION, enabled)
+        }
         _state.value = _state.value.copy(skipConfirmation = enabled)
     }
 
     fun setShowResultNotifications(enabled: Boolean) {
-        preferences
-            .edit()
-            .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-            .putBoolean(KEY_SHOW_RESULT_NOTIFICATIONS, enabled)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+            putBoolean(KEY_SHOW_RESULT_NOTIFICATIONS, enabled)
+        }
         _state.value = _state.value.copy(showResultNotifications = enabled)
     }
 
@@ -374,12 +358,11 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                     preferences.getBoolean(KEY_SHOW_RESULT_NOTIFICATIONS, true),
             )
         if (storedVersion < BROWSER_DOWNLOAD_SETTINGS_VERSION) {
-            preferences
-                .edit()
-                .putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
-                .putString(KEY_NETWORK_POLICY, settings.networkPolicy.persistedId)
-                .putBoolean(KEY_ALLOW_ROAMING, settings.allowRoaming)
-                .apply()
+            preferences.edit {
+                putInt(KEY_VERSION, BROWSER_DOWNLOAD_SETTINGS_VERSION)
+                putString(KEY_NETWORK_POLICY, settings.networkPolicy.persistedId)
+                putBoolean(KEY_ALLOW_ROAMING, settings.allowRoaming)
+            }
         }
         require(isSupportedBrowserDownloadConcurrency(settings.maxConcurrentTasks)) {
             "Invalid persisted browser download concurrency: ${settings.maxConcurrentTasks}"

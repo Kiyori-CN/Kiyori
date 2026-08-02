@@ -1,7 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
 import com.ai.assistance.operit.core.player.PlayerPresentation
@@ -176,7 +176,7 @@ private fun browserMediaCandidateTitle(
 ): String =
     candidate.pageTitle.takeIf(String::isNotBlank)
         ?: session.pageTitle.takeIf(String::isNotBlank)
-        ?: Uri.parse(candidate.url).lastPathSegment?.substringAfterLast('/')?.takeIf(String::isNotBlank)
+        ?: candidate.url.toUri().lastPathSegment?.substringAfterLast('/')?.takeIf(String::isNotBlank)
         ?: "网页视频"
 
 internal fun createBrowserPlayerMediaRequest(

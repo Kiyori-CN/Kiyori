@@ -3,10 +3,10 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.graphics.drawable.toDrawable
 import com.ai.assistance.operit.util.AppLogger
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -71,7 +71,7 @@ class WebSessionDirectoryPickerActivity : ComponentActivity() {
 
         // A WindowManager overlay has no ActivityResultRegistryOwner. This transparent activity
         // owns the real registry so the SAF picker remains valid even when MainActivity is absent.
-        window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
         window.decorView.alpha = 0f
 
         requestId = intent.getStringExtra(WebSessionDirectoryPickerCoordinator.requestIdExtra()).orEmpty()

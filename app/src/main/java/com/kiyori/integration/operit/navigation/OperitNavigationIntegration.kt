@@ -5,7 +5,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.ai.assistance.operit.core.tools.AIToolHandler
@@ -24,7 +24,7 @@ import com.ai.assistance.operit.ui.main.screens.Screen
 internal class OperitNavigationRuntimeState(
     val packageManager: PackageManager,
 ) {
-    var navigationRevision by mutableStateOf(0)
+    var navigationRevision by mutableIntStateOf(0)
         private set
 
     fun invalidateNavigationModel() {

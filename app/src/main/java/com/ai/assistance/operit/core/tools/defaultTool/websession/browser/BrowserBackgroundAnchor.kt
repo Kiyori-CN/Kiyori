@@ -3,7 +3,6 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -96,17 +95,10 @@ internal class BrowserBackgroundAnchor(context: Context) {
     }
 
     private fun createLayoutParams(x: Int, y: Int): WindowManager.LayoutParams {
-        val type =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
         return WindowManager.LayoutParams(
             1,
             1,
-            type,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             BrowserBackgroundAnchorPolicy.anchorFlags(),
             PixelFormat.TRANSLUCENT,
         ).apply {
