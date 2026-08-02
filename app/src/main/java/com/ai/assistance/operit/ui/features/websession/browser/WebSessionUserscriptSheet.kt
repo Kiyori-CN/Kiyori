@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -123,6 +124,7 @@ internal fun WebSessionUserscriptSheet(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     var searchQuery by rememberSaveable { mutableStateOf(initialSearchQuery) }
@@ -484,7 +486,7 @@ internal fun WebSessionUserscriptSheet(
                             copyUserscriptText(context, "Kiyori 用户脚本日志", report)
                             Toast.makeText(
                                 context,
-                                context.getString(
+                                resources.getString(
                                     R.string.web_session_userscript_logs_copied,
                                     state.recentLogs.size,
                                 ),
@@ -503,7 +505,7 @@ internal fun WebSessionUserscriptSheet(
                                     .onSuccess { path ->
                                         Toast.makeText(
                                             context,
-                                            context.getString(
+                                            resources.getString(
                                                 R.string.web_session_userscript_logs_exported,
                                                 path,
                                             ),
@@ -513,7 +515,7 @@ internal fun WebSessionUserscriptSheet(
                                     .onFailure { error ->
                                         Toast.makeText(
                                             context,
-                                            context.getString(
+                                            resources.getString(
                                                 R.string.web_session_userscript_logs_export_failed,
                                                 error.message ?: error.javaClass.simpleName,
                                             ),
@@ -1343,11 +1345,12 @@ internal fun UserscriptLogCard(
     scriptName: String?,
 ) {
     val context = LocalContext.current
+    val logsTitle = stringResource(R.string.web_session_userscript_logs)
     var detailVisible by remember(log.id) { mutableStateOf(false) }
     val copyLog = {
         copyUserscriptText(
             context,
-            scriptName ?: context.getString(R.string.web_session_userscript_logs),
+            scriptName ?: logsTitle,
             buildUserscriptLogEntryReport(log, scriptName),
         )
         Toast.makeText(

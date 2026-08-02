@@ -13,6 +13,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
@@ -42,6 +43,7 @@ internal fun KiyoriHistoryDrawerHost(
     }
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val store = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val browserTools =
@@ -84,7 +86,7 @@ internal fun KiyoriHistoryDrawerHost(
                     } else {
                         Toast.makeText(
                             context,
-                            context.getString(R.string.web_session_history_replay_failed),
+                            resources.getString(R.string.web_session_history_replay_failed),
                             Toast.LENGTH_SHORT,
                         ).show()
                     }

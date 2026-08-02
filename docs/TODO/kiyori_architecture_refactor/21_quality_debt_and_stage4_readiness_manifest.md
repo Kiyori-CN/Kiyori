@@ -1,7 +1,7 @@
 ---
 status: debt_cleanup_in_progress
 baseline_commit: 6b6493a0bfd12072116e45fb733d551fad13e32b
-current_phase: pre-stage-4-quality-gate
+current_phase: qd-02-kotlin-compose-modernization
 device_scope: excluded
 release_scope: excluded
 ---
@@ -38,13 +38,18 @@ release_scope: excluded
 
 ## 当前 Lint 债务
 
-`app/build/reports/lint-results-debug.xml` 当前包含 `317` 条未基线化记录：
+质量清理初始报告包含 `317` 条未基线化记录。QD-01 完成后的 fresh full lint 报告包含
+`290` 条 XML 记录：
 
 | 严重级别 | 数量 | 说明 |
 | --- | ---: | --- |
-| Error | 27 | 22 条缺失翻译，5 条 Compose 资源读取错误 |
+| Error | 0 | QD-01 已清除 22 条缺失翻译和 5 条 Compose 资源读取错误 |
 | Warning | 287 | 资源、KTX、位图目录、WebView feature、复数、平台和依赖问题 |
 | Hint | 3 | 2 条 primitive state，1 条现有 baseline 状态提示 |
+
+Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因此同一次执行摘要为
+`287 warnings / 2 hints`。本清单的结构化数量以
+`app/build/reports/lint-results-debug.xml` 为准。
 
 当前 `app/lint-baseline.xml` 另有 `5791` 条历史记录，结构化统计为
 `1268 errors / 4373 warnings / 150 hints`。baseline SHA-256 为
@@ -56,6 +61,8 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 ## 分批实施
 
 ### QD-01：当前正确性错误
+
+状态：`completed`
 
 范围：
 
@@ -72,7 +79,20 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 完成信号：current-only `Error` 为 `0`。
 
+验证证据：
+
+- `ko`、`pt-rBR`、`ms`、`id`、`es` 均已补齐 22 个 Browser history 字符串
+- 项目 `.venv` XML/键/占位符检查通过：`6 locales / 22 keys / placeholders consistent`
+- `:app:compileDebugKotlin` 与
+  `WebSessionHistoryPolicyTest`、`WebSessionUserscriptUiPolicyTest`、
+  `WebSessionUserscriptManagementTest` 通过
+- fresh `:app:lintDebug` 成功；`MissingTranslation=0`、
+  `LocalContextGetResourceValueCall=0`、current-only `Error=0`
+- 未修改 `app/lint-baseline.xml`，未新增 suppress 或 lint disable
+
 ### QD-02：行为保持型 Kotlin 与 Compose 现代化
+
+状态：`in_progress`
 
 范围：
 

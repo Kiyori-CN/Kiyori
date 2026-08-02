@@ -7437,4 +7437,26 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="browser_download_result_failed_text">%1$s: %2$s</string>
     <string name="browser_download_result_open">Abrir archivo</string>
     <string name="web_session_download_confirm_destination">Guardar en: %1$s</string>
+    <string name="web_session_history_title">Historial</string>
+    <string name="web_session_history_count">%1$d elementos</string>
+    <string name="web_session_history_delete">Eliminar</string>
+    <string name="web_session_history_search_hint">Buscar por título, enlace o página de origen</string>
+    <string name="web_session_history_filter_all">Todos</string>
+    <string name="web_session_history_filter_web">Web</string>
+    <string name="web_session_history_filter_video">Vídeo</string>
+    <string name="web_session_history_filter_music">Música</string>
+    <string name="web_session_history_filter_novel">Novela</string>
+    <string name="web_session_history_filter_other">Otros</string>
+    <string name="web_session_history_empty">El historial de navegación y reproducción aparecerá aquí</string>
+    <string name="web_session_history_empty_filter">Ningún elemento del historial coincide con la búsqueda y categoría actuales</string>
+    <string name="web_session_history_kind_web">Web</string>
+    <string name="web_session_history_kind_online_video">Vídeo en línea</string>
+    <string name="web_session_history_kind_local_video">Vídeo local</string>
+    <string name="web_session_history_delete_range_title">Elige un intervalo de tiempo para eliminar</string>
+    <string name="web_session_history_delete_past_hour">Última hora</string>
+    <string name="web_session_history_delete_past_day">Últimas 24 horas</string>
+    <string name="web_session_history_delete_past_week">Última semana</string>
+    <string name="web_session_history_delete_all_time">Todo el período</string>
+    <string name="web_session_history_delete_cancel">Cancelar</string>
+    <string name="web_session_history_replay_failed">La sesión actual del navegador no puede restaurar este elemento multimedia</string>
 </resources>

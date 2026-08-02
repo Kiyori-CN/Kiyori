@@ -7366,4 +7366,26 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="browser_download_result_failed_text">%1$s: %2$s</string>
     <string name="browser_download_result_open">Buka fail</string>
     <string name="web_session_download_confirm_destination">Simpan ke: %1$s</string>
+    <string name="web_session_history_title">Sejarah</string>
+    <string name="web_session_history_count">%1$d item</string>
+    <string name="web_session_history_delete">Padam</string>
+    <string name="web_session_history_search_hint">Cari tajuk, pautan atau halaman sumber</string>
+    <string name="web_session_history_filter_all">Semua</string>
+    <string name="web_session_history_filter_web">Web</string>
+    <string name="web_session_history_filter_video">Video</string>
+    <string name="web_session_history_filter_music">Muzik</string>
+    <string name="web_session_history_filter_novel">Novel</string>
+    <string name="web_session_history_filter_other">Lain-lain</string>
+    <string name="web_session_history_empty">Sejarah pelayaran dan main balik akan dipaparkan di sini</string>
+    <string name="web_session_history_empty_filter">Tiada sejarah sepadan dengan carian dan kategori semasa</string>
+    <string name="web_session_history_kind_web">Web</string>
+    <string name="web_session_history_kind_online_video">Video dalam talian</string>
+    <string name="web_session_history_kind_local_video">Video setempat</string>
+    <string name="web_session_history_delete_range_title">Pilih julat masa untuk dipadam</string>
+    <string name="web_session_history_delete_past_hour">Sejam lalu</string>
+    <string name="web_session_history_delete_past_day">24 jam lalu</string>
+    <string name="web_session_history_delete_past_week">Minggu lalu</string>
+    <string name="web_session_history_delete_all_time">Sepanjang masa</string>
+    <string name="web_session_history_delete_cancel">Batal</string>
+    <string name="web_session_history_replay_failed">Sesi pelayar semasa tidak dapat memulihkan item media ini</string>
 </resources>
