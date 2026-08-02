@@ -1172,7 +1172,7 @@ class GltfSurfaceView @JvmOverloads constructor(
         val clearOptions = Renderer.ClearOptions().apply {
             clear = true
             discard = true
-            clearColor = floatArrayOf(0f, 0f, 0f, 0f)
+            clearColor = doubleArrayOf(0.0, 0.0, 0.0, 0.0)
         }
         modelViewer.renderer.clearOptions = clearOptions
         modelViewer.view.blendMode = View.BlendMode.TRANSLUCENT

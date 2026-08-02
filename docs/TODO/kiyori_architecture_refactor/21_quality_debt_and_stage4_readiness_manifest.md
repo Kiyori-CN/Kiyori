@@ -38,17 +38,17 @@ release_scope: excluded
 
 ## 当前 Lint 债务
 
-质量清理初始报告包含 `317` 条未基线化记录。QD-04 与 baseline 精确求交完成后的
-fresh full lint 报告包含 `29` 条 XML 记录：
+质量清理初始报告包含 `317` 条未基线化记录。QD-05A 完成后的 fresh full lint 报告包含
+`22` 条 XML 记录：
 
 | 严重级别 | 数量 | 说明 |
 | --- | ---: | --- |
 | Error | 0 | QD-01 已清除 22 条缺失翻译和 5 条 Compose 资源读取错误 |
-| Warning | 28 | 依赖版本与第三方字节码问题 |
+| Warning | 21 | compile SDK、Kotlin plugin 与第三方 TLS 字节码问题 |
 | Hint | 1 | 现有 baseline 状态提示 |
 
 Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因此同一次执行摘要为
-`28 warnings`。本清单的结构化数量以
+`21 warnings`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
 当前 `app/lint-baseline.xml` 另有 `5786` 条历史记录，完整 lint 汇总为
@@ -263,6 +263,20 @@ override、第三方 ABI 或发布兼容合同的条目，必须记录精确 own
 - 第三方字节码警告只能通过替换、升级或移除真实依赖解决；禁止关闭 dependency lint
 
 完成信号：current-only dependency/update/security 记录为 `0`，锁文件和依赖图可复现。
+
+QD-05A 已完成：
+
+- 删除生产与测试源码均无 import、反射标识或调用的 `tasks-text 0.10.35`，并同步移除
+  Open Source Licenses 中不再成立的 MediaPipe 条目；不实施无消费者的 1.0.0 跨主版本迁移
+- Filament `1.69.2 -> 1.74.0`、ONNX Runtime `1.27.0 -> 1.28.0`、Junrar
+  `7.5.5 -> 8.0.0`、Jsoup `1.16.2 -> 1.23.1`
+- Filament 1.74 把透明 clear color 的数组合同改为 `DoubleArray`；项目只把四个 RGBA 零值
+  从 `floatArrayOf` 改为 `doubleArrayOf`，不改变透明合成或相机行为
+- 依赖解析、完整 `:app:compileDebugKotlin` 与
+  `MathMlPlainTextConverterTest` 3/3 通过；fresh lint 为
+  `0 errors / 21 warnings / 1 baseline hint`，本批 7 条版本记录归零且没有新增类别
+- GitHub `v1.74.1` 标签没有对应 Android Maven 制品，实际仓库解析证据确认可用版本为
+  `1.74.0`；该结论由 Gradle 的全部配置仓库逐项 404 和随后成功解析共同证明
 
 ### QD-06：历史 baseline 高风险债务
 

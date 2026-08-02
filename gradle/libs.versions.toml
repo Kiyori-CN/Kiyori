@@ -43,11 +43,11 @@ jieba = "1.0.2"
 hnswlib = "0.0.46"
 room = "2.8.4"
 commons-compress-v2 = "1.24.0"
-junrar = "7.5.5"
+junrar = "8.0.0"
 navigation-compose = "2.7.7"
 shizuku = "13.1.5"
 okhttp = "4.12.0"
-jsoup = "1.16.2"
+jsoup = "1.23.1"
 datastore = "1.0.0"
 poi = "5.2.3"
 kotlin-logging = "5.1.0"
@@ -65,7 +65,6 @@ mockito-kotlin = "5.1.0"
 reorderable = "2.5.1"
 swipe = "1.2.0"
 objectbox = "5.3.0"
-mediapipe = "0.10.35"
 work = "2.9.0"
 glance = "1.0.0"
 activityKtx = "1.7.1"
@@ -167,9 +166,6 @@ hjson = { group = "org.hjson", name = "hjson", version.ref = "hjson" }
 jieba = { group = "com.huaban", name = "jieba-analysis", version.ref = "jieba" }
 hnswlib-core = { group = "com.github.jelmerk", name = "hnswlib-core", version.ref = "hnswlib" }
 hnswlib-utils = { group = "com.github.jelmerk", name = "hnswlib-utils", version.ref = "hnswlib" }
-
-# Machine learning
-mediapipe-tasks-text = { group = "com.google.mediapipe", name = "tasks-text", version.ref = "mediapipe" }
 
 # Database
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

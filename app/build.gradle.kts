@@ -839,9 +839,9 @@ dependencies {
     implementation(project(":quickjs"))
 
     // glTF runtime rendering (Filament)
-    implementation("com.google.android.filament:filament-android:1.69.2")
-    implementation("com.google.android.filament:gltfio-android:1.69.2")
-    implementation("com.google.android.filament:filament-utils-android:1.69.2")
+    implementation("com.google.android.filament:filament-android:1.74.0")
+    implementation("com.google.android.filament:gltfio-android:1.74.0")
+    implementation("com.google.android.filament:filament-utils-android:1.74.0")
     implementation(libs.androidx.ui.graphics.android)
     // Fixed vendored JARs remain globbed. The two generated player AARs are explicit and own
     // disjoint native names, including one C++ runtime built with the same toolchain as libmpv.
@@ -953,10 +953,8 @@ dependencies {
     implementation(libs.hnswlib.core)
     implementation(libs.hnswlib.utils)
     
-    implementation(libs.mediapipe.tasks.text)
-    
     // ONNX Runtime for Android - 支持更强大的多语言Embedding模型
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.27.0")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.28.0")
 
     // Room 数据库
     implementation(libs.room.runtime)

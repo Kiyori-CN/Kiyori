@@ -81,7 +81,6 @@ private fun getOpenSourceLibraries(): List<OpenSourceLibrary> {
 
         // AI & Machine Learning
         OpenSourceLibrary("ML Kit", "Google's machine learning toolkit for mobile", "Apache-2.0", "https://developers.google.com/ml-kit"),
-        OpenSourceLibrary("MediaPipe", "Cross-platform ML solutions", "Apache-2.0", "https://developers.google.com/mediapipe"),
         OpenSourceLibrary("MNN", "Alibaba's lightweight deep learning inference engine", "Apache-2.0", "https://github.com/alibaba/MNN"),
         OpenSourceLibrary("ONNX Runtime", "Cross-platform ML inference engine", "MIT", "https://github.com/microsoft/onnxruntime"),
         OpenSourceLibrary("TensorFlow Lite", "On-device machine learning framework", "Apache-2.0", "https://www.tensorflow.org/lite"),

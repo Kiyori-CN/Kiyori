@@ -55,7 +55,10 @@ language split、selected media、JobScheduler ID、窗口宽度、Player 方向
 和 6 处 Web SQL 弃用配置的根因修复；八类平台警报均归零，当前为
 `0 errors / 28 warnings / 1 baseline hint`。完整 baseline 交集为
 `retained=5786 / stale=1 / current-only=28`，没有吸收依赖警报。完整重编译额外暴露的
-Kotlin compiler 警报已纳入 QD-07，正式实施严格按
+Kotlin compiler 警报已纳入 QD-07。QD-05A 随后删除零消费者的 MediaPipe Text 依赖，
+升级 Filament/ONNX Runtime/Junrar/Jsoup，并按 Filament 1.74 的 `DoubleArray` clear color
+合同完成唯一源码适配；完整编译、Jsoup 定向 3/3 测试和 fresh lint 通过，当前为
+`0 errors / 21 warnings / 1 baseline hint`，本批 7 条版本记录归零。正式实施严格按
 “本地备份与安全点 -> M-00 -> G-00 -> M-01 -> M-02 -> M-03 -> M-04”串行推进；
 M-00、G-00 和 M-01 的门禁、测试和 Debug APK 验证均已通过；
 后续 G-00 加固已关闭 fresh-clone、Java static import、完全限定项目引用和重复
