@@ -34,6 +34,7 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 - [M-03 KiyoriApplication 包迁移精确清单](kiyori_architecture_refactor/18_m03_application_package_move_manifest.md)
 - [M-04 根组合与 Shell 精确实施清单](kiyori_architecture_refactor/19_m04_root_composition_and_shell_manifest.md)
 - [M-05 Design 与 Platform 精确实施清单](kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md)
+- [Stage 4 前质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
 
 当前状态：`M-05 complete / M-05E sealed`。正式实施严格按
 “本地备份与安全点 -> M-00 -> G-00 -> M-01 -> M-02 -> M-03 -> M-04”串行推进；
@@ -278,6 +279,29 @@ Application、稳定 launcher、多进程、arm64 53 native、10 个播放器目
 16 KB 对齐保持。M-05E 已封板，M-05 design/theme/platform 阶段完成。设备/UI、
 多进程文件写入、真实日志导出、真实 lifecycle side effect、Android 13+ 权限框/通知到达、
 路径读写与备份恢复验收继续为 `verification_pending`。
+
+## 2026-08-02 Stage 4 前质量债务与开发就绪收口
+
+M-02 至 M-05 已形成可重现 checkpoint
+`6b6493a0bfd12072116e45fb733d551fad13e32b`，该提交通过 fresh clone 和 formal
+readiness。阶段 4 Browser 产品域开始前，先按
+[质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
+收口当前 `27 errors / 287 warnings / 3 hints`，并审计 `5791` 条历史 baseline 中的
+项目自有高风险正确性和安全债务。
+
+当前执行顺序固定为：
+
+1. 修复 27 条 current-only correctness errors
+2. 完成 KTX、SDK、Modifier 和 primitive state 的行为保持型清理
+3. 审核删除真实未使用资源、迁移 densityless bitmap、补齐 plurals
+4. 关闭 WebView feature、Context 生命周期、语言、媒体权限、JobScheduler、窗口和
+   Player 方向合同
+5. 按官方迁移证据分组升级依赖并消除第三方字节码警报
+6. 审计并修复 baseline 中项目自有高风险项
+7. 运行完整门禁、规定 Debug APK、敏感内容和 Git/远端审计后提交推送
+
+禁止通过 suppress、扩大 baseline、关闭 dependency lint、fallback 或行为不明的批量删除
+取得表面全绿。设备和 Release 验收继续独立记录。
 
 ## 2026-07-31 插件中心信息架构与日志交互优化
 

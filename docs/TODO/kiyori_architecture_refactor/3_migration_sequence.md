@@ -319,6 +319,12 @@ design/theme/platform 完成；阶段 4 Browser 产品域尚未开始。
 
 ## 阶段 4：Browser 产品域
 
+当前阶段。开始 Browser owner 迁移前，先完成
+[Stage 4 前质量债务与开发就绪精确清单](21_quality_debt_and_stage4_readiness_manifest.md)。
+该门禁要求 current-only Lint errors/warnings 归零、项目自有高风险 baseline 债务完成
+审计、完整自动检查和规定 Debug APK 通过；不得以 suppress、扩大 baseline 或关闭检查
+替代修复。
+
 顺序固定：
 
 1. 为现有 Browser Runtime 建立 capability 接口和特征测试。

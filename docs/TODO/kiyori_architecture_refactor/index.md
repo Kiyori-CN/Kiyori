@@ -172,6 +172,7 @@ Back、presentation 和 Surface lease 规则。
 18. [M-03 KiyoriApplication 包迁移精确清单](18_m03_application_package_move_manifest.md)
 19. [M-04 根组合与 Shell 精确实施清单](19_m04_root_composition_and_shell_manifest.md)
 20. [M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)
+21. [Stage 4 前质量债务与开发就绪精确清单](21_quality_debt_and_stage4_readiness_manifest.md)
 
 ## 已批准的设计决策
 
@@ -404,3 +405,11 @@ raw snapshot、备份格式和旧布局扫描保持。ARCH046、最终完整 arc
 M-05 design/theme/platform 阶段完成。精确路径、消费者、非目标、
 ARCH040/ARCH041/ARCH042/ARCH043/ARCH044/ARCH045/ARCH046、风险和验证见
 [M-05 Design 与 Platform 精确实施清单](20_m05_design_and_platform_manifest.md)。
+
+M-02 至 M-05 已形成 checkpoint
+`6b6493a0bfd12072116e45fb733d551fad13e32b`，fresh clone 与 formal readiness 均通过。
+当前先执行
+[Stage 4 前质量债务与开发就绪精确清单](21_quality_debt_and_stage4_readiness_manifest.md)：
+把 `317` 条 current-only Lint 按正确性、行为保持型现代化、资源、Android/Browser
+平台合同和依赖五批收口，并审计 `5791` 条历史 baseline 中项目自有的高风险项。完成该
+质量门禁后再进入阶段 4 Browser 产品域。
