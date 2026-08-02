@@ -217,7 +217,7 @@ class PlayerActivity : ComponentActivity() {
             }
         val accepted =
             request?.source == PlayerMediaSource.BROWSER_CANDIDATE &&
-                StandardBrowserSessionTools.browserHost
+                StandardBrowserSessionTools.getSharedInstance(applicationContext).browserHost
                     ?.requestMediaCandidateDownload(
                         candidateId = request.requestId,
                         sourceSessionId = request.sourceSessionId,

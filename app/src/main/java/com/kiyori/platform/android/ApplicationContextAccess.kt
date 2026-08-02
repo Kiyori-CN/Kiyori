@@ -1,18 +1,18 @@
 package com.kiyori.platform.android
 
-import android.content.Context
+import android.app.Application
 
 /**
- * 当前 Android 进程唯一的 application context。
+ * 当前 Android 进程唯一的 Application。
  *
- * 这里只持有 Context 能力，不持有具体 Application 类型；否则 Operit AI 会再次依赖应用壳实现，
- * M-03 的包迁移也会重新变成全局替换。
+ * 平台层暴露 Android 基类而不是 KiyoriApplication，因此 Operit AI 不依赖应用壳实现；
+ * 同时类型本身明确这个进程级引用只能拥有 Application 生命周期。
  */
 object ApplicationContextAccess {
-    lateinit var current: Context
+    lateinit var current: Application
         private set
 
-    internal fun installForProcess(context: Context) {
-        current = context.applicationContext
+    internal fun installForProcess(application: Application) {
+        current = application
     }
 }

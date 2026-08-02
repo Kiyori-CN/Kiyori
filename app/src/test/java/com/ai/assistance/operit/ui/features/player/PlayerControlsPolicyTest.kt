@@ -18,7 +18,7 @@ class PlayerControlsPolicyTest {
             resolvePlayerGravityOrientationRequest(previousEnabled = true, enabled = false),
         )
         assertEquals(
-            null,
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
             resolvePlayerGravityOrientationRequest(previousEnabled = null, enabled = false),
         )
         assertEquals(

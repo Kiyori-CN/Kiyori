@@ -102,7 +102,6 @@ internal fun StandardBrowserSessionTools.configureWebView(
     with(session.webView.settings) {
         javaScriptEnabled = true
         domStorageEnabled = true
-        databaseEnabled = true
         setSupportMultipleWindows(true)
         javaScriptCanOpenWindowsAutomatically = true
         setSupportZoom(true)
@@ -157,7 +156,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
         }
         addJavascriptInterface(BrowserWebDownloadBridge(this@configureWebView, session), "OperitWebDownloadBridge")
         addJavascriptInterface(BrowserAsyncBridge(), "OperitAsyncBridge")
-        addJavascriptInterface(BrowserTextSelectionBridge(), "OperitTextSelectionBridge")
+        addJavascriptInterface(BrowserTextSelectionBridge(this@configureWebView), "OperitTextSelectionBridge")
         addJavascriptInterface(
             BrowserMediaCandidateBridge(this@configureWebView, session),
             "OperitMediaCandidateBridge",
@@ -493,10 +492,10 @@ internal fun StandardBrowserSessionTools.ensureBackgroundAnchorOnMain(
 internal fun StandardBrowserSessionTools.ensureBrowserPresentationOnMain(
     appContext: Context,
 ): WebSessionBrowserHost {
-    StandardBrowserSessionTools.browserHost?.let { return it }
+    browserHost?.let { return it }
 
     synchronized(StandardBrowserSessionTools.presentationLock) {
-        StandardBrowserSessionTools.browserHost?.let { return it }
+        browserHost?.let { return it }
 
         val host =
             WebSessionBrowserHost(
@@ -505,7 +504,7 @@ internal fun StandardBrowserSessionTools.ensureBrowserPresentationOnMain(
                 userscriptStore = userscriptManager.uiStore,
                 callbacks = createBrowserHostCallbacks(appContext)
             )
-        StandardBrowserSessionTools.browserHost = host
+        browserHost = host
         return host
     }
 }
@@ -859,15 +858,15 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
         }
 
         override fun onCopyCurrentUrl() {
-            StandardBrowserSessionTools.browserHost?.copyCurrentUrlToClipboard()
+            browserHost?.copyCurrentUrlToClipboard()
         }
 
         override fun onOpenPageSource() {
-            StandardBrowserSessionTools.browserHost?.beginPageSourceRead()
+            browserHost?.beginPageSourceRead()
         }
 
         override fun onCopyPageSource() {
-            StandardBrowserSessionTools.browserHost?.copyPageSourceToClipboard()
+            browserHost?.copyPageSourceToClipboard()
         }
 
         override fun onOpenPlugins() {
@@ -1244,8 +1243,8 @@ private fun copyBrowserDownloadText(context: Context, label: String, value: Stri
 }
 
 internal fun StandardBrowserSessionTools.destroyBackgroundPresentationOnMain() {
-    StandardBrowserSessionTools.browserHost?.destroy()
-    StandardBrowserSessionTools.browserHost = null
+    browserHost?.destroy()
+    browserHost = null
     StandardBrowserSessionTools.activeSessionId = null
 }
 
@@ -1254,8 +1253,8 @@ internal fun StandardBrowserSessionTools.destroyBackgroundPresentationOnMain() {
  * be mounted again by a later Browser Home or background-anchor request.
  */
 internal fun StandardBrowserSessionTools.destroyBrowserPresentationOnMain() {
-    StandardBrowserSessionTools.browserHost?.destroy()
-    StandardBrowserSessionTools.browserHost = null
+    browserHost?.destroy()
+    browserHost = null
 }
 
 internal fun StandardBrowserSessionTools.openPluginCenterOnMain() {
@@ -1471,13 +1470,13 @@ internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
     val resolvedActiveId = registry.activeSessionId
     val activeSession = resolvedActiveId?.let(::sessionById)
     StandardBrowserSessionTools.activeSessionId = resolvedActiveId
-    StandardBrowserSessionTools.browserHost?.attachActiveWebView(activeSession?.webView)
+    browserHost?.attachActiveWebView(activeSession?.webView)
     activeSession?.let(::applyViewportOverride)
     userscriptManager.updateVisibleSession(
         sessionId = resolvedActiveId,
         pageUrl = activeSession?.currentUrl
     )
-    StandardBrowserSessionTools.browserHost?.updateHostProjection(
+    browserHost?.updateHostProjection(
         browserState = buildBrowserState(registry, buildBrowserDownloadSummary()),
         downloadUiState = buildBrowserDownloadUiState(),
         downloadPrompt =
@@ -1759,7 +1758,7 @@ internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserT
     val requestedWidth = session.viewportWidthPx
     val requestedHeight = session.viewportHeightPx
     val browserAreaWidth =
-        StandardBrowserSessionTools.browserHost?.currentBrowserAreaSize()?.first
+        browserHost?.currentBrowserAreaSize()?.first
             ?.takeIf { it > 0 }
             ?: session.webView.width.takeIf { it > 0 }
             ?: context.resources.displayMetrics.widthPixels
@@ -2098,7 +2097,7 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
         userscriptManager.detachSession(sessionId)
         if (wasActive) {
             StandardBrowserSessionTools.activeSessionId = null
-            StandardBrowserSessionTools.browserHost?.attachActiveWebView(null)
+            browserHost?.attachActiveWebView(null)
         }
 
         val parent = session.webView.parent
@@ -2138,7 +2137,7 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
                 refreshSessionUiOnMain(nextSessionId)
             }
         } else {
-            val host = StandardBrowserSessionTools.browserHost
+            val host = browserHost
             if (host?.hasAppPresentation() == true) {
                 host.attachActiveWebView(null)
             } else {

@@ -1,7 +1,7 @@
 ---
 status: debt_cleanup_in_progress
 baseline_commit: 6b6493a0bfd12072116e45fb733d551fad13e32b
-current_phase: qd-04-platform-contracts
+current_phase: qd-05-dependencies
 device_scope: excluded
 release_scope: excluded
 ---
@@ -38,22 +38,22 @@ release_scope: excluded
 
 ## 当前 Lint 债务
 
-质量清理初始报告包含 `317` 条未基线化记录。QD-03 与 baseline 精确求交完成后的
-fresh full lint 报告包含 `59` 条 XML 记录：
+质量清理初始报告包含 `317` 条未基线化记录。QD-04 与 baseline 精确求交完成后的
+fresh full lint 报告包含 `29` 条 XML 记录：
 
 | 严重级别 | 数量 | 说明 |
 | --- | ---: | --- |
 | Error | 0 | QD-01 已清除 22 条缺失翻译和 5 条 Compose 资源读取错误 |
-| Warning | 58 | WebView feature、生命周期、平台合同和依赖问题 |
+| Warning | 28 | 依赖版本与第三方字节码问题 |
 | Hint | 1 | 现有 baseline 状态提示 |
 
 Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因此同一次执行摘要为
-`58 warnings`。本清单的结构化数量以
+`28 warnings`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
-当前 `app/lint-baseline.xml` 另有 `5787` 条历史记录，完整 lint 汇总为
-`1265 errors / 4372 warnings / 150 hints`。baseline SHA-256 为
-`80691E34E07299ABAA58C5F19DBDB27FFE5DB65AF03DEA2514B8A2AC0CC4F9E4`。
+当前 `app/lint-baseline.xml` 另有 `5786` 条历史记录，完整 lint 汇总为
+`1265 errors / 4371 warnings / 150 hints`。baseline SHA-256 为
+`E382817E50E5B7FD9B6E62D642C8A6E44488772F690267CD797111E41DF3FCA4`。
 
 baseline 是历史债务清单，不是永久豁免。清理时只允许删除已经由当前源码证明失效或已经
 修复的记录，禁止吸收任何 current-only 问题。
@@ -165,7 +165,7 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 ### QD-04：Android 与 Browser 平台合同
 
-状态：`in_progress`
+状态：`completed`
 
 范围：
 
@@ -192,6 +192,40 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 完成信号：上述八类 current-only 记录为 `0`，Browser/Player/启动定向测试通过。
 
+验证证据：
+
+- AndroidX WebKit multi-profile、isolated-world 和 reply-proxy API 均位于对应
+  `WebViewFeature.isFeatureSupported(...)` 正向分支；不支持状态继续由既有 capability
+  owner 显式拒绝，没有新增第二 Profile/WebView owner、catch 降级或 fallback
+- `ApplicationContextAccess`、`BrowserDownloadSettingsStore` 与共享 Browser tools
+  只持有 `Application` 生命周期对象；`WebSessionBrowserHost` 从 companion 静态字段移到
+  唯一 `StandardBrowserSessionTools` 实例，Javascript bridge 显式持有该实例并沿现有
+  WebView 销毁路径释放
+- App Bundle 禁用 language split；Manifest 声明 Android 14 selected-media 权限；
+  WorkManager 独占 `0x5000..0x53E7` 的 1,000 个 JobScheduler ID，与 Browser runtime 的
+  `0x4B10` 分离；宽屏判定改用 `LocalWindowInfo.containerSize`
+- Player 默认横屏策略从 Manifest 重复声明收口到既有 Activity policy；自定义
+  `PlayerSurfaceView` 改为框架 `SurfaceView` 加唯一 callback owner，fullscreen/floating
+  的 surface role、overlay 和 session 注册顺序不变
+- 6 处已经弃用的 `WebSettings.databaseEnabled` 写入全部删除，DOM storage 与其他
+  WebView 配置保持
+- `:app:compileDebugKotlin`、Player/平台定向测试、完整 JVM
+  `137 suites / 822 tests / 0 failures / 0 errors / 0 skipped` 和 fresh
+  `:app:lintDebug` 通过；
+  `RequiresFeature`、`StaticFieldLeak`、`AppBundleLocaleChanges`、
+  `SelectedPhotoAccess`、`SpecifyJobSchedulerIdRange`、
+  `ConfigurationScreenWidthHeight`、`DiscouragedApi`、`ViewConstructor` 均为 `0`
+- 临时完整 baseline `5814` 条；结构化交集
+  `retained=5786 / stale=1 / current-only=28`，只删除已由 reply-proxy feature guard
+  修复的 1 条 `RequiresFeature`
+- 串行 `:app:assembleDebug` 成功并执行 `verifyDebugPlayerRuntimePackaging`；APK 为
+  `467708509` bytes，SHA-256
+  `40D3B61D111D5899E69BD0C51B059641565C4FC54A0435195A93A46FFD2BBC75`
+- 完整 architecture `phase=m03`、36 项检查通过；门禁源码扫描排除 Debug native
+  `.cxx` 生成目录并缓存同一源码快照的字符级掩码后，真实工作树从超过 15 分钟仍未完成
+  收敛为约 179 秒完成，同时重新锁定 QD-02/QD-04 已审阅的 Manifest、Application、
+  root、Software Home、navigation integration 与 PlayerActivity 当前保护值
+
 ### QD-07：Kotlin 编译器警报与弃用迁移
 
 状态：`pending`
@@ -211,6 +245,8 @@ override、第三方 ABI 或发布兼容合同的条目，必须记录精确 own
 逐条审计记录，且编译、JVM、Lint 和 Debug APK 通过。
 
 ### QD-05：依赖与第三方字节码
+
+状态：`in_progress`
 
 范围：
 

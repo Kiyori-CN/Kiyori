@@ -480,6 +480,13 @@ android {
         // this generated-resource feature to be declared explicitly.
         resValues = true
     }
+    bundle {
+        language {
+            // Kiyori owns its in-app locale switcher, so every installed APK must carry every
+            // declared locale instead of relying on Play-delivered language splits.
+            enableSplit = false
+        }
+    }
     lint {
         val configuredBaseline = providers.gradleProperty("kiyori.lintBaseline").orNull
         baseline = file(configuredBaseline ?: "lint-baseline.xml")

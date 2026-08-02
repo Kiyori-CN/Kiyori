@@ -6,12 +6,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import time
 import tomllib
 import xml.etree.ElementTree as ET
 from collections import Counter
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
 
@@ -630,7 +633,7 @@ M05A3_STYLE_DECLARATION_COUNT = 6
 M05A3_MANIFEST_STYLE_REFERENCE_COUNT = 6
 M05A3_CONSUMER_IMPORT_COUNT = 7
 M05A3_PLAYER_BASELINE_HASH = (
-    "AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756"
+    "0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA"
 )
 M05A3_EXPECTED_APP_HOST_PROJECT_IMPORTS = (
     "com.ai.assistance.operit.data.preferences.UserPreferencesManager",
@@ -1040,6 +1043,31 @@ PROHIBITED_TRACKED_PARTS = {
     "node_modules",
     "work",
 }
+GENERATED_SOURCE_DIRECTORY_NAMES = {".cxx", "build"}
+
+
+def source_files(
+    root: Path,
+    suffixes: set[str],
+) -> list[Path]:
+    """Return source inputs without descending into generated build directories."""
+
+    if not root.is_dir():
+        return []
+    paths: list[Path] = []
+    for current_root, directory_names, file_names in os.walk(root):
+        directory_names[:] = [
+            name
+            for name in directory_names
+            if name not in GENERATED_SOURCE_DIRECTORY_NAMES
+        ]
+        current_path = Path(current_root)
+        paths.extend(
+            current_path / file_name
+            for file_name in file_names
+            if Path(file_name).suffix.lower() in suffixes
+        )
+    return sorted(paths)
 PERSISTENCE_CALL_SPECS = {
     "preferencesDataStore": ("named", "name"),
     "getSharedPreferences": ("index", 0),
@@ -1266,7 +1294,18 @@ def repository_text(root: Path) -> str:
     return "\n".join(chunks)
 
 
+@lru_cache(maxsize=None)
 def source_code_mask(text: str) -> str:
+    """Mask comments and literals once per distinct source snapshot.
+
+    Most architecture checks search the same Kotlin sources for different
+    ownership symbols. Recomputing the character-level mask for every symbol
+    made the real repository gate scale with checks multiplied by source size.
+    The input string is immutable, so reusing its mask preserves the exact
+    matching semantics while keeping the gate proportional to unique source
+    snapshots.
+    """
+
     masked = list(text)
     index = 0
     state = "code"
@@ -2109,11 +2148,7 @@ def check_m03_application_move(
         )
 
     old_fqcn = "com.ai.assistance.operit.core.application.KiyoriApplication"
-    runtime_paths = [
-        path
-        for path in (root / "app/src/main").rglob("*")
-        if path.is_file() and path.suffix.lower() in TEXT_SUFFIXES
-    ]
+    runtime_paths = source_files(root / "app/src/main", TEXT_SUFFIXES)
     runtime_paths.extend(
         path
         for path in (
@@ -7035,9 +7070,7 @@ def check_m05a2_semantic_design(
     consumer_source_paths = sorted(
         path
         for scan_root in scan_roots
-        if scan_root.is_dir()
-        for path in scan_root.rglob("*")
-        if path.is_file() and path.suffix in MANAGED_SOURCE_SUFFIXES
+        for path in source_files(scan_root, MANAGED_SOURCE_SUFFIXES)
     )
     actual_imports: Counter[tuple[str, str]] = Counter()
     old_package_prefix = "com.ai.assistance.operit.ui.theme."
@@ -10212,6 +10245,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base")
     parser.add_argument("--require-main", action="store_true")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--timings",
+        action="store_true",
+        help="print elapsed time for each architecture check",
+    )
     return parser.parse_args()
 
 
@@ -10302,7 +10340,21 @@ def main() -> int:
         lambda: check_tracked_artifacts(root, errors),
         lambda: check_terminal_unchanged(root, args.base, errors),
     )
-    for check in checks:
+    for index, check in enumerate(checks, start=1):
+        check_name = next(
+            (
+                name
+                for name in check.__code__.co_names
+                if name.startswith("check_")
+            ),
+            f"check_{index}",
+        )
+        started_at = time.perf_counter()
+        if args.timings:
+            print(
+                f"Architecture timing START {index}/{len(checks)} {check_name}",
+                flush=True,
+            )
         try:
             check()
         except (
@@ -10314,6 +10366,14 @@ def main() -> int:
             subprocess.CalledProcessError,
         ) as error:
             errors.append(f"ARCH000 checker input error: {error}")
+        finally:
+            if args.timings:
+                print(
+                    "Architecture timing END "
+                    f"{index}/{len(checks)} {check_name} "
+                    f"{time.perf_counter() - started_at:.3f}s",
+                    flush=True,
+                )
     if phase == "m01":
         if not args.base:
             errors.append("ARCH016 --base is required for M-01")

@@ -36,7 +36,7 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 - [M-05 Design 与 Platform 精确实施清单](kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md)
 - [Stage 4 前质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
 
-当前状态：`M-05 complete / M-05E sealed / quality gate QD-04 in progress`。QD-01 已补齐
+当前状态：`M-05 complete / M-05E sealed / quality gate QD-05 in progress`。QD-01 已补齐
 五个非默认语言目录中的 22 个 Browser history 字符串，并把 Compose 动态资源读取改为
 `LocalResources`/`stringResource`；XML、占位符、Kotlin 编译、三组 WebSession 单测和 fresh
 full lint 均通过，current-only Lint 已从 `27 errors / 287 warnings / 3 hints` 收敛到
@@ -49,7 +49,13 @@ baseline 或新增 suppress。QD-03 又删除 113 个零引用字符串键的 77
 文案改为符合各语言规则的 plurals；资源合并、完整 JVM 和 fresh lint 通过，三类目标及
 quantity 警报均归零，当前为 `0 errors / 58 warnings / 1 baseline hint`。临时完整
 baseline 与已审阅 baseline 的交集为 `retained=5787 / stale=4 / current-only=58`，
-未吸收当前警报。完整重编译额外暴露的 Kotlin compiler 警报已纳入 QD-07，正式实施严格按
+未吸收当前警报。QD-04 又把 AndroidX WebKit 调用收口到显式 feature contract，把三个
+进程级 owner 收窄为 Application 生命周期并把 Browser host 移出静态字段，同时完成
+language split、selected media、JobScheduler ID、窗口宽度、Player 方向/Surface owner
+和 6 处 Web SQL 弃用配置的根因修复；八类平台警报均归零，当前为
+`0 errors / 28 warnings / 1 baseline hint`。完整 baseline 交集为
+`retained=5786 / stale=1 / current-only=28`，没有吸收依赖警报。完整重编译额外暴露的
+Kotlin compiler 警报已纳入 QD-07，正式实施严格按
 “本地备份与安全点 -> M-00 -> G-00 -> M-01 -> M-02 -> M-03 -> M-04”串行推进；
 M-00、G-00 和 M-01 的门禁、测试和 Debug APK 验证均已通过；
 后续 G-00 加固已关闭 fresh-clone、Java static import、完全限定项目引用和重复
@@ -299,7 +305,7 @@ M-02 至 M-05 已形成可重现 checkpoint
 `6b6493a0bfd12072116e45fb733d551fad13e32b`，该提交通过 fresh clone 和 formal
 readiness。阶段 4 Browser 产品域开始前，先按
 [质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
-收口初始 `27 errors / 287 warnings / 3 hints`，并审计当前 `5787` 条历史 baseline 中的
+收口初始 `27 errors / 287 warnings / 3 hints`，并审计当前 `5786` 条历史 baseline 中的
 项目自有高风险正确性和安全债务。
 
 当前执行顺序固定为：

@@ -1063,7 +1063,6 @@ class CustomXmlRenderer(
                         javaScriptEnabled = true
                         javaScriptCanOpenWindowsAutomatically = true
                         domStorageEnabled = true
-                        databaseEnabled = true
                         allowFileAccess = true
                         allowContentAccess = true
                         allowFileAccessFromFileURLs = true

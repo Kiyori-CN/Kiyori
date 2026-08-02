@@ -173,7 +173,6 @@ class WebViewHandler(private val context: Context) {
 
                 // DOM存储和数据库
                 domStorageEnabled = true
-                databaseEnabled = true
 
                 // 缓存设置
                 cacheMode = WebSettings.LOAD_DEFAULT

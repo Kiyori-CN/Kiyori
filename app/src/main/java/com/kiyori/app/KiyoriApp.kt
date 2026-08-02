@@ -20,7 +20,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
@@ -116,6 +119,8 @@ fun KiyoriApp(
         context as? Activity ?: error("KiyoriApp must be hosted by an Activity")
     }
     val configuration = LocalConfiguration.current
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
     val operitNavigation =
         rememberOperitNavigationIntegration(
             context = context,
@@ -518,7 +523,7 @@ fun KiyoriApp(
 
     var isLoading by remember { mutableStateOf(false) }
     var isAiHomeGestureBlocked by remember { mutableStateOf(false) }
-    val isWideLayout = configuration.screenWidthDp >= 600
+    val isWideLayout = with(density) { windowInfo.containerSize.width.toDp() } >= 600.dp
     var lastExitAttemptAt by remember { mutableLongStateOf(0L) }
     var isNetworkAvailable by remember { mutableStateOf(false) }
     var networkType by remember { mutableStateOf(resources.getString(R.string.not_connected)) }

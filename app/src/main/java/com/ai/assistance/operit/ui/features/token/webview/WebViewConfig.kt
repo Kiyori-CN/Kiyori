@@ -24,7 +24,6 @@ object WebViewConfig {
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                databaseEnabled = true
                 setSupportMultipleWindows(true)
                 javaScriptCanOpenWindowsAutomatically = true
                 allowContentAccess = true

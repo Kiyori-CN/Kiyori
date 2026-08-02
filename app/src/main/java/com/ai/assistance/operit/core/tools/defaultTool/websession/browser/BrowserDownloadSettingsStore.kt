@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import android.app.Application
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,10 +78,11 @@ internal data class BrowserDownloadSettings(
     val showResultNotifications: Boolean = true,
 )
 
-internal class BrowserDownloadSettingsStore private constructor(context: Context) {
-    private val preferencesContext = context.applicationContext
+internal class BrowserDownloadSettingsStore private constructor(
+    private val application: Application,
+) {
     private val preferences =
-        preferencesContext.getSharedPreferences(
+        application.getSharedPreferences(
             PREFERENCES_NAME,
             Context.MODE_PRIVATE,
         )
@@ -117,7 +119,7 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                 autoTransferToPublicDirectory = false,
             )
         if (previousUri.isNotBlank() && previousUri != normalizedUri) {
-            BrowserDownloadManager.getInstance(preferencesContext)
+            BrowserDownloadManager.getInstance(application)
                 .releasePersistedDirectoryPermissionIfUnused(previousUri)
         }
     }
@@ -131,7 +133,7 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         }
         _state.value = _state.value.copy(customDirectoryUri = "", customDirectoryName = "")
         if (previousUri.isNotBlank()) {
-            BrowserDownloadManager.getInstance(preferencesContext)
+            BrowserDownloadManager.getInstance(application)
                 .releasePersistedDirectoryPermissionIfUnused(previousUri)
         }
     }
@@ -231,7 +233,7 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
                 autoTransferToPublicDirectory = enabled,
             )
         if (enabled && previousUri.isNotBlank()) {
-            BrowserDownloadManager.getInstance(preferencesContext)
+            BrowserDownloadManager.getInstance(application)
                 .releasePersistedDirectoryPermissionIfUnused(previousUri)
         }
     }
@@ -425,7 +427,9 @@ internal class BrowserDownloadSettingsStore private constructor(context: Context
         fun getInstance(context: Context): BrowserDownloadSettingsStore =
             instance ?: synchronized(this) {
                 instance
-                    ?: BrowserDownloadSettingsStore(context.applicationContext).also { store ->
+                    ?: BrowserDownloadSettingsStore(
+                        context.applicationContext as Application,
+                    ).also { store ->
                         instance = store
                     }
             }

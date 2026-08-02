@@ -172,9 +172,9 @@ internal fun PlayerScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { viewContext ->
-                PlayerSurfaceView(
-                    viewContext,
-                    session,
+                createPlayerSurfaceView(
+                    context = viewContext,
+                    session = session,
                     role = PlayerSurfaceRole.FULLSCREEN,
                 )
             },

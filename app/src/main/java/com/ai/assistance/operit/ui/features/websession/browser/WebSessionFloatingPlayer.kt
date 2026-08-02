@@ -63,7 +63,7 @@ import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
-import com.ai.assistance.operit.ui.features.player.PlayerSurfaceView
+import com.ai.assistance.operit.ui.features.player.createPlayerSurfaceView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -210,9 +210,9 @@ internal fun WebSessionFloatingPlayer(
         ) {
             AndroidView(
                 factory = { viewContext ->
-                    PlayerSurfaceView(
-                        viewContext,
-                        session,
+                    createPlayerSurfaceView(
+                        context = viewContext,
+                        session = session,
                         role = PlayerSurfaceRole.FLOATING,
                         mediaOverlay = true,
                     )

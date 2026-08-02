@@ -1076,17 +1076,6 @@
     </issue>
 
     <issue
-        id="RequiresFeature"
-        message="`postMessage` should only be called if the feature `WEB_MESSAGE_LISTENER` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="            runCatching { replyProxy.postMessage(payload.toString()) }"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="1636"
-            column="27"/>
-    </issue>
-
-    <issue
         id="SdCardPath"
         message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
         errorLine1="    fun currentUserDataRootPath(): String = &quot;/data/user/${currentUserId()}&quot;"

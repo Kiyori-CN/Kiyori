@@ -437,7 +437,9 @@ Context/File/Uri 字体加载与 AppLogger。`applyFontFamilyToTypography` 有 3
 旧 `KiyoriThemeTest` 只剩零 tracking 测试。
 
 PlayerActivity 独立拥有 fullscreen system-bar，LF-normalized SHA-256 为
-`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`。A3 不修改该文件。
+`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`。A3 不修改该文件；
+QD-04 后续平台合同批次在保留 fullscreen system-bar owner 的前提下更新了当前
+ARCH042 PlayerActivity hash，见架构门禁规范中的 QD-04 记录。
 
 ### 目标 owner
 

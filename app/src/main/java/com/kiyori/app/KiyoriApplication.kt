@@ -90,6 +90,8 @@ class KiyoriApplication :
 
     companion object {
         private const val TAG = "KiyoriApplication"
+        private const val WORK_MANAGER_JOB_ID_MIN = 0x5000
+        private const val WORK_MANAGER_JOB_ID_MAX = 0x53E7
     }
 
     // 应用级协程作用域
@@ -430,6 +432,12 @@ class KiyoriApplication :
     override val workManagerConfiguration: WorkConfiguration
         get() = WorkConfiguration.Builder()
             .setMinimumLoggingLevel(if (BuildConfig.DEBUG) KiyoriLogger.DEBUG else KiyoriLogger.INFO)
+            // BrowserDownloadRuntime owns JobScheduler ID 0x4B10. Reserve a separate block of
+            // exactly 1,000 IDs so WorkManager and the direct scheduler can never collide.
+            .setJobSchedulerJobIdRange(
+                WORK_MANAGER_JOB_ID_MIN,
+                WORK_MANAGER_JOB_ID_MAX,
+            )
             .build()
 
     private fun ensureWorkManagerInitialized() {

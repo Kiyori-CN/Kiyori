@@ -2,6 +2,7 @@ package com.ai.assistance.operit.core.tools.defaultTool.standard
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -72,7 +73,9 @@ import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 
-class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor {
+class StandardBrowserSessionTools private constructor(
+    internal val context: Application,
+) : ToolExecutor {
 
     companion object {
         private const val TAG = "BrowserSessionTools"
@@ -89,20 +92,25 @@ class StandardBrowserSessionTools(internal val context: Context) : ToolExecutor 
         internal val presentationLock = Any()
         internal val sessionConfigLock = Any()
 
-        @Volatile internal var browserHost: WebSessionBrowserHost? = null
         @Volatile internal var activeSessionId: String? = null
         internal val browserDownloadConfirmationQueue = BrowserDownloadConfirmationQueue()
 
         @Volatile private var sharedInstance: StandardBrowserSessionTools? = null
 
+        internal fun create(context: Context): StandardBrowserSessionTools =
+            StandardBrowserSessionTools(context.applicationContext as Application)
+
         fun getSharedInstance(context: Context): StandardBrowserSessionTools =
             sharedInstance ?: synchronized(this) {
                 sharedInstance
-                    ?: StandardBrowserSessionTools(context.applicationContext).also { instance ->
+                    ?: create(context).also { instance ->
                         sharedInstance = instance
                     }
             }
     }
+
+    @Volatile
+    internal var browserHost: WebSessionBrowserHost? = null
 
     internal val historyStore by lazy { WebSessionHistoryStore.getInstance(context.applicationContext) }
     internal val browserSettingsStore by lazy {

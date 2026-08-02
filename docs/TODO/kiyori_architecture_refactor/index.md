@@ -354,8 +354,10 @@ Application、稳定 launcher、多进程、arm64 53 native、零重复 basename
 system-bar owner，删除旧 `Theme.kt`、`OperitTheme`、`Theme.Operit` 和旧 root-theme test。
 固定 Typography 与纯 `applyFontFamilyToTypography` 已迁入 design；Type 的配置字体、文件读取、
 日志与 AI 局部字体适配保持原 owner。Liquid/Water Glass 算法与 PlayerActivity fullscreen
-system-bar 不迁不改，PlayerActivity LF SHA-256 仍为
-`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`。ARCH040/041/042、
+system-bar 不迁不改；M-05A3 历史封板 hash 为
+`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`，QD-04 当前
+ARCH042 hash 为 `0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA`。
+ARCH040/041/042、
 完整 architecture `phase=m03`、Python `158/158`、JVM `134 suites / 810 tests`、
 formal/fresh-clone readiness、fresh lint 影响面和 Debug APK 审计通过；baseline 交集为
 `5792/0/316`。APK 为 `477957302` bytes，SHA-256
@@ -411,5 +413,5 @@ M-02 至 M-05 已形成 checkpoint
 当前先执行
 [Stage 4 前质量债务与开发就绪精确清单](21_quality_debt_and_stage4_readiness_manifest.md)：
 把 `317` 条 current-only Lint 按正确性、行为保持型现代化、资源、Android/Browser
-平台合同和依赖五批收口，并审计当前 `5787` 条历史 baseline 中项目自有的高风险项。完成该
+平台合同和依赖五批收口，并审计当前 `5786` 条历史 baseline 中项目自有的高风险项。完成该
 质量门禁后再进入阶段 4 Browser 产品域。

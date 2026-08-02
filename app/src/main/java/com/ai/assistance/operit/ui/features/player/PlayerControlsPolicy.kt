@@ -49,6 +49,5 @@ internal fun resolvePlayerGravityOrientationRequest(
     when {
         previousEnabled == enabled -> null
         enabled -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
-        previousEnabled == true -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        else -> null
+        else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }

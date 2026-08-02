@@ -1499,7 +1499,6 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
             with(settings) {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                databaseEnabled = true
                 useWideViewPort = true
                 loadWithOverviewMode = true
                 builtInZoomControls = true

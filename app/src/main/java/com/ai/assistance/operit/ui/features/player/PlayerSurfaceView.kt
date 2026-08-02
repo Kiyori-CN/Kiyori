@@ -7,21 +7,32 @@ import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
 import java.util.UUID
 
-internal class PlayerSurfaceView(
+internal fun createPlayerSurfaceView(
     context: Context,
-    private val session: PlayerSession,
-    private val role: PlayerSurfaceRole,
+    session: PlayerSession,
+    role: PlayerSurfaceRole,
     mediaOverlay: Boolean = false,
-) : SurfaceView(context), SurfaceHolder.Callback {
-    private val ownerToken = "player-surface:${UUID.randomUUID()}"
-    private var generation: Long? = null
-
-    init {
-        holder.addCallback(this)
-        // Browser floating playback shares a window with the live WebView. Its Surface must sit
-        // above that sibling; fullscreen playback retains the normal window-owned surface order.
+): SurfaceView =
+    SurfaceView(context).apply {
+        // SurfaceView itself has no reusable XML or tooling state. Keep the player ownership in a
+        // callback object so programmatic callers use the framework view and one surface owner.
+        holder.addCallback(
+            PlayerSurfaceOwner(
+                surfaceView = this,
+                session = session,
+                role = role,
+            ),
+        )
         setZOrderMediaOverlay(mediaOverlay)
     }
+
+private class PlayerSurfaceOwner(
+    private val surfaceView: SurfaceView,
+    private val session: PlayerSession,
+    private val role: PlayerSurfaceRole,
+) : SurfaceHolder.Callback {
+    private val ownerToken = "player-surface:${UUID.randomUUID()}"
+    private var generation: Long? = null
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         val registeredGeneration = session.registerSurfaceOwner(role, ownerToken) ?: return
@@ -31,8 +42,8 @@ internal class PlayerSurfaceView(
             ownerToken,
             registeredGeneration,
             holder.surface,
-            width,
-            height,
+            surfaceView.width,
+            surfaceView.height,
         )
     }
 

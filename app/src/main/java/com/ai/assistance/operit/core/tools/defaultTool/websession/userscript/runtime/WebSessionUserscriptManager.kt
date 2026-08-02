@@ -318,7 +318,13 @@ internal class WebSessionUserscriptManager(
             }
 
             val isolatedRuntime =
-                if (runtimeCapabilities.isolatedWorldSupported) {
+                if (!runtimeCapabilities.isolatedWorldSupported) {
+                    null
+                } else if (
+                    WebViewFeature.isFeatureSupported(
+                        WebViewFeature.JS_INJECTION_IN_FRAME_AND_WORLD,
+                    )
+                ) {
                     val bridgeName = UserscriptBootstrapScript.ISOLATED_BRIDGE_NAME
                     val world =
                         runCatching {
@@ -371,7 +377,7 @@ internal class WebSessionUserscriptManager(
                         }
                     }
                 } else {
-                    null
+                    error("Isolated userscript WebView feature changed after capability discovery")
                 }
 
             sessionBindings[sessionId] =
@@ -2576,10 +2582,17 @@ internal class WebSessionUserscriptManager(
                 .toString()
         isolated.replyProxies.toList().forEach { replyProxy ->
             mainHandler.post {
-                runCatching { replyProxy.postMessage(rawMessage) }
-                    .onFailure { error ->
-                        AppLogger.w(TAG, "Failed to dispatch userscript host event: ${error.message}")
-                    }
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                    runCatching { replyProxy.postMessage(rawMessage) }
+                        .onFailure { error ->
+                            AppLogger.w(
+                                TAG,
+                                "Failed to dispatch userscript host event: ${error.message}",
+                            )
+                        }
+                } else {
+                    error("Userscript WebView message feature changed after bridge attachment")
+                }
             }
         }
     }
@@ -2655,8 +2668,17 @@ internal class WebSessionUserscriptManager(
         payload: JSONObject
     ) {
         mainHandler.post {
-            runCatching { replyProxy.postMessage(payload.toString()) }
-                .onFailure { AppLogger.w(TAG, "Failed to post userscript bridge message: ${it.message}") }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                runCatching { replyProxy.postMessage(payload.toString()) }
+                    .onFailure {
+                        AppLogger.w(
+                            TAG,
+                            "Failed to post userscript bridge message: ${it.message}",
+                        )
+                    }
+            } else {
+                error("Userscript WebView message feature changed after bridge attachment")
+            }
         }
     }
 }

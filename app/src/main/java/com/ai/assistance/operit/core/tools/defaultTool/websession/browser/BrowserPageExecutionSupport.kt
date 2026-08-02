@@ -82,25 +82,27 @@ internal class BrowserAsyncBridge {
     }
 }
 
-internal class BrowserTextSelectionBridge {
+internal class BrowserTextSelectionBridge(
+    private val browserTools: StandardBrowserSessionTools,
+) {
     @JavascriptInterface
     fun showActions(anchorX: Double, anchorY: Double) {
         StandardBrowserSessionTools.mainHandler.post {
-            StandardBrowserSessionTools.browserHost?.showTextSelectionActionsOverlay(anchorX, anchorY)
+            browserTools.browserHost?.showTextSelectionActionsOverlay(anchorX, anchorY)
         }
     }
 
     @JavascriptInterface
     fun performHapticFeedback() {
         StandardBrowserSessionTools.mainHandler.post {
-            StandardBrowserSessionTools.browserHost?.performTextSelectionHaptic()
+            browserTools.browserHost?.performTextSelectionHaptic()
         }
     }
 
     @JavascriptInterface
     fun hideActions() {
         StandardBrowserSessionTools.mainHandler.post {
-            StandardBrowserSessionTools.browserHost?.hideTextSelectionActionsOverlay()
+            browserTools.browserHost?.hideTextSelectionActionsOverlay()
         }
     }
 }
@@ -1910,7 +1912,7 @@ internal fun StandardBrowserSessionTools.ensureBrowserExecutionPresentation(
     toolName: String,
 ): ToolResult? {
     val appContext = context.applicationContext
-    val appPresentationActive = StandardBrowserSessionTools.browserHost?.hasAppPresentation() == true
+    val appPresentationActive = browserHost?.hasAppPresentation() == true
     if (
         !appPresentationActive &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
@@ -2030,7 +2032,7 @@ internal fun StandardBrowserSessionTools.renderOpenTabs(
 
 internal fun StandardBrowserSessionTools.renderPageState(session: BrowserToolSession): String {
     val viewport =
-        StandardBrowserSessionTools.browserHost?.currentViewportSize()
+        browserHost?.currentViewportSize()
             ?: Pair(
                 (session.viewportWidthPx ?: session.webView.width).coerceAtLeast(0),
                 (session.viewportHeightPx ?: session.webView.height).coerceAtLeast(0)

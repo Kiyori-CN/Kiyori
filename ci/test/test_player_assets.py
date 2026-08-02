@@ -185,7 +185,7 @@ class PlayerAssetsTest(unittest.TestCase):
             settings_store_source,
         )
         self.assertIn(
-            "preferences.edit().putString(KEY_ANIME4K_MODE, migratedId).apply()",
+            "preferences.edit { putString(KEY_ANIME4K_MODE, migratedId) }",
             settings_store_source,
         )
         self.assertIn("anime4KMode = readAnime4KMode()", settings_store_source)

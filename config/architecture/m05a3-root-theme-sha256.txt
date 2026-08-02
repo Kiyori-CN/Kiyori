@@ -5,7 +5,7 @@ E1FF66462BD373AE77AEC65FB358653160491C644EC0A2630268F043EC0AD514	app/src/main/ja
 B46FDF3DF4BEC9B5622BFA714D666936AAC8DEB433431989227D54EAB9AA6D39	app/src/main/java/com/ai/assistance/operit/ui/theme/Type.kt
 4F20979042E3B5C4B2AE178C63027511075F97F12D0C007D429333EED440AA6C	app/src/main/java/com/ai/assistance/operit/ui/theme/LiquidGlass.kt
 8D3A7913CBC2E4D9C40323A1BD61A78A3A5AC88E2ADEF527C8F4746C00E31A94	app/src/main/java/com/ai/assistance/operit/ui/theme/WaterGlass.kt
-AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756	app/src/main/java/com/ai/assistance/operit/ui/features/player/PlayerActivity.kt
+0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA	app/src/main/java/com/ai/assistance/operit/ui/features/player/PlayerActivity.kt
 3EFC336D49E38E557B43C274902CB488B47C6C55CCF627021349EA40980A2645	app/src/main/java/com/ai/assistance/operit/ui/common/OperitUtilityTheme.kt
 B78AD927ABF62719EE28B730E2D3531EF05C4CEE26064986CEF1977FA43E8C3C	app/src/main/java/com/ai/assistance/operit/ui/floating/FloatingWindowTheme.kt
 B224BB1310BD7F86D44A6EDC49B763C9E513FC067566595D1FE962B0B92F1C78	app/src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt

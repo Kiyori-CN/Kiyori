@@ -1,6 +1,6 @@
 package com.kiyori.platform
 
-import android.content.Context
+import android.app.Application
 import com.kiyori.platform.android.ApplicationContextAccess
 import com.kiyori.platform.lifecycle.ApplicationStartupTime
 import com.kiyori.platform.lifecycle.MainApplicationInitialization
@@ -10,17 +10,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 class ApplicationPlatformContractTest {
     @Test
     fun processContractsExposeOnlyTheInstalledValues() {
-        val sourceContext = mock<Context>()
-        val applicationContext = mock<Context>()
-        whenever(sourceContext.applicationContext).thenReturn(applicationContext)
+        val application = mock<Application>()
 
-        ApplicationContextAccess.installForProcess(sourceContext)
-        assertSame(applicationContext, ApplicationContextAccess.current)
+        ApplicationContextAccess.installForProcess(application)
+        assertSame(application, ApplicationContextAccess.current)
 
         val json = Json { ignoreUnknownKeys = true }
         ApplicationJson.installForProcess(json)

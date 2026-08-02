@@ -2252,7 +2252,6 @@ internal fun renderWebViewNode(
         webView.settings.apply {
             javaScriptEnabled = props.bool("javaScriptEnabled", true)
             domStorageEnabled = props.bool("domStorageEnabled", true)
-            databaseEnabled = props.bool("databaseEnabled", true)
             javaScriptCanOpenWindowsAutomatically =
                 props.bool("javaScriptCanOpenWindowsAutomatically", true)
             setSupportMultipleWindows(props.bool("supportMultipleWindows", true))

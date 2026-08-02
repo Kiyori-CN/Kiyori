@@ -237,16 +237,21 @@ consumer snapshot 精确锁定。旧 `KiyoriThemeTest` 删除，零 tracking 断
 组件集合不变，并更新 m03 semantic Manifest hash。ARCH039 MainActivity 完整项目 import
 snapshot 只把旧 theme import 改为 `com.kiyori.app.theme.KiyoriTheme`。
 
-PlayerActivity 的 LF-normalized SHA-256 必须继续为
-`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`；其
-`setDecorFitsSystemWindows(false)`、transient system-bars 与 hide(systemBars) 只能继续由
+M-05A3 封板时 PlayerActivity 的 LF-normalized SHA-256 为
+`AEF88E8F34DD08098D858E4E5D3F36CBF1867AE36E6C44B96346F6A0BC11A756`。QD-04
+在不改变 fullscreen system-bar owner 的前提下，把 Manifest 中重复的固定方向声明收口到
+既有 PlayerActivity policy，并把静态 browser host 访问改为 Application-scoped session
+owner；ARCH042 与 `m05a3-root-theme-sha256.txt` 的当前保护值因此更新为
+`0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA`。
+`setDecorFitsSystemWindows(false)`、transient system-bars 与 hide(systemBars) 仍只能由
 PlayerActivity 拥有。LiquidGlass/WaterGlass 算法、CompositionLocal 和 capability 判断保持
-原 owner；A3 不新增 alias、facade、旧 style、fallback、第二偏好流或第二 system-bar owner。
+原 owner；A3 与 QD-04 均不新增 alias、facade、旧 style、fallback、第二偏好流或第二
+system-bar owner。
 
 M-05A3 已按该合同封板：ARCH042 failure-first、正反向 fixture、真实工作树检查与完整
 architecture `phase=m03` 均通过。四个新 owner、七条 consumer import、两个文件精确 ownership
-exception、6 个 style 声明、Manifest 6 个引用、m03/ARCH039 snapshot 和 PlayerActivity 原 hash
-均由门禁锁定；旧 Theme owner、旧 symbol、旧 style 和旧测试清零。
+exception、6 个 style 声明、Manifest 6 个引用、m03/ARCH039 snapshot 和 PlayerActivity
+当前保护值均由门禁锁定；旧 Theme owner、旧 symbol、旧 style 和旧测试清零。
 
 M-05B 使用 ARCH043 独立封板。`com/kiyori/platform/logging/KiyoriLogger.kt` 是唯一
 executor、提前解析的内部 filesDir、package-log root provider、`logFile`、`packageLogFile`

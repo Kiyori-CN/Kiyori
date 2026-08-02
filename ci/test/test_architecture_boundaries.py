@@ -4700,6 +4700,16 @@ class KiyoriPathsTest {
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             architecture_root = self.write_m03_move_layout(root)
+            generated_source = (
+                root
+                / "app/src/main/cpp/.cxx/operit_deps/generated/StaleReference.cpp"
+            )
+            generated_source.parent.mkdir(parents=True, exist_ok=True)
+            generated_source.write_text(
+                "const char* generated = "
+                '"com.ai.assistance.operit.core.application.KiyoriApplication";\n',
+                encoding="utf-8",
+            )
             errors: list[str] = []
             check_m03_application_move(root, architecture_root, errors)
             self.assertEqual(errors, [])
