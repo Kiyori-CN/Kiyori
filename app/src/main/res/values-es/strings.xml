@@ -256,7 +256,6 @@
     <string name="back_to_list">Volver a la lista</string>
 
     <!-- Language Settings -->
-    <string name="language_settings">Configuración de idioma</string>
     <string name="language_settings_desc">Cambiar el idioma de visualización de la interfaz de la aplicación</string>
     <string name="change_language">Cambiar idioma</string>
     <string name="select_language">Seleccionar idioma</string>
@@ -547,7 +546,6 @@
     <string name="theme_chat_history_selector_transparent_desc">Cuando está activado, el selector de historial de chat se volverá transparente</string>
     <string name="theme_chat_header_transparent">Barra de chat transparente</string>
     <string name="theme_chat_header_transparent_desc">Cuando está activado, la barra superior de chat se volverá transparente</string>
-    <string name="theme_chat_header_transparent_title">Configuración de la barra superior de chat</string>
     <string name="theme_chat_input_transparent_title">Configuración del cuadro de entrada</string>
     <string name="theme_chat_input_transparent">Cuadro de entrada transparente</string>
     <string name="theme_chat_input_transparent_desc">Cuando está activado, el cuadro de entrada de chat se volverá transparente</string>
@@ -662,25 +660,17 @@
     <string name="configure_speech_services">Configurar Servicios de Voz</string>
     
     <!-- Settings Screen Sections -->
-    <string name="settings_section_personalization">Personalización</string>
-    <string name="settings_user_preferences">Preferencias de Usuario</string>
     <string name="settings_user_preferences_desc">Configurar información personal y preferencias para ayudar a la IA a entenderte mejor, incluye edad, personalidad, identidad, ocupación y estilo de IA esperado</string>
     <string name="settings_configure_preferences">Configurar Preferencias</string>
     <string name="settings_model_prompts">Configuración de Prompts del Modelo</string>
     <string name="settings_model_prompts_desc">Personalizar prompts del sistema del asistente IA, incluye auto-presentación y estilo de tono, para que la IA cumpla mejor tus expectativas</string>
     <string name="settings_configure_prompts">Configurar Prompts</string>
-    <string name="settings_theme_appearance">Tema y Apariencia</string>
     <string name="settings_theme_appearance_desc">Personalizar apariencia de la aplicación, incluye modo oscuro/claro y esquemas de color personalizados</string>
     <string name="settings_customize_theme">Personalizar Tema</string>
-    <string name="settings_data_backup">Respaldo y Recuperación de Datos</string>
-    <string name="settings_data_backup_desc">Importar, exportar o eliminar historial de chat y datos de la biblioteca de memoria para facilitar respaldo y recuperación</string>
     <string name="settings_manage_backup">Gestionar Respaldo</string>
     
-    <string name="settings_section_ai_model">Configuración del Modelo IA</string>
-    <string name="settings_model_parameters">Configuración de Modelo y Parámetros</string>
     <string name="settings_model_parameters_desc">Configurar ajustes de API, nombres de modelo y parámetros, con soporte para gestión de múltiples configuraciones</string>
     <string name="settings_configure_model">Configurar Modelo</string>
-    <string name="settings_functional_model">Configuración de Modelo Funcional</string>
     <string name="settings_functional_model_desc">Configurar modelos especializados y ajustes de API para diferentes funciones (chat, resumen, memoria, etc.)</string>
     <string name="settings_configure_function">Configurar Función</string>
     
@@ -695,7 +685,6 @@
     <string name="settings_auto_accessibility_desc">Cuando esté deshabilitado, se requiere autorización manual cada vez que se abre la aplicación</string>
     
     <string name="settings_section_permissions">Permisos y Seguridad</string>
-    <string name="settings_tool_permissions">Configuración de Permisos de Herramientas</string>
     <string name="settings_tool_permissions_desc">Configurar niveles de permiso para herramientas del asistente IA, puede establecerse como auto-permitir, preguntar o denegar</string>
     <string name="settings_configure_permissions">Configurar Permisos</string>
     
@@ -942,26 +931,14 @@
     <string name="advanced_config_notice">Para configuraciones avanzadas como modificar plantillas de prompt del sistema, vaya a la página \"Gestionar Todos los Prompts\".</string>
 
     <!-- Settings Screen Subtitles -->
-    <string name="settings_user_preferences_subtitle">Preferencias personales y configuración de comportamiento</string>
-    <string name="settings_language_subtitle">Cambio de idioma de la interfaz</string>
-    <string name="settings_theme_subtitle">Personalización de tema y apariencia</string>
-    <string name="layout_adjustment">Ajuste de Diseño</string>
-    <string name="layout_adjustment_subtitle">Ajustar posiciones y márgenes de elementos de UI</string>
-    <string name="settings_model_params_subtitle">Parámetros del modelo y configuración de API</string>
-    <string name="settings_functional_model_subtitle">Configuración específica del modelo funcional</string>
-    <string name="settings_speech_services">Configuración de Servicios de Voz</string>
-    <string name="settings_speech_services_subtitle">Configuración de servicios TTS/STT</string>
     <string name="settings_custom_headers">Encabezados Personalizados</string>
     <string name="settings_custom_headers_subtitle">Configuración de campos de encabezado de solicitud API</string>
     <string name="headers_configured_count">%1$d configurados</string>
-    <string name="settings_system_prompts_subtitle">Prompts del sistema y modelo</string>
     <string name="settings_functional_prompts_subtitle">Plantillas de prompts funcionales</string>
     <string name="settings_context_length">Longitud del Contexto</string>
     <string name="settings_context_length_subtitle">Longitud de memoria de conversación del modelo (k tokens)</string>
     <string name="settings_summary_threshold">Umbral de Token de Resumen</string>
     <string name="settings_summary_threshold_subtitle">Umbral para activar resumen de chat (0.1-0.95)</string>
-    <string name="settings_data_permissions">Datos y Permisos</string>
-    <string name="settings_tool_permissions_subtitle">Permisos de herramientas y configuración de seguridad</string>
     <string name="settings_data_backup_subtitle">Gestión de respaldo del historial de chat</string>
     <string name="settings_token_usage_stats">Estadísticas de Uso de Tokens</string>
     <string name="settings_function_label">Función</string>
@@ -1388,7 +1365,6 @@
     <string name="workflow_node_label_condition">Condición</string>
     <string name="workflow_node_label_logic">Lógica</string>
     <string name="workflow_node_label_extract">Operación</string>
-    <string name="workflow_node_label_unknown">Desconocido</string>
     <string name="workflow_node_skipped">Omitido</string>
     <string name="workflow_not_found">El flujo de trabajo no existe</string>
     <string name="workflow_confirm_delete_title">Confirmar eliminación</string>
@@ -1615,8 +1591,6 @@
     <string name="colorpicker_apply_hsv">Aplicar HSV</string>
 
     <string name="pet_service_notification_text">La mascota de escritorio está en ejecución</string>
-    <string name="settings_prompt_section">Configuración de indicaciones</string>
-    <string name="settings_prompt_title">Edición de tarjeta de personaje</string>
     <string name="settings_prompt_desc">Indicaciones para personalizar el comportamiento y la personalidad del asistente de IA</string>
     <string name="settings_configure_prompt">Configurar indicaciones</string>
     <string name="settings_functional_prompt_title">Configuración de indicaciones funcionales</string>
@@ -2064,14 +2038,9 @@
     <string name="max_mode_info">El Modo Max (modo de contexto超大) usará una ventana de contexto de %2$sk al activarse, y volverá a %1$sk al desactivarse. Puede personalizar estos valores en la configuración.</string>
     <string name="ai_planning_desc">Se realizará descomposición de tareas y se activarán múltiples subagentes para recopilar información, y finalmente se resumirá. La capacidad de invocación de herramientas de los subagentes es la misma que la del agente de chat. Esto puede ser muy lento, solo se recomienda activarlo al recopilar información.</string>
     <string name="ui_automation_in_progress">Ejecutando tarea de interfaz...</string>
-    <string name="settings_global_display">Visualización y comportamiento</string>
-    <string name="settings_global_display_subtitle">Administrar opciones globales como estilo de visualización, comportamiento de automatización y capturas de pantalla</string>
-    <string name="settings_chat_history_management">Gestión del historial de chat</string>
-    <string name="settings_chat_history_management_subtitle">Ver estadísticas y organizar, importar y exportar historiales de chat por lotes</string>
     <string name="reset_successful">Restablecimiento exitoso</string>
     <string name="reset_default_character">Restablecer tarjeta de personaje predeterminada</string>
     <string name="reset_default_character_confirm">¿Está seguro de que desea restablecer la tarjeta de personaje predeterminada? Esto restaurará el nombre, la configuración y las indicaciones predeterminadas, y restablecerá el avatar y el tema.</string>
-    <string name="settings_section_context_summary">Contexto y resumen</string>
     <string name="settings_enable_summary">Habilitar resumen de conversación</string>
     <string name="settings_enable_summary_desc">Genera automáticamente un resumen de la conversación cuando el contexto es demasiado largo, ahorrando consumo de tokens</string>
     <string name="settings_enable_summary_by_message_count">Activar resumen por número de mensajes</string>
@@ -2080,7 +2049,6 @@
     <string name="settings_summary_message_count_threshold_subtitle">Cantidad de mensajes nuevos para activar el resumen (1-20 mensajes)</string>
     <string name="notification_permission_rationale">Para notificarle oportunamente cuando la IA complete su respuesta, es necesario otorgar el permiso de notificación</string>
     <string name="notification_permission_denied">Permiso de notificación denegado, no podrá recibir avisos de respuesta de la IA</string>
-    <string name="settings_section_external_calls">Llamadas externas</string>
     <string name="settings_total_tokens_breakdown">Entrada: %1$d (caché: %2$d) / Salida: %3$d</string>
     <string name="settings_cached_tokens">(caché: %1$d)</string>
     <string name="screen_title_html_packager">HTML Packager</string>
@@ -3278,7 +3246,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="export_signing_apk">Firmando APK...</string>
     <string name="export_finish_packaging">Finalizando empaquetado...</string>
     <string name="export_completed">¡Exportación completada!</string>
-    <string name="export_sign_apk_failed">Error al firmar APK: %1$s</string>
     <string name="export_failed_with_reason">Error al exportar: %1$s</string>
     <string name="export_prepare_windows_template">Preparando plantilla de aplicación para Windows...</string>
     <string name="export_copy_template">Copiando plantilla de aplicación...</string>
@@ -3323,10 +3290,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="parameter_type">Tipo de parámetro</string>
     <string name="settings_title">Ajustes</string>
     <string name="api_settings_title">Ajustes de API</string>
-    <string name="persona_card_generation">Generación de tarjeta de personaje</string>
-    <string name="persona_card_generation_desc">Entrar en diálogo con IA para generar tarjeta de personaje personalizada</string>
-    <string name="waifu_mode_settings">Ajustes del modo Waifu</string>
-    <string name="waifu_mode_settings_desc">Configurar el modo de envío de respuestas del AI por frases</string>
     <string name="import_tavern_card">Importar tarjeta de personaje de Tavern</string>
     <string name="import_tavern_card_desc">Importar tarjeta de personaje en formato Tavern desde archivo JSON o PNG</string>
     <string name="select_tavern_card_file">Seleccionar archivo de tarjeta de personaje de Tavern</string>
@@ -3458,9 +3421,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="global_text_paragraph_spacing">Espaciado entre párrafos Markdown de AI</string>
     <string name="global_text_paragraph_spacing_desc">Ajusta el espaciado adicional entre párrafos Markdown en las respuestas de AI</string>
 
-    <string name="settings_external_http_chat">Llamada HTTP externa</string>
-    <string name="settings_external_http_chat_subtitle">Escuchar en 0.0.0.0 la interfaz de chat HTTP, puerto y Bearer Token</string>
-    <string name="settings_token_usage_subtitle">Ver estadísticas detalladas de uso de tokens y precios personalizados</string>
     <string name="settings_usage_summary">Estadísticas de uso</string>
     <string name="settings_total_chats">Conversaciones</string>
     <string name="settings_total_messages">Mensajes</string>
@@ -3700,11 +3660,8 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="feature_explanation">Explicación de la función</string>
     <string name="waifu_mode_explanation">• Modo normal: la respuesta de la IA se envía completa de una vez\n• Modo Waifu: la respuesta de la IA se divide en oraciones, cada una en una burbuja independiente\n• Retardo inteligente: calcula el retardo según la longitud de la oración\n• Limpieza automática: elimina etiquetas de estado, solo muestra texto plano\n• Funciones opcionales: eliminar puntuación al final, editar prompt de Waifu, activar emoticonos\n• Escenario de uso: simular un ritmo de conversación más natural\n• Nota: este modo puede no adaptarse bien a las llamadas de herramientas</string>
     <string name="settings_saved_message">Configuración guardada</string>
-    <string name="settings_section_account">Cuenta</string>
 
     <string name="github_account_not_logged_in">No iniciado sesión</string>
-    <string name="github_account_login_desc">Inicia sesión con GitHub para usar funciones como publicar/administrar en el mercado MCP</string>
-    <string name="github_account_logout_desc">Cerrar sesión actual de GitHub</string>
     <string name="github_account_info_title">Información de la cuenta</string>
     <string name="github_account_info_id">ID</string>
     <string name="github_account_info_public_repos">Repositorios públicos</string>
@@ -4621,7 +4578,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="screen_title_context_summary_settings">Configuración de contexto y resumen</string>
     <string name="settings_context_title">Configuración de contexto</string>
     <string name="settings_summary_title">Configuración de resumen</string>
-    <string name="settings_context_summary_subtitle">Administrar la configuración de contexto, resumen y retención de medios históricos</string>
     <string name="external_http_chat_enable">Habilitar servicio HTTP externo</string>
     <string name="external_http_chat_enable_desc">Al activarlo, se iniciará un servicio HTTP externo que escucha en 0.0.0.0; el mismo puerto proporciona tanto la API HTTP como una interfaz de chat web accesible directamente</string>
     <string name="external_http_chat_port">Puerto de escucha</string>
@@ -5985,9 +5941,17 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_userscript_log_info">Información</string>
     <string name="web_session_userscript_log_warning">Advertencia</string>
     <string name="web_session_userscript_log_error">Error</string>
-    <string name="web_session_userscript_selected_count">%1$d seleccionados</string>
+    <plurals name="web_session_userscript_selected_count">
+        <item quantity="one">%1$d seleccionados</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
+    </plurals>
     <string name="web_session_userscript_delete_selected_title">Eliminar scripts seleccionados</string>
-    <string name="web_session_userscript_delete_selected_message">Se eliminarán %1$d scripts y su código, revisiones, borradores, valores y registros. No se puede deshacer.</string>
+    <plurals name="web_session_userscript_delete_selected_message">
+        <item quantity="one">Se eliminarán %1$d scripts y su código, revisiones, borradores, valores y registros. No se puede deshacer.</item>
+        <item quantity="many">Se eliminarán %1$d scripts y su código, revisiones, borradores, valores y registros. No se puede deshacer.</item>
+        <item quantity="other">Se eliminarán %1$d scripts y su código, revisiones, borradores, valores y registros. No se puede deshacer.</item>
+    </plurals>
     <string name="web_session_userscript_detail">Detalles del script</string>
     <string name="web_session_userscript_detail_overview">Resumen</string>
     <string name="web_session_userscript_detail_rules">Reglas de coincidencia</string>
@@ -6028,19 +5992,39 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_userscript_editor_review_title">Validación y diferencias</string>
     <string name="web_session_userscript_editor_review_waiting">Generando resultados</string>
     <string name="web_session_userscript_editor_syntax">Sintaxis JavaScript</string>
-    <string name="web_session_userscript_editor_diff_summary">Diferencias: +%1$d / -%2$d líneas</string>
+    <plurals name="web_session_userscript_editor_diff_summary">
+        <item quantity="one">Diferencias: +%1$d / -%2$d líneas</item>
+        <item quantity="many">Diferencias: +%1$d / -%2$d líneas</item>
+        <item quantity="other">Diferencias: +%1$d / -%2$d líneas</item>
+    </plurals>
     <string name="web_session_userscript_editor_check_passed">Correcto</string>
     <string name="web_session_userscript_editor_check_failed">Falló</string>
     <string name="web_session_userscript_editor_leave_title">¿Salir del editor?</string>
     <string name="web_session_userscript_editor_leave_message">Los cambios aún no están aplicados. Puedes conservar el borrador privado o descartarlo.</string>
     <string name="web_session_userscript_editor_keep_draft">Conservar borrador y salir</string>
     <string name="web_session_userscript_editor_discard_draft">Descartar borrador</string>
-    <string name="web_session_userscript_update_check_summary">%1$d actualizaciones disponibles</string>
-    <string name="web_session_userscript_update_check_summary_failed">%1$d actualizaciones; fallaron %2$d comprobaciones</string>
+    <plurals name="web_session_userscript_update_check_summary">
+        <item quantity="one">%1$d actualizaciones disponibles</item>
+        <item quantity="many">%1$d actualizaciones disponibles</item>
+        <item quantity="other">%1$d actualizaciones disponibles</item>
+    </plurals>
+    <plurals name="web_session_userscript_update_check_summary_failed">
+        <item quantity="one">%1$d actualizaciones; fallaron %2$d comprobaciones</item>
+        <item quantity="many">%1$d actualizaciones; fallaron %2$d comprobaciones</item>
+        <item quantity="other">%1$d actualizaciones; fallaron %2$d comprobaciones</item>
+    </plurals>
     <string name="web_session_userscript_updated">Script actualizado: %1$s</string>
     <string name="web_session_userscript_no_safe_updates">No hay actualizaciones automáticas seguras</string>
-    <string name="web_session_userscript_update_apply_summary">%1$d actualizados, %2$d fallidos</string>
-    <string name="web_session_userscript_deleted_count">%1$d scripts eliminados</string>
+    <plurals name="web_session_userscript_update_apply_summary">
+        <item quantity="one">%1$d actualizados, %2$d fallidos</item>
+        <item quantity="many">%1$d actualizados, %2$d fallidos</item>
+        <item quantity="other">%1$d actualizados, %2$d fallidos</item>
+    </plurals>
+    <plurals name="web_session_userscript_deleted_count">
+        <item quantity="one">%1$d scripts eliminados</item>
+        <item quantity="many">%1$d scripts eliminados</item>
+        <item quantity="other">%1$d scripts eliminados</item>
+    </plurals>
     <string name="web_session_userscript_draft_applied">Script aplicado: %1$s</string>
     <string name="web_session_userscript_drafts">Borradores privados</string>
     <string name="web_session_userscript_private_draft">No instalado; guardado solo en el directorio privado de la app</string>
@@ -6386,28 +6370,8 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="skill_error_cannot_access_dir">No se puede acceder al directorio de skills: %1$s</string>
     <string name="skill_error_create_tmp_dir_failed">Error al crear el directorio temporal: %1$s</string>
 
-    <string name="web_session_downloads_filter_in_progress">En curso</string>
-    <string name="web_session_downloads_filter_completed">Completado</string>
-    <string name="web_session_downloads_filter_failed">Fallido</string>
-    <string name="web_session_downloads_empty_title">No hay descargas</string>
-    <string name="web_session_downloads_empty_message">Cuando comience una descarga, aquí se mostrará su estado y acciones.</string>
     <string name="web_session_downloads_active_bar">Descargando %1$d elementos</string>
     <string name="web_session_downloads_active_unknown">Preparando</string>
-    <string name="web_session_download_pause">Pausar</string>
-    <string name="web_session_download_resume">Reanudar</string>
-    <string name="web_session_download_cancel">Cancelar</string>
-    <string name="web_session_download_retry">Reintentar</string>
-    <string name="web_session_download_open_file">Abrir archivo</string>
-    <string name="web_session_download_open_location">Abrir ubicación</string>
-    <string name="web_session_download_delete_record">Eliminar registro</string>
-    <string name="web_session_download_delete_file_and_record">Eliminar archivo y registro</string>
-    <string name="web_session_download_status_queued">En espera</string>
-    <string name="web_session_download_status_connecting">Conectando</string>
-    <string name="web_session_download_status_downloading">Descargando</string>
-    <string name="web_session_download_status_paused">Pausado</string>
-    <string name="web_session_download_status_completed">Completado</string>
-    <string name="web_session_download_status_failed">Fallido</string>
-    <string name="web_session_download_status_canceled">Cancelado</string>
     <string name="web_session_download_open_failed">No se puede abrir el archivo descargado</string>
     <string name="web_session_download_location_open_failed">No se puede abrir la ubicación de descarga</string>
     <string name="web_session_system_download_enqueued">Añadido a la cola de descargas del sistema: %1$s</string>
@@ -6424,11 +6388,8 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_external_open_failed">No se puede abrir el enlace o la aplicación externa: %1$s</string>
     <string name="web_session_permission_denied">Permiso denegado para la solicitud web, la función no está disponible</string>
     <string name="web_session_location_permission_denied">Permiso de ubicación denegado, la geolocalización web no está disponible</string>
-    <string name="web_session_close_all_tabs">Cerrar todas las pestañas</string>
     <string name="web_session_new_tab">Nueva pestaña</string>
-    <string name="web_session_userscripts">Userscripts</string>
     <string name="web_session_plugins">Complementos</string>
-    <string name="web_session_plugins_subtitle">Gestiona los complementos y capacidades de página del navegador</string>
     <string name="web_session_plugins_search_hint">Buscar complementos</string>
     <string name="web_session_plugins_add">Añadir</string>
     <string name="web_session_plugins_library">Bibliotecas</string>
@@ -6440,19 +6401,26 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_plugins_search_empty">No hay complementos coincidentes</string>
     <string name="web_session_plugins_builtin">Integrado</string>
     <string name="web_session_plugins_unsupported">No compatible</string>
-    <string name="web_session_plugins_script_count">%1$d scripts</string>
-    <string name="web_session_plugins_enabled_count">%1$d activados</string>
+    <plurals name="web_session_plugins_script_count">
+        <item quantity="one">%1$d scripts</item>
+        <item quantity="many">%1$d scripts</item>
+        <item quantity="other">%1$d scripts</item>
+    </plurals>
+    <plurals name="web_session_plugins_enabled_count">
+        <item quantity="one">%1$d activados</item>
+        <item quantity="many">%1$d activados</item>
+        <item quantity="other">%1$d activados</item>
+    </plurals>
     <string name="web_session_plugins_page_count">%1$d en la página</string>
-    <string name="web_session_plugins_menu_count">%1$d menús</string>
+    <plurals name="web_session_plugins_menu_count">
+        <item quantity="one">%1$d menús</item>
+        <item quantity="many">%1$d menús</item>
+        <item quantity="other">%1$d menús</item>
+    </plurals>
     <string name="web_session_plugins_pending_install">Pendiente</string>
-    <string name="web_session_plugins_runtime_allowed">Scripts de usuario permitidos</string>
     <string name="web_session_plugins_runtime_blocked">Permiso de ejecución desactivado</string>
     <string name="web_session_userscript_manager_title">Userscripts</string>
     <string name="web_session_userscript_plugin_subtitle">Gestor de userscripts integrado</string>
-    <string name="web_session_userscripts_subtitle">Gestiona los scripts de usuario nativos instalados en el navegador actual</string>
-    <string name="web_session_userscript_runtime_permission">Permiso de ejecución</string>
-    <string name="web_session_userscript_allow_runtime">Permitir scripts de usuario</string>
-    <string name="web_session_userscript_allow_runtime_summary">Permite que el complemento integrado inyecte scripts habilitados en las páginas. Al desactivarlo se detienen futuras inyecciones y se revocan de inmediato los permisos de los scripts.</string>
     <string name="web_session_userscript_permission_install_notice">El script puede instalarse, pero no se ejecutará hasta activar Permitir scripts de usuario.</string>
     <string name="web_session_userscript_execution_world">Entorno de ejecución</string>
     <string name="web_session_userscript_execution_world_page">Entorno de página</string>
@@ -6460,24 +6428,28 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_userscript_page_context_access">Contexto de scripts de la página</string>
     <string name="web_session_userscript_page_context_direct">Acceso directo a window de la página</string>
     <string name="web_session_userscript_page_context_bridge">Puente de objetos de página desde el entorno aislado</string>
-    <string name="web_session_userscript_page_context_security_summary">La página puede observar o alterar operaciones de unsafeWindow. Los privilegios GM/native permanecen en el entorno aislado compartido y se autorizan con el token y los permisos de cada script.</string>
-    <string name="web_session_userscript_install">Instalar script</string>
     <string name="web_session_userscript_install_from_url">Dirección del script</string>
     <string name="web_session_userscript_install_action">Instalar desde enlace</string>
     <string name="web_session_userscript_import_local">Importar archivo local</string>
-    <string name="web_session_userscript_install_preview">Confirmar instalación</string>
-    <string name="web_session_userscript_update_preview">Confirmar actualización</string>
     <string name="web_session_userscript_library">Scripts instalados</string>
     <string name="web_session_userscript_none">Aún no hay scripts instalados</string>
     <string name="web_session_userscript_search_hint">Buscar scripts, permisos o sitios</string>
     <string name="web_session_userscript_search_empty">No hay scripts coincidentes</string>
     <string name="web_session_userscript_logs">Registros de scripts</string>
     <string name="web_session_userscript_logs_empty">Aún no hay registros de scripts</string>
-    <string name="web_session_userscript_logs_retained_count">Se conservan %1$d registros; copiar y exportar ignoran el filtro actual</string>
+    <plurals name="web_session_userscript_logs_retained_count">
+        <item quantity="one">Se conservan %1$d registros; copiar y exportar ignoran el filtro actual</item>
+        <item quantity="many">Se conservan %1$d registros; copiar y exportar ignoran el filtro actual</item>
+        <item quantity="other">Se conservan %1$d registros; copiar y exportar ignoran el filtro actual</item>
+    </plurals>
     <string name="web_session_userscript_logs_copy_all">Copiar todo</string>
     <string name="web_session_userscript_logs_export_all">Exportar todo</string>
     <string name="web_session_userscript_logs_exporting">Exportando</string>
-    <string name="web_session_userscript_logs_copied">Se copiaron %1$d registros</string>
+    <plurals name="web_session_userscript_logs_copied">
+        <item quantity="one">Se copiaron %1$d registros</item>
+        <item quantity="many">Se copiaron %1$d registros</item>
+        <item quantity="other">Se copiaron %1$d registros</item>
+    </plurals>
     <string name="web_session_userscript_logs_exported">Registros exportados: %1$s</string>
     <string name="web_session_userscript_logs_export_failed">Error al exportar registros: %1$s</string>
     <string name="web_session_userscript_log_copied">Registro copiado</string>
@@ -6486,8 +6458,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_userscript_log_time">Hora de registro</string>
     <string name="web_session_userscript_log_page">URL de la página</string>
     <string name="web_session_userscript_log_message">Mensaje</string>
-    <string name="web_session_userscript_page_menu">Menú de scripts de la página actual</string>
-    <string name="web_session_userscript_page_menu_subtitle">Haz clic para ejecutar los comandos de script registrados en esta página</string>
     <string name="web_session_userscript_version">Versión</string>
     <string name="web_session_userscript_source">Origen</string>
     <string name="web_session_userscript_grants">Grant</string>
@@ -6495,19 +6465,9 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_userscript_connects">@connect</string>
     <string name="web_session_userscript_requires">@require</string>
     <string name="web_session_userscript_resources">@resource</string>
-    <string name="web_session_userscript_update_url">URL de actualización</string>
     <string name="web_session_userscript_unsupported_grants">Grant no implementado: %1$s</string>
-    <string name="web_session_userscript_unknown_grants">Grant desconocido: %1$s</string>
-    <string name="web_session_userscript_blocked_reasons">Motivos de bloqueo: %1$s</string>
-    <string name="web_session_userscript_support_url">@supportURL</string>
-    <string name="web_session_userscript_website">Website</string>
-    <string name="web_session_userscript_icons">Iconos</string>
-    <string name="web_session_userscript_tags">@tag</string>
-    <string name="web_session_userscript_sandbox">@sandbox</string>
     <string name="web_session_userscript_run_in">@run-in</string>
-    <string name="web_session_userscript_web_request">@webRequest</string>
     <string name="web_session_userscript_confirm_install">Confirmar instalación</string>
-    <string name="web_session_userscript_cancel_install">Cancelar</string>
     <string name="web_session_userscript_update_action">Confirmar actualización</string>
     <string name="web_session_userscript_check_update">Buscar actualizaciones</string>
     <string name="web_session_userscript_delete">Eliminar script</string>
@@ -6738,25 +6698,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_back">Atrás</string>
     <string name="web_session_forward">Adelante</string>
     <string name="web_session_refresh">Actualizar</string>
-    <string name="web_session_address_bar">Barra de direcciones</string>
-    <string name="web_session_address_input">Editar dirección</string>
-    <string name="web_session_open_address">Abrir dirección</string>
-    <string name="web_session_tabs">Pestañas</string>
-    <string name="web_session_tabs_with_index">Pestañas, pestaña actual %1$d</string>
     <string name="web_session_no_tabs">No hay pestañas</string>
-    <string name="web_session_current_tab">Pestaña actual</string>
     <string name="web_session_history">Historial</string>
-    <string name="web_session_current_session_history">Historial de la sesión actual</string>
-    <string name="web_session_no_history">No hay historial</string>
-    <string name="web_session_current_page">Página actual</string>
-    <string name="web_session_recent_history">Visitas recientes</string>
-    <string name="web_session_clear_history">Borrar historial</string>
     <string name="web_session_bookmarks">Favoritos</string>
     <string name="web_session_add_bookmark">Añadir a favoritos</string>
     <string name="web_session_remove_bookmark">Quitar de favoritos</string>
-    <string name="web_session_no_bookmarks">No hay favoritos</string>
-    <string name="web_session_menu">Menú</string>
-    <string name="web_session_minimize">Minimizar</string>
     <string name="web_session_user_agent">Identidad UA</string>
     <string name="web_session_user_agent_dialog_title">Identidad UA del navegador</string>
     <string name="web_session_user_agent_android">Android</string>
@@ -6775,7 +6721,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_user_agent_full_domain">Dominio completo</string>
     <string name="web_session_user_agent_site_unavailable">La página actual no tiene un dominio para una regla UA</string>
     <string name="web_session_downloads">Descargas</string>
-    <string name="web_session_downloads_summary">%1$d en curso / %2$d fallidas</string>
 
     <string name="conversation_media_image_link">&lt;link type="image" id="%1$s"&gt;Imagen&lt;/link&gt;</string>
     <string name="conversation_media_audio_link">&lt;link type="audio" id="%1$s"&gt;Audio&lt;/link&gt;</string>
@@ -7322,24 +7267,26 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="kiyori_shell_mini_app_home">Miniaplicaciones</string>
     <string name="kiyori_shell_file_management_home">Archivos</string>
     <string name="kiyori_shell_settings_home">Ajustes</string>
-    <string name="kiyori_shell_minus_one">Página lateral</string>
     <string name="kiyori_shell_search_hint">Busca en la web o introduce una URL</string>
     <string name="kiyori_shell_ai_hint">Envía una pregunta o tarea a la IA</string>
     <string name="kiyori_home_weather_query">Tiempo en %1$s</string>
-    <string name="kiyori_home_weather_current">%1$s, %2$d grados</string>
+    <plurals name="kiyori_home_weather_current">
+        <item quantity="one">%1$s, %2$d grados</item>
+        <item quantity="many">%1$s, %2$d grados</item>
+        <item quantity="other">%1$s, %2$d grados</item>
+    </plurals>
     <string name="kiyori_home_weather_loading">Cargando el tiempo</string>
     <string name="kiyori_home_weather_permission">Usar la ubicación para el tiempo</string>
     <string name="kiyori_home_weather_retry">Tiempo no disponible, toca para reintentar</string>
-    <string name="kiyori_home_browser_windows">%1$d ventanas del navegador</string>
+    <plurals name="kiyori_home_browser_windows">
+        <item quantity="one">%1$d ventanas del navegador</item>
+        <item quantity="many">%1$d ventanas del navegador</item>
+        <item quantity="other">%1$d ventanas del navegador</item>
+    </plurals>
     <string name="kiyori_shell_search_action">Buscar</string>
     <string name="kiyori_shell_ai_action">IA</string>
-    <string name="kiyori_shell_web_search">Búsqueda web</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">Asistente de IA</string>
-    <string name="kiyori_shell_favorites">Favoritos</string>
-    <string name="kiyori_shell_bookmarks">Marcadores</string>
-    <string name="kiyori_shell_history">Historial</string>
-    <string name="kiyori_shell_downloads">Descargas</string>
     <string name="kiyori_shell_exit_hint">Pulsa Atrás de nuevo para salir de Kiyori</string>
     <string name="web_session_normal_window">Ventanas normales</string>
     <string name="web_session_incognito_title">Ventanas de incógnito</string>
@@ -7390,7 +7337,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_network_log">Registro de red</string>
     <string name="web_session_network_log_empty">Esta página aún no tiene solicitudes de red registradas</string>
     <string name="web_session_network_log_empty_filter">No hay solicitudes de red para este filtro</string>
-    <string name="web_session_network_log_count">%1$d solicitudes</string>
+    <plurals name="web_session_network_log_count">
+        <item quantity="one">%1$d solicitudes</item>
+        <item quantity="many">%1$d solicitudes</item>
+        <item quantity="other">%1$d solicitudes</item>
+    </plurals>
     <string name="web_session_network_log_clear">Borrar</string>
     <string name="web_session_network_log_search_hint">Buscar URL o métodos de solicitud</string>
     <string name="web_session_network_log_filter_all">Todo</string>
@@ -7422,7 +7373,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_source_unavailable">La página actual no tiene un WebView legible</string>
     <string name="web_session_source_empty">El código fuente de la página actual está vacío</string>
     <string name="web_session_source_read_failed">No se pudo leer el código fuente de la página</string>
-    <string name="web_session_toolbox_subtitle">Herramientas disponibles para la página actual</string>
     <string name="web_session_download_confirmation_queue_full">Hay demasiadas descargas esperando confirmación. Revisa primero la solicitud actual.</string>
     <string name="browser_download_runtime_channel_name">Descargas de archivos</string>
     <string name="browser_download_runtime_channel_description">Muestra las descargas internas activas y sus controles</string>
@@ -7430,7 +7380,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="browser_download_result_channel_description">Muestra las descargas internas completadas y fallidas</string>
     <string name="browser_download_runtime_title">Descargador de archivos</string>
     <string name="browser_download_runtime_preparing">Preparando la descarga</string>
-    <string name="browser_download_runtime_multiple">%1$d descargando, %2$d en espera</string>
+    <plurals name="browser_download_runtime_multiple">
+        <item quantity="one">%1$d descargando, %2$d en espera</item>
+        <item quantity="many">%1$d descargando, %2$d en espera</item>
+        <item quantity="other">%1$d descargando, %2$d en espera</item>
+    </plurals>
     <string name="browser_download_runtime_pause_all">Pausar todo</string>
     <string name="browser_download_result_completed_title">Descarga completada</string>
     <string name="browser_download_result_failed_title">Error de descarga</string>
@@ -7438,7 +7392,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="browser_download_result_open">Abrir archivo</string>
     <string name="web_session_download_confirm_destination">Guardar en: %1$s</string>
     <string name="web_session_history_title">Historial</string>
-    <string name="web_session_history_count">%1$d elementos</string>
+    <plurals name="web_session_history_count">
+        <item quantity="one">%1$d elementos</item>
+        <item quantity="many">%1$d elementos</item>
+        <item quantity="other">%1$d elementos</item>
+    </plurals>
     <string name="web_session_history_delete">Eliminar</string>
     <string name="web_session_history_search_hint">Buscar por título, enlace o página de origen</string>
     <string name="web_session_history_filter_all">Todos</string>

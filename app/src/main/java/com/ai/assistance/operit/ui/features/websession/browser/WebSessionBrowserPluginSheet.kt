@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -213,8 +214,9 @@ private fun BrowserPluginCenterOverview(
             leadingIcon = Icons.Filled.Extension,
             tone = KiyoriSemanticTone.PURPLE,
             countText =
-                stringResource(
-                    R.string.web_session_plugins_script_count,
+                pluralStringResource(
+                    R.plurals.web_session_plugins_script_count,
+                    installedScriptCount,
                     installedScriptCount,
                 ),
             actions = {
@@ -401,8 +403,9 @@ private fun BrowserPluginCurrentPageProviderSection(
                             )
                             if (projection.currentPageMenuCommandCount > 0) {
                                 add(
-                                    stringResource(
-                                        R.string.web_session_plugins_menu_count,
+                                    pluralStringResource(
+                                        R.plurals.web_session_plugins_menu_count,
+                                        projection.currentPageMenuCommandCount,
                                         projection.currentPageMenuCommandCount,
                                     ),
                                 )
@@ -499,8 +502,9 @@ private fun BrowserPluginPageEntryCard(
                 if (entry.commands.isNotEmpty()) {
                     Text(
                         text =
-                            stringResource(
-                                R.string.web_session_plugins_menu_count,
+                            pluralStringResource(
+                                R.plurals.web_session_plugins_menu_count,
+                                entry.commands.size,
                                 entry.commands.size,
                             ),
                         style = MaterialTheme.typography.labelSmall,
@@ -746,14 +750,16 @@ private fun BrowserPluginCard(
                     text =
                         buildList {
                             add(
-                                stringResource(
-                                    R.string.web_session_plugins_script_count,
+                                pluralStringResource(
+                                    R.plurals.web_session_plugins_script_count,
+                                    plugin.installedItemCount,
                                     plugin.installedItemCount,
                                 ),
                             )
                             add(
-                                stringResource(
-                                    R.string.web_session_plugins_enabled_count,
+                                pluralStringResource(
+                                    R.plurals.web_session_plugins_enabled_count,
+                                    plugin.enabledItemCount,
                                     plugin.enabledItemCount,
                                 ),
                             )

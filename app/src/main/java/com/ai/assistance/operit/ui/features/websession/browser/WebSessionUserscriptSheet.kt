@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -206,8 +207,9 @@ internal fun WebSessionUserscriptSheet(
                 leadingIcon = Icons.Filled.Extension,
                 tone = KiyoriSemanticTone.PURPLE,
                 countText =
-                    stringResource(
-                        R.string.web_session_plugins_script_count,
+                    pluralStringResource(
+                        R.plurals.web_session_plugins_script_count,
+                        state.installedScripts.size,
                         state.installedScripts.size,
                     ),
                 navigationIcon = {
@@ -486,8 +488,9 @@ internal fun WebSessionUserscriptSheet(
                             copyUserscriptText(context, "Kiyori 用户脚本日志", report)
                             Toast.makeText(
                                 context,
-                                resources.getString(
-                                    R.string.web_session_userscript_logs_copied,
+                                resources.getQuantityString(
+                                    R.plurals.web_session_userscript_logs_copied,
+                                    state.recentLogs.size,
                                     state.recentLogs.size,
                                 ),
                                 Toast.LENGTH_SHORT,
@@ -573,8 +576,9 @@ internal fun WebSessionUserscriptSheet(
             title = { Text(stringResource(R.string.web_session_userscript_delete_selected_title)) },
             text = {
                 Text(
-                    stringResource(
-                        R.string.web_session_userscript_delete_selected_message,
+                    pluralStringResource(
+                        R.plurals.web_session_userscript_delete_selected_message,
+                        selectedScriptIds.size,
                         selectedScriptIds.size,
                     ),
                 )
@@ -688,8 +692,9 @@ private fun UserscriptSelectionHeader(
 ) {
     WebSessionDrawerHeader(
         title =
-            stringResource(
-                R.string.web_session_userscript_selected_count,
+            pluralStringResource(
+                R.plurals.web_session_userscript_selected_count,
+                selectedCount,
                 selectedCount,
             ),
         leadingIcon = Icons.Filled.Check,
@@ -1265,8 +1270,9 @@ private fun UserscriptLogToolbar(
         ) {
             Text(
                 text =
-                    stringResource(
-                        R.string.web_session_userscript_logs_retained_count,
+                    pluralStringResource(
+                        R.plurals.web_session_userscript_logs_retained_count,
+                        logCount,
                         logCount,
                     ),
                 style = MaterialTheme.typography.bodySmall,

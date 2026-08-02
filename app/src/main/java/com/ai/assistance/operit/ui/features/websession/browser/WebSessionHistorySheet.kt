@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -111,7 +112,12 @@ internal fun WebSessionHistorySheet(
                 modifier = Modifier.padding(start = 8.dp),
             )
             Text(
-                text = stringResource(R.string.web_session_history_count, entries.size),
+                text =
+                    pluralStringResource(
+                        R.plurals.web_session_history_count,
+                        entries.size,
+                        entries.size,
+                    ),
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 10.dp),

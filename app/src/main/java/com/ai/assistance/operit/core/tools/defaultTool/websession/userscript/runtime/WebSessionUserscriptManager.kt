@@ -760,14 +760,16 @@ internal class WebSessionUserscriptManager(
                 onToast(
                     when {
                         failureCount > 0 ->
-                            context.getString(
-                                R.string.web_session_userscript_update_check_summary_failed,
+                            context.resources.getQuantityString(
+                                R.plurals.web_session_userscript_update_check_summary_failed,
+                                availableCount,
                                 availableCount,
                                 failureCount,
                             )
                         else ->
-                            context.getString(
-                                R.string.web_session_userscript_update_check_summary,
+                            context.resources.getQuantityString(
+                                R.plurals.web_session_userscript_update_check_summary,
+                                availableCount,
                                 availableCount,
                             )
                     },
@@ -851,8 +853,9 @@ internal class WebSessionUserscriptManager(
             }
             mainHandler.post {
                 onToast(
-                    context.getString(
-                        R.string.web_session_userscript_update_apply_summary,
+                    context.resources.getQuantityString(
+                        R.plurals.web_session_userscript_update_apply_summary,
+                        completedCount,
                         completedCount,
                         failureCount,
                     ),
@@ -885,8 +888,9 @@ internal class WebSessionUserscriptManager(
             }
             mainHandler.post {
                 onToast(
-                    context.getString(
-                        R.string.web_session_userscript_deleted_count,
+                    context.resources.getQuantityString(
+                        R.plurals.web_session_userscript_deleted_count,
+                        scriptIds.size,
                         scriptIds.size,
                     ),
                 )

@@ -255,8 +255,9 @@ internal object BrowserDownloadRuntimeCoordinator {
                         }
                     }
                 else ->
-                    context.getString(
-                        R.string.browser_download_runtime_multiple,
+                    context.resources.getQuantityString(
+                        R.plurals.browser_download_runtime_multiple,
+                        summary.activeCount,
                         summary.activeCount,
                         summary.queuedCount,
                     )

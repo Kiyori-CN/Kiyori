@@ -1,7 +1,7 @@
 ---
 status: debt_cleanup_in_progress
 baseline_commit: 6b6493a0bfd12072116e45fb733d551fad13e32b
-current_phase: qd-03-resource-and-asset-cleanup
+current_phase: qd-04-platform-contracts
 device_scope: excluded
 release_scope: excluded
 ---
@@ -38,22 +38,22 @@ release_scope: excluded
 
 ## 当前 Lint 债务
 
-质量清理初始报告包含 `317` 条未基线化记录。QD-02 完成后的 fresh full lint 报告包含
-`224` 条 XML 记录：
+质量清理初始报告包含 `317` 条未基线化记录。QD-03 与 baseline 精确求交完成后的
+fresh full lint 报告包含 `59` 条 XML 记录：
 
 | 严重级别 | 数量 | 说明 |
 | --- | ---: | --- |
 | Error | 0 | QD-01 已清除 22 条缺失翻译和 5 条 Compose 资源读取错误 |
-| Warning | 223 | 资源、位图目录、WebView feature、复数、平台和依赖问题 |
+| Warning | 58 | WebView feature、生命周期、平台合同和依赖问题 |
 | Hint | 1 | 现有 baseline 状态提示 |
 
 Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因此同一次执行摘要为
-`223 warnings`。本清单的结构化数量以
+`58 warnings`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
-当前 `app/lint-baseline.xml` 另有 `5791` 条历史记录，结构化统计为
-`1268 errors / 4373 warnings / 150 hints`。baseline SHA-256 为
-`B51D9DA65832FF45B0E9B652D2A6632D0DA380DC427A37988E5B90B9861B06BF`。
+当前 `app/lint-baseline.xml` 另有 `5787` 条历史记录，完整 lint 汇总为
+`1265 errors / 4372 warnings / 150 hints`。baseline SHA-256 为
+`80691E34E07299ABAA58C5F19DBDB27FFE5DB65AF03DEA2514B8A2AC0CC4F9E4`。
 
 baseline 是历史债务清单，不是永久豁免。清理时只允许删除已经由当前源码证明失效或已经
 修复的记录，禁止吸收任何 current-only 问题。
@@ -128,7 +128,7 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 ### QD-03：资源、图片目录与复数
 
-状态：`in_progress`
+状态：`completed`
 
 范围：
 
@@ -146,9 +146,26 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 完成信号：三类 current-only 记录为 `0`，资源合并、翻译和 Debug 构建通过。
 
+验证证据：
+
+- 逐名扫描 tracked 文本、`R.*`、XML/Manifest 引用和 `getIdentifier` 后，删除
+  113 个无引用字符串键的 776 个多语言定义、3 个颜色和 4 个 drawable；动态资源访问仅
+  指向 Android 系统 `status_bar_height`
+- 26 个仍在使用的 PNG 从 `drawable/` 原字节移动到 `drawable-nodpi/`，移动前后
+  SHA-256 全部一致，资源名和调用点不变
+- 17 个数量文案改为 `plurals`；`values`/`en` 使用 `one/other`，
+  `es`/`pt-rBR` 使用 `one/many/other`，`id`/`ms`/`ko` 使用 `other`
+- 资源合并、Kotlin 编译和完整 JVM
+  `137 suites / 822 tests / 0 failures / 0 errors / 0 skipped` 通过
+- fresh `:app:lintDebug` 成功；`UnusedResources=0`、`IconLocation=0`、
+  `PluralsCandidate=0`、`UnusedQuantity=0`、`MissingQuantity=0`
+- 临时完整 baseline `5845` 条；结构化交集
+  `retained=5787 / stale=4 / current-only=58`，只删除 3 条
+  `MissingTranslation` 和 1 条 `PluralsCandidate` 失效记录
+
 ### QD-04：Android 与 Browser 平台合同
 
-状态：`pending`
+状态：`in_progress`
 
 范围：
 
@@ -174,6 +191,24 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
   必须在本批按当前 WebView 合同移除或替换，禁止通过 suppress 保留
 
 完成信号：上述八类 current-only 记录为 `0`，Browser/Player/启动定向测试通过。
+
+### QD-07：Kotlin 编译器警报与弃用迁移
+
+状态：`pending`
+
+QD-03 的大范围资源变更触发完整 Kotlin 重编译，暴露出增量构建未重复显示的历史编译器
+警报。它们必须在 Stage 4 前形成结构化清单，并按以下类别逐批处理：
+
+- 非空类型上的安全调用、非空断言、恒真/恒假条件、无效 cast 与冗余转换
+- Android、Compose、协程和第三方 API 弃用
+- opt-in 与 delicate API 合同
+- RTL AutoMirrored 图标和可访问性相关迁移
+
+禁止以全局 compiler suppress、降低 warning 级别或关闭检查代替修复。确实属于稳定
+override、第三方 ABI 或发布兼容合同的条目，必须记录精确 owner、保留理由和退出条件。
+
+完成信号：强制完整 `:app:compileDebugKotlin` 日志中项目自有可修复警报为 `0`；保留项有
+逐条审计记录，且编译、JVM、Lint 和 Debug APK 通过。
 
 ### QD-05：依赖与第三方字节码
 
@@ -222,7 +257,8 @@ current-only 归零后，优先审计 baseline 中项目自有的：
    时的 `LintBaseline` 状态提示
 2. current-only 修复没有扩大 baseline、suppress 或 lint disable
 3. 项目自有高风险 baseline 项已完成审计和根因处理
-4. 完整 architecture、Python、JVM、formal/fresh-clone、Markdown 和
+4. 完整 Kotlin 重编译不含未审计警报；architecture、Python、JVM、
+   formal/fresh-clone、Markdown 和
    `git diff --check` 通过
 5. 规定 Debug APK 构建、身份、签名、16 KB 对齐、Manifest、ABI、native 单副本和
    敏感内容审计通过

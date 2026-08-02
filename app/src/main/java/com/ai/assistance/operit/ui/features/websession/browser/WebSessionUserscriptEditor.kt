@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -863,8 +864,9 @@ private fun UserscriptEditorReviewDialog(
                         )
                         Text(
                             text =
-                                stringResource(
-                                    R.string.web_session_userscript_editor_diff_summary,
+                                pluralStringResource(
+                                    R.plurals.web_session_userscript_editor_diff_summary,
+                                    review.sourceDiff.additions,
                                     review.sourceDiff.additions,
                                     review.sourceDiff.deletions,
                                 ),

@@ -304,7 +304,6 @@
     <string name="workflow_node_label_condition">Kondisi</string>
     <string name="workflow_node_label_logic">Logika</string>
     <string name="workflow_node_label_extract">Operasi</string>
-    <string name="workflow_node_label_unknown">Tidak Diketahui</string>
     <string name="workflow_node_skipped">Dilewati</string>
     <string name="workflow_not_found">Alur Kerja Tidak Ditemukan</string>
     <string name="workflow_confirm_delete_title">Konfirmasi Penghapusan</string>
@@ -578,7 +577,6 @@
     <string name="settings_tool_permissions_desc">Konfigurasi tingkat izin alat AI Asisten, dapat diatur ke izin otomatis, tanya, atau larang</string>
     <string name="settings_configure_permissions">Konfigurasi izin alat</string>
     <string name="settings_section_usage">Statistik penggunaan</string>
-    <string name="settings_section_external_calls">Panggilan eksternal</string>
     <string name="settings_token_statistics">Statistik Token</string>
     <string name="settings_total_tokens_breakdown">Input: %1$d (Cache: %2$d) / Output: %3$d</string>
     <string name="settings_cached_tokens">(Cache: %1$d)</string>
@@ -701,8 +699,6 @@
     <string name="show_thinking">Tampilkan proses berpikir</string>
     <string name="show_fps_counter">Tampilkan frame rate</string>
     <string name="fps_counter_description">Tampilkan frame rate real-time di sudut kanan atas layar</string>
-    <string name="settings_section_personalization">Personalisasi</string>
-    <string name="settings_user_preferences">Preferensi Pengguna</string>
     <string name="settings_user_preferences_desc">Konfigurasikan informasi pribadi dan preferensi agar AI lebih memahami Anda, termasuk usia, kepribadian, identitas, profesi, dan gaya AI yang diharapkan</string>
     <string name="settings_configure_preferences">Konfigurasi Preferensi Pengguna</string>
     <string name="settings_model_prompts">Pengaturan Prompt Model</string>
@@ -750,27 +746,16 @@
     <string name="plugin_no_plugins">Tidak ada plugin terinstal yang terdeteksi</string>
     <string name="plugin_preparing">Sedang menyiapkan %1$d plugin...</string>
 
-    <string name="settings_theme_appearance">Tema dan Penampilan</string>
     <string name="settings_theme_appearance_desc">Personalisasi tampilan aplikasi, termasuk mode gelap/terang dan skema warna kustom</string>
     <string name="settings_customize_theme">Kustomisasi Tema</string>
-    <string name="settings_global_display">Tampilan dan Perilaku</string>
-    <string name="settings_global_display_subtitle">Kelola gaya tampilan, perilaku otomatis, tangkapan layar, dan opsi global lainnya</string>
-    <string name="settings_data_backup">Cadangan dan Pemulihan Data</string>
-    <string name="settings_data_backup_desc">Impor, ekspor, atau hapus riwayat obrolan dan data memori untuk memudahkan pencadangan dan pemulihan informasi penting</string>
     <string name="settings_manage_backup">Kelola Cadangan</string>
-    <string name="settings_chat_history_management">Manajemen Riwayat Obrolan</string>
-    <string name="settings_chat_history_management_subtitle">Lihat statistik dan kelola, impor/ekspor riwayat obrolan secara massal</string>
     <string name="reset_successful">Reset Berhasil</string>
     <string name="reset_default_character">Reset Kartu Karakter Default</string>
     <string name="reset_default_character_confirm">Yakin ingin mereset kartu karakter default? Ini akan mengembalikan nama, pengaturan, dan prompt default, serta mereset avatar dan tema.</string>
-    <string name="settings_section_ai_model">Konfigurasi Model AI</string>
-    <string name="settings_model_parameters">Konfigurasi Model dan Parameter</string>
     <string name="settings_model_parameters_desc">Konfigurasi pengaturan API, nama model, dan parameter, mendukung manajemen konfigurasi ganda</string>
     <string name="settings_configure_model">Konfigurasi Model</string>
-    <string name="settings_functional_model">Konfigurasi Model Fungsional</string>
     <string name="settings_functional_model_desc">Konfigurasikan model dan pengaturan API khusus untuk berbagai fungsi (seperti obrolan, ringkasan, memori, dll.)</string>
     <string name="settings_configure_function">Konfigurasi Fungsi</string>
-    <string name="settings_section_context_summary">Konteks dan Ringkasan</string>
     <string name="settings_enable_summary">Aktifkan Ringkasan Obrolan</string>
     <string name="settings_enable_summary_desc">Secara otomatis menghasilkan ringkasan obrolan saat konteks terlalu panjang, menghemat konsumsi Token</string>
     <string name="settings_enable_summary_by_message_count">Picu Ringkasan Berdasarkan Jumlah Pesan</string>
@@ -789,7 +774,6 @@
     <string name="settings_auto_accessibility">Izin Aksesibilitas Otomatis</string>
     <string name="settings_auto_accessibility_desc">Setelah dimatikan, perlu otorisasi manual setiap kali membuka perangkat lunak</string>
     <string name="settings_section_permissions">Izin dan Keamanan</string>
-    <string name="settings_tool_permissions">Pengaturan Izin Alat</string>
 
     <string name="package_details">Detail Paket</string>
     <string name="package_tools">Alat yang Disertakan</string>
@@ -842,7 +826,6 @@
     <string name="theme_chat_history_selector_transparent_desc">Aktifkan untuk membuat pemilih riwayat obrolan menjadi transparan</string>
     <string name="theme_chat_header_transparent">Bilah Obrolan Transparan</string>
     <string name="theme_chat_header_transparent_desc">Aktifkan untuk membuat bilah atas obrolan menjadi transparan</string>
-    <string name="theme_chat_header_transparent_title">Pengaturan Bilah Atas Obrolan</string>
     <string name="theme_chat_input_transparent_title">Pengaturan Kotak Masukan</string>
     <string name="theme_chat_input_transparent">Kotak Masukan Transparan</string>
     <string name="theme_chat_input_transparent_desc">Aktifkan untuk membuat kotak masukan obrolan menjadi transparan</string>
@@ -1007,8 +990,6 @@
     <string name="desktop_pet_function_desc">Fungsi hewan peliharaan desktop, kustomisasi kepribadian dan cara interaksi hewan peliharaan desktop</string>
     <string name="pet_service_notification_title">Layanan hewan peliharaan desktop</string>
     <string name="pet_service_notification_text">Hewan peliharaan desktop sedang berjalan</string>
-    <string name="settings_prompt_section">Konfigurasi prompt</string>
-    <string name="settings_prompt_title">Edit kartu peran</string>
     <string name="settings_prompt_desc">Prompt untuk menyesuaikan perilaku dan kepribadian asisten AI</string>
     <string name="settings_configure_prompt">Konfigurasi prompt</string>
     <string name="settings_functional_prompt_title">Konfigurasi prompt fungsional</string>
@@ -1340,7 +1321,6 @@
     <string name="missing_parameters">Parameter wajib tidak ada: %1$s</string>
     <string name="save_changes">Simpan Perubahan</string>
     <string name="back_to_list">Kembali ke Daftar</string>
-    <string name="language_settings">Pengaturan Bahasa</string>
     <string name="language_settings_desc">Ubah bahasa tampilan antarmuka aplikasi</string>
     <string name="change_language">Ubah Bahasa</string>
     <string name="select_language">Pilih Bahasa</string>
@@ -2793,15 +2773,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="history_fast_scroll">Gulir cepat riwayat</string>
     <string name="history_scroll_to_top">Gulir ke atas</string>
     <string name="history_scroll_to_bottom">Gulir ke bawah</string>
-    <string name="settings_user_preferences_subtitle">Pengaturan preferensi dan perilaku pribadi</string>
-    <string name="settings_language_subtitle">Penggantian bahasa antarmuka</string>
-    <string name="settings_theme_subtitle">Kustomisasi tema dan tampilan</string>
-    <string name="layout_adjustment">Penyesuaian tata letak</string>
-    <string name="layout_adjustment_subtitle">Sesuaikan posisi dan margin elemen antarmuka</string>
-    <string name="settings_model_params_subtitle">Konfigurasi parameter model dan API</string>
-    <string name="settings_functional_model_subtitle">Konfigurasi khusus model fungsional</string>
-    <string name="settings_speech_services">Konfigurasi layanan ucapan</string>
-    <string name="settings_speech_services_subtitle">Pengaturan layanan TTS/STT</string>
     <string name="settings_custom_headers">Header permintaan kustom</string>
     <string name="settings_custom_headers_subtitle">Konfigurasi bidang header permintaan API</string>
     <string name="headers_configured_count">%1$d item telah dikonfigurasi</string>
@@ -2907,7 +2878,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="export_signing_apk">Menandatangani APK...</string>
     <string name="export_finish_packaging">Menyelesaikan pengemasan...</string>
     <string name="export_completed">Ekspor selesai!</string>
-    <string name="export_sign_apk_failed">Gagal menandatangani APK: %1$s</string>
     <string name="export_failed_with_reason">Ekspor gagal: %1$s</string>
     <string name="export_prepare_windows_template">Mempersiapkan templat aplikasi Windows...</string>
     <string name="export_copy_template">Menyalin templat aplikasi...</string>
@@ -2968,17 +2938,12 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="workspace_cmd_flutter_doctor">Periksa Lingkungan Flutter</string>
     <string name="workspace_cmd_flutter_pub_get">Ambil Dependensi</string>
 
-    <string name="settings_data_permissions">Data dan Izin</string>
-    <string name="settings_tool_permissions_subtitle">Izin alat dan pengaturan keamanan</string>
-    <string name="settings_external_http_chat">Panggilan HTTP Eksternal</string>
-    <string name="settings_external_http_chat_subtitle">Antarmuka chat HTTP yang mendengarkan 0.0.0.0, port, dan Bearer Token</string>
     <string name="settings_data_backup_subtitle">Manajemen cadangan riwayat chat</string>
     <string name="settings_token_usage_stats">Statistik Penggunaan Token</string>
     <string name="settings_function_label">Fungsi</string>
     <string name="settings_model_label">Model</string>
     <string name="settings_no_token_records">Belum ada catatan penggunaan Token untuk modul fungsi.</string>
     <string name="settings_reset_all_counts">Reset Semua Hitungan</string>
-    <string name="settings_token_usage_subtitle">Lihat statistik penggunaan Token dan penyesuaian harga secara detail</string>
     <string name="settings_usage_summary">Ringkasan Penggunaan</string>
     <string name="settings_total_chats">Percakapan</string>
     <string name="settings_total_messages">Pesan</string>
@@ -3164,10 +3129,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="parameter_type">Tipe Parameter</string>
     <string name="settings_title">Pengaturan</string>
     <string name="api_settings_title">Pengaturan API</string>
-    <string name="persona_card_generation">Pembuatan Kartu Persona</string>
-    <string name="persona_card_generation_desc">Masuk ke percakapan dengan AI untuk membuat kartu persona yang personal</string>
-    <string name="waifu_mode_settings">Pengaturan Mode Waifu</string>
-    <string name="waifu_mode_settings_desc">Konfigurasi mode pengiriman kalimat per kalimat untuk balasan AI</string>
     <string name="import_tavern_card">Impor Kartu Karakter Tavern</string>
     <string name="import_tavern_card_desc">Impor kartu karakter format Tavern dari file JSON atau PNG</string>
     <string name="select_tavern_card_file">Pilih file kartu karakter Tavern</string>
@@ -3757,10 +3718,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="feature_explanation">Penjelasan fitur</string>
     <string name="waifu_mode_explanation">• Mode biasa: Balasan AI dikirim sekaligus\n• Mode Waifu: Balasan AI dipisah per kalimat, setiap kalimat dalam gelembung terpisah\n• Penundaan cerdas: Waktu tunda dihitung berdasarkan panjang kalimat\n• Pembersihan otomatis: Hapus label status, hanya tampilkan teks biasa\n• Fitur opsional: Hapus tanda baca di akhir kalimat, edit prompt Waifu, aktifkan stiker\n• Skenario yang cocok: Simulasi ritme percakapan yang lebih alami\n• Catatan: Mode ini mungkin kurang cocok untuk adaptasi panggilan alat</string>
     <string name="settings_saved_message">Pengaturan telah disimpan</string>
-    <string name="settings_section_account">Akun</string>
     <string name="github_account_not_logged_in">Belum masuk</string>
-    <string name="github_account_login_desc">Gunakan GitHub untuk masuk guna menggunakan fitur seperti publikasi/kelola pasar MCP</string>
-    <string name="github_account_logout_desc">Keluar dari status masuk GitHub saat ini</string>
     <string name="github_account_info_title">Informasi akun</string>
     <string name="github_account_info_id">ID</string>
     <string name="github_account_info_public_repos">Repositori publik</string>
@@ -3911,7 +3869,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="install_command_colon">Perintah instalasi: %1$s</string>
 
     <string name="screen_title_external_http_chat_settings">Panggilan HTTP Eksternal</string>
-    <string name="settings_system_prompts_subtitle">Prompt Sistem dan Model</string>
     <string name="settings_functional_prompts_subtitle">Template Prompt Fungsional Khusus</string>
     <string name="settings_context_length">Panjang Konteks</string>
     <string name="settings_context_length_subtitle">Panjang memori percakapan model (k token)</string>
@@ -4294,7 +4251,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="screen_title_context_summary_settings">Pengaturan Konteks dan Ringkasan</string>
     <string name="settings_context_title">Pengaturan Konteks</string>
     <string name="settings_summary_title">Pengaturan Ringkasan</string>
-    <string name="settings_context_summary_subtitle">Kelola pengaturan konteks, ringkasan, dan retensi media riwayat</string>
     <string name="external_http_chat_enable">Aktifkan Layanan HTTP Eksternal</string>
     <string name="external_http_chat_enable_desc">Saat diaktifkan, akan memulai layanan HTTP eksternal yang benar-benar mendengarkan di 0.0.0.0; port yang sama menyediakan API HTTP dan antarmuka obrolan web yang dapat diakses langsung</string>
     <string name="external_http_chat_port">Port Mendengarkan</string>
@@ -6306,25 +6262,11 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_back">Kembali</string>
     <string name="web_session_forward">Maju</string>
     <string name="web_session_refresh">Muat ulang</string>
-    <string name="web_session_address_bar">Bilah alamat</string>
-    <string name="web_session_address_input">Edit alamat</string>
-    <string name="web_session_open_address">Buka alamat</string>
-    <string name="web_session_tabs">Tab</string>
-    <string name="web_session_tabs_with_index">Tab, tab saat ini %1$d</string>
     <string name="web_session_no_tabs">Belum ada tab</string>
-    <string name="web_session_current_tab">Tab saat ini</string>
     <string name="web_session_history">Riwayat</string>
-    <string name="web_session_current_session_history">Riwayat sesi saat ini</string>
-    <string name="web_session_no_history">Belum ada riwayat</string>
-    <string name="web_session_current_page">Halaman saat ini</string>
-    <string name="web_session_recent_history">Baru-baru ini dikunjungi</string>
-    <string name="web_session_clear_history">Hapus riwayat</string>
     <string name="web_session_bookmarks">Favorit</string>
     <string name="web_session_add_bookmark">Tambahkan ke favorit</string>
     <string name="web_session_remove_bookmark">Hapus dari favorit</string>
-    <string name="web_session_no_bookmarks">Belum ada favorit</string>
-    <string name="web_session_menu">Menu</string>
-    <string name="web_session_minimize">Minimalkan</string>
     <string name="web_session_user_agent">Identitas UA</string>
     <string name="web_session_user_agent_dialog_title">Identitas UA browser</string>
     <string name="web_session_user_agent_android">Android</string>
@@ -6343,12 +6285,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_user_agent_full_domain">Domain lengkap</string>
     <string name="web_session_user_agent_site_unavailable">Halaman saat ini tidak memiliki domain untuk aturan UA</string>
     <string name="web_session_downloads">Unduhan</string>
-    <string name="web_session_downloads_summary">%1$d sedang berlangsung / %2$d gagal</string>
-    <string name="web_session_downloads_filter_in_progress">Sedang berlangsung</string>
-    <string name="web_session_downloads_filter_completed">Selesai</string>
-    <string name="web_session_downloads_filter_failed">Gagal</string>
-    <string name="web_session_downloads_empty_title">Belum ada tugas unduhan</string>
-    <string name="web_session_downloads_empty_message">Status dan tindakan akan ditampilkan di sini setelah unduhan dimulai.</string>
     <string name="web_session_downloads_active_bar">Mengunduh %1$d item</string>
     <string name="web_session_downloads_active_unknown">Mempersiapkan</string>
 
@@ -6521,19 +6457,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_connects">@connect</string>
     <string name="web_session_userscript_requires">@require</string>
     <string name="web_session_userscript_resources">@resource</string>
-    <string name="web_session_userscript_update_url">URL Pembaruan</string>
     <string name="web_session_userscript_unsupported_grants">Grant yang belum diimplementasikan: %1$s</string>
-    <string name="web_session_userscript_unknown_grants">Grant tidak dikenal: %1$s</string>
-    <string name="web_session_userscript_blocked_reasons">Alasan diblokir: %1$s</string>
-    <string name="web_session_userscript_support_url">@supportURL</string>
-    <string name="web_session_userscript_website">Website</string>
-    <string name="web_session_userscript_icons">Ikon</string>
-    <string name="web_session_userscript_tags">@tag</string>
-    <string name="web_session_userscript_sandbox">@sandbox</string>
     <string name="web_session_userscript_run_in">@run-in</string>
-    <string name="web_session_userscript_web_request">@webRequest</string>
     <string name="web_session_userscript_confirm_install">Konfirmasi Instalasi</string>
-    <string name="web_session_userscript_cancel_install">Batal</string>
     <string name="web_session_userscript_update_action">Konfirmasi Pembaruan</string>
     <string name="web_session_userscript_check_update">Periksa Pembaruan</string>
     <string name="web_session_userscript_delete">Hapus Skrip</string>
@@ -6576,9 +6502,13 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_log_info">Info</string>
     <string name="web_session_userscript_log_warning">Peringatan</string>
     <string name="web_session_userscript_log_error">Kesalahan</string>
-    <string name="web_session_userscript_selected_count">%1$d dipilih</string>
+    <plurals name="web_session_userscript_selected_count">
+        <item quantity="other">%1$d dipilih</item>
+    </plurals>
     <string name="web_session_userscript_delete_selected_title">Hapus skrip terpilih</string>
-    <string name="web_session_userscript_delete_selected_message">Menghapus %1$d skrip beserta sumber, revisi, draf, nilai, dan log. Tindakan ini tidak dapat dibatalkan.</string>
+    <plurals name="web_session_userscript_delete_selected_message">
+        <item quantity="other">Menghapus %1$d skrip beserta sumber, revisi, draf, nilai, dan log. Tindakan ini tidak dapat dibatalkan.</item>
+    </plurals>
     <string name="web_session_userscript_detail">Detail skrip</string>
     <string name="web_session_userscript_detail_overview">Ringkasan</string>
     <string name="web_session_userscript_detail_rules">Aturan kecocokan</string>
@@ -6619,19 +6549,29 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_editor_review_title">Validasi dan perbedaan</string>
     <string name="web_session_userscript_editor_review_waiting">Membuat hasil validasi</string>
     <string name="web_session_userscript_editor_syntax">Sintaks JavaScript</string>
-    <string name="web_session_userscript_editor_diff_summary">Perbedaan sumber: +%1$d / -%2$d baris</string>
+    <plurals name="web_session_userscript_editor_diff_summary">
+        <item quantity="other">Perbedaan sumber: +%1$d / -%2$d baris</item>
+    </plurals>
     <string name="web_session_userscript_editor_check_passed">Lulus</string>
     <string name="web_session_userscript_editor_check_failed">Gagal</string>
     <string name="web_session_userscript_editor_leave_title">Keluar dari editor skrip?</string>
     <string name="web_session_userscript_editor_leave_message">Perubahan belum diterapkan ke revisi aktif. Simpan draf privat atau buang draf.</string>
     <string name="web_session_userscript_editor_keep_draft">Simpan draf dan keluar</string>
     <string name="web_session_userscript_editor_discard_draft">Buang draf</string>
-    <string name="web_session_userscript_update_check_summary">%1$d pembaruan tersedia</string>
-    <string name="web_session_userscript_update_check_summary_failed">%1$d pembaruan ditemukan; %2$d pemeriksaan gagal</string>
+    <plurals name="web_session_userscript_update_check_summary">
+        <item quantity="other">%1$d pembaruan tersedia</item>
+    </plurals>
+    <plurals name="web_session_userscript_update_check_summary_failed">
+        <item quantity="other">%1$d pembaruan ditemukan; %2$d pemeriksaan gagal</item>
+    </plurals>
     <string name="web_session_userscript_updated">Skrip diperbarui: %1$s</string>
     <string name="web_session_userscript_no_safe_updates">Tidak ada kandidat pembaruan otomatis yang aman</string>
-    <string name="web_session_userscript_update_apply_summary">%1$d diperbarui, %2$d gagal</string>
-    <string name="web_session_userscript_deleted_count">%1$d skrip dihapus</string>
+    <plurals name="web_session_userscript_update_apply_summary">
+        <item quantity="other">%1$d diperbarui, %2$d gagal</item>
+    </plurals>
+    <plurals name="web_session_userscript_deleted_count">
+        <item quantity="other">%1$d skrip dihapus</item>
+    </plurals>
     <string name="web_session_userscript_draft_applied">Skrip diterapkan: %1$s</string>
     <string name="web_session_userscript_drafts">Draf privat</string>
     <string name="web_session_userscript_private_draft">Belum dipasang; hanya disimpan di direktori privat aplikasi</string>
@@ -6677,21 +6617,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="llama_error_chat_template_failed">Kesalahan: Tidak dapat menerapkan template percakapan model (llama_model_chat_template/llama_chat_apply_template)</string>
     <string name="llama_error_inference_failed">Terjadi kesalahan dalam proses inferensi llama.cpp</string>
 
-    <string name="web_session_download_pause">Jeda</string>
-    <string name="web_session_download_resume">Lanjutkan</string>
-    <string name="web_session_download_cancel">Batal</string>
-    <string name="web_session_download_retry">Coba Lagi</string>
-    <string name="web_session_download_open_file">Buka File</string>
-    <string name="web_session_download_open_location">Buka Lokasi</string>
-    <string name="web_session_download_delete_record">Hapus Catatan</string>
-    <string name="web_session_download_delete_file_and_record">Hapus File dan Catatan</string>
-    <string name="web_session_download_status_queued">Menunggu</string>
-    <string name="web_session_download_status_connecting">Menghubungkan</string>
-    <string name="web_session_download_status_downloading">Mengunduh</string>
-    <string name="web_session_download_status_paused">Dijeda</string>
-    <string name="web_session_download_status_completed">Selesai</string>
-    <string name="web_session_download_status_failed">Gagal</string>
-    <string name="web_session_download_status_canceled">Dibatalkan</string>
     <string name="web_session_download_open_failed">Tidak dapat membuka file unduhan</string>
     <string name="web_session_download_location_open_failed">Tidak dapat membuka lokasi unduhan</string>
     <string name="web_session_system_download_enqueued">Ditambahkan ke antrean unduhan sistem: %1$s</string>
@@ -6708,11 +6633,8 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_external_open_failed">Tidak dapat membuka tautan atau aplikasi eksternal: %1$s</string>
     <string name="web_session_permission_denied">Izin yang diminta halaman web ditolak, fungsi terkait tidak tersedia</string>
     <string name="web_session_location_permission_denied">Izin lokasi ditolak, penentuan lokasi halaman web tidak tersedia</string>
-    <string name="web_session_close_all_tabs">Tutup Semua Tab</string>
     <string name="web_session_new_tab">Tab Baru</string>
-    <string name="web_session_userscripts">Userscripts</string>
     <string name="web_session_plugins">Plugin</string>
-    <string name="web_session_plugins_subtitle">Kelola plugin browser dan kemampuan halaman di satu tempat</string>
     <string name="web_session_plugins_search_hint">Cari plugin</string>
     <string name="web_session_plugins_add">Tambah</string>
     <string name="web_session_plugins_library">Pustaka Plugin</string>
@@ -6724,19 +6646,20 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_plugins_search_empty">Tidak ada plugin yang cocok</string>
     <string name="web_session_plugins_builtin">Bawaan</string>
     <string name="web_session_plugins_unsupported">Tidak didukung</string>
-    <string name="web_session_plugins_script_count">%1$d skrip</string>
-    <string name="web_session_plugins_enabled_count">%1$d aktif</string>
+    <plurals name="web_session_plugins_script_count">
+        <item quantity="other">%1$d skrip</item>
+    </plurals>
+    <plurals name="web_session_plugins_enabled_count">
+        <item quantity="other">%1$d aktif</item>
+    </plurals>
     <string name="web_session_plugins_page_count">%1$d di halaman</string>
-    <string name="web_session_plugins_menu_count">%1$d menu</string>
+    <plurals name="web_session_plugins_menu_count">
+        <item quantity="other">%1$d menu</item>
+    </plurals>
     <string name="web_session_plugins_pending_install">Menunggu</string>
-    <string name="web_session_plugins_runtime_allowed">Skrip pengguna diizinkan</string>
     <string name="web_session_plugins_runtime_blocked">Izin runtime nonaktif</string>
     <string name="web_session_userscript_manager_title">Userscripts</string>
     <string name="web_session_userscript_plugin_subtitle">Pengelola userscript bawaan</string>
-    <string name="web_session_userscripts_subtitle">Kelola skrip Tampermonkey asli yang terpasang di browser ini</string>
-    <string name="web_session_userscript_runtime_permission">Izin runtime</string>
-    <string name="web_session_userscript_allow_runtime">Izinkan skrip pengguna</string>
-    <string name="web_session_userscript_allow_runtime_summary">Izinkan plugin bawaan menyuntikkan skrip aktif ke halaman web. Menonaktifkannya menghentikan injeksi berikutnya dan segera mencabut hak skrip.</string>
     <string name="web_session_userscript_permission_install_notice">Skrip dapat dipasang, tetapi tidak akan berjalan sampai Izinkan skrip pengguna diaktifkan.</string>
     <string name="web_session_userscript_execution_world">Dunia eksekusi</string>
     <string name="web_session_userscript_execution_world_page">Dunia halaman</string>
@@ -6744,24 +6667,24 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_page_context_access">Konteks skrip halaman</string>
     <string name="web_session_userscript_page_context_direct">Akses langsung ke window halaman</string>
     <string name="web_session_userscript_page_context_bridge">Jembatan objek halaman dari dunia terisolasi</string>
-    <string name="web_session_userscript_page_context_security_summary">Halaman dapat mengamati atau memengaruhi operasi unsafeWindow. Hak GM/native tetap berada di runtime terisolasi bersama dan diotorisasi oleh token serta grant tiap skrip.</string>
-    <string name="web_session_userscript_install">Pasang Skrip</string>
     <string name="web_session_userscript_install_from_url">URL Skrip</string>
     <string name="web_session_userscript_install_action">Pasang dari Tautan</string>
     <string name="web_session_userscript_import_local">Impor File Lokal</string>
-    <string name="web_session_userscript_install_preview">Konfirmasi Pemasangan</string>
-    <string name="web_session_userscript_update_preview">Konfirmasi Pembaruan</string>
     <string name="web_session_userscript_library">Skrip Terpasang</string>
     <string name="web_session_userscript_none">Belum ada skrip yang terpasang</string>
     <string name="web_session_userscript_search_hint">Cari skrip, izin, atau situs</string>
     <string name="web_session_userscript_search_empty">Tidak ada skrip yang cocok</string>
     <string name="web_session_userscript_logs">Log Skrip</string>
     <string name="web_session_userscript_logs_empty">Belum ada log skrip</string>
-    <string name="web_session_userscript_logs_retained_count">%1$d log disimpan; salin dan ekspor mengabaikan filter saat ini</string>
+    <plurals name="web_session_userscript_logs_retained_count">
+        <item quantity="other">%1$d log disimpan; salin dan ekspor mengabaikan filter saat ini</item>
+    </plurals>
     <string name="web_session_userscript_logs_copy_all">Salin semua</string>
     <string name="web_session_userscript_logs_export_all">Ekspor semua</string>
     <string name="web_session_userscript_logs_exporting">Mengekspor</string>
-    <string name="web_session_userscript_logs_copied">%1$d log disalin</string>
+    <plurals name="web_session_userscript_logs_copied">
+        <item quantity="other">%1$d log disalin</item>
+    </plurals>
     <string name="web_session_userscript_logs_exported">Log diekspor: %1$s</string>
     <string name="web_session_userscript_logs_export_failed">Ekspor log gagal: %1$s</string>
     <string name="web_session_userscript_log_copied">Log disalin</string>
@@ -6770,8 +6693,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_userscript_log_time">Waktu catat</string>
     <string name="web_session_userscript_log_page">URL halaman</string>
     <string name="web_session_userscript_log_message">Pesan</string>
-    <string name="web_session_userscript_page_menu">Menu Skrip Halaman Saat Ini</string>
-    <string name="web_session_userscript_page_menu_subtitle">Ketuk untuk menjalankan perintah skrip yang terdaftar di halaman ini</string>
 
     <string name="wake_word_response">Saya di sini</string>
     <string name="wake_word_global_assistant">Asisten Global</string>
@@ -7255,24 +7176,22 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_shell_mini_app_home">Mini App</string>
     <string name="kiyori_shell_file_management_home">File</string>
     <string name="kiyori_shell_settings_home">Setelan</string>
-    <string name="kiyori_shell_minus_one">Halaman Samping</string>
     <string name="kiyori_shell_search_hint">Cari di web atau masukkan URL</string>
     <string name="kiyori_shell_ai_hint">Kirim pertanyaan atau tugas ke AI</string>
     <string name="kiyori_home_weather_query">Cuaca %1$s</string>
-    <string name="kiyori_home_weather_current">%1$s, %2$d derajat</string>
+    <plurals name="kiyori_home_weather_current">
+        <item quantity="other">%1$s, %2$d derajat</item>
+    </plurals>
     <string name="kiyori_home_weather_loading">Memuat cuaca</string>
     <string name="kiyori_home_weather_permission">Gunakan lokasi untuk cuaca</string>
     <string name="kiyori_home_weather_retry">Cuaca tidak tersedia, ketuk untuk mencoba lagi</string>
-    <string name="kiyori_home_browser_windows">%1$d jendela browser</string>
+    <plurals name="kiyori_home_browser_windows">
+        <item quantity="other">%1$d jendela browser</item>
+    </plurals>
     <string name="kiyori_shell_search_action">Cari</string>
     <string name="kiyori_shell_ai_action">AI</string>
-    <string name="kiyori_shell_web_search">Pencarian Web</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">Asisten AI</string>
-    <string name="kiyori_shell_favorites">Favorit</string>
-    <string name="kiyori_shell_bookmarks">Markah</string>
-    <string name="kiyori_shell_history">Riwayat</string>
-    <string name="kiyori_shell_downloads">Unduhan</string>
     <string name="kiyori_shell_exit_hint">Tekan Kembali sekali lagi untuk keluar dari Kiyori</string>
     <string name="web_session_normal_window">Jendela normal</string>
     <string name="web_session_incognito_title">Jendela samaran</string>
@@ -7323,7 +7242,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_network_log">Log jaringan</string>
     <string name="web_session_network_log_empty">Belum ada permintaan jaringan untuk halaman ini</string>
     <string name="web_session_network_log_empty_filter">Tidak ada permintaan jaringan untuk filter ini</string>
-    <string name="web_session_network_log_count">%1$d permintaan</string>
+    <plurals name="web_session_network_log_count">
+        <item quantity="other">%1$d permintaan</item>
+    </plurals>
     <string name="web_session_network_log_clear">Hapus</string>
     <string name="web_session_network_log_search_hint">Cari URL atau metode permintaan</string>
     <string name="web_session_network_log_filter_all">Semua</string>
@@ -7355,7 +7276,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_source_unavailable">Halaman saat ini tidak memiliki WebView yang dapat dibaca</string>
     <string name="web_session_source_empty">Sumber halaman saat ini kosong</string>
     <string name="web_session_source_read_failed">Gagal membaca sumber halaman</string>
-    <string name="web_session_toolbox_subtitle">Alat yang tersedia untuk halaman saat ini</string>
     <string name="web_session_download_confirmation_queue_full">Terlalu banyak unduhan menunggu konfirmasi. Tinjau permintaan saat ini terlebih dahulu.</string>
     <string name="browser_download_runtime_channel_name">Unduhan file</string>
     <string name="browser_download_runtime_channel_description">Menampilkan unduhan internal aktif dan kontrolnya</string>
@@ -7363,7 +7283,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="browser_download_result_channel_description">Menampilkan unduhan internal yang selesai dan gagal</string>
     <string name="browser_download_runtime_title">Pengunduh file</string>
     <string name="browser_download_runtime_preparing">Menyiapkan unduhan</string>
-    <string name="browser_download_runtime_multiple">%1$d mengunduh, %2$d menunggu</string>
+    <plurals name="browser_download_runtime_multiple">
+        <item quantity="other">%1$d mengunduh, %2$d menunggu</item>
+    </plurals>
     <string name="browser_download_runtime_pause_all">Jeda semua</string>
     <string name="browser_download_result_completed_title">Unduhan selesai</string>
     <string name="browser_download_result_failed_title">Unduhan gagal</string>
@@ -7371,7 +7293,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="browser_download_result_open">Buka file</string>
     <string name="web_session_download_confirm_destination">Simpan ke: %1$s</string>
     <string name="web_session_history_title">Riwayat</string>
-    <string name="web_session_history_count">%1$d item</string>
+    <plurals name="web_session_history_count">
+        <item quantity="other">%1$d item</item>
+    </plurals>
     <string name="web_session_history_delete">Hapus</string>
     <string name="web_session_history_search_hint">Cari judul, tautan, atau halaman sumber</string>
     <string name="web_session_history_filter_all">Semua</string>

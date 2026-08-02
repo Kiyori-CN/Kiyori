@@ -211,7 +211,6 @@
     <string name="workflow_node_label_condition">Condition</string>
     <string name="workflow_node_label_logic">Logic</string>
     <string name="workflow_node_label_extract">Compute</string>
-    <string name="workflow_node_label_unknown">Unknown</string>
     <string name="workflow_node_skipped">Skipped</string>
     <string name="workflow_not_found">Workflow not found</string>
     <string name="workflow_confirm_delete_title">Confirm deletion</string>
@@ -858,37 +857,24 @@
     <string name="fps_counter_description">Display real-time FPS in the upper right corner</string>
     
     <!-- Settings Screen Sections -->
-    <string name="settings_section_personalization">Personalization</string>
-    <string name="settings_user_preferences">User Preferences</string>
     <string name="settings_user_preferences_desc">Edit the user.md document sent to the AI as user context</string>
     <string name="settings_configure_preferences">Configure Preferences</string>
     <string name="settings_model_prompts">Model Prompt Settings</string>
     <string name="settings_model_prompts_desc">Customize AI assistant\'s system prompts, including self-introduction and tone style, to better meet your expectations</string>
     <string name="settings_configure_prompts">Configure Prompts</string>
-    <string name="settings_theme_appearance">Theme and Appearance</string>
     <string name="settings_theme_appearance_desc">Personalize app appearance, including dark/light mode and custom color schemes</string>
     <string name="settings_customize_theme">Customize Theme</string>
-    <string name="settings_global_display">Display &amp; Behavior</string>
-    <string name="settings_global_display_subtitle">Manage global options for display style, automation behavior, and screenshots</string>
-    <string name="settings_data_backup">Data Backup and Recovery</string>
-    <string name="settings_data_backup_desc">Import, export, or delete chat history and memory library data for easy backup and recovery of important information</string>
-    <string name="settings_chat_history_management">Chat History Management</string>
-    <string name="settings_chat_history_management_subtitle">View stats and batch organize your conversations</string>
     <string name="settings_manage_backup">Manage Backup</string>
     
     <string name="reset_successful">Reset Successfully</string>
     <string name="reset_default_character">Reset Default Character</string>
     <string name="reset_default_character_confirm">Are you sure you want to reset the default character card? This will restore the default name, settings, and prompts, and reset the avatar and theme.</string>
     
-    <string name="settings_section_ai_model">AI Model Configuration</string>
-    <string name="settings_model_parameters">Model and Parameter Configuration</string>
     <string name="settings_model_parameters_desc">Configure API settings, model names and parameters, with support for multiple configuration management</string>
     <string name="settings_configure_model">Configure Model</string>
-    <string name="settings_functional_model">Functional Model Configuration</string>
     <string name="settings_functional_model_desc">Configure specialized models and API settings for different functions (such as chat, summarization, memory, etc.)</string>
     <string name="settings_configure_function">Configure Function</string>
     
-    <string name="settings_section_context_summary">Context and Summary</string>
     <string name="settings_enable_summary">Enable Conversation Summary</string>
     <string name="settings_enable_summary_desc">Automatically generate conversation summaries when context is too long to save Token consumption</string>
     <string name="settings_enable_summary_by_message_count">Trigger summary by message count</string>
@@ -912,12 +898,10 @@
     <string name="settings_auto_accessibility_desc">When disabled, manual authorization is required each time the app is opened</string>
     
     <string name="settings_section_permissions">Permissions and Security</string>
-    <string name="settings_tool_permissions">Tool Permission Settings</string>
     <string name="settings_tool_permissions_desc">Configure permission levels for AI assistant tools, can be set to auto-allow, ask, or deny</string>
     <string name="settings_configure_permissions">Configure Permissions</string>
     
     <string name="settings_section_usage">Usage Statistics</string>
-    <string name="settings_section_external_calls">External Calls</string>
     <string name="settings_token_statistics">Token Statistics</string>
     <string name="settings_total_tokens_breakdown">Input: %1$d (Cached: %2$d) / Output: %3$d</string>
     <string name="settings_cached_tokens">(Cached: %1$d)</string>
@@ -1075,7 +1059,6 @@
     <string name="back_to_list">Back to List</string>
     
     <!-- Language Settings -->
-    <string name="language_settings">Language Settings</string>
     <string name="language_settings_desc">Change the display language of the application</string>
     <string name="change_language">Change Language</string>
     <string name="select_language">Select Language</string>
@@ -1480,8 +1463,6 @@
     <string name="pet_service_notification_text">Desktop pet is running</string>
     
     <!-- Settings Screen Additional Strings -->
-    <string name="settings_prompt_section">Prompt Configuration</string>
-    <string name="settings_prompt_title">Character Card Editor</string>
     <string name="settings_prompt_desc">Customize AI assistant behavior and personality prompts</string>
     <string name="settings_configure_prompt">Configure Prompts</string>
     <string name="settings_functional_prompt_title">Functional Prompt Configuration</string>
@@ -1721,8 +1702,6 @@
     <string name="builtin_config">Built-in Configuration</string>
     <string name="external_config">External Configuration</string>
     <string name="screen_title_external_http_chat_settings">External HTTP Calls</string>
-    <string name="settings_external_http_chat">External HTTP Calls</string>
-    <string name="settings_external_http_chat_subtitle">HTTP chat API listening on 0.0.0.0, port, and Bearer token</string>
     <string name="external_http_chat_enable">Enable External HTTP Service</string>
     <string name="external_http_chat_enable_desc">Starts the external HTTP service and binds it to 0.0.0.0. The same port serves both the HTTP API and the browser-accessible web chat UI</string>
     <string name="external_http_chat_port">Listen Port</string>
@@ -1852,7 +1831,6 @@
     <string name="screen_title_context_summary_settings">Context and Summary Settings</string>
     <string name="settings_context_title">Context Settings</string>
     <string name="settings_summary_title">Summary Settings</string>
-    <string name="settings_context_summary_subtitle">Manage context, summary, and history media retention settings</string>
     
     <!-- Details -->
     <string name="details">Details</string>
@@ -2116,7 +2094,6 @@
     <string name="theme_chat_history_selector_transparent_desc">When enabled, the chat history selector will become transparent</string>
     <string name="theme_chat_header_transparent">Transparent Chat Header</string>
     <string name="theme_chat_header_transparent_desc">When enabled, the chat header will become transparent</string>
-    <string name="theme_chat_header_transparent_title">Chat Header Settings</string>
     <string name="theme_chat_input_transparent_title">Input Box Settings</string>
     <string name="theme_chat_input_transparent">Transparent Input Box</string>
     <string name="theme_chat_input_transparent_desc">When enabled, the chat input box will become transparent</string>
@@ -3289,7 +3266,6 @@
     <string name="export_signing_apk">Signing APK...</string>
     <string name="export_finish_packaging">Finishing packaging...</string>
     <string name="export_completed">Export complete!</string>
-    <string name="export_sign_apk_failed">APK signing failed: %1$s</string>
     <string name="export_failed_with_reason">Export failed: %1$s</string>
     <string name="export_prepare_windows_template">Preparing Windows app template...</string>
     <string name="export_copy_template">Copying app template...</string>
@@ -3376,19 +3352,9 @@
     <string name="long_press_manage">Long press to manage</string>
     
     <!-- Settings Screen Subtitles -->
-    <string name="settings_user_preferences_subtitle">Edit and preview user.md</string>
-    <string name="settings_language_subtitle">Interface language switching</string>
-    <string name="settings_theme_subtitle">Theme and appearance customization</string>
-    <string name="layout_adjustment">Layout Adjustment</string>
-    <string name="layout_adjustment_subtitle">Adjust UI element positions and margins</string>
-    <string name="settings_model_params_subtitle">Model parameters and API configuration</string>
-    <string name="settings_functional_model_subtitle">Functional model specific configuration</string>
-    <string name="settings_speech_services">Speech Services Configuration</string>
-    <string name="settings_speech_services_subtitle">TTS/STT service settings</string>
     <string name="settings_custom_headers">Custom Headers</string>
     <string name="settings_custom_headers_subtitle">API request header field configuration</string>
     <string name="headers_configured_count">%1$d configured</string>
-    <string name="settings_system_prompts_subtitle">System and model prompts</string>
     <string name="settings_functional_prompts_subtitle">Functional prompt templates</string>
     <string name="settings_context_length">Context Length</string>
     <string name="settings_context_length_subtitle">Model memory conversation length (k tokens)</string>
@@ -3432,11 +3398,6 @@
     <string name="layout_reset_settings">Reset Layout Settings</string>
     <string name="layout_reset_settings_desc">Reset all layout adjustment settings to default values</string>
     
-    <string name="settings_data_permissions">Data and Permissions</string>
-    <string name="settings_tool_permissions_subtitle">Tool permissions and security settings</string>
-    <string name="settings_privacy_data_cleanup">Privacy and Data Cleanup</string>
-    <string name="settings_clear_cookies">Clear Cookies</string>
-    <string name="settings_clear_cookies_subtitle">Clear cookies saved by search tools, the Browser package, and the built-in browser</string>
     <string name="clear_cookies_dialog_title">Clear cookies?</string>
     <string name="clear_cookies_dialog_message">This will clear cookies saved by search tools, the Browser package, and the built-in browser. Open pages may need you to sign in again.</string>
     <string name="clear_cookies_confirm">Clear</string>
@@ -3448,7 +3409,6 @@
     <string name="settings_model_label">Model</string>
     <string name="settings_no_token_records">No token usage records for functional modules yet.</string>
     <string name="settings_reset_all_counts">Reset All Counts</string>
-    <string name="settings_token_usage_subtitle">View detailed token usage statistics and custom pricing</string>
     <string name="settings_usage_summary">Usage Summary</string>
     <string name="settings_total_chats">Chats</string>
     <string name="settings_total_messages">Messages</string>
@@ -3935,10 +3895,6 @@
     <string name="api_settings_title">API Settings</string>
 
     <!-- Persona Card Generation and Waifu Mode Settings -->
-    <string name="persona_card_generation">Persona Card Generation</string>
-    <string name="persona_card_generation_desc">Enter AI conversation to generate personalized character cards</string>
-    <string name="waifu_mode_settings">Waifu Mode Settings</string>
-    <string name="waifu_mode_settings_desc">Configure AI response sentence-by-sentence sending mode</string>
     
     <!-- Tavern Character Card Import -->
     <string name="import_tavern_card">Import Tavern Card</string>
@@ -4083,10 +4039,7 @@
     <string name="waifu_mode_explanation">• Normal Mode: AI responses sent all at once\n• Waifu Mode: AI responses split by sentences, each in separate bubbles\n• Smart Delay: Calculate delay time based on sentence length\n• Merge Send: consecutive short user messages are combined into one message after a pause\n• Auto Cleanup: Remove status tags, show only plain text\n• Optional Features: merge send, remove end punctuation, edit Waifu prompt, enable emoticons\n• Use Case: Simulate more natural conversation rhythm\n• Note: This mode may not adapt well to tool calls</string>
     <string name="settings_saved_message">Settings saved</string>
 
-    <string name="settings_section_account">Account</string>
     <string name="github_account_not_logged_in">Not logged in</string>
-    <string name="github_account_login_desc">Login with GitHub to use MCP market publish/manage features</string>
-    <string name="github_account_logout_desc">Logout from current GitHub account</string>
 
     <string name="github_account_info_title">Account info</string>
     <string name="github_account_info_id">ID</string>
@@ -7169,16 +7122,13 @@
     <string name="web_session_back">Back</string>
     <string name="web_session_forward">Forward</string>
     <string name="web_session_refresh">Refresh</string>
-    <string name="web_session_address_bar">Address bar</string>
-    <string name="web_session_address_input">Edit address</string>
-    <string name="web_session_open_address">Open address</string>
-    <string name="web_session_tabs">Tabs</string>
-    <string name="web_session_tabs_with_index">Tabs, current tab %1$d</string>
     <string name="web_session_no_tabs">No tabs</string>
-    <string name="web_session_current_tab">Current tab</string>
     <string name="web_session_history">History</string>
     <string name="web_session_history_title">History</string>
-    <string name="web_session_history_count">%1$d items</string>
+    <plurals name="web_session_history_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
     <string name="web_session_history_delete">Delete</string>
     <string name="web_session_history_search_hint">Search title, link, or source page</string>
     <string name="web_session_history_filter_all">All</string>
@@ -7199,17 +7149,9 @@
     <string name="web_session_history_delete_all_time">All time</string>
     <string name="web_session_history_delete_cancel">Cancel</string>
     <string name="web_session_history_replay_failed">The current browser session cannot restore this media item</string>
-    <string name="web_session_current_session_history">Current session history</string>
-    <string name="web_session_no_history">No history</string>
-    <string name="web_session_current_page">Current page</string>
-    <string name="web_session_recent_history">Recent history</string>
-    <string name="web_session_clear_history">Clear history</string>
     <string name="web_session_bookmarks">Bookmarks</string>
     <string name="web_session_add_bookmark">Add bookmark</string>
     <string name="web_session_remove_bookmark">Remove bookmark</string>
-    <string name="web_session_no_bookmarks">No bookmarks</string>
-    <string name="web_session_menu">Menu</string>
-    <string name="web_session_minimize">Minimize</string>
     <string name="web_session_user_agent">UA identity</string>
     <string name="web_session_user_agent_dialog_title">Browser UA identity</string>
     <string name="web_session_user_agent_android">Android</string>
@@ -7228,29 +7170,8 @@
     <string name="web_session_user_agent_full_domain">Full domain</string>
     <string name="web_session_user_agent_site_unavailable">The current page has no domain for a UA rule</string>
     <string name="web_session_downloads">Downloads</string>
-    <string name="web_session_downloads_summary">%1$d active / %2$d failed</string>
-    <string name="web_session_downloads_filter_in_progress">In progress</string>
-    <string name="web_session_downloads_filter_completed">Completed</string>
-    <string name="web_session_downloads_filter_failed">Failed</string>
-    <string name="web_session_downloads_empty_title">No download tasks yet</string>
-    <string name="web_session_downloads_empty_message">New browser-managed downloads will appear here.</string>
     <string name="web_session_downloads_active_bar">Downloading %1$d item(s)</string>
     <string name="web_session_downloads_active_unknown">Preparing</string>
-    <string name="web_session_download_pause">Pause</string>
-    <string name="web_session_download_resume">Resume</string>
-    <string name="web_session_download_cancel">Cancel</string>
-    <string name="web_session_download_retry">Retry</string>
-    <string name="web_session_download_open_file">Open file</string>
-    <string name="web_session_download_open_location">Open location</string>
-    <string name="web_session_download_delete_record">Delete record</string>
-    <string name="web_session_download_delete_file_and_record">Delete file and record</string>
-    <string name="web_session_download_status_queued">Queued</string>
-    <string name="web_session_download_status_connecting">Connecting</string>
-    <string name="web_session_download_status_downloading">Downloading</string>
-    <string name="web_session_download_status_paused">Paused</string>
-    <string name="web_session_download_status_completed">Completed</string>
-    <string name="web_session_download_status_failed">Failed</string>
-    <string name="web_session_download_status_canceled">Canceled</string>
     <string name="web_session_download_open_failed">Unable to open the downloaded file</string>
     <string name="web_session_download_location_open_failed">Unable to open the download location</string>
     <string name="web_session_system_download_enqueued">Added to the system download queue: %1$s</string>
@@ -7261,7 +7182,10 @@
     <string name="browser_download_result_channel_description">Shows completed and failed internal downloads</string>
     <string name="browser_download_runtime_title">File downloader</string>
     <string name="browser_download_runtime_preparing">Preparing the download</string>
-    <string name="browser_download_runtime_multiple">%1$d downloading, %2$d waiting</string>
+    <plurals name="browser_download_runtime_multiple">
+        <item quantity="one">%1$d downloading, %2$d waiting</item>
+        <item quantity="other">%1$d downloading, %2$d waiting</item>
+    </plurals>
     <string name="browser_download_runtime_pause_all">Pause all</string>
     <string name="browser_download_result_completed_title">Download complete</string>
     <string name="browser_download_result_failed_title">Download failed</string>
@@ -7281,11 +7205,8 @@
     <string name="web_session_external_open_failed">Unable to open external link or app: %1$s</string>
     <string name="web_session_permission_denied">The web page permission request was denied, so this feature is unavailable</string>
     <string name="web_session_location_permission_denied">Location permission was denied, so web geolocation is unavailable</string>
-    <string name="web_session_close_all_tabs">Close all tabs</string>
     <string name="web_session_new_tab">New tab</string>
-    <string name="web_session_userscripts">Userscripts</string>
     <string name="web_session_plugins">Plugins</string>
-    <string name="web_session_plugins_subtitle">Manage browser plugins and page capabilities in one place</string>
     <string name="web_session_plugins_search_hint">Search plugins</string>
     <string name="web_session_plugins_add">Add</string>
     <string name="web_session_plugins_library">Plugin Libraries</string>
@@ -7297,19 +7218,23 @@
     <string name="web_session_plugins_search_empty">No matching plugins</string>
     <string name="web_session_plugins_builtin">Built-in</string>
     <string name="web_session_plugins_unsupported">Unsupported</string>
-    <string name="web_session_plugins_script_count">%1$d scripts</string>
-    <string name="web_session_plugins_enabled_count">%1$d enabled</string>
+    <plurals name="web_session_plugins_script_count">
+        <item quantity="one">%1$d script</item>
+        <item quantity="other">%1$d scripts</item>
+    </plurals>
+    <plurals name="web_session_plugins_enabled_count">
+        <item quantity="one">%1$d enabled</item>
+        <item quantity="other">%1$d enabled</item>
+    </plurals>
     <string name="web_session_plugins_page_count">%1$d on page</string>
-    <string name="web_session_plugins_menu_count">%1$d menus</string>
+    <plurals name="web_session_plugins_menu_count">
+        <item quantity="one">%1$d menu</item>
+        <item quantity="other">%1$d menus</item>
+    </plurals>
     <string name="web_session_plugins_pending_install">Pending</string>
-    <string name="web_session_plugins_runtime_allowed">User scripts allowed</string>
     <string name="web_session_plugins_runtime_blocked">Runtime permission off</string>
     <string name="web_session_userscript_manager_title">Userscripts</string>
     <string name="web_session_userscript_plugin_subtitle">Built-in userscript manager</string>
-    <string name="web_session_userscripts_subtitle">Manage native userscripts installed in this browser</string>
-    <string name="web_session_userscript_runtime_permission">Runtime Permission</string>
-    <string name="web_session_userscript_allow_runtime">Allow User Scripts</string>
-    <string name="web_session_userscript_allow_runtime_summary">Allow the built-in userscript plugin to inject enabled scripts into webpages. Turning this off stops future injection and immediately revokes script privileges.</string>
     <string name="web_session_userscript_permission_install_notice">The script can be installed, but it will not run until Allow User Scripts is enabled.</string>
     <string name="web_session_userscript_execution_world">Execution World</string>
     <string name="web_session_userscript_execution_world_page">Page world</string>
@@ -7317,24 +7242,26 @@
     <string name="web_session_userscript_page_context_access">Page Script Context</string>
     <string name="web_session_userscript_page_context_direct">Direct access to the page window</string>
     <string name="web_session_userscript_page_context_bridge">Page-object bridge from the isolated world</string>
-    <string name="web_session_userscript_page_context_security_summary">The page can observe or affect unsafeWindow operations. GM/native privileges remain in the shared isolated runtime and are authorized by each script\'s token and grants.</string>
-    <string name="web_session_userscript_install">Install Script</string>
     <string name="web_session_userscript_install_from_url">Script URL</string>
     <string name="web_session_userscript_install_action">Install from URL</string>
     <string name="web_session_userscript_import_local">Import Local File</string>
-    <string name="web_session_userscript_install_preview">Install Preview</string>
-    <string name="web_session_userscript_update_preview">Update Preview</string>
     <string name="web_session_userscript_library">Installed Scripts</string>
     <string name="web_session_userscript_none">No userscripts installed yet</string>
     <string name="web_session_userscript_search_hint">Search scripts, permissions, or sites</string>
     <string name="web_session_userscript_search_empty">No matching scripts</string>
     <string name="web_session_userscript_logs">Script Logs</string>
     <string name="web_session_userscript_logs_empty">No userscript logs yet</string>
-    <string name="web_session_userscript_logs_retained_count">%1$d logs retained; copy and export ignore the current filter</string>
+    <plurals name="web_session_userscript_logs_retained_count">
+        <item quantity="one">%1$d log retained; copy and export ignore the current filter</item>
+        <item quantity="other">%1$d logs retained; copy and export ignore the current filter</item>
+    </plurals>
     <string name="web_session_userscript_logs_copy_all">Copy all</string>
     <string name="web_session_userscript_logs_export_all">Export all</string>
     <string name="web_session_userscript_logs_exporting">Exporting</string>
-    <string name="web_session_userscript_logs_copied">Copied %1$d logs</string>
+    <plurals name="web_session_userscript_logs_copied">
+        <item quantity="one">Copied %1$d log</item>
+        <item quantity="other">Copied %1$d logs</item>
+    </plurals>
     <string name="web_session_userscript_logs_exported">Logs exported: %1$s</string>
     <string name="web_session_userscript_logs_export_failed">Log export failed: %1$s</string>
     <string name="web_session_userscript_log_copied">Log copied</string>
@@ -7343,8 +7270,6 @@
     <string name="web_session_userscript_log_time">Recorded at</string>
     <string name="web_session_userscript_log_page">Page URL</string>
     <string name="web_session_userscript_log_message">Message</string>
-    <string name="web_session_userscript_page_menu">Page Script Menu</string>
-    <string name="web_session_userscript_page_menu_subtitle">Run commands registered by scripts on this page</string>
     <string name="web_session_userscript_version">Version</string>
     <string name="web_session_userscript_source">Source</string>
     <string name="web_session_userscript_grants">Grants</string>
@@ -7352,19 +7277,9 @@
     <string name="web_session_userscript_connects">@connect</string>
     <string name="web_session_userscript_requires">@require</string>
     <string name="web_session_userscript_resources">@resource</string>
-    <string name="web_session_userscript_update_url">Update URL</string>
     <string name="web_session_userscript_unsupported_grants">Unsupported grants: %1$s</string>
-    <string name="web_session_userscript_unknown_grants">Unknown grants: %1$s</string>
-    <string name="web_session_userscript_blocked_reasons">Blocked: %1$s</string>
-    <string name="web_session_userscript_support_url">@supportURL</string>
-    <string name="web_session_userscript_website">Website</string>
-    <string name="web_session_userscript_icons">Icons</string>
-    <string name="web_session_userscript_tags">@tag</string>
-    <string name="web_session_userscript_sandbox">@sandbox</string>
     <string name="web_session_userscript_run_in">@run-in</string>
-    <string name="web_session_userscript_web_request">@webRequest</string>
     <string name="web_session_userscript_confirm_install">Confirm Install</string>
-    <string name="web_session_userscript_cancel_install">Cancel</string>
     <string name="web_session_userscript_update_action">Confirm Update</string>
     <string name="web_session_userscript_check_update">Check Update</string>
     <string name="web_session_userscript_delete">Delete Script</string>
@@ -7408,9 +7323,15 @@
     <string name="web_session_userscript_log_info">Info</string>
     <string name="web_session_userscript_log_warning">Warning</string>
     <string name="web_session_userscript_log_error">Error</string>
-    <string name="web_session_userscript_selected_count">%1$d selected</string>
+    <plurals name="web_session_userscript_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="web_session_userscript_delete_selected_title">Delete selected scripts</string>
-    <string name="web_session_userscript_delete_selected_message">This deletes %1$d scripts and their source, revisions, drafts, values, and logs. This action cannot be undone.</string>
+    <plurals name="web_session_userscript_delete_selected_message">
+        <item quantity="one">This deletes %1$d script and its source, revisions, drafts, values, and logs. This action cannot be undone.</item>
+        <item quantity="other">This deletes %1$d scripts and their source, revisions, drafts, values, and logs. This action cannot be undone.</item>
+    </plurals>
     <string name="web_session_userscript_detail">Script details</string>
     <string name="web_session_userscript_detail_overview">Overview</string>
     <string name="web_session_userscript_detail_rules">Match rules</string>
@@ -7451,19 +7372,34 @@
     <string name="web_session_userscript_editor_review_title">Validation and diff</string>
     <string name="web_session_userscript_editor_review_waiting">Generating validation results</string>
     <string name="web_session_userscript_editor_syntax">JavaScript syntax</string>
-    <string name="web_session_userscript_editor_diff_summary">Source diff: +%1$d / -%2$d lines</string>
+    <plurals name="web_session_userscript_editor_diff_summary">
+        <item quantity="one">Source diff: +%1$d / -%2$d lines</item>
+        <item quantity="other">Source diff: +%1$d / -%2$d lines</item>
+    </plurals>
     <string name="web_session_userscript_editor_check_passed">Passed</string>
     <string name="web_session_userscript_editor_check_failed">Failed</string>
     <string name="web_session_userscript_editor_leave_title">Leave the script editor?</string>
     <string name="web_session_userscript_editor_leave_message">The current changes are not applied to the active revision. You can keep the private draft or discard it.</string>
     <string name="web_session_userscript_editor_keep_draft">Keep draft and leave</string>
     <string name="web_session_userscript_editor_discard_draft">Discard draft</string>
-    <string name="web_session_userscript_update_check_summary">%1$d updates available</string>
-    <string name="web_session_userscript_update_check_summary_failed">%1$d updates found; %2$d checks failed</string>
+    <plurals name="web_session_userscript_update_check_summary">
+        <item quantity="one">%1$d update available</item>
+        <item quantity="other">%1$d updates available</item>
+    </plurals>
+    <plurals name="web_session_userscript_update_check_summary_failed">
+        <item quantity="one">%1$d update found; %2$d checks failed</item>
+        <item quantity="other">%1$d updates found; %2$d checks failed</item>
+    </plurals>
     <string name="web_session_userscript_updated">Updated script: %1$s</string>
     <string name="web_session_userscript_no_safe_updates">No safe automatic update candidates</string>
-    <string name="web_session_userscript_update_apply_summary">%1$d updated, %2$d failed</string>
-    <string name="web_session_userscript_deleted_count">Deleted %1$d scripts</string>
+    <plurals name="web_session_userscript_update_apply_summary">
+        <item quantity="one">%1$d updated, %2$d failed</item>
+        <item quantity="other">%1$d updated, %2$d failed</item>
+    </plurals>
+    <plurals name="web_session_userscript_deleted_count">
+        <item quantity="one">Deleted %1$d script</item>
+        <item quantity="other">Deleted %1$d scripts</item>
+    </plurals>
     <string name="web_session_userscript_draft_applied">Applied script: %1$s</string>
     <string name="web_session_userscript_drafts">Private drafts</string>
     <string name="web_session_userscript_private_draft">Not installed; stored only in the private app directory</string>
@@ -8000,24 +7936,24 @@
     <string name="kiyori_shell_mini_app_home">Mini Apps</string>
     <string name="kiyori_shell_file_management_home">Files</string>
     <string name="kiyori_shell_settings_home">Settings</string>
-    <string name="kiyori_shell_minus_one">Minus-One Page</string>
     <string name="kiyori_shell_search_hint">Search the web or enter a URL</string>
     <string name="kiyori_shell_ai_hint">Send a question or task to AI</string>
     <string name="kiyori_home_weather_query">%1$s weather</string>
-    <string name="kiyori_home_weather_current">%1$s, %2$d degrees</string>
+    <plurals name="kiyori_home_weather_current">
+        <item quantity="one">%1$s, %2$d degree</item>
+        <item quantity="other">%1$s, %2$d degrees</item>
+    </plurals>
     <string name="kiyori_home_weather_loading">Loading weather</string>
     <string name="kiyori_home_weather_permission">Use location for weather</string>
     <string name="kiyori_home_weather_retry">Weather unavailable, tap to retry</string>
-    <string name="kiyori_home_browser_windows">%1$d browser windows</string>
+    <plurals name="kiyori_home_browser_windows">
+        <item quantity="one">%1$d browser window</item>
+        <item quantity="other">%1$d browser windows</item>
+    </plurals>
     <string name="kiyori_shell_search_action">Search</string>
     <string name="kiyori_shell_ai_action">AI</string>
-    <string name="kiyori_shell_web_search">Web Search</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">AI Assistant</string>
-    <string name="kiyori_shell_favorites">Favorites</string>
-    <string name="kiyori_shell_bookmarks">Bookmarks</string>
-    <string name="kiyori_shell_history">History</string>
-    <string name="kiyori_shell_downloads">Downloads</string>
     <string name="kiyori_shell_exit_hint">Press Back again to exit Kiyori</string>
     <string name="web_session_normal_window">Normal windows</string>
     <string name="web_session_incognito_title">Incognito windows</string>
@@ -8068,7 +8004,10 @@
     <string name="web_session_network_log">Network log</string>
     <string name="web_session_network_log_empty">No network requests have been recorded for this page</string>
     <string name="web_session_network_log_empty_filter">No network requests match this filter</string>
-    <string name="web_session_network_log_count">%1$d requests</string>
+    <plurals name="web_session_network_log_count">
+        <item quantity="one">%1$d request</item>
+        <item quantity="other">%1$d requests</item>
+    </plurals>
     <string name="web_session_network_log_clear">Clear</string>
     <string name="web_session_network_log_search_hint">Search URLs or request methods</string>
     <string name="web_session_network_log_filter_all">All</string>
@@ -8100,5 +8039,4 @@
     <string name="web_session_source_unavailable">The current page has no readable WebView</string>
     <string name="web_session_source_empty">The current page source is empty</string>
     <string name="web_session_source_read_failed">Failed to read page source</string>
-    <string name="web_session_toolbox_subtitle">Tools available for the current page</string>
 </resources>

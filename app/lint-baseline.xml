@@ -16909,39 +16909,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;settings_privacy_data_cleanup&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;settings_privacy_data_cleanup&quot;>隐私与数据清理&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3437"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;settings_clear_cookies&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;settings_clear_cookies&quot;>清除 Cookie&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3438"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;settings_clear_cookies_subtitle&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;settings_clear_cookies_subtitle&quot;>清除搜索工具、Browser 包和内置浏览器保存的 Cookie&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3439"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;clear_cookies_dialog_title&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
         errorLine1="    &lt;string name=&quot;clear_cookies_dialog_title&quot;>清除 Cookie？&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -19412,17 +19379,6 @@
         <location
             file="src/main/res/values-en/strings.xml"
             line="7282"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;active&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;web_session_downloads_summary&quot;>%1$d active / %2$d failed&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7337"
             column="5"/>
     </issue>
 

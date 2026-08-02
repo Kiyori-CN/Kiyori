@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="kiyori_background">#FF121212</color>
-    <color name="kiyori_on_background">#FFE8EAED</color>
     <color name="kiyori_primary">#FFF1F3F4</color>
     <color name="kiyori_on_primary">#FF202124</color>
     <color name="kiyori_secondary">#FFBDC1C6</color>

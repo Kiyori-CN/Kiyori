@@ -180,7 +180,6 @@
     <string name="workflow_node_label_condition">Syarat</string>
     <string name="workflow_node_label_logic">Logik</string>
     <string name="workflow_node_label_extract">Operasi</string>
-    <string name="workflow_node_label_unknown">Tidak diketahui</string>
     <string name="workflow_node_skipped">Dilangkau</string>
     <string name="workflow_not_found">Aliran kerja tidak wujud</string>
     <string name="workflow_confirm_delete_title">Sahkan Padam</string>
@@ -699,11 +698,9 @@
     <string name="settings_auto_accessibility">Berikan kebenaran aksesibiliti secara automatik</string>
     <string name="settings_auto_accessibility_desc">Selepas ditutup, perlu diberi kuasa secara manual setiap kali perisian dibuka</string>
     <string name="settings_section_permissions">Kebenaran &amp; Keselamatan</string>
-    <string name="settings_tool_permissions">Tetapan Kebenaran Alat</string>
     <string name="settings_tool_permissions_desc">Konfigurasi tahap kebenaran alat pembantu AI, boleh ditetapkan kepada benarkan automatik, tanya atau larang</string>
     <string name="settings_configure_permissions">Konfigurasi Kebenaran Alat</string>
     <string name="settings_section_usage">Statistik Penggunaan</string>
-    <string name="settings_section_external_calls">Panggilan Luaran</string>
     <string name="settings_token_statistics">Statistik Token</string>
     <string name="settings_total_tokens_breakdown">Input: %1$d (Cache: %2$d) / Output: %3$d</string>
     <string name="settings_cached_tokens">(Cache: %1$d)</string>
@@ -857,34 +854,21 @@
     <string name="show_thinking">Tunjukkan proses pemikiran</string>
     <string name="show_fps_counter">Tunjukkan kadar bingkai</string>
     <string name="fps_counter_description">Tunjukkan kadar bingkai masa nyata di sudut kanan atas skrin</string>
-    <string name="settings_section_personalization">Penyuaian peribadi</string>
-    <string name="settings_user_preferences">Keutamaan pengguna</string>
     <string name="settings_user_preferences_desc">Konfigurasi maklumat peribadi dan keutamaan untuk membantu AI memahami anda dengan lebih baik, termasuk umur, personaliti, identiti, pekerjaan dan gaya AI yang diharapkan</string>
     <string name="settings_configure_preferences">Konfigurasi keutamaan pengguna</string>
     <string name="settings_model_prompts">Tetapan petunjuk model</string>
     <string name="settings_model_prompts_desc">Suaikan petunjuk sistem pembantu AI, termasuk pengenalan diri dan gaya nada, untuk menjadikan AI lebih memenuhi jangkaan anda</string>
     <string name="settings_configure_prompts">Konfigurasi petunjuk</string>
-    <string name="settings_theme_appearance">Tema dan penampilan</string>
     <string name="settings_theme_appearance_desc">Suaikan penampilan aplikasi, termasuk mod gelap/terang dan skema warna tersuai</string>
     <string name="settings_customize_theme">Suaikan tema</string>
-    <string name="settings_global_display">Paparan dan tingkah laku</string>
-    <string name="settings_global_display_subtitle">Urus pilihan global seperti gaya paparan, tingkah laku automatik dan tangkapan skrin</string>
-    <string name="settings_data_backup">Sandaran dan pemulihan data</string>
-    <string name="settings_data_backup_desc">Import, eksport atau padam rekod perbualan dan data memori untuk memudahkan sandaran dan pemulihan maklumat penting</string>
     <string name="settings_manage_backup">Urus sandaran</string>
-    <string name="settings_chat_history_management">Pengurusan sejarah perbualan</string>
-    <string name="settings_chat_history_management_subtitle">Lihat statistik dan urus, import/eksport sejarah perbualan secara pukal</string>
     <string name="reset_successful">Tetapan semula berjaya</string>
     <string name="reset_default_character">Tetapkan semula kad watak lalai</string>
     <string name="reset_default_character_confirm">Adakah anda pasti mahu menetapkan semula kad watak lalai? Ini akan memulihkan nama, tetapan dan petunjuk lalai, serta menetapkan semula avatar dan tema.</string>
-    <string name="settings_section_ai_model">Konfigurasi model AI</string>
-    <string name="settings_model_parameters">Konfigurasi model dan parameter</string>
     <string name="settings_model_parameters_desc">Konfigurasi tetapan API, nama model dan parameter, menyokong pengurusan pelbagai konfigurasi</string>
     <string name="settings_configure_model">Konfigurasi model</string>
-    <string name="settings_functional_model">Konfigurasi model berfungsi</string>
     <string name="settings_functional_model_desc">Konfigurasi model dan tetapan API khusus untuk fungsi berbeza (seperti perbualan, ringkasan, memori, dll.)</string>
     <string name="settings_configure_function">Konfigurasi fungsi</string>
-    <string name="settings_section_context_summary">Konteks dan ringkasan</string>
     <string name="settings_enable_summary">Dayakan ringkasan perbualan</string>
     <string name="settings_enable_summary_desc">Hasilkan ringkasan perbualan secara automatik apabila konteks terlalu panjang, menjimatkan penggunaan Token</string>
     <string name="settings_enable_summary_by_message_count">Picu ringkasan mengikut bilangan mesej</string>
@@ -908,7 +892,6 @@
     <string name="theme_chat_history_selector_transparent_desc">Pemilih sejarah sembang akan menjadi telus selepas dihidupkan</string>
     <string name="theme_chat_header_transparent">Bar Sembang Telus</string>
     <string name="theme_chat_header_transparent_desc">Bar atas sembang akan menjadi telus selepas dihidupkan</string>
-    <string name="theme_chat_header_transparent_title">Tetapan Bar Atas Sembang</string>
     <string name="theme_chat_input_transparent_title">Tetapan Kotak Input</string>
     <string name="theme_chat_input_transparent">Kotak Input Telus</string>
     <string name="theme_chat_input_transparent_desc">Kotak input sembang akan menjadi telus selepas dihidupkan</string>
@@ -1055,8 +1038,6 @@
     <string name="desktop_pet_function_desc">Fungsi haiwan peliharaan desktop, sesuaikan personaliti dan cara interaksi haiwan peliharaan desktop</string>
     <string name="pet_service_notification_title">Perkhidmatan Haiwan Peliharaan Desktop</string>
     <string name="pet_service_notification_text">Haiwan peliharaan desktop sedang berjalan</string>
-    <string name="settings_prompt_section">Konfigurasi Petunjuk</string>
-    <string name="settings_prompt_title">Sunting Kad Peranan</string>
     <string name="settings_prompt_desc">Petunjuk untuk menyesuaikan tingkah laku dan personaliti pembantu AI</string>
     <string name="settings_configure_prompt">Konfigurasi Petunjuk</string>
     <string name="settings_functional_prompt_title">Konfigurasi Petunjuk Fungsian</string>
@@ -1664,7 +1645,6 @@
     <string name="missing_parameters">Parameter wajib tiada: %1$s</string>
     <string name="save_changes">Simpan perubahan</string>
     <string name="back_to_list">Kembali ke senarai</string>
-    <string name="language_settings">Tetapan bahasa</string>
     <string name="language_settings_desc">Tukar bahasa paparan antara muka aplikasi</string>
     <string name="change_language">Tukar bahasa</string>
     <string name="select_language">Pilih bahasa</string>
@@ -2464,7 +2444,6 @@
     <string name="export_signing_apk">Menandatangani APK...</string>
     <string name="export_finish_packaging">Selesai membungkus...</string>
     <string name="export_completed">Eksport selesai!</string>
-    <string name="export_sign_apk_failed">Gagal menandatangani APK: %1$s</string>
     <string name="export_failed_with_reason">Eksport gagal: %1$s</string>
     <string name="export_prepare_windows_template">Menyediakan templat aplikasi Windows...</string>
     <string name="export_copy_template">Menyalin templat aplikasi...</string>
@@ -2871,8 +2850,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="history_fast_scroll">Tatal Pantas Sejarah</string>
     <string name="history_scroll_to_top">Tatal ke Atas</string>
     <string name="history_scroll_to_bottom">Tatal ke Bawah</string>
-    <string name="settings_user_preferences_subtitle">Tetapan keutamaan peribadi dan tingkah laku</string>
-    <string name="settings_language_subtitle">Tukar bahasa antara muka</string>
 
     <string name="identity_student">Pelajar</string>
     <string name="identity_teacher">Guru</string>
@@ -3121,18 +3098,10 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="provider_ollama">Ollama (model tempatan)</string>
     <string name="provider_openai_local">Serasi OpenAI (model tempatan)</string>
 
-    <string name="settings_theme_subtitle">Penyesuaian tema dan penampilan</string>
-    <string name="layout_adjustment">Pelarasan susun atur</string>
-    <string name="layout_adjustment_subtitle">Laraskan kedudukan dan margin elemen antara muka</string>
-    <string name="settings_model_params_subtitle">Parameter model dan konfigurasi API</string>
-    <string name="settings_functional_model_subtitle">Konfigurasi khusus model berfungsi</string>
-    <string name="settings_speech_services">Konfigurasi perkhidmatan pertuturan</string>
-    <string name="settings_speech_services_subtitle">Tetapan perkhidmatan TTS/STT</string>
     <string name="settings_custom_headers">Penghantar permintaan tersuai</string>
     <string name="settings_custom_headers_subtitle">Konfigurasi medan penghantar permintaan API</string>
     <string name="headers_configured_count">%1$d telah dikonfigurasikan</string>
     <string name="screen_title_external_http_chat_settings">Panggilan HTTP luaran</string>
-    <string name="settings_system_prompts_subtitle">Petunjuk sistem dan model</string>
     <string name="settings_functional_prompts_subtitle">Templat petunjuk khusus fungsi</string>
     <string name="settings_context_length">Panjang konteks</string>
     <string name="settings_context_length_subtitle">Panjang ingatan perbualan model (k token)</string>
@@ -3172,17 +3141,12 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="reset_to_default">Kembalikan kepada lalai</string>
     <string name="layout_reset_settings">Tetapkan semula tetapan susun atur</string>
     <string name="layout_reset_settings_desc">Kembalikan semua tetapan pelarasan susun atur kepada nilai lalai</string>
-    <string name="settings_data_permissions">Data dan kebenaran</string>
-    <string name="settings_tool_permissions_subtitle">Kebenaran alat dan tetapan keselamatan</string>
-    <string name="settings_external_http_chat">Panggilan HTTP luaran</string>
-    <string name="settings_external_http_chat_subtitle">Antara muka sembang HTTP yang mendengar 0.0.0.0, port dan Bearer Token</string>
     <string name="settings_data_backup_subtitle">Pengurusan sandaran rekod sembang</string>
     <string name="settings_token_usage_stats">Statistik penggunaan Token</string>
     <string name="settings_function_label">Fungsi</string>
     <string name="settings_model_label">Model</string>
     <string name="settings_no_token_records">Tiada rekod penggunaan Token untuk modul fungsi buat masa ini.</string>
     <string name="settings_reset_all_counts">Tetapkan semula semua kiraan</string>
-    <string name="settings_token_usage_subtitle">Lihat statistik penggunaan Token terperinci dan penetapan harga tersuai</string>
     <string name="settings_usage_summary">Statistik penggunaan</string>
     <string name="settings_total_chats">Sembang</string>
     <string name="settings_total_messages">Mesej</string>
@@ -3448,10 +3412,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="tag_export_clear_all">Kosongkan</string>
 
     <string name="api_settings_title">Tetapan API</string>
-    <string name="persona_card_generation">Penjanaan Kad Persona</string>
-    <string name="persona_card_generation_desc">Masuk ke perbualan dengan AI untuk menjana kad persona peribadi</string>
-    <string name="waifu_mode_settings">Tetapan Mod Waifu</string>
-    <string name="waifu_mode_settings_desc">Konfigurasi mod penghantaran ayat demi ayat untuk balasan AI</string>
     <string name="import_tavern_card">Import Kad Watak Tavern</string>
     <string name="import_tavern_card_desc">Import kad watak format tavern dari fail JSON atau PNG</string>
     <string name="select_tavern_card_file">Pilih Fail Kad Watak Tavern</string>
@@ -3714,10 +3674,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="feature_explanation">Penjelasan ciri</string>
     <string name="waifu_mode_explanation">• Mod biasa: Balasan AI dihantar sekali gus\n• Mod Waifu: Balasan AI dibahagikan mengikut ayat, setiap ayat dalam gelembung berasingan\n• Kelewatan pintar: Masa kelewatan dikira berdasarkan panjang ayat\n• Pembersihan automatik: Alih keluar label status, hanya paparkan teks tulen\n• Ciri pilihan: Alih keluar tanda baca hujung ayat, edit kata kunci petunjuk Waifu, dayakan stiker emosi\n• Senario sesuai: Meniru rentak perbualan yang lebih semula jadi\n• Perhatian: Mod ini mungkin kurang sesuai untuk penyesuaian panggilan alat</string>
     <string name="settings_saved_message">Tetapan telah disimpan</string>
-    <string name="settings_section_account">Akaun</string>
     <string name="github_account_not_logged_in">Belum log masuk</string>
-    <string name="github_account_login_desc">Log masuk menggunakan GitHub untuk menggunakan fungsi seperti pasaran MCP terbitan/pengurusan</string>
-    <string name="github_account_logout_desc">Log keluar daripada status log masuk GitHub semasa</string>
     <string name="github_account_info_title">Maklumat akaun</string>
     <string name="github_account_info_id">ID</string>
     <string name="github_account_info_public_repos">Repositori awam</string>
@@ -4123,7 +4080,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="screen_title_context_summary_settings">Tetapan Konteks dan Rumusan</string>
     <string name="settings_context_title">Tetapan Konteks</string>
     <string name="settings_summary_title">Tetapan Rumusan</string>
-    <string name="settings_context_summary_subtitle">Urus tetapan konteks, rumusan dan pengekalan media sejarah</string>
     <string name="external_http_chat_enable">Dayakan perkhidmatan HTTP luaran</string>
     <string name="external_http_chat_enable_desc">Apabila dihidupkan, perkhidmatan HTTP luaran akan dimulakan, sebenarnya mendengar pada 0.0.0.0; port yang sama menyediakan API HTTP dan antara muka perbualan web yang boleh diakses terus</string>
     <string name="external_http_chat_port">Port pendengaran</string>
@@ -6405,25 +6361,11 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_back">Kembali</string>
     <string name="web_session_forward">Maju</string>
     <string name="web_session_refresh">Muat semula</string>
-    <string name="web_session_address_bar">Bar alamat</string>
-    <string name="web_session_address_input">Edit alamat</string>
-    <string name="web_session_open_address">Buka alamat</string>
-    <string name="web_session_tabs">Tab</string>
-    <string name="web_session_tabs_with_index">Tab, tab semasa %1$d</string>
     <string name="web_session_no_tabs">Tiada tab buat masa ini</string>
-    <string name="web_session_current_tab">Tab semasa</string>
     <string name="web_session_history">Sejarah</string>
-    <string name="web_session_current_session_history">Sejarah sesi semasa</string>
-    <string name="web_session_no_history">Tiada sejarah buat masa ini</string>
-    <string name="web_session_current_page">Halaman semasa</string>
-    <string name="web_session_recent_history">Lawatan terkini</string>
-    <string name="web_session_clear_history">Kosongkan sejarah</string>
     <string name="web_session_bookmarks">Penanda buku</string>
     <string name="web_session_add_bookmark">Tambah penanda buku</string>
     <string name="web_session_remove_bookmark">Buang penanda buku</string>
-    <string name="web_session_no_bookmarks">Tiada penanda buku buat masa ini</string>
-    <string name="web_session_menu">Menu</string>
-    <string name="web_session_minimize">Minimakan</string>
     <string name="web_session_user_agent">Identiti UA</string>
     <string name="web_session_user_agent_dialog_title">Identiti UA pelayar</string>
     <string name="web_session_user_agent_android">Android</string>
@@ -6485,19 +6427,21 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
 
     <string name="web_session_userscript_install_action">Pasang dari pautan</string>
     <string name="web_session_userscript_import_local">Import fail tempatan</string>
-    <string name="web_session_userscript_install_preview">Pengesahan pemasangan</string>
-    <string name="web_session_userscript_update_preview">Pengesahan kemas kini</string>
     <string name="web_session_userscript_library">Skrip yang dipasang</string>
     <string name="web_session_userscript_none">Tiada skrip dipasang lagi</string>
     <string name="web_session_userscript_search_hint">Cari skrip, kebenaran atau laman</string>
     <string name="web_session_userscript_search_empty">Tiada skrip yang sepadan</string>
     <string name="web_session_userscript_logs">Log skrip</string>
     <string name="web_session_userscript_logs_empty">Belum ada log skrip</string>
-    <string name="web_session_userscript_logs_retained_count">%1$d log disimpan; salin dan eksport tidak dipengaruhi penapis semasa</string>
+    <plurals name="web_session_userscript_logs_retained_count">
+        <item quantity="other">%1$d log disimpan; salin dan eksport tidak dipengaruhi penapis semasa</item>
+    </plurals>
     <string name="web_session_userscript_logs_copy_all">Salin semua</string>
     <string name="web_session_userscript_logs_export_all">Eksport semua</string>
     <string name="web_session_userscript_logs_exporting">Mengeksport</string>
-    <string name="web_session_userscript_logs_copied">%1$d log disalin</string>
+    <plurals name="web_session_userscript_logs_copied">
+        <item quantity="other">%1$d log disalin</item>
+    </plurals>
     <string name="web_session_userscript_logs_exported">Log dieksport: %1$s</string>
     <string name="web_session_userscript_logs_export_failed">Eksport log gagal: %1$s</string>
     <string name="web_session_userscript_log_copied">Log disalin</string>
@@ -6506,8 +6450,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_userscript_log_time">Masa direkod</string>
     <string name="web_session_userscript_log_page">URL halaman</string>
     <string name="web_session_userscript_log_message">Mesej</string>
-    <string name="web_session_userscript_page_menu">Menu skrip halaman semasa</string>
-    <string name="web_session_userscript_page_menu_subtitle">Klik untuk jalankan arahan skrip yang didaftarkan untuk halaman ini</string>
     <string name="web_session_userscript_version">Versi</string>
     <string name="web_session_userscript_source">Sumber</string>
     <string name="web_session_userscript_grants">Grant</string>
@@ -6515,19 +6457,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_userscript_connects">@connect</string>
     <string name="web_session_userscript_requires">@require</string>
     <string name="web_session_userscript_resources">@resource</string>
-    <string name="web_session_userscript_update_url">Alamat kemas kini</string>
     <string name="web_session_userscript_unsupported_grants">Grant tidak dilaksanakan: %1$s</string>
-    <string name="web_session_userscript_unknown_grants">Grant tidak diketahui: %1$s</string>
-    <string name="web_session_userscript_blocked_reasons">Sebab sekatan: %1$s</string>
-    <string name="web_session_userscript_support_url">@supportURL</string>
-    <string name="web_session_userscript_website">Website</string>
-    <string name="web_session_userscript_icons">Ikon</string>
-    <string name="web_session_userscript_tags">@tag</string>
-    <string name="web_session_userscript_sandbox">@sandbox</string>
     <string name="web_session_userscript_run_in">@run-in</string>
-    <string name="web_session_userscript_web_request">@webRequest</string>
     <string name="web_session_userscript_confirm_install">Sahkan pemasangan</string>
-    <string name="web_session_userscript_cancel_install">Batal</string>
     <string name="web_session_userscript_update_action">Sahkan kemas kini</string>
     <string name="web_session_userscript_check_update">Semak kemas kini</string>
     <string name="web_session_userscript_delete">Padam skrip</string>
@@ -6584,29 +6516,8 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="attachment_current_time">【Masa semasa】\n%1$s</string>
 
     <string name="web_session_downloads">Muat turun</string>
-    <string name="web_session_downloads_summary">%1$d sedang berjalan / %2$d gagal</string>
-    <string name="web_session_downloads_filter_in_progress">Sedang berjalan</string>
-    <string name="web_session_downloads_filter_completed">Selesai</string>
-    <string name="web_session_downloads_filter_failed">Gagal</string>
-    <string name="web_session_downloads_empty_title">Tiada tugas muat turun buat masa ini</string>
-    <string name="web_session_downloads_empty_message">Status dan tindakan akan dipaparkan di sini selepas muat turun bermula.</string>
     <string name="web_session_downloads_active_bar">Sedang memuat turun %1$d item</string>
     <string name="web_session_downloads_active_unknown">Menyediakan</string>
-    <string name="web_session_download_pause">Jeda</string>
-    <string name="web_session_download_resume">Sambung</string>
-    <string name="web_session_download_cancel">Batal</string>
-    <string name="web_session_download_retry">Cuba semula</string>
-    <string name="web_session_download_open_file">Buka fail</string>
-    <string name="web_session_download_open_location">Buka lokasi</string>
-    <string name="web_session_download_delete_record">Padam rekod</string>
-    <string name="web_session_download_delete_file_and_record">Padam fail dan rekod</string>
-    <string name="web_session_download_status_queued">Menunggu</string>
-    <string name="web_session_download_status_connecting">Menyambung</string>
-    <string name="web_session_download_status_downloading">Sedang memuat turun</string>
-    <string name="web_session_download_status_paused">Dijeda</string>
-    <string name="web_session_download_status_completed">Selesai</string>
-    <string name="web_session_download_status_failed">Gagal</string>
-    <string name="web_session_download_status_canceled">Dibatalkan</string>
     <string name="web_session_download_open_failed">Tidak dapat membuka fail muat turun</string>
     <string name="web_session_download_location_open_failed">Tidak dapat membuka lokasi muat turun</string>
     <string name="web_session_system_download_enqueued">Ditambah ke baris gilir muat turun sistem: %1$s</string>
@@ -6623,11 +6534,8 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_external_open_failed">Tidak dapat membuka pautan atau aplikasi luaran: %1$s</string>
     <string name="web_session_permission_denied">Permintaan kebenaran halaman web ditolak, fungsi berkaitan tidak tersedia</string>
     <string name="web_session_location_permission_denied">Kebenaran lokasi ditolak, penentuan lokasi halaman web tidak tersedia</string>
-    <string name="web_session_close_all_tabs">Tutup semua tab</string>
     <string name="web_session_new_tab">Tab baharu</string>
-    <string name="web_session_userscripts">Userscripts</string>
     <string name="web_session_plugins">Pemalam</string>
-    <string name="web_session_plugins_subtitle">Urus pemalam pelayar dan keupayaan halaman di satu tempat</string>
     <string name="web_session_plugins_search_hint">Cari pemalam</string>
     <string name="web_session_plugins_add">Tambah</string>
     <string name="web_session_plugins_library">Pustaka Pemalam</string>
@@ -6639,19 +6547,20 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_plugins_search_empty">Tiada pemalam sepadan</string>
     <string name="web_session_plugins_builtin">Terbina dalam</string>
     <string name="web_session_plugins_unsupported">Tidak disokong</string>
-    <string name="web_session_plugins_script_count">%1$d skrip</string>
-    <string name="web_session_plugins_enabled_count">%1$d didayakan</string>
+    <plurals name="web_session_plugins_script_count">
+        <item quantity="other">%1$d skrip</item>
+    </plurals>
+    <plurals name="web_session_plugins_enabled_count">
+        <item quantity="other">%1$d didayakan</item>
+    </plurals>
     <string name="web_session_plugins_page_count">%1$d pada halaman</string>
-    <string name="web_session_plugins_menu_count">%1$d menu</string>
+    <plurals name="web_session_plugins_menu_count">
+        <item quantity="other">%1$d menu</item>
+    </plurals>
     <string name="web_session_plugins_pending_install">Menunggu</string>
-    <string name="web_session_plugins_runtime_allowed">Skrip pengguna dibenarkan</string>
     <string name="web_session_plugins_runtime_blocked">Kebenaran masa jalan dimatikan</string>
     <string name="web_session_userscript_manager_title">Userscripts</string>
     <string name="web_session_userscript_plugin_subtitle">Pengurus userscript terbina dalam</string>
-    <string name="web_session_userscripts_subtitle">Urus skrip Tampermonkey asli yang dipasang dalam penyemak imbas semasa</string>
-    <string name="web_session_userscript_runtime_permission">Kebenaran masa jalan</string>
-    <string name="web_session_userscript_allow_runtime">Benarkan skrip pengguna</string>
-    <string name="web_session_userscript_allow_runtime_summary">Benarkan pemalam terbina dalam menyuntik skrip aktif ke halaman web. Mematikannya menghentikan suntikan seterusnya dan membatalkan keistimewaan skrip dengan serta-merta.</string>
     <string name="web_session_userscript_permission_install_notice">Skrip boleh dipasang tetapi tidak akan berjalan sehingga Benarkan skrip pengguna dihidupkan.</string>
     <string name="web_session_userscript_execution_world">Dunia pelaksanaan</string>
     <string name="web_session_userscript_execution_world_page">Dunia halaman</string>
@@ -6659,8 +6568,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_userscript_page_context_access">Konteks skrip halaman</string>
     <string name="web_session_userscript_page_context_direct">Akses terus kepada window halaman</string>
     <string name="web_session_userscript_page_context_bridge">Jambatan objek halaman dari dunia terpencil</string>
-    <string name="web_session_userscript_page_context_security_summary">Halaman boleh memerhati atau mempengaruhi operasi unsafeWindow. Keistimewaan GM/native kekal dalam runtime terpencil bersama dan dibenarkan melalui token serta grant setiap skrip.</string>
-    <string name="web_session_userscript_install">Pasang skrip</string>
     <string name="web_session_userscript_install_from_url">Alamat skrip</string>
 
     <string name="web_session_userscript_status_success">Telah dijalankan</string>
@@ -6693,9 +6600,13 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_userscript_log_info">Maklumat</string>
     <string name="web_session_userscript_log_warning">Amaran</string>
     <string name="web_session_userscript_log_error">Ralat</string>
-    <string name="web_session_userscript_selected_count">%1$d dipilih</string>
+    <plurals name="web_session_userscript_selected_count">
+        <item quantity="other">%1$d dipilih</item>
+    </plurals>
     <string name="web_session_userscript_delete_selected_title">Padam skrip dipilih</string>
-    <string name="web_session_userscript_delete_selected_message">Ini memadam %1$d skrip bersama sumber, semakan, draf, nilai dan log. Tindakan ini tidak boleh dibuat asal.</string>
+    <plurals name="web_session_userscript_delete_selected_message">
+        <item quantity="other">Ini memadam %1$d skrip bersama sumber, semakan, draf, nilai dan log. Tindakan ini tidak boleh dibuat asal.</item>
+    </plurals>
     <string name="web_session_userscript_detail">Butiran skrip</string>
     <string name="web_session_userscript_detail_overview">Gambaran keseluruhan</string>
     <string name="web_session_userscript_detail_rules">Peraturan padanan</string>
@@ -6736,19 +6647,29 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_userscript_editor_review_title">Pengesahan dan perbezaan</string>
     <string name="web_session_userscript_editor_review_waiting">Menjana hasil pengesahan</string>
     <string name="web_session_userscript_editor_syntax">Sintaks JavaScript</string>
-    <string name="web_session_userscript_editor_diff_summary">Perbezaan sumber: +%1$d / -%2$d baris</string>
+    <plurals name="web_session_userscript_editor_diff_summary">
+        <item quantity="other">Perbezaan sumber: +%1$d / -%2$d baris</item>
+    </plurals>
     <string name="web_session_userscript_editor_check_passed">Lulus</string>
     <string name="web_session_userscript_editor_check_failed">Gagal</string>
     <string name="web_session_userscript_editor_leave_title">Keluar daripada editor skrip?</string>
     <string name="web_session_userscript_editor_leave_message">Perubahan belum digunakan pada semakan aktif. Simpan draf peribadi atau buang draf.</string>
     <string name="web_session_userscript_editor_keep_draft">Simpan draf dan keluar</string>
     <string name="web_session_userscript_editor_discard_draft">Buang draf</string>
-    <string name="web_session_userscript_update_check_summary">%1$d kemas kini tersedia</string>
-    <string name="web_session_userscript_update_check_summary_failed">%1$d kemas kini ditemui; %2$d semakan gagal</string>
+    <plurals name="web_session_userscript_update_check_summary">
+        <item quantity="other">%1$d kemas kini tersedia</item>
+    </plurals>
+    <plurals name="web_session_userscript_update_check_summary_failed">
+        <item quantity="other">%1$d kemas kini ditemui; %2$d semakan gagal</item>
+    </plurals>
     <string name="web_session_userscript_updated">Skrip dikemas kini: %1$s</string>
     <string name="web_session_userscript_no_safe_updates">Tiada calon kemas kini automatik yang selamat</string>
-    <string name="web_session_userscript_update_apply_summary">%1$d dikemas kini, %2$d gagal</string>
-    <string name="web_session_userscript_deleted_count">%1$d skrip dipadam</string>
+    <plurals name="web_session_userscript_update_apply_summary">
+        <item quantity="other">%1$d dikemas kini, %2$d gagal</item>
+    </plurals>
+    <plurals name="web_session_userscript_deleted_count">
+        <item quantity="other">%1$d skrip dipadam</item>
+    </plurals>
     <string name="web_session_userscript_draft_applied">Skrip digunakan: %1$s</string>
     <string name="web_session_userscript_drafts">Draf peribadi</string>
     <string name="web_session_userscript_private_draft">Belum dipasang; hanya disimpan dalam direktori peribadi aplikasi</string>
@@ -7251,24 +7172,22 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="kiyori_shell_mini_app_home">Aplikasi Mini</string>
     <string name="kiyori_shell_file_management_home">Fail</string>
     <string name="kiyori_shell_settings_home">Tetapan</string>
-    <string name="kiyori_shell_minus_one">Halaman Sisi</string>
     <string name="kiyori_shell_search_hint">Cari di web atau masukkan URL</string>
     <string name="kiyori_shell_ai_hint">Hantar soalan atau tugasan kepada AI</string>
     <string name="kiyori_home_weather_query">Cuaca %1$s</string>
-    <string name="kiyori_home_weather_current">%1$s, %2$d darjah</string>
+    <plurals name="kiyori_home_weather_current">
+        <item quantity="other">%1$s, %2$d darjah</item>
+    </plurals>
     <string name="kiyori_home_weather_loading">Memuatkan cuaca</string>
     <string name="kiyori_home_weather_permission">Gunakan lokasi untuk cuaca</string>
     <string name="kiyori_home_weather_retry">Cuaca tidak tersedia, ketik untuk cuba lagi</string>
-    <string name="kiyori_home_browser_windows">%1$d tetingkap pelayar</string>
+    <plurals name="kiyori_home_browser_windows">
+        <item quantity="other">%1$d tetingkap pelayar</item>
+    </plurals>
     <string name="kiyori_shell_search_action">Cari</string>
     <string name="kiyori_shell_ai_action">AI</string>
-    <string name="kiyori_shell_web_search">Carian Web</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">Pembantu AI</string>
-    <string name="kiyori_shell_favorites">Kegemaran</string>
-    <string name="kiyori_shell_bookmarks">Penanda Buku</string>
-    <string name="kiyori_shell_history">Sejarah</string>
-    <string name="kiyori_shell_downloads">Muat Turun</string>
     <string name="kiyori_shell_exit_hint">Tekan Kembali sekali lagi untuk keluar dari Kiyori</string>
     <string name="web_session_normal_window">Tetingkap biasa</string>
     <string name="web_session_incognito_title">Tetingkap inkognito</string>
@@ -7319,7 +7238,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_network_log">Log rangkaian</string>
     <string name="web_session_network_log_empty">Belum ada permintaan rangkaian untuk halaman ini</string>
     <string name="web_session_network_log_empty_filter">Tiada permintaan rangkaian untuk penapis ini</string>
-    <string name="web_session_network_log_count">%1$d permintaan</string>
+    <plurals name="web_session_network_log_count">
+        <item quantity="other">%1$d permintaan</item>
+    </plurals>
     <string name="web_session_network_log_clear">Kosongkan</string>
     <string name="web_session_network_log_search_hint">Cari URL atau kaedah permintaan</string>
     <string name="web_session_network_log_filter_all">Semua</string>
@@ -7351,7 +7272,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_source_unavailable">Halaman semasa tidak mempunyai WebView yang boleh dibaca</string>
     <string name="web_session_source_empty">Sumber halaman semasa kosong</string>
     <string name="web_session_source_read_failed">Gagal membaca sumber halaman</string>
-    <string name="web_session_toolbox_subtitle">Alat yang tersedia untuk halaman semasa</string>
     <string name="web_session_download_confirmation_queue_full">Terlalu banyak muat turun menunggu pengesahan. Semak permintaan semasa dahulu.</string>
     <string name="browser_download_runtime_channel_name">Muat turun fail</string>
     <string name="browser_download_runtime_channel_description">Menunjukkan muat turun dalaman aktif dan kawalannya</string>
@@ -7359,7 +7279,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="browser_download_result_channel_description">Menunjukkan muat turun dalaman yang selesai dan gagal</string>
     <string name="browser_download_runtime_title">Pemuat turun fail</string>
     <string name="browser_download_runtime_preparing">Menyediakan muat turun</string>
-    <string name="browser_download_runtime_multiple">%1$d sedang dimuat turun, %2$d menunggu</string>
+    <plurals name="browser_download_runtime_multiple">
+        <item quantity="other">%1$d sedang dimuat turun, %2$d menunggu</item>
+    </plurals>
     <string name="browser_download_runtime_pause_all">Jeda semua</string>
     <string name="browser_download_result_completed_title">Muat turun selesai</string>
     <string name="browser_download_result_failed_title">Muat turun gagal</string>
@@ -7367,7 +7289,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="browser_download_result_open">Buka fail</string>
     <string name="web_session_download_confirm_destination">Simpan ke: %1$s</string>
     <string name="web_session_history_title">Sejarah</string>
-    <string name="web_session_history_count">%1$d item</string>
+    <plurals name="web_session_history_count">
+        <item quantity="other">%1$d item</item>
+    </plurals>
     <string name="web_session_history_delete">Padam</string>
     <string name="web_session_history_search_hint">Cari tajuk, pautan atau halaman sumber</string>
     <string name="web_session_history_filter_all">Semua</string>

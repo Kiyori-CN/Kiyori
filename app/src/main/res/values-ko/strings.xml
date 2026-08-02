@@ -182,7 +182,6 @@
     <string name="workflow_node_label_condition">조건</string>
     <string name="workflow_node_label_logic">논리</string>
     <string name="workflow_node_label_extract">계산</string>
-    <string name="workflow_node_label_unknown">알 수 없음</string>
     <string name="workflow_node_skipped">건너뛰었습니다.</string>
     <string name="workflow_not_found">워크플로를 찾을 수 없습니다.</string>
     <string name="workflow_confirm_delete_title">삭제 확인</string>
@@ -657,7 +656,6 @@
     <string name="theme_chat_history_selector_transparent_desc">활성화되면 채팅 기록 선택기가 투명해집니다.</string>
     <string name="theme_chat_header_transparent">투명한 채팅 헤더</string>
     <string name="theme_chat_header_transparent_desc">활성화되면 채팅 헤더가 투명해집니다.</string>
-    <string name="theme_chat_header_transparent_title">채팅 헤더 설정</string>
     <string name="theme_chat_input_transparent_title">입력 상자 설정</string>
     <string name="theme_chat_input_transparent">투명 입력 상자</string>
     <string name="theme_chat_input_transparent_desc">활성화되면 채팅 입력 상자가 투명해집니다.</string>
@@ -706,34 +704,21 @@
     <string name="show_thinking">사고 과정 보기</string>
     <string name="show_fps_counter">FPS 카운터 표시</string>
     <string name="fps_counter_description">오른쪽 상단에 실시간 FPS 표시</string>
-    <string name="settings_section_personalization">개인화</string>
-    <string name="settings_user_preferences">사용자 기본 설정</string>
     <string name="settings_user_preferences_desc">나이, 성격, 정체성, 직업, 예상되는 AI 스타일 등 AI가 귀하를 더 잘 이해할 수 있도록 개인 정보 및 기본 설정을 구성합니다.</string>
     <string name="settings_configure_preferences">기본 설정 구성</string>
     <string name="settings_model_prompts">모델 프롬프트 설정</string>
     <string name="settings_model_prompts_desc">자기 소개, 어조 스타일 등 AI 어시스턴트 시스템 프롬프트를 사용자 정의하여 기대에 더 잘 부응하세요.</string>
     <string name="settings_configure_prompts">프롬프트 구성</string>
-    <string name="settings_theme_appearance">테마 및 모양</string>
     <string name="settings_theme_appearance_desc">어두운/밝은 모드 및 사용자 정의 색 구성표를 포함하여 앱 모양을 개인화하세요.</string>
     <string name="settings_customize_theme">테마 사용자 정의</string>
-    <string name="settings_global_display">표시 및 동작</string>
-    <string name="settings_global_display_subtitle">표시 스타일, 자동화 동작 및 스크린샷에 대한 전역 옵션 관리</string>
-    <string name="settings_data_backup">데이터 백업 및 복구</string>
-    <string name="settings_data_backup_desc">중요한 정보를 쉽게 백업하고 복구할 수 있도록 채팅 기록 및 메모리 라이브러리 데이터 가져오기, 내보내기 또는 삭제</string>
     <string name="settings_manage_backup">백업 관리</string>
-    <string name="settings_chat_history_management">채팅기록 관리</string>
-    <string name="settings_chat_history_management_subtitle">통계 보기 및 대화 일괄 정리</string>
     <string name="reset_successful">재설정 성공</string>
     <string name="reset_default_character">기본 캐릭터 카드 재설정</string>
     <string name="reset_default_character_confirm">기본 캐릭터 카드를 재설정하시겠습니까? 이렇게 하면 기본 이름, 설정, 프롬프트가 복원되고 아바타와 테마가 재설정됩니다.</string>
-    <string name="settings_section_ai_model">AI 모델 구성</string>
-    <string name="settings_model_parameters">모델 및 매개변수 구성</string>
     <string name="settings_model_parameters_desc">다중 구성 관리 지원을 통해 API 설정, 모델 이름 및 매개변수 구성</string>
     <string name="settings_configure_model">모델 구성</string>
-    <string name="settings_functional_model">기능 모델 구성</string>
     <string name="settings_functional_model_desc">다양한 기능(예: 채팅, 요약, 메모리 등)에 대한 특수 모델 및 API 설정 구성</string>
     <string name="settings_configure_function">기능 구성</string>
-    <string name="settings_section_context_summary">컨텍스트 및 요약</string>
     <string name="settings_enable_summary">대화 요약 활성화</string>
     <string name="settings_enable_summary_desc">컨텍스트가 너무 길 때 토큰 사용량을 줄이기 위해 대화 요약을 자동으로 생성합니다.</string>
     <string name="settings_enable_summary_by_message_count">메시지 수 기준 요약 트리거</string>
@@ -752,11 +737,9 @@
     <string name="settings_auto_accessibility">접근성 권한 자동 부여</string>
     <string name="settings_auto_accessibility_desc">비활성화하면 앱을 열 때마다 수동 인증이 필요합니다.</string>
     <string name="settings_section_permissions">권한 및 보안</string>
-    <string name="settings_tool_permissions">도구 권한 설정</string>
     <string name="settings_tool_permissions_desc">AI 보조 도구에 대한 권한 수준을 구성하고 자동 허용, 요청 또는 거부로 설정할 수 있습니다.</string>
     <string name="settings_configure_permissions">권한 구성</string>
     <string name="settings_section_usage">사용 통계</string>
-    <string name="settings_section_external_calls">외부 호출</string>
     <string name="settings_token_statistics">토큰 통계</string>
     <string name="settings_total_tokens_breakdown">입력: %1$d(캐시됨: %2$d) / 출력: %3$d</string>
     <string name="settings_cached_tokens">(캐시됨: %1$d)</string>
@@ -922,7 +905,6 @@
     <string name="missing_parameters">필수 매개변수 누락: %1$s</string>
     <string name="save_changes">변경사항 저장</string>
     <string name="back_to_list">목록으로 돌아가기</string>
-    <string name="language_settings">언어 설정</string>
     <string name="language_settings_desc">앱 인터페이스 표시 언어를 변경합니다</string>
     <string name="change_language">언어 변경</string>
     <string name="select_language">언어 선택</string>
@@ -1270,8 +1252,6 @@
     <string name="desktop_pet_function_desc">데스크톱 펫 기능, 펫의 성격 및 상호 작용 스타일 맞춤 설정</string>
     <string name="pet_service_notification_title">데스크톱 펫 서비스</string>
     <string name="pet_service_notification_text">데스크톱 펫이 실행 중입니다.</string>
-    <string name="settings_prompt_section">프롬프트 구성</string>
-    <string name="settings_prompt_title">캐릭터 카드 편집기</string>
     <string name="settings_prompt_desc">AI 어시스턴트의 동작 및 성격 프롬프트 사용자 정의</string>
     <string name="settings_configure_prompt">프롬프트 구성</string>
     <string name="settings_functional_prompt_title">기능 프롬프트 구성</string>
@@ -2816,7 +2796,6 @@
     <string name="export_signing_apk">APK 서명 중...</string>
     <string name="export_finish_packaging">패키징 마무리 중...</string>
     <string name="export_completed">내보내기가 완료되었습니다!</string>
-    <string name="export_sign_apk_failed">APK 서명 실패: %1$s</string>
     <string name="export_failed_with_reason">내보내기 실패: %1$s</string>
     <string name="export_prepare_windows_template">Windows 앱 템플릿 준비 중...</string>
     <string name="export_copy_template">앱 템플릿 복사 중...</string>
@@ -2901,20 +2880,10 @@
     <string name="history_fast_scroll">빠른 기록 스크롤</string>
     <string name="history_scroll_to_top">맨 위로 스크롤</string>
     <string name="history_scroll_to_bottom">맨 아래로 스크롤</string>
-    <string name="settings_user_preferences_subtitle">개인 취향 및 행동 설정</string>
-    <string name="settings_language_subtitle">인터페이스 언어 전환</string>
-    <string name="settings_theme_subtitle">테마 및 모양 사용자 정의</string>
-    <string name="layout_adjustment">레이아웃 조정</string>
-    <string name="layout_adjustment_subtitle">UI 요소 위치 및 여백 조정</string>
-    <string name="settings_model_params_subtitle">모델 매개변수 및 API 구성</string>
-    <string name="settings_functional_model_subtitle">기능 모델별 구성</string>
-    <string name="settings_speech_services">음성 서비스 구성</string>
-    <string name="settings_speech_services_subtitle">TTS/STT 서비스 설정</string>
     <string name="settings_custom_headers">사용자 정의 헤더</string>
     <string name="settings_custom_headers_subtitle">API 요청 헤더 필드 구성</string>
     <string name="headers_configured_count">%1$d 구성됨</string>
     <string name="screen_title_external_http_chat_settings">외부 HTTP 호출</string>
-    <string name="settings_system_prompts_subtitle">시스템 및 모델 프롬프트</string>
     <string name="settings_functional_prompts_subtitle">기능 프롬프트 템플릿</string>
     <string name="settings_context_length">컨텍스트 길이</string>
     <string name="settings_context_length_subtitle">모델 메모리 대화 길이(k 토큰)</string>
@@ -2953,17 +2922,12 @@
     <string name="reset_to_default">기본값으로 재설정</string>
     <string name="layout_reset_settings">레이아웃 설정 재설정</string>
     <string name="layout_reset_settings_desc">모든 레이아웃 조정 설정을 기본값으로 재설정</string>
-    <string name="settings_data_permissions">데이터 및 권한</string>
-    <string name="settings_tool_permissions_subtitle">도구 권한 및 보안 설정</string>
-    <string name="settings_external_http_chat">외부 HTTP 호출</string>
-    <string name="settings_external_http_chat_subtitle">0.0.0.0에서 수신하는 HTTP 채팅 API의 포트와 Bearer Token</string>
     <string name="settings_data_backup_subtitle">채팅기록 백업 관리</string>
     <string name="settings_token_usage_stats">토큰 사용 통계</string>
     <string name="settings_function_label">기능</string>
     <string name="settings_model_label">모델</string>
     <string name="settings_no_token_records">아직 기능 모듈에 대한 토큰 사용 기록이 없습니다.</string>
     <string name="settings_reset_all_counts">모든 카운트 재설정</string>
-    <string name="settings_token_usage_subtitle">자세한 토큰 사용 통계 및 맞춤 가격 보기</string>
     <string name="settings_usage_summary">사용 요약</string>
     <string name="settings_total_chats">채팅</string>
     <string name="settings_total_messages">메시지</string>
@@ -3428,10 +3392,6 @@
     <string name="parameter_type">매개변수 유형</string>
     <string name="settings_title">설정</string>
     <string name="api_settings_title">API 설정</string>
-    <string name="persona_card_generation">페르소나 카드 생성</string>
-    <string name="persona_card_generation_desc">AI 대화에 참여하여 맞춤형 캐릭터 카드 생성</string>
-    <string name="waifu_mode_settings">Waifu 모드 설정</string>
-    <string name="waifu_mode_settings_desc">AI 응답 문장별 전송 모드 구성</string>
     <string name="import_tavern_card">Tavern 카드 가져오기</string>
     <string name="import_tavern_card_desc">JSON 또는 PNG Tavern 형식 파일에서 캐릭터 카드 가져오기</string>
     <string name="select_tavern_card_file">Tavern 카드 파일 선택</string>
@@ -3580,10 +3540,7 @@
 • 사용 사례: 더 자연스러운 대화 리듬 시뮬레이션
 • 참고: 이 모드는 도구 호출에는 잘 맞지 않을 수 있습니다.</string>
     <string name="settings_saved_message">설정이 저장되었습니다.</string>
-    <string name="settings_section_account">계정</string>
     <string name="github_account_not_logged_in">로그인되지 않음</string>
-    <string name="github_account_login_desc">MCP 마켓 게시/관리 기능을 사용하려면 GitHub에 로그인하세요.</string>
-    <string name="github_account_logout_desc">현재 GitHub 계정에서 로그아웃</string>
     <string name="github_account_info_title">계정 정보</string>
     <string name="github_account_info_id">ID</string>
     <string name="github_account_info_public_repos">공개 저장소</string>
@@ -4126,7 +4083,6 @@
     <string name="screen_title_context_summary_settings">컨텍스트 및 요약 설정</string>
     <string name="settings_context_title">컨텍스트 설정</string>
     <string name="settings_summary_title">요약 설정</string>
-    <string name="settings_context_summary_subtitle">컨텍스트, 요약 및 기록 미디어 보존 설정 관리</string>
     <string name="external_http_chat_enable">외부 HTTP 서비스 활성화</string>
     <string name="external_http_chat_enable_desc">외부 HTTP 서비스를 시작하고 이를 0.0.0.0에 바인딩합니다. 동일한 포트가 HTTP API와 브라우저에서 액세스 가능한 웹 채팅 UI를 모두 제공합니다.</string>
     <string name="external_http_chat_port">수신 포트</string>
@@ -6659,25 +6615,11 @@
     <string name="web_session_back">뒤로</string>
     <string name="web_session_forward">앞으로</string>
     <string name="web_session_refresh">새로 고침</string>
-    <string name="web_session_address_bar">주소 표시줄</string>
-    <string name="web_session_address_input">주소 수정</string>
-    <string name="web_session_open_address">주소 열기</string>
-    <string name="web_session_tabs">탭</string>
-    <string name="web_session_tabs_with_index">탭, 현재 탭 %1$d</string>
     <string name="web_session_no_tabs">탭 없음</string>
-    <string name="web_session_current_tab">현재 탭</string>
     <string name="web_session_history">방문 기록</string>
-    <string name="web_session_current_session_history">현재 세션 기록</string>
-    <string name="web_session_no_history">기록 없음</string>
-    <string name="web_session_current_page">현재 페이지</string>
-    <string name="web_session_recent_history">최근 기록</string>
-    <string name="web_session_clear_history">기록 지우기</string>
     <string name="web_session_bookmarks">북마크</string>
     <string name="web_session_add_bookmark">북마크 추가</string>
     <string name="web_session_remove_bookmark">북마크 삭제</string>
-    <string name="web_session_no_bookmarks">북마크 없음</string>
-    <string name="web_session_menu">메뉴</string>
-    <string name="web_session_minimize">최소화</string>
     <string name="web_session_user_agent">UA 식별</string>
     <string name="web_session_user_agent_dialog_title">브라우저 UA 식별</string>
     <string name="web_session_user_agent_android">Android</string>
@@ -6696,29 +6638,8 @@
     <string name="web_session_user_agent_full_domain">전체 도메인</string>
     <string name="web_session_user_agent_site_unavailable">현재 페이지에는 UA 규칙을 설정할 도메인이 없습니다</string>
     <string name="web_session_downloads">다운로드</string>
-    <string name="web_session_downloads_summary">%1$d 활성 / %2$d 실패</string>
-    <string name="web_session_downloads_filter_in_progress">진행 중</string>
-    <string name="web_session_downloads_filter_completed">완료됨</string>
-    <string name="web_session_downloads_filter_failed">실패</string>
-    <string name="web_session_downloads_empty_title">아직 다운로드 작업이 없습니다.</string>
-    <string name="web_session_downloads_empty_message">새 브라우저 관리 다운로드가 여기에 표시됩니다.</string>
     <string name="web_session_downloads_active_bar">%1$d 항목 다운로드 중</string>
     <string name="web_session_downloads_active_unknown">준비 중</string>
-    <string name="web_session_download_pause">일시 중지</string>
-    <string name="web_session_download_resume">재개</string>
-    <string name="web_session_download_cancel">취소</string>
-    <string name="web_session_download_retry">다시 시도</string>
-    <string name="web_session_download_open_file">파일 열기</string>
-    <string name="web_session_download_open_location">위치 열기</string>
-    <string name="web_session_download_delete_record">기록 삭제</string>
-    <string name="web_session_download_delete_file_and_record">파일 및 기록 삭제</string>
-    <string name="web_session_download_status_queued">대기 중</string>
-    <string name="web_session_download_status_connecting">연결 중</string>
-    <string name="web_session_download_status_downloading">다운로드 중</string>
-    <string name="web_session_download_status_paused">일시중지됨</string>
-    <string name="web_session_download_status_completed">완료됨</string>
-    <string name="web_session_download_status_failed">실패</string>
-    <string name="web_session_download_status_canceled">취소됨</string>
     <string name="web_session_download_open_failed">다운로드한 파일을 열 수 없습니다.</string>
     <string name="web_session_download_location_open_failed">다운로드 위치를 열 수 없습니다.</string>
     <string name="web_session_system_download_enqueued">시스템 다운로드 대기열에 추가됨: %1$s</string>
@@ -6735,11 +6656,8 @@
     <string name="web_session_external_open_failed">외부 링크 또는 앱을 열 수 없습니다: %1$s</string>
     <string name="web_session_permission_denied">웹페이지 권한 요청이 거부되어 이 기능을 사용할 수 없습니다.</string>
     <string name="web_session_location_permission_denied">위치 권한이 거부되어 웹 위치정보를 사용할 수 없습니다.</string>
-    <string name="web_session_close_all_tabs">모든 탭 닫기</string>
     <string name="web_session_new_tab">새 탭</string>
-    <string name="web_session_userscripts">사용자 스크립트</string>
     <string name="web_session_plugins">플러그인</string>
-    <string name="web_session_plugins_subtitle">브라우저 플러그인과 페이지 기능을 한곳에서 관리합니다</string>
     <string name="web_session_plugins_search_hint">플러그인 검색</string>
     <string name="web_session_plugins_add">추가</string>
     <string name="web_session_plugins_library">플러그인 라이브러리</string>
@@ -6751,19 +6669,20 @@
     <string name="web_session_plugins_search_empty">일치하는 플러그인이 없습니다</string>
     <string name="web_session_plugins_builtin">내장</string>
     <string name="web_session_plugins_unsupported">지원되지 않음</string>
-    <string name="web_session_plugins_script_count">스크립트 %1$d개</string>
-    <string name="web_session_plugins_enabled_count">%1$d개 활성화</string>
+    <plurals name="web_session_plugins_script_count">
+        <item quantity="other">스크립트 %1$d개</item>
+    </plurals>
+    <plurals name="web_session_plugins_enabled_count">
+        <item quantity="other">%1$d개 활성화</item>
+    </plurals>
     <string name="web_session_plugins_page_count">현재 페이지 %1$d개</string>
-    <string name="web_session_plugins_menu_count">메뉴 %1$d개</string>
+    <plurals name="web_session_plugins_menu_count">
+        <item quantity="other">메뉴 %1$d개</item>
+    </plurals>
     <string name="web_session_plugins_pending_install">확인 대기</string>
-    <string name="web_session_plugins_runtime_allowed">사용자 스크립트 허용됨</string>
     <string name="web_session_plugins_runtime_blocked">실행 권한 꺼짐</string>
     <string name="web_session_userscript_manager_title">사용자 스크립트</string>
     <string name="web_session_userscript_plugin_subtitle">내장 userscript 관리자</string>
-    <string name="web_session_userscripts_subtitle">이 브라우저에 설치된 기본 사용자 스크립트를 관리합니다.</string>
-    <string name="web_session_userscript_runtime_permission">실행 권한</string>
-    <string name="web_session_userscript_allow_runtime">사용자 스크립트 허용</string>
-    <string name="web_session_userscript_allow_runtime_summary">내장 플러그인이 활성화된 스크립트를 웹페이지에 주입하도록 허용합니다. 끄면 이후 주입이 중단되고 스크립트 권한이 즉시 해제됩니다.</string>
     <string name="web_session_userscript_permission_install_notice">스크립트는 설치할 수 있지만 사용자 스크립트 허용을 켜기 전에는 실행되지 않습니다.</string>
     <string name="web_session_userscript_execution_world">실행 환경</string>
     <string name="web_session_userscript_execution_world_page">페이지 환경</string>
@@ -6771,24 +6690,24 @@
     <string name="web_session_userscript_page_context_access">페이지 스크립트 컨텍스트</string>
     <string name="web_session_userscript_page_context_direct">페이지 window에 직접 접근</string>
     <string name="web_session_userscript_page_context_bridge">격리 환경의 페이지 객체 브리지</string>
-    <string name="web_session_userscript_page_context_security_summary">페이지는 unsafeWindow 작업을 관찰하거나 변경할 수 있습니다. GM/native 권한은 공유 격리 런타임에 유지되며 각 스크립트의 token과 grant로 승인됩니다.</string>
-    <string name="web_session_userscript_install">설치 스크립트</string>
     <string name="web_session_userscript_install_from_url">스크립트 URL</string>
     <string name="web_session_userscript_install_action">URL에서 설치</string>
     <string name="web_session_userscript_import_local">로컬 파일 가져오기</string>
-    <string name="web_session_userscript_install_preview">미리보기 설치</string>
-    <string name="web_session_userscript_update_preview">업데이트 미리보기</string>
     <string name="web_session_userscript_library">설치된 스크립트</string>
     <string name="web_session_userscript_none">아직 사용자 스크립트가 설치되지 않았습니다.</string>
     <string name="web_session_userscript_search_hint">스크립트, 권한 또는 사이트 검색</string>
     <string name="web_session_userscript_search_empty">일치하는 스크립트가 없습니다</string>
     <string name="web_session_userscript_logs">스크립트 로그</string>
     <string name="web_session_userscript_logs_empty">사용자 스크립트 로그가 없습니다.</string>
-    <string name="web_session_userscript_logs_retained_count">로그 %1$d개 보관 중; 복사와 내보내기는 현재 필터와 무관합니다</string>
+    <plurals name="web_session_userscript_logs_retained_count">
+        <item quantity="other">로그 %1$d개 보관 중; 복사와 내보내기는 현재 필터와 무관합니다</item>
+    </plurals>
     <string name="web_session_userscript_logs_copy_all">모두 복사</string>
     <string name="web_session_userscript_logs_export_all">모두 내보내기</string>
     <string name="web_session_userscript_logs_exporting">내보내는 중</string>
-    <string name="web_session_userscript_logs_copied">로그 %1$d개를 복사했습니다</string>
+    <plurals name="web_session_userscript_logs_copied">
+        <item quantity="other">로그 %1$d개를 복사했습니다</item>
+    </plurals>
     <string name="web_session_userscript_logs_exported">로그 내보내기 완료: %1$s</string>
     <string name="web_session_userscript_logs_export_failed">로그 내보내기 실패: %1$s</string>
     <string name="web_session_userscript_log_copied">로그를 복사했습니다</string>
@@ -6797,8 +6716,6 @@
     <string name="web_session_userscript_log_time">기록 시간</string>
     <string name="web_session_userscript_log_page">페이지 URL</string>
     <string name="web_session_userscript_log_message">메시지</string>
-    <string name="web_session_userscript_page_menu">페이지 스크립트 메뉴</string>
-    <string name="web_session_userscript_page_menu_subtitle">이 페이지에 스크립트로 등록된 명령 실행</string>
     <string name="web_session_userscript_version">버전</string>
     <string name="web_session_userscript_source">출처</string>
     <string name="web_session_userscript_grants">권한</string>
@@ -6806,19 +6723,9 @@
     <string name="web_session_userscript_connects">@connect</string>
     <string name="web_session_userscript_requires">@require</string>
     <string name="web_session_userscript_resources">@resource</string>
-    <string name="web_session_userscript_update_url">URL 업데이트</string>
     <string name="web_session_userscript_unsupported_grants">지원되지 않는 grant: %1$s</string>
-    <string name="web_session_userscript_unknown_grants">알 수 없는 grant: %1$s</string>
-    <string name="web_session_userscript_blocked_reasons">차단됨: %1$s</string>
-    <string name="web_session_userscript_support_url">@supportURL</string>
-    <string name="web_session_userscript_website">웹사이트</string>
-    <string name="web_session_userscript_icons">아이콘</string>
-    <string name="web_session_userscript_tags">@tag</string>
-    <string name="web_session_userscript_sandbox">@sandbox</string>
     <string name="web_session_userscript_run_in">@run-in</string>
-    <string name="web_session_userscript_web_request">@webRequest</string>
     <string name="web_session_userscript_confirm_install">설치 확인</string>
-    <string name="web_session_userscript_cancel_install">취소</string>
     <string name="web_session_userscript_update_action">업데이트 확인</string>
     <string name="web_session_userscript_check_update">업데이트 확인</string>
     <string name="web_session_userscript_delete">스크립트 삭제</string>
@@ -6862,9 +6769,13 @@
     <string name="web_session_userscript_log_info">정보</string>
     <string name="web_session_userscript_log_warning">경고</string>
     <string name="web_session_userscript_log_error">오류</string>
-    <string name="web_session_userscript_selected_count">%1$d개 선택됨</string>
+    <plurals name="web_session_userscript_selected_count">
+        <item quantity="other">%1$d개 선택됨</item>
+    </plurals>
     <string name="web_session_userscript_delete_selected_title">선택한 스크립트 삭제</string>
-    <string name="web_session_userscript_delete_selected_message">%1$d개 스크립트와 소스, 리비전, 초안, 값, 로그를 삭제합니다. 취소할 수 없습니다.</string>
+    <plurals name="web_session_userscript_delete_selected_message">
+        <item quantity="other">%1$d개 스크립트와 소스, 리비전, 초안, 값, 로그를 삭제합니다. 취소할 수 없습니다.</item>
+    </plurals>
     <string name="web_session_userscript_detail">스크립트 상세</string>
     <string name="web_session_userscript_detail_overview">개요</string>
     <string name="web_session_userscript_detail_rules">일치 규칙</string>
@@ -6905,19 +6816,29 @@
     <string name="web_session_userscript_editor_review_title">검증 및 차이</string>
     <string name="web_session_userscript_editor_review_waiting">검증 결과 생성 중</string>
     <string name="web_session_userscript_editor_syntax">JavaScript 구문</string>
-    <string name="web_session_userscript_editor_diff_summary">소스 차이: +%1$d / -%2$d줄</string>
+    <plurals name="web_session_userscript_editor_diff_summary">
+        <item quantity="other">소스 차이: +%1$d / -%2$d줄</item>
+    </plurals>
     <string name="web_session_userscript_editor_check_passed">통과</string>
     <string name="web_session_userscript_editor_check_failed">실패</string>
     <string name="web_session_userscript_editor_leave_title">스크립트 편집기를 나가시겠습니까?</string>
     <string name="web_session_userscript_editor_leave_message">현재 변경 사항은 실행 버전에 적용되지 않았습니다. 비공개 초안을 보관하거나 삭제할 수 있습니다.</string>
     <string name="web_session_userscript_editor_keep_draft">초안 보관 후 나가기</string>
     <string name="web_session_userscript_editor_discard_draft">초안 삭제</string>
-    <string name="web_session_userscript_update_check_summary">%1$d개 업데이트 사용 가능</string>
-    <string name="web_session_userscript_update_check_summary_failed">%1$d개 업데이트 발견, %2$d개 확인 실패</string>
+    <plurals name="web_session_userscript_update_check_summary">
+        <item quantity="other">%1$d개 업데이트 사용 가능</item>
+    </plurals>
+    <plurals name="web_session_userscript_update_check_summary_failed">
+        <item quantity="other">%1$d개 업데이트 발견, %2$d개 확인 실패</item>
+    </plurals>
     <string name="web_session_userscript_updated">스크립트 업데이트됨: %1$s</string>
     <string name="web_session_userscript_no_safe_updates">안전한 자동 업데이트 후보가 없습니다</string>
-    <string name="web_session_userscript_update_apply_summary">%1$d개 업데이트, %2$d개 실패</string>
-    <string name="web_session_userscript_deleted_count">%1$d개 스크립트 삭제됨</string>
+    <plurals name="web_session_userscript_update_apply_summary">
+        <item quantity="other">%1$d개 업데이트, %2$d개 실패</item>
+    </plurals>
+    <plurals name="web_session_userscript_deleted_count">
+        <item quantity="other">%1$d개 스크립트 삭제됨</item>
+    </plurals>
     <string name="web_session_userscript_draft_applied">스크립트 적용됨: %1$s</string>
     <string name="web_session_userscript_drafts">비공개 초안</string>
     <string name="web_session_userscript_private_draft">설치되지 않았으며 앱 비공개 디렉터리에만 저장됩니다</string>
@@ -7102,24 +7023,22 @@
     <string name="kiyori_shell_mini_app_home">미니 앱</string>
     <string name="kiyori_shell_file_management_home">파일</string>
     <string name="kiyori_shell_settings_home">설정</string>
-    <string name="kiyori_shell_minus_one">왼쪽 페이지</string>
     <string name="kiyori_shell_search_hint">웹을 검색하거나 URL 입력</string>
     <string name="kiyori_shell_ai_hint">AI에 질문이나 작업 보내기</string>
     <string name="kiyori_home_weather_query">%1$s 날씨</string>
-    <string name="kiyori_home_weather_current">%1$s, %2$d도</string>
+    <plurals name="kiyori_home_weather_current">
+        <item quantity="other">%1$s, %2$d도</item>
+    </plurals>
     <string name="kiyori_home_weather_loading">날씨 불러오는 중</string>
     <string name="kiyori_home_weather_permission">날씨에 위치 사용</string>
     <string name="kiyori_home_weather_retry">날씨를 사용할 수 없음. 탭하여 다시 시도</string>
-    <string name="kiyori_home_browser_windows">브라우저 창 %1$d개</string>
+    <plurals name="kiyori_home_browser_windows">
+        <item quantity="other">브라우저 창 %1$d개</item>
+    </plurals>
     <string name="kiyori_shell_search_action">검색</string>
     <string name="kiyori_shell_ai_action">AI</string>
-    <string name="kiyori_shell_web_search">웹 검색</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">AI 어시스턴트</string>
-    <string name="kiyori_shell_favorites">즐겨찾기</string>
-    <string name="kiyori_shell_bookmarks">북마크</string>
-    <string name="kiyori_shell_history">기록</string>
-    <string name="kiyori_shell_downloads">다운로드</string>
     <string name="kiyori_shell_exit_hint">Kiyori를 종료하려면 뒤로 버튼을 한 번 더 누르세요</string>
     <string name="web_session_normal_window">일반 창</string>
     <string name="web_session_incognito_title">시크릿 창</string>
@@ -7170,7 +7089,9 @@
     <string name="web_session_network_log">네트워크 로그</string>
     <string name="web_session_network_log_empty">현재 페이지에 기록된 네트워크 요청이 없습니다</string>
     <string name="web_session_network_log_empty_filter">현재 필터에 맞는 네트워크 요청이 없습니다</string>
-    <string name="web_session_network_log_count">%1$d개 요청</string>
+    <plurals name="web_session_network_log_count">
+        <item quantity="other">%1$d개 요청</item>
+    </plurals>
     <string name="web_session_network_log_clear">지우기</string>
     <string name="web_session_network_log_search_hint">URL 또는 요청 메서드 검색</string>
     <string name="web_session_network_log_filter_all">전체</string>
@@ -7202,7 +7123,6 @@
     <string name="web_session_source_unavailable">현재 페이지에 읽을 수 있는 WebView가 없습니다</string>
     <string name="web_session_source_empty">현재 페이지 소스가 비어 있습니다</string>
     <string name="web_session_source_read_failed">페이지 소스를 읽지 못했습니다</string>
-    <string name="web_session_toolbox_subtitle">현재 페이지에서 사용할 수 있는 도구</string>
     <string name="web_session_download_confirmation_queue_full">확인을 기다리는 다운로드가 너무 많습니다. 현재 요청을 먼저 확인하세요.</string>
     <string name="browser_download_runtime_channel_name">파일 다운로드</string>
     <string name="browser_download_runtime_channel_description">진행 중인 내부 다운로드와 제어 작업 표시</string>
@@ -7210,7 +7130,9 @@
     <string name="browser_download_result_channel_description">완료되거나 실패한 내부 다운로드 표시</string>
     <string name="browser_download_runtime_title">파일 다운로더</string>
     <string name="browser_download_runtime_preparing">다운로드 준비 중</string>
-    <string name="browser_download_runtime_multiple">%1$d개 다운로드 중, %2$d개 대기 중</string>
+    <plurals name="browser_download_runtime_multiple">
+        <item quantity="other">%1$d개 다운로드 중, %2$d개 대기 중</item>
+    </plurals>
     <string name="browser_download_runtime_pause_all">모두 일시중지</string>
     <string name="browser_download_result_completed_title">다운로드 완료</string>
     <string name="browser_download_result_failed_title">다운로드 실패</string>
@@ -7218,7 +7140,9 @@
     <string name="browser_download_result_open">파일 열기</string>
     <string name="web_session_download_confirm_destination">저장 위치: %1$s</string>
     <string name="web_session_history_title">방문 기록</string>
-    <string name="web_session_history_count">%1$d개</string>
+    <plurals name="web_session_history_count">
+        <item quantity="other">%1$d개</item>
+    </plurals>
     <string name="web_session_history_delete">삭제</string>
     <string name="web_session_history_search_hint">제목, 링크 또는 원본 페이지 검색</string>
     <string name="web_session_history_filter_all">모두</string>

@@ -195,7 +195,6 @@
     <string name="workflow_node_label_condition">条件</string>
     <string name="workflow_node_label_logic">逻辑</string>
     <string name="workflow_node_label_extract">运算</string>
-    <string name="workflow_node_label_unknown">未知</string>
     <string name="workflow_node_skipped">跳过</string>
     <string name="workflow_not_found">工作流不存在</string>
     <string name="workflow_confirm_delete_title">确认删除</string>
@@ -724,7 +723,6 @@
     <string name="theme_chat_history_selector_transparent_desc">开启后聊天历史选择器将变为透明</string>
     <string name="theme_chat_header_transparent">透明聊天栏</string>
     <string name="theme_chat_header_transparent_desc">开启后聊天顶栏将变为透明</string>
-    <string name="theme_chat_header_transparent_title">聊天顶栏设置</string>
     <string name="theme_chat_input_transparent_title">输入框设置</string>
     <string name="theme_chat_input_transparent">透明输入框</string>
     <string name="theme_chat_input_transparent_desc">开启后聊天输入框将变为透明</string>
@@ -783,37 +781,24 @@
     <string name="fps_counter_description">在屏幕右上角显示实时帧率</string>
     
     <!-- Settings Screen Sections -->
-    <string name="settings_section_personalization">个性化</string>
-    <string name="settings_user_preferences">用户偏好设置</string>
     <string name="settings_user_preferences_desc">编辑会作为用户上下文发送给 AI 的 user.md</string>
     <string name="settings_configure_preferences">配置用户偏好</string>
     <string name="settings_model_prompts">模型提示词设置</string>
     <string name="settings_model_prompts_desc">自定义AI助手的系统提示词，包括自我介绍和语气风格，使AI更符合您的预期</string>
     <string name="settings_configure_prompts">配置提示词</string>
-    <string name="settings_theme_appearance">主题和外观</string>
     <string name="settings_theme_appearance_desc">个性化应用外观，包括深色/浅色模式和自定义配色方案</string>
     <string name="settings_customize_theme">自定义主题</string>
-    <string name="settings_global_display">显示与行为</string>
-    <string name="settings_global_display_subtitle">管理显示样式、自动化行为与截图等全局选项</string>
-    <string name="settings_data_backup">数据备份与恢复</string>
-    <string name="settings_data_backup_desc">导入、导出或删除聊天记录和记忆库数据，方便备份和恢复重要信息</string>
     <string name="settings_manage_backup">管理备份</string>
-    <string name="settings_chat_history_management">聊天记录管理</string>
-    <string name="settings_chat_history_management_subtitle">查看统计并批量整理、导入导出聊天记录</string>
     
     <string name="reset_successful">重置成功</string>
     <string name="reset_default_character">重置默认角色卡</string>
     <string name="reset_default_character_confirm">确定要重置默认角色卡吗？这将恢复默认的名称、设定和提示词，并重置头像和主题。</string>
 
-    <string name="settings_section_ai_model">AI模型配置</string>
-    <string name="settings_model_parameters">模型与参数配置</string>
     <string name="settings_model_parameters_desc">配置API设置、模型名称与参数，支持多配置管理</string>
     <string name="settings_configure_model">配置模型</string>
-    <string name="settings_functional_model">功能模型配置</string>
     <string name="settings_functional_model_desc">为不同功能（如对话、总结、记忆库等）配置专用的模型与API设置</string>
     <string name="settings_configure_function">配置功能</string>
     
-    <string name="settings_section_context_summary">上下文与总结</string>
     <string name="settings_enable_summary">启用对话总结</string>
     <string name="settings_enable_summary_desc">当上下文过长时自动生成对话总结，节省Token消耗</string>
     <string name="settings_enable_summary_by_message_count">按消息条数触发总结</string>
@@ -837,12 +822,10 @@
     <string name="settings_auto_accessibility_desc">关闭后需每次打开软件手动授权</string>
     
     <string name="settings_section_permissions">权限与安全</string>
-    <string name="settings_tool_permissions">工具权限设置</string>
     <string name="settings_tool_permissions_desc">配置AI助手工具的权限级别，可以设置为自动允许、询问或禁止</string>
     <string name="settings_configure_permissions">配置工具权限</string>
     
     <string name="settings_section_usage">使用统计</string>
-    <string name="settings_section_external_calls">外部调用</string>
     <string name="settings_token_statistics">Token统计</string>
     <string name="settings_total_tokens_breakdown">输入: %1$d (缓存: %2$d) / 输出: %3$d</string>
     <string name="settings_cached_tokens">(缓存: %1$d)</string>
@@ -1022,7 +1005,6 @@
     <string name="back_to_list">返回列表</string>
     
     <!-- Language Settings -->
-    <string name="language_settings">语言设置</string>
     <string name="language_settings_desc">更改应用界面显示语言</string>
     <string name="change_language">更改语言</string>
     <string name="select_language">选择语言</string>
@@ -1430,8 +1412,6 @@
     <string name="pet_service_notification_text">桌面宠物正在运行中</string>
     
     <!-- 设置屏幕新增字符串 -->
-    <string name="settings_prompt_section">提示词配置</string>
-    <string name="settings_prompt_title">角色卡编辑</string>
     <string name="settings_prompt_desc">自定义AI助手的行为和性格的提示词</string>
     <string name="settings_configure_prompt">配置提示词</string>
     <string name="settings_functional_prompt_title">功能提示词配置</string>
@@ -3153,7 +3133,6 @@
     <string name="export_signing_apk">签名APK...</string>
     <string name="export_finish_packaging">完成打包...</string>
     <string name="export_completed">导出完成!</string>
-    <string name="export_sign_apk_failed">签名APK失败: %1$s</string>
     <string name="export_failed_with_reason">导出失败: %1$s</string>
     <string name="export_prepare_windows_template">准备Windows应用模板...</string>
     <string name="export_copy_template">复制应用模板...</string>
@@ -3240,20 +3219,10 @@
     <string name="history_scroll_to_bottom">滚动到底部</string>
     
     <!-- Settings Screen Subtitles -->
-    <string name="settings_user_preferences_subtitle">编辑和预览 user.md</string>
-    <string name="settings_language_subtitle">界面语言切换</string>
-    <string name="settings_theme_subtitle">主题和外观定制</string>
-    <string name="layout_adjustment">布局调整</string>
-    <string name="layout_adjustment_subtitle">调整界面元素位置和边距</string>
-    <string name="settings_model_params_subtitle">模型参数和API配置</string>
-    <string name="settings_functional_model_subtitle">功能模型专项配置</string>
-    <string name="settings_speech_services">语音服务配置</string>
-    <string name="settings_speech_services_subtitle">TTS/STT服务设置</string>
     <string name="settings_custom_headers">自定义请求头</string>
     <string name="settings_custom_headers_subtitle">API请求头字段配置</string>
     <string name="headers_configured_count">已配置 %1$d 条</string>
     <string name="screen_title_external_http_chat_settings">外部 HTTP 调用</string>
-    <string name="settings_system_prompts_subtitle">系统和模型提示词</string>
     <string name="settings_functional_prompts_subtitle">功能专用提示词模板</string>
     <string name="settings_context_length">上下文长度</string>
     <string name="settings_context_length_subtitle">模型记忆对话长度(k tokens)</string>
@@ -3297,25 +3266,17 @@
     <string name="layout_reset_settings">重置布局设置</string>
     <string name="layout_reset_settings_desc">将所有布局调整设置恢复为默认值</string>
     
-    <string name="settings_data_permissions">数据和权限</string>
-    <string name="settings_tool_permissions_subtitle">工具权限和安全设置</string>
-    <string name="settings_privacy_data_cleanup">隐私与数据清理</string>
-    <string name="settings_clear_cookies">清除 Cookie</string>
-    <string name="settings_clear_cookies_subtitle">清除搜索工具、Browser 包和内置浏览器保存的 Cookie</string>
     <string name="clear_cookies_dialog_title">清除 Cookie？</string>
     <string name="clear_cookies_dialog_message">将清除搜索工具、Browser 包和内置浏览器保存的 Cookie，已打开的网页可能需要重新登录。</string>
     <string name="clear_cookies_confirm">清除</string>
     <string name="clear_cookies_success">Cookie 已清除</string>
     <string name="clear_cookies_failed">Cookie 清除失败</string>
-    <string name="settings_external_http_chat">外部 HTTP 调用</string>
-    <string name="settings_external_http_chat_subtitle">监听 0.0.0.0 的 HTTP 聊天接口、端口和 Bearer Token</string>
     <string name="settings_data_backup_subtitle">聊天记录备份管理</string>
     <string name="settings_token_usage_stats">Token使用统计</string>
     <string name="settings_function_label">功能</string>
     <string name="settings_model_label">模型</string>
     <string name="settings_no_token_records">暂无功能模块的Token使用记录。</string>
     <string name="settings_reset_all_counts">重置所有计数</string>
-    <string name="settings_token_usage_subtitle">查看详细的Token使用统计和自定义定价</string>
     <string name="settings_usage_summary">使用统计</string>
     <string name="settings_total_chats">对话</string>
     <string name="settings_total_messages">消息</string>
@@ -3817,10 +3778,6 @@
     <string name="api_settings_title">API 设置</string>
 
     <!-- 人设卡生成和Waifu模式设置 -->
-    <string name="persona_card_generation">人设卡生成</string>
-    <string name="persona_card_generation_desc">进入与AI对话生成个性人设卡</string>
-    <string name="waifu_mode_settings">Waifu模式设置</string>
-    <string name="waifu_mode_settings_desc">配置AI回复分句发送模式</string>
     
     <!-- 酒馆角色卡导入 -->
     <string name="import_tavern_card">导入酒馆角色卡</string>
@@ -3970,10 +3927,7 @@
     <string name="waifu_mode_explanation">• 普通模式：AI回复一次性全部发送\n• Waifu模式：AI回复按句子分割，每句独立气泡\n• 智能延迟：根据句子长度计算延迟时间\n• 合并发送：用户连续发送短消息时，停顿后合成一条消息交给AI\n• 自动清理：移除状态标签，只显示纯文本\n• 可选功能：合并发送、移除句末标点、编辑 Waifu 提示词、启用表情包\n• 适用场景：模拟更自然的对话节奏\n• 注意：此模式对工具调用的适配可能不佳</string>
     <string name="settings_saved_message">设置已保存</string>
 
-    <string name="settings_section_account">账号</string>
     <string name="github_account_not_logged_in">未登录</string>
-    <string name="github_account_login_desc">使用 GitHub 登录以使用 MCP 市场发布/管理等功能</string>
-    <string name="github_account_logout_desc">退出当前 GitHub 登录状态</string>
 
     <string name="github_account_info_title">账号信息</string>
     <string name="github_account_info_id">ID</string>
@@ -4764,7 +4718,6 @@
     <string name="screen_title_context_summary_settings">上下文和总结设置</string>
     <string name="settings_context_title">上下文设置</string>
     <string name="settings_summary_title">总结设置</string>
-    <string name="settings_context_summary_subtitle">管理上下文、总结与历史媒体保留设置</string>
     <string name="external_http_chat_enable">启用外部 HTTP 服务</string>
     <string name="external_http_chat_enable_desc">开启后会启动外部 HTTP 服务，实际监听 0.0.0.0；同一端口既提供 HTTP API，也提供可直接访问的网页聊天界面</string>
     <string name="external_http_chat_port">监听端口</string>
@@ -7681,9 +7634,6 @@
     <string name="web_session_back">后退</string>
     <string name="web_session_forward">前进</string>
     <string name="web_session_refresh">刷新</string>
-    <string name="web_session_address_bar">地址栏</string>
-    <string name="web_session_address_input">编辑地址</string>
-    <string name="web_session_open_address">打开地址</string>
     <string name="web_session_search">搜索</string>
     <string name="web_session_search_engine">搜索引擎</string>
     <string name="web_session_choose_search_engine">选择搜索引擎</string>
@@ -7698,14 +7648,14 @@
     <string name="web_session_clear_search_history_confirm">清空</string>
     <string name="web_session_copy_current_url">复制链接</string>
     <string name="web_session_edit_current_url">编辑链接</string>
-    <string name="web_session_tabs">标签页</string>
     <string name="web_session_windows">窗口</string>
-    <string name="web_session_tabs_with_index">标签页，当前标签 %1$d</string>
     <string name="web_session_no_tabs">暂无标签页</string>
-    <string name="web_session_current_tab">当前标签页</string>
     <string name="web_session_history">历史</string>
     <string name="web_session_history_title">历史记录</string>
-    <string name="web_session_history_count">%1$d 条</string>
+    <plurals name="web_session_history_count">
+        <item quantity="one">%1$d 条</item>
+        <item quantity="other">%1$d 条</item>
+    </plurals>
     <string name="web_session_history_delete">删除</string>
     <string name="web_session_history_search_hint">搜索标题、链接或来源网页</string>
     <string name="web_session_history_filter_all">全部</string>
@@ -7726,15 +7676,9 @@
     <string name="web_session_history_delete_all_time">所有时间</string>
     <string name="web_session_history_delete_cancel">取消</string>
     <string name="web_session_history_replay_failed">当前浏览器会话无法恢复这条媒体记录</string>
-    <string name="web_session_current_session_history">当前会话历史</string>
-    <string name="web_session_no_history">暂无历史记录</string>
-    <string name="web_session_current_page">当前页面</string>
-    <string name="web_session_recent_history">最近访问</string>
-    <string name="web_session_clear_history">清空历史</string>
     <string name="web_session_bookmarks">书签</string>
     <string name="web_session_add_bookmark">添加书签</string>
     <string name="web_session_remove_bookmark">移除书签</string>
-    <string name="web_session_no_bookmarks">当前没有书签</string>
     <string name="web_session_add_bookmark_tool">加书签</string>
     <string name="web_session_floating_sniffer">悬浮嗅探</string>
     <string name="web_session_ai_dialogue">AI对话</string>
@@ -7762,10 +7706,8 @@
     <string name="web_session_placeholder_reader_mode">阅读模式需要正文提取、转换和阅读状态管线，目前尚未接入。</string>
     <string name="web_session_placeholder_ad_marking">标记广告需要页面级规则、注入脚本和持久化标记归属，目前尚未接入。</string>
     <string name="web_session_placeholder_site_config">网站配置需要按站点匹配的配置存储和设置继承合同，目前尚未接入。</string>
-    <string name="web_session_menu">菜单</string>
     <string name="web_session_browser_menu_button">浏览器菜单按钮</string>
     <string name="web_session_browser_menu_title">浏览器下拉抽屉菜单</string>
-    <string name="web_session_minimize">最小化</string>
     <string name="web_session_user_agent">UA标识</string>
     <string name="web_session_user_agent_dialog_title">浏览器UA标识</string>
     <string name="web_session_user_agent_android">Android</string>
@@ -7786,7 +7728,10 @@
     <string name="web_session_network_log">网络日志</string>
     <string name="web_session_network_log_empty">当前页面还没有网络请求记录</string>
     <string name="web_session_network_log_empty_filter">当前筛选下没有网络请求记录</string>
-    <string name="web_session_network_log_count">%1$d 条</string>
+    <plurals name="web_session_network_log_count">
+        <item quantity="one">%1$d 条</item>
+        <item quantity="other">%1$d 条</item>
+    </plurals>
     <string name="web_session_network_log_clear">清空</string>
     <string name="web_session_network_log_search_hint">搜索网址或请求方法</string>
     <string name="web_session_network_log_filter_all">全部</string>
@@ -7818,31 +7763,9 @@
     <string name="web_session_source_unavailable">当前页面没有可读取的 WebView</string>
     <string name="web_session_source_empty">当前页面源码为空</string>
     <string name="web_session_source_read_failed">读取页面源码失败</string>
-    <string name="web_session_toolbox_subtitle">当前页面可用工具</string>
     <string name="web_session_downloads">下载</string>
-    <string name="web_session_downloads_summary">%1$d 个进行中 / %2$d 个失败</string>
-    <string name="web_session_downloads_filter_in_progress">进行中</string>
-    <string name="web_session_downloads_filter_completed">已完成</string>
-    <string name="web_session_downloads_filter_failed">失败</string>
-    <string name="web_session_downloads_empty_title">暂无下载任务</string>
-    <string name="web_session_downloads_empty_message">下载开始后会在这里显示状态与操作。</string>
     <string name="web_session_downloads_active_bar">正在下载 %1$d 项</string>
     <string name="web_session_downloads_active_unknown">准备中</string>
-    <string name="web_session_download_pause">暂停</string>
-    <string name="web_session_download_resume">继续</string>
-    <string name="web_session_download_cancel">取消</string>
-    <string name="web_session_download_retry">重试</string>
-    <string name="web_session_download_open_file">打开文件</string>
-    <string name="web_session_download_open_location">打开位置</string>
-    <string name="web_session_download_delete_record">删除记录</string>
-    <string name="web_session_download_delete_file_and_record">删除文件及记录</string>
-    <string name="web_session_download_status_queued">等待中</string>
-    <string name="web_session_download_status_connecting">连接中</string>
-    <string name="web_session_download_status_downloading">下载中</string>
-    <string name="web_session_download_status_paused">已暂停</string>
-    <string name="web_session_download_status_completed">已完成</string>
-    <string name="web_session_download_status_failed">失败</string>
-    <string name="web_session_download_status_canceled">已取消</string>
     <string name="web_session_download_open_failed">无法打开下载文件</string>
     <string name="web_session_download_location_open_failed">无法打开下载位置</string>
     <string name="web_session_system_download_enqueued">已加入系统下载队列：%1$s</string>
@@ -7853,7 +7776,10 @@
     <string name="browser_download_result_channel_description">显示内置下载器的完成和失败通知</string>
     <string name="browser_download_runtime_title">文件下载器</string>
     <string name="browser_download_runtime_preparing">正在准备下载</string>
-    <string name="browser_download_runtime_multiple">%1$d 个下载中，%2$d 个等待中</string>
+    <plurals name="browser_download_runtime_multiple">
+        <item quantity="one">%1$d 个下载中，%2$d 个等待中</item>
+        <item quantity="other">%1$d 个下载中，%2$d 个等待中</item>
+    </plurals>
     <string name="browser_download_runtime_pause_all">暂停全部</string>
     <string name="browser_download_result_completed_title">下载完成</string>
     <string name="browser_download_result_failed_title">下载失败</string>
@@ -7873,11 +7799,8 @@
     <string name="web_session_external_open_failed">无法打开外部链接或应用：%1$s</string>
     <string name="web_session_permission_denied">网页请求的权限被拒绝，相关功能不可用</string>
     <string name="web_session_location_permission_denied">位置权限被拒绝，网页定位不可用</string>
-    <string name="web_session_close_all_tabs">关闭全部标签页</string>
     <string name="web_session_new_tab">新建标签页</string>
-    <string name="web_session_userscripts">插件</string>
     <string name="web_session_plugins">插件</string>
-    <string name="web_session_plugins_subtitle">统一管理当前浏览器的插件与页面能力</string>
     <string name="web_session_plugins_search_hint">搜索插件</string>
     <string name="web_session_plugins_add">添加</string>
     <string name="web_session_plugins_library">插件库</string>
@@ -7889,19 +7812,23 @@
     <string name="web_session_plugins_search_empty">没有匹配的插件</string>
     <string name="web_session_plugins_builtin">内置</string>
     <string name="web_session_plugins_unsupported">不支持</string>
-    <string name="web_session_plugins_script_count">%1$d 个脚本</string>
-    <string name="web_session_plugins_enabled_count">%1$d 已启用</string>
+    <plurals name="web_session_plugins_script_count">
+        <item quantity="one">%1$d 个脚本</item>
+        <item quantity="other">%1$d 个脚本</item>
+    </plurals>
+    <plurals name="web_session_plugins_enabled_count">
+        <item quantity="one">%1$d 已启用</item>
+        <item quantity="other">%1$d 已启用</item>
+    </plurals>
     <string name="web_session_plugins_page_count">%1$d 本页</string>
-    <string name="web_session_plugins_menu_count">%1$d 菜单</string>
+    <plurals name="web_session_plugins_menu_count">
+        <item quantity="one">%1$d 菜单</item>
+        <item quantity="other">%1$d 菜单</item>
+    </plurals>
     <string name="web_session_plugins_pending_install">待确认</string>
-    <string name="web_session_plugins_runtime_allowed">允许用户脚本</string>
     <string name="web_session_plugins_runtime_blocked">运行权限关闭</string>
     <string name="web_session_userscript_manager_title">油猴脚本</string>
     <string name="web_session_userscript_plugin_subtitle">内置 userscript 管理器</string>
-    <string name="web_session_userscripts_subtitle">管理当前浏览器内安装的原生油猴脚本</string>
-    <string name="web_session_userscript_runtime_permission">运行权限</string>
-    <string name="web_session_userscript_allow_runtime">允许用户脚本</string>
-    <string name="web_session_userscript_allow_runtime_summary">允许内置油猴插件在网页中注入已启用脚本；关闭后立即停止后续注入并撤销脚本权限。</string>
     <string name="web_session_userscript_permission_install_notice">脚本可以安装，但在开启“允许用户脚本”前不会运行。</string>
     <string name="web_session_userscript_execution_world">运行环境</string>
     <string name="web_session_userscript_execution_world_page">页面世界</string>
@@ -7909,24 +7836,26 @@
     <string name="web_session_userscript_page_context_access">网页脚本环境</string>
     <string name="web_session_userscript_page_context_direct">直接访问网页 window</string>
     <string name="web_session_userscript_page_context_bridge">隔离世界通过页面对象桥访问</string>
-    <string name="web_session_userscript_page_context_security_summary">网页可以观察或影响 unsafeWindow 操作；GM/native 权限保留在共享隔离运行时，并按脚本 token 与 grant 授权。</string>
-    <string name="web_session_userscript_install">安装脚本</string>
     <string name="web_session_userscript_install_from_url">脚本地址</string>
     <string name="web_session_userscript_install_action">从链接安装</string>
     <string name="web_session_userscript_import_local">导入本地文件</string>
-    <string name="web_session_userscript_install_preview">安装确认</string>
-    <string name="web_session_userscript_update_preview">更新确认</string>
     <string name="web_session_userscript_library">已安装脚本</string>
     <string name="web_session_userscript_none">还没有安装任何脚本</string>
     <string name="web_session_userscript_search_hint">搜索脚本、权限或网站</string>
     <string name="web_session_userscript_search_empty">没有匹配的脚本</string>
     <string name="web_session_userscript_logs">脚本日志</string>
     <string name="web_session_userscript_logs_empty">还没有脚本日志</string>
-    <string name="web_session_userscript_logs_retained_count">当前保留 %1$d 条日志，复制和导出不受筛选影响</string>
+    <plurals name="web_session_userscript_logs_retained_count">
+        <item quantity="one">当前保留 %1$d 条日志，复制和导出不受筛选影响</item>
+        <item quantity="other">当前保留 %1$d 条日志，复制和导出不受筛选影响</item>
+    </plurals>
     <string name="web_session_userscript_logs_copy_all">复制全部</string>
     <string name="web_session_userscript_logs_export_all">导出全部</string>
     <string name="web_session_userscript_logs_exporting">导出中</string>
-    <string name="web_session_userscript_logs_copied">已复制 %1$d 条日志</string>
+    <plurals name="web_session_userscript_logs_copied">
+        <item quantity="one">已复制 %1$d 条日志</item>
+        <item quantity="other">已复制 %1$d 条日志</item>
+    </plurals>
     <string name="web_session_userscript_logs_exported">日志已导出：%1$s</string>
     <string name="web_session_userscript_logs_export_failed">日志导出失败：%1$s</string>
     <string name="web_session_userscript_log_copied">日志已复制</string>
@@ -7935,8 +7864,6 @@
     <string name="web_session_userscript_log_time">记录时间</string>
     <string name="web_session_userscript_log_page">网页地址</string>
     <string name="web_session_userscript_log_message">日志内容</string>
-    <string name="web_session_userscript_page_menu">当前页面脚本菜单</string>
-    <string name="web_session_userscript_page_menu_subtitle">点击执行该页面注册的脚本命令</string>
     <string name="web_session_userscript_version">版本</string>
     <string name="web_session_userscript_source">来源</string>
     <string name="web_session_userscript_grants">Grant</string>
@@ -7944,19 +7871,9 @@
     <string name="web_session_userscript_connects">@connect</string>
     <string name="web_session_userscript_requires">@require</string>
     <string name="web_session_userscript_resources">@resource</string>
-    <string name="web_session_userscript_update_url">更新地址</string>
     <string name="web_session_userscript_unsupported_grants">未实现的 grant：%1$s</string>
-    <string name="web_session_userscript_unknown_grants">未知 grant：%1$s</string>
-    <string name="web_session_userscript_blocked_reasons">阻塞原因：%1$s</string>
-    <string name="web_session_userscript_support_url">@supportURL</string>
-    <string name="web_session_userscript_website">Website</string>
-    <string name="web_session_userscript_icons">图标</string>
-    <string name="web_session_userscript_tags">@tag</string>
-    <string name="web_session_userscript_sandbox">@sandbox</string>
     <string name="web_session_userscript_run_in">@run-in</string>
-    <string name="web_session_userscript_web_request">@webRequest</string>
     <string name="web_session_userscript_confirm_install">确认安装</string>
-    <string name="web_session_userscript_cancel_install">取消</string>
     <string name="web_session_userscript_update_action">确认更新</string>
     <string name="web_session_userscript_check_update">检查更新</string>
     <string name="web_session_userscript_delete">删除脚本</string>
@@ -8000,9 +7917,15 @@
     <string name="web_session_userscript_log_info">信息</string>
     <string name="web_session_userscript_log_warning">警告</string>
     <string name="web_session_userscript_log_error">错误</string>
-    <string name="web_session_userscript_selected_count">已选择 %1$d 项</string>
+    <plurals name="web_session_userscript_selected_count">
+        <item quantity="one">已选择 %1$d 项</item>
+        <item quantity="other">已选择 %1$d 项</item>
+    </plurals>
     <string name="web_session_userscript_delete_selected_title">删除所选脚本</string>
-    <string name="web_session_userscript_delete_selected_message">将删除 %1$d 个脚本及其源码、修订、草稿、值和日志。此操作不能撤销。</string>
+    <plurals name="web_session_userscript_delete_selected_message">
+        <item quantity="one">将删除 %1$d 个脚本及其源码、修订、草稿、值和日志。此操作不能撤销。</item>
+        <item quantity="other">将删除 %1$d 个脚本及其源码、修订、草稿、值和日志。此操作不能撤销。</item>
+    </plurals>
     <string name="web_session_userscript_detail">脚本详情</string>
     <string name="web_session_userscript_detail_overview">概览</string>
     <string name="web_session_userscript_detail_rules">匹配规则</string>
@@ -8043,19 +7966,34 @@
     <string name="web_session_userscript_editor_review_title">校验与差异</string>
     <string name="web_session_userscript_editor_review_waiting">正在生成校验结果</string>
     <string name="web_session_userscript_editor_syntax">JavaScript 语法</string>
-    <string name="web_session_userscript_editor_diff_summary">源码差异：+%1$d / -%2$d 行</string>
+    <plurals name="web_session_userscript_editor_diff_summary">
+        <item quantity="one">源码差异：+%1$d / -%2$d 行</item>
+        <item quantity="other">源码差异：+%1$d / -%2$d 行</item>
+    </plurals>
     <string name="web_session_userscript_editor_check_passed">通过</string>
     <string name="web_session_userscript_editor_check_failed">未通过</string>
     <string name="web_session_userscript_editor_leave_title">离开脚本编辑器？</string>
     <string name="web_session_userscript_editor_leave_message">当前更改尚未应用到运行版本。你可以保留私有草稿后离开，或丢弃草稿。</string>
     <string name="web_session_userscript_editor_keep_draft">保留草稿并离开</string>
     <string name="web_session_userscript_editor_discard_draft">丢弃草稿</string>
-    <string name="web_session_userscript_update_check_summary">发现 %1$d 个可用更新</string>
-    <string name="web_session_userscript_update_check_summary_failed">发现 %1$d 个更新，%2$d 项检查失败</string>
+    <plurals name="web_session_userscript_update_check_summary">
+        <item quantity="one">发现 %1$d 个可用更新</item>
+        <item quantity="other">发现 %1$d 个可用更新</item>
+    </plurals>
+    <plurals name="web_session_userscript_update_check_summary_failed">
+        <item quantity="one">发现 %1$d 个更新，%2$d 项检查失败</item>
+        <item quantity="other">发现 %1$d 个更新，%2$d 项检查失败</item>
+    </plurals>
     <string name="web_session_userscript_updated">已更新脚本：%1$s</string>
     <string name="web_session_userscript_no_safe_updates">没有可自动更新的安全候选</string>
-    <string name="web_session_userscript_update_apply_summary">已更新 %1$d 项，失败 %2$d 项</string>
-    <string name="web_session_userscript_deleted_count">已删除 %1$d 个脚本</string>
+    <plurals name="web_session_userscript_update_apply_summary">
+        <item quantity="one">已更新 %1$d 项，失败 %2$d 项</item>
+        <item quantity="other">已更新 %1$d 项，失败 %2$d 项</item>
+    </plurals>
+    <plurals name="web_session_userscript_deleted_count">
+        <item quantity="one">已删除 %1$d 个脚本</item>
+        <item quantity="other">已删除 %1$d 个脚本</item>
+    </plurals>
     <string name="web_session_userscript_draft_applied">已应用脚本：%1$s</string>
     <string name="web_session_userscript_drafts">私有草稿</string>
     <string name="web_session_userscript_private_draft">尚未安装，仅保存在应用私有目录</string>
@@ -8090,24 +8028,24 @@
     <string name="kiyori_shell_mini_app_home">小程序首页</string>
     <string name="kiyori_shell_file_management_home">文件管理首页</string>
     <string name="kiyori_shell_settings_home">设置首页</string>
-    <string name="kiyori_shell_minus_one">负一屏</string>
     <string name="kiyori_shell_search_hint">搜索网页或输入网址</string>
     <string name="kiyori_shell_ai_hint">把问题和任务发给AI</string>
     <string name="kiyori_home_weather_query">%1$s 天气</string>
-    <string name="kiyori_home_weather_current">%1$s，%2$d 度</string>
+    <plurals name="kiyori_home_weather_current">
+        <item quantity="one">%1$s，%2$d 度</item>
+        <item quantity="other">%1$s，%2$d 度</item>
+    </plurals>
     <string name="kiyori_home_weather_loading">正在加载天气</string>
     <string name="kiyori_home_weather_permission">允许定位以显示天气</string>
     <string name="kiyori_home_weather_retry">天气暂不可用，点按重试</string>
-    <string name="kiyori_home_browser_windows">%1$d 个浏览器窗口</string>
+    <plurals name="kiyori_home_browser_windows">
+        <item quantity="one">%1$d 个浏览器窗口</item>
+        <item quantity="other">%1$d 个浏览器窗口</item>
+    </plurals>
     <string name="kiyori_shell_search_action">搜索</string>
     <string name="kiyori_shell_ai_action">AI</string>
-    <string name="kiyori_shell_web_search">网页搜索</string>
     <string name="kiyori_ai_drawer_title">Kiyori</string>
     <string name="kiyori_shell_ai_settings">AI 助手</string>
-    <string name="kiyori_shell_favorites">收藏</string>
-    <string name="kiyori_shell_bookmarks">书签</string>
-    <string name="kiyori_shell_history">历史</string>
-    <string name="kiyori_shell_downloads">下载</string>
     <string name="kiyori_shell_exit_hint">再按一次退出 Kiyori</string>
 
     <string name="theme_fixed_palette_title">Kiyori 固定配色</string>

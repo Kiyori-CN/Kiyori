@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -637,8 +638,9 @@ private fun KiyoriWeatherButton(
     val contentDescription =
         when (state) {
             is KiyoriWeatherState.Available ->
-                stringResource(
-                    R.string.kiyori_home_weather_current,
+                pluralStringResource(
+                    R.plurals.kiyori_home_weather_current,
+                    state.temperatureCelsius.roundToInt(),
                     state.city,
                     state.temperatureCelsius.roundToInt(),
                 )
@@ -715,7 +717,12 @@ private fun KiyoriBrowserWindowsButton(
     windowCount: Int,
     onClick: () -> Unit,
 ) {
-    val windowDescription = stringResource(R.string.kiyori_home_browser_windows, windowCount)
+    val windowDescription =
+        pluralStringResource(
+            R.plurals.kiyori_home_browser_windows,
+            windowCount,
+            windowCount,
+        )
     Surface(
         onClick = onClick,
         modifier =

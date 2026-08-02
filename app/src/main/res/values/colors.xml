@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="kiyori_background">#FFFFFFFF</color>
-    <color name="kiyori_on_background">#FF202124</color>
     <color name="kiyori_primary">#FF202124</color>
     <color name="kiyori_on_primary">#FFFFFFFF</color>
     <color name="kiyori_secondary">#FF5F6368</color>
     <color name="kiyori_on_secondary">#FFFFFFFF</color>
     <color name="kiyori_surface">#FFFFFFFF</color>
     <color name="kiyori_on_surface">#FF202124</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
 </resources>
