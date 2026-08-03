@@ -3,6 +3,8 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
+import java.net.URI
+import java.util.Locale
 import kotlinx.serialization.Serializable
 
 internal enum class WebSessionBrowserSheetRoute {
@@ -136,6 +138,106 @@ internal data class WebSessionTextSelectionActionsState(
 )
 
 @Immutable
+internal data class BrowserHomeNavigationState(
+    val rootRequestedUrl: String? = null,
+    val rootResolvedUrl: String? = null,
+    val pendingRequestedUrl: String? = null,
+) {
+    fun begin(requestedUrl: String): BrowserHomeNavigationState =
+        copy(pendingRequestedUrl = requestedUrl)
+
+    fun cancelPending(): BrowserHomeNavigationState =
+        copy(pendingRequestedUrl = null)
+
+    fun complete(resolvedUrl: String): BrowserHomeNavigationState {
+        val requestedUrl = pendingRequestedUrl ?: return this
+        return BrowserHomeNavigationState(
+            rootRequestedUrl = requestedUrl,
+            rootResolvedUrl = resolvedUrl,
+        )
+    }
+}
+
+private data class BrowserHomeUrlIdentity(
+    val scheme: String,
+    val userInfo: String?,
+    val host: String?,
+    val port: Int,
+    val path: String,
+    val query: String?,
+    val fragment: String?,
+)
+
+internal fun areBrowserHomeUrlsEquivalent(
+    first: String?,
+    second: String?,
+): Boolean {
+    val firstValue = first?.trim()?.takeIf(String::isNotEmpty) ?: return false
+    val secondValue = second?.trim()?.takeIf(String::isNotEmpty) ?: return false
+    if (
+        firstValue.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true) ||
+            secondValue.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true)
+    ) {
+        return firstValue.equals(secondValue, ignoreCase = true)
+    }
+    val firstIdentity = browserHomeUrlIdentity(firstValue)
+    val secondIdentity = browserHomeUrlIdentity(secondValue)
+    return if (firstIdentity != null && secondIdentity != null) {
+        firstIdentity == secondIdentity
+    } else {
+        firstValue == secondValue
+    }
+}
+
+private fun browserHomeUrlIdentity(url: String): BrowserHomeUrlIdentity? {
+    val uri = runCatching { URI(url).normalize() }.getOrNull() ?: return null
+    val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
+    if (scheme != "http" && scheme != "https") return null
+    val normalizedPort =
+        when {
+            uri.port < 0 -> -1
+            scheme == "http" && uri.port == 80 -> -1
+            scheme == "https" && uri.port == 443 -> -1
+            else -> uri.port
+        }
+    return BrowserHomeUrlIdentity(
+        scheme = scheme,
+        userInfo = uri.rawUserInfo,
+        host = uri.host?.lowercase(Locale.ROOT),
+        port = normalizedPort,
+        path = uri.rawPath.orEmpty().ifEmpty { "/" },
+        query = uri.rawQuery,
+        fragment = uri.rawFragment,
+    )
+}
+
+internal fun isAtConfiguredBrowserHome(
+    currentUrl: String,
+    configuredHomeUrl: String,
+    navigationState: BrowserHomeNavigationState,
+): Boolean {
+    if (areBrowserHomeUrlsEquivalent(currentUrl, configuredHomeUrl)) {
+        return true
+    }
+    if (
+        areBrowserHomeUrlsEquivalent(
+            navigationState.pendingRequestedUrl,
+            configuredHomeUrl,
+        )
+    ) {
+        return true
+    }
+    return areBrowserHomeUrlsEquivalent(
+        navigationState.rootRequestedUrl,
+        configuredHomeUrl,
+    ) &&
+        areBrowserHomeUrlsEquivalent(
+            currentUrl,
+            navigationState.rootResolvedUrl,
+        )
+}
+
+@Immutable
 internal data class WebSessionBrowserState(
     val activeSessionId: String? = null,
     val activeProfile: WebSessionProfile? = null,
@@ -145,6 +247,7 @@ internal data class WebSessionBrowserState(
     val pageTitle: String = "",
     val currentUrl: String = "about:blank",
     val canGoBack: Boolean = false,
+    val canReturnToHome: Boolean = false,
     val canGoForward: Boolean = false,
     val isLoading: Boolean = false,
     val hasSslError: Boolean = false,
@@ -243,6 +346,7 @@ internal enum class WebSessionBrowserBackAction {
     CLOSE_SEARCH_ENGINE_PANEL,
     CLOSE_SEARCH,
     NAVIGATE_WEB_HISTORY,
+    RETURN_TO_HOME,
     EXIT_BROWSER,
 }
 
@@ -269,6 +373,8 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.CLOSE_SEARCH
         state.browserState.canGoBack ->
             WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY
+        state.browserState.canReturnToHome ->
+            WebSessionBrowserBackAction.RETURN_TO_HOME
         else ->
             WebSessionBrowserBackAction.EXIT_BROWSER
     }

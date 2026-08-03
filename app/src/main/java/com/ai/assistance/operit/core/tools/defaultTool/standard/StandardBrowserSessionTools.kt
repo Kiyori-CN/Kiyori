@@ -206,6 +206,9 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var isLoading: Boolean = false
         @Volatile var canGoBack: Boolean = false
         @Volatile var canGoForward: Boolean = false
+        @Volatile
+        var browserHomeNavigationState: BrowserHomeNavigationState =
+            BrowserHomeNavigationState()
         @Volatile var hasSslError: Boolean = false
         @Volatile var pendingFileChooserCallback: ValueCallback<Array<Uri>>? = null
         @Volatile var lastFileChooserRequestAt: Long = 0L
@@ -1094,16 +1097,28 @@ class StandardBrowserSessionTools private constructor(
 
     private fun browserNavigateBack(tool: AITool): ToolResult {
         val session = getSession(null) ?: return error(tool.name, "No active browser tab")
-        val couldGoBack = session.canGoBack || runCatching { session.webView.canGoBack() }.getOrDefault(false)
         val markers = captureActionMarkers(session)
 
-        runOnMainSync(timeoutMs = 8_000L) {
-            ensureSessionAttachedOnMain(session.id)
-            if (session.webView.canGoBack()) {
-                session.webView.goBack()
+        val backResult =
+            runOnMainSync(timeoutMs = 8_000L) {
+                navigateSessionBackOnMain(session)
             }
-            refreshNavigationStateAsync(session)
-            Unit
+        val didNavigate = backResult != BrowserSessionBackResult.NONE
+        val homeUrl = browserSettingsStore.current.homeUrl
+        val code =
+            when (backResult) {
+                BrowserSessionBackResult.WEB_HISTORY -> "await page.goBack();"
+                BrowserSessionBackResult.BROWSER_HOME ->
+                    "await page.goto(${quoteJsCode(homeUrl)});"
+                BrowserSessionBackResult.NONE -> "await page.goBack();"
+            }
+        val result =
+            when (backResult) {
+                BrowserSessionBackResult.WEB_HISTORY -> "Navigated back."
+                BrowserSessionBackResult.BROWSER_HOME ->
+                    "Navigated to the configured browser home."
+                BrowserSessionBackResult.NONE ->
+                    "No back history entry or browser-home transition was available."
         }
         val settlement =
             settleBrowserAction(
@@ -1113,7 +1128,7 @@ class StandardBrowserSessionTools private constructor(
                     BrowserActionSettlementPolicy(
                         timeoutMs = DEFAULT_TIMEOUT_MS.coerceAtLeast(4_000L),
                         waitForDocumentReady = true,
-                        waitForNavigationChange = couldGoBack,
+                        waitForNavigationChange = didNavigate,
                         captureSnapshot = false
                     )
             )
@@ -1122,13 +1137,8 @@ class StandardBrowserSessionTools private constructor(
             tool.name,
             buildSettledBrowserResponse(
                 settlement = settlement,
-                code = "await page.goBack();",
-                result =
-                    if (couldGoBack) {
-                        "Navigated back."
-                    } else {
-                        "No back history entry was available."
-                    }
+                code = code,
+                result = result,
             )
         )
     }

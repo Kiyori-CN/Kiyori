@@ -842,6 +842,7 @@ private fun KiyoriBrowserHomepageCustomizationPage(
     modifier: Modifier,
 ) {
     var showEditDialog by rememberSaveable { mutableStateOf(false) }
+    var showResetConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     KiyoriCollapsingSettingsPage(
         title = "网页主页自定义",
@@ -866,7 +867,7 @@ private fun KiyoriBrowserHomepageCustomizationPage(
                     description = "清除自定义主页，并将入口恢复为 about:blank",
                     kind = KiyoriSettingsRowKind.NAVIGATION,
                     value = "about:blank",
-                    onClick = onReset,
+                    onClick = { showResetConfirmDialog = true },
                 )
             }
         }
@@ -879,6 +880,49 @@ private fun KiyoriBrowserHomepageCustomizationPage(
             onConfirm = { value ->
                 if (onSave(value)) {
                     showEditDialog = false
+                }
+            },
+        )
+    }
+
+    if (showResetConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = "恢复为空白页？",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                )
+            },
+            text = {
+                Text(
+                    text = "确认后将清除当前自定义主页，并把浏览器主页恢复为 about:blank。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetConfirmDialog = false
+                        onReset()
+                    },
+                ) {
+                    Text(
+                        text = "恢复",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirmDialog = false }) {
+                    Text(
+                        text = "取消",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             },
         )

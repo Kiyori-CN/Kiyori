@@ -612,7 +612,8 @@ internal fun WebSessionBrowserScreen(
             }
 
             WebSessionBrowserBottomBar(
-                canGoBack = browserState.canGoBack,
+                canNavigateBack =
+                    browserState.canGoBack || browserState.canReturnToHome,
                 canGoForward = browserState.canGoForward,
                 tabCount = browserState.tabs.size,
                 onBack = onBack,

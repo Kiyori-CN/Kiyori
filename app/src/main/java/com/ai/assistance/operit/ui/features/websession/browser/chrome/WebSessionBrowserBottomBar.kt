@@ -34,7 +34,7 @@ import com.ai.assistance.operit.R
 
 @Composable
 internal fun WebSessionBrowserBottomBar(
-    canGoBack: Boolean,
+    canNavigateBack: Boolean,
     canGoForward: Boolean,
     tabCount: Int,
     onBack: () -> Unit,
@@ -67,7 +67,7 @@ internal fun WebSessionBrowserBottomBar(
             BrowserBottomBarAction(
                 iconResId = R.drawable.ic_kiyori_browser_bottom_back,
                 contentDescription = stringResource(R.string.web_session_back),
-                enabled = canGoBack,
+                enabled = canNavigateBack,
                 onClick = onBack,
             )
             BrowserBottomBarAction(

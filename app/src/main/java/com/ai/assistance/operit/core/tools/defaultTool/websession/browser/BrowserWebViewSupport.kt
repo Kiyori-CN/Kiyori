@@ -46,6 +46,12 @@ import kotlinx.coroutines.launch
 private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
 private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
 
+internal enum class BrowserSessionBackResult {
+    WEB_HISTORY,
+    BROWSER_HOME,
+    NONE,
+}
+
 internal fun StandardBrowserSessionTools.createSessionOnMain(
     appContext: Context,
     sessionId: String,
@@ -359,6 +365,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 session.pageTitle = view.title ?: ""
                 session.pageLoaded = true
                 session.isLoading = false
+                completeBrowserHomeNavigationOnMain(view, session, url)
                 notifySessionStateChanged(session)
                 applyViewportOverride(session)
                 refreshNavigationStateFromWebView(view, session)
@@ -444,6 +451,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 session.pageLoaded = false
                 session.isLoading = false
                 session.hasSslError = true
+                completeBrowserHomeNavigationOnMain(view, session, error.url)
                 notifySessionStateChanged(session)
                 updateNavigationState(session)
                 refreshSessionUiOnMain(session.id)
@@ -522,12 +530,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
         override fun onBack() {
             runOnMainSync<Unit> {
                 val session = getActiveSessionOnMain() ?: return@runOnMainSync
-                ensureSessionAttachedOnMain(session.id)
-                if (session.webView.canGoBack()) {
-                    applyHistoryTargetUserAgent(session, delta = -1)
-                    session.webView.goBack()
-                }
-                refreshNavigationStateAsync(session)
+                navigateSessionBackOnMain(session)
             }
         }
 
@@ -1363,6 +1366,15 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
     targetUrl: String,
     headers: Map<String, String> = emptyMap()
 ) {
+    val configuredHomeUrl = browserSettingsStore.current.homeUrl
+    session.browserHomeNavigationState =
+        if (areBrowserHomeUrlsEquivalent(targetUrl, configuredHomeUrl)) {
+            // 主页是每个 WebSession 自己的浏览根。先标记 pending，避免旧历史在主页加载期间
+            // 暂时重新启用 Back；页面完成后再清掉根之前的历史。
+            session.browserHomeNavigationState.begin(configuredHomeUrl)
+        } else {
+            session.browserHomeNavigationState.cancelPending()
+        }
     applySessionUserAgent(session, resolveSessionUserAgent(session, targetUrl))
     session.pageLoaded = false
     session.isLoading = true
@@ -1379,6 +1391,35 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
     refreshNavigationStateAsync(session)
 }
 
+internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
+    session: BrowserToolSession,
+): BrowserSessionBackResult {
+    ensureSessionAttachedOnMain(session.id)
+    updateNavigationState(session)
+    val result =
+        when {
+            session.canGoBack -> {
+                applyHistoryTargetUserAgent(session, delta = -1)
+                session.webView.goBack()
+                BrowserSessionBackResult.WEB_HISTORY
+            }
+            !isAtConfiguredBrowserHome(
+                currentUrl = session.currentUrl,
+                configuredHomeUrl = browserSettingsStore.current.homeUrl,
+                navigationState = session.browserHomeNavigationState,
+            ) -> {
+                navigateSessionOnMain(
+                    session = session,
+                    targetUrl = browserSettingsStore.current.homeUrl,
+                )
+                BrowserSessionBackResult.BROWSER_HOME
+            }
+            else -> BrowserSessionBackResult.NONE
+        }
+    refreshNavigationStateAsync(session)
+    return result
+}
+
 private fun StandardBrowserSessionTools.applyHistoryTargetUserAgent(
     session: BrowserToolSession,
     delta: Int,
@@ -1388,6 +1429,25 @@ private fun StandardBrowserSessionTools.applyHistoryTargetUserAgent(
     val history = session.webView.copyBackForwardList()
     val target = history.getItemAtIndex(history.currentIndex + delta) ?: return
     applySessionUserAgent(session, resolveSessionUserAgent(session, target.url))
+}
+
+private fun StandardBrowserSessionTools.completeBrowserHomeNavigationOnMain(
+    view: WebView,
+    session: BrowserToolSession,
+    resolvedUrl: String,
+) {
+    if (session.browserHomeNavigationState.pendingRequestedUrl == null) return
+    session.browserHomeNavigationState =
+        session.browserHomeNavigationState.complete(resolvedUrl)
+    // 直接目标窗口第一次回到主页时，目标页仍可能位于 WebView 根之前。清理只发生在
+    // 明确的主页导航完成后，保证下一次 Back 在主页退出，而不会重新穿越到旧目标页。
+    runCatching(view::clearHistory).onFailure { error ->
+        AppLogger.w(
+            WEBVIEW_SUPPORT_TAG,
+            "Unable to establish browser home history root for session=${session.id}",
+            error,
+        )
+    }
 }
 
 internal fun StandardBrowserSessionTools.openUrlOnMain(appContext: Context, url: String) {
@@ -1492,6 +1552,15 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
     val activeSession = activeId?.let(::sessionById)
     val orderedIds = registry.orderedSessionIds
     val activeMediaCandidates = activeSession?.let(::snapshotMediaCandidates).orEmpty()
+    val configuredHomeUrl = browserSettingsStore.current.homeUrl
+    val activeSessionIsAtHome =
+        activeSession?.let { session ->
+            isAtConfiguredBrowserHome(
+                currentUrl = session.currentUrl,
+                configuredHomeUrl = configuredHomeUrl,
+                navigationState = session.browserHomeNavigationState,
+            )
+        } == true
 
     return WebSessionBrowserState(
         activeSessionId = activeId,
@@ -1501,6 +1570,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         pageTitle = activeSession?.pageTitle.orEmpty(),
         currentUrl = activeSession?.currentUrl?.ifBlank { "about:blank" } ?: "about:blank",
         canGoBack = activeSession?.canGoBack == true,
+        canReturnToHome = activeSession != null && !activeSessionIsAtHome,
         canGoForward = activeSession?.canGoForward == true,
         isLoading = activeSession?.isLoading == true,
         hasSslError = activeSession?.hasSslError == true,
@@ -1702,7 +1772,15 @@ internal fun StandardBrowserSessionTools.getActiveSessionOnMain(): BrowserToolSe
     buildPageRegistry().activeSessionId?.let(::sessionById)
 
 internal fun StandardBrowserSessionTools.updateNavigationState(session: BrowserToolSession) {
-    session.canGoBack = runCatching { session.webView.canGoBack() }.getOrDefault(false)
+    val isAtHome =
+        isAtConfiguredBrowserHome(
+            currentUrl = session.currentUrl,
+            configuredHomeUrl = browserSettingsStore.current.homeUrl,
+            navigationState = session.browserHomeNavigationState,
+        )
+    session.canGoBack =
+        !isAtHome &&
+            runCatching { session.webView.canGoBack() }.getOrDefault(false)
     session.canGoForward = runCatching { session.webView.canGoForward() }.getOrDefault(false)
     notifySessionStateChanged(session)
 }

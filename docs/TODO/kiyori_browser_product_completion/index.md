@@ -85,7 +85,7 @@ kiyori_browser_product_completion/
 
 - Browser Home、1×1 background anchor 和 AI 只转挂同一个活动 WebView，不在展示切换时调用 `loadUrl`、`reload` 或重建
 - 完整浏览器 UI 只存在于 App Shell Browser Home。离开 Browser Home 必须显式选择“关闭展示”或“最小化到 indicator”：底部浏览器入口、软件首页搜索、书签和外部网址等普通入口关闭时不显示 indicator；浏览器菜单进入 AI 对话、AI 首页顶栏进入浏览器后返回，以及点击已有 indicator 恢复浏览器后再次返回时，才把同一活动 WebView 转挂到 background anchor 并显示 indicator。AI `browser_*` 在 Browser Home 未挂载时主动使用浏览器，也可按现有唯一 WebSession 路径创建 background anchor 并显示 indicator
-- 系统 Back 与浏览器顶栏返回共用同一逐级回退状态机：先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再执行当前 WebView 历史后退，历史耗尽后才按本次入口的离开方式退出 Browser Home
+- 系统 Back、浏览器顶栏返回和底栏返回共用同一逐级回退状态机：先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再执行当前窗口主页根之后的 WebView 历史后退；历史耗尽且当前窗口尚未位于自定义主页时先进入主页并建立新的历史根，只有已经位于主页根时才按本次入口的离开方式退出 Browser Home
 - 系统层最小 indicator 单击时通过专用恢复 action 打开 Browser Home，长按时消费进入动作并创建球体右上角外围的透明 `28dp` 临时关闭窗口，其中只绘制 `16dp` 红色叉号。该窗口按住期间不可触摸，松手后保留 3 秒，随拖动同步且不越出屏幕，点击复用菜单 `onExitBrowser`；后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
 - 软件首页全屏搜索创建新窗口；浏览器顶栏搜索继续导航当前窗口，两者不混用
 - 普通窗口和无痕窗口不能互相转换；关闭窗口后其 Profile 语义不改变
@@ -98,7 +98,7 @@ kiyori_browser_product_completion/
 1. [DONE] P0：悬浮浏览器系统 Back、状态栏背景和人工窗口 AI 接管；本地实现、定向测试与 Debug APK 已完成，真机验收待用户执行
 2. [DONE] P0：软件首页与全屏搜索已接入共享 Browser Runtime；2026-07-28 完成搜索引擎图标、覆盖式淡蓝引擎面板、标题/网址双行操作区、自适应历史标签和显式删除提交，并按浏览器菜单基准压缩尺寸、补齐面板周围收起与当前网页区返回。历史清空现使用底部确认框且确认后立即执行，标签叉号仍由“完成”提交；此前本地定向测试、formal readiness、Kotlin 编译与 Debug APK 已验证。最新历史区放大与复制/编辑图标缩小按用户要求未运行 Gradle 或 APK 构建，真机视觉、输入法和无痕 Profile 交互继续待验收
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
-4. [DONE] P1：网页浏览器设置已按播放器标准重排为 `3/5/4/5/6` 五组，统一分组说明、双行设置项、Material Switch 和禁用态；自定义主页、搜索栏嗅探入口、自动悬浮播放、网页外部应用和网页定位接入唯一 `WebSessionBrowserSettingsStore`，其余无本页 consumer 的项目明确禁用且不再打开空页。两个嗅探开关只位于“音视频嗅探”组，媒体候选抽屉不再承载设置开关
+4. [DONE] P1：网页浏览器设置已按播放器标准重排为 `3/5/4/5/6` 五组，统一分组说明、双行设置项、Material Switch 和禁用态；自定义主页、搜索栏嗅探入口、自动悬浮播放、网页外部应用和网页定位接入唯一 `WebSessionBrowserSettingsStore`，其中“恢复为空白页”必须经确认后才写入 `about:blank`；其余无本页 consumer 的项目明确禁用且不再打开空页。两个嗅探开关只位于“音视频嗅探”组，媒体候选抽屉不再承载设置开关
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；设置页已按播放器标准重排为 `5/2/3/1` 四组 11 行，“默认保存位置”统一选择应用目录、公开目录或 SAF 自定义目录，继续复用唯一 `BrowserDownloadSettingsStore` 和 `BrowserDownloadManager`；系统下载器生效时内置引擎专属项目明确禁用。仍待下载中心双筛选/批量操作复刻及真机综合验收
 6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成。2026-07-30 已完成统一历史抽屉：扩展现有 `WebSessionHistoryStore`，普通网页访问与唯一 `PlayerSession` 分别写入网页/视频记录，视频区分在线与本地，浏览器菜单与负一屏共享搜索、六分类和分时段删除抽屉；定向测试、Debug APK 和新版历史界面用户验收已通过，完整设备场景仍按第六阶段清单继续验证
 7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与 native 边界，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏入口均已完成本地实现；2026-07-28 又完成精确视频格式、被动时长、推荐排序、动态格式筛选、双开关与结果动作弹窗。人工播放固定进入横向全屏，自动推荐才进入悬浮；该里程碑保留为嗅探入口完成记录，后续在线播放 native 修复见阶段 8、10、11 的 `2026-07-29` 补充证据
@@ -141,8 +141,9 @@ kiyori_browser_product_completion/
   indicator，不把这次恢复误当作普通底栏入口
 - AI `browser_*` 在 Browser Home 未挂载时继续通过唯一 WebSession 主动请求 background anchor；
   不新增第二 WebView、第二浏览器运行时或并行悬浮球 owner
-- 浏览器顶栏返回与系统 Back 共用 `WebSessionBrowserHost` 的逐级状态机；网页有历史时先后退，
-  历史耗尽后才按本次入口退出
+- 浏览器顶栏返回、底栏返回与系统 Back 共用 `WebSessionBrowserHost` 的逐级状态机；网页有当前
+  窗口主页根之后的历史时先后退，历史耗尽且尚未位于自定义主页时先进入主页并重建该窗口历史根，
+  已位于主页根后才按本次入口退出
 - 菜单“无痕模式”不再打开窗口总览；它与全屏搜索右上角按钮共用默认 Profile 切换和短时提示，
   不切换当前不可变 Profile 标签，也不关闭仍在显示的菜单
 - 用户实测发现首次实现从 Browser Home 切回软件 Shell 时，Pager 同步协程会先消费旧的
@@ -157,6 +158,24 @@ kiyori_browser_product_completion/
   `8C095478ED9D5CD4F0D6D6546D20BF8404EA7D611BB0F13CFE4900BF53CC71B4`；V2 Debug 签名与
   `zipalign -c -P 16 4` 通过
 - 设备上的 IME、系统 Back、indicator、WindowManager 转挂和菜单提示继续保持
+  `verification_pending`
+
+### 2026-08-03 自定义主页确认与每窗口回退根修复
+
+- “恢复为空白页”改为确认后才把唯一 `WebSessionBrowserSettingsStore.homeUrl` 写为
+  `about:blank`；取消和弹窗外关闭不修改当前自定义主页
+- 每个现有 `WebSession` 记录自己的主页请求、重定向后的有效主页和待完成导航；软件首页搜索、
+  书签、用户脚本、AI 与网页 popup 直接创建的目标窗口在历史耗尽后先进入当前主页
+- 主页完成后只清理该窗口主页根之前的 WebView 历史，防止再次穿越旧目标页形成循环；窗口切换和
+  关闭继续由 `activeSessionId` 与现有窗口顺序选择新活动 `WebSession`
+- 系统 Back、顶栏返回、底栏返回和 AI `browser_navigate_back` 复用同一每窗口页面回退函数；
+  临时界面、有效历史、主页根与 Browser Home 离开方式保持明确分层
+- 本地相关 JVM 测试 `94/94`、主代码 Kotlin 编译、formal readiness、工作树 Markdown 链接、
+  `git diff --check` 和新增代码禁用兜底扫描通过。规定 Debug 构建及唯一 launcher、Player runtime
+  packaging 通过；APK 为 `465765311` 字节，SHA-256
+  `7157434F8938FCB4BD4608098948086C580CC1FDCB5B8910CD7490EF1DF3A732`，包名/版本
+  `com.kiyori / 45 / 0.1.0`，V2 Debug 签名、单 signer 与 16 KB ZIP 对齐通过
+- 系统 Back、顶栏/底栏点击、普通/无痕多窗口切换、主页重定向和旋转恢复继续保持
   `verification_pending`
 
 ### 2026-07-28 浏览器视频嗅探抽屉优化

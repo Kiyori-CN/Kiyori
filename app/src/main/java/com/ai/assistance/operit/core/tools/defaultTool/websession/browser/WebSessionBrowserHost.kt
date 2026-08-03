@@ -231,7 +231,7 @@ internal class WebSessionBrowserHost(
             webViewHost = webViewHost,
             onHostStateChange = ::updateHostState,
             onNavigate = callbacks::onNavigate,
-            onBack = callbacks::onBack,
+            onBack = { handleBack() },
             onForward = callbacks::onForward,
             onRefresh = callbacks::onRefresh,
             onSelectTab = callbacks::onSelectTab,
@@ -633,6 +633,10 @@ internal class WebSessionBrowserHost(
                 true
             }
             WebSessionBrowserBackAction.NAVIGATE_WEB_HISTORY -> {
+                callbacks.onBack()
+                true
+            }
+            WebSessionBrowserBackAction.RETURN_TO_HOME -> {
                 callbacks.onBack()
                 true
             }

@@ -113,6 +113,19 @@ class WebSessionBrowserBackPolicyTest {
             ),
         )
         assertEquals(
+            WebSessionBrowserBackAction.RETURN_TO_HOME,
+            resolveWebSessionBrowserBackAction(
+                WebSessionBrowserHostState(
+                    browserState =
+                        WebSessionBrowserState(
+                            activeSessionId = "window-1",
+                            currentUrl = "https://example.com/result",
+                            canReturnToHome = true,
+                        ),
+                ),
+            ),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.EXIT_BROWSER,
             resolveWebSessionBrowserBackAction(WebSessionBrowserHostState()),
         )
