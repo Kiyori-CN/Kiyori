@@ -341,7 +341,7 @@ class MCPLocalServer private constructor(private val context: Context) {
         serverConfig: MCPConfig.ServerConfig,
         source: String
     ): MCPConfig.ServerConfig? {
-        val command = serverConfig.command?.trim()
+        val command = serverConfig.command.trim()
         if (command.isNullOrEmpty()) {
             AppLogger.w(TAG, "忽略无效MCP服务器配置: $serverId, source=$source, command为空")
             return null
@@ -350,9 +350,8 @@ class MCPLocalServer private constructor(private val context: Context) {
         val args = serverConfig.args?.mapNotNull { it } ?: emptyList()
         val autoApprove = serverConfig.autoApprove?.mapNotNull { it } ?: emptyList()
         val env = serverConfig.env?.entries?.mapNotNull { entry ->
-            val key = entry.key?.takeIf { it.isNotBlank() }
-            val value = entry.value
-            if (key == null || value == null) null else key to value
+            val key = entry.key.takeIf { it.isNotBlank() }
+            if (key == null) null else key to entry.value
         }?.toMap() ?: emptyMap()
 
         return MCPConfig.ServerConfig(
@@ -474,7 +473,7 @@ class MCPLocalServer private constructor(private val context: Context) {
         disabled: Boolean = false,
         autoApprove: List<String>? = emptyList()
     ) {
-        val normalizedCommand = command?.trim()
+        val normalizedCommand = command.trim()
         require(!normalizedCommand.isNullOrEmpty()) { "MCP服务器 $serverId 的 command 不能为空" }
 
         _mcpConfig.update { currentConfig ->
@@ -485,9 +484,8 @@ class MCPLocalServer private constructor(private val context: Context) {
                 disabled = disabled,
                 autoApprove = autoApprove?.mapNotNull { it } ?: emptyList(),
                 env = env?.entries?.mapNotNull { entry ->
-                    val key = entry.key?.takeIf { it.isNotBlank() }
-                    val value = entry.value
-                    if (key == null || value == null) null else key to value
+                    val key = entry.key.takeIf { it.isNotBlank() }
+                    if (key == null) null else key to entry.value
                 }?.toMap() ?: emptyMap()
             )
             currentConfig.copy(mcpServers = newServers)
@@ -764,7 +762,7 @@ class MCPLocalServer private constructor(private val context: Context) {
     suspend fun setServerEnabled(serverId: String, enabled: Boolean) {
         val serverConfig = getMCPServer(serverId)
         if (serverConfig != null) {
-            val command = serverConfig.command?.trim()
+            val command = serverConfig.command.trim()
             if (command.isNullOrEmpty()) {
                 AppLogger.w(TAG, "服务器配置无效，已移除本地 server 记录: $serverId")
                 val shouldRemoveMetadata = getPluginMetadata(serverId)?.type != "remote"
@@ -854,7 +852,7 @@ class MCPLocalServer private constructor(private val context: Context) {
             
             val existsResult = toolHandler.executeTool(checkExistsTool)
             val dirExists = existsResult.success && existsResult.result is FileExistsData && 
-                            (existsResult.result as FileExistsData).exists
+                            existsResult.result.exists
             
             if (!dirExists) {
                 AppLogger.d(TAG, "插件 $pluginId 运行目录不存在: $pluginDir")
@@ -876,7 +874,7 @@ class MCPLocalServer private constructor(private val context: Context) {
             
             val listResult = toolHandler.executeTool(listFilesTool)
             val hasFiles = if (listResult.success && listResult.result is DirectoryListingData) {
-                val listing = listResult.result as DirectoryListingData
+                val listing = listResult.result
                 listing.entries.isNotEmpty()
             } else {
                 false

@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.token.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import com.ai.assistance.operit.BuildConfig
 import com.ai.assistance.operit.util.AppLogger
 import android.view.MotionEvent
 import android.view.ViewGroup
@@ -26,15 +27,12 @@ object WebViewConfig {
                 domStorageEnabled = true
                 setSupportMultipleWindows(true)
                 javaScriptCanOpenWindowsAutomatically = true
-                allowContentAccess = true
-                allowFileAccess = true
+                allowContentAccess = false
+                allowFileAccess = false
                 loadWithOverviewMode = true
                 useWideViewPort = true
 
-                // 显式允许混合内容（对于支付场景很重要）
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                }
+                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
 
                 // 允许通用第三方应用访问
                 setSupportMultipleWindows(true)
@@ -48,18 +46,7 @@ object WebViewConfig {
                 builtInZoomControls = true
                 displayZoomControls = false
 
-                // 对于Android 8.0及以上版本的安全Webview优化
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    try {
-                        safeBrowsingEnabled = true
-                    } catch (e: AbstractMethodError) {
-                        AppLogger.w("WebViewConfig", "Safe browsing not supported on this WebView implementation: ${e.message}")
-                    } catch (e: NoSuchMethodError) {
-                        AppLogger.w("WebViewConfig", "Safe browsing method missing on this WebView implementation: ${e.message}")
-                    } catch (e: Throwable) {
-                        AppLogger.w("WebViewConfig", "Failed to enable safe browsing: ${e.message}")
-                    }
-                }
+                safeBrowsingEnabled = true
             }
 
             // 配置Cookie
@@ -73,7 +60,7 @@ object WebViewConfig {
             }
 
             // Enable WebView debugging
-            WebView.setWebContentsDebuggingEnabled(true)
+            WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
             // 为了确保正确处理滚动，设置嵌套滚动启用
             isNestedScrollingEnabled = true
@@ -96,9 +83,12 @@ object WebViewConfig {
                     MotionEvent.ACTION_DOWN -> {
                         v.parent?.requestDisallowInterceptTouchEvent(true)
                     }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    MotionEvent.ACTION_UP -> {
                         v.parent?.requestDisallowInterceptTouchEvent(false)
+                        v.performClick()
                     }
+                    MotionEvent.ACTION_CANCEL ->
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
                 }
                 false
             }
@@ -129,7 +119,7 @@ object WebViewConfig {
                                             try {
                                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
                                                 intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                view?.context?.startActivity(intent)
+                                                view.context.startActivity(intent)
                                                 return true
                                             } catch (e: Exception) {
                                                 AppLogger.e("WebViewConfig", "无法在新窗口打开外部应用: ${e.message}")
@@ -139,7 +129,7 @@ object WebViewConfig {
 
                                         // 对于普通链接，强制在当前WebView（发起者）中加载，而不是打开外部浏览器
                                         // 这样实现了"在内置webview打开"的需求
-                                        view?.post {
+                                        view.post {
                                             view.loadUrl(url)
                                         }
                                         return true

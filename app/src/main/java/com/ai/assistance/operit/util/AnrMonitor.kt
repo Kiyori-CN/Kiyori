@@ -114,7 +114,7 @@ class AnrMonitor(
     }
     
     /**
-     * 使用ScheduledExecutorService开始监控（备选方案）
+     * 使用 ScheduledExecutorService 开始监控
      */
     private fun startUsingExecutor() {
         if (scheduledExecutor == null || scheduledExecutor?.isShutdown == true) {
@@ -126,7 +126,9 @@ class AnrMonitor(
             }
         }
         
-        scheduledExecutor?.scheduleAtFixedRate({
+        // Android 进程从 cached 状态恢复时，fixed-rate 会集中补跑历史采样；
+        // fixed-delay 保证每次健康检查完成后再等待一个采样周期。
+        scheduledExecutor?.scheduleWithFixedDelay({
             if (running.get()) {
                 checkMainThreadHealth()
             } else {
@@ -259,7 +261,7 @@ class AnrMonitor(
     private fun getMainThread(): Thread? {
         try {
             // 尝试方法1：通过Looper的对应线程
-            Looper.getMainLooper().thread?.let { return it }
+            Looper.getMainLooper().thread.let { return it }
             
             // 尝试方法2：遍历所有线程查找main线程
             val threadGroup = Thread.currentThread().threadGroup ?: return null
@@ -424,4 +426,4 @@ class AnrMonitor(
             AppLogger.e(tag, "保存ANR报告失败", e)
         }
     }
-} 
+}

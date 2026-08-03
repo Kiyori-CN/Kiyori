@@ -255,7 +255,7 @@ fun RepoMarketPublishScreen(
             }
         }
 
-        if (isEditMode && !isVersionMode && editingEntry != null) {
+        if (isEditMode && !isVersionMode) {
             Button(
                 onClick = {
                     if (title.isBlank() || description.isBlank() || repositoryUrl.isBlank() || category.isBlank()) {
@@ -359,7 +359,7 @@ fun RepoMarketPublishScreen(
                     errorMessage = null
                     try {
                         val result =
-                            if (isVersionMode && editingEntry != null) {
+                            if (isVersionMode) {
                                 viewModel.publishNewVersion(
                                     entry = editingEntry,
                                     title = title,

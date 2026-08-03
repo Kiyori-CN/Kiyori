@@ -123,7 +123,6 @@ class StandardTerminalCommandExecutor(private val context: Context) {
 
                 val outputFlow = terminal.executeCommandFlow(sessionId, command)
 
-                if (outputFlow != null) {
                     val events = mutableListOf<String>()
                     var completionOutput: String? = null
                     var exitCode = 0
@@ -173,14 +172,6 @@ class StandardTerminalCommandExecutor(private val context: Context) {
                             ),
                             error = errorMessage
                     )
-                } else {
-                    ToolResult(
-                        toolName = tool.name,
-                        success = false,
-                        result = StringResultData(""),
-                        error = context.getString(R.string.terminal_error_command_failed)
-                    )
-                }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "执行终端命令时出错", e)
                 ToolResult(

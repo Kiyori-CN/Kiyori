@@ -77,6 +77,8 @@ object MessageImageGenerator {
      * @param width 图片宽度（像素）
      * @return 生成的图片文件
      */
+    // 截图子树必须覆盖为软件位图加载器；Coil 当前没有等价的非弃用 CompositionLocal 入口。
+    @Suppress("DEPRECATION")
     suspend fun generateMessageImage(
         context: Context,
         messages: List<ChatMessage>,

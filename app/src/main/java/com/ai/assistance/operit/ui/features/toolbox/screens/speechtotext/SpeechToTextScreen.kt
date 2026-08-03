@@ -402,7 +402,10 @@ fun SpeechToTextScreen(navController: NavController) {
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                     )
                     

@@ -620,7 +620,7 @@ fun StreamMarkdownRenderer(
                         }
 
                         if (isInlineLatex && childNode != null) {
-                            val latexContent = childNode!!.content.toString()
+                            val latexContent = childNode.content.toString()
                             val latexChildNode =
                                 MarkdownNode(type = MarkdownProcessorType.INLINE_LATEX, initialContent = latexContent)
                             val childIndex = newNode.children.lastIndexOf(childNode)
@@ -631,7 +631,7 @@ fun StreamMarkdownRenderer(
                         }
 
                         if (childNode != null &&
-                            childNode!!.content.toString().trimAll().isEmpty() &&
+                            childNode.content.toString().trimAll().isEmpty() &&
                             originalInlineType == MarkdownProcessorType.PLAIN_TEXT
                         ) {
                             val lastIndex = newNode.children.lastIndex
@@ -911,7 +911,7 @@ internal suspend fun parseMarkdownToNodes(content: String): List<MarkdownNode> {
                 }
 
                 if (isInlineLatex && childNode != null) {
-                    val latexContent = childNode!!.content.toString()
+                    val latexContent = childNode.content.toString()
                     val latexChildNode =
                         MarkdownNode(type = MarkdownProcessorType.INLINE_LATEX, initialContent = latexContent)
                     val childIndex = newNode.children.lastIndexOf(childNode)
@@ -921,7 +921,7 @@ internal suspend fun parseMarkdownToNodes(content: String): List<MarkdownNode> {
                 }
 
                 if (childNode != null &&
-                    childNode!!.content.toString().trimAll().isEmpty() &&
+                    childNode.content.toString().trimAll().isEmpty() &&
                     originalInlineType == MarkdownProcessorType.PLAIN_TEXT
                 ) {
                     val lastIndex = newNode.children.lastIndex

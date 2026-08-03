@@ -45,12 +45,11 @@ object ModelListFetcher {
 
     // 使用更长的超时时间
     private val client =
-            UnsafeModelSsl.apply(
-                    OkHttpClient.Builder()
-                            .connectTimeout(30, TimeUnit.SECONDS)
-                            .readTimeout(30, TimeUnit.SECONDS)
-                            .writeTimeout(30, TimeUnit.SECONDS)
-            ).build()
+            OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .build()
 
     /**
      * 从API端点URL派生出模型列表URL
@@ -293,37 +292,6 @@ object ModelListFetcher {
                         val errorBody = response.body?.string() ?: context.getString(R.string.model_fetch_no_error_details)
                         val responseCode = response.code
                         response.close()
-                        if ((apiProviderType == ApiProviderType.OPENAI || apiProviderType == ApiProviderType.OPENAI_RESPONSES || apiProviderType == ApiProviderType.OPENAI_RESPONSES_GENERIC || apiProviderType == ApiProviderType.OPENAI_GENERIC || apiProviderType == ApiProviderType.OPENAI_LOCAL || apiProviderType == ApiProviderType.IFLOW || apiProviderType == ApiProviderType.NVIDIA || apiProviderType == ApiProviderType.LMSTUDIO || apiProviderType == ApiProviderType.OLLAMA || apiProviderType == ApiProviderType.FOUR_ROUTER || apiProviderType == ApiProviderType.NOUS_PORTAL || apiProviderType == ApiProviderType.MIMO) &&
-                                        modelsUrl.endsWith("/v1/models")) {
-                            val fallbackUrl = modelsUrl.removeSuffix("/v1/models") + "/models"
-                            AppLogger.w(TAG, "API请求失败，尝试兼容路径: $fallbackUrl")
-                            val fallbackRequest = request.newBuilder().url(fallbackUrl).get().build()
-                            val fallbackResponse = client.newCall(fallbackRequest).execute()
-                            if (fallbackResponse.isSuccessful) {
-                                val fallbackBody = fallbackResponse.body?.string()
-                                if (fallbackBody.isNullOrEmpty()) {
-                                    fallbackResponse.close()
-                                    return@withContext Result.failure(IOException(context.getString(R.string.model_fetch_response_empty)))
-                                }
-                                fallbackResponse.close()
-                                val modelOptions = parseOpenAIModelResponse(context, fallbackBody)
-                                AppLogger.d(TAG, "成功解析模型列表，共获取 ${modelOptions.size} 个模型")
-                                return@withContext Result.success(modelOptions)
-                            } else {
-                                val fallbackErrorBody = fallbackResponse.body?.string() ?: context.getString(R.string.model_fetch_no_error_details)
-                                AppLogger.e(
-                                        TAG,
-                                        "API请求失败: 状态码=${fallbackResponse.code}, 错误=$fallbackErrorBody"
-                                )
-                                fallbackResponse.close()
-                                return@withContext Result.failure(
-                                        IOException(
-                                                context.getString(R.string.model_fetch_api_failed, fallbackResponse.code, fallbackErrorBody)
-                                        )
-                                )
-                            }
-                        }
-
                         AppLogger.e(TAG, "API请求失败: 状态码=$responseCode, 错误=$errorBody")
                         return@withContext Result.failure(IOException(context.getString(R.string.model_fetch_api_failed, responseCode, errorBody)))
                     }
@@ -659,7 +627,7 @@ object ModelListFetcher {
             sizeBytes < 1024 -> "$sizeBytes B"
             sizeBytes < 1024 * 1024 -> "${sizeBytes / 1024} KB"
             sizeBytes < 1024 * 1024 * 1024 -> "${sizeBytes / (1024 * 1024)} MB"
-            else -> String.format("%.2f GB", sizeBytes / (1024.0 * 1024.0 * 1024.0))
+            else -> String.format(java.util.Locale.getDefault(), "%.2f GB", sizeBytes / (1024.0 * 1024.0 * 1024.0))
         }
     }
 }

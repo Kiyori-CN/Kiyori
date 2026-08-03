@@ -154,7 +154,7 @@ object AIMessageManager {
                 .trim()
                 .let { if (it.length > 100) it.take(100) + "..." else it }
 
-            val roleName = message.roleName ?: if (message.sender == "ai") "AI" else context.getString(R.string.ai_message_user)
+            val roleName = message.roleName
             val instruction = context.getString(R.string.ai_message_replying_to_previous)
             "<reply_to sender=\"${roleName}\" timestamp=\"${message.timestamp}\">${instruction}\"${cleanContent}\"</reply_to>"
         } ?: ""
@@ -881,7 +881,17 @@ object AIMessageManager {
                 val omitted = (cleanedSegments.size - head.size - tail.size).coerceAtLeast(0)
                 cleanedSegments.clear()
                 cleanedSegments.addAll(head)
-                cleanedSegments.add(Segment(kind = "text", raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )
+                cleanedSegments.add(
+                    Segment(
+                        kind = "text",
+                        raw =
+                            context.resources.getQuantityString(
+                                R.plurals.ai_message_omitted_segment,
+                                omitted,
+                                omitted
+                            )
+                    )
+                )
                 cleanedSegments.addAll(tail)
             }
 
@@ -972,7 +982,7 @@ object AIMessageManager {
                         val speakerLabel = if (message.sender == "user") {
                             "user"
                         } else {
-                            message.roleName?.takeIf { it.isNotBlank() } ?: "AI"
+                            message.roleName.takeIf { it.isNotBlank() } ?: "AI"
                         }
 
                         conversationReviewEntries.add(speakerLabel to displayContent)
@@ -1001,7 +1011,7 @@ object AIMessageManager {
                         if (message.sender == "user") {
                             "user"
                         } else {
-                            val roleName = message.roleName?.takeIf { it.isNotBlank() }
+                            val roleName = message.roleName.takeIf { it.isNotBlank() }
                             if (roleName != null) roleName else "AI"
                         }
                     conversationReviewEntries.add(speakerLabel to displayContent)

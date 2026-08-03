@@ -88,6 +88,8 @@ open class StandardSystemOperationTools(private val context: Context) {
         return stagedFile
     }
 
+    // API 26-28 没有新的同语义查询入口；此处只读取本应用的既有 AppOp 状态。
+    @Suppress("DEPRECATION")
     private fun hasUsageStatsAccess(): Boolean {
         val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode =
@@ -1251,7 +1253,7 @@ open class StandardSystemOperationTools(private val context: Context) {
             return ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "Must provide session_id parameter")
         }
         return try {
-            BluetoothSessionManager.closeAny(sessionId)
+            BluetoothSessionManager.closeAny(context, sessionId)
             ToolResult(toolName = tool.name, success = true, result = StringResultData("Bluetooth session closed"), error = "")
         } catch (e: Exception) {
             AppLogger.e(TAG, "关闭蓝牙会话时出错", e)
@@ -1465,7 +1467,9 @@ open class StandardSystemOperationTools(private val context: Context) {
                                     }
 
                             if (provider == null) {
-                                continuation.resume(null) { AppLogger.e(TAG, "位置请求取消", it) }
+                                continuation.resume(null) { cause, _, _ ->
+                                    AppLogger.e(TAG, "位置请求取消", cause)
+                                }
                                 return@suspendCancellableCoroutine
                             }
 
@@ -1499,7 +1503,9 @@ open class StandardSystemOperationTools(private val context: Context) {
                                             System.currentTimeMillis() - lastKnownLocation.time <
                                                     10 * 60 * 1000
                             ) {
-                                continuation.resume(lastKnownLocation) { AppLogger.e(TAG, "位置请求取消", it) }
+                                continuation.resume(lastKnownLocation) { cause, _, _ ->
+                                    AppLogger.e(TAG, "位置请求取消", cause)
+                                }
                                 return@suspendCancellableCoroutine
                             }
 
@@ -1511,8 +1517,8 @@ open class StandardSystemOperationTools(private val context: Context) {
                                             timeoutJob?.cancel()
                                             if (!continuation.isCompleted) {
                                                 locationManager.removeUpdates(this)
-                                                continuation.resume(location) {
-                                                    AppLogger.e(TAG, "位置请求取消", it)
+                                                continuation.resume(location) { cause, _, _ ->
+                                                    AppLogger.e(TAG, "位置请求取消", cause)
                                                 }
                                             }
                                         }
@@ -1523,12 +1529,12 @@ open class StandardSystemOperationTools(private val context: Context) {
                                                 timeoutJob?.cancel()
                                                 locationManager.removeUpdates(this)
                                                 if (lastKnownLocation != null) {
-                                                    continuation.resume(lastKnownLocation) {
-                                                        AppLogger.e(TAG, "位置请求取消", it)
+                                                    continuation.resume(lastKnownLocation) { cause, _, _ ->
+                                                        AppLogger.e(TAG, "位置请求取消", cause)
                                                     }
                                                 } else {
-                                                    continuation.resume(null) {
-                                                        AppLogger.e(TAG, "位置请求取消", it)
+                                                    continuation.resume(null) { cause, _, _ ->
+                                                        AppLogger.e(TAG, "位置请求取消", cause)
                                                     }
                                                 }
                                             }
@@ -1565,8 +1571,8 @@ open class StandardSystemOperationTools(private val context: Context) {
                                         if (!continuation.isCompleted) {
                                             locationManager.removeUpdates(locationListener)
                                             // 如果超时，尝试使用最后已知位置
-                                            continuation.resume(lastKnownLocation) {
-                                                AppLogger.e(TAG, "位置请求取消", it)
+                                            continuation.resume(lastKnownLocation) { cause, _, _ ->
+                                                AppLogger.e(TAG, "位置请求取消", cause)
                                             }
                                         }
                                     }
@@ -1584,7 +1590,9 @@ open class StandardSystemOperationTools(private val context: Context) {
                                     }
                                 }
                             } catch (e: SecurityException) {
-                                continuation.resume(lastKnownLocation) { AppLogger.e(TAG, "位置请求取消", it) }
+                                continuation.resume(lastKnownLocation) { cause, _, _ ->
+                                    AppLogger.e(TAG, "位置请求取消", cause)
+                                }
                                 AppLogger.e(TAG, "请求位置更新失败", e)
                             }
                         }
@@ -1650,6 +1658,8 @@ open class StandardSystemOperationTools(private val context: Context) {
      * @param longitude 经度
      * @return 包含地址信息的数据类
      */
+    // API 26-32 仅提供同步 Geocoder 接口；调用方已在 IO 调度器执行该工具。
+    @Suppress("DEPRECATION")
     private fun getAddressFromLocation(latitude: Double, longitude: Double): AddressInfo {
         try {
             val geocoder = Geocoder(context, Locale.getDefault())

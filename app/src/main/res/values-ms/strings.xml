@@ -3975,7 +3975,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="mnn_search_models">Cari model...</string>
     <string name="mnn_no_search_results">Tiada model yang sepadan ditemui</string>
     <string name="persona_card_generation_title">Kad watak yang akan diubah suai</string>
-    <string name="error_character_card_not_exist">Kad watak tidak wujud</string>
     <string name="error_unsupported_field">Medan tidak disokong: %1$s</string>
 
     <string name="publish_action">Terbitkan</string>
@@ -5668,7 +5667,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="mcp_deployment_start">Mula penyebaran pemalam: %1$s</string>
     <string name="mcp_deployment_output_prefix">Output: </string>
     <string name="mcp_deployment_virtual_plugin_detected">Pemalam jenis %1$s dikesan, laksanakan penyebaran minimum</string>
-    <string name="mcp_deployment_cannot_create_terminal">Tidak dapat membuat sesi terminal</string>
     <string name="mcp_deployment_creating_directory">Membuat direktori pemalam: %1$s</string>
     <string name="mcp_deployment_create_directory_failed">Gagal membuat direktori pemalam</string>
     <string name="mcp_deployment_minimal_complete">Penyebaran minimum pemalam jenis %1$s selesai, boleh digunakan terus</string>
@@ -5969,7 +5967,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="character_card_single_char">Aksara tunggal</string>
     <string name="character_group_single_char">Kumpulan</string>
     <string name="waifu_config_bound_to_card">Terikat kepada kad watak</string>
-    <string name="advanced_import_key">Import kunci</string>
+    <string name="advanced_import_key">Import kunci ····%1$s</string>
     <string name="model_custom_params">Parameter tersuai</string>
     <string name="file_manager_home">Laman utama</string>
     <string name="file_manager_new_tab">Tab baharu</string>
@@ -6114,7 +6112,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="profile_regex_identity">Identiti(pengenalan)?[:：\s]+([\u4e00-\u9fa5、，,]+)</string>
     <string name="profile_regex_occupation">Pekerjaan[:：\s]+([\u4e00-\u9fa5、，,]+)</string>
     <string name="profile_regex_ai_style">(Gaya AI|Gaya AI yang diharapkan|Gaya AI yang disukai)[:：\s]+([\u4e00-\u9fa5、，,]+)</string>
-    <string name="ai_message_user">Pengguna</string>
     <string name="ai_message_replying_to_previous">Pengguna sedang membalas mesej anda yang sebelumnya:</string>
     <string name="ai_message_executing_deep_search">Sedang menjalankan carian mendalam...</string>
     <string name="ai_message_media_omitted">[Audio/video telah ditinggalkan]</string>
@@ -6124,7 +6121,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="ai_message_reply_omitted">[Rujukan balasan telah ditinggalkan]</string>
     <string name="ai_message_tool_result_omitted">[Keputusan alat telah ditinggalkan: %1$s]</string>
     <string name="ai_message_tool_result_omitted_short">[Keputusan alat telah ditinggalkan]</string>
-    <string name="ai_message_omitted_segment">[...%1$s segmen ditinggalkan...]</string>
+    <plurals name="ai_message_omitted_segment">
+        <item quantity="other">[…%1$d segmen ditinggalkan…]</item>
+    </plurals>
     <string name="ai_message_tool_start">[Alat: %1$s]</string>
     <string name="ai_message_success">Berjaya</string>
     <string name="ai_message_failure">Gagal</string>
@@ -6407,7 +6406,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="message_role_user">Pengguna</string>
     <string name="role_card_chat_model_binding_parse_failed">Penghuraian pengikatan model sembang kad watak gagal</string>
     <string name="message_workspace_sync_failed">Penyegerakan status ruang kerja gagal: %1$s</string>
-    <string name="message_ai_service_not_initialized">Perkhidmatan AI belum dimulakan</string>
     <string name="message_summarizing">Meringkaskan ingatan...</string>
     <string name="message_send_failed">Gagal menghantar mesej: %1$s</string>
     <string name="deepgram_stt_url_not_set">URL Deepgram STT belum ditetapkan, sila isi alamat antara muka lengkap (contohnya https://api.deepgram.com/v1/listen).</string>

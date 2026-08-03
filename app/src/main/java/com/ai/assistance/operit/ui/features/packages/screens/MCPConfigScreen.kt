@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -601,16 +600,16 @@ fun MCPConfigScreen(
                 ) {
                     // 添加顶部导入方式选择
                     Column {
-                        ScrollableTabRow(
+                        SecondaryScrollableTabRow(
                             selectedTabIndex = importTabIndex,
                             containerColor = Color.Transparent,
                             contentColor = MaterialTheme.colorScheme.onSurface,
                             edgePadding = 8.dp,
                             divider = {},
-                            indicator = { tabPositions ->
-                                if (importTabIndex < tabPositions.size) {
+                            indicator = {
+                                if (importTabIndex in 0..1) {
                                     TabRowDefaults.SecondaryIndicator(
-                                        Modifier.tabIndicatorOffset(tabPositions[importTabIndex])
+                                        Modifier.tabIndicatorOffset(importTabIndex)
                                     )
                                 }
                             }
@@ -769,7 +768,7 @@ fun MCPConfigScreen(
                                 OutlinedTextField(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .menuAnchor(),
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                     value = remoteConnectionType,
                                     onValueChange = {},
                                     readOnly = true,
@@ -1900,7 +1899,7 @@ fun RemoteServerEditDialog(
                         OutlinedTextField(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor(),
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                             value = connectionType,
                             onValueChange = {},
                             readOnly = true,

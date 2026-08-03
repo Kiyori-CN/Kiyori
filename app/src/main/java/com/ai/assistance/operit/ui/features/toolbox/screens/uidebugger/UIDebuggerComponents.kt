@@ -54,8 +54,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -145,7 +145,6 @@ fun UIDebuggerOverlay(
 
         // 当前分析Activity信息面板
         if (isUIAnalysisActive && showAnalysisPanel && (uiState.currentAnalyzedActivityName != null || uiState.currentAnalyzedPackageName != null)) {
-            val clipboardManager = LocalClipboardManager.current
             val currentActivityName = uiState.currentAnalyzedActivityName
             val currentPackageName = uiState.currentAnalyzedPackageName
             
@@ -185,7 +184,10 @@ fun UIDebuggerOverlay(
                         if (currentActivityName != null) {
                             IconButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(currentActivityName))
+                                    context.copyPlainTextToClipboard(
+                                        "Kiyori current activity",
+                                        currentActivityName
+                                    )
                                 },
                                 modifier = Modifier.size(28.dp)
                             ) {
@@ -486,7 +488,6 @@ fun ElementInfoPanel(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     
     Surface(
         modifier = modifier
@@ -564,7 +565,10 @@ fun ElementInfoPanel(
                             )
                             IconButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(element.activityName))
+                                    context.copyPlainTextToClipboard(
+                                        "Kiyori activity",
+                                        element.activityName
+                                    )
                                 },
                                 modifier = Modifier.size(32.dp)
                             ) {

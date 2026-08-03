@@ -24,7 +24,7 @@ import androidx.compose.material.icons.filled.Assistant
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ScreenshotMonitor
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -119,7 +118,6 @@ fun BubbleUserMessageComposable(
         )
     val bubbleUserCustomFontPath by
         preferencesManager.bubbleUserCustomFontPath.collectAsState(initial = null)
-    val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
     // Parse message content to separate text and attachments
@@ -1024,7 +1022,7 @@ private fun AttachmentTag(
     val icon: ImageVector =
         when {
             attachment.type.startsWith("image/") -> Icons.Default.Image
-            attachment.type.startsWith("audio/") -> Icons.Default.VolumeUp
+            attachment.type.startsWith("audio/") -> Icons.AutoMirrored.Filled.VolumeUp
             attachment.type.startsWith("video/") -> Icons.Default.PlayArrow
             attachment.type == "text/json" && attachment.filename == "screen_content.json" ->
                 Icons.Default.ScreenshotMonitor

@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -120,7 +120,7 @@ fun GitHubAccountScreen() {
                                 scope.launch { githubAuth.logout() }
                             }
                         ) {
-                            Icon(Icons.Default.Logout, contentDescription = null)
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(stringResource(R.string.logout))
                         }
@@ -144,7 +144,7 @@ fun GitHubAccountScreen() {
                         )
 
                         Button(onClick = { showGitHubLogin = true }) {
-                            Icon(Icons.Default.Login, contentDescription = null)
+                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(stringResource(R.string.login_github))
                         }

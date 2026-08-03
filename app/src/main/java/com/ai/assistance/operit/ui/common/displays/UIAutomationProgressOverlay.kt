@@ -132,12 +132,7 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
                 val params = WindowManager.LayoutParams().apply {
                     width = WindowManager.LayoutParams.MATCH_PARENT
                     height = WindowManager.LayoutParams.WRAP_CONTENT
-                    type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                    } else {
-                        @Suppress("DEPRECATION")
-                        WindowManager.LayoutParams.TYPE_PHONE
-                    }
+                    type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                     // 不获取输入焦点，但允许点击卡片区域
                     flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
@@ -212,12 +207,7 @@ class UIAutomationProgressOverlay private constructor(private val context: Conte
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            },
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or

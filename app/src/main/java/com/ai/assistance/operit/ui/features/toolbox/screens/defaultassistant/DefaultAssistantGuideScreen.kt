@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material3.*
@@ -410,7 +411,7 @@ private fun GuideStepCard(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Launch,
+                                imageVector = Icons.AutoMirrored.Filled.Launch,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp)
                             )

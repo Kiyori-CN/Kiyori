@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.FlowPreview::class)
+
 package com.ai.assistance.operit.ui.features.settings.screens
 
 import androidx.compose.foundation.background

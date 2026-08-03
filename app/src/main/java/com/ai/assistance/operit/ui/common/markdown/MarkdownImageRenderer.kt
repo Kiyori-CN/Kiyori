@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.CircularProgressIndicator
@@ -419,7 +419,7 @@ private fun FullScreenImageDialog(imageUrl: String, imageAlt: String, onDismiss:
                             modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp)
                     ) {
                         Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.common_reset_zoom),
                                 tint = Color.White
                         )

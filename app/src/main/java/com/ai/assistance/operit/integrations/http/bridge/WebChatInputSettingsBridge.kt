@@ -117,7 +117,7 @@ internal class WebChatInputSettingsBridge(
                         request.permissionLevel.isNullOrBlank() ||
                             snapshot.permissionLevel ==
                                 PermissionLevel.fromString(
-                                    request.permissionLevel?.uppercase(Locale.US)
+                                    request.permissionLevel.uppercase(Locale.US)
                                 ).name
                     )
             if (matches) {

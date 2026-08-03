@@ -46,9 +46,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -431,15 +430,15 @@ private fun UnifiedMarketDetailStickyTabs(
                     commentsTitle
                 )
 
-            TabRow(
+            SecondaryTabRow(
                 selectedTabIndex = selectedTabIndex,
                 modifier = Modifier.widthIn(max = 240.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 divider = {},
-                indicator = { tabPositions ->
-                    if (selectedTabIndex < tabPositions.size) {
+                indicator = {
+                    if (selectedTabIndex in tabTitles.indices) {
                         TabRowDefaults.SecondaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
                             height = 2.dp,
                             color = MaterialTheme.colorScheme.primary
                         )

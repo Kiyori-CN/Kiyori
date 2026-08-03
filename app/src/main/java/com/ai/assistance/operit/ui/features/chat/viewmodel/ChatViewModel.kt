@@ -1581,7 +1581,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         val chatId = chatHistoryDelegate.currentChatId.value
         if (chatId != null) {
             messageProcessingDelegate.setInputProcessingStateForChat(chatId, InputProcessingState.Idle)
-            EnhancedAIService.getChatInstance(context, chatId)?.setInputProcessingState(InputProcessingState.Idle)
+            EnhancedAIService.getChatInstance(context, chatId).setInputProcessingState(InputProcessingState.Idle)
         }
     }
     fun popupMessage(message: String) = uiStateDelegate.showPopupMessage(message)
@@ -2527,7 +2527,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
                 sessionId = sharedSessionId
 
-                val activeSessionId = sessionId ?: return@launch
+                val activeSessionId = sessionId
 
                 terminalInstance.executeCommand(activeSessionId, "cd \"${workspaceDir.absolutePath}\"")
 

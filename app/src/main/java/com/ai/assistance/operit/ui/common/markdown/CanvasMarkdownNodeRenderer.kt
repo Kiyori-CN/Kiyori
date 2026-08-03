@@ -1110,7 +1110,7 @@ private fun UnifiedCanvasRenderer(
  * @param availableWidthPx 最大可用宽度，用于提前终止遍历
  * @return 实际使用的最大宽度
  */
-private inline fun calculateActualWidth(
+private fun calculateActualWidth(
     layout: StaticLayout,
     offsetX: Float = 0f,
     availableWidthPx: Int

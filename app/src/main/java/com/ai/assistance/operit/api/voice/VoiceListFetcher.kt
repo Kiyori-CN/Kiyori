@@ -100,10 +100,12 @@ object VoiceListFetcher {
         return try {
             val root = JSONObject(json)
             val data = root.opt("data")
-            val arr = when (data) {
-                is JSONArray -> data
-                else -> root.optJSONArray("voices") ?: root.optJSONArray("data")
-            } ?: return emptyList()
+            val arr =
+                if (data is JSONArray) {
+                    data
+                } else {
+                    root.optJSONArray("voices") ?: root.optJSONArray("data")
+                } ?: return emptyList()
 
             val parsedVoices = buildList {
                 for (i in 0 until arr.length()) {

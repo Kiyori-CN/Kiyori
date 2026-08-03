@@ -812,7 +812,7 @@ class ConversationService(
                 if (currentContent.isNotEmpty() && currentKind != null) {
                     mergedSegments.add(
                         PromptTurn(
-                            kind = currentKind!!,
+                            kind = currentKind,
                             content = currentContent.toString().trim(),
                             toolName = currentToolName,
                             metadata = currentMetadata
@@ -832,7 +832,7 @@ class ConversationService(
         if (currentContent.isNotEmpty() && currentKind != null) {
             mergedSegments.add(
                 PromptTurn(
-                    kind = currentKind!!,
+                    kind = currentKind,
                     content = currentContent.toString().trim(),
                     toolName = currentToolName,
                     metadata = currentMetadata

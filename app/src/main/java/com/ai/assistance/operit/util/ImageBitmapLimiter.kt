@@ -136,7 +136,7 @@ object ImageBitmapLimiter {
         val mt = mimeType.trim().lowercase().substringBefore(';')
         return when {
             mt == "image/png" -> Bitmap.CompressFormat.PNG
-            mt == "image/webp" -> Bitmap.CompressFormat.WEBP
+            mt == "image/webp" -> legacyWebpCompressFormat()
             mt == "image/jpeg" || mt == "image/jpg" -> Bitmap.CompressFormat.JPEG
             else -> null
         }

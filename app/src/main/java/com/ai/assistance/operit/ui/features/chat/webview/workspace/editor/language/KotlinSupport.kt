@@ -31,11 +31,6 @@ class KotlinSupport : BaseLanguageSupport() {
         )
         
         private val FILE_EXTENSIONS = listOf("kt", "kts")
-        
-        init {
-            // 注册语言支持
-            LanguageSupportRegistry.register(KotlinSupport())
-        }
     }
     
     override fun getName(): String = "kotlin"
@@ -47,4 +42,4 @@ class KotlinSupport : BaseLanguageSupport() {
     override fun getBuiltInFunctions(): Set<String> = BUILT_IN_FUNCTIONS
     
     override fun getFileExtensions(): List<String> = FILE_EXTENSIONS
-} 
+}

@@ -7,7 +7,30 @@
 3. 使用 NDK r28 的 `llvm-readelf -lW` 检查每个 ELF 的 `LOAD` segment 对齐
 4. 将源码构建产物、仓库内预置二进制、Maven/AAR 预编译库分别记录
 
-## 2026-07-29 播放器 native 命名空间与 HTTPS 修正（当前方案）
+## 2026-08-03 生成式 shell launcher 与 terminal shim（当前方案）
+
+`app/src/main/assets/operit_shell_exec` 的旧预编译 AArch64 文件已删除。唯一生产 owner
+现在是 `BuildShellIdentityLauncherTask`：它从
+`tools/shell_identity_launcher/native-lib.cpp` 使用固定 NDK
+`28.2.13676358`、Android API 26、`-nostdlib++` 和
+`-Wl,-z,max-page-size=16384` 生成 variant asset，并在打包前验证 ELF64/AArch64、
+`/system/bin/linker64`、全部 `PT_LOAD >= 0x4000`、无源码调试路径且无
+`libc++_shared.so` 动态依赖。
+
+terminal 原 2 字节 `libsudo.so` 不是 ELF，也不应进入 `jniLibs`。该文件已删除；唯一
+`TerminalManager` 在应用私有 bin 目录写入 `#!/system/bin/sh` 的 `sudo` 命令 shim，并
+验证可执行位。这样保留原命令入口，同时消除 native strip 假警报和伪 native 资产。
+
+当前 Debug APK 为 `463718677` 字节，SHA-256
+`768CAE74E27352DEE038AF0C4C9F8EE5E3C2C97B017B0F3C2BCD3E92080AEF6D`。APK 仅含
+`arm64-v8a`，51 个 `.so` basename 无重复；加上 `assets/operit_shell_exec` 共 52 个
+AArch64 ELF64，全部 `PT_LOAD` 最小对齐至少为 `0x4000`。launcher 为 `8016` 字节，
+四个 `PT_LOAD` 均为 `0x4000`，动态依赖只有 `libandroid.so`、`liblog.so`、`libm.so`、
+`libdl.so` 和 `libc.so`。APK 内 `libsudo.so`、旧预编译 launcher 源路径和
+`libc++_shared.so` launcher 依赖均为 0；Debug v2、单 signer 与
+`zipalign -c -P 16 -v 4` 通过。
+
+## 2026-07-29 播放器 native 命名空间与 HTTPS 修正（当前播放器方案）
 
 播放器接入后已删除旧 `ffmpeg-kit-local.aar` owner，改为两个固定输入生成的确定性 arm64 AAR。
 mpv AAR 持有 `libmpv.so`、`libplayer.so`、同 Clang 21 工具链的 `libc++_shared.so`，以及固定 mpv
@@ -85,11 +108,10 @@ Lint 最终报告为 0 errors、29 warnings 和 1 个 baseline 已应用提示�
 
 - 旧 ffmpeg-kit local AAR 的 9 个 `LOAD=0x1000` ELF 已随统一播放器 native 栈被移除；当前 FFmpegKit
   `8.1.7` 的九个对应 ELF 均达到至少 `0x4000`
-- terminal `libsudo.so` 是预置的 2 字节 `$@` 文件，不能按 ELF 对齐；保持现有运行时语义，不改名、不删除、不用 suppress 掩盖
+- terminal 旧 2 字节 `libsudo.so` 已删除；运行时命令入口由私有目录中的 shell shim 唯一持有
 
 ### 工具链待升级项
 
-- AGP 9.3.1、Gradle 9.5.0、Kotlin 2.3.21 与 Build Tools 36.0.0 已完成迁移；`apksig` 同步为 9.3.1；CI 实际执行仍取决于重新启用仓库级 GitHub Actions
-- Kotlin 2.4 不解决当前 native 对齐问题；后续如有明确编译器收益，单独评估稳定补丁版 2.4.10
-- compile SDK 37、Build Tools 37 与更高 CMake 版本均需要独立兼容性和产品策略验证，不因版本提示机械升级
+- AGP 9.3.1、Gradle 9.5.0、Kotlin 2.4.10、compile SDK 37 与 Build Tools 36.0.0 已完成迁移；`apksig` 同步为 9.3.1；CI 实际执行仍取决于重新启用仓库级 GitHub Actions
+- Build Tools 37 与更高 CMake 版本仍需要独立兼容性和产品策略验证，不因版本提示机械升级
 - Flutter 模板仍处于 AGP 8.11.1/Kotlin 2.2.20 基线；本机无 Flutter SDK，本轮不声称完成其迁移

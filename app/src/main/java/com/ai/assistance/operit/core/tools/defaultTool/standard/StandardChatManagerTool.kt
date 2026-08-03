@@ -1044,8 +1044,11 @@ class StandardChatManagerTool(private val context: Context) {
                 tool.parameters.find { it.name == "character_card_id" }?.value?.trim()
             if (!characterCardId.isNullOrBlank()) {
                 val roleCardManager = CharacterCardManager.getInstance(appContext)
-                val targetCard = roleCardManager.getCharacterCard(characterCardId)
-                if (targetCard == null) {
+                val cardExists =
+                    roleCardManager.getAllCharacterCards().any { card ->
+                        card.id == characterCardId
+                    }
+                if (!cardExists) {
                     return ToolResult(
                         toolName = tool.name,
                         success = false,
@@ -1455,7 +1458,7 @@ class StandardChatManagerTool(private val context: Context) {
                             ToolResult(
                                 toolName = tool.name,
                                 success = false,
-                                result = MessageSendResultData(chatId = targetChatId!!, message = message),
+                                result = MessageSendResultData(chatId = targetChatId, message = message),
                                 error = "Specified chat does not exist: $targetChatId"
                             )
                         )

@@ -684,7 +684,7 @@ open class OpenAIProvider(
         // 如果启用Tool Call且传入了工具列表，添加tools定义
         var toolsJson: String? = null
         if (effectiveEnableToolCall) {
-            val tools = buildToolDefinitions(availableTools!!)
+            val tools = buildToolDefinitions(availableTools)
             if (tools.length() > 0) {
                 jsonObject.put("tools", tools)
                 jsonObject.put("tool_choice", "auto") // 让模型自动决定是否使用工具

@@ -36,14 +36,14 @@ internal object JsJavaBridgeDelegates {
 
     private val primitiveWrapperMap: Map<Class<*>, Class<*>> =
         mapOf(
-            java.lang.Boolean.TYPE to java.lang.Boolean::class.java,
-            java.lang.Byte.TYPE to java.lang.Byte::class.java,
-            java.lang.Short.TYPE to java.lang.Short::class.java,
-            java.lang.Integer.TYPE to java.lang.Integer::class.java,
-            java.lang.Long.TYPE to java.lang.Long::class.java,
-            java.lang.Float.TYPE to java.lang.Float::class.java,
-            java.lang.Double.TYPE to java.lang.Double::class.java,
-            java.lang.Character.TYPE to java.lang.Character::class.java
+            Boolean::class.java to Boolean::class.javaObjectType,
+            Byte::class.java to Byte::class.javaObjectType,
+            Short::class.java to Short::class.javaObjectType,
+            Int::class.java to Int::class.javaObjectType,
+            Long::class.java to Long::class.javaObjectType,
+            Float::class.java to Float::class.javaObjectType,
+            Double::class.java to Double::class.javaObjectType,
+            Char::class.java to Char::class.javaObjectType
         )
 
     private data class ConvertedArg(
@@ -119,7 +119,11 @@ internal object JsJavaBridgeDelegates {
 
     internal fun parsePlainJsonObjectToMap(raw: String): Map<String, Any?> {
         val parsed = parseJsonObject(raw) ?: return emptyMap()
-        return decodePlainJsonValue(parsed) as? Map<String, Any?> ?: emptyMap()
+        return decodeJsonObject(
+            raw = parsed,
+            objectRegistry = ConcurrentHashMap(),
+            interpretBridgeMarkers = false
+        )
     }
 
     internal fun parsePlainJsonValueOrRawString(raw: String?): Any? {
@@ -1006,16 +1010,7 @@ internal object JsJavaBridgeDelegates {
                         interfaceNames = interfaceNames
                     )
                 } else {
-                    val map = LinkedHashMap<String, Any?>()
-                    raw.keys().forEach { key ->
-                        map[key] =
-                            decodeJsonValue(
-                                raw = raw.opt(key),
-                                objectRegistry = objectRegistry,
-                                interpretBridgeMarkers = interpretBridgeMarkers
-                            )
-                    }
-                    map
+                    decodeJsonObject(raw, objectRegistry, interpretBridgeMarkers)
                 }
             }
             is JSONArray -> {
@@ -1033,6 +1028,23 @@ internal object JsJavaBridgeDelegates {
             }
             else -> raw
         }
+    }
+
+    private fun decodeJsonObject(
+        raw: JSONObject,
+        objectRegistry: ConcurrentHashMap<String, Any>,
+        interpretBridgeMarkers: Boolean
+    ): Map<String, Any?> {
+        val map = LinkedHashMap<String, Any?>()
+        raw.keys().forEach { key ->
+            map[key] =
+                decodeJsonValue(
+                    raw = raw.opt(key),
+                    objectRegistry = objectRegistry,
+                    interpretBridgeMarkers = interpretBridgeMarkers
+                )
+        }
+        return map
     }
 
     private fun toJsonCompatibleValue(
@@ -1443,7 +1455,7 @@ internal object JsJavaBridgeDelegates {
 
         val wrapper = primitiveWrapperMap[targetType] ?: targetType
 
-        if (wrapper == Any::class.java || wrapper == Object::class.java) {
+        if (wrapper == Any::class.java) {
             if (rawValue is JsInterfaceBinding) {
                 val proxy =
                     createJsInterfaceProxy(
@@ -1487,7 +1499,7 @@ internal object JsJavaBridgeDelegates {
             return ConvertedArg(rawValue.toString(), 3)
         }
 
-        if (wrapper == java.lang.Boolean::class.java) {
+        if (wrapper == Boolean::class.javaObjectType) {
             return convertToBoolean(rawValue)
         }
 
@@ -1495,7 +1507,7 @@ internal object JsJavaBridgeDelegates {
             return convertToNumber(rawValue, wrapper)
         }
 
-        if (wrapper == java.lang.Character::class.java) {
+        if (wrapper == Char::class.javaObjectType) {
             return convertToChar(rawValue)
         }
 
@@ -1559,7 +1571,10 @@ internal object JsJavaBridgeDelegates {
 
         if (wrapper.isArray) {
             if (rawValue is List<*>) {
-                val componentType = wrapper.componentType
+                val componentType =
+                    requireNotNull(wrapper.componentType) {
+                        "array class ${wrapper.name} has no component type"
+                    }
                 val arr = ReflectArray.newInstance(componentType, rawValue.size)
                 var score = 5
                 for (index in rawValue.indices) {
@@ -1992,12 +2007,12 @@ internal object JsJavaBridgeDelegates {
         return try {
             val converted: Any =
                 when (numberType) {
-                    java.lang.Byte::class.java -> parsed.toByte()
-                    java.lang.Short::class.java -> parsed.toShort()
-                    java.lang.Integer::class.java -> parsed.toInt()
-                    java.lang.Long::class.java -> parsed.toLong()
-                    java.lang.Float::class.java -> parsed.toFloat()
-                    java.lang.Double::class.java -> parsed.toDouble()
+                    Byte::class.javaObjectType -> parsed.toByte()
+                    Short::class.javaObjectType -> parsed.toShort()
+                    Int::class.javaObjectType -> parsed.toInt()
+                    Long::class.javaObjectType -> parsed.toLong()
+                    Float::class.javaObjectType -> parsed.toFloat()
+                    Double::class.javaObjectType -> parsed.toDouble()
                     else -> return null
                 }
             val score = if (rawValue is Number) 2 else 5

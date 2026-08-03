@@ -21,6 +21,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,6 +64,8 @@ fun AvatarConfigSection(
     avatarController: AvatarController?,
     onImportClick: () -> Unit
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
+
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(
             text = stringResource(R.string.avatar_config),
@@ -195,7 +199,7 @@ fun AvatarConfigSection(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = stringResource(R.string.scale, String.format("%.2f", currentSettings.scale)),
+                    text = stringResource(R.string.scale, String.format(currentLocale, "%.2f", currentSettings.scale)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -206,7 +210,7 @@ fun AvatarConfigSection(
                 )
 
                 Text(
-                    text = stringResource(R.string.x_translation, String.format("%.1f", currentSettings.translateX)),
+                    text = stringResource(R.string.x_translation, String.format(currentLocale, "%.1f", currentSettings.translateX)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -217,7 +221,7 @@ fun AvatarConfigSection(
                 )
 
                 Text(
-                    text = stringResource(R.string.y_translation, String.format("%.1f", currentSettings.translateY)),
+                    text = stringResource(R.string.y_translation, String.format(currentLocale, "%.1f", currentSettings.translateY)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -241,7 +245,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_mmd_camera_pitch,
-                                String.format("%.1f deg", cameraPitch)
+                                String.format(currentLocale, "%.1f deg", cameraPitch)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -261,7 +265,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_mmd_camera_yaw,
-                                String.format("%.1f deg", initialRotationY)
+                                String.format(currentLocale, "%.1f deg", initialRotationY)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -281,7 +285,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_mmd_camera_distance,
-                                String.format("%.2fx", cameraDistanceScale)
+                                String.format(currentLocale, "%.2fx", cameraDistanceScale)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -301,7 +305,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_mmd_orbit_pivot_height,
-                                String.format("%.2f", cameraTargetHeight)
+                                String.format(currentLocale, "%.2f", cameraTargetHeight)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -332,7 +336,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_gltf_camera_pitch,
-                                String.format("%.1f deg", cameraPitch)
+                                String.format(currentLocale, "%.1f deg", cameraPitch)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -352,7 +356,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_gltf_camera_yaw,
-                                String.format("%.1f deg", cameraYaw)
+                                String.format(currentLocale, "%.1f deg", cameraYaw)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -372,7 +376,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_gltf_camera_distance,
-                                String.format("%.3fx", cameraDistanceScale)
+                                String.format(currentLocale, "%.3fx", cameraDistanceScale)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -392,7 +396,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_gltf_orbit_pivot_height,
-                                String.format("%.2f", cameraTargetHeight)
+                                String.format(currentLocale, "%.2f", cameraTargetHeight)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -423,7 +427,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_fbx_camera_pitch,
-                                String.format("%.1f deg", cameraPitch)
+                                String.format(currentLocale, "%.1f deg", cameraPitch)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -443,7 +447,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_fbx_camera_yaw,
-                                String.format("%.1f deg", cameraYaw)
+                                String.format(currentLocale, "%.1f deg", cameraYaw)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -463,7 +467,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_fbx_camera_distance,
-                                String.format("%.3fx", cameraDistanceScale)
+                                String.format(currentLocale, "%.3fx", cameraDistanceScale)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -483,7 +487,7 @@ fun AvatarConfigSection(
                         text =
                             stringResource(
                                 R.string.avatar_fbx_orbit_pivot_height,
-                                String.format("%.2f", cameraTargetHeight)
+                                String.format(currentLocale, "%.2f", cameraTargetHeight)
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
@@ -810,7 +814,10 @@ private fun AnimationSelectionField(
         }
     ) {
         OutlinedTextField(
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier =
+                Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
             value = selectedAnimation ?: stringResource(R.string.avatar_unmapped),
             onValueChange = {},
             readOnly = true,
@@ -1045,7 +1052,10 @@ fun ModelSelector(
             textStyle = MaterialTheme.typography.bodyMedium,
             label = { Text(stringResource(R.string.current_model)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier =
+                Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
             shape = RoundedCornerShape(10.dp)
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

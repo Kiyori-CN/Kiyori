@@ -15,7 +15,6 @@
     <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" />
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -67,7 +66,6 @@
     <uses-permission android:name="android.permission.CAMERA" />
     
     <!-- Voice Interaction Service permissions -->
-    <uses-permission android:name="android.permission.BIND_VOICE_INTERACTION" />
     
     <!-- Workflow scheduling permissions -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -112,8 +110,14 @@
             android:name="com.google.firebase.ml.kit.analytics.collection.enabled"
             android:value="false" />
 
-        <activity 
+        <!--
+            RenderX 1.0.0 publishes its sample LatexView as a MAIN/LAUNCHER Activity.
+            This node exists only as a manifest-merger removal selector. Lint cannot
+            resolve selector-only classes, so suppress MissingClass on this exact node.
+        -->
+        <activity
             android:name="live.pw.renderX.LatexView"
+            tools:ignore="MissingClass"
             tools:node="remove" />
 
         <activity
@@ -436,39 +440,6 @@
                 android:value="Keeps the user-requested assistant runtime alive for external HTTP control when no standard foreground service type fully describes that mode." />
         </service>
         
-        <!-- 添加广播接收器配置 -->
-        <receiver
-            android:name=".core.tools.javascript.ScriptExecutionReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.ai.assistance.operit.EXECUTE_JS" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".core.tools.packTool.ToolPkgDebugInstallReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".core.tools.packTool.PackageDebugRefreshReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.ai.assistance.operit.DEBUG_REFRESH_PACKAGES" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".core.tools.packTool.ToolPkgComposeDslDebugDumpReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.ai.assistance.operit.DUMP_COMPOSE_DSL_UI" />
-            </intent-filter>
-        </receiver>
-
         <receiver
             android:name=".integrations.intent.ExternalChatReceiver"
             android:exported="true">
@@ -527,7 +498,8 @@
         <!-- Receive Shower Binder handoff broadcast from the Shower server (Shizuku-style) -->
         <receiver
             android:name=".core.tools.agent.ShowerBinderReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.ai.assistance.operit.action.SHOWER_BINDER_READY" />
             </intent-filter>

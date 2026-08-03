@@ -1,25 +1,28 @@
 package com.ai.assistance.operit.services
 
-import android.app.IntentService
+import android.app.Service
 import android.content.Intent
+import android.os.IBinder
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor.CommandResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Termux命令结果服务
  * 用于接收来自Termux的命令执行结果
  */
-class TermuxCommandResultService : IntentService("TermuxCommandResultService") {
+class TermuxCommandResultService : Service() {
     companion object {
         private const val TAG = "TermuxResultService"
         const val EXTRA_EXECUTION_ID = "execution_id"
 
         // 用于在服务内注册回调的Map
-        private val callbackMap = mutableMapOf<Int, ((CommandResult) -> Unit)>()
+        private val callbackMap = ConcurrentHashMap<Int, (CommandResult) -> Unit>()
         
         /**
          * 注册命令执行回调
@@ -43,9 +46,26 @@ class TermuxCommandResultService : IntentService("TermuxCommandResultService") {
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
-    override fun onHandleIntent(intent: Intent?) {
-        if (intent == null) return
-        
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null) {
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        serviceScope.launch {
+            handleResult(intent)
+            stopSelf(startId)
+        }
+        return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
+    private fun handleResult(intent: Intent) {
         // 获取执行ID
         val executionId = intent.getIntExtra(EXTRA_EXECUTION_ID, -1)
         // AppLogger.d(TAG, "收到命令结果，执行ID: $executionId")
@@ -81,13 +101,11 @@ class TermuxCommandResultService : IntentService("TermuxCommandResultService") {
         // 调用回调
         val callback = callbackMap[executionId]
         if (callback != null) {
-            serviceScope.launch {
-                callback(result)
-                // 执行完成后移除回调
-                removeCallback(executionId)
-            }
+            callback(result)
+            // 执行完成后移除回调
+            removeCallback(executionId)
         } else {
             // AppLogger.w(TAG, "未找到ID为 $executionId 的回调")
         }
     }
-} 
+}

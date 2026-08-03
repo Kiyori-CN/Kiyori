@@ -119,12 +119,12 @@ class WebSessionPermissionRequestActivity : ComponentActivity() {
             resultDelivered = true
             WebSessionPermissionRequestCoordinator.completeRequest(requestId, permissions)
             finish()
-            overridePendingTransition(0, 0)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        window.setWindowAnimations(0)
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         window.decorView.alpha = 0f
 
@@ -157,6 +157,5 @@ class WebSessionPermissionRequestActivity : ComponentActivity() {
             WebSessionPermissionRequestCoordinator.cancelRequest(requestId)
         }
         finish()
-        overridePendingTransition(0, 0)
     }
 }

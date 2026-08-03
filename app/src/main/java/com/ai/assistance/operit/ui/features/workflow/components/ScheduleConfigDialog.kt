@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ fun ScheduleConfigDialog(
     onConfirm: (scheduleType: String, config: Map<String, String>) -> Unit
 ) {
     val context = LocalContext.current
+    val currentLocale = LocalConfiguration.current.locales[0]
     var scheduleType by remember { mutableStateOf(initialScheduleType) }
     var scheduleTypeExpanded by remember { mutableStateOf(false) }
     
@@ -49,10 +51,10 @@ fun ScheduleConfigDialog(
     val calendar = remember { Calendar.getInstance() }
     
     // 尝试从初始配置解析日期时间
-    remember(initialConfig) {
+    remember(initialConfig, currentLocale) {
         initialConfig["specific_time"]?.let { dateTimeStr ->
             try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", currentLocale)
                 sdf.parse(dateTimeStr)?.let { date ->
                     calendar.time = date
                 }
@@ -122,7 +124,10 @@ fun ScheduleConfigDialog(
                         readOnly = true,
                         label = { Text(stringResource(R.string.workflow_schedule_type_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = scheduleTypeExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     )
                     ExposedDropdownMenu(
                         expanded = scheduleTypeExpanded,
@@ -174,7 +179,10 @@ fun ScheduleConfigDialog(
                                     readOnly = true,
                                     label = { Text(stringResource(R.string.workflow_interval_unit_label)) },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = intervalUnitExpanded) },
-                                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 )
                                 ExposedDropdownMenu(
                                     expanded = intervalUnitExpanded,
@@ -226,7 +234,7 @@ fun ScheduleConfigDialog(
                                 }
                         ) {
                             OutlinedTextField(
-                                value = String.format("%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay),
+                                value = String.format(currentLocale, "%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay),
                                 onValueChange = {},
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_date_label)) },
@@ -268,7 +276,7 @@ fun ScheduleConfigDialog(
                                 }
                         ) {
                             OutlinedTextField(
-                                value = String.format("%02d:%02d", selectedHour, selectedMinute),
+                                value = String.format(currentLocale, "%02d:%02d", selectedHour, selectedMinute),
                                 onValueChange = {},
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_time_label)) },
@@ -294,6 +302,7 @@ fun ScheduleConfigDialog(
                         
                         // 显示完整的日期时间
                         val fullDateTime = String.format(
+                            currentLocale,
                             "%04d-%02d-%02d %02d:%02d:00",
                             selectedYear,
                             selectedMonth + 1,
@@ -325,7 +334,10 @@ fun ScheduleConfigDialog(
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_preset_template_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cronPresetExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = cronPresetExpanded,
@@ -424,6 +436,7 @@ fun ScheduleConfigDialog(
                         "specific_time" -> {
                             // 构造日期时间字符串
                             val dateTimeStr = String.format(
+                                currentLocale,
                                 "%04d-%02d-%02d %02d:%02d:00",
                                 selectedYear,
                                 selectedMonth + 1,

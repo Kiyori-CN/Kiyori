@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -450,18 +449,18 @@ private fun PermissionLevelSelector(
     val levels = AndroidPermissionLevel.values()
     val currentColors = permissionManagementTone(currentLevel).resolveColors()
 
-    ScrollableTabRow(
+    SecondaryScrollableTabRow(
             selectedTabIndex = currentLevel.ordinal,
             edgePadding = 0.dp,
             divider = {},
             contentColor = currentColors.icon,
             containerColor = Color.Transparent,
-            indicator = { tabPositions ->
+            indicator = {
                 // Draw indicator under the selected tab
-                if (tabPositions.isNotEmpty() && currentLevel.ordinal < tabPositions.size) {
+                if (currentLevel.ordinal in levels.indices) {
                     Box(
                             modifier =
-                                    Modifier.tabIndicatorOffset(tabPositions[currentLevel.ordinal])
+                                    Modifier.tabIndicatorOffset(currentLevel.ordinal)
                                             .height(2.dp)
                                             .background(currentColors.icon)
                                             .clip(
@@ -1315,7 +1314,6 @@ private fun PermissionLevelVisualDescription(level: AndroidPermissionLevel) {
                     AndroidPermissionLevel.DEBUGGER ->
                             stringResource(R.string.permission_level_debugger)
                     AndroidPermissionLevel.ROOT -> stringResource(R.string.permission_level_root)
-                    null -> stringResource(R.string.permission_level_standard) // 默认标题
                 }
 
         Text(
@@ -1338,7 +1336,6 @@ private fun PermissionLevelVisualDescription(level: AndroidPermissionLevel) {
                             stringResource(R.string.permission_level_debugger_desc)
                     AndroidPermissionLevel.ROOT ->
                             stringResource(R.string.permission_level_root_desc)
-                    null -> stringResource(R.string.permission_level_standard_desc) // 默认描述
                 }
 
         Text(

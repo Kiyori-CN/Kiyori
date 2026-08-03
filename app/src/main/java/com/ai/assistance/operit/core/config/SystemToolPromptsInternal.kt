@@ -714,7 +714,7 @@ object SystemToolPromptsInternal {
                                 ToolParameterSchema(name = "headers", type = "string", description = "headers", required = false),
                                 ToolParameterSchema(name = "body", type = "string", description = "body", required = false),
                                 ToolParameterSchema(name = "body_type", type = "string", description = "json/form/text/xml", required = false),
-                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "ignore https certificate verification, true/false", required = false)
+                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "compatibility field; true is rejected because TLS verification cannot be disabled", required = false)
                             )
                         ),
                         ToolPrompt(
@@ -726,7 +726,7 @@ object SystemToolPromptsInternal {
                                 ToolParameterSchema(name = "headers", type = "string", description = "headers", required = false),
                                 ToolParameterSchema(name = "form_data", type = "string", description = "form_data", required = false),
                                 ToolParameterSchema(name = "files", type = "string", description = "JSON array string. Each item is an object: {\"field_name\": string, \"file_path\": string, \"content_type\"?: string, \"file_name\"?: string}", required = false),
-                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "ignore https certificate verification, true/false", required = false)
+                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "compatibility field; true is rejected because TLS verification cannot be disabled", required = false)
                             )
                         ),
                         ToolPrompt(
@@ -3707,7 +3707,7 @@ object SystemToolPromptsInternal {
                                 ToolParameterSchema(name = "headers", type = "string", description = "headers", required = false),
                                 ToolParameterSchema(name = "body", type = "string", description = "body", required = false),
                                 ToolParameterSchema(name = "body_type", type = "string", description = "json/form/text/xml", required = false),
-                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "是否忽略HTTPS证书校验，true/false", required = false)
+                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "兼容字段；为 true 时会被拒绝，TLS 证书校验不可关闭", required = false)
                             )
                         ),
                         ToolPrompt(
@@ -3719,7 +3719,7 @@ object SystemToolPromptsInternal {
                                 ToolParameterSchema(name = "headers", type = "string", description = "headers", required = false),
                                 ToolParameterSchema(name = "form_data", type = "string", description = "form_data", required = false),
                                 ToolParameterSchema(name = "files", type = "string", description = "JSON数组字符串。每个元素是对象: {\"field_name\": 字符串, \"file_path\": 字符串, 可选 \"content_type\": 字符串, 可选 \"file_name\": 字符串}", required = false),
-                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "是否忽略HTTPS证书校验，true/false", required = false)
+                                ToolParameterSchema(name = "ignore_ssl", type = "boolean", description = "兼容字段；为 true 时会被拒绝，TLS 证书校验不可关闭", required = false)
                             )
                         ),
                         ToolPrompt(

@@ -940,9 +940,9 @@ class MNNProvider(
     private fun formatFileSize(sizeBytes: Long): String {
         return when {
             sizeBytes < 1024 -> "$sizeBytes B"
-            sizeBytes < 1024 * 1024 -> String.format("%.2f KB", sizeBytes / 1024.0)
-            sizeBytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", sizeBytes / (1024.0 * 1024.0))
-            else -> String.format("%.2f GB", sizeBytes / (1024.0 * 1024.0 * 1024.0))
+            sizeBytes < 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.2f KB", sizeBytes / 1024.0)
+            sizeBytes < 1024 * 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.2f MB", sizeBytes / (1024.0 * 1024.0))
+            else -> String.format(java.util.Locale.getDefault(), "%.2f GB", sizeBytes / (1024.0 * 1024.0 * 1024.0))
         }
     }
 

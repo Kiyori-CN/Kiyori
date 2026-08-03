@@ -173,7 +173,7 @@ class ApiConfigDelegate(
                                 activeConfigId
                             ) { card, globalConfigId ->
                                 val lockedConfigId =
-                                    card?.takeIf {
+                                    card.takeIf {
                                         CharacterCardChatModelBindingMode.normalize(
                                             it.chatModelBindingMode
                                         ) == CharacterCardChatModelBindingMode.FIXED_CONFIG

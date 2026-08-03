@@ -36,6 +36,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -414,7 +415,10 @@ fun SpeechServicesSettingsScreen(
                                 trailingIcon = { 
                                     Icon(Icons.Default.ArrowDropDown, stringResource(R.string.speech_services_dropdown_expand))
                                 },
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                                modifier =
+                                    Modifier
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                        .fillMaxWidth()
                             )
                             ExposedDropdownMenu(
                                 expanded = ttsDropdownExpanded,
@@ -523,7 +527,10 @@ fun SpeechServicesSettingsScreen(
                                                 contentDescription = stringResource(R.string.speech_services_dropdown_expand)
                                             )
                                         },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        modifier =
+                                            Modifier
+                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                .fillMaxWidth()
                                     )
                                     ExposedDropdownMenu(
                                         expanded = simpleTtsLocaleExpanded,
@@ -1032,7 +1039,10 @@ fun SpeechServicesSettingsScreen(
                                         trailingIcon = {
                                             Icon(Icons.Default.ArrowDropDown, stringResource(R.string.speech_services_siliconflow_voice_select_icon))
                                         },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        modifier =
+                                            Modifier
+                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                .fillMaxWidth()
                                     )
                                     ExposedDropdownMenu(
                                         expanded = voiceDropdownExpanded,
@@ -1222,7 +1232,10 @@ fun SpeechServicesSettingsScreen(
                                         trailingIcon = {
                                             Icon(Icons.Default.ArrowDropDown, stringResource(R.string.speech_services_mimo_voice_select_icon))
                                         },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        modifier =
+                                            Modifier
+                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                .fillMaxWidth()
                                     )
                                     ExposedDropdownMenu(
                                         expanded = mimoVoiceDropdownExpanded,
@@ -1330,7 +1343,10 @@ fun SpeechServicesSettingsScreen(
                                         trailingIcon = {
                                             Icon(Icons.Default.ArrowDropDown, stringResource(R.string.speech_services_doubao_voice_select_icon))
                                         },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        modifier =
+                                            Modifier
+                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                .fillMaxWidth()
                                     )
                                     ExposedDropdownMenu(
                                         expanded = doubaoVoiceDropdownExpanded,
@@ -1992,7 +2008,10 @@ fun SpeechServicesSettingsScreen(
                                 trailingIcon = { 
                                     Icon(Icons.Default.ArrowDropDown, stringResource(R.string.speech_services_dropdown_expand))
                                 },
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                                modifier =
+                                    Modifier
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                        .fillMaxWidth()
                             )
                             ExposedDropdownMenu(
                                 expanded = sttDropdownExpanded,

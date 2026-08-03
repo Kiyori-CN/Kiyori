@@ -380,7 +380,7 @@ fun AgentChatInputSection(
     val effectiveConfigMapping =
         if (isModelSelectionLockedByCharacterCard) {
             FunctionConfigMapping(
-                characterCardBoundChatModelConfigId ?: FunctionalConfigManager.DEFAULT_CONFIG_ID,
+                characterCardBoundChatModelConfigId,
                 characterCardBoundChatModelIndex.coerceAtLeast(0),
             )
         } else {
@@ -388,7 +388,7 @@ fun AgentChatInputSection(
         }
     val effectiveProfileId =
         if (isMemorySelectionLockedByCharacterCard) {
-            characterCardBoundMemoryProfileId ?: activeProfileId
+            characterCardBoundMemoryProfileId
         } else {
             activeProfileId
         }
@@ -1699,13 +1699,13 @@ private fun AgentModelSelectorPopup(
                                 if (baseContextLengthInK % 1f == 0f) {
                                     baseContextLengthInK.toInt().toString()
                                 } else {
-                                    String.format("%.1f", baseContextLengthInK)
+                                    String.format(java.util.Locale.getDefault(), "%.1f", baseContextLengthInK)
                                 }
                             val maxLengthText =
                                 if (maxContextLengthInK % 1f == 0f) {
                                     maxContextLengthInK.toInt().toString()
                                 } else {
-                                    String.format("%.1f", maxContextLengthInK)
+                                    String.format(java.util.Locale.getDefault(), "%.1f", maxContextLengthInK)
                                 }
                             infoPopupContent =
                                 context.getString(R.string.max_mode_title) to

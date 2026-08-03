@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -97,7 +98,7 @@ fun CompletionItemRow(
                 CompletionItemKind.METHOD -> Icons.Default.PlayArrow
                 CompletionItemKind.VARIABLE -> Icons.Default.DataObject
                 CompletionItemKind.CLASS -> Icons.Default.Class
-                CompletionItemKind.PROPERTY -> Icons.Default.Label
+                CompletionItemKind.PROPERTY -> Icons.AutoMirrored.Filled.Label
                 CompletionItemKind.SNIPPET -> Icons.Default.ContentCopy
                 else -> Icons.Default.TextFields
             },

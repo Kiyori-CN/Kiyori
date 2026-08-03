@@ -1172,14 +1172,14 @@ class AIForegroundService : Service() {
             return if (externalHttpStateFlow.value.isRunning) START_STICKY else START_NOT_STICKY
         }
 
-        if (intent?.action == ACTION_STOP_EXTERNAL_HTTP) {
+        if (intent.action == ACTION_STOP_EXTERNAL_HTTP) {
             val configuredPort = runCatching { externalHttpPreferences.getPort() }.getOrNull()
             stopExternalHttpServer(portOverride = configuredPort, lastError = null)
             stopSelfIfIdle(ignoreAppForeground = true)
             return START_NOT_STICKY
         }
 
-        if (intent?.action == ACTION_TOGGLE_WAKE_LISTENING) {
+        if (intent.action == ACTION_TOGGLE_WAKE_LISTENING) {
             AppLogger.d(TAG, "收到 ACTION_TOGGLE_WAKE_LISTENING")
             serviceScope.launch {
                 try {
@@ -1196,19 +1196,19 @@ class AIForegroundService : Service() {
             return START_NOT_STICKY
         }
 
-        if (intent?.action == ACTION_SET_WAKE_LISTENING_SUSPENDED_FOR_IME) {
+        if (intent.action == ACTION_SET_WAKE_LISTENING_SUSPENDED_FOR_IME) {
             val imeVisible = intent.getBooleanExtra(EXTRA_IME_VISIBLE, false)
             updateWakeListeningSuspendedForIme(imeVisible)
             return START_NOT_STICKY
         }
 
-        if (intent?.action == ACTION_SET_WAKE_LISTENING_SUSPENDED_FOR_FLOATING_FULLSCREEN) {
+        if (intent.action == ACTION_SET_WAKE_LISTENING_SUSPENDED_FOR_FLOATING_FULLSCREEN) {
             val active = intent.getBooleanExtra(EXTRA_FLOATING_FULLSCREEN_ACTIVE, false)
             updateWakeListeningSuspendedForFloatingFullscreen(active)
             return START_NOT_STICKY
         }
 
-        if (intent?.action == ACTION_PREPARE_WAKE_HANDOFF) {
+        if (intent.action == ACTION_PREPARE_WAKE_HANDOFF) {
             val now = System.currentTimeMillis()
             val triggeredAt = pendingWakeTriggeredAtMs
             if (triggeredAt > 0L && wakeHandoffPending) {
@@ -1241,7 +1241,7 @@ class AIForegroundService : Service() {
             return START_NOT_STICKY
         }
 
-        if (intent?.action == ACTION_CANCEL_CURRENT_OPERATION) {
+        if (intent.action == ACTION_CANCEL_CURRENT_OPERATION) {
             try {
                 AIMessageManager.cancelCurrentOperation()
                 // 立即刷新通知状态（真正的状态重置由 EnhancedAIService.cancelConversation/stopAiService 完成）
@@ -1255,7 +1255,7 @@ class AIForegroundService : Service() {
         }
 
         // 从Intent中提取通知信息
-        intent?.let {
+        intent.let {
             characterName = it.getStringExtra(EXTRA_CHARACTER_NAME)
             avatarUri = it.getStringExtra(EXTRA_AVATAR_URI)
             AppLogger.d(TAG, "收到通知数据 - 角色: $characterName, 头像: $avatarUri")
@@ -1490,12 +1490,7 @@ class AIForegroundService : Service() {
                     updateWakeListeningSuspendedForIme(imeVisible)
                     insets
                 }
-                val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    @Suppress("DEPRECATION")
-                    WindowManager.LayoutParams.TYPE_PHONE
-                }
+                val layoutType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 val params = WindowManager.LayoutParams(
                     1,
                     1,

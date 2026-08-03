@@ -4506,7 +4506,6 @@
 
     <!-- Persona Card Generation Screen -->
     <string name="persona_card_generation_title">Character Card to Edit</string>
-    <string name="error_character_card_not_exist">Character card does not exist</string>
     <string name="error_unsupported_field">Unsupported field: %1$s</string>
     <string name="no_character_card">No Character Card</string>
     <string name="character_card_config">Character Card Configuration</string>
@@ -6176,7 +6175,6 @@
     <string name="mcp_deployment_start">Starting plugin deployment: %1$s</string>
     <string name="mcp_deployment_output_prefix">Output: </string>
     <string name="mcp_deployment_virtual_plugin_detected">Detected %1$s type plugin, executing minimal deployment</string>
-    <string name="mcp_deployment_cannot_create_terminal">Cannot create terminal session</string>
     <string name="mcp_deployment_creating_directory">Creating plugin directory: %1$s</string>
     <string name="mcp_deployment_create_directory_failed">Failed to create plugin directory</string>
     <string name="mcp_deployment_minimal_complete">%1$s type plugin minimal deployment complete, ready to use</string>
@@ -6492,7 +6490,6 @@
     <string name="profile_regex_ai_style">(AI Style|Expected AI Style|Preferred AI Style)[:：\\s]+([^;]+)</string>
 
     <!-- AI Message Manager -->
-    <string name="ai_message_user">User</string>
     <string name="ai_message_replying_to_previous">The user is replying to your previous message:</string>
     <string name="ai_message_executing_deep_search">Executing deep search...</string>
     <string name="ai_message_plan_mode_indicator">[Plan Mode]</string>
@@ -6518,7 +6515,10 @@
     <string name="ai_message_reply_omitted">[Reply reference omitted]</string>
     <string name="ai_message_tool_result_omitted">[Tool result omitted: %1$s]</string>
     <string name="ai_message_tool_result_omitted_short">[Tool result omitted]</string>
-    <string name="ai_message_omitted_segment">[...%1$s segments omitted...]</string>
+    <plurals name="ai_message_omitted_segment">
+        <item quantity="one">[…%1$d segment omitted…]</item>
+        <item quantity="other">[…%1$d segments omitted…]</item>
+    </plurals>
     <string name="ai_message_tool_start">[Tool: %1$s]</string>
     <string name="ai_message_success">Success</string>
     <string name="ai_message_failure">Failure</string>
@@ -6595,7 +6595,7 @@
     <string name="default_option">Default</string>
     <string name="character_card_single_char">Single character</string>
     <string name="waifu_config_bound_to_card">Bound to character card</string>
-    <string name="advanced_import_key">Import key</string>
+    <string name="advanced_import_key">Import key ····%1$s</string>
     <string name="model_custom_params">Custom parameters</string>
     <string name="file_manager_home">Home</string>
     <string name="file_manager_new_tab">New tab</string>
@@ -7030,7 +7030,6 @@
     <string name="message_role_user">User</string>
     <string name="role_card_chat_model_binding_parse_failed">Failed to parse role-card chat-model binding</string>
     <string name="message_workspace_sync_failed">Workspace state sync failed: %1$s</string>
-    <string name="message_ai_service_not_initialized">AI service not initialized</string>
     <string name="message_summarizing">Summarizing memories...</string>
     <string name="message_send_failed">Failed to send message: %1$s</string>
 

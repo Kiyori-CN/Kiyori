@@ -86,9 +86,19 @@ internal class BrowserTextSelectionBridge(
     private val browserTools: StandardBrowserSessionTools,
 ) {
     @JavascriptInterface
-    fun showActions(anchorX: Double, anchorY: Double) {
+    fun showActions(
+        anchorX: Double,
+        anchorY: Double,
+        viewportWidth: Double,
+        viewportHeight: Double
+    ) {
         StandardBrowserSessionTools.mainHandler.post {
-            browserTools.browserHost?.showTextSelectionActionsOverlay(anchorX, anchorY)
+            browserTools.browserHost?.showTextSelectionActionsOverlay(
+                anchorX = anchorX,
+                anchorY = anchorY,
+                viewportWidth = viewportWidth,
+                viewportHeight = viewportHeight
+            )
         }
     }
 
@@ -502,7 +512,12 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
             function showActionsForRect(rect) {
                 const anchorX = (rect.left + rect.right) / 2;
                 const anchorY = rect.top;
-                window.OperitTextSelectionBridge.showActions(anchorX, anchorY);
+                window.OperitTextSelectionBridge.showActions(
+                    anchorX,
+                    anchorY,
+                    window.innerWidth,
+                    window.innerHeight
+                );
             }
 
             function renderRangeSelection(showActions) {
@@ -1172,26 +1187,6 @@ internal fun StandardBrowserSessionTools.listSessionIdsInOrder(): List<String> {
 }
 
 private fun quoteJs(value: String): String = JSONObject.quote(value)
-
-internal fun StandardBrowserSessionTools.quoteJsCode(value: String): String {
-    val escaped =
-        buildString(value.length + 8) {
-            value.forEach { ch ->
-                when (ch) {
-                    '\\' -> append("\\\\")
-                    '\'' -> append("\\'")
-                    '\n' -> append("\\n")
-                    '\r' -> append("\\r")
-                    '\t' -> append("\\t")
-                    else -> append(ch)
-                }
-            }
-        }
-    return "'$escaped'"
-}
-
-internal fun StandardBrowserSessionTools.renderJsArrayCode(values: Collection<String>): String =
-    values.joinToString(prefix = "[", postfix = "]", separator = ", ") { quoteJsCode(it) }
 
 private fun playwrightLikeInputRuntimeJs(): String =
     """
@@ -2118,10 +2113,12 @@ internal fun StandardBrowserSessionTools.evaluateJavascriptAsync(
 internal fun extractAsyncJsValue(payload: String): String {
     val json = JSONObject(payload)
     val value = json.opt("value")
-    return when (value) {
-        null, JSONObject.NULL -> ""
-        is String -> value
-        else -> value.toString()
+    return if (value == null || value === JSONObject.NULL) {
+        ""
+    } else if (value is String) {
+        value
+    } else {
+        value.toString()
     }
 }
 
@@ -2426,7 +2423,6 @@ internal fun StandardBrowserSessionTools.captureFullPageBitmap(webView: WebView)
 internal fun StandardBrowserSessionTools.resolveFullPageBitmapSize(
     webView: WebView
 ): Pair<Int, Int> {
-    val scale = webView.scale.takeIf { it > 0f } ?: 1f
     val pageSize =
         runJsonScript(
             webView,
@@ -2448,17 +2444,27 @@ internal fun StandardBrowserSessionTools.resolveFullPageBitmapSize(
                     body ? (body.scrollHeight || 0) : 0,
                     body ? (body.offsetHeight || 0) : 0
                 );
-                return JSON.stringify({ ok: true, width, height });
+                return JSON.stringify({
+                    ok: true,
+                    width,
+                    height,
+                    viewportWidth: window.innerWidth
+                });
             })();
             """.trimIndent(),
             "page_size_error"
         )
 
+    val viewportWidth =
+        pageSize?.optDouble("viewportWidth", 0.0)
+            ?.takeIf { it > 0.0 }
+            ?: error("Web page reported an invalid viewport width")
+    val scale = webView.width.toDouble() / viewportWidth
     val width =
-        (((pageSize?.optDouble("width", 0.0) ?: 0.0) * scale).toInt())
+        (((pageSize.optDouble("width", 0.0)) * scale).toInt())
             .coerceAtLeast(webView.width.coerceAtLeast(1))
     val height =
-        (((pageSize?.optDouble("height", 0.0) ?: 0.0) * scale).toInt())
+        (((pageSize.optDouble("height", 0.0)) * scale).toInt())
             .coerceAtLeast(webView.height.coerceAtLeast(1))
     return width to height
 }

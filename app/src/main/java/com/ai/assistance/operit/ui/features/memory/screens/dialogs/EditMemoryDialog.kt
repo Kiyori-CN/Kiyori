@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -39,6 +40,7 @@ fun EditMemoryDialog(
         tags: List<String>
     ) -> Unit
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
     val defaultFolder = stringResource(R.string.memory_uncategorized)
     val scrollState = rememberScrollState()
     var title by remember { mutableStateOf(memory?.title ?: "") }
@@ -132,7 +134,7 @@ fun EditMemoryDialog(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("${stringResource(R.string.memory_credibility)}: ${String.format("%.2f", credibility)}")
+                        Text("${stringResource(R.string.memory_credibility)}: ${String.format(currentLocale, "%.2f", credibility)}")
                         Slider(
                             value = credibility,
                             onValueChange = { credibility = it },
@@ -140,7 +142,7 @@ fun EditMemoryDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Text("${stringResource(R.string.memory_importance)}: ${String.format("%.2f", importance)}")
+                        Text("${stringResource(R.string.memory_importance)}: ${String.format(currentLocale, "%.2f", importance)}")
                         Slider(
                             value = importance,
                             onValueChange = { importance = it },
@@ -205,7 +207,7 @@ private fun FolderSelector(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
         )
         ExposedDropdownMenu(
             expanded = expanded,

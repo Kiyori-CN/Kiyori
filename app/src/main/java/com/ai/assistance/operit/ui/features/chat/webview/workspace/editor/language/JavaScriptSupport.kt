@@ -33,11 +33,6 @@ class JavaScriptSupport : BaseLanguageSupport() {
         )
         
         private val FILE_EXTENSIONS = listOf("js", "mjs", "cjs")
-        
-        init {
-            // 注册语言支持
-            LanguageSupportRegistry.register(JavaScriptSupport())
-        }
     }
     
     override fun getName(): String = "javascript"
@@ -51,4 +46,4 @@ class JavaScriptSupport : BaseLanguageSupport() {
     override fun getBuiltInVariables(): Set<String> = BUILT_IN_VARIABLES
     
     override fun getFileExtensions(): List<String> = FILE_EXTENSIONS
-} 
+}

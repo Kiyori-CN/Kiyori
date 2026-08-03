@@ -735,7 +735,7 @@ class MCPRepository(private val context: Context) {
                     
                     extractedCount++
                     val progress = if (totalEntries > 0) {
-                        (extractedCount * 100 / totalEntries).toInt()
+                        extractedCount * 100 / totalEntries
                     } else -1
                     
                     if (progress != lastReportedProgress) {

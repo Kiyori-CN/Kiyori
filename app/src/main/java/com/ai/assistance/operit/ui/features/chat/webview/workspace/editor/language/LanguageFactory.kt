@@ -8,14 +8,6 @@ object LanguageFactory {
      * 初始化所有语言支持
      */
     fun init() {
-        // 触发所有语言支持类的静态初始化
-        JavaScriptSupport
-        KotlinSupport
-        HtmlSupport
-        DartSupport
-        // 未来添加更多语言支持时，在这里添加
-        
-        // 初始化语言注册表
         LanguageSupportRegistry.init()
     }
     

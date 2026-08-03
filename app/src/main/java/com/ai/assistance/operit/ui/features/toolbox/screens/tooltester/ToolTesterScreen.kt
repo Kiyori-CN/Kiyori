@@ -11,7 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -168,7 +168,7 @@ fun ToolTesterScreen(navController: NavController) {
     }
 
     if (showDialog && selectedTestForDetails != null) {
-        AlertDialog(
+        BasicAlertDialog(
             onDismissRequest = { showDialog = false },
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             properties = DialogProperties(
@@ -242,7 +242,7 @@ fun ToolDetailsSheet(
                 TestStatus.SUCCESS -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
                 TestStatus.FAILED -> Icons.Default.Error to MaterialTheme.colorScheme.error
                 TestStatus.RUNNING -> Icons.Default.HourglassTop to MaterialTheme.colorScheme.tertiary
-                null -> Icons.Outlined.HelpOutline to MaterialTheme.colorScheme.onSurfaceVariant
+                null -> Icons.AutoMirrored.Outlined.HelpOutline to MaterialTheme.colorScheme.onSurfaceVariant
             }
             Icon(icon, contentDescription = "Status", tint = color, modifier = Modifier.size(32.dp))
             Column {

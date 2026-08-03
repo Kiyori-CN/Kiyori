@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.Service
 import android.content.pm.ServiceInfo
 import android.os.Build
-import com.ai.assistance.operit.util.AppLogger
 
 object ForegroundServiceCompat {
     fun buildTypes(
@@ -18,7 +17,7 @@ object ForegroundServiceCompat {
         if (dataSync) {
             types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         }
-        if (microphone) {
+        if (microphone && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         }
         if (specialUse && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -35,30 +34,4 @@ object ForegroundServiceCompat {
         }
     }
 
-    fun startForegroundWithFallback(
-        service: Service,
-        notificationId: Int,
-        notification: Notification,
-        primaryTypes: Int,
-        fallbackTypes: Int,
-        logTag: String,
-        logMessage: String
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && primaryTypes != 0) {
-            try {
-                service.startForeground(notificationId, notification, primaryTypes)
-                return
-            } catch (e: SecurityException) {
-                AppLogger.w(logTag, logMessage, e)
-            }
-
-            if (fallbackTypes != 0) {
-                startForeground(service, notificationId, notification, fallbackTypes)
-            } else {
-                service.startForeground(notificationId, notification)
-            }
-        } else {
-            service.startForeground(notificationId, notification)
-        }
-    }
 }

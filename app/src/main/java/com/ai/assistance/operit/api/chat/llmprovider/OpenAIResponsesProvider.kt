@@ -671,11 +671,14 @@ object OpenAIResponsesPayloadAdapter {
 
     private fun appendReasoningItemsFromAssistantMessage(message: JSONObject, input: JSONArray) {
         val content = message.opt("content")
-        val payloads = when (content) {
-            is String -> ChatMarkupRegex.extractOpenAiResponsesReasoningPayloads(content)
-            is JSONArray -> extractReasoningPayloadsFromContentArray(content)
-            else -> emptyList()
-        }
+        val payloads =
+            if (content is String) {
+                ChatMarkupRegex.extractOpenAiResponsesReasoningPayloads(content)
+            } else if (content is JSONArray) {
+                extractReasoningPayloadsFromContentArray(content)
+            } else {
+                emptyList()
+            }
 
         payloads.forEach { payloadBase64 ->
             runCatching {

@@ -127,7 +127,7 @@ private data class ComposeDslWebViewResourceDecision(
     val response: ComposeDslWebViewResourceResponseSpec? = null
 )
 
-private class ComposeDslWebViewActionLane(label: String) {
+internal class ComposeDslWebViewActionLane(label: String) {
     private val executor =
         Executors.newSingleThreadExecutor { runnable ->
             Thread(runnable, "OperitComposeDslWebView:$label").apply {
@@ -1271,7 +1271,7 @@ private fun parseComposeDslJsonArray(raw: String): List<Any?>? {
     return JsJavaBridgeDelegates.parsePlainJsonArray(raw)
 }
 
-private class ComposeDslWebViewPageBridge(
+internal class ComposeDslWebViewPageBridge(
     private val hostContextProvider: () -> ComposeDslWebViewHostContext?,
     private val controllerKeyProvider: () -> String?,
     private val actionLane: ComposeDslWebViewActionLane
@@ -1371,6 +1371,10 @@ private class ComposeDslWebViewPageBridge(
             )
         }
     }
+}
+
+private fun WebView.installComposeDslPageBridge(bridge: ComposeDslWebViewPageBridge) {
+    addJavascriptInterface(bridge, WEBVIEW_INTERNAL_JS_INTERFACE_BRIDGE_NAME)
 }
 
 private fun launchComposeDslExternalUri(
@@ -1608,7 +1612,7 @@ internal fun renderWebViewNode(
         } else {
             null
         }
-    val pageBridge =
+    val pageBridge: ComposeDslWebViewPageBridge =
         remember(webViewScopeKey) {
             ComposeDslWebViewPageBridge(
                 hostContextProvider = { hostContextRef.get() },
@@ -1621,7 +1625,7 @@ internal fun renderWebViewNode(
         WebViewConfig.createWebView(context).apply {
             webViewRef.set(this)
             disposedRef.set(false)
-            addJavascriptInterface(pageBridge, WEBVIEW_INTERNAL_JS_INTERFACE_BRIDGE_NAME)
+            installComposeDslPageBridge(pageBridge)
             if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 scriptHandlerRef.set(
                     runCatching {
@@ -1903,26 +1907,6 @@ internal fun renderWebViewNode(
                                 "title" to state.title,
                                 "canGoBack" to state.canGoBack,
                                 "canGoForward" to state.canGoForward
-                            )
-                        )
-                    }
-
-                    override fun onReceivedError(
-                        view: WebView?,
-                        errorCode: Int,
-                        description: String?,
-                        failingUrl: String?
-                    ) {
-                        super.onReceivedError(view, errorCode, description, failingUrl)
-                        if (disposedRef.get()) {
-                            return
-                        }
-                        emitAction(
-                            callbackIdsRef.get().onReceivedError,
-                            mapOf(
-                                "errorCode" to errorCode,
-                                "description" to description,
-                                "url" to failingUrl
                             )
                         )
                     }
@@ -2216,7 +2200,16 @@ internal fun renderWebViewNode(
             pendingFileChooserCallback?.onReceiveValue(null)
             pendingFileChooserCallback = null
             scriptHandlerRef.getAndSet(null)?.let { handler ->
-                runCatching { handler.remove() }
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                    runCatching { handler.remove() }
+                        .onFailure { error ->
+                            AppLogger.e(
+                                TAG,
+                                "Failed to remove WebView document-start script",
+                                error
+                            )
+                        }
+                }
             }
             webViewRef.set(null)
             actionLane.shutdown()
@@ -2257,9 +2250,6 @@ internal fun renderWebViewNode(
             setSupportMultipleWindows(props.bool("supportMultipleWindows", true))
             allowFileAccess = props.bool("allowFileAccess", true)
             allowContentAccess = props.bool("allowContentAccess", true)
-            allowFileAccessFromFileURLs = props.bool("allowFileAccessFromFileURLs", true)
-            allowUniversalAccessFromFileURLs =
-                props.bool("allowUniversalAccessFromFileURLs", true)
             val supportZoom = props.bool("supportZoom", true)
             setSupportZoom(supportZoom)
             builtInZoomControls = props.bool("builtInZoomControls", supportZoom)

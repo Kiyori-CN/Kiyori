@@ -8,6 +8,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ANDROID = "{http://schemas.android.com/apk/res/android}"
+TOOLS = "{http://schemas.android.com/tools}"
 EXPECTED_SHADER_HASHES = {
     "Anime4K_AutoDownscalePre_x2.glsl":
         "9141668ced0b26512253e6396e805820716f35b57c92950d9da489f8b96a7ba4",
@@ -75,6 +76,23 @@ class PlayerAssetsTest(unittest.TestCase):
         self.assertNotIn("*/*", main_mime_types)
         self.assertNotIn("video/*", main_mime_types)
 
+    def test_renderx_sample_launcher_is_removed_at_manifest_merge_boundary(self) -> None:
+        manifest = ET.parse(REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml")
+        activities = manifest.getroot().find("application").findall("activity")
+        by_name = {activity.attrib[ANDROID + "name"]: activity for activity in activities}
+        removal = by_name["live.pw.renderX.LatexView"]
+        self.assertEqual("remove", removal.attrib[TOOLS + "node"])
+        self.assertEqual("MissingClass", removal.attrib[TOOLS + "ignore"])
+
+        build_script = (REPO_ROOT / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+        self.assertIn("VerifySingleDebugLauncherTask", build_script)
+        self.assertIn("verifySingleDebugLauncher", build_script)
+        self.assertIn("SingleArtifact.MERGED_MANIFEST", build_script)
+        self.assertIn(
+            'listOf("com.ai.assistance.operit.ui.main.MainActivity")',
+            build_script,
+        )
+
     def test_anime4k_assets_are_fixed_upstream_sources(self) -> None:
         attributes = (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8")
         self.assertIn(
@@ -89,10 +107,12 @@ class PlayerAssetsTest(unittest.TestCase):
             self.assertIn(EXPECTED_SHADER_LICENSE_MARKERS[file_name], payload)
             self.assertEqual(expected_hash, hashlib.sha256(payload).hexdigest())
 
-    def test_gradle_has_no_native_packaging_selection(self) -> None:
+    def test_gradle_has_no_native_pick_first_packaging_selection(self) -> None:
         build_script = (REPO_ROOT / "app" / "build.gradle.kts").read_text(encoding="utf-8")
-        self.assertNotIn("pickFirsts", build_script)
-        self.assertNotIn("pickFirst", build_script)
+        jni_libs_block = build_script.split("jniLibs {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+        self.assertNotIn("pickFirsts", jni_libs_block)
+        self.assertNotIn("pickFirst", jni_libs_block)
+        self.assertIn('pickFirsts += "/META-INF/LICENSE.md"', build_script)
         self.assertIn("dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7", build_script)
         self.assertIn("verifyPlayerNativeInputs", build_script)
         self.assertIn('implementation(files("libs/mpv-player-arm64.aar"))', build_script)

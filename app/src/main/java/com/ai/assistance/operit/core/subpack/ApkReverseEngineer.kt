@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.legacyWebpCompressFormat
 import com.android.apksig.ApkSigner
 import java.io.*
 import java.security.KeyStore
@@ -264,7 +265,7 @@ class ApkReverseEngineer(private val context: Context) {
         val scaled = scaleBitmap(sourceBitmap, size)
         val format =
                 when (entryName.substringAfterLast('.').lowercase()) {
-                    "webp" -> Bitmap.CompressFormat.WEBP
+                    "webp" -> legacyWebpCompressFormat()
                     "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
                     else -> Bitmap.CompressFormat.PNG
                 }
@@ -419,7 +420,7 @@ class ApkReverseEngineer(private val context: Context) {
                 }
 
                 if (!oldPackageName.isNullOrEmpty()) {
-                    replacePackageReferences(axml, oldPackageName!!, newPackageName)
+                    replacePackageReferences(axml, oldPackageName, newPackageName)
                 }
             }
 
@@ -511,6 +512,7 @@ class ApkReverseEngineer(private val context: Context) {
      * @param outputApk 签名后的APK文件
      * @return 包含签名结果和错误消息的Pair，成功时第二个值为null
      */
+    @Suppress("DEPRECATION")
     fun signApk(
             unsignedApk: File,
             keyStoreFile: File,
@@ -648,6 +650,7 @@ class ApkReverseEngineer(private val context: Context) {
     }
 
     /** 使用已加载的KeyStore进行签名 */
+    @Suppress("DEPRECATION")
     private fun signWithKeyStore(
             keyStore: KeyStore,
             unsignedApk: File,
@@ -686,7 +689,7 @@ class ApkReverseEngineer(private val context: Context) {
                             AppLogger.e(TAG, errorMessage)
                             return Pair(false, errorMessage)
                         }
-                        cert as X509Certificate
+                        cert
                     }
 
             // 使用ApkSigner进行签名

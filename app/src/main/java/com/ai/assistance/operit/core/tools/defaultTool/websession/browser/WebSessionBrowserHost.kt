@@ -640,15 +640,23 @@ internal class WebSessionBrowserHost(
         }
     }
 
-    fun showTextSelectionActionsOverlay(anchorX: Double, anchorY: Double) {
+    fun showTextSelectionActionsOverlay(
+        anchorX: Double,
+        anchorY: Double,
+        viewportWidth: Double,
+        viewportHeight: Double
+    ) {
         if (!appPresentationActive) return
         val webView = activeWebView ?: return
+        require(viewportWidth > 0.0 && viewportHeight > 0.0) {
+            "Text selection viewport must have positive dimensions"
+        }
         hostState =
             hostState.copy(
                 textSelectionActions =
                     WebSessionTextSelectionActionsState(
-                        anchorXPx = (anchorX * webView.scale).roundToInt(),
-                        anchorYPx = (anchorY * webView.scale).roundToInt(),
+                        anchorXPx = (anchorX * webView.width / viewportWidth).roundToInt(),
+                        anchorYPx = (anchorY * webView.height / viewportHeight).roundToInt(),
                     ),
             )
     }
@@ -1120,13 +1128,7 @@ internal class WebSessionBrowserHost(
     }
 
     private fun createIndicatorLayoutParams(): WindowManager.LayoutParams {
-        val type =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
+        val type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
         return WindowManager.LayoutParams(
             indicatorWidthPx(),
@@ -1144,13 +1146,7 @@ internal class WebSessionBrowserHost(
     }
 
     private fun createIndicatorCloseActionLayoutParams(): WindowManager.LayoutParams {
-        val type =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
+        val type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         val closeActionSize = dp(BROWSER_MINIMIZED_INDICATOR_CLOSE_ACTION_SIZE_DP)
         val position = resolveIndicatorCloseActionPosition()
         return WindowManager.LayoutParams(

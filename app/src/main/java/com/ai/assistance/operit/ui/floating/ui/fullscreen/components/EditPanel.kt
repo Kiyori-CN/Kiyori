@@ -130,7 +130,7 @@ fun EditPanel(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.White
                     ),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                         brush = Brush.horizontalGradient(
                             listOf(Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.5f))
                         )

@@ -111,7 +111,7 @@ open class KimiProvider(
 
         var toolsJson: String? = null
         if (effectiveEnableToolCall) {
-            val tools = buildToolDefinitions(availableTools!!)
+            val tools = buildToolDefinitions(availableTools)
             if (tools.length() > 0) {
                 jsonObject.put("tools", tools)
                 jsonObject.put("tool_choice", "auto")

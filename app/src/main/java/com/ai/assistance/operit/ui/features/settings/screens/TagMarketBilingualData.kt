@@ -7,7 +7,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
@@ -332,7 +332,7 @@ Full icon list: https://fonts.google.com/icons
         tagType = TagType.FUNCTION,
         categoryZh = "特殊功能",
         categoryEn = "Special Function",
-        icon = Icons.Default.Label
+        icon = Icons.AutoMirrored.Filled.Label
     ),
     PresetTagBilingual(
         nameZh = "字数控制",

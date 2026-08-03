@@ -81,6 +81,19 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
+internal const val KIYORI_WORK_MANAGER_JOB_ID_MIN = 0x5000
+internal const val KIYORI_WORK_MANAGER_JOB_ID_MAX = 0x53E8
+
+/**
+ * WorkManager validates max - min >= 1,000 rather than the inclusive element count.
+ */
+internal fun WorkConfiguration.Builder.applyKiyoriJobSchedulerIdRange():
+    WorkConfiguration.Builder =
+    setJobSchedulerJobIdRange(
+        KIYORI_WORK_MANAGER_JOB_ID_MIN,
+        KIYORI_WORK_MANAGER_JOB_ID_MAX,
+    )
+
 /** Application class for Kiyori */
 class KiyoriApplication :
     Application(),
@@ -90,8 +103,6 @@ class KiyoriApplication :
 
     companion object {
         private const val TAG = "KiyoriApplication"
-        private const val WORK_MANAGER_JOB_ID_MIN = 0x5000
-        private const val WORK_MANAGER_JOB_ID_MAX = 0x53E7
     }
 
     // 应用级协程作用域
@@ -433,11 +444,8 @@ class KiyoriApplication :
         get() = WorkConfiguration.Builder()
             .setMinimumLoggingLevel(if (BuildConfig.DEBUG) KiyoriLogger.DEBUG else KiyoriLogger.INFO)
             // BrowserDownloadRuntime owns JobScheduler ID 0x4B10. Reserve a separate block of
-            // exactly 1,000 IDs so WorkManager and the direct scheduler can never collide.
-            .setJobSchedulerJobIdRange(
-                WORK_MANAGER_JOB_ID_MIN,
-                WORK_MANAGER_JOB_ID_MAX,
-            )
+            // 1,001 inclusive IDs: WorkManager validates max - min >= 1,000.
+            .applyKiyoriJobSchedulerIdRange()
             .build()
 
     private fun ensureWorkManagerInitialized() {
@@ -551,6 +559,9 @@ class KiyoriApplication :
     }
 
     /** 初始化应用语言设置 */
+    // Android 8-12 的 Application 资源刷新仍依赖 updateConfiguration；
+    // attachBaseContext 随后用 createConfigurationContext 建立完整配置。
+    @Suppress("DEPRECATION")
     private fun initializeAppLanguage() {
         try {
             // 同步获取已保存的语言设置
@@ -609,14 +620,9 @@ class KiyoriApplication :
             val config = Configuration(base.resources.configuration)
 
             // 设置语言配置
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                val localeList = LocaleList(locale)
-                LocaleList.setDefault(localeList)
-                config.setLocales(localeList)
-            } else {
-                config.locale = locale
-                Locale.setDefault(locale)
-            }
+            val localeList = LocaleList(locale)
+            LocaleList.setDefault(localeList)
+            config.setLocales(localeList)
 
             // 使用createConfigurationContext创建新的上下文
             val context = base.createConfigurationContext(config)

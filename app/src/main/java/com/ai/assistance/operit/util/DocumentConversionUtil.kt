@@ -192,7 +192,7 @@ object DocumentConversionUtil {
                     when (targetExt.lowercase()) {
                         "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
                         "png" -> Bitmap.CompressFormat.PNG
-                        "webp" -> Bitmap.CompressFormat.WEBP
+                        "webp" -> legacyWebpCompressFormat()
                         else -> Bitmap.CompressFormat.PNG // Default to PNG
                     }
 
@@ -200,7 +200,7 @@ object DocumentConversionUtil {
             val quality =
                     when (format) {
                         Bitmap.CompressFormat.JPEG -> 95
-                        Bitmap.CompressFormat.WEBP -> 95
+                        legacyWebpCompressFormat() -> 95
                         else -> 100
                     }
 

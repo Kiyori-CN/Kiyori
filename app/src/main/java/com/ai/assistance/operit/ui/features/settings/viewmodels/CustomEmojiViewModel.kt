@@ -25,12 +25,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
  * 自定义表情管理 ViewModel
  *
  * 管理当前活跃角色目标的自定义表情 UI 状态和业务逻辑。
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class CustomEmojiViewModel(context: Context) : ViewModel() {
 
     private val repository = CustomEmojiRepository.getInstance(context)
@@ -51,7 +53,7 @@ class CustomEmojiViewModel(context: Context) : ViewModel() {
         .flatMapLatest { prompt ->
             when (prompt) {
                 is ActivePrompt.CharacterCard -> {
-                    characterCardManager.getCharacterCardFlow(prompt.id).map { it?.name.orEmpty() }
+                    characterCardManager.getCharacterCardFlow(prompt.id).map { it.name }
                 }
                 is ActivePrompt.CharacterGroup -> {
                     characterGroupCardManager.getCharacterGroupCardFlow(prompt.id).map { it?.name.orEmpty() }
@@ -80,7 +82,6 @@ class CustomEmojiViewModel(context: Context) : ViewModel() {
             initialValue = emptyList()
         )
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val emojisInCategory: StateFlow<List<CustomEmoji>> = combine(activePrompt, _selectedCategory) { prompt, category ->
         prompt to category
     }.flatMapLatest { (prompt, category) ->

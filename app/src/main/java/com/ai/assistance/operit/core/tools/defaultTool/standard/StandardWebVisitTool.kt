@@ -12,6 +12,7 @@ import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import android.webkit.SslErrorHandler
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -721,12 +722,7 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
 
         return WindowManager.LayoutParams().apply {
             // Set window type
-            type =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                    } else {
-                        WindowManager.LayoutParams.TYPE_PHONE
-                    }
+            type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
             // Important: Do not set FLAG_NOT_FOCUSABLE or FLAG_NOT_TOUCHABLE
             // as they would prevent interaction with the WebView
@@ -760,11 +756,7 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
         return WindowManager.LayoutParams(
                 sizePx,
                 sizePx,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    WindowManager.LayoutParams.TYPE_PHONE
-                },
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
@@ -1298,19 +1290,20 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
 
                                                     override fun onReceivedError(
                                                             view: WebView,
-                                                            errorCode: Int,
-                                                            description: String,
-                                                            failingUrl: String
+                                                            request: WebResourceRequest,
+                                                            error: WebResourceError
                                                     ) {
+                                                        if (!request.isForMainFrame) {
+                                                            return
+                                                        }
                                                         AppLogger.e(
                                                                 TAG,
-                                                                "WebView error: $errorCode - $description"
+                                                                "WebView error: ${error.errorCode} - ${error.description}"
                                                         )
                                                         super.onReceivedError(
                                                                 view,
-                                                                errorCode,
-                                                                description,
-                                                                failingUrl
+                                                                request,
+                                                                error
                                                         )
                                                     }
 
@@ -1319,13 +1312,13 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
                                                             handler: SslErrorHandler,
                                                             error: android.net.http.SslError
                                                     ) {
-                                                        AppLogger.w(
+                                                        AppLogger.e(
                                                                 TAG,
-                                                                "visit_web SSL error, proceeding anyway. " +
+                                                                "visit_web SSL error; navigation cancelled. " +
                                                                         "url=${error.url}, primaryError=${error.primaryError}"
                                                         )
                                                         hasSslError.value = true
-                                                        handler.proceed()
+                                                        handler.cancel()
                                                     }
                                                 }
 
@@ -1518,7 +1511,8 @@ class StandardWebVisitTool(private val context: Context) : ToolExecutor {
 //                } catch (_: Exception) {
 //                    // AppCache API removed on newer Android versions
 //                }
-                allowFileAccess = true
+                allowFileAccess = false
+                allowContentAccess = false
 
                 // 设置默认缓存模式，而不是完全禁用
                 cacheMode = android.webkit.WebSettings.LOAD_DEFAULT

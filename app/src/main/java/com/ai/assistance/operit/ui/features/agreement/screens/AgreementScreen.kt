@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.agreement.screens
 
 import android.os.Build
+import android.util.TypedValue
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
+import androidx.core.widget.TextViewCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
@@ -132,13 +134,14 @@ fun AgreementScreen(onAgreementAccepted: () -> Unit) {
                                                 android.widget.TextView(context).apply {
                                                         setTextColor(textColor.toArgb())
                                                         textSize = typography.fontSize.value
-                                                        val lineHeightInPixels = (typography.lineHeight.value * context.resources.displayMetrics.scaledDensity).toInt()
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                                                lineHeight = lineHeightInPixels
-                                                        } else {
-                                                                // Fallback for older APIs
-                                                                setLineSpacing(lineHeightInPixels - paint.fontMetricsInt.descent + paint.fontMetricsInt.ascent.toFloat(), 1.0f)
-                                                        }
+                                                        TextViewCompat.setLineHeight(
+                                                                this,
+                                                                TypedValue.applyDimension(
+                                                                        TypedValue.COMPLEX_UNIT_SP,
+                                                                        typography.lineHeight.value,
+                                                                        context.resources.displayMetrics
+                                                                ).toInt()
+                                                        )
                                                 }
                                         },
                                         update = { textView ->

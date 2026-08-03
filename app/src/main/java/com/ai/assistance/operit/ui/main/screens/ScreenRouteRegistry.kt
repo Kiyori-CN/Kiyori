@@ -549,7 +549,6 @@ object ScreenRouteRegistry {
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun createRouteReflector(routeId: String): ScreenRouteReflector? {
         routeReflectorsById[routeId]?.let { return it }
 
@@ -557,7 +556,7 @@ object ScreenRouteRegistry {
         val constructor = screenType.kotlin.primaryConstructor ?: return null
         val reflector =
             ScreenRouteReflector(
-                constructor = constructor as KFunction<Screen>,
+                constructor = constructor,
                 valueParameters = constructor.parameters.filter { it.kind == KParameter.Kind.VALUE }
             )
         routeReflectorsById[routeId] = reflector

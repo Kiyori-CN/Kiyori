@@ -145,6 +145,7 @@ fun RegisterModelConfigSaveAction(
     }
 }
 
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun <T> DebouncedModelConfigAutoSaveEffect(
     effectKey: Any,

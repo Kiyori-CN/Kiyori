@@ -553,7 +553,7 @@ private fun QuickAccessChipWithLongPress(
         modifier = Modifier.pointerInput(onLongPress) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false)
-                val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis.toLong()) {
+                val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                     waitForUpOrCancellation()
                     false
                 } ?: true

@@ -15,6 +15,17 @@ project("launcher")
 add_executable(operit_shell_exec
         native-lib.cpp)
 
+target_compile_options(operit_shell_exec PRIVATE
+        -O2
+        -DNDEBUG
+        -fno-exceptions
+        -fno-rtti)
+
+target_link_options(operit_shell_exec PRIVATE
+        -nostdlib++
+        -Wl,-z,max-page-size=16384
+        -Wl,--strip-all)
+
 # Specifies libraries CMake should link to your target library. You
 # can link libraries from various origins, such as libraries defined in this
 # build script, prebuilt third-party libraries, or Android system libraries.

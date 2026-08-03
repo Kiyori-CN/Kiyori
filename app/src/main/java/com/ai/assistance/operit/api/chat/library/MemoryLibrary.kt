@@ -381,7 +381,7 @@ object MemoryLibrary {
 
             try {
                 // 1. Create main problem memory
-                val mainProblemMemory = analysis.mainProblem?.let { mainProblem ->
+                val mainProblemMemory = analysis.mainProblem.let { mainProblem ->
                     val existingMemory = memoryRepository.findMemoryByTitle(mainProblem.title)
                     if (existingMemory != null) {
                         AppLogger.d(TAG, "1. 发现同名核心记忆，更新内容: '${mainProblem.title}'")
@@ -404,7 +404,7 @@ object MemoryLibrary {
                         memory
                     }
                 }
-                mainProblemMemory?.let {
+                mainProblemMemory.let {
                     createdMemories[it.title] = it
                 }
 
@@ -525,8 +525,8 @@ object MemoryLibrary {
                     AppLogger.d(
                         TAG,
                         "候选记忆[$index] id=${memory.id}, title='${memory.title}', " +
-                            "folder='${memory.folderPath ?: ""}', importance=${String.format("%.2f", memory.importance)}, " +
-                            "credibility=${String.format("%.2f", memory.credibility)}, preview='$preview'"
+                            "folder='${memory.folderPath ?: ""}', importance=${String.format(java.util.Locale.getDefault(), "%.2f", memory.importance)}, " +
+                            "credibility=${String.format(java.util.Locale.getDefault(), "%.2f", memory.credibility)}, preview='$preview'"
                     )
                 }
             }

@@ -567,9 +567,8 @@ class StandardWorkflowTools(private val context: Context) {
                         val actionType = if (patchObj.has("actionType")) patchObj.optString("actionType", existingNode.actionType) else existingNode.actionType
                         val actionConfig = mergeParameterValueMap(existingNode.actionConfig, patchObj.optJSONObject("actionConfig"))
                         val jsCode = if (patchObj.has("jsCode")) {
-                            when (val raw = patchObj.opt("jsCode")) {
-                                null, JSONObject.NULL -> null
-                                else -> raw.toString()
+                            patchObj.opt("jsCode").let { raw ->
+                                if (raw == null || raw === JSONObject.NULL) null else raw.toString()
                             }
                         } else {
                             existingNode.jsCode
@@ -1004,7 +1003,12 @@ class StandardWorkflowTools(private val context: Context) {
                     } else {
                         emptyMap()
                     }
-                    val jsCode = nodeObj.optString("jsCode", null)
+                    val jsCode =
+                        if (nodeObj.has("jsCode") && !nodeObj.isNull("jsCode")) {
+                            nodeObj.optString("jsCode")
+                        } else {
+                            null
+                        }
 
                     ExecuteNode(
                         id = id,
@@ -1177,7 +1181,12 @@ class StandardWorkflowTools(private val context: Context) {
             val id = connObj.optString("id", UUID.randomUUID().toString())
             val sourceNodeId = resolveNodeId(connObj, true, nodeIdList, nodeIdSet, nodeNameToIds)
             val targetNodeId = resolveNodeId(connObj, false, nodeIdList, nodeIdSet, nodeNameToIds)
-            val condition = connObj.optString("condition", null)
+            val condition =
+                if (connObj.has("condition") && !connObj.isNull("condition")) {
+                    connObj.optString("condition")
+                } else {
+                    null
+                }
 
             if (sourceNodeId.isBlank() || targetNodeId.isBlank()) {
                 AppLogger.w(TAG, "Connection missing source or target node ID")

@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.FlowPreview::class)
+
 package com.ai.assistance.operit.ui.features.settings.screens
 
 import android.annotation.SuppressLint
@@ -138,7 +140,10 @@ private fun serializeHeaderEntries(headers: List<Pair<String, String>>): String 
 }
 
 @SuppressLint("LocalContextGetResourceValueCall")
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalLayoutApi::class
+)
 @Composable
 fun ModelConfigScreen(
     navigateToMnnModelDownload: (() -> Unit)? = null
@@ -1447,5 +1452,5 @@ private fun ModelConnectionTestType.toLabelResId(): Int {
 }
 
 private fun formatFloatValue(value: Float): String {
-    return if (value % 1f == 0f) value.toInt().toString() else String.format("%.2f", value)
+    return if (value % 1f == 0f) value.toInt().toString() else String.format(java.util.Locale.getDefault(), "%.2f", value)
 }

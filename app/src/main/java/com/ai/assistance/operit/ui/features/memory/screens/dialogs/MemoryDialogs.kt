@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
@@ -39,8 +40,9 @@ fun MemoryInfoDialog(
         onEdit: () -> Unit,
         onDelete: () -> Unit
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
     val scrollState = rememberScrollState()
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
+    val dateFormat = remember(currentLocale) { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", currentLocale) }
 
     AlertDialog(
             onDismissRequest = onDismiss,
@@ -59,11 +61,11 @@ fun MemoryInfoDialog(
                     Text("${stringResource(R.string.memory_uuid)}: ${memory.uuid}", style = MaterialTheme.typography.bodySmall)
                     Text("${stringResource(R.string.memory_source)}: ${memory.source}", style = MaterialTheme.typography.bodySmall)
                     Text(
-                            "${stringResource(R.string.memory_importance)}: ${String.format("%.2f", memory.importance)}",
+                            "${stringResource(R.string.memory_importance)}: ${String.format(currentLocale, "%.2f", memory.importance)}",
                             style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                            "${stringResource(R.string.memory_credibility)}: ${String.format("%.2f", memory.credibility)}",
+                            "${stringResource(R.string.memory_credibility)}: ${String.format(currentLocale, "%.2f", memory.credibility)}",
                             style = MaterialTheme.typography.bodySmall
                     )
                     Text(
@@ -248,4 +250,4 @@ fun BatchDeleteConfirmDialog(
             }
         }
     )
-} 
+}

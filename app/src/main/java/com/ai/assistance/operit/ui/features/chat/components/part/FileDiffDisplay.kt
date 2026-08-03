@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +35,6 @@ data class FileDiff(
 fun FileDiffDisplay(diff: FileDiff) {
     val diffLines = diff.diffContent.trimEnd().lines()
     var showDetailDialog by remember { mutableStateOf(false) }
-    val clipboardManager = LocalClipboardManager.current
 
     if (showDetailDialog) {
         ContentDetailDialog(

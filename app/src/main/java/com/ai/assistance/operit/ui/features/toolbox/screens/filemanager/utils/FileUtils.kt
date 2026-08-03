@@ -4,6 +4,8 @@ import android.content.Context
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.util.AppLogger
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ai.assistance.operit.core.tools.DirectoryListingData
@@ -37,14 +39,14 @@ fun getFileIcon(file: FileItem): ImageVector {
                     file.name.endsWith(".rar", ignoreCase = true) ||
                     file.name.endsWith(".7z", ignoreCase = true) ||
                     file.name.endsWith(".tar", ignoreCase = true) -> Icons.Default.FolderZip
-            file.name.endsWith(".txt", ignoreCase = true) -> Icons.Default.TextSnippet
+            file.name.endsWith(".txt", ignoreCase = true) -> Icons.AutoMirrored.Filled.TextSnippet
             file.name.endsWith(".doc", ignoreCase = true) ||
                     file.name.endsWith(".docx", ignoreCase = true) -> Icons.Default.Description
             file.name.endsWith(".xls", ignoreCase = true) ||
                     file.name.endsWith(".xlsx", ignoreCase = true) -> Icons.Default.TableChart
             file.name.endsWith(".ppt", ignoreCase = true) ||
                     file.name.endsWith(".pptx", ignoreCase = true) -> Icons.Default.PictureAsPdf
-            else -> Icons.Default.InsertDriveFile
+            else -> Icons.AutoMirrored.Filled.InsertDriveFile
         }
     }
 }
@@ -87,7 +89,7 @@ fun formatFileSize(size: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
     val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
 
-    return String.format("%.1f %s", size / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])
+    return String.format(java.util.Locale.getDefault(), "%.1f %s", size / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])
 }
 
 /** 格式化日期 */

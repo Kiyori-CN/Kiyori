@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -219,6 +220,7 @@ private fun ModelUsagePieChart(
     modifier: Modifier = Modifier,
     items: List<Pair<String, Long>>
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
     val total = remember(items) { items.sumOf { it.second }.toDouble().coerceAtLeast(1.0) }
     val colors = listOf(
         MaterialTheme.colorScheme.primary,
@@ -282,7 +284,7 @@ private fun ModelUsagePieChart(
                         )
                         val percent = (value.toDouble() / total) * 100.0
                         Text(
-                            text = String.format("%.1f%%", percent),
+                            text = String.format(currentLocale, "%.1f%%", percent),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

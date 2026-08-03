@@ -1145,7 +1145,7 @@ internal fun renderDividerNode(
     modifierResolver: ComposeDslModifierResolver
 ) {
     val props = node.props
-    androidx.compose.material3.Divider(
+    androidx.compose.material3.HorizontalDivider(
         modifier = applyScopedCommonModifier(Modifier, props, modifierResolver),
         thickness = props.dp("thickness"),
         color = props.colorOrNull("color") ?: Color.Unspecified

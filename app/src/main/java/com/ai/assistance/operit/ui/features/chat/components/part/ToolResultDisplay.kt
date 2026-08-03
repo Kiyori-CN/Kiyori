@@ -16,8 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,7 +39,6 @@ fun ToolResultDisplay(
         enableDialog: Boolean = true  // 新增参数：是否启用弹窗功能，默认启用
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val hasContent = result.isNotBlank()
 
     // 弹窗状态
@@ -53,7 +52,7 @@ fun ToolResultDisplay(
                 isSuccess = isSuccess,
                 onDismiss = { showDetailDialog = false },
                 onCopy = {
-                    clipboardManager.setText(AnnotatedString(result))
+                    context.copyPlainTextToClipboard("Kiyori tool result", result)
                     onCopyResult()
                 }
         )
@@ -106,7 +105,7 @@ fun ToolResultDisplay(
         onCopyClick =
             if (hasContent) {
                 {
-                    clipboardManager.setText(AnnotatedString(result))
+                    context.copyPlainTextToClipboard("Kiyori tool result", result)
                     onCopyResult()
                 }
             } else {

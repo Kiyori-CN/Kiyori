@@ -5,8 +5,6 @@
         <trust-anchors>
             <!-- 信任系统证书 -->
             <certificates src="system" />
-            <!-- 信任用户证书 -->
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
-</network-security-config> 
+</network-security-config>

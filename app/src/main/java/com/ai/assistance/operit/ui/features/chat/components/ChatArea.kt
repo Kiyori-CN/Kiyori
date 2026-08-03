@@ -65,8 +65,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -87,7 +87,7 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Summarize
@@ -342,7 +342,7 @@ fun ChatArea(
         isLatestMessageVisible &&
             showLoadingIndicator &&
             chatStyle == ChatStyle.BUBBLE &&
-            lastMessage?.sender == "ai"
+            lastMessage.sender == "ai"
     Box(
         modifier =
             modifier
@@ -964,7 +964,7 @@ private fun MessageItem(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Reply,
+                            imageVector = Icons.AutoMirrored.Filled.Reply,
                             contentDescription = stringResource(R.string.reply_message),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
@@ -1138,7 +1138,6 @@ private fun MessageCopyPreviewBottomSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val textScrollState = rememberScrollState()
     var showPlainText by remember(text) { mutableStateOf(true) }
@@ -1222,7 +1221,7 @@ private fun MessageCopyPreviewBottomSheet(
                 TextButton(
                     enabled = !showPlainText || plainText != null,
                     onClick = {
-                        clipboardManager.setText(AnnotatedString(displayedText))
+                        context.copyPlainTextToClipboard("Kiyori message", displayedText)
                         Toast.makeText(
                             context,
                             context.getString(R.string.message_copied_to_clipboard),

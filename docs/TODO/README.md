@@ -36,36 +36,22 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 - [M-05 Design 与 Platform 精确实施清单](kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md)
 - [Stage 4 前质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
 
-当前状态：`M-05 complete / M-05E sealed / QD-05 complete / QD-07 in progress`。QD-01 已补齐
-五个非默认语言目录中的 22 个 Browser history 字符串，并把 Compose 动态资源读取改为
-`LocalResources`/`stringResource`；XML、占位符、Kotlin 编译、三组 WebSession 单测和 fresh
-full lint 均通过，current-only Lint 已从 `27 errors / 287 warnings / 3 hints` 收敛到
-`0 errors / 287 warnings / 3 hints`。QD-02 又以行为保持方式完成 52 处 SharedPreferences
-KTX、7 处图形/URI KTX、3 个不可达 SDK 分支、2 个 `Modifier` 参数顺序和 2 个 primitive
-state 修复；完整 JVM `137 suites / 822 tests`、Kotlin 编译、fresh lint、formal readiness
-和 Debug APK 构建均通过，当前为 `0 errors / 223 warnings / 1 baseline hint`，没有修改
-baseline 或新增 suppress。QD-03 又删除 113 个零引用字符串键的 776 个多语言定义、
-3 个颜色和 4 个死图标，把 26 个在用 PNG 原字节移入 `drawable-nodpi`，并把 17 个数量
-文案改为符合各语言规则的 plurals；资源合并、完整 JVM 和 fresh lint 通过，三类目标及
-quantity 警报均归零，当前为 `0 errors / 58 warnings / 1 baseline hint`。临时完整
-baseline 与已审阅 baseline 的交集为 `retained=5787 / stale=4 / current-only=58`，
-未吸收当前警报。QD-04 又把 AndroidX WebKit 调用收口到显式 feature contract，把三个
-进程级 owner 收窄为 Application 生命周期并把 Browser host 移出静态字段，同时完成
-language split、selected media、JobScheduler ID、窗口宽度、Player 方向/Surface owner
-和 6 处 Web SQL 弃用配置的根因修复；八类平台警报均归零，当前为
-`0 errors / 28 warnings / 1 baseline hint`。完整 baseline 交集为
-`retained=5786 / stale=1 / current-only=28`，没有吸收依赖警报。完整重编译额外暴露的
-Kotlin compiler 警报已纳入 QD-07。QD-05A 随后删除零消费者的 MediaPipe Text 依赖，
-升级 Filament/ONNX Runtime/Junrar/Jsoup，并按 Filament 1.74 的 `DoubleArray` clear color
-合同完成唯一源码适配；完整编译、Jsoup 定向 3/3 测试和 fresh lint 通过，当前为
-`0 errors / 21 warnings / 1 baseline hint`，本批 7 条版本记录归零。QD-05B/QD-05C 又把
-POI/BouncyCastle/MINA/Commons IO 更新到已验证版本，把 compile SDK 统一为 37、Kotlin
-统一为 2.4.10，并为 POI、BouncyCastle 和 terminal-owned MINA 建立失败优先、可复现的
-闭包净化任务；Room KAPT metadata classpath 显式对齐后代码生成和编译通过。final fresh
-lint 为 `0 errors / 0 warnings / 1 baseline hint`，baseline 交集为
-`retained=5776 / stale=0 / current-only=0`，SHA-256 为
-`9E557039EF859A818E027196C59734D96E3CA7CCA544A389A8715FFF8D5BD2D9`。
-强制完整 Kotlin 编译已建立 QD-07 的 552 条精确清单。正式实施严格按
+当前状态：`M-05 complete / M-05E sealed / QD-01..QD-07 complete /
+local validation complete / delivery audit in progress`。current-only Lint 已从
+`27 errors / 287 warnings / 3 hints` 收敛为 0；依赖、资源、平台、WebKit、TLS、
+receiver、权限、accessibility、native asset、PTY 与 Kotlin 编译器警报均按
+[Stage 4 前质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
+分批处理。最终完整 baseline 为 `retained=5606 / stale=92 / current-only=0`，SHA-256
+`BEC89B4BF52DE60D7E839336080878B03DB154A7DC072D3C1875BDF0DD1748D0`；未新增
+suppress、lint disable 或 baseline 条目。552 条项目 Kotlin 编译器警报的实现清理及本地
+最终验证已完成：强制完整 Kotlin 编译项目 warning 为 0，Python `174/174`、architecture
+`37/37`、JVM `140 suites / 831 tests`、formal readiness、Markdown、diff 与正式 Lint
+均通过。RenderX 依赖错误发布的第二个 `LatexView` launcher 已在 Manifest merge 边界
+精确移除，并新增最终合并 Manifest 唯一 launcher 门禁。Debug APK 为
+`463718677` bytes，SHA-256
+`768CAE74E27352DEE038AF0C4C9F8EE5E3C2C97B017B0F3C2BCD3E92080AEF6D`；
+`aapt` 只报告唯一 `MainActivity` 桌面入口。当前进入 Git/远端交付封板。
+正式实施严格按
 “本地备份与安全点 -> M-00 -> G-00 -> M-01 -> M-02 -> M-03 -> M-04”串行推进；
 M-00、G-00 和 M-01 的门禁、测试和 Debug APK 验证均已通过；
 后续 G-00 加固已关闭 fresh-clone、Java static import、完全限定项目引用和重复
@@ -315,21 +301,19 @@ M-02 至 M-05 已形成可重现 checkpoint
 `6b6493a0bfd12072116e45fb733d551fad13e32b`，该提交通过 fresh clone 和 formal
 readiness。阶段 4 Browser 产品域开始前，先按
 [质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
-收口初始 `27 errors / 287 warnings / 3 hints`；current-only 已在 QD-05 归零，继续审计
-当前 `5776` 条历史 baseline 中的
-项目自有高风险正确性和安全债务。
+收口初始 `27 errors / 287 warnings / 3 hints`。QD-01 至 QD-07 的实现清理已完成；
+最终完整 baseline 保留 `5606` 条历史记录，结构化交集
+`stale=92 / current-only=0`，高风险正确性和安全项已完成根因修复或进入独立设备/发布验收。
 
-当前执行顺序固定为：
+执行顺序与当前状态：
 
-1. 修复 27 条 current-only correctness errors
-2. 完成 KTX、SDK、Modifier 和 primitive state 的行为保持型清理
-3. 审核删除真实未使用资源、迁移 densityless bitmap、补齐 plurals
-4. 关闭 WebView feature、Context 生命周期、语言、媒体权限、JobScheduler、窗口和
-   Player 方向合同
-5. 按官方迁移证据分组升级依赖并消除第三方字节码警报
-6. 清理强制完整 Kotlin 编译清单中的项目自有可修复警报
-7. 审计并修复 baseline 中项目自有高风险项
-8. 运行完整门禁、规定 Debug APK、敏感内容和 Git/远端审计后提交推送
+1. [DONE] current-only correctness、KTX/SDK/Compose、资源/plurals 与平台合同
+2. [DONE] 依赖升级、第三方不安全字节码净化与 compile SDK/Kotlin 对齐
+3. [DONE] 552 条项目 Kotlin 编译器警报实现清理
+4. [DONE] TLS/WebView/receiver/权限/accessibility/native/PTY 高风险债务
+5. [DONE] baseline 交集剪枝：`5606 / 92 / 0`
+6. [DONE] 强制完整编译、全量测试、架构/正式门禁、Debug APK 与敏感审计
+7. [IN PROGRESS] 审计提交范围并按授权提交、推送和核对远端 ref
 
 禁止通过 suppress、扩大 baseline、关闭 dependency lint、fallback 或行为不明的批量删除
 取得表面全绿。设备和 Release 验收继续独立记录。

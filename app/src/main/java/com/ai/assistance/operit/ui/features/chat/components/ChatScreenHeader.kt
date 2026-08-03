@@ -207,7 +207,7 @@ fun ChatScreenHeader(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        progress = animatedProgress,
+                        progress = { animatedProgress },
                         modifier = Modifier.fillMaxSize(),
                         color = progressColor,
                         strokeWidth = 3.dp,

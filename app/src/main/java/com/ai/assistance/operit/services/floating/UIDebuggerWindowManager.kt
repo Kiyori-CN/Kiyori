@@ -52,11 +52,7 @@ class UIDebuggerWindowManager(
     fun show() {
         if (composeView != null) return
 
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        val layoutFlag = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
         // Start with floating ball size
         params = WindowManager.LayoutParams(
@@ -193,4 +189,4 @@ fun DraggableFloatingBall(
             tint = Color.White
         )
     }
-} 
+}

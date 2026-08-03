@@ -125,6 +125,8 @@ class DepthLimitedFileObserver(
         }
     }
 
+    // Android 8/9 仍只提供 String 路径构造器；观察器所有权集中在本类并在 stop() 中关闭。
+    @Suppress("DEPRECATION")
     private inner class DirectoryObserver(val directory: File) :
         FileObserver(directory.absolutePath, EVENT_MASK) {
         override fun onEvent(event: Int, path: String?) {

@@ -654,7 +654,7 @@ class WorkflowRepository(private val context: Context) {
                 emptyMap()
             } else {
                 bundle.keySet().associateWith { key ->
-                    bundle.get(key)?.toString() ?: ""
+                    readIntentExtraAsString(bundle, key)
                 }
             }
         } catch (_: Exception) {
@@ -679,6 +679,11 @@ class WorkflowRepository(private val context: Context) {
             }
         }
     }
+
+    // Intent 触发器接受任意 Bundle 值，类型未知时平台没有带 Class 参数的等价读取 API。
+    @Suppress("DEPRECATION")
+    private fun readIntentExtraAsString(bundle: android.os.Bundle, key: String): String =
+        bundle.get(key)?.toString().orEmpty()
 
     suspend fun triggerWorkflowsByColdStartAppOpen(
         extras: Map<String, String> = emptyMap()

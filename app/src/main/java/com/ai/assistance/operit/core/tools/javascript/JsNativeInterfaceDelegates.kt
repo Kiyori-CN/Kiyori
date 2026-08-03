@@ -10,6 +10,7 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Base64
+import android.util.TypedValue
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.BinaryResultData
 import com.ai.assistance.operit.core.tools.BooleanResultData
@@ -584,9 +585,13 @@ internal object JsNativeInterfaceDelegates {
         val maxLines = payload.optInt("maxLines", Int.MAX_VALUE).takeIf { it > 0 } ?: Int.MAX_VALUE
         val overflow = payload.optString("overflow", "clip").trim().lowercase()
 
-        val scaledDensity = context.resources.displayMetrics.scaledDensity
         val paint = TextPaint(Paint.ANTI_ALIAS_FLAG)
-        paint.textSize = fontSize * scaledDensity
+        paint.textSize =
+            TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP,
+                fontSize,
+                context.resources.displayMetrics
+            )
 
         val builder =
             StaticLayout.Builder.obtain(text, 0, text.length, paint, maxWidth)

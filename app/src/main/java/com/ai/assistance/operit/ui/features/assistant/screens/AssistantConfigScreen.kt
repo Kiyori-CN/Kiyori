@@ -201,7 +201,7 @@ fun AssistantConfigScreen() {
                         .padding(paddingValues)
                         .padding(horizontal = 12.dp)
             ) {
-                TabRow(selectedTabIndex = selectedConfigTab) {
+                PrimaryTabRow(selectedTabIndex = selectedConfigTab) {
                     Tab(
                         selected = selectedConfigTab == 0,
                         onClick = { selectedConfigTab = 0 },
@@ -307,7 +307,7 @@ fun AssistantConfigScreen() {
                                 }
                             OutlinedTextField(
                                 modifier = Modifier
-                                    .menuAnchor()
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                     .fillMaxWidth()
                                     .heightIn(min = 48.dp),
                                 value = modeLabel,

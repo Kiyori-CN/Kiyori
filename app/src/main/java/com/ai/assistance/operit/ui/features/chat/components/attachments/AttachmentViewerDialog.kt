@@ -27,7 +27,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,8 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -81,7 +81,6 @@ fun AttachmentViewerDialog(
     if (!visible || attachment == null) return
 
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val dialogMetrics = rememberCompactDialogMetrics()
     val mediaMaxHeight = if (dialogMetrics.isCompactHeight) 220.dp else 500.dp
 
@@ -207,7 +206,7 @@ fun AttachmentViewerDialog(
                     ) {
                         val icon = when {
                             isImage -> Icons.Default.Image
-                            isAudio -> Icons.Default.VolumeUp
+                            isAudio -> Icons.AutoMirrored.Filled.VolumeUp
                             isVideo -> Icons.Default.PlayArrow
                             else -> Icons.Default.Description
                         }
@@ -326,7 +325,10 @@ fun AttachmentViewerDialog(
                         ) {
                             Button(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(textContentState.value.orEmpty()))
+                                    context.copyPlainTextToClipboard(
+                                        "Kiyori attachment",
+                                        textContentState.value.orEmpty()
+                                    )
                                     onDismiss()
                                 }
                             ) {

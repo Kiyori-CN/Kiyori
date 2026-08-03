@@ -176,7 +176,7 @@ Kiyori 新页面的视觉语言向 Operit 原版 UI 看齐，页面结构、浏�
 
 - Windows、macOS 或 Linux
 - JDK 21（Gradle 运行时；Java/Kotlin 字节码目标仍为 JVM 17）
-- Android SDK Platform 36、target SDK 34、Build Tools 36.0.0、NDK 28.2.13676358、CMake 3.22.1
+- Android SDK Platform 37、target SDK 34、Build Tools 36.0.0、NDK 28.2.13676358、CMake 3.22.1
 - rustup、Rust 1.88.0 与 `aarch64-linux-android` target，用于构建 APK 内的 native ripgrep
 - Git 与 Git submodule 支持
 

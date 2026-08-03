@@ -2,831 +2,6 @@
 <issues format="6" by="lint 8.13.2" type="baseline" client="gradle" dependencies="true" name="AGP (8.13.2)" variant="all" version="8.13.2">
 
     <issue
-        id="MissingPermission"
-        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
-        errorLine1="        bleSessions.remove(sessionId)?.gatt?.close()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/BluetoothSessionManager.kt"
-            line="551"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="MissingClass"
-        message="Class referenced in the manifest, `live.pw.renderX.LatexView`, was not found in the project or the libraries"
-        errorLine1="            android:name=&quot;live.pw.renderX.LatexView&quot;"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="113"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                    String.format(&quot;%.1f&quot;, baseContextLengthInK)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/input/agent/AgentChatInputSection.kt"
-            line="1637"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                    String.format(&quot;%.1f&quot;, maxContextLengthInK)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/input/agent/AgentChatInputSection.kt"
-            line="1643"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    text = stringResource(R.string.scale, String.format(&quot;%.2f&quot;, currentSettings.scale)),"
-        errorLine2="                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="198"
-            column="59"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    text = stringResource(R.string.x_translation, String.format(&quot;%.1f&quot;, currentSettings.translateX)),"
-        errorLine2="                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="209"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    text = stringResource(R.string.y_translation, String.format(&quot;%.1f&quot;, currentSettings.translateY)),"
-        errorLine2="                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="220"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.1f deg&quot;, cameraPitch)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="244"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.1f deg&quot;, initialRotationY)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="264"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.2fx&quot;, cameraDistanceScale)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="284"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.2f&quot;, cameraTargetHeight)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="304"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.1f deg&quot;, cameraPitch)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="335"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.1f deg&quot;, cameraYaw)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="355"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.3fx&quot;, cameraDistanceScale)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="375"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.2f&quot;, cameraTargetHeight)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="395"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.1f deg&quot;, cameraPitch)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="426"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.1f deg&quot;, cameraYaw)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="446"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.3fx&quot;, cameraDistanceScale)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="466"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                String.format(&quot;%.2f&quot;, cameraTargetHeight)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/assistant/components/AvatarConfigSection.kt"
-            line="486"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        return String.format(&quot;%.1f %s&quot;, size / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])"
-        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/CacheManager.kt"
-            line="468"
-            column="16"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                        String.format(&quot;%.1f&quot;, baseContextLengthInK)"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/input/classic/ClassicChatSettingsBar.kt"
-            line="611"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                        String.format(&quot;%.1f&quot;, maxContextLengthInK)"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/input/classic/ClassicChatSettingsBar.kt"
-            line="616"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            buffer.append(String.format(ROUND_SEPARATOR_FORMAT, round))"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/enhance/ConversationRoundManager.kt"
-            line="119"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        Text(&quot;${stringResource(R.string.memory_credibility)}: ${String.format(&quot;%.2f&quot;, credibility)}&quot;)"
-        errorLine2="                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/EditMemoryDialog.kt"
-            line="135"
-            column="81"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        Text(&quot;${stringResource(R.string.memory_importance)}: ${String.format(&quot;%.2f&quot;, importance)}&quot;)"
-        errorLine2="                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/EditMemoryDialog.kt"
-            line="143"
-            column="80"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        &quot;总耗时: ${String.format(&quot;%.2f&quot;, totalTime)}s, &quot; +"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/enhance/FileBindingService.kt"
-            line="672"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="    return String.format(&quot;%.1f %s&quot;, size / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/filemanager/utils/FileUtils.kt"
-            line="90"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            sizeBytes &lt; 1024 * 1024 -> String.format(&quot;%.2f KB&quot;, sizeBytes / 1024.0)"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/MNNProvider.kt"
-            line="947"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            sizeBytes &lt; 1024 * 1024 * 1024 -> String.format(&quot;%.2f MB&quot;, sizeBytes / (1024.0 * 1024.0))"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/MNNProvider.kt"
-            line="948"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            else -> String.format(&quot;%.2f GB&quot;, sizeBytes / (1024.0 * 1024.0 * 1024.0))"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/MNNProvider.kt"
-            line="949"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            &quot;${stringResource(R.string.memory_importance)}: ${String.format(&quot;%.2f&quot;, memory.importance)}&quot;,"
-        errorLine2="                                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemoryDialogs.kt"
-            line="62"
-            column="79"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            &quot;${stringResource(R.string.memory_credibility)}: ${String.format(&quot;%.2f&quot;, memory.credibility)}&quot;,"
-        errorLine2="                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemoryDialogs.kt"
-            line="66"
-            column="80"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            &quot;folder=&apos;${memory.folderPath ?: &quot;&quot;}&apos;, importance=${String.format(&quot;%.2f&quot;, memory.importance)}, &quot; +"
-        errorLine2="                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/library/MemoryLibrary.kt"
-            line="528"
-            column="80"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            &quot;credibility=${String.format(&quot;%.2f&quot;, memory.credibility)}, preview=&apos;$preview&apos;&quot;"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/library/MemoryLibrary.kt"
-            line="529"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            &quot;search settings => mode=${resolvedWeights.scoreMode}, keyword=${String.format(&quot;%.2f&quot;, effectiveKeywordWeight)}, &quot; +"
-        errorLine2="                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1303"
-            column="78"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;tag=${String.format(&quot;%.2f&quot;, effectiveTagWeight)}, &quot; +"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1304"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;semantic=${String.format(&quot;%.2f&quot;, effectiveSemanticWeight)}, &quot; +"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1305"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;semanticNorm=${String.format(&quot;%.4f&quot;, semanticKeywordNormFactor)}, edge=${String.format(&quot;%.2f&quot;, effectiveEdgeWeight)}&quot;"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1306"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;semanticNorm=${String.format(&quot;%.4f&quot;, semanticKeywordNormFactor)}, edge=${String.format(&quot;%.2f&quot;, effectiveEdgeWeight)}&quot;"
-        errorLine2="                                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1306"
-            column="91"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        &quot;Keyword &apos;$keyword&apos;: ${semanticResultsWithScores.size} indexed matches (top: ${String.format(&quot;%.2f&quot;, semanticResultsWithScores.first().second)})&quot;"
-        errorLine2="                                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1444"
-            column="104"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                com.ai.assistance.operit.util.AppLogger.d(&quot;MemoryRepo&quot;, &quot;  Top: [${memory.title}] = ${String.format(&quot;%.4f&quot;, score)}&quot;)"
-        errorLine2="                                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1540"
-            column="103"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;keyword=${String.format(&quot;%.2f&quot;, effectiveKeywordWeight)}, &quot; +"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1690"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;tag=${String.format(&quot;%.2f&quot;, effectiveTagWeight)} (ignored for chunks), &quot; +"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1691"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;semantic=${String.format(&quot;%.2f&quot;, effectiveSemanticWeight)}, &quot; +"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1692"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;semanticNorm=${String.format(&quot;%.4f&quot;, resolvedWeights.semanticKeywordNormFactor)}, &quot; +"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1693"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;edge=${String.format(&quot;%.2f&quot;, resolvedWeights.effectiveEdgeWeight)} (ignored for chunks)&quot;"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/repository/MemoryRepository.kt"
-            line="1694"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        valueText = String.format(&quot;%.2f&quot;, keywordWeight),"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSettingsDialog.kt"
-            line="120"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        valueText = String.format(&quot;%.2f&quot;, tagWeight),"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSettingsDialog.kt"
-            line="127"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        valueText = String.format(&quot;%.2f&quot;, vectorWeight),"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSettingsDialog.kt"
-            line="134"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        valueText = String.format(&quot;%.2f&quot;, edgeWeight),"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSettingsDialog.kt"
-            line="141"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        AppLogger.d(TAG, &quot;下载进度: ${String.format(&quot;%.2f&quot;, progress * 100)}% &quot; +"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="521"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            bytesPerSecond &lt; 1024 -> String.format(&quot;%.0f B/s&quot;, bytesPerSecond)"
-        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="623"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            bytesPerSecond &lt; 1024 * 1024 -> String.format(&quot;%.2f KB/s&quot;, bytesPerSecond / 1024)"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="624"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            else -> String.format(&quot;%.2f MB/s&quot;, bytesPerSecond / (1024 * 1024))"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="625"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            bytes &lt; 1024 * 1024 -> String.format(&quot;%.2f KB&quot;, bytes / 1024.0)"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="632"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            bytes &lt; 1024 * 1024 * 1024 -> String.format(&quot;%.2f MB&quot;, bytes / (1024.0 * 1024))"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="633"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            else -> String.format(&quot;%.2f GB&quot;, bytes / (1024.0 * 1024 * 1024))"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="634"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="    return if (value % 1f == 0f) value.toInt().toString() else String.format(&quot;%.2f&quot;, value)"
-        errorLine2="                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/ModelConfigScreen.kt"
-            line="1575"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            else -> String.format(&quot;%.2f GB&quot;, sizeBytes / (1024.0 * 1024.0 * 1024.0))"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/ModelListFetcher.kt"
-            line="668"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                value = String.format(&quot;%04d-%02d-%02d&quot;, selectedYear, selectedMonth + 1, selectedDay),"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/workflow/components/ScheduleConfigDialog.kt"
-            line="229"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                value = String.format(&quot;%02d:%02d&quot;, selectedHour, selectedMinute),"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/workflow/components/ScheduleConfigDialog.kt"
-            line="271"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        val fullDateTime = String.format("
-        errorLine2="                                           ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/workflow/components/ScheduleConfigDialog.kt"
-            line="296"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            val dateTimeStr = String.format("
-        errorLine2="                                              ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/workflow/components/ScheduleConfigDialog.kt"
-            line="426"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            size &lt; mb -> String.format(&quot;%.2f KB&quot;, size / kb)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardDeviceInfoToolExecutor.kt"
-            line="172"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            size &lt; gb -> String.format(&quot;%.2f MB&quot;, size / mb)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardDeviceInfoToolExecutor.kt"
-            line="173"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            size &lt; tb -> String.format(&quot;%.2f GB&quot;, size / gb)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardDeviceInfoToolExecutor.kt"
-            line="174"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            else -> String.format(&quot;%.2f TB&quot;, size / tb)"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardDeviceInfoToolExecutor.kt"
-            line="175"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    bytes > 1024 * 1024 -> String.format(&quot;%.2f MB&quot;, bytes / (1024.0 * 1024.0))"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardFileSystemTools.kt"
-            line="4416"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    bytes > 1024 -> String.format(&quot;%.2f KB&quot;, bytes / 1024.0)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardFileSystemTools.kt"
-            line="4417"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        Text(stringResource(R.string.stream_markdown_speed, String.format(&quot;%.1f&quot;, speedFactor)), fontSize = 14.sp)"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/StreamMarkdownDemo.kt"
-            line="210"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            String.format(&quot;%.1f&quot;, fontScaleInput),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ThemeSettingsFontAvatarSections.kt"
-            line="265"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            text = String.format(&quot;%.1f%%&quot;, percent),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/TokenUsageStatisticsComponents.kt"
-            line="285"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                val lineNumStr = String.format(&quot;%6d&quot;, actualLineNum)"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/ToolResultDataClasses.kt"
-            line="1753"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        val lineNumStr = String.format(&quot;%6d&quot;, lineMatch.lineNumber)"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/ToolResultDataClasses.kt"
-            line="1765"
-            column="42"/>
-    </issue>
-
-    <issue
-        id="DiscouragedPrivateApi"
-        message="Reflective access to descriptor, which is not part of the public SDK and therefore likely to change in future Android releases"
-        errorLine1="            val field = FileDescriptor::class.java.getDeclaredField(&quot;descriptor&quot;)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/Pty.kt"
-            line="229"
-            column="25"/>
-    </issue>
-
-    <issue
         id="ExifInterface"
         message="Avoid using `android.media.ExifInterface`; use `androidx.exifinterface.media.ExifInterface` instead"
         errorLine1="import android.media.ExifInterface"
@@ -846,61 +21,6 @@
             file="src/main/java/com/ai/assistance/operit/util/ImagePoolManager.kt"
             line="459"
             column="17"/>
-    </issue>
-
-    <issue
-        id="ImplicitSamInstance"
-        message="`{ _, _ -> }` is an implicit SAM conversion, so the instance you are removing here will not match anything. To fix this, use for example `val onRequestPermissionResultListener = OnRequestPermissionResultListener { _, _ -> }` and add and remove the `onRequestPermissionResultListener` val instead."
-        errorLine1="                    Shizuku.removeRequestPermissionResultListener { _, _ -> }"
-        errorLine2="                                                                  ~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/system/ShizukuAuthorizer.kt"
-            line="281"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="ImplicitSamInstance"
-        message="`{ _, _ -> }` is an implicit SAM conversion, so the instance you are removing here will not match anything. To fix this, use for example `val onRequestPermissionResultListener = OnRequestPermissionResultListener { _, _ -> }` and add and remove the `onRequestPermissionResultListener` val instead."
-        errorLine1="                            Shizuku.removeRequestPermissionResultListener { _, _ -> }"
-        errorLine2="                                                                          ~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/system/ShizukuAuthorizer.kt"
-            line="306"
-            column="75"/>
-    </issue>
-
-    <issue
-        id="ImplicitSamInstance"
-        message="`{}` is an implicit SAM conversion, so the instance you are removing here will not match anything. To fix this, use for example `val onBinderReceivedListener = OnBinderReceivedListener {}` and add and remove the `onBinderReceivedListener` val instead."
-        errorLine1="                    Shizuku.removeBinderReceivedListener {}"
-        errorLine2="                                                         ~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/system/ShizukuAuthorizer.kt"
-            line="337"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="ImplicitSamInstance"
-        message="`{}` is an implicit SAM conversion, so the instance you are removing here will not match anything. To fix this, use for example `val onBinderDeadListener = OnBinderDeadListener {}` and add and remove the `onBinderDeadListener` val instead."
-        errorLine1="                    Shizuku.removeBinderDeadListener {}"
-        errorLine2="                                                     ~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/system/ShizukuAuthorizer.kt"
-            line="338"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="InlinedApi"
-        message="Field requires API level 30 (current min is 26): `android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_MICROPHONE`"
-        errorLine1="            types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/application/ForegroundServiceCompat.kt"
-            line="22"
-            column="30"/>
     </issue>
 
     <issue
@@ -966,50 +86,6 @@
     </issue>
 
     <issue
-        id="NewApi"
-        message="Call requires API level 29 (current min is 26): `android.system.Os#setsockoptTimeval`"
-        errorLine1="                Os.setsockoptTimeval("
-        errorLine2="                   ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/LocalWebServer.kt"
-            line="128"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 29 (current min is 26): `android.system.StructTimeval#fromMillis`"
-        errorLine1="                    android.system.StructTimeval.fromMillis(timeoutMs.toLong())"
-        errorLine2="                                                 ~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/LocalWebServer.kt"
-            line="132"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="`android:windowLayoutInDisplayCutoutMode` requires API level 27 (current min is 26)"
-        errorLine1="        &lt;item name=&quot;android:windowLayoutInDisplayCutoutMode&quot;>shortEdges&lt;/item>"
-        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-night/themes.xml"
-            line="13"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="`android:windowLayoutInDisplayCutoutMode` requires API level 27 (current min is 26)"
-        errorLine1="        &lt;item name=&quot;android:windowLayoutInDisplayCutoutMode&quot;>shortEdges&lt;/item>"
-        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/themes.xml"
-            line="13"
-            column="15"/>
-    </issue>
-
-    <issue
         id="OldTargetApi"
         message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
         errorLine1="        targetSdk = 34"
@@ -1018,61 +94,6 @@
             file="build.gradle.kts"
             line="14"
             column="9"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
-        message="`remove` should only be called if the feature `DOCUMENT_START_SCRIPT` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="                runCatching { handler.remove() }"
-        errorLine2="                              ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/composedsl/ToolPkgComposeDslWebView.kt"
-            line="2220"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
-        message="`addDocumentStartJavaScript` should only be called if the feature `DOCUMENT_START_SCRIPT` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="                    WebViewCompat.addDocumentStartJavaScript("
-        errorLine2="                    ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="205"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
-        message="`addWebMessageListener` should only be called if the feature `WEB_MESSAGE_LISTENER` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="                WebViewCompat.addWebMessageListener("
-        errorLine2="                ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="215"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
-        message="`isAudioMuted` should only be called if the feature `MUTE_AUDIO` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="                        val muted = WebViewCompat.isAudioMuted(binding.webView)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="1059"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="RequiresFeature"
-        message="`setAudioMuted` should only be called if the feature `MUTE_AUDIO` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
-        errorLine1="                        WebViewCompat.setAudioMuted(binding.webView, muted)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/userscript/runtime/WebSessionUserscriptManager.kt"
-            line="1069"
-            column="25"/>
     </issue>
 
     <issue
@@ -1274,39 +295,6 @@
     </issue>
 
     <issue
-        id="SimpleDateFormat"
-        message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates."
-        errorLine1="                &quot;Timestamp: ${java.text.SimpleDateFormat(&quot;yyyy-MM-dd HH:mm:ss&quot;).format(java.util.Date(timestamp))}&quot;"
-        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/ToolResultDataClasses.kt"
-            line="1292"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="SimpleDateFormat"
-        message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates."
-        errorLine1="            sb.appendLine(&quot;Last Execution Time: ${java.text.SimpleDateFormat(&quot;yyyy-MM-dd HH:mm:ss&quot;).format(java.util.Date(lastExecutionTime))}&quot;)"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/ToolResultDataClasses.kt"
-            line="1819"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="SimpleDateFormat"
-        message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates."
-        errorLine1="            sb.appendLine(&quot;  Last Execution Time: ${java.text.SimpleDateFormat(&quot;yyyy-MM-dd HH:mm:ss&quot;).format(java.util.Date(lastExecutionTime))}&quot;)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/ToolResultDataClasses.kt"
-            line="1951"
-            column="53"/>
-    </issue>
-
-    <issue
         id="TrimLambda"
         message="The lambda argument (`{ it.isWhitespace() }`) is unnecessary"
         errorLine1="    return this.trim { it.isWhitespace() }"
@@ -1395,17 +383,6 @@
     </issue>
 
     <issue
-        id="WrongConstant"
-        message="Must be one or more of: Intent.FLAG_GRANT_READ_URI_PERMISSION, Intent.FLAG_GRANT_WRITE_URI_PERMISSION"
-        errorLine1="                                context.contentResolver.takePersistableUriPermission(uri, flags)"
-        errorLine2="                                                                                          ~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/composedsl/ToolPkgComposeDslScreen.kt"
-            line="559"
-            column="91"/>
-    </issue>
-
-    <issue
         id="BatteryLife"
         message="Use of `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html"
         errorLine1="                                                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
@@ -1461,17 +438,6 @@
     </issue>
 
     <issue
-        id="ProtectedPermissions"
-        message="Permission is only granted to system apps"
-        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.BIND_VOICE_INTERACTION&quot; />"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="67"
-            column="22"/>
-    </issue>
-
-    <issue
         id="RedundantLabel"
         message="Redundant label can be removed"
         errorLine1="            android:label=&quot;@string/app_name&quot;"
@@ -1479,28 +445,6 @@
         <location
             file="src/main/AndroidManifest.xml"
             line="216"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnspecifiedRegisterReceiverFlag"
-        message="`serviceLifecycleReceiver` is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected broadcasts registered for com.ai.assistance.operit.action.FLOATING_CHAT_SERVICE_STARTED, com.ai.assistance.operit.action.FLOATING_CHAT_SERVICE_STOPPED, com.ai.assistance.operit.action.FLOATING_CHAT_WINDOW_SHOWN, com.ai.assistance.operit.action.FLOATING_CHAT_WINDOW_SHOW_FAILED"
-        errorLine1="                context.registerReceiver(serviceLifecycleReceiver, filter)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/viewmodel/FloatingWindowDelegate.kt"
-            line="111"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="UnspecifiedRegisterReceiverFlag"
-        message="`onDownloadComplete` is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected broadcasts registered for android.intent.action.DOWNLOAD_COMPLETE"
-        errorLine1="            context.registerReceiver("
-        errorLine2="            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/WebViewHandler.kt"
-            line="514"
             column="13"/>
     </issue>
 
@@ -16367,28 +15311,6 @@
 
     <issue
         id="DiscouragedApi"
-        message="Use of `scheduleAtFixedRate` is strongly discouraged because it can lead to unexpected behavior when Android processes become cached (tasks may unexpectedly execute hundreds or thousands of times in quick succession when a process changes from cached to uncached); prefer using `scheduleWithFixedDelay`"
-        errorLine1="        scheduledExecutor?.scheduleAtFixedRate({"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/util/AnrMonitor.kt"
-            line="129"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="DiscouragedApi"
-        message="Use of `scheduleAtFixedRate` is strongly discouraged because it can lead to unexpected behavior when Android processes become cached (tasks may unexpectedly execute hundreds or thousands of times in quick succession when a process changes from cached to uncached); prefer using `scheduleWithFixedDelay`"
-        errorLine1="                scheduler.scheduleAtFixedRate("
-        errorLine2="                ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/javascript/QuickJsNativeHostDispatcher.kt"
-            line="52"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="DiscouragedApi"
         message="Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. `R.foo.bar`) than by name (e.g. `getIdentifier(&quot;bar&quot;, &quot;foo&quot;, null)`)."
         errorLine1="        val resourceId = context.resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
         errorLine2="                                           ~~~~~~~~~~~~~">
@@ -16440,262 +15362,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/common/displays/VirtualDisplayOverlay.kt"
             line="1288"
             column="44"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`advanced_import_key`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="                            name = context.getString(R.string.advanced_import_key, key.takeLast(4)),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/AdvancedSettingsSection.kt"
-            line="207"
-            column="36"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7250"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`workflow_node_no_action`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="                val errorMsg = context.getString(R.string.workflow_node_execution_exception, context.getString(R.string.workflow_node_no_action, node.name))"
-        errorLine2="                                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/workflow/WorkflowExecutor.kt"
-            line="1200"
-            column="94"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7386"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6702"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6282"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6198"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6300"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6319"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="5864"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Suspicious argument type for formatting argument #1 in `ai_message_omitted_segment`: conversion is `s`, received `int` (argument #2 in method call) (Did you mean formatting character `d`, &apos;o&apos; or `x`?)"
-        errorLine1="                cleanedSegments.add(Segment(kind = &quot;text&quot;, raw = context.getString(R.string.ai_message_omitted_segment, omitted) ) )"
-        errorLine2="                                                                                                                        ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/chat/AIMessageManager.kt"
-            line="884"
-            column="121"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7147"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6875"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6208"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6368"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6470"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6119"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6030"
-            column="5"
-            message="Conflicting argument declaration here"/>
-    </issue>
-
-    <issue
-        id="StringFormatMatches"
-        message="Wrong argument type for formatting argument &apos;#2&apos; in `mnn_download_file_failed`: conversion is &apos;`d`&apos;, received `String` (argument #3 in method call)"
-        errorLine1="                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/data/mnn/MnnModelDownloadManager.kt"
-            line="728"
-            column="96"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7346"
-            column="5"
-            message="Conflicting argument declaration here"/>
     </issue>
 
     <issue
@@ -19405,17 +18071,6 @@
     </issue>
 
     <issue
-        id="JavascriptInterface"
-        message="None of the methods in the added interface (T) have been annotated with `@android.webkit.JavascriptInterface`; they will not be visible in API 17"
-        errorLine1="            addJavascriptInterface(pageBridge, WEBVIEW_INTERNAL_JS_INTERFACE_BRIDGE_NAME)"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/composedsl/ToolPkgComposeDslWebView.kt"
-            line="1625"
-            column="13"/>
-    </issue>
-
-    <issue
         id="HardwareIds"
         message="Using `getString` to get device identifiers is not recommended"
         errorLine1="                    Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)"
@@ -19493,127 +18148,6 @@
     </issue>
 
     <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers"
-        errorLine1="                    override fun checkClientTrusted("
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardHttpTools.kt"
-            line="127"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkServerTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers"
-        errorLine1="                    override fun checkServerTrusted("
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardHttpTools.kt"
-            line="132"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers"
-        errorLine1="                override fun checkClientTrusted("
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/UnsafeModelSsl.kt"
-            line="18"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="TrustAllX509TrustManager"
-        message="`checkServerTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers"
-        errorLine1="                override fun checkServerTrusted("
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/UnsafeModelSsl.kt"
-            line="23"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="AcceptsUserCertificates"
-        message="The Network Security Configuration allows the use of user certificates in the release version of your app"
-        errorLine1="            &lt;certificates src=&quot;user&quot; />"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/xml/network_security_config.xml"
-            line="9"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="CustomX509TrustManager"
-        message="Implementing a custom `X509TrustManager` is error-prone and likely to be insecure. It is likely to disable certificate validation altogether, and is non-trivial to implement correctly without calling Android&apos;s default implementation."
-        errorLine1="                object : X509TrustManager {"
-        errorLine2="                ~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardHttpTools.kt"
-            line="126"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="CustomX509TrustManager"
-        message="Implementing a custom `X509TrustManager` is error-prone and likely to be insecure. It is likely to disable certificate validation altogether, and is non-trivial to implement correctly without calling Android&apos;s default implementation."
-        errorLine1="            object : X509TrustManager {"
-        errorLine2="            ~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/llmprovider/UnsafeModelSsl.kt"
-            line="17"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="ExportedReceiver"
-        message="Exported receiver does not require permission"
-        errorLine1="        &lt;receiver"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="356"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="ExportedReceiver"
-        message="Exported receiver does not require permission"
-        errorLine1="        &lt;receiver"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="364"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="ExportedReceiver"
-        message="Exported receiver does not require permission"
-        errorLine1="        &lt;receiver"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="372"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="ExportedReceiver"
-        message="Exported receiver does not require permission"
-        errorLine1="        &lt;receiver"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="380"
-            column="10"/>
-    </issue>
-
-    <issue
         id="ExportedReceiver"
         message="Exported receiver does not require permission"
         errorLine1="        &lt;receiver"
@@ -19636,17 +18170,6 @@
     </issue>
 
     <issue
-        id="ExportedReceiver"
-        message="Exported receiver does not require permission"
-        errorLine1="        &lt;receiver"
-        errorLine2="         ~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="464"
-            column="10"/>
-    </issue>
-
-    <issue
         id="InsecureBaseConfiguration"
         message="Insecure Base Configuration"
         errorLine1="    &lt;base-config cleartextTrafficPermitted=&quot;true&quot;>"
@@ -19655,57 +18178,6 @@
             file="src/main/res/xml/network_security_config.xml"
             line="4"
             column="45"/>
-    </issue>
-
-    <issue
-        id="SystemPermissionTypo"
-        message="Did you mean `android.permission.FOREGROUND_SERVICE`?"
-        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.FOREGROUND_SERVICE_SHORT_SERVICE&quot; />"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="17"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="WebViewClientOnReceivedSslError"
-        message="Permitting connections with SSL-related errors could allow eavesdroppers to intercept data sent by your app, which impacts the privacy of your users. Consider canceling the connections by invoking `SslErrorHandler#cancel()`."
-        errorLine1="                                                        handler.proceed()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardWebVisitTool.kt"
-            line="1328"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="WebViewClientOnReceivedSslError"
-        message="Permitting connections with SSL-related errors could allow eavesdroppers to intercept data sent by your app, which impacts the privacy of your users. Consider canceling the connections by invoking `SslErrorHandler#cancel()`."
-        errorLine1="                                                        handler.proceed()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardWebVisitTool.kt"
-            line="1328"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="WebViewClientOnReceivedSslError"
-        message="Permitting connections with SSL-related errors could allow eavesdroppers to intercept data sent by your app, which impacts the privacy of your users. Consider canceling the connections by invoking `SslErrorHandler#cancel()`."
-        errorLine1="                    handler?.proceed()"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/WebViewHandler.kt"
-            line="277"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="UnsafeNativeCodeLocation"
-        message="Embedding non-shared library native executables into applications should be avoided when possible, as there is an increased risk that the executables could be tampered with after installation. Instead, native code should be placed in a shared library, and the features of the development environment should be used to place the shared library in the lib directory of the compiled APK.">
-        <location
-            file="src/main/assets/operit_shell_exec"/>
     </issue>
 
     <issue
@@ -19909,17 +18381,6 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/api/chat/AIForegroundService.kt"
-            line="2005"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -19981,17 +18442,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/main/components/AppContent.kt"
             line="129"
             column="1"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/BluetoothSessionManager.kt"
-            line="404"
-            column="17"/>
     </issue>
 
     <issue
@@ -20341,17 +18791,6 @@
         errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/kiyori/app/KiyoriApplication.kt"
-            line="618"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
             file="src/main/java/com/ai/assistance/operit/services/assistant/OperitAssistActivity.kt"
             line="40"
             column="17"/>
@@ -20421,17 +18860,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/permission/viewmodel/PermissionGuideViewModel.kt"
             line="65"
             column="51"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/permissions/PermissionRequestOverlay.kt"
-            line="399"
-            column="24"/>
     </issue>
 
     <issue
@@ -20679,28 +19107,6 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardWebVisitTool.kt"
-            line="1531"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardWebVisitTool.kt"
-            line="1550"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="@RequiresApi(Build.VERSION_CODES.O)"
         errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -20800,28 +19206,6 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                    type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/displays/UIAutomationProgressOverlay.kt"
-            line="135"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/displays/UIAutomationProgressOverlay.kt"
-            line="215"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -20839,17 +19223,6 @@
             file="src/main/java/com/ai/assistance/operit/services/UIDebuggerService.kt"
             line="114"
             column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/services/floating/UIDebuggerWindowManager.kt"
-            line="55"
-            column="30"/>
     </issue>
 
     <issue
@@ -20877,56 +19250,12 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/displays/UIOperationOverlay.kt"
-            line="184"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/displays/VirtualDisplayOverlay.kt"
-            line="178"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/ai/assistance/operit/widget/VoiceAssistantGlanceWidget.kt"
             line="76"
             column="25"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/WebSessionBrowserHost.kt"
-            line="697"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/WebSessionBrowserHost.kt"
-            line="736"
-            column="17"/>
     </issue>
 
     <issue
@@ -20949,28 +19278,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/token/webview/WebViewConfig.kt"
             line="36"
             column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/token/webview/WebViewConfig.kt"
-            line="53"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/token/webview/WebViewConfig.kt"
-            line="72"
-            column="17"/>
     </issue>
 
     <issue
@@ -59505,17 +57812,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_connecting_service&quot;>AI 서비스에 연결하는 중...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6485"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;message_processing&quot;>Memproses pesan...&lt;/string>"
         errorLine2="                                      ~~~~~~~~~~~~~~~~~~">
         <location
@@ -59874,17 +58170,6 @@
             file="src/main/res/values-pt-rBR/strings.xml"
             line="6723"
             column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;workspace_template_importing&quot;>Importando modelo de plugin...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6745"
-            column="49"/>
     </issue>
 
     <issue
@@ -60264,34 +58549,12 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;workspace_template_importing&quot;>Sedang mengimport templat pemalam...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6905"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;openai_retry_with_count&quot;>%1$s, retrying for the %2$d time...&lt;/string>"
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values-en/strings.xml"
             line="6906"
             column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;workspace_template_importing&quot;>Sedang mengimpor template plugin...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6908"
-            column="49"/>
     </issue>
 
     <issue
@@ -60347,17 +58610,6 @@
             file="src/main/res/values-es/strings.xml"
             line="6953"
             column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;workspace_template_importing&quot;>Importando plantilla de complemento...&lt;/string>"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6975"
-            column="49"/>
     </issue>
 
     <issue
@@ -60446,17 +58698,6 @@
             file="src/main/res/values/strings.xml"
             line="7207"
             column="53"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;message_processing&quot;>Processing message...&lt;/string>"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="7214"
-            column="39"/>
     </issue>
 
     <issue
@@ -60567,17 +58808,6 @@
             file="src/main/res/values/strings.xml"
             line="7366"
             column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_tool_result&quot;>正在接收工具执行后的AI响应...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7372"
-            column="51"/>
     </issue>
 
     <issue
@@ -62155,17 +60385,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/SSHConfigManager.kt"
-            line="97"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        return runCatching { Uri.parse(matched.uri) }.getOrNull()"
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~">
@@ -63438,171 +61657,6 @@
             file="build.gradle.kts"
             line="453"
             column="20"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="                setOnTouchListener { v, event ->"
-        errorLine2="                                   ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalCompose.kt"
-            line="53"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="                setOnTouchListener { v, event ->"
-        errorLine2="                                   ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalCompose.kt"
-            line="139"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="                setOnTouchListener { v, event ->"
-        errorLine2="                                   ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalCompose.kt"
-            line="200"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="Custom view `CanvasTerminalView` overrides `onTouchEvent` but not `performClick`"
-        errorLine1="    override fun onTouchEvent(event: MotionEvent): Boolean {"
-        errorLine2="                 ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="2258"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="        setOnTouchListener { _, event ->"
-        errorLine2="                           ^">
-        <location
-            file="src/main/java/com/dragonbones/DragonBonesView.kt"
-            line="103"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="            setOnTouchListener { v, event ->"
-        errorLine2="                               ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/markdown/EnhancedCodeBlock.kt"
-            line="635"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="            setOnTouchListener { v, event ->"
-        errorLine2="                               ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/common/markdown/EnhancedCodeBlock.kt"
-            line="707"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="            setOnTouchListener { _, event ->"
-        errorLine2="                               ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/services/floating/FloatingWindowManager.kt"
-            line="229"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="Custom view `SqlTableView` overrides `onTouchEvent` but not `performClick`"
-        errorLine1="    override fun onTouchEvent(event: MotionEvent): Boolean {"
-        errorLine2="                 ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/sqlviewer/SqlTableView.kt"
-            line="147"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="Custom view ``SqlTableView`` has `setOnTouchListener` called on it but does not override `performClick`"
-        errorLine1="                setOnTouchListener { v, event ->"
-        errorLine2="                ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/sqlviewer/SqlViewerScreen.kt"
-            line="341"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="                setOnTouchListener { v, event ->"
-        errorLine2="                                   ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/sqlviewer/SqlViewerScreen.kt"
-            line="341"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="Custom view ``WebView`` has `setOnTouchListener` called on it but does not override `performClick`"
-        errorLine1="    setOnTouchListener { view, event ->"
-        errorLine2="    ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceManager.kt"
-            line="78"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="    setOnTouchListener { view, event ->"
-        errorLine2="                       ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceManager.kt"
-            line="78"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="Custom view ``WebView`` has `setOnTouchListener` called on it but does not override `performClick`"
-        errorLine1="    setOnTouchListener { view, event ->"
-        errorLine2="    ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceReadOnlyDocumentPreview.kt"
-            line="499"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="`onTouch` lambda should call `View#performClick` when a click is detected"
-        errorLine1="    setOnTouchListener { view, event ->"
-        errorLine2="                       ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceReadOnlyDocumentPreview.kt"
-            line="499"
-            column="24"/>
     </issue>
 
 </issues>

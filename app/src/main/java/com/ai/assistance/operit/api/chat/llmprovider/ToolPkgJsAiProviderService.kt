@@ -470,11 +470,15 @@ internal class ToolPkgJsAiProviderService(
     private fun JSONObject.optTokenCount(vararg keys: String): Int? {
         for (key in keys) {
             if (!has(key) || isNull(key)) continue
-            val parsed = when (val raw = opt(key)) {
-                is Number -> raw.toTokenCountInt()
-                is String -> raw.trim().toBigDecimalOrNull()?.toTokenCountInt()
-                else -> null
-            }
+            val raw = opt(key)
+            val parsed =
+                if (raw is Number) {
+                    raw.toTokenCountInt()
+                } else if (raw is String) {
+                    raw.trim().toBigDecimalOrNull()?.toTokenCountInt()
+                } else {
+                    null
+                }
             if (parsed != null) return parsed
         }
         return null

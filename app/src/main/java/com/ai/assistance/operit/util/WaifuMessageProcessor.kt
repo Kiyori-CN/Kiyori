@@ -196,7 +196,7 @@ object WaifuMessageProcessor {
                         lastCharWasNewline = true
                     }
                 } else if (char.isWhitespace() && lastCharWasNewline) {
-                    Unit
+                    return@forEach
                 } else {
                     emit(char)
                     lastCharWasNewline = false

@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -77,14 +78,6 @@ private object LocalCharacterToolExecutor {
             
             // 获取当前角色卡
             val currentCard = manager.getCharacterCard(characterCardId)
-            if (currentCard == null) {
-                return ToolResult(
-                    toolName = TOOL_NAME,
-                    success = false,
-                    result = StringResultData(""),
-                    error = context.getString(R.string.error_character_card_not_exist)
-                )
-            }
             
             // 根据字段更新对应内容
             val updatedCard = when (field) {
@@ -266,7 +259,7 @@ fun PersonaCardGenerationScreen(
             activeCard = cardResult
 
             // 更新编辑器内容
-            cardResult?.let {
+            cardResult.let {
                 editName = it.name
                 editDescription = it.description
                 editCharacterSetting = it.characterSetting
@@ -275,10 +268,6 @@ fun PersonaCardGenerationScreen(
                 editOtherContentVoice = it.otherContentVoice
                 editAdvancedCustomPrompt = it.advancedCustomPrompt
                 editMarks = it.marks
-            } ?: run {
-                // 如果卡片加载失败，则清空编辑器
-                editName = ""; editDescription = ""; editCharacterSetting = ""; editOpeningStatement = ""
-                editOtherContentChat = ""; editOtherContentVoice = ""; editAdvancedCustomPrompt = ""; editMarks = ""
             }
 
             // 加载该角色卡的聊天历史
@@ -292,7 +281,7 @@ fun PersonaCardGenerationScreen(
                 // 如果没有历史记录，添加欢迎消息
                 chatMessages.add(CharacterChatMessage("assistant",
                     context.getString(R.string.persona_generation_welcome, 
-                    cardResult?.name ?: context.getString(R.string.new_character))
+                    cardResult.name)
                 ))
             }
         }
@@ -589,7 +578,7 @@ fun PersonaCardGenerationScreen(
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
                         DropdownMenu(
                             expanded = expanded,
@@ -1001,7 +990,7 @@ fun PersonaCardGenerationScreen(
                         enabled = !isGenerating && chatMessages.size < MESSAGE_LIMIT
                     ) {
                         Icon(
-                            imageVector = if (isGenerating) Icons.Filled.HourglassBottom else Icons.Filled.Send,
+                            imageVector = if (isGenerating) Icons.Filled.HourglassBottom else Icons.AutoMirrored.Filled.Send,
                             contentDescription = if (isGenerating) context.getString(R.string.generating) else context.getString(R.string.send)
                         )
                     }

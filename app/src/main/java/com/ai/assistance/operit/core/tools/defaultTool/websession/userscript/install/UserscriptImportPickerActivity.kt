@@ -29,12 +29,12 @@ internal class UserscriptImportPickerActivity : ComponentActivity() {
                 completed = true
                 UserscriptImportCoordinator.complete(requestId, result)
                 finish()
-                overridePendingTransition(0, 0)
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setWindowAnimations(0)
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         window.decorView.alpha = 0f
 
@@ -68,7 +68,6 @@ internal class UserscriptImportPickerActivity : ComponentActivity() {
             UserscriptImportCoordinator.cancel(requestId)
         }
         finish()
-        overridePendingTransition(0, 0)
     }
 
     private fun readUserscript(uri: Uri): UserscriptImportResult? {

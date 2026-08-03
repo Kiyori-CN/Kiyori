@@ -826,7 +826,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         if (shouldUseChatLocalImeHandling) {
             android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         } else {
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            null
         }
     val shouldUseGlobalImePadding = !shouldUseChatLocalImeHandling
     val hasBoundWorkspace = !currentChatView?.workspace.isNullOrBlank()
@@ -1511,7 +1511,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         AlertDialog(
                 onDismissRequest = { actualViewModel.clearPopupMessage() },
                 title = { Text(stringResource(R.string.dialog_title_prompt)) },
-                text = { Text(message ?: "") },
+                text = { Text(message) },
                 confirmButton = {
                     TextButton(onClick = { actualViewModel.clearPopupMessage() }) { Text(stringResource(R.string.ok)) }
                 }

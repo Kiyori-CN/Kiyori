@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -330,7 +331,10 @@ fun TextToSpeechScreen(navController: NavController) {
                                                                         contentDescription = stringResource(R.string.speech_services_dropdown_expand)
                                                                 )
                                                         },
-                                                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                                                        modifier =
+                                                                Modifier
+                                                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                                        .fillMaxWidth()
                                                 )
                                                 ExposedDropdownMenu(
                                                         expanded = simpleTtsLocaleExpanded,
@@ -391,7 +395,7 @@ fun TextToSpeechScreen(navController: NavController) {
                                                                 }
                                                                 IconButton(onClick = { simpleTtsShowVoiceDialog = true }) {
                                                                         Icon(
-                                                                                imageVector = Icons.Filled.FormatListBulleted,
+                                                                                imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
                                                                                 contentDescription = stringResource(R.string.speech_services_simple_tts_voice_select)
                                                                         )
                                                                 }

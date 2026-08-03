@@ -129,7 +129,7 @@ fun DraggableNodeCard(
                             }
                             
                             tryAwaitRelease()
-                            longPressJob?.cancel()
+                            longPressJob.cancel()
                             
                             // 只有在没有长按、没有拖动、且不在拖动状态时才触发点击
                             if (!isLongPressed && !hasDragged && !isDragging) {

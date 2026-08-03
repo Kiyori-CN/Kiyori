@@ -16,7 +16,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,7 +68,7 @@ fun ParamVisualizer(xmlContent: String) {
                         .background(MaterialTheme.colorScheme.surface)
                         .padding(12.dp)
                 ) {
-                    val clipboardManager = LocalClipboardManager.current
+                    val context = LocalContext.current
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -82,7 +83,7 @@ fun ParamVisualizer(xmlContent: String) {
                         IconButton(
                             modifier = Modifier.size(24.dp), // 限制IconButton的大小
                             onClick = {
-                                clipboardManager.setText(AnnotatedString(param.value))
+                                context.copyPlainTextToClipboard("Kiyori parameter", param.value)
                             }
                         ) {
                             Icon(

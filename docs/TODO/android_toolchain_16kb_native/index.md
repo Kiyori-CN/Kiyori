@@ -12,9 +12,9 @@ status: verification_pending
 
 ## 已确认基线
 
-- AGP `9.3.1`、Gradle `9.5.0` 与 Kotlin `2.3.21` 已完成 AGP 9 内置 Kotlin/Kapt 迁移
+- AGP `9.3.1`、Gradle `9.5.0` 与 Kotlin `2.4.10` 已完成 AGP 9 内置 Kotlin/Kapt 迁移
 - Gradle 运行时使用 JDK 21；Java/Kotlin 字节码目标继续为 JVM 17
-- compile SDK `36`、target SDK `34`、Build Tools `36.0.0`、CMake `3.22.1`
+- compile SDK `37`、target SDK `34`、CI Build Tools `36.0.0`、CMake `3.22.1`
 - 所有源码 native 模块统一 NDK `28.2.13676358`
 - Android 官方 16 KB 指南：AGP `8.5.1+`，NDK r28+ 默认生成 16 KB ELF 对齐；预编译依赖仍需单独确认
 
@@ -46,6 +46,11 @@ status: verification_pending
 ## 当前边界
 
 - native ripgrep 已改由 Gradle 使用 Rust 1.88.0、NDK 28.2.13676358 和 Android API 26 linker 生成；本地 arm64 产物为 AArch64 ELF，四个 `PT_LOAD` 的 `Align` 均为 `0x4000`
+- shell identity launcher 已从源码 assets 预编译文件迁为 Gradle 生成资产；NDK
+  28.2.13676358/API 26 构建使用 `-nostdlib++`，四个 `PT_LOAD` 均为 `0x4000`，动态依赖
+  只包含 Android 系统库，不再依赖 APK 的 `libc++_shared.so`
+- terminal 的 2 字节 `libsudo.so` 已删除；等价命令入口由 `TerminalManager` 在私有 bin
+  目录生成 `/system/bin/sh` shim，不再进入 native strip 或 ELF 对齐流程
 - APK 内播放器能力使用 FFmpegKit Maintained `8.1.7` 与确定性 arm64 mpv AAR；mpv AAR 持有与
   `libmpv.so` 同为 Clang 21 的唯一 `libc++_shared.so`，以及启用 Mbed TLS、使用 `libmp*.so`
   SONAME / `DT_NEEDED` 的七个播放器 FFmpeg ELF。FFmpegKit AAR 继续持有九个正常名称 native 库，

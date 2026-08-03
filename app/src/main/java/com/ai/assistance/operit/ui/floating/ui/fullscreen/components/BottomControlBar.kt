@@ -37,7 +37,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Delete
@@ -45,9 +45,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -225,7 +225,7 @@ fun BottomControlBar(
                     GlassyChip(
                         selected = isTtsMuted,
                         text = "",
-                        icon = if (isTtsMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        icon = if (isTtsMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                         showIcon = true,
                         showText = false,
                         iconContentDescription = if (isTtsMuted) {
@@ -362,7 +362,7 @@ fun BottomControlBar(
                                         enabled = canSend
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Send,
+                                            imageVector = Icons.AutoMirrored.Filled.Send,
                                             contentDescription = stringResource(R.string.floating_send),
                                             tint = if (canSend) {
                                                 MaterialTheme.colorScheme.primary
@@ -713,7 +713,7 @@ private fun MinimizeToVoiceBallButton(
         modifier = modifier.size(42.dp)
     ) {
         Icon(
-            imageVector = Icons.Default.Chat,
+            imageVector = Icons.AutoMirrored.Filled.Chat,
             contentDescription = stringResource(R.string.floating_shrink_to_ball),
             tint = Color.White,
             modifier = Modifier.size(24.dp)

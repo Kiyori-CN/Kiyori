@@ -25,8 +25,14 @@ ANDROID_MIME_TYPE = "{http://schemas.android.com/apk/res/android}mimeType"
 ANDROID_PERMISSION = "{http://schemas.android.com/apk/res/android}permission"
 ANDROID_PROCESS = "{http://schemas.android.com/apk/res/android}process"
 ANDROID_SCHEME = "{http://schemas.android.com/apk/res/android}scheme"
+TOOLS_NODE = "{http://schemas.android.com/tools}node"
 VALID_SYNC_ZONES = {"A", "B", "C", "D"}
 VALID_MANIFEST_PHASES = {"baseline", "m01", "post-m01", "m03"}
+DEBUG_MANIFEST_PHASES = {"debug"}
+MAIN_MANIFEST_PATH = "app/src/main/AndroidManifest.xml"
+DEBUG_MANIFEST_PATH = "app/src/debug/AndroidManifest.xml"
+DEBUG_MANIFEST_COMPONENT_SNAPSHOT = "debug-manifest-components.txt"
+DEBUG_MANIFEST_HASH_SNAPSHOT = "debug-manifest-structure-hashes.txt"
 MANAGED_SOURCE_SUFFIXES = {".java", ".kt"}
 PROJECT_IMPORT_ROOTS = (
     "com.ai.assistance.operit",
@@ -59,10 +65,11 @@ M03_APPLICATION_PACKAGE = "com.kiyori.app"
 M03_APPLICATION_PACKAGE_PLACEHOLDER = "__M03_APPLICATION_PACKAGE__"
 M03_LINT_OLD_PATH = "src/main/java/com/ai/assistance/operit/core/application/KiyoriApplication.kt"
 M03_LINT_NEW_PATH = "src/main/java/com/kiyori/app/KiyoriApplication.kt"
-# M-03 originally moved six baseline locations. The later full M-04 lint
-# regeneration proved AppBundleLocaleChanges stale, so ARCH018 must lock the
-# five locations that still exist instead of allowing that obsolete record back.
-M03_LINT_PATH_COUNT = 5
+# M-03 originally moved six baseline locations. Full lint regeneration first
+# proved AppBundleLocaleChanges stale, then QD-07's minSdk cleanup removed one
+# obsolete SDK branch. ARCH018 locks the four records that remain so neither
+# stale issue can silently return.
+M03_LINT_PATH_COUNT = 4
 M04_OLD_ROOT_PATH = "app/src/main/java/com/ai/assistance/operit/ui/main/OperitApp.kt"
 M04_ROOT_PATH = "app/src/main/java/com/kiyori/app/KiyoriApp.kt"
 M04_ROOT_PACKAGE = "com.kiyori.app"
@@ -1241,21 +1248,24 @@ def read_hash_snapshot(path: Path) -> list[tuple[str, str]]:
     return entries
 
 
-def read_manifest_hash_snapshot(path: Path) -> dict[str, str]:
+def read_manifest_hash_snapshot(
+    path: Path,
+    valid_phases: set[str] = VALID_MANIFEST_PHASES,
+) -> dict[str, str]:
     entries: dict[str, str] = {}
     for line in read_snapshot(path):
         fields = line.split("\t", maxsplit=1)
         if (
             len(fields) != 2
-            or fields[0] not in VALID_MANIFEST_PHASES
+            or fields[0] not in valid_phases
             or not re.fullmatch(r"[0-9A-Fa-f]{64}", fields[1])
         ):
             raise ValueError(f"invalid manifest hash snapshot line: {line}")
         if fields[0] in entries:
             raise ValueError(f"duplicate manifest hash snapshot phase: {fields[0]}")
         entries[fields[0]] = fields[1].upper()
-    missing = VALID_MANIFEST_PHASES - set(entries)
-    unexpected = set(entries) - VALID_MANIFEST_PHASES
+    missing = valid_phases - set(entries)
+    unexpected = set(entries) - valid_phases
     if missing or unexpected:
         raise ValueError(
             "manifest hash snapshot phases differ: "
@@ -1793,6 +1803,8 @@ def actual_manifest_components(manifest_path: Path) -> Counter[tuple[str, str]]:
     components: Counter[tuple[str, str]] = Counter()
     for tag in ("application", "activity", "activity-alias", "service", "receiver", "provider"):
         for node in root.iter(tag):
+            if node.get(TOOLS_NODE) == "remove":
+                continue
             name = node.get(ANDROID_NAME)
             if name:
                 components[(tag, name)] += 1
@@ -1861,7 +1873,7 @@ def check_manifest(
     semantic_snapshot_path: Path | None = None,
 ) -> None:
     expected = expected_manifest_components(snapshot_path, phase)
-    manifest_path = root / "app/src/main/AndroidManifest.xml"
+    manifest_path = root / MAIN_MANIFEST_PATH
     actual = actual_manifest_components(manifest_path)
     for item in sorted((expected - actual).elements()):
         errors.append(f"ARCH008 missing manifest component: {item[0]} {item[1]}")
@@ -1876,6 +1888,43 @@ def check_manifest(
                 "ARCH008 manifest semantic structure changed: "
                 f"phase={phase} expected {expected_hash}, found {actual_hash}"
             )
+
+
+def check_debug_manifest(
+    root: Path,
+    architecture_root: Path,
+    errors: list[str],
+) -> None:
+    manifest_path = root / DEBUG_MANIFEST_PATH
+    if not manifest_path.is_file():
+        errors.append(f"ARCH008 debug Manifest missing: {DEBUG_MANIFEST_PATH}")
+        return
+
+    expected = expected_manifest_components(
+        architecture_root / DEBUG_MANIFEST_COMPONENT_SNAPSHOT,
+        "baseline",
+    )
+    actual = actual_manifest_components(manifest_path)
+    for item in sorted((expected - actual).elements()):
+        errors.append(
+            f"ARCH008 missing debug manifest component: {item[0]} {item[1]}"
+        )
+    for item in sorted((actual - expected).elements()):
+        errors.append(
+            f"ARCH008 unexpected debug manifest component: {item[0]} {item[1]}"
+        )
+
+    expected_hashes = read_manifest_hash_snapshot(
+        architecture_root / DEBUG_MANIFEST_HASH_SNAPSHOT,
+        DEBUG_MANIFEST_PHASES,
+    )
+    actual_hash = manifest_semantic_hash(manifest_path)
+    expected_hash = expected_hashes["debug"]
+    if actual_hash != expected_hash:
+        errors.append(
+            "ARCH008 debug manifest semantic structure changed: "
+            f"expected {expected_hash}, found {actual_hash}"
+        )
 
 
 def check_literals(root: Path, snapshot_paths: tuple[Path, ...], errors: list[str]) -> None:
@@ -10277,6 +10326,7 @@ def main() -> int:
             errors,
             architecture_root / "manifest-structure-hashes.txt",
         ),
+        lambda: check_debug_manifest(root, architecture_root, errors),
         lambda: check_literals(
             root,
             (

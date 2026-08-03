@@ -32,6 +32,8 @@ httpGet(url: string, ignore_ssl?: boolean): Promise<HttpResponseData>
 httpPost(url: string, body: string | object, ignore_ssl?: boolean): Promise<HttpResponseData>
 ```
 
+`ignore_ssl` 仅为调用签名兼容而保留。传入 `true` 会被明确拒绝；运行时始终校验证书链和主机名。
+
 #### `http(options)`
 
 ```ts
@@ -50,6 +52,8 @@ http({
 ```
 
 这是更通用的 HTTP 请求入口。
+
+`http(options)` 与 `uploadFile(options)` 中的 `ignore_ssl` 具有相同约束：只能省略或设为 `false`。
 
 #### `uploadFile(options)`
 

@@ -467,13 +467,13 @@ class FloatingChatService : Service(), FloatingWindowCallback {
             if (hasColorSchemeExtra) {
                 val serializableColorScheme =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent?.getParcelableExtra(
+                        intent.getParcelableExtra(
                             "COLOR_SCHEME",
                             SerializableColorScheme::class.java
                         )
                     } else {
                         @Suppress("DEPRECATION")
-                        intent?.getParcelableExtra<SerializableColorScheme>("COLOR_SCHEME")
+                        intent.getParcelableExtra<SerializableColorScheme>("COLOR_SCHEME")
                     }
                 serializableColorScheme?.let {
                     colorScheme.value = it.toComposeColorScheme()
@@ -498,13 +498,13 @@ class FloatingChatService : Service(), FloatingWindowCallback {
             if (hasTypographyExtra) {
                 val serializableTypography =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent?.getParcelableExtra(
+                        intent.getParcelableExtra(
                             "TYPOGRAPHY",
                             SerializableTypography::class.java
                         )
                     } else {
                         @Suppress("DEPRECATION")
-                        intent?.getParcelableExtra<SerializableTypography>("TYPOGRAPHY")
+                        intent.getParcelableExtra<SerializableTypography>("TYPOGRAPHY")
                     }
                 serializableTypography?.let {
                     typography.value = it.toComposeTypography()
@@ -560,11 +560,7 @@ class FloatingChatService : Service(), FloatingWindowCallback {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         AppLogger.d(TAG, "onTrimMemory: level=$level")
-        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ||
-                        level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
-                        level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
-                        level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE
-        ) {
+        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
             saveState()
         }
     }

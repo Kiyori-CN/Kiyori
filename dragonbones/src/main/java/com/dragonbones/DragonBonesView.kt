@@ -104,7 +104,11 @@ constructor(context: Context, attrs: AttributeSet? = null, zOrderOnTop: Boolean 
             // Let the gesture detector handle the event.
             // Return true if the event was consumed, false otherwise.
             // This allows unconsumed events to be passed up to Compose's pointer input handlers.
-            gestureDetector.onTouchEvent(event)
+            val handled = gestureDetector.onTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP && handled) {
+                performClick()
+            }
+            handled
         }
     }
 
@@ -337,10 +341,10 @@ fun DragonBonesViewCompose(
             }
         }
 
-        LaunchedEffect(controller.scale) { viewInstance?.setWorldScale(controller.scale) }
+        LaunchedEffect(controller.scale) { viewInstance.setWorldScale(controller.scale) }
 
         LaunchedEffect(controller.translationX, controller.translationY) {
-            viewInstance?.setWorldTranslation(controller.translationX, controller.translationY)
+            viewInstance.setWorldTranslation(controller.translationX, controller.translationY)
         }
 
         // The view is disposed only when the composable leaves the screen entirely.

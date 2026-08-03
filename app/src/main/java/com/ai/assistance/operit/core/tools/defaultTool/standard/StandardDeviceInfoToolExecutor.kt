@@ -169,10 +169,10 @@ open class StandardDeviceInfoToolExecutor(private val context: Context) : ToolEx
 
         return when {
             size < kb -> "$size B"
-            size < mb -> String.format("%.2f KB", size / kb)
-            size < gb -> String.format("%.2f MB", size / mb)
-            size < tb -> String.format("%.2f GB", size / gb)
-            else -> String.format("%.2f TB", size / tb)
+            size < mb -> String.format(java.util.Locale.getDefault(), "%.2f KB", size / kb)
+            size < gb -> String.format(java.util.Locale.getDefault(), "%.2f MB", size / mb)
+            size < tb -> String.format(java.util.Locale.getDefault(), "%.2f GB", size / gb)
+            else -> String.format(java.util.Locale.getDefault(), "%.2f TB", size / tb)
         }
     }
 }

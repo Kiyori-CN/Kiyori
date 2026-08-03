@@ -2,6 +2,8 @@ package com.ai.assistance.mnn
 
 import android.util.Log
 import java.io.File
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import org.json.JSONObject
 
 /**
@@ -89,24 +91,26 @@ class MNNLlmSession private constructor(
     @Volatile
     private var released = false
 
-    private val lock = Any()
+    private val lifecycleLock = ReentrantLock()
+    private val noActiveCalls = lifecycleLock.newCondition()
 
     private var activeCalls = 0
 
     private inline fun <T> withActiveCall(block: (Long) -> T): T {
-        val ptr: Long
-        synchronized(lock) {
+        val ptr = lifecycleLock.withLock {
             checkValid()
             activeCalls += 1
-            ptr = llmPtr
+            llmPtr
         }
 
         try {
             return block(ptr)
         } finally {
-            synchronized(lock) {
+            lifecycleLock.withLock {
                 activeCalls -= 1
-                (lock as java.lang.Object).notifyAll()
+                if (activeCalls == 0) {
+                    noActiveCalls.signalAll()
+                }
             }
         }
     }
@@ -300,7 +304,7 @@ class MNNLlmSession private constructor(
      * 这会立即中断正在进行的推理过程
      */
     fun cancel() {
-        val ptr = synchronized(lock) {
+        val ptr = lifecycleLock.withLock {
             if (released || llmPtr == 0L) {
                 return
             }
@@ -388,7 +392,7 @@ class MNNLlmSession private constructor(
      * 释放会话
      */
     fun release() {
-        val ptr = synchronized(lock) {
+        val ptr = lifecycleLock.withLock {
             if (released || llmPtr == 0L) {
                 return
             }
@@ -400,18 +404,22 @@ class MNNLlmSession private constructor(
 
         MNNLlmNative.nativeCancel(ptr)
 
-        synchronized(lock) {
+        var interrupted = false
+        lifecycleLock.withLock {
             while (activeCalls > 0) {
                 try {
-                    (lock as java.lang.Object).wait()
+                    noActiveCalls.await()
                 } catch (e: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                    break
+                    // Native 句柄只有在所有调用退出后才能释放；先完成等待，再恢复中断状态。
+                    interrupted = true
                 }
             }
         }
 
         MNNLlmNative.nativeReleaseLlm(ptr)
+        if (interrupted) {
+            Thread.currentThread().interrupt()
+        }
         Log.d(TAG, "Session released")
     }
     

@@ -28,16 +28,16 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -46,7 +46,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Button
@@ -58,7 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -145,7 +145,7 @@ private val MarketCategoryIconById =
         "automation_workflow" to Icons.Default.AutoAwesome,
         "docs_knowledge" to Icons.Default.Description,
         "media_content" to Icons.Default.Image,
-        "chat_communication" to Icons.Default.Chat,
+        "chat_communication" to Icons.AutoMirrored.Filled.Chat,
         "integration_api" to Icons.Default.Api,
         "system_data" to Icons.Default.Storage,
         "business_productivity" to Icons.Default.Dashboard,
@@ -232,7 +232,7 @@ fun UnifiedMarketScreen(
                         Icon(
                             imageVector = when (tab) {
                                 MarketHomeTab.ALL -> Icons.Default.Store
-                                MarketHomeTab.CATEGORIES -> Icons.Default.List
+                                MarketHomeTab.CATEGORIES -> Icons.AutoMirrored.Filled.List
                                 MarketHomeTab.MINE -> Icons.Default.Person
                             },
                             contentDescription = stringResource(tab.labelRes)
@@ -510,7 +510,7 @@ private fun MarketTypedListPane(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScrollableTabRow(
+        SecondaryScrollableTabRow(
             selectedTabIndex = selectedType.ordinal,
             edgePadding = 12.dp
         ) {
@@ -658,7 +658,7 @@ private fun MarketNotificationCard(notification: MarketV2Notification) {
 
 private fun notificationKindIcon(kind: String): ImageVector {
     return when (kind) {
-        "comment_new", "comment_reply" -> Icons.Default.Comment
+        "comment_new", "comment_reply" -> Icons.AutoMirrored.Filled.Comment
         "review_approved", "entry_curated" -> Icons.Default.CheckCircle
         "review_rejected" -> Icons.Default.Cancel
         "review_changes" -> Icons.Default.Refresh
@@ -955,7 +955,7 @@ private fun MarketAccountCard(
 
                 OutlinedButton(onClick = onLogout) {
                     Icon(
-                        imageVector = Icons.Default.Logout,
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -994,7 +994,7 @@ private fun MarketAccountCard(
 
                 Button(onClick = onLogin) {
                     Icon(
-                        imageVector = Icons.Default.Login,
+                        imageVector = Icons.AutoMirrored.Filled.Login,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )

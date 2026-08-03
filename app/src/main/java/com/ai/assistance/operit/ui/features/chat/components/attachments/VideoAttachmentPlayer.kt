@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.ai.assistance.operit.ui.features.chat.components.attachments
 
 import android.net.Uri
@@ -9,10 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.util.AppLogger
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
-import com.google.android.exoplayer2.ui.StyledPlayerView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 
 private const val VIDEO_ATTACHMENT_PLAYER_TAG = "VideoAttachmentPlayer"
 
@@ -48,7 +50,7 @@ fun VideoAttachmentPlayer(
 
     AndroidView(
         factory = { ctx ->
-            StyledPlayerView(ctx).apply {
+            PlayerView(ctx).apply {
                 this.player = player
                 useController = true
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT

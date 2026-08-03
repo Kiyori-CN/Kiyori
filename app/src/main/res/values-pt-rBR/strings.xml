@@ -3847,7 +3847,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mnn_search_models">Procure modelos...</string>
     <string name="mnn_no_search_results">Nenhum modelo correspondente encontrado</string>
     <string name="persona_card_generation_title">Cartão de personagem a ser modificado</string>
-    <string name="error_character_card_not_exist">Cartão de personagem não existe</string>
     <string name="error_unsupported_field">Campos não suportados: %1$s</string>
     <string name="no_character_card">Sem cartão de personagem</string>
     <string name="character_card_config">Configuração do cartão de personagem</string>
@@ -5386,7 +5385,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mcp_deployment_start">Comece a implantar o plug-in: %1$s</string>
     <string name="mcp_deployment_output_prefix">Saída:</string>
     <string name="mcp_deployment_virtual_plugin_detected">Plug-in do tipo %1$s detectado, execute implantação mínima</string>
-    <string name="mcp_deployment_cannot_create_terminal">Não é possível criar sessão de terminal</string>
     <string name="mcp_deployment_creating_directory">Crie o diretório do plugin: %1$s</string>
     <string name="mcp_deployment_create_directory_failed">Falha ao criar o diretório do plugin</string>
     <string name="mcp_deployment_minimal_complete">A implementação mínima do plug-in do tipo %1$s foi concluída e pode ser usada diretamente.</string>
@@ -5662,7 +5660,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="profile_regex_identity">Identidade (identidade)?[::\\s]+([\u4e00-\u9fa5,,,]+)</string>
     <string name="profile_regex_occupation">Ocupação[::\\s]+([\u4e00-\u9fa5,,,]+)</string>
     <string name="profile_regex_ai_style">(Estilo de IA | estilo de IA esperado | estilo de IA preferido)[::\\s]+([\u4e00-\u9fa5,,,]+)</string>
-    <string name="ai_message_user">usuário</string>
     <string name="ai_message_replying_to_previous">O usuário está respondendo à sua mensagem anterior:</string>
     <string name="ai_message_executing_deep_search">Executando pesquisa profunda...</string>
     <string name="ai_message_media_omitted">[Áudio e vídeo omitidos]</string>
@@ -5672,7 +5669,11 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="ai_message_reply_omitted">[Citação da resposta omitida]</string>
     <string name="ai_message_tool_result_omitted">[Resultados da ferramenta omitidos: %1$s]</string>
     <string name="ai_message_tool_result_omitted_short">[Resultados da ferramenta omitidos]</string>
-    <string name="ai_message_omitted_segment">[...Omitir %1$s parágrafo...]</string>
+    <plurals name="ai_message_omitted_segment">
+        <item quantity="one">[…%1$d parágrafo omitido…]</item>
+        <item quantity="many">[…%1$d parágrafos omitidos…]</item>
+        <item quantity="other">[…%1$d parágrafos omitidos…]</item>
+    </plurals>
     <string name="ai_message_tool_start">[Ferramenta: %1$s]</string>
     <string name="ai_message_success">sucesso</string>
     <string name="ai_message_failure">falhar</string>
@@ -5760,7 +5761,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="character_card_single_char">caractere único</string>
     <string name="character_group_single_char">grupo</string>
     <string name="waifu_config_bound_to_card">Vincular ao cartão de personagem</string>
-    <string name="advanced_import_key">Chave de importação</string>
+    <string name="advanced_import_key">Chave de importação ····%1$s</string>
     <string name="model_custom_params">Parâmetros personalizados</string>
     <string name="file_manager_home">Página inicial</string>
     <string name="file_manager_new_tab">página nova guia</string>
@@ -6066,7 +6067,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="message_role_user">usuário</string>
     <string name="role_card_chat_model_binding_parse_failed">Falha na análise de vinculação do modelo de diálogo do cartão de personagem</string>
     <string name="message_workspace_sync_failed">Falha na sincronização do status do espaço de trabalho: %1$s</string>
-    <string name="message_ai_service_not_initialized">Serviço de IA não inicializado</string>
     <string name="message_summarizing">Resumindo memórias...</string>
     <string name="message_send_failed">Falha ao enviar mensagem: %1$s</string>
     <string name="deepgram_stt_url_not_set">O URL STT do Deepgram não está definido, preencha o endereço completo da interface (por exemplo, https://api.deepgram.com/v1/listen).</string>

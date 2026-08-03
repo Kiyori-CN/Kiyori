@@ -207,7 +207,7 @@ fun FileBrowser(
                 val result = toolHandler.executeTool(tool)
                 AppLogger.d("WorkspaceFileBrowser", "result list_files success=${result.success} error=${result.error}")
                 if (result.success && result.result is DirectoryListingData) {
-                    val entries = (result.result as DirectoryListingData).entries
+                    val entries = result.result.entries
                     fileList =
                             entries.map {
                                 DirectoryEntry(
@@ -392,7 +392,7 @@ fun FileBrowser(
                 val result = toolHandler.executeTool(tool)
                 AppLogger.d("WorkspaceFileBrowser", "result read_file_full success=${result.success} error=${result.error}")
                 if (result.success && result.result is FileContentData) {
-                    val fileContentData = result.result as FileContentData
+                    val fileContentData = result.result
                     val content = fileContentData.content
                     val openFileInfo = OpenFileInfo(
                         path = filePath,
@@ -833,7 +833,7 @@ private fun QuickPathChipWithLongPress(
         modifier = Modifier.pointerInput(onLongPress) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false)
-                val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis.toLong()) {
+                val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                     waitForUpOrCancellation()
                     false
                 } ?: true

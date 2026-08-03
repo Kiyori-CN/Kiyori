@@ -669,7 +669,7 @@ class FileBindingService(context: Context) {
             AppLogger.d(
                 TAG,
                 "匹配完成! 最佳匹配: 行 ${start + 1}-${end + 1}, 相似度: ${(bestMatchScore * 100).toInt()}%, " +
-                        "总耗时: ${String.format("%.2f", totalTime)}s, " +
+                        "总耗时: ${String.format(java.util.Locale.getDefault(), "%.2f", totalTime)}s, " +
                         "总窗口数: $totalWindows, 总LCS计算: $lcsCalculations"
             )
             bestMatchRange

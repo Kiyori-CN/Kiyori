@@ -108,7 +108,7 @@ class MarkdownConverter(private val context: Context) : ChatFormatConverter {
                 // 保存上一条消息
                 if (currentRole != null && currentContent.isNotEmpty()) {
                     messages.add(createMessage(
-                        currentRole!!, 
+                        currentRole,
                         currentContent.toString(),
                         currentTimestamp,
                         currentModel
@@ -183,7 +183,7 @@ class MarkdownConverter(private val context: Context) : ChatFormatConverter {
         // 保存最后一条消息
         if (currentRole != null && currentContent.isNotEmpty()) {
             messages.add(createMessage(
-                currentRole!!, 
+                currentRole,
                 currentContent.toString(),
                 currentTimestamp,
                 currentModel

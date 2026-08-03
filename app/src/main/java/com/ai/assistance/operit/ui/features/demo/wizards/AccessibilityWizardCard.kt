@@ -110,7 +110,7 @@ fun AccessibilityWizardCard(
                 Column(modifier = Modifier.padding(12.dp)) {
                     // 进度指示器
                     LinearProgressIndicator(
-                        progress = progress,
+                        progress = { progress },
                         modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant
@@ -395,4 +395,4 @@ private fun UpdateAvailableInfo(
             }
         }
     }
-} 
+}

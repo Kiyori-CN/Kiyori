@@ -1050,7 +1050,10 @@ fun NodeDialog(
                             readOnly = true,
                             label = { Text(stringResource(R.string.workflow_node_type_label)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
                         ExposedDropdownMenu(
                             expanded = expanded,
@@ -1135,7 +1138,10 @@ fun NodeDialog(
                                     actionTypeExpanded = true
                                 },
                                 label = { Text(stringResource(R.string.workflow_tool_name_label)) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
                                 singleLine = true,
                                 placeholder = { Text(stringResource(R.string.workflow_tool_name_placeholder)) },
                                 trailingIcon = {
@@ -1370,7 +1376,10 @@ fun NodeDialog(
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_operator_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = conditionOperatorExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = conditionOperatorExpanded,
@@ -1546,7 +1555,10 @@ fun NodeDialog(
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_logic_operator_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = logicOperatorExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = logicOperatorExpanded,
@@ -1582,7 +1594,10 @@ fun NodeDialog(
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_mode_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = extractModeExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = extractModeExpanded,
@@ -1947,7 +1962,10 @@ fun NodeDialog(
                                 readOnly = true,
                                 label = { Text(stringResource(R.string.workflow_trigger_type_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = triggerTypeExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(
                                 expanded = triggerTypeExpanded,
@@ -2126,7 +2144,6 @@ fun NodeDialog(
                                 useFixed = extractUseFixed,
                                 fixedValue = extractFixedValue
                             )
-                            else -> node
                         }
                     } else {
                         // 创建模式：创建新节点

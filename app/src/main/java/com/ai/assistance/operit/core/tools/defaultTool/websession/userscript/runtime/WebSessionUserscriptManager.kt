@@ -281,6 +281,13 @@ internal class WebSessionUserscriptManager(
         if (!supportState.isSupported) {
             return
         }
+        if (
+            !WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) ||
+                !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
+        ) {
+            AppLogger.e(TAG, "Userscript runtime capabilities changed before session attachment")
+            return
+        }
         val existing = sessionBindings[sessionId]
         if (existing?.webView === webView) {
             return
@@ -298,17 +305,25 @@ internal class WebSessionUserscriptManager(
             val scriptHandlers = mutableListOf<ScriptHandler>()
             val pageScriptHandler =
                 runCatching {
-                    WebViewCompat.addWebMessageListener(
-                        webView,
-                        UserscriptBootstrapScript.BRIDGE_NAME,
-                        setOf("*"),
-                        bridgeListener(sessionId, BridgeScope.PAGE),
-                    )
-                    WebViewCompat.addDocumentStartJavaScript(
-                        webView,
-                        UserscriptBootstrapScript.documentStartScript(),
-                        setOf("*"),
-                    )
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                        WebViewCompat.addWebMessageListener(
+                            webView,
+                            UserscriptBootstrapScript.BRIDGE_NAME,
+                            setOf("*"),
+                            bridgeListener(sessionId, BridgeScope.PAGE),
+                        )
+                    } else {
+                        error("Web message listener support changed during userscript attachment")
+                    }
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                        WebViewCompat.addDocumentStartJavaScript(
+                            webView,
+                            UserscriptBootstrapScript.documentStartScript(),
+                            setOf("*"),
+                        )
+                    } else {
+                        error("Document-start script support changed during userscript attachment")
+                    }
                 }.getOrElse { error ->
                     AppLogger.e(TAG, "Failed to add page-world userscript runtime", error)
                     null
@@ -2077,32 +2092,44 @@ internal class WebSessionUserscriptManager(
         }
         val action = payload.optString("action", "").trim()
         mainHandler.post {
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
+                postRpcError(replyProxy, requestId, "mute_audio_not_supported")
+                return@post
+            }
             runCatching {
                 when (action) {
                     "get_state" -> {
-                        val muted = WebViewCompat.isAudioMuted(binding.webView)
-                        audioMuteStates[sessionId] = muted
-                        postRpcSuccess(
-                            replyProxy,
-                            requestId,
-                            JSONObject().put("stateJson", JSONObject().put("muted", muted).toString())
-                        )
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
+                            val muted = WebViewCompat.isAudioMuted(binding.webView)
+                            audioMuteStates[sessionId] = muted
+                            postRpcSuccess(
+                                replyProxy,
+                                requestId,
+                                JSONObject().put("stateJson", JSONObject().put("muted", muted).toString())
+                            )
+                        } else {
+                            error("WebView audio-mute support changed while reading state")
+                        }
                     }
                     "set_mute" -> {
                         val muted = payload.optBoolean("muted", false)
-                        WebViewCompat.setAudioMuted(binding.webView, muted)
-                        audioMuteStates[sessionId] = muted
-                        dispatchHostEventToGrant(
-                            sessionId = sessionId,
-                            requiredGrant = "GM.audio",
-                            eventType = "audio_state_changed",
-                            payload = JSONObject().put("muted", muted),
-                        )
-                        postRpcSuccess(
-                            replyProxy,
-                            requestId,
-                            JSONObject().put("stateJson", JSONObject().put("muted", muted).toString())
-                        )
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
+                            WebViewCompat.setAudioMuted(binding.webView, muted)
+                            audioMuteStates[sessionId] = muted
+                            dispatchHostEventToGrant(
+                                sessionId = sessionId,
+                                requiredGrant = "GM.audio",
+                                eventType = "audio_state_changed",
+                                payload = JSONObject().put("muted", muted),
+                            )
+                            postRpcSuccess(
+                                replyProxy,
+                                requestId,
+                                JSONObject().put("stateJson", JSONObject().put("muted", muted).toString())
+                            )
+                        } else {
+                            error("WebView audio-mute support changed while setting state")
+                        }
                     }
                     else -> postRpcError(replyProxy, requestId, "unsupported_audio_action")
                 }
@@ -2269,10 +2296,10 @@ internal class WebSessionUserscriptManager(
                 null
             } else {
                 val bodyText =
-                    when (bodyData) {
-                        null, JSONObject.NULL -> ""
-                        is JSONObject, is org.json.JSONArray -> bodyData.toString()
-                        else -> bodyData.toString()
+                    if (bodyData == null || bodyData === JSONObject.NULL) {
+                        ""
+                    } else {
+                        bodyData.toString()
                     }
                 val mediaType = headers.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.toMediaTypeOrNull()
                 bodyText.toRequestBody(mediaType)

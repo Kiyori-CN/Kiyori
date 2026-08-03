@@ -396,7 +396,7 @@ class StreamKmpGraph {
                     }
                 }
             }
-            currentNode = nextNode!!
+            currentNode = nextNode
 
             if (currentNode.isFinal) {
                 val startIndex = index - currentMatchLength + 1

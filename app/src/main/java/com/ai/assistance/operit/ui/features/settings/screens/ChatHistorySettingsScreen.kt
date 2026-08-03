@@ -1413,7 +1413,7 @@ private fun ChatHistoryBatchSelectorCard(
                         placeholder = { Text(context.getString(R.string.select_card_or_unbind)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.textFieldColors()
                     )
@@ -1471,7 +1471,7 @@ private fun ChatHistoryBatchSelectorCard(
                         placeholder = { Text(context.getString(R.string.select_group_or_unbind)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = groupDropdownExpanded) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.textFieldColors()
                     )

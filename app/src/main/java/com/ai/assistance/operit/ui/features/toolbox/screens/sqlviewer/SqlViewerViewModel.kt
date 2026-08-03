@@ -147,7 +147,7 @@ class SqlViewerViewModel(private val context: Context) : ViewModel() {
 
     private fun queryChanges(): Int? {
         return try {
-            database.query("SELECT changes()")?.use { cursor ->
+            database.query("SELECT changes()").use { cursor ->
                 if (cursor.moveToFirst()) cursor.getInt(0) else null
             }
         } catch (_: Exception) {

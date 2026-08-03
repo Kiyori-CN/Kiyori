@@ -373,10 +373,7 @@ class MessageProcessingDelegate(
     )
 
     private fun readCurrentTurnCancellationSnapshot(chatId: String): TurnCancellationSnapshot? {
-        val service =
-            EnhancedAIService.getChatInstance(context, chatId)
-                ?: getEnhancedAiService()
-                ?: return null
+        val service = EnhancedAIService.getChatInstance(context, chatId)
         val runtime = runtimeFor(chatId)
         return runCatching {
             val snapshot = service.captureCurrentTurnTokenSnapshot()
@@ -717,7 +714,7 @@ class MessageProcessingDelegate(
             val effectiveHideUserMessage = effectivePersistTurn && turnOptions.hideUserMessage
             // 检查这是否是聊天中的第一条用户消息（忽略AI的开场白）
             val isFirstMessage = !hasUserMessage(chatId)
-            val titleFallback = if (effectivePersistTurn && isFirstMessage && chatId != null) {
+            val titleFallback = if (effectivePersistTurn && isFirstMessage) {
                 fallbackConversationTitle(originalMessageText, attachments).also { fallbackTitle ->
                     updateChatTitle(chatId, fallbackTitle)
                 }
@@ -820,7 +817,7 @@ class MessageProcessingDelegate(
                 }
             }
 
-            if (shouldAddUserMessageToChat && chatId != null) {
+            if (shouldAddUserMessageToChat) {
                 // 等待消息添加到聊天历史完成，确保getChatHistory()包含新消息
                 val addUserMessageStartTime = messageTimingNow()
                 addMessageToChat(chatId, userMessage)
@@ -867,21 +864,11 @@ class MessageProcessingDelegate(
                 // }
 
                 val acquireServiceStartTime = messageTimingNow()
-                val chatScopedService = EnhancedAIService.getChatInstance(context, activeChatId)
-                val service =
-                    (chatScopedService
-                        ?: getEnhancedAiService())
-                        ?: run {
-                            withContext(Dispatchers.Main) { showErrorMessage(context.getString(R.string.message_ai_service_not_initialized)) }
-                            chatRuntime.isLoading.value = false
-                            updateGlobalLoadingState()
-                            setChatInputProcessingState(activeChatId, EnhancedInputProcessingState.Idle)
-                            return@launch
-                        }
+                val service = EnhancedAIService.getChatInstance(context, activeChatId)
                 logMessageTiming(
                     stage = "delegate.acquireService",
                     startTimeMs = acquireServiceStartTime,
-                    details = "chatId=$activeChatId, reusedChatInstance=${chatScopedService != null}"
+                    details = "chatId=$activeChatId, reusedChatInstance=true"
                 )
                 serviceForTurnComplete = service
 
@@ -1026,7 +1013,7 @@ class MessageProcessingDelegate(
                 chatRuntime.requestSentAt = requestSentAt
                 chatRuntime.requestStartElapsed = requestStartElapsed
                 chatRuntime.firstResponseElapsed = null
-                if (userMessageAdded && chatId != null) {
+                if (userMessageAdded) {
                     userMessage = userMessage.copy(sentAt = requestSentAt)
                     addMessageToChat(chatId, userMessage)
                 }
@@ -1082,7 +1069,7 @@ class MessageProcessingDelegate(
                     modelName = modelName,
                     sentAt = requestSentAt
                 )
-                if (effectivePersistTurn && chatId != null) {
+                if (effectivePersistTurn) {
                     chatRuntime.activeStreamingTurn =
                         ActiveStreamingTurn(
                             message = aiMessage,
@@ -1118,7 +1105,7 @@ class MessageProcessingDelegate(
 
                     withContext(Dispatchers.Main) {
                         waifuEmittedMessages += segmentMessage
-                        if (effectivePersistTurn && chatId != null) {
+                        if (effectivePersistTurn) {
                             addMessageToChat(chatId, segmentMessage)
                         }
                         if (getIsAutoReadEnabled()) {
@@ -1134,7 +1121,7 @@ class MessageProcessingDelegate(
                 }
 
                 suspend fun syncWaifuMessageMetrics(sourceMessage: ChatMessage) {
-                    if (!effectivePersistTurn || chatId == null || waifuEmittedMessages.isEmpty()) return
+                    if (!effectivePersistTurn || waifuEmittedMessages.isEmpty()) return
 
                     withContext(Dispatchers.Main) {
                         waifuEmittedMessages.indices.forEach { index ->
@@ -1160,7 +1147,7 @@ class MessageProcessingDelegate(
                 // 只有在非waifu模式下才添加初始的AI消息
                 if (!isWaifuModeEnabled) {
                     withContext(Dispatchers.Main) {
-                        if (effectivePersistTurn && chatId != null) {
+                        if (effectivePersistTurn) {
                             addMessageToChat(chatId, aiMessage)
                         }
                     }
@@ -1223,7 +1210,7 @@ class MessageProcessingDelegate(
                             }
 
                             fun claimStreamingSnapshot(): Boolean {
-                                if (!effectivePersistTurn || isWaifuModeEnabled || chatId == null) return false
+                                if (!effectivePersistTurn || isWaifuModeEnabled) return false
                                 val now = messageTimingNow()
                                 if (now - lastStreamingPersistAt < STREAM_PERSIST_INTERVAL_MS) {
                                     return false
@@ -1233,8 +1220,7 @@ class MessageProcessingDelegate(
                             }
 
                             suspend fun persistStreamingSnapshot(contentSnapshot: String) {
-                                val targetChatId = chatId ?: return
-                                addMessageToChat(targetChatId, aiMessage.copy(content = contentSnapshot))
+                                addMessageToChat(chatId, aiMessage.copy(content = contentSnapshot))
                             }
 
                             val autoReadJob =
@@ -1379,19 +1365,19 @@ class MessageProcessingDelegate(
 
                 val waitDurationMs =
                     if (requestStartElapsed > 0L && firstResponseElapsed != null) {
-                        (firstResponseElapsed!! - requestStartElapsed).coerceAtLeast(0L)
+                        (firstResponseElapsed - requestStartElapsed).coerceAtLeast(0L)
                     } else {
                         0L
                     }
                 val outputDurationMs =
                     if (firstResponseElapsed != null) {
-                        (messageTimingNow() - firstResponseElapsed!!).coerceAtLeast(0L)
+                        (messageTimingNow() - firstResponseElapsed).coerceAtLeast(0L)
                     } else {
                         0L
                     }
 
                 if (requestSentAt > 0L) {
-                    if (userMessageAdded && chatId != null) {
+                    if (userMessageAdded) {
                         userMessage =
                             userMessage.withTurnMetrics(
                                 inputTokens = turnInputTokens,
@@ -1417,7 +1403,7 @@ class MessageProcessingDelegate(
                 aiMessage = aiMessage.copy(completedAt = System.currentTimeMillis())
 
                 if (isWaifuModeEnabled) {
-                    syncWaifuMessageMetricsHandler?.invoke(aiMessage)
+                    syncWaifuMessageMetricsHandler.invoke(aiMessage)
                 }
 
                 val stateAfterStream =
@@ -1578,10 +1564,7 @@ class MessageProcessingDelegate(
         var exceptionToPropagate: Exception? = null
 
         try {
-            val service =
-                EnhancedAIService.getChatInstance(context, chatId)
-                    ?: getEnhancedAiService()
-                    ?: throw IllegalStateException(context.getString(R.string.message_ai_service_not_initialized))
+            val service = EnhancedAIService.getChatInstance(context, chatId)
             serviceForTerminalCleanup = service
             service.setInputProcessingState(
                 EnhancedInputProcessingState.Processing(context.getString(R.string.message_processing))
@@ -1726,13 +1709,13 @@ class MessageProcessingDelegate(
 
             val waitDurationMs =
                 if (firstResponseElapsed != null) {
-                    (firstResponseElapsed!! - requestStartElapsed).coerceAtLeast(0L)
+                    (firstResponseElapsed - requestStartElapsed).coerceAtLeast(0L)
                 } else {
                     0L
                 }
             val outputDurationMs =
                 if (firstResponseElapsed != null) {
-                    (messageTimingNow() - firstResponseElapsed!!).coerceAtLeast(0L)
+                    (messageTimingNow() - firstResponseElapsed).coerceAtLeast(0L)
                 } else {
                     0L
                 }

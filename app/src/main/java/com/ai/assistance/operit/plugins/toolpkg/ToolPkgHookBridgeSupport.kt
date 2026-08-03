@@ -108,7 +108,14 @@ internal fun decodeToolPkgHookResult(raw: Any?): Any? {
 }
 
 internal fun jsonObjectToMap(jsonObject: JSONObject): Map<String, Any?> {
-    return JsJavaBridgeDelegates.decodePlainJsonValue(jsonObject) as? Map<String, Any?> ?: emptyMap()
+    val decoded = JsJavaBridgeDelegates.decodePlainJsonValue(jsonObject)
+    if (decoded !is Map<*, *>) {
+        return emptyMap()
+    }
+    return decoded.entries.associate { entry ->
+        val key = entry.key as? String ?: error("JSON object key is not a String")
+        key to entry.value
+    }
 }
 
 internal fun jsonArrayToList(jsonArray: JSONArray): List<Any?> {

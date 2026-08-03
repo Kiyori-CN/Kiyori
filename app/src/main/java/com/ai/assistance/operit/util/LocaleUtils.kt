@@ -71,8 +71,6 @@ object LocaleUtils {
                 }
 
         return Locale.forLanguageTag(resolvedCode)
-                .takeIf { it.language.isNotBlank() }
-                ?: Locale(resolvedCode)
     }
 
     /**
@@ -130,6 +128,9 @@ object LocaleUtils {
      * @param context 上下文
      * @param languageCode 语言代码，如zh、en、pt-BR
      */
+    // Android 8-12 的运行中资源刷新仍依赖 Resources.updateConfiguration；
+    // Android 13+ 由 AppCompatDelegate 应用正式的 per-app locale。
+    @Suppress("DEPRECATION")
     fun setAppLanguage(context: Context, languageCode: String) {
         
         try {
@@ -183,10 +184,10 @@ object LocaleUtils {
                         }
                     }
                 } catch (e: Exception) {
-                    // 忽略无法更新的上下文
+                    AppLogger.e("LocaleUtils", "更新 Application 基础资源语言失败", e)
                 }
             } catch (e: Exception) {
-                // 错误时静默处理
+                AppLogger.e("LocaleUtils", "更新 Android 8-12 运行中资源语言失败", e)
             }
         }
     }

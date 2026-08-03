@@ -28,8 +28,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -46,6 +46,7 @@ import com.ai.assistance.operit.ui.common.markdown.XmlRenderPluginRegistry
 import com.ai.assistance.operit.ui.common.rememberLocal
 import com.ai.assistance.operit.util.ChatUtils
 import com.ai.assistance.operit.util.ChatMarkupRegex
+import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.stream.Stream
 import com.ai.assistance.operit.util.stream.stream
 
@@ -613,7 +614,7 @@ class CustomXmlRenderer(
                                                 shapes = MaterialTheme.shapes
                                             ) {
                                                 StreamMarkdownRenderer(
-                                                    markdownStream = thinkMarkdownStream!!,
+                                                    markdownStream = thinkMarkdownStream,
                                                     modifier = Modifier.fillMaxWidth(),
                                                     textColor = textColor.copy(alpha = 0.6f),
                                                     backgroundColor = Color.Transparent,
@@ -860,7 +861,7 @@ class CustomXmlRenderer(
     /** 渲染工具结果标签 <tool_result name="..." status="..."><content>...</content></tool_result> */
     @Composable
     private fun renderToolResult(content: String, modifier: Modifier, _textColor: Color) {
-        val clipboardManager = LocalClipboardManager.current
+        val context = LocalContext.current
 
         val renderState =
             run {
@@ -924,7 +925,7 @@ class CustomXmlRenderer(
                     isSuccess = renderState.isSuccess,
                     onCopyResult = {
                         if (errorContent.isNotBlank()) {
-                            clipboardManager.setText(AnnotatedString(errorContent))
+                            context.copyPlainTextToClipboard("Kiyori XML error", errorContent)
                         }
                     },
                     modifier = modifier,
@@ -1063,16 +1064,14 @@ class CustomXmlRenderer(
                         javaScriptEnabled = true
                         javaScriptCanOpenWindowsAutomatically = true
                         domStorageEnabled = true
-                        allowFileAccess = true
-                        allowContentAccess = true
-                        allowFileAccessFromFileURLs = true
-                        allowUniversalAccessFromFileURLs = true
+                        allowFileAccess = false
+                        allowContentAccess = false
                         loadWithOverviewMode = true
                         useWideViewPort = true
                         builtInZoomControls = false
                         displayZoomControls = false
                         cacheMode = WebSettings.LOAD_DEFAULT
-                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     }
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 }
@@ -1086,7 +1085,8 @@ class CustomXmlRenderer(
                         webView.clearHistory()
                         webView.removeAllViews()
                         webView.destroy()
-                    } catch (_: Throwable) {
+                    } catch (error: Throwable) {
+                        AppLogger.e("CustomXmlRenderer", "销毁内嵌 WebView 失败", error)
                     }
                 }
             }
@@ -1110,7 +1110,7 @@ class CustomXmlRenderer(
      * 构建完整的HTML文档，包含CSS样式
      */
     private fun buildFullHtmlDocument(bodyContent: String, textColor: Color): String {
-        val textColorHex = String.format("#%06X", 0xFFFFFF and textColor.toArgb())
+        val textColorHex = String.format(java.util.Locale.ROOT, "#%06X", 0xFFFFFF and textColor.toArgb())
         
         return """
             <!DOCTYPE html>

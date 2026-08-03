@@ -46,12 +46,8 @@ object MCPSharedSession {
             
             // 创建共享会话
             val sessionId = terminal.createSession(SESSION_NAME)
-            if (sessionId == null) {
-                AppLogger.e(TAG, "Failed to create shared session or session initialization timeout")
-            } else {
-                AppLogger.d(TAG, "Created shared MCP session: $sessionId")
-                sharedSessionId = sessionId
-            }
+            AppLogger.d(TAG, "Created shared MCP session: $sessionId")
+            sharedSessionId = sessionId
             
             sessionId
         }
@@ -77,4 +73,4 @@ object MCPSharedSession {
      * 检查共享会话是否存在
      */
     fun hasActiveSession(): Boolean = sharedSessionId != null
-} 
+}

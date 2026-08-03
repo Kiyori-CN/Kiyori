@@ -515,7 +515,7 @@ class MnnModelDownloadManager private constructor(private val context: Context) 
                         val speedBytesPerSec = (currentDownloaded - lastDownloaded) / ((currentTime - lastUpdateTime) / 1000.0)
                         val progress = if (totalBytes > 0) currentDownloaded.toFloat() / totalBytes else 0f
                         
-                        AppLogger.d(TAG, "下载进度: ${String.format("%.2f", progress * 100)}% " +
+                        AppLogger.d(TAG, "下载进度: ${String.format(java.util.Locale.getDefault(), "%.2f", progress * 100)}% " +
                                 "(${formatFileSize(currentDownloaded)}/${formatFileSize(totalBytes)}) " +
                                 "速度: ${formatSpeed(speedBytesPerSec)} " +
                                 "循环次数: $loopCount")
@@ -617,18 +617,18 @@ class MnnModelDownloadManager private constructor(private val context: Context) 
     
     private fun formatSpeed(bytesPerSecond: Double): String {
         return when {
-            bytesPerSecond < 1024 -> String.format("%.0f B/s", bytesPerSecond)
-            bytesPerSecond < 1024 * 1024 -> String.format("%.2f KB/s", bytesPerSecond / 1024)
-            else -> String.format("%.2f MB/s", bytesPerSecond / (1024 * 1024))
+            bytesPerSecond < 1024 -> String.format(java.util.Locale.getDefault(), "%.0f B/s", bytesPerSecond)
+            bytesPerSecond < 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.2f KB/s", bytesPerSecond / 1024)
+            else -> String.format(java.util.Locale.getDefault(), "%.2f MB/s", bytesPerSecond / (1024 * 1024))
         }
     }
     
     fun formatFileSize(bytes: Long): String {
         return when {
             bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024))
-            else -> String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024))
+            bytes < 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.2f KB", bytes / 1024.0)
+            bytes < 1024 * 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.2f MB", bytes / (1024.0 * 1024))
+            else -> String.format(java.util.Locale.getDefault(), "%.2f GB", bytes / (1024.0 * 1024 * 1024))
         }
     }
     
@@ -698,6 +698,7 @@ class MnnModelDownloadManager private constructor(private val context: Context) 
                 
                 // 构建下载URL
                 val downloadUrl = String.format(
+                    java.util.Locale.ROOT,
                     "https://modelscope.cn/api/v1/models/%s/repo?FilePath=%s",
                     repositoryPath,
                     fileName
@@ -722,7 +723,12 @@ class MnnModelDownloadManager private constructor(private val context: Context) 
                 
                 if (!response.isSuccessful && response.code != 206) {
                     response.close()
-                    val error = context.getString(R.string.mnn_download_file_failed, fileName, response.code.toString())
+                    val error =
+                        context.getString(
+                            R.string.mnn_download_file_failed,
+                            fileName,
+                            response.code
+                        )
                     updateDownloadState(modelName, DownloadState.Failed(error))
                     return@withContext Result.failure(Exception(error))
                 }

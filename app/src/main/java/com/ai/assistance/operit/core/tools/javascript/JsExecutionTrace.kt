@@ -26,6 +26,10 @@ internal class JsExecutionTraceRecorder(
     private val paramsJson: String,
     private val envFilePath: String?
 ) : JsExecutionListener {
+    private companion object {
+        val PRETTY_JSON = Json { prettyPrint = true }
+    }
+
     private val startedAtMs = System.currentTimeMillis()
     private val events = mutableListOf<String>()
 
@@ -114,7 +118,7 @@ internal class JsExecutionTraceRecorder(
             parent.mkdirs()
         }
         file.writeText(
-            Json { prettyPrint = true }.encodeToString(
+            PRETTY_JSON.encodeToString(
                 SandboxScriptExecutionResultData.serializer(),
                 payload
             ),

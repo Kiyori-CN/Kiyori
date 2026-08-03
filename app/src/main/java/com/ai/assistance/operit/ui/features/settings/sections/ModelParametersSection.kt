@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.EnhancedAIService
@@ -90,7 +89,7 @@ fun ModelParametersSection(
     LaunchedEffect(config) {
         val context = configManager.appContext
 
-        val standardParams =
+        val standardParams: List<ModelParameter<*>> =
             StandardModelParameters.DEFINITIONS.map { definition ->
                 val name =
                     if (definition.nameResId != 0) context.getString(definition.nameResId)
@@ -113,20 +112,19 @@ fun ModelParametersSection(
                         else -> definition.defaultValue to false
                     }
 
-                @Suppress("UNCHECKED_CAST")
                 ModelParameter(
                     id = definition.id,
                     name = name,
                     apiName = definition.apiName,
                     description = description,
-                    defaultValue = definition.defaultValue as Any,
-                    currentValue = currentValue as Any,
+                    defaultValue = definition.defaultValue,
+                    currentValue = currentValue,
                     isEnabled = isEnabled,
                     valueType = definition.valueType,
-                    minValue = definition.minValue as Any?,
-                    maxValue = definition.maxValue as Any?,
+                    minValue = definition.minValue,
+                    maxValue = definition.maxValue,
                     category = definition.category
-                ) as ModelParameter<*>
+                )
             }
 
         val paramList = standardParams.toMutableList()
@@ -247,31 +245,7 @@ fun ModelParametersSection(
         val newParameters =
                 parameters.map { p ->
                     if (p.id == parameter.id) {
-                        when (p.valueType) {
-                            ParameterValueType.INT -> {
-                                val intParam = p as ModelParameter<Int>
-                                intParam.copy(currentValue = newValue as Int)
-                            }
-
-                            ParameterValueType.FLOAT -> {
-                                val floatParam = p as ModelParameter<Float>
-                                floatParam.copy(currentValue = newValue as Float)
-                            }
-
-                            ParameterValueType.STRING -> {
-                                val stringParam = p as ModelParameter<String>
-                                stringParam.copy(currentValue = newValue as String)
-                            }
-
-                            ParameterValueType.BOOLEAN -> {
-                                val boolParam = p as ModelParameter<Boolean>
-                                boolParam.copy(currentValue = newValue as Boolean)
-                            }
-                            ParameterValueType.OBJECT -> {
-                                val objParam = p as ModelParameter<String>
-                                objParam.copy(currentValue = newValue as String)
-                            }
-                        }
+                        p.withCurrentValue(newValue)
                     } else {
                         p
                     }
@@ -285,31 +259,7 @@ fun ModelParametersSection(
         val newParameters =
                 parameters.map { p ->
                     if (p.id == parameter.id) {
-                        when (p.valueType) {
-                            ParameterValueType.INT -> {
-                                val intParam = p as ModelParameter<Int>
-                                intParam.copy(isEnabled = isEnabled)
-                            }
-
-                            ParameterValueType.FLOAT -> {
-                                val floatParam = p as ModelParameter<Float>
-                                floatParam.copy(isEnabled = isEnabled)
-                            }
-
-                            ParameterValueType.STRING -> {
-                                val stringParam = p as ModelParameter<String>
-                                stringParam.copy(isEnabled = isEnabled)
-                            }
-
-                            ParameterValueType.BOOLEAN -> {
-                                val boolParam = p as ModelParameter<Boolean>
-                                boolParam.copy(isEnabled = isEnabled)
-                            }
-                            ParameterValueType.OBJECT -> {
-                                val objParam = p as ModelParameter<String>
-                                objParam.copy(isEnabled = isEnabled)
-                            }
-                        }
+                        p.copyErased(isEnabled = isEnabled)
                     } else {
                         p
                     }
@@ -325,46 +275,10 @@ fun ModelParametersSection(
                 // 重置所有参数为默认值
                 val resetParams =
                         parameters.map { param ->
-                            when (param.valueType) {
-                                ParameterValueType.INT -> {
-                                    val intParam = param as ModelParameter<Int>
-                                    intParam.copy(
-                                            currentValue = intParam.defaultValue,
-                                            isEnabled = false
-                                    )
-                                }
-
-                                ParameterValueType.FLOAT -> {
-                                    val floatParam = param as ModelParameter<Float>
-                                    floatParam.copy(
-                                            currentValue = floatParam.defaultValue,
-                                            isEnabled = false
-                                    )
-                                }
-
-                                ParameterValueType.STRING -> {
-                                    val stringParam = param as ModelParameter<String>
-                                    stringParam.copy(
-                                            currentValue = stringParam.defaultValue,
-                                            isEnabled = false
-                                    )
-                                }
-
-                                ParameterValueType.BOOLEAN -> {
-                                    val boolParam = param as ModelParameter<Boolean>
-                                    boolParam.copy(
-                                            currentValue = boolParam.defaultValue,
-                                            isEnabled = false
-                                    )
-                                }
-                                ParameterValueType.OBJECT -> {
-                                    val objParam = param as ModelParameter<String>
-                                    objParam.copy(
-                                            currentValue = objParam.defaultValue,
-                                            isEnabled = false
-                                    )
-                                }
-                            }
+                            param.copyErased(
+                                currentValue = param.defaultValue,
+                                isEnabled = false
+                            )
                         }
                 parameters = resetParams
 
@@ -516,7 +430,7 @@ fun ModelParametersSection(
 
                     var selectedTabIndex by remember(config.id) { mutableStateOf(0) }
 
-                    ScrollableTabRow(
+                    SecondaryScrollableTabRow(
                             selectedTabIndex = selectedTabIndex,
                             edgePadding = 0.dp,
                             containerColor = Color.Transparent,
@@ -524,9 +438,9 @@ fun ModelParametersSection(
                             modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
-                            indicator = { tabPositions ->
+                            indicator = {
                                 TabRowDefaults.SecondaryIndicator(
-                                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                                        Modifier.tabIndicatorOffset(selectedTabIndex),
                                         color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -646,6 +560,38 @@ fun ModelParametersSection(
             }
         }
     }
+}
+
+private fun ModelParameter<*>.withCurrentValue(newValue: Any): ModelParameter<*> {
+    val valueMatchesType =
+        when (valueType) {
+            ParameterValueType.INT -> newValue is Int
+            ParameterValueType.FLOAT -> newValue is Float
+            ParameterValueType.STRING,
+            ParameterValueType.OBJECT -> newValue is String
+            ParameterValueType.BOOLEAN -> newValue is Boolean
+        }
+    require(valueMatchesType) {
+        "Parameter '$id' received ${newValue::class.java.name} for $valueType"
+    }
+    return copyErased(currentValue = newValue)
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun ModelParameter<*>.copyErased(
+    currentValue: Any? = this.currentValue,
+    isEnabled: Boolean = this.isEnabled
+): ModelParameter<*> {
+    // The list is intentionally heterogeneous; valueType validates writes before this erased copy.
+    return (this as ModelParameter<Any?>).copy(
+        currentValue = currentValue,
+        isEnabled = isEnabled
+    )
+}
+
+private inline fun <reified T : Any> ModelParameter<*>.requireCurrentValue(): T {
+    return currentValue as? T
+        ?: error("Parameter '$id' has ${currentValue?.javaClass?.name} for $valueType")
 }
 
 // Helper function to convert CustomParameterData to ModelParameter<*>
@@ -859,7 +805,7 @@ private fun AddCustomParameterDialog(
                         label = { Text(parameterTypeText) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = valueTypeExpanded) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -991,7 +937,7 @@ private fun AddCustomParameterDialog(
                         label = { Text(parameterCategoryText) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -1303,9 +1249,11 @@ private fun ParameterItem(
             Column(modifier = Modifier.padding(top = 8.dp)) {
                 when (parameter.valueType) {
                     ParameterValueType.INT -> {
-                        val intParam = parameter as ModelParameter<Int>
+                        val currentValue = parameter.requireCurrentValue<Int>()
+                        val minValue = parameter.minValue as? Int
+                        val maxValue = parameter.maxValue as? Int
                         var textValue by remember {
-                            mutableStateOf(intParam.currentValue.toString())
+                            mutableStateOf(currentValue.toString())
                         }
 
                         OutlinedTextField(
@@ -1325,13 +1273,13 @@ private fun ParameterItem(
                                 supportingText = {
                                     if (error != null) {
                                         Text(error)
-                                    } else if (intParam.minValue != null &&
-                                                    intParam.maxValue != null
+                                    } else if (minValue != null &&
+                                                    maxValue != null
                                     ) {
                                     Text(
                                         rangeFormatText.format(
-                                            intParam.minValue,
-                                            intParam.maxValue
+                                            minValue,
+                                            maxValue
                                         )
                                     )
                                     }
@@ -1341,9 +1289,11 @@ private fun ParameterItem(
                     }
 
                     ParameterValueType.FLOAT -> {
-                        val floatParam = parameter as ModelParameter<Float>
+                        val currentValue = parameter.requireCurrentValue<Float>()
+                        val minValue = parameter.minValue as? Float
+                        val maxValue = parameter.maxValue as? Float
                         var textValue by remember {
-                            mutableStateOf(floatParam.currentValue.toString())
+                            mutableStateOf(currentValue.toString())
                         }
 
                         OutlinedTextField(
@@ -1363,13 +1313,13 @@ private fun ParameterItem(
                                 supportingText = {
                                     if (error != null) {
                                         Text(error)
-                                    } else if (floatParam.minValue != null &&
-                                                    floatParam.maxValue != null
+                                    } else if (minValue != null &&
+                                                    maxValue != null
                                     ) {
                                     Text(
                                         rangeFormatText.format(
-                                            floatParam.minValue,
-                                            floatParam.maxValue
+                                            minValue,
+                                            maxValue
                                         )
                                     )
                                     }
@@ -1379,10 +1329,10 @@ private fun ParameterItem(
                     }
 
                     ParameterValueType.STRING -> {
-                        val stringParam = parameter as ModelParameter<String>
+                        val currentValue = parameter.requireCurrentValue<String>()
 
                         OutlinedTextField(
-                                value = stringParam.currentValue,
+                                value = currentValue,
                                 onValueChange = { onValueChange(it) },
                                 label = { Text(valueText) },
                                 modifier = Modifier.fillMaxWidth()
@@ -1390,7 +1340,7 @@ private fun ParameterItem(
                     }
 
                     ParameterValueType.BOOLEAN -> {
-                        val boolParam = parameter as ModelParameter<Boolean>
+                        val currentValue = parameter.requireCurrentValue<Boolean>()
 
                         Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1402,14 +1352,14 @@ private fun ParameterItem(
                                     modifier = Modifier.padding(end = 16.dp)
                             )
                             Switch(
-                                    checked = boolParam.currentValue,
+                                    checked = currentValue,
                                     onCheckedChange = { onValueChange(it) }
                             )
                         }
                     }
                     ParameterValueType.OBJECT -> {
-                        val objParam = parameter as ModelParameter<String>
-                        var textValue by remember { mutableStateOf(objParam.currentValue) }
+                        val currentValue = parameter.requireCurrentValue<String>()
+                        var textValue by remember { mutableStateOf(currentValue) }
                         val mustBeJsonTextLocal = stringResource(R.string.must_be_valid_json)
                         OutlinedTextField(
                                 value = textValue,

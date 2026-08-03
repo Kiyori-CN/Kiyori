@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddComment
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Icon
@@ -453,7 +453,7 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
             // 缩小成语音球
             IconButton(onClick = { floatContext.onModeChange(FloatingMode.VOICE_BALL) }) {
                 Icon(
-                    imageVector = Icons.Default.Chat,
+                    imageVector = Icons.AutoMirrored.Filled.Chat,
                     contentDescription = stringResource(R.string.floating_shrink_to_ball),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -502,7 +502,7 @@ fun FloatingFullscreenMode(floatContext: FloatContext) {
                                 AvatarView(
                                     modifier = Modifier.fillMaxSize(),
                                     model = currentAvatarModel!!,
-                                    controller = voiceAvatarController!!,
+                                    controller = voiceAvatarController,
                                     rendererFactory = avatarRendererFactory
                                 )
                             }

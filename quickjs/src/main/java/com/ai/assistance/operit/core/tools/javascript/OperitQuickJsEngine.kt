@@ -172,27 +172,27 @@ class OperitQuickJsEngine : Closeable {
 
     private fun convertArg(value: Any?, parameterType: Class<*>): Any? {
         return when (parameterType) {
-            java.lang.String::class.java -> value?.toString() ?: ""
-            java.lang.Integer.TYPE,
-            java.lang.Integer::class.java -> (value as? Number)?.toInt()
+            String::class.java -> value?.toString() ?: ""
+            Int::class.java,
+            Int::class.javaObjectType -> (value as? Number)?.toInt()
                 ?: value?.toString()?.toIntOrNull()
                 ?: 0
-            java.lang.Long.TYPE,
-            java.lang.Long::class.java -> (value as? Number)?.toLong()
+            Long::class.java,
+            Long::class.javaObjectType -> (value as? Number)?.toLong()
                 ?: value?.toString()?.toLongOrNull()
                 ?: 0L
-            java.lang.Boolean.TYPE,
-            java.lang.Boolean::class.java -> when (value) {
+            Boolean::class.java,
+            Boolean::class.javaObjectType -> when (value) {
                 is Boolean -> value
                 is Number -> value.toInt() != 0
                 else -> value?.toString()?.toBooleanStrictOrNull() ?: false
             }
-            java.lang.Double.TYPE,
-            java.lang.Double::class.java -> (value as? Number)?.toDouble()
+            Double::class.java,
+            Double::class.javaObjectType -> (value as? Number)?.toDouble()
                 ?: value?.toString()?.toDoubleOrNull()
                 ?: 0.0
-            java.lang.Float.TYPE,
-            java.lang.Float::class.java -> (value as? Number)?.toFloat()
+            Float::class.java,
+            Float::class.javaObjectType -> (value as? Number)?.toFloat()
                 ?: value?.toString()?.toFloatOrNull()
                 ?: 0f
             else -> value?.toString()

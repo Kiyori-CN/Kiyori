@@ -3936,7 +3936,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mnn_search_models">Cari model...</string>
     <string name="mnn_no_search_results">Tidak ditemukan model yang cocok</string>
     <string name="persona_card_generation_title">Kartu Karakter yang Dimodifikasi</string>
-    <string name="error_character_card_not_exist">Kartu karakter tidak ada</string>
     <string name="error_unsupported_field">Bidang tidak didukung: %1$s</string>
     <string name="no_character_card">Tidak ada kartu karakter</string>
     <string name="character_card_config">Konfigurasi Kartu Karakter</string>
@@ -5713,7 +5712,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mcp_deployment_start">Memulai penyebaran plugin: %1$s</string>
     <string name="mcp_deployment_output_prefix">Output: </string>
     <string name="mcp_deployment_virtual_plugin_detected">Plugin tipe %1$s terdeteksi, melakukan penyebaran minimal</string>
-    <string name="mcp_deployment_cannot_create_terminal">Tidak dapat membuat sesi terminal</string>
     <string name="mcp_deployment_creating_directory">Membuat direktori plugin: %1$s</string>
     <string name="mcp_deployment_create_directory_failed">Gagal membuat direktori plugin</string>
     <string name="mcp_deployment_minimal_complete">Penyebaran minimal plugin tipe %1$s selesai, siap digunakan</string>
@@ -5996,7 +5994,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
 
     <string name="profile_regex_occupation">Pekerjaan[:：\s]+([\u4e00-\u9fa5、，,]+)</string>
     <string name="profile_regex_ai_style">(Gaya AI|Gaya AI yang Diharapkan|Gaya AI yang Disukai)[:：\s]+([\u4e00-\u9fa5、，,]+)</string>
-    <string name="ai_message_user">Pengguna</string>
     <string name="ai_message_replying_to_previous">Pengguna sedang membalas pesan Anda sebelumnya ini:</string>
     <string name="ai_message_executing_deep_search">Sedang melakukan pencarian mendalam...</string>
     <string name="ai_message_media_omitted">[Media audio/video dihilangkan]</string>
@@ -6006,7 +6003,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="ai_message_reply_omitted">[Kutipan balasan dihilangkan]</string>
     <string name="ai_message_tool_result_omitted">[Hasil alat dihilangkan: %1$s]</string>
     <string name="ai_message_tool_result_omitted_short">[Hasil alat dihilangkan]</string>
-    <string name="ai_message_omitted_segment">[...%1$s segmen dihilangkan...]</string>
+    <plurals name="ai_message_omitted_segment">
+        <item quantity="other">[…%1$d segmen dihilangkan…]</item>
+    </plurals>
     <string name="ai_message_tool_start">[Alat: %1$s]</string>
     <string name="ai_message_success">Berhasil</string>
     <string name="ai_message_failure">Gagal</string>
@@ -6055,7 +6054,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="character_card_single_char">Karakter tunggal</string>
     <string name="character_group_single_char">Grup</string>
     <string name="waifu_config_bound_to_card">Terikat ke kartu karakter</string>
-    <string name="advanced_import_key">Impor kunci</string>
+    <string name="advanced_import_key">Impor kunci ····%1$s</string>
     <string name="model_custom_params">Parameter kustom</string>
     <string name="file_manager_home">Beranda</string>
     <string name="file_manager_new_tab">Tab baru</string>
@@ -6340,7 +6339,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="message_role_user">Pengguna</string>
     <string name="role_card_chat_model_binding_parse_failed">Gagal mengurai pengikatan model percakapan kartu peran</string>
     <string name="message_workspace_sync_failed">Gagal menyinkronkan status ruang kerja: %1$s</string>
-    <string name="message_ai_service_not_initialized">Layanan AI belum diinisialisasi</string>
     <string name="message_summarizing">Meringkas memori...</string>
     <string name="message_send_failed">Gagal mengirim pesan: %1$s</string>
     <string name="deepgram_stt_url_not_set">URL Deepgram STT belum diatur, harap isi alamat antarmuka lengkap (misalnya https://api.deepgram.com/v1/listen).</string>

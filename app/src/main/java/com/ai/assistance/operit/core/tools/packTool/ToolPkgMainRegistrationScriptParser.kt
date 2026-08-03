@@ -524,16 +524,16 @@ internal object ToolPkgMainRegistrationScriptParser {
             fun parseHandler(fieldName: String): ToolPkgRegisteredAiProviderHandler {
                 val rawHandler = item.opt(fieldName)
                 val handlerObject =
-                    when (rawHandler) {
-                        is JSONObject -> rawHandler
-                        null, JSONObject.NULL ->
-                            throw IllegalArgumentException(
-                                "$registryName[$index].$fieldName is required"
-                            )
-                        else ->
-                            throw IllegalArgumentException(
-                                "$registryName[$index].$fieldName must be an object"
-                            )
+                    if (rawHandler is JSONObject) {
+                        rawHandler
+                    } else if (rawHandler == null || rawHandler === JSONObject.NULL) {
+                        throw IllegalArgumentException(
+                            "$registryName[$index].$fieldName is required"
+                        )
+                    } else {
+                        throw IllegalArgumentException(
+                            "$registryName[$index].$fieldName must be an object"
+                        )
                     }
                 val functionName = handlerObject.optString("function").trim()
                 val functionSource =

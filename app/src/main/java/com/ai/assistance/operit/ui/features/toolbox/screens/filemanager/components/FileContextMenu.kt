@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -399,7 +400,7 @@ fun FileContextMenu(
                 if (!isMultiSelectMode) {
                     // 打开选项 - 仅在单选模式下显示
                     FileActionButton(
-                            icon = Icons.Default.OpenInNew,
+                            icon = Icons.AutoMirrored.Filled.OpenInNew,
                             text = stringResource(R.string.open),
                             onClick = { openFile(contextMenuFile!!) }
                     )
@@ -454,7 +455,7 @@ fun FileContextMenu(
                     )
 
                     if (!contextMenuFile!!.isDirectory &&
-                                    contextMenuFile!!.name.endsWith(".zip", ignoreCase = true)
+                                    contextMenuFile.name.endsWith(".zip", ignoreCase = true)
                     ) {
                         FileActionButton(
                                 icon = Icons.Default.FolderZip,
@@ -537,9 +538,9 @@ fun FileContextMenu(
                     Button(
                             onClick = {
                                 if (newFileName.isNotBlank() &&
-                                                newFileName != contextMenuFile!!.name
+                                                newFileName != contextMenuFile.name
                                 ) {
-                                    renameFile(contextMenuFile!!, newFileName, currentPath)
+                                    renameFile(contextMenuFile, newFileName, currentPath)
                                 }
                                 showRenameDialog = false
                             }

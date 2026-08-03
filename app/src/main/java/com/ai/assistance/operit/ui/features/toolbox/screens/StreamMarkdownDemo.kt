@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -120,10 +121,8 @@ fun StreamMarkdownDemoScreen(onBackClick: () -> Unit = {}) {
             } catch (e: Exception) {
                 AppLogger.e(TAG, "流传输异常", e)
             } finally {
-                if (!channel.isClosedForSend) {
-                    AppLogger.d(TAG, "流传输完成，关闭Channel")
-                    channel.close()
-                }
+                AppLogger.d(TAG, "流传输完成，关闭Channel")
+                channel.close()
                 isStreaming = false
             }
         }
@@ -189,6 +188,8 @@ private fun ControlPanel(
     speedFactor: Float,
     onSpeedChange: (Float) -> Unit
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
+
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = onStreamToggle) {
@@ -207,7 +208,7 @@ private fun ControlPanel(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.stream_markdown_speed, String.format("%.1f", speedFactor)), fontSize = 14.sp)
+        Text(stringResource(R.string.stream_markdown_speed, String.format(currentLocale, "%.1f", speedFactor)), fontSize = 14.sp)
         Slider(
                 value = speedFactor,
                 onValueChange = onSpeedChange,

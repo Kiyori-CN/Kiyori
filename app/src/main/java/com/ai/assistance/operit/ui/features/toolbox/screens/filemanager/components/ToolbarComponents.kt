@@ -15,7 +15,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -384,14 +383,14 @@ fun FileManagerTabRow(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ScrollableTabRow(
+            SecondaryScrollableTabRow(
                 selectedTabIndex = activeTabIndex,
                 edgePadding = 0.dp,
                 modifier = Modifier.weight(1f),
-                indicator = { tabPositions ->
-                    if (tabPositions.isNotEmpty() && activeTabIndex < tabPositions.size) {
-                        TabRowDefaults.Indicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[activeTabIndex]),
+                indicator = {
+                    if (activeTabIndex in tabs.indices) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(activeTabIndex),
                             height = 2.dp,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -524,4 +523,4 @@ fun StatusBar(
             }
         }
     }
-} 
+}

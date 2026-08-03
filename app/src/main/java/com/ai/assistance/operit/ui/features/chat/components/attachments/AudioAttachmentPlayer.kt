@@ -9,9 +9,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.util.AppLogger
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.ui.StyledPlayerView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 
 private const val AUDIO_ATTACHMENT_PLAYER_TAG = "AudioAttachmentPlayer"
 
@@ -47,7 +47,7 @@ fun AudioAttachmentPlayer(
 
     AndroidView(
         factory = { ctx ->
-            StyledPlayerView(ctx).apply {
+            PlayerView(ctx).apply {
                 this.player = player
                 useController = true
             }

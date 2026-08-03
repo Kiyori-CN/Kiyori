@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -320,7 +319,7 @@ fun PackageManagerScreen(
                         when (selectedTab) {
                             PackageTab.PLUGINS,
                             PackageTab.PACKAGES -> {
-                                val fileNameNonNull = fileName ?: return@launch
+                                val fileNameNonNull = fileName
                                 val lowerFileName = fileNameNonNull.lowercase()
                                 val supported =
                                     when (selectedTab) {
@@ -644,7 +643,7 @@ fun PackageManagerScreen(
                     .padding(paddingValues)
         ) {
             // 优化标签栏布局 - 直接使用TabRow，不再使用Card包裹，移除边距完全贴满
-            TabRow(
+            PrimaryTabRow(
                 selectedTabIndex = selectedTab.ordinal,
                 modifier = Modifier.fillMaxWidth(),
                 divider = {
@@ -653,13 +652,10 @@ fun PackageManagerScreen(
                         color = MaterialTheme.colorScheme.outlineVariant
                     )
                 },
-                indicator = { tabPositions ->
-                    if (selectedTab.ordinal < tabPositions.size) {
+                indicator = {
+                    if (selectedTab.ordinal in PackageTab.entries.indices) {
                         TabRowDefaults.PrimaryIndicator(
-                            modifier =
-                                Modifier.tabIndicatorOffset(
-                                    tabPositions[selectedTab.ordinal]
-                                ),
+                            modifier = Modifier.tabIndicatorOffset(selectedTab.ordinal),
                             height = 2.dp,
                             color = selectedTabColors.icon
                         )

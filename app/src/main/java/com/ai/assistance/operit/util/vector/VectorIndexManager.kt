@@ -26,7 +26,7 @@ class VectorIndexManager<T : Item<Id, FloatArray>, Id : Any>(
     fun initIndex() {
         index = if (indexFile != null && indexFile.exists()) {
             try {
-                ObjectInputStream(indexFile.inputStream()).use { it.readObject() as HnswIndex<Id, FloatArray, T, Float> }
+                readPersistedIndex(indexFile)
             } catch (e: Exception) {
                 com.ai.assistance.operit.util.AppLogger.e("VectorIndexManager", "Failed to load index, creating new one.", e)
                 // 如果加载失败，删除可能已损坏的文件并创建一个新的
@@ -41,6 +41,18 @@ class VectorIndexManager<T : Item<Id, FloatArray>, Id : Any>(
                 .newBuilder(dimensions, DistanceFunctions.FLOAT_COSINE_DISTANCE, maxElements)
                 .withRemoveEnabled()
                 .build()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun readPersistedIndex(file: File): HnswIndex<Id, FloatArray, T, Float> {
+        return ObjectInputStream(file.inputStream()).use { stream ->
+            val restored = stream.readObject()
+            require(restored is HnswIndex<*, *, *, *>) {
+                "Persisted vector index has unexpected type: ${restored.javaClass.name}"
+            }
+            // Java serialization erases generic arguments; the manager's file ownership fixes them by construction.
+            restored as HnswIndex<Id, FloatArray, T, Float>
         }
     }
 

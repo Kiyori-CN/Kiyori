@@ -1147,7 +1147,7 @@ private fun CharacterCardToolAccessDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                ScrollableTabRow(
+                SecondaryScrollableTabRow(
                     selectedTabIndex = selectedTabIndex,
                     edgePadding = 0.dp
                 ) {

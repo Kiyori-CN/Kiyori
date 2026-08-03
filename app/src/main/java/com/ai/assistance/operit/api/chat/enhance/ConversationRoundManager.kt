@@ -116,7 +116,7 @@ class ConversationRoundManager {
         sortedKeys.forEachIndexed { index, round ->
             val content = roundContents[round] ?: SmartString()
             if (index > 0) buffer.append("\n")
-            buffer.append(String.format(ROUND_SEPARATOR_FORMAT, round))
+            buffer.append(String.format(java.util.Locale.getDefault(), ROUND_SEPARATOR_FORMAT, round))
             buffer.append(content)
         }
 

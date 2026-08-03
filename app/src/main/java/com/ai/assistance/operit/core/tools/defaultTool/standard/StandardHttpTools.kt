@@ -12,13 +12,8 @@ import java.io.StringReader
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URL
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import okhttp3.Cookie
@@ -114,34 +109,11 @@ class StandardHttpTools(private val context: Context) {
             builder.proxy(proxy)
         }
 
-        if (ignoreSsl) {
-            applyUnsafeSsl(builder)
+        require(!ignoreSsl) {
+            "ignore_ssl=true is not supported because it disables certificate and hostname verification"
         }
 
         return builder.build()
-    }
-
-    private fun applyUnsafeSsl(builder: OkHttpClient.Builder) {
-        val trustManager =
-                object : X509TrustManager {
-                    override fun checkClientTrusted(
-                            chain: Array<out X509Certificate>?,
-                            authType: String?
-                    ) {}
-
-                    override fun checkServerTrusted(
-                            chain: Array<out X509Certificate>?,
-                            authType: String?
-                    ) {}
-
-                    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-                }
-
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, arrayOf<TrustManager>(trustManager), SecureRandom())
-
-        builder.sslSocketFactory(sslContext.socketFactory, trustManager)
-        builder.hostnameVerifier { _, _ -> true }
     }
 
     /** 读取响应体内容，处理编码问题 */
@@ -812,7 +784,7 @@ class StandardHttpTools(private val context: Context) {
                             statusMessage = response.message,
                             headers = responseHeadersMap,
                             contentType = contentType,
-                            content = responseBodyString ?: "[Binary Content]",
+                            content = responseBodyString,
                             contentBase64 = responseBodyBase64,
                             size = bodyBytes.size,
                             cookies = cookiesMap

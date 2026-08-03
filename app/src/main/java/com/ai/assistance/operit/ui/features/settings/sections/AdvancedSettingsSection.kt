@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,6 +46,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun AdvancedSettingsSection(
     config: ModelConfigData,
@@ -641,7 +643,7 @@ private fun ApiKeyItem(
                 when (keyInfo.availabilityStatus) {
                     ApiKeyAvailabilityStatus.AVAILABLE -> Icons.Default.CheckCircle
                     ApiKeyAvailabilityStatus.UNAVAILABLE -> Icons.Default.Cancel
-                    ApiKeyAvailabilityStatus.UNTESTED -> Icons.Default.HelpOutline
+                    ApiKeyAvailabilityStatus.UNTESTED -> Icons.AutoMirrored.Filled.HelpOutline
                 },
             contentDescription = null,
             tint =

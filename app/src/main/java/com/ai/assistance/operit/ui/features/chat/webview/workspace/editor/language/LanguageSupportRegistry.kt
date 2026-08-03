@@ -47,7 +47,10 @@ object LanguageSupportRegistry {
      * 初始化默认语言支持
      */
     fun init() {
-        // 这里会在应用启动时注册所有语言支持
-        // 将在各个语言实现类中调用
+        // 显式注册避免依赖伴生对象初始化副作用；重复初始化按语言名覆盖，保持幂等。
+        register(JavaScriptSupport())
+        register(KotlinSupport())
+        register(HtmlSupport())
+        register(DartSupport())
     }
-} 
+}

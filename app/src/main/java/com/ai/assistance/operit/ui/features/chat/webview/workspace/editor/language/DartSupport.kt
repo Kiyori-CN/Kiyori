@@ -39,10 +39,6 @@ class DartSupport : BaseLanguageSupport() {
             )
 
         private val FILE_EXTENSIONS = listOf("dart")
-
-        init {
-            LanguageSupportRegistry.register(DartSupport())
-        }
     }
 
     override fun getName(): String = "dart"

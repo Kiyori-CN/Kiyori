@@ -7,11 +7,14 @@ import android.graphics.Typeface
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.ViewConfiguration
 import android.widget.OverScroller
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class SqlTableView @JvmOverloads constructor(
@@ -28,7 +31,12 @@ class SqlTableView @JvmOverloads constructor(
     private val scaleDetector: ScaleGestureDetector
 
     private val density = resources.displayMetrics.density
-    private val scaledDensity = resources.displayMetrics.scaledDensity
+    private val scaledDensity =
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            1f,
+            resources.displayMetrics
+        )
     private val baseCellWidth = 140f * density
     private val baseRowHeight = 32f * density
     private val baseHeaderHeight = 36f * density
@@ -36,6 +44,11 @@ class SqlTableView @JvmOverloads constructor(
     private val basePaddingY = 4f * density
 
     private var isScaling = false
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private var touchMoved = false
+    private var hadMultiTouch = false
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var focusX = 0f
     private var focusY = 0f
 
@@ -145,9 +158,47 @@ class SqlTableView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                touchDownX = event.x
+                touchDownY = event.y
+                touchMoved = false
+                hadMultiTouch = false
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                touchMoved = true
+                hadMultiTouch = true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (
+                    abs(event.x - touchDownX) > touchSlop ||
+                        abs(event.y - touchDownY) > touchSlop
+                ) {
+                    touchMoved = true
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                if (!touchMoved && !hadMultiTouch) {
+                    performClick()
+                }
+            }
+            MotionEvent.ACTION_CANCEL ->
+                parent?.requestDisallowInterceptTouchEvent(false)
+        }
         val scaleHandled = scaleDetector.onTouchEvent(event)
         val gestureHandled = gestureDetector.onTouchEvent(event)
+        if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+            touchMoved = false
+            hadMultiTouch = false
+        }
         return scaleHandled || gestureHandled || super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
     }
 
     override fun computeScroll() {

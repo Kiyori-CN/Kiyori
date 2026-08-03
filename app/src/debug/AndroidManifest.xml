@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- QA/ADB 调试能力只进入 Debug APK，避免任意脚本和包操作暴露到 release。 -->
+        <receiver
+            android:name=".core.tools.javascript.ScriptExecutionReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.ai.assistance.operit.EXECUTE_JS" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".core.tools.packTool.ToolPkgDebugInstallReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".core.tools.packTool.PackageDebugRefreshReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.ai.assistance.operit.DEBUG_REFRESH_PACKAGES" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".core.tools.packTool.ToolPkgComposeDslDebugDumpReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.ai.assistance.operit.DUMP_COMPOSE_DSL_UI" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

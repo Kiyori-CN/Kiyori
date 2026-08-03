@@ -139,7 +139,7 @@ object PersonalWakeFeatureExtractor {
             val kk = k.toFloat()
             for (i in 0 until melBins) {
                 val ii = i.toFloat()
-                val angle = (Math.PI * kk * (ii + 0.5f) / m).toDouble()
+                val angle = Math.PI * kk * (ii + 0.5f) / m
                 table[k][i] = kotlin.math.cos(angle).toFloat()
             }
         }
@@ -373,7 +373,7 @@ object PersonalWakeFeatureExtractor {
     }
 
     private fun melToHz(mel: Float): Float {
-        return (700.0 * (Math.pow(10.0, (mel / 2595.0).toDouble()) - 1.0)).toFloat()
+        return (700.0 * (Math.pow(10.0, mel / 2595.0) - 1.0)).toFloat()
     }
 
     private fun l2NormalizeInPlace(x: FloatArray) {

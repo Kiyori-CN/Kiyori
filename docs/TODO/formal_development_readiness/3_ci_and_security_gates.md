@@ -4,11 +4,15 @@
 
 现有 `pr-check.yml` 保留候选提交、仓库卫生、lint baseline、Markdown、翻译和 YAML 检查，并新增：
 
-- `check_formal_readiness.py`：身份、子模块、品牌 allowlist 和敏感/运行产物检查
+- `check_formal_readiness.py`：身份、子模块、品牌 allowlist、敏感/运行产物、生成式 shell launcher 与 terminal shim 源码合同检查
 - `check_fresh_clone.py`：从当前候选提交重新克隆并初始化 `terminal`，验证 gitlink 可获取
 - `ci/test` 中的 Python 门禁单元测试
 
 `android-build.yml` 在构建前执行同一正式开发门禁。Debug 构建用于持续验证；release bundle、签名和商店上传仍需单独授权。
+
+app 的 compile SDK 为 37，因此 Android Build 与 PR Check 均显式安装
+`platforms;android-37`。target SDK 仍为 34，Build Tools 仍固定为 36.0.0；这三者是不同
+合同，不能因版本号不同而把 CI 平台回退到 36。
 
 生产 ToolPkg 不再由 workflow 同步到 `app/src/main/assets/packages/`。Android 构建和完整 Android PR 检查统一由 Gradle 从生产白名单生成资产；测试专用 ToolPkg 仍可由测试同步流程准备，不能混入生产源码 assets。
 

@@ -16,6 +16,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.colorScheme
@@ -34,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.content.pm.PermissionInfoCompat
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.system.AndroidShellExecutor
@@ -111,7 +115,7 @@ fun AppPermissionsScreen(navController: NavController) {
 
     val groupIcons = remember {
         mapOf(
-                "ACTIVITY_RECOGNITION" to Icons.Default.DirectionsRun,
+                "ACTIVITY_RECOGNITION" to Icons.AutoMirrored.Filled.DirectionsRun,
                 "CALENDAR" to Icons.Default.DateRange,
                 "CALL_LOG" to Icons.Default.Call,
                 "CAMERA" to Icons.Default.PhotoCamera,
@@ -281,11 +285,11 @@ fun AppPermissionsScreen(navController: NavController) {
                 targetState = selectedApp,
                 transitionSpec = {
                     if (targetState == null) {
-                        slideInHorizontally { -it } + fadeIn() with
-                                slideOutHorizontally { it } + fadeOut()
+                        (slideInHorizontally { -it } + fadeIn()) togetherWith
+                                (slideOutHorizontally { it } + fadeOut())
                     } else {
-                        slideInHorizontally { it } + fadeIn() with
-                                slideOutHorizontally { -it } + fadeOut()
+                        (slideInHorizontally { it } + fadeIn()) togetherWith
+                                (slideOutHorizontally { -it } + fadeOut())
                     }
                 }
         ) { targetApp ->
@@ -495,7 +499,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                         modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
-                                            imageVector = Icons.Default.ArrowBack,
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = context.getString(R.string.back),
                                             tint = colorScheme.primary
                                     )
@@ -607,7 +611,7 @@ fun AppPermissionsScreen(navController: NavController) {
                                         PermissionStat(
                                                 count = totalPerms,
                                                 label = context.getString(R.string.toolbox_permissions_total),
-                                                icon = Icons.Default.List,
+                                                icon = Icons.AutoMirrored.Filled.List,
                                                 tone = KiyoriSemanticTone.BLUE,
                                         )
 
@@ -1508,9 +1512,8 @@ private fun isRuntimeModifiablePermission(
 ): Boolean =
     try {
         val permissionInfo = packageManager.getPermissionInfo(permissionName, 0)
-        val baseProtection =
-            permissionInfo.protectionLevel and AndroidPermissionInfo.PROTECTION_MASK_BASE
-        baseProtection == AndroidPermissionInfo.PROTECTION_DANGEROUS
+        PermissionInfoCompat.getProtection(permissionInfo) ==
+            AndroidPermissionInfo.PROTECTION_DANGEROUS
     } catch (_: PackageManager.NameNotFoundException) {
         false
     }

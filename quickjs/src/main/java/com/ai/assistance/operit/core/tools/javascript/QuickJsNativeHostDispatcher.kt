@@ -49,7 +49,9 @@ class QuickJsNativeHostDispatcher(
         val task =
             if (repeat) {
                 val safePeriod = max(1L, delayMs)
-                scheduler.scheduleAtFixedRate(
+                // Android 进程解除 cached 状态后不能补跑积压 timer；每次回调完成后
+                // 再等待一个周期，避免一次性向 QuickJS 派发大量过期任务。
+                scheduler.scheduleWithFixedDelay(
                     { dispatchTimer(timerId) },
                     safePeriod,
                     safePeriod,

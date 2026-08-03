@@ -40,7 +40,11 @@ class DragonBonesAvatarController(
     override fun playEmotion(emotion: AvatarEmotion, loop: Int) {
         val animationName = resolveAnimationForEmotion(emotion) ?: return
 
-        libController.playAnimation(animationName, loop.toFloat())
+        libController.fadeInAnimation(
+            name = animationName,
+            layer = 0,
+            loop = loop
+        )
         _state.value = _state.value.copy(
             emotion = emotion,
             currentAnimation = animationName,
@@ -52,7 +56,11 @@ class DragonBonesAvatarController(
         val normalizedTrigger = AvatarMoodTypes.normalizeKey(triggerName)
         val animationName = resolveAnimationForTrigger(normalizedTrigger) ?: return false
 
-        libController.playAnimation(animationName, loop.toFloat())
+        libController.fadeInAnimation(
+            name = animationName,
+            layer = 0,
+            loop = loop
+        )
         _state.value = _state.value.copy(
             emotion =
                 AvatarMoodTypes.builtInFallbackEmotion(normalizedTrigger)
@@ -87,7 +95,11 @@ class DragonBonesAvatarController(
 
     override fun playAnimation(animationName: String, loop: Int) {
         if (availableAnimations.contains(animationName)) {
-            libController.playAnimation(animationName, loop.toFloat())
+            libController.fadeInAnimation(
+                name = animationName,
+                layer = 0,
+                loop = loop
+            )
             _state.value = _state.value.copy(
                 currentAnimation = animationName,
                 isLooping = loop == 0

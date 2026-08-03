@@ -19,6 +19,8 @@ config/architecture/
 ├── stable-identifiers.txt
 ├── manifest-components.txt
 ├── manifest-structure-hashes.txt
+├── debug-manifest-components.txt
+├── debug-manifest-structure-hashes.txt
 ├── persistence-names.txt
 ├── persistence-api-calls.txt
 ├── native-ipc-identifiers.txt
@@ -396,6 +398,8 @@ config/architecture/
 ├── stable-identifiers.txt
 ├── manifest-components.txt
 ├── manifest-structure-hashes.txt
+├── debug-manifest-components.txt
+├── debug-manifest-structure-hashes.txt
 ├── persistence-names.txt
 ├── persistence-api-calls.txt
 ├── native-ipc-identifiers.txt
@@ -403,11 +407,14 @@ config/architecture/
 ```
 
 这些文件由人工批准后进入 Git。脚本重新提取当前源码状态并以精确出现次数与
-snapshot 比较，因此新增和删除同类字面量都会触发检查。Manifest snapshot 还保留
-component、action、category、authority、scheme、host、MIME type、process 和 permission
-的重复次数；`manifest-structure-hashes.txt` 进一步对每个迁移阶段保存完整 XML 语义树
-哈希，忽略格式、属性顺序和同级元素顺序，但保留节点层级与全部属性值，因此权限删除、
-`exported`/`launchMode`/备份配置变化和 intent-filter 归属漂移都会失败。关键文件 snapshot
+snapshot 比较，因此新增和删除同类字面量都会触发检查。Main 与 Debug Manifest 分别由
+`manifest-components.txt` / `manifest-structure-hashes.txt` 和
+`debug-manifest-components.txt` / `debug-manifest-structure-hashes.txt` 锁定；
+Debug 专用的导出 QA receiver 及其 `android.permission.DUMP` 限制不会混入 main/release。
+两组 snapshot 均保留 component、action、category、authority、scheme、host、MIME type、
+process 和 permission 的重复次数，并保存完整 XML 语义树哈希；哈希忽略格式、属性顺序
+和同级元素顺序，但保留节点层级与全部属性值，因此权限删除、`exported`/`launchMode`/
+备份配置变化和 intent-filter 归属漂移都会失败。关键文件 snapshot
 直接核对 AIDL、Room schema/entity、ObjectBox model/目录映射、已持久化 WorkManager
 worker/scheduler 与备份/恢复实现
 经 CRLF-to-LF 规范化后的 SHA-256，确保 Windows/Linux checkout 一致。

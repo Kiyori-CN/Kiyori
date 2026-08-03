@@ -59,6 +59,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -220,7 +221,8 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var thumbnail: Bitmap? = null
         @Volatile var thumbnailUpdatedAt: Long = 0L
         @Volatile var thumbnailRequestGeneration: Long = 0L
-        val stateSignal: Object = Object()
+        val stateLock = ReentrantLock()
+        val stateChanged = stateLock.newCondition()
         @Volatile var stateVersion: Long = 0L
         val consoleEntries: MutableList<BrowserConsoleEntry> = mutableListOf()
         val networkEntries: MutableList<BrowserNetworkRequestEntry> = mutableListOf()
@@ -378,7 +380,7 @@ class StandardBrowserSessionTools private constructor(
                 modifiers.isEmpty()
         val jsResult =
             when {
-                useNativeTap && dispatchNativeTapByRef(session.webView, ref!!) == true ->
+                useNativeTap && dispatchNativeTapByRef(session.webView, ref) == true ->
                     JSONObject()
                         .put("ok", true)
                         .put("ref", ref)

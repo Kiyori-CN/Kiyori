@@ -322,7 +322,7 @@ fun FFmpegToolboxScreen(navController: NavController) {
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     } else if (result.result is FFmpegResultData) {
-                        val ffmpegResult = result.result as FFmpegResultData
+                        val ffmpegResult = result.result
 
                         Text(
                             text = context.getString(R.string.ffmpeg_command_label, ffmpegResult.command),

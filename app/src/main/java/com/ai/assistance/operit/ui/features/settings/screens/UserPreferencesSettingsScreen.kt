@@ -55,8 +55,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
@@ -385,7 +385,6 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
     }
 
     archiveSheetMarkdown?.let { archive ->
-        val clipboardManager = LocalClipboardManager.current
         val archiveScrollState = rememberScrollState()
         ModalBottomSheet(onDismissRequest = { archiveSheetMarkdown = null }) {
             Column(
@@ -422,7 +421,7 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
                 ) {
                     TextButton(
                         onClick = {
-                            clipboardManager.setText(AnnotatedString(archive))
+                            context.copyPlainTextToClipboard("Kiyori preferences", archive)
                             Toast.makeText(
                                 context,
                                 context.getString(R.string.copied_to_clipboard),

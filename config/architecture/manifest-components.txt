@@ -13,7 +13,6 @@ activity	.ui.features.player.PlayerActivity
 activity	.ui.main.MainActivity
 activity	.ui.recovery.DataRecoveryActivity
 activity	.widget.ToolPkgDesktopWidgetConfigActivity
-activity	live.pw.renderX.LatexView
 provider	.provider.MemoryDocumentsProvider
 provider	.provider.OperitDataDocumentsProvider
 provider	.provider.WorkspaceDocumentsProvider
@@ -24,10 +23,6 @@ receiver	.core.tools.agent.ShowerBinderReceiver
 receiver	.core.tools.defaultTool.websession.browser.BrowserDownloadBootReceiver
 receiver	.core.tools.defaultTool.websession.browser.BrowserDownloadInstallResultReceiver
 receiver	.core.tools.defaultTool.websession.browser.BrowserDownloadRuntimeActionReceiver
-receiver	.core.tools.javascript.ScriptExecutionReceiver
-receiver	.core.tools.packTool.PackageDebugRefreshReceiver
-receiver	.core.tools.packTool.ToolPkgComposeDslDebugDumpReceiver
-receiver	.core.tools.packTool.ToolPkgDebugInstallReceiver
 receiver	.integrations.intent.ExternalChatReceiver
 receiver	.integrations.tasker.WorkflowBootReceiver
 receiver	.integrations.tasker.WorkflowTaskerReceiver
@@ -65,10 +60,6 @@ action	android.intent.action.VIEW
 action	android.intent.action.VOICE_ASSIST
 action	android.service.notification.NotificationListenerService
 action	android.service.voice.VoiceInteractionService
-action	com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG
-action	com.ai.assistance.operit.DEBUG_REFRESH_PACKAGES
-action	com.ai.assistance.operit.DUMP_COMPOSE_DSL_UI
-action	com.ai.assistance.operit.EXECUTE_JS
 action	com.ai.assistance.operit.EXTERNAL_CHAT
 action	com.ai.assistance.operit.TRIGGER_WORKFLOW
 action	com.ai.assistance.operit.action.OPEN_DATA_RECOVERY
@@ -127,6 +118,7 @@ permission	android.permission.BIND_JOB_SERVICE
 permission	android.permission.BIND_NOTIFICATION_LISTENER_SERVICE
 permission	android.permission.BIND_VOICE_INTERACTION
 permission	android.permission.BIND_VOICE_INTERACTION
+permission	android.permission.DUMP
 permission	android.permission.INTERACT_ACROSS_USERS_FULL
 permission	android.permission.MANAGE_DOCUMENTS
 permission	android.permission.MANAGE_DOCUMENTS

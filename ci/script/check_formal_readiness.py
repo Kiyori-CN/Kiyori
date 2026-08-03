@@ -171,6 +171,135 @@ def check_tracked_artifacts(root: Path, errors: list[str]) -> None:
                 errors.append(f"tracked runtime or private path: {path}")
 
 
+def check_generated_native_inputs(root: Path, errors: list[str]) -> None:
+    forbidden_prebuilt_inputs = (
+        root / "app/src/main/assets/operit_shell_exec",
+        root / "terminal/src/main/jniLibs/arm64-v8a/libsudo.so",
+    )
+    for path in forbidden_prebuilt_inputs:
+        if path.exists():
+            errors.append(
+                f"{path.relative_to(root)} must not exist; native runtime inputs are generated from reviewed source"
+            )
+
+    required_markers = {
+        root / "app/build.gradle.kts": (
+            "abstract class BuildShellIdentityLauncherTask",
+            '"-nostdlib++"',
+            '"-Wl,-z,max-page-size=16384"',
+            '"libc++_shared.so"',
+            'layout.buildDirectory.dir("generated/shellIdentityLauncherAssets")',
+            "assets.addGeneratedSourceDirectory(buildShellIdentityLauncher)",
+            'ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))',
+        ),
+        root / "tools/shell_identity_launcher/native-lib.cpp": (
+            "setgroups(",
+            "setgid(2000)",
+            "setuid(2000)",
+            'const char *target_ctx = "u:r:shell:s0"',
+            "execvp(",
+        ),
+        root / "tools/shell_identity_launcher/CMakeLists.txt": (
+            "-nostdlib++",
+            "-Wl,-z,max-page-size=16384",
+            "-Wl,--strip-all",
+        ),
+        root / "tools/shell_identity_launcher/build_android.bat": (
+            "kiyori.android.ndkVersion",
+            "-DANDROID_ABI=arm64-v8a",
+            "-DANDROID_PLATFORM=android-26",
+        ),
+        root / "terminal/src/main/java/com/ai/assistance/operit/terminal/TerminalManager.kt": (
+            "installSudoShim",
+            "Files.deleteIfExists(sudoFile.toPath())",
+            "#!/system/bin/sh",
+        ),
+    }
+    for path, markers in required_markers.items():
+        if not path.is_file():
+            errors.append(f"required generated-native input is missing: {path.relative_to(root)}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append(
+                    f"{path.relative_to(root)} is missing generated-native contract marker: {marker}"
+                )
+
+
+def check_ssh_secret_transport(root: Path, errors: list[str]) -> None:
+    path = (
+        root
+        / "terminal"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "ai"
+        / "assistance"
+        / "operit"
+        / "terminal"
+        / "utils"
+        / "SSHFileConnectionManager.kt"
+    )
+    if not path.is_file():
+        errors.append(f"required SSH transport owner is missing: {path.relative_to(root)}")
+        return
+
+    text = path.read_text(encoding="utf-8")
+    required_markers = (
+        "IFS= read -r SSHPASS",
+        "channel.outputStream.use",
+        "config.localSshPassword.toByteArray(Charsets.UTF_8)",
+        "sshpass -e sshfs",
+        "StrictHostKeyChecking=accept-new",
+    )
+    for marker in required_markers:
+        if marker not in text:
+            errors.append(
+                f"{path.relative_to(root)} is missing SSH secret transport marker: {marker}"
+            )
+
+    forbidden_markers = (
+        'channel.setEnv("SSHPASS"',
+        "sshpass -p",
+        "StrictHostKeyChecking=no",
+        '<<< "${config.localSshPassword}"',
+    )
+    for marker in forbidden_markers:
+        if marker in text:
+            errors.append(
+                f"{path.relative_to(root)} contains forbidden SSH secret transport marker: {marker}"
+            )
+
+
+def check_ci_android_toolchain(root: Path, errors: list[str]) -> None:
+    app_build_path = root / "app/build.gradle.kts"
+    if not app_build_path.is_file():
+        errors.append("app/build.gradle.kts is missing")
+        return
+    app_build = app_build_path.read_text(encoding="utf-8")
+    compile_sdk_match = re.search(r"\bcompileSdk\s*=\s*(\d+)", app_build)
+    if compile_sdk_match is None:
+        errors.append("app/build.gradle.kts must define compileSdk")
+        return
+
+    expected_platform = f"platforms;android-{compile_sdk_match.group(1)}"
+    for workflow_relative_path in (
+        ".github/workflows/android-build.yml",
+        ".github/workflows/pr-check.yml",
+    ):
+        workflow_path = root / workflow_relative_path
+        if not workflow_path.is_file():
+            errors.append(f"required Android workflow is missing: {workflow_relative_path}")
+            continue
+        workflow = workflow_path.read_text(encoding="utf-8")
+        if expected_platform not in workflow:
+            errors.append(
+                f"{workflow_relative_path} must install {expected_platform} to match app compileSdk"
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", type=Path, default=Path.cwd())
@@ -185,6 +314,9 @@ def main() -> int:
     check_visible_branding(root, errors)
     check_runtime_urls(root, errors)
     check_tracked_artifacts(root, errors)
+    check_generated_native_inputs(root, errors)
+    check_ssh_secret_transport(root, errors)
+    check_ci_android_toolchain(root, errors)
 
     if errors:
         print("Formal development readiness: FAIL", file=sys.stderr)
@@ -198,6 +330,9 @@ def main() -> int:
     print("- user-visible terminal branding")
     print("- runtime upstream URL exclusion")
     print("- tracked secret/runtime artifact hygiene")
+    print("- generated shell launcher and terminal shim source contracts")
+    print("- SSH password transport avoids command text and server AcceptEnv dependency")
+    print("- CI Android platform matches app compileSdk")
     return 0
 
 

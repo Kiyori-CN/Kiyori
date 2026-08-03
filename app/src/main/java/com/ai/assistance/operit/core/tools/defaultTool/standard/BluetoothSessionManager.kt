@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.standard
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -17,7 +18,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import com.ai.assistance.operit.core.tools.BluetoothBleCharacteristicData
 import com.ai.assistance.operit.core.tools.BluetoothBleNotificationData
@@ -330,6 +334,8 @@ object BluetoothSessionManager {
     }
 
     @SuppressLint("MissingPermission")
+    // Android 26-35 only expose the Context-based GATT connection contract.
+    @Suppress("DEPRECATION")
     suspend fun connectBle(
         context: Context,
         address: String,
@@ -354,7 +360,7 @@ object BluetoothSessionManager {
                     servicesReady.complete(status == BluetoothGatt.GATT_SUCCESS)
                 }
 
-                @Suppress("DEPRECATION")
+                @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
                 override fun onCharacteristicRead(
                     gatt: BluetoothGatt,
                     characteristic: BluetoothGattCharacteristic,
@@ -384,6 +390,7 @@ object BluetoothSessionManager {
                     completeWriteCallback(gatt, characteristic, status)
                 }
 
+                @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
                 override fun onCharacteristicChanged(
                     gatt: BluetoothGatt,
                     characteristic: BluetoothGattCharacteristic
@@ -401,12 +408,14 @@ object BluetoothSessionManager {
             }
 
         val gatt =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                device.connectGatt(context, autoConnect, callback, BluetoothDevice.TRANSPORT_LE)
-            } else {
-                @Suppress("DEPRECATION")
-                device.connectGatt(context, autoConnect, callback)
-            }
+            device.connectGatt(
+                context,
+                autoConnect,
+                callback,
+                BluetoothDevice.TRANSPORT_LE,
+                BluetoothDevice.PHY_LE_1M_MASK,
+                Handler(Looper.getMainLooper())
+            )
         bleSessions[sessionId] = BleSession(gatt, address, servicesReady, notifications)
         BluetoothSessionData(sessionId = sessionId, address = address, mode = "ble")
     }
@@ -547,13 +556,20 @@ object BluetoothSessionManager {
         return BluetoothBleNotificationData(sessionId = sessionId, notifications = items)
     }
 
-    fun closeBle(sessionId: String) {
+    fun closeBle(context: Context, sessionId: String) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) !=
+                    PackageManager.PERMISSION_GRANTED
+        ) {
+            throw SecurityException("BLUETOOTH_CONNECT permission is required to close a BLE session")
+        }
         bleSessions.remove(sessionId)?.gatt?.close()
     }
 
-    fun closeAny(sessionId: String) {
+    fun closeAny(context: Context, sessionId: String) {
         closeClassic(sessionId)
-        closeBle(sessionId)
+        closeBle(context, sessionId)
     }
 
     private fun findCharacteristic(

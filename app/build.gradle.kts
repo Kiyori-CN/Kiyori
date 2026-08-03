@@ -1,3 +1,4 @@
+import com.android.build.api.artifact.SingleArtifact
 import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -32,7 +33,9 @@ import org.gradle.api.tasks.bundling.Zip
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.w3c.dom.Element
 import javax.inject.Inject
+import javax.xml.parsers.DocumentBuilderFactory
 
 plugins {
     alias(libs.plugins.android.application)
@@ -237,7 +240,83 @@ private fun Project.registerSanitizedDependencyJar(
                 }
             }
         }
+}
+
+@DisableCachingByDefault(
+    because = "This task verifies the merged Debug Manifest and has no generated output."
+)
+abstract class VerifySingleDebugLauncherTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val mergedManifest: RegularFileProperty
+
+    @TaskAction
+    fun verify() {
+        val androidNamespace = "http://schemas.android.com/apk/res/android"
+        val document =
+            DocumentBuilderFactory.newInstance()
+                .apply { isNamespaceAware = true }
+                .newDocumentBuilder()
+                .parse(mergedManifest.get().asFile)
+        val launchableComponents = mutableListOf<String>()
+        val allActivityNames = mutableListOf<String>()
+
+        listOf("activity", "activity-alias").forEach { componentTag ->
+            val components = document.getElementsByTagName(componentTag)
+            for (componentIndex in 0 until components.length) {
+                val component = components.item(componentIndex) as Element
+                val componentName = component.getAttributeNS(androidNamespace, "name")
+                allActivityNames += componentName
+                val children = component.childNodes
+                for (childIndex in 0 until children.length) {
+                    val intentFilter = children.item(childIndex) as? Element ?: continue
+                    if (intentFilter.tagName != "intent-filter") continue
+                    val actions =
+                        intentFilter.getElementsByTagName("action").let { nodes ->
+                            buildSet {
+                                for (index in 0 until nodes.length) {
+                                    add(
+                                        (nodes.item(index) as Element)
+                                            .getAttributeNS(androidNamespace, "name")
+                                    )
+                                }
+                            }
+                        }
+                    val categories =
+                        intentFilter.getElementsByTagName("category").let { nodes ->
+                            buildSet {
+                                for (index in 0 until nodes.length) {
+                                    add(
+                                        (nodes.item(index) as Element)
+                                            .getAttributeNS(androidNamespace, "name")
+                                    )
+                                }
+                            }
+                        }
+                    if (
+                        "android.intent.action.MAIN" in actions &&
+                            "android.intent.category.LAUNCHER" in categories
+                    ) {
+                        launchableComponents += componentName
+                    }
+                }
+            }
+        }
+
+        check("live.pw.renderX.LatexView" !in allActivityNames) {
+            "RenderX sample LatexView leaked into the merged Debug Manifest"
+        }
+        check(
+            launchableComponents ==
+                listOf("com.ai.assistance.operit.ui.main.MainActivity")
+        ) {
+            "Debug APK must expose exactly one launcher MainActivity, found $launchableComponents"
+        }
+        logger.lifecycle(
+            "Verified one Debug launcher: ${launchableComponents.single()}"
+        )
     }
+}
 
 @CacheableTask
 abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
@@ -451,6 +530,181 @@ abstract class BuildNativeRipgrepTask @Inject constructor(
             "Unable to create generated native ripgrep ABI directory: $abiDirectory"
         }
         builtLibrary.copyTo(abiDirectory.resolve("liboperit_ripgrep.so"), overwrite = true)
+    }
+}
+
+@DisableCachingByDefault(
+    because = "The executable is built by the machine-local Android NDK toolchain."
+)
+abstract class BuildShellIdentityLauncherTask @Inject constructor(
+    private val execOperations: ExecOperations,
+) : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceFile: RegularFileProperty
+
+    @get:Input
+    abstract val androidApiLevel: Property<Int>
+
+    @get:Input
+    abstract val ndkVersion: Property<String>
+
+    @get:Internal
+    abstract val ndkDirectory: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    private fun File.calculateSha256(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        inputStream().buffered().use { stream ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val read = stream.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private fun ByteArray.containsSequence(needle: ByteArray): Boolean {
+        require(needle.isNotEmpty()) { "Needle must not be empty" }
+        if (needle.size > size) return false
+        for (start in 0..size - needle.size) {
+            var matches = true
+            for (index in needle.indices) {
+                if (this[start + index] != needle[index]) {
+                    matches = false
+                    break
+                }
+            }
+            if (matches) return true
+        }
+        return false
+    }
+
+    @TaskAction
+    fun build() {
+        val osName = System.getProperty("os.name").lowercase()
+        val hostTag =
+            when {
+                osName.contains("windows") -> "windows-x86_64"
+                osName.contains("linux") -> "linux-x86_64"
+                osName.contains("mac") || osName.contains("darwin") -> "darwin-x86_64"
+                else -> error("Unsupported shell identity launcher build host: $osName")
+            }
+        val compilerName =
+            "aarch64-linux-android${androidApiLevel.get()}-clang++" +
+                if (osName.contains("windows")) ".cmd" else ""
+        val compiler =
+            ndkDirectory.get().asFile
+                .resolve("toolchains/llvm/prebuilt/$hostTag/bin/$compilerName")
+                .canonicalFile
+        check(compiler.isFile) {
+            "Android compiler for shell identity launcher was not found: $compiler"
+        }
+
+        val generatedRoot = outputDirectory.get().asFile
+        check(!generatedRoot.exists() || generatedRoot.deleteRecursively()) {
+            "Unable to clear generated shell identity launcher directory: $generatedRoot"
+        }
+        check(generatedRoot.mkdirs() || generatedRoot.isDirectory) {
+            "Unable to create generated shell identity launcher directory: $generatedRoot"
+        }
+        val launcher = generatedRoot.resolve("operit_shell_exec")
+        execOperations.exec {
+            executable(compiler)
+            args(
+                sourceFile.get().asFile.absolutePath,
+                "-std=c++17",
+                "-O2",
+                "-DNDEBUG",
+                "-fno-exceptions",
+                "-fno-rtti",
+                "-nostdlib++",
+                "-fPIE",
+                "-pie",
+                "-Wl,-z,max-page-size=16384",
+                "-Wl,--strip-all",
+                "-landroid",
+                "-llog",
+                "-o",
+                launcher.absolutePath,
+            )
+        }.assertNormalExitValue()
+
+        val bytes = launcher.readBytes()
+        check(bytes.size >= 64) { "Shell identity launcher is not a complete ELF file" }
+        check(
+            bytes[0] == 0x7f.toByte() &&
+                bytes[1] == 'E'.code.toByte() &&
+                bytes[2] == 'L'.code.toByte() &&
+                bytes[3] == 'F'.code.toByte()
+        ) {
+            "Shell identity launcher has no ELF magic"
+        }
+        check(bytes[4] == 2.toByte() && bytes[5] == 1.toByte()) {
+            "Shell identity launcher must be little-endian ELF64"
+        }
+
+        fun readUnsignedShort(offset: Int): Int =
+            (bytes[offset].toInt() and 0xff) or
+                ((bytes[offset + 1].toInt() and 0xff) shl 8)
+
+        fun readUnsignedInt(offset: Int): Long {
+            var value = 0L
+            for (index in 0 until 4) {
+                value = value or ((bytes[offset + index].toLong() and 0xffL) shl (index * 8))
+            }
+            return value
+        }
+
+        fun readLong(offset: Int): Long {
+            var value = 0L
+            for (index in 0 until 8) {
+                value = value or ((bytes[offset + index].toLong() and 0xffL) shl (index * 8))
+            }
+            return value
+        }
+
+        check(readUnsignedShort(18) == 183) {
+            "Shell identity launcher must target AArch64"
+        }
+        val programHeaderOffset = readLong(32)
+        val programHeaderEntrySize = readUnsignedShort(54)
+        val programHeaderCount = readUnsignedShort(56)
+        check(programHeaderOffset in 0..Int.MAX_VALUE.toLong()) {
+            "Shell identity launcher has an invalid program-header offset"
+        }
+        val loadAlignments =
+            buildList {
+                repeat(programHeaderCount) { index ->
+                    val offset = programHeaderOffset.toInt() + index * programHeaderEntrySize
+                    check(offset >= 0 && offset + programHeaderEntrySize <= bytes.size) {
+                        "Shell identity launcher program header exceeds the file"
+                    }
+                    if (readUnsignedInt(offset) == 1L) {
+                        add(readLong(offset + 48))
+                    }
+                }
+            }
+        check(loadAlignments.isNotEmpty() && loadAlignments.all { alignment -> alignment >= 0x4000L }) {
+            "Shell identity launcher PT_LOAD alignment must be at least 0x4000: $loadAlignments"
+        }
+        check(bytes.containsSequence("/system/bin/linker64".toByteArray(Charsets.US_ASCII))) {
+            "Shell identity launcher does not use the Android arm64 linker"
+        }
+        check(!bytes.containsSequence("native-lib.cpp".toByteArray(Charsets.US_ASCII))) {
+            "Shell identity launcher still contains source-level debug paths"
+        }
+        check(!bytes.containsSequence("libc++_shared.so".toByteArray(Charsets.US_ASCII))) {
+            "Shell identity launcher must not depend on the APK C++ shared runtime"
+        }
+        logger.lifecycle(
+            "Verified shell identity launcher: SHA-256=${launcher.calculateSha256()}, " +
+                "PT_LOAD=${loadAlignments.joinToString { alignment -> "0x${alignment.toString(16)}" }}"
+        )
     }
 }
 
@@ -875,8 +1129,14 @@ val verifyDebugPlayerRuntimePackaging =
         }
     }
 
+val verifySingleDebugLauncher =
+    tasks.register<VerifySingleDebugLauncherTask>("verifySingleDebugLauncher") {
+        description =
+            "Verifies that dependency manifests cannot add a second Debug launcher icon."
+    }
+
 tasks.matching { task -> task.name == "assembleDebug" }.configureEach {
-    finalizedBy(verifyDebugPlayerRuntimePackaging)
+    finalizedBy(verifyDebugPlayerRuntimePackaging, verifySingleDebugLauncher)
 }
 
 //    aaptOptions {
@@ -899,16 +1159,43 @@ val buildNativeRipgrep =
         outputDirectory.set(layout.buildDirectory.dir("generated/nativeRipgrep/jniLibs"))
     }
 
+val buildShellIdentityLauncher =
+    tasks.register<BuildShellIdentityLauncherTask>("buildShellIdentityLauncher") {
+        description =
+            "Builds and verifies the 16 KB-compatible arm64 shell identity launcher asset."
+        sourceFile.set(
+            rootProject.layout.projectDirectory.file(
+                "tools/shell_identity_launcher/native-lib.cpp"
+            )
+        )
+        androidApiLevel.set(26)
+        ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))
+        ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+        outputDirectory.set(layout.buildDirectory.dir("generated/shellIdentityLauncherAssets"))
+    }
+
 androidComponents {
     // AGP 9 removes applicationVariants and its internal output types. Keeping the
     // filenames on the public Variant API prevents the nightly/clone artifact contract
     // from depending on an implementation class that no longer exists.
     onVariants { variant ->
+        if (variant.name == "debug") {
+            tasks.named<VerifySingleDebugLauncherTask>(
+                "verifySingleDebugLauncher"
+            ).configure {
+                mergedManifest.set(
+                    variant.artifacts.get(SingleArtifact.MERGED_MANIFEST)
+                )
+            }
+        }
         val assets =
             requireNotNull(variant.sources.assets) {
                 "Android variant ${variant.name} does not expose an assets source directory."
             }
         assets.addGeneratedSourceDirectory(generateBundledToolPkgAssets) {
+            it.outputDirectory
+        }
+        assets.addGeneratedSourceDirectory(buildShellIdentityLauncher) {
             it.outputDirectory
         }
         val jniLibs =
@@ -999,7 +1286,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics.android)
     // Fixed vendored JARs remain globbed. The two generated player AARs are explicit and own
     // disjoint native names, including one C++ runtime built with the same toolchain as libmpv.
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    implementation(files("libs/smart-exception-common-0.2.1.jar"))
+    implementation(files("libs/smart-exception-java-0.2.1.jar"))
     implementation(files("libs/mpv-player-arm64.aar"))
     implementation(files("libs/ffmpeg-kit-player-arm64.aar"))
     implementation(libs.androidx.runtime.android)
@@ -1054,10 +1342,9 @@ dependencies {
     // Image Cropper for background image cropping
     implementation(libs.image.cropper)
     
-    // ExoPlayer for video background
-    implementation(libs.exoplayer)
-    implementation(libs.exoplayer.core)
-    implementation(libs.exoplayer.ui)
+    // AndroidX Media3 for audio/video playback and background media.
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
     
     // Material 3 Window Size Class
     implementation(libs.material3.window)

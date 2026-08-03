@@ -12,14 +12,19 @@ state.
   capability, feature, and integration domains are file-exact package roots;
   an undeclared future domain fails as unmanaged. Vendored roots are also
   isolated from both Kiyori and Operit product packages.
-- `manifest-components.txt` is the reviewed Android Manifest contract
-  snapshot. It preserves component classes plus action, category, authority,
-  scheme, host, MIME type, process, and component permission multiplicity.
-  M-01 has one explicit old/new application-class mapping.
-- `manifest-structure-hashes.txt` preserves the complete semantic Manifest
-  tree for each migration phase. XML formatting, attribute order, and sibling
-  order are ignored, while hierarchy and every element/attribute value remain
-  protected.
+- `manifest-components.txt` is the reviewed main-source-set Android Manifest
+  contract snapshot. It preserves component classes plus action, category,
+  authority, scheme, host, MIME type, process, and component permission
+  multiplicity. M-01 has one explicit old/new application-class mapping.
+- `debug-manifest-components.txt` separately pins the Debug-only exported QA
+  receivers, actions, and their `android.permission.DUMP` guards. Keeping this
+  contract separate makes moving any receiver back into main/release a gate
+  failure.
+- `manifest-structure-hashes.txt` and
+  `debug-manifest-structure-hashes.txt` preserve the complete semantic
+  Manifest trees for the main migration phases and Debug source set. XML
+  formatting, attribute order, and sibling order are ignored, while hierarchy
+  and every element/attribute value remain protected.
 - `stable-identifiers.txt` records product, ecosystem, serialization, and
   external-identity literals with exact expected occurrence counts.
 - `persistence-names.txt` records exact quoted DataStore, SharedPreferences,

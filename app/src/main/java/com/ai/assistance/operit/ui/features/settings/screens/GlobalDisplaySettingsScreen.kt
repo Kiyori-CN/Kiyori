@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -173,7 +174,7 @@ fun GlobalDisplaySettingsScreen(
         ) {
             SectionTitle(
                 text = stringResource(R.string.message_display_settings),
-                icon = Icons.Default.Message
+                icon = Icons.AutoMirrored.Filled.Message
             )
 
             Column(

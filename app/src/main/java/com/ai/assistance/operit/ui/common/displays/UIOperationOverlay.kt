@@ -181,12 +181,7 @@ class UIOperationOverlay private constructor(private val context: Context) {
             val params = WindowManager.LayoutParams().apply {
                 width = WindowManager.LayoutParams.MATCH_PARENT
                 height = WindowManager.LayoutParams.MATCH_PARENT
-                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    @Suppress("DEPRECATION")
-                    WindowManager.LayoutParams.TYPE_PHONE
-                }
+                type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 // 关键flags：彻底不可聚焦，不阻挡触摸事件传递到下层应用
                 flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or

@@ -107,12 +107,12 @@ internal fun StandardBrowserSessionTools.configureWebView(
         setSupportZoom(true)
         builtInZoomControls = true
         displayZoomControls = false
-        allowFileAccess = true
-        allowContentAccess = true
+        allowFileAccess = false
+        allowContentAccess = false
         cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         setGeolocationEnabled(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {

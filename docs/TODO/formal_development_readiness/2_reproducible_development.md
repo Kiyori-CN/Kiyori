@@ -15,10 +15,12 @@ git submodule update --init --recursive terminal
 ## 版本和工具链
 
 - JDK 21 是运行 Gradle 的本地与 CI 基线；Java/Kotlin 字节码目标保持 JVM 17
-- Gradle Wrapper 为 9.5.0，Android Gradle Plugin 为 9.3.1，Kotlin 编译器插件为 2.3.21
-- Android compile SDK 为 36，target SDK 为 34，Build Tools 为 36.0.0，CMake 为 3.22.1
+- Gradle Wrapper 为 9.5.0，Android Gradle Plugin 为 9.3.1，Kotlin 编译器插件为 2.4.10
+- Android compile SDK 为 37，target SDK 为 34，CI Build Tools 为 36.0.0，CMake 为 3.22.1
 - 所有 Android native 模块通过 `gradle.properties` 固定使用 NDK 28.2.13676358；该版本属于 NDK r28，源码构建的 ELF 默认支持 16 KB segment 对齐
 - native ripgrep 固定使用 rustup 管理的 Rust 1.88.0 与 `aarch64-linux-android` target；Gradle 以 Cargo 锁文件、Rust 源码和固定 NDK 为输入生成 arm64 JNI 库
+- shell identity launcher 固定从 `tools/shell_identity_launcher/native-lib.cpp` 生成；Gradle 使用 NDK 28、API 26、`-nostdlib++` 和 16 KB linker 对齐参数构建并验证 ELF，源码 assets 不保留预编译副本
+- terminal 的 `sudo` 命令由唯一 `TerminalManager` 在私有 bin 目录生成 `/system/bin/sh` shim；仓库不保留伪装成 native library 的 `libsudo.so`
 - Node.js、pnpm 和 Python 版本以 `.github/workflows/` 和现有脚本为准
 - 本地凭据仅放在未跟踪的 `local.properties`，不得写入仓库或 CI 日志
 
@@ -44,6 +46,8 @@ git submodule update --init --recursive terminal
 - 资源、JSON、Markdown 和现有 CI 单元检查通过
 - `assembleDebug` 通过并生成 `app/build/outputs/apk/debug/app-debug.apk`
 - APK 包含 `lib/arm64-v8a/liboperit_ripgrep.so`，该文件为 AArch64 ELF 且 `PT_LOAD` 对齐不低于 16 KB
+- APK 包含 `assets/operit_shell_exec`，该文件为 AArch64 ELF、所有 `PT_LOAD` 对齐不低于 16 KB，且不依赖 `libc++_shared.so`
+- APK 不包含 `libsudo.so`，源码树也不包含预编译 `app/src/main/assets/operit_shell_exec`
 - APK 的 `assets/packages/` 包含生产白名单中的预置 ToolPkg
 
 本文件不把 release 签名、商店发布或真机体验当作 Debug 构建的隐含结果。那些项目必须在单独的发布与设备验收清单中确认。

@@ -30,7 +30,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ScreenshotMonitor
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -94,7 +93,6 @@ fun UserMessageComposable(
     enableDialogs: Boolean = true,
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val isHiddenPlaceholder =
@@ -673,7 +671,7 @@ private fun AttachmentTag(
     val icon: ImageVector =
         when {
             attachment.type.startsWith("image/") -> Icons.Default.Image
-            attachment.type.startsWith("audio/") -> Icons.Default.VolumeUp
+            attachment.type.startsWith("audio/") -> Icons.AutoMirrored.Filled.VolumeUp
             attachment.type.startsWith("video/") -> Icons.Default.PlayArrow
             attachment.type == "text/json" && attachment.filename == "screen_content.json" ->
                 Icons.Default.ScreenshotMonitor

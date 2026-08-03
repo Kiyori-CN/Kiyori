@@ -107,7 +107,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         success = false,
                         result = StringResultData(""),
                         error =
-                                "Failed to tap at coordinates ($x, $y): ${result.stderr ?: "Unknown error"}"
+                                "Failed to tap at coordinates ($x, $y): ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -172,7 +172,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to long press at coordinates ($x, $y): ${result.stderr ?: "Unknown error"}"
+                        error = "Failed to long press at coordinates ($x, $y): ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -245,7 +245,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to perform swipe: ${result.stderr ?: "Unknown error"}"
+                        error = "Failed to perform swipe: ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -425,7 +425,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to paste text from clipboard: ${pasteResult.stderr ?: "Unknown error"}"
+                        error = "Failed to paste text from clipboard: ${pasteResult.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -479,7 +479,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to press key: ${result.stderr ?: "Unknown error"}"
+                        error = "Failed to press key: ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -1109,7 +1109,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to dump UI hierarchy: ${result.stderr ?: "Unknown error"}"
+                        error = "Failed to dump UI hierarchy: ${result.stderr}"
                 )
             }
 
@@ -1122,7 +1122,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to read UI dump: ${readResult.stderr ?: "Unknown error"}"
+                        error = "Failed to read UI dump: ${readResult.stderr}"
                 )
             }
 
@@ -1299,7 +1299,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                         toolName = tool.name,
                         success = false,
                         result = StringResultData(""),
-                        error = "Failed to click element: ${tapResult.stderr ?: "Unknown error"}"
+                        error = "Failed to click element: ${tapResult.stderr}"
                 )
             }
         } catch (e: Exception) {

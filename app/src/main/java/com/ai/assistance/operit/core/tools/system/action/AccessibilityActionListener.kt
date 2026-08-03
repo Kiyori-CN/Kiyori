@@ -137,7 +137,7 @@ class AccessibilityActionListener(private val context: Context) : ActionListener
 
             val elementInfo = ActionListener.ElementInfo(
                 className = event.className?.toString(),
-                text = event.text?.joinToString(" "),
+                text = event.text.joinToString(" "),
                 contentDescription = event.contentDescription?.toString(),
                 packageName = event.packageName?.toString()
             )
@@ -157,4 +157,4 @@ class AccessibilityActionListener(private val context: Context) : ActionListener
             AppLogger.e(TAG, "处理无障碍事件失败", e)
         }
     }
-} 
+}

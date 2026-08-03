@@ -18,6 +18,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -805,7 +807,7 @@ fun ModelPromptsSettingsScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // 标签栏（移除旧配置选项）
-                TabRow(selectedTabIndex = currentTab) {
+                PrimaryTabRow(selectedTabIndex = currentTab) {
                     Tab(
                         selected = currentTab == 0,
                         onClick = { currentTab = 0 }
@@ -833,7 +835,7 @@ fun ModelPromptsSettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                Icons.Default.Label,
+                                Icons.AutoMirrored.Filled.Label,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -2097,7 +2099,7 @@ fun CharacterCardTab(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Sort,
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
                                 contentDescription = stringResource(R.string.character_card_sort),
                                 modifier = Modifier.size(18.dp)
                             )

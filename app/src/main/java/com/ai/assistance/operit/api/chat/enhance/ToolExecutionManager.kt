@@ -282,11 +282,14 @@ object ToolExecutionManager {
         while (keys.hasNext()) {
             val key = keys.next()
             val value = paramsObject.opt(key)
-            val valueString = when (value) {
-                null, JSONObject.NULL -> "null"
-                is String -> value
-                else -> value.toString()
-            }
+            val valueString =
+                if (value == null || value === JSONObject.NULL) {
+                    "null"
+                } else if (value is String) {
+                    value
+                } else {
+                    value.toString()
+                }
             forwardedParameters.add(ToolParameter(name = key, value = valueString))
         }
         return forwardedParameters

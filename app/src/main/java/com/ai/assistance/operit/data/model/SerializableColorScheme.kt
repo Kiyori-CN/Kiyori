@@ -72,6 +72,8 @@ fun ColorScheme.toSerializable(): SerializableColorScheme {
     )
 }
 
+// 该 Parcelable 仍使用已发布的 29 色槽契约；改用新构造器前必须先设计可兼容的序列化迁移。
+@Suppress("DEPRECATION")
 fun SerializableColorScheme.toComposeColorScheme(): ColorScheme {
     return ColorScheme(
         primary = Color(this.primary.toULong()),
@@ -104,4 +106,4 @@ fun SerializableColorScheme.toComposeColorScheme(): ColorScheme {
         outlineVariant = Color(this.outlineVariant.toULong()),
         scrim = Color(this.scrim.toULong())
     )
-} 
+}

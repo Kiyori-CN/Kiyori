@@ -13,7 +13,6 @@ import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import org.apache.commons.compress.utils.IOUtils
 
 /** Utility class for archive operations */
 object ArchiveUtil {
@@ -209,7 +208,7 @@ object ArchiveUtil {
                 var entry: TarArchiveEntry?
                 val buffer = ByteArray(BUFFER_SIZE)
 
-                while (tis.nextTarEntry.also { entry = it } != null) {
+                while (tis.nextEntry.also { entry = it } != null) {
                     val currentEntry = entry ?: continue
 
                     val fileName = currentEntry.name
@@ -259,23 +258,11 @@ object ArchiveUtil {
     fun extract7z(sevenZFile: File, targetDir: File, password: String? = null): Boolean {
         try {
             try {
-                // Try to open the 7z file with password if provided
                 val szf =
-                        if (password != null) {
-                            try {
-                                SevenZFile(sevenZFile, password.toCharArray())
-                            } catch (e: Exception) {
-                                // If password doesn't work, try without password
-                                AppLogger.w(
-                                        TAG,
-                                        "Failed to open 7z with password, trying without password",
-                                        e
-                                )
-                                SevenZFile(sevenZFile)
-                            }
-                        } else {
-                            SevenZFile(sevenZFile)
-                        }
+                    SevenZFile.builder()
+                        .setFile(sevenZFile)
+                        .apply { password?.let { setPassword(it.toCharArray()) } }
+                        .get()
 
                 szf.use { sz ->
                     var entry: SevenZArchiveEntry?
@@ -349,20 +336,9 @@ object ArchiveUtil {
     fun extractRar(rarFile: File, targetDir: File, password: String? = null): Boolean {
         try {
             try {
-                // Create Archive with password if provided
                 val archive =
                         if (password != null) {
-                            try {
-                                Archive(rarFile, password)
-                            } catch (e: Exception) {
-                                // If password doesn't work, try without password
-                                AppLogger.w(
-                                        TAG,
-                                        "Failed to open RAR with password, trying without password",
-                                        e
-                                )
-                                Archive(rarFile)
-                            }
+                            Archive(rarFile, password)
                         } else {
                             Archive(rarFile)
                         }
@@ -524,7 +500,7 @@ object ArchiveUtil {
                 tos.putArchiveEntry(entry)
 
                 FileInputStream(file).use { fis ->
-                    BufferedInputStream(fis).use { bis -> IOUtils.copy(bis, tos) }
+                    BufferedInputStream(fis).use { bis -> bis.copyTo(tos) }
                 }
 
                 tos.closeArchiveEntry()

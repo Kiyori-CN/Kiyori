@@ -238,13 +238,6 @@ class MCPConfigGenerator {
             finalConfigJson = configJson
         }
 
-        // 确保finalConfigJson不为空
-        if (finalConfigJson == null) {
-            finalConfigJson = JsonObject()
-            val mcpServersJson = JsonObject()
-            finalConfigJson.add("mcpServers", mcpServersJson)
-        }
-
         // 使用格式化的JSON输出
         val gson = GsonBuilder().setPrettyPrinting().create()
         return gson.toJson(finalConfigJson)

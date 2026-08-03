@@ -16,7 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -81,7 +81,7 @@ internal fun ThemeSettingsTabbedContent(
     }
 
     Column(modifier = modifier) {
-        ScrollableTabRow(
+        SecondaryScrollableTabRow(
             selectedTabIndex = selectedTab.ordinal,
             edgePadding = 0.dp,
             containerColor = Color.Transparent,

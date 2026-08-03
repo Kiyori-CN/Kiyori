@@ -2,6 +2,7 @@ package com.ai.assistance.operit.ui.features.chat.webview
 
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Environment
 import android.os.Handler
@@ -25,6 +26,7 @@ import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.ai.assistance.operit.R
 import java.io.File
@@ -107,9 +109,12 @@ class WebViewHandler(private val context: Context) {
                     Toast.makeText(context, context.getString(R.string.download_success, cleanFileName), Toast.LENGTH_SHORT).show()
 
                     // 通知媒体扫描器更新文件
-                    val intent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-                    intent.data = Uri.fromFile(file)
-                    context.sendBroadcast(intent)
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(file.absolutePath),
+                        arrayOf(mimeType),
+                        null
+                    )
                 }
 
                 // 可选：打开文件
@@ -165,11 +170,9 @@ class WebViewHandler(private val context: Context) {
                 javaScriptCanOpenWindowsAutomatically = true
 
                 // 跨域和混合内容支持
-                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                allowContentAccess = true
-                allowFileAccess = true
-                allowFileAccessFromFileURLs = true
-                allowUniversalAccessFromFileURLs = true
+                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                allowContentAccess = false
+                allowFileAccess = false
 
                 // DOM存储和数据库
                 domStorageEnabled = true
@@ -249,7 +252,10 @@ class WebViewHandler(private val context: Context) {
                     handler: SslErrorHandler?,
                     error: android.net.http.SslError?
             ) {
-                // 创建警告对话框
+                // 证书校验失败后必须立即终止导航；等待用户选择会让不安全请求保持悬而未决，
+                // 提供“继续”入口则会直接绕过 WebView 的 TLS 身份校验。
+                handler?.cancel()
+
                 val builder = android.app.AlertDialog.Builder(context)
                 var message = context.getString(R.string.webview_ssl_cert_error)
                 val errorDetail =
@@ -271,11 +277,7 @@ class WebViewHandler(private val context: Context) {
 
                 builder.setTitle(context.getString(R.string.webview_security_warning_title))
                 builder.setMessage(message)
-
-                builder.setPositiveButton(context.getString(R.string.continue_action)) { _, _ ->
-                    handler?.proceed()
-                }
-                builder.setNegativeButton(context.getString(R.string.cancel)) { _, _ -> handler?.cancel() }
+                builder.setPositiveButton(context.getString(R.string.confirm), null)
 
                 // 在UI线程上显示对话框
                 Handler(Looper.getMainLooper()).post { builder.create().show() }
@@ -510,11 +512,13 @@ class WebViewHandler(private val context: Context) {
                     }
 
             // 注册广播接收器
-            context.registerReceiver(
+            ContextCompat.registerReceiver(
+                    context,
                     onDownloadComplete,
                     android.content.IntentFilter(
-                            android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE
-                    )
+                        android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE
+                    ),
+                    ContextCompat.RECEIVER_EXPORTED
             )
         } catch (e: Exception) {
             throw e

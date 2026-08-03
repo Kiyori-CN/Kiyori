@@ -3,7 +3,6 @@ package com.ai.assistance.operit.ui.features.chat.webview.workspace
 import android.annotation.SuppressLint
 import android.net.Uri
 import com.ai.assistance.operit.util.AppLogger
-import android.view.MotionEvent
 import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -23,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,8 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -73,18 +74,6 @@ import kotlinx.serialization.Serializable
 /** 可序列化的位置数据类，用于持久化FAB位置 */
 @Serializable
 data class FabPosition(val x: Float = 0f, val y: Float = 0f)
-
-private fun WebView.installWorkspaceTouchInterceptor() {
-    setOnTouchListener { view, event ->
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> view.parent?.requestDisallowInterceptTouchEvent(true)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                view.parent?.requestDisallowInterceptTouchEvent(false)
-            }
-        }
-        false
-    }
-}
 
 private fun WebView.releaseWorkspaceWebView() {
     stopLoading()
@@ -170,7 +159,6 @@ fun WorkspaceManager(
         onExportClick: (workDir: File) -> Unit
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val webViewRefreshCounter by actualViewModel.webViewRefreshCounter.collectAsState()
     val workspaceCommandExecutionState by actualViewModel.workspaceCommandExecutionState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -390,7 +378,7 @@ fun WorkspaceManager(
                     )
                     val result = toolHandler.executeTool(tool)
                     if (result.success && result.result is FileContentData) {
-                        val newContent = (result.result as FileContentData).content
+                        val newContent = result.result.content
                         
                         // 如果当前文件就是这个被修改的文件，则更新编辑器内容
                         if (openFiles.getOrNull(currentFileIndex)?.path == fileInfo.path) {
@@ -682,8 +670,7 @@ fun WorkspaceManager(
                         key(workspacePath, workspaceEnv) {
                             AndroidView(
                                     factory = { androidContext ->
-                                        WebView(androidContext).apply {
-                                            installWorkspaceTouchInterceptor()
+                                        ParentInterceptingWebView(androidContext).apply {
                                             webViewHandler.configureWebView(
                                                 this,
                                                 WebViewHandler.WebViewMode.WORKSPACE,
@@ -726,8 +713,7 @@ fun WorkspaceManager(
                             key(workspacePath, workspaceEnv, commandPreviewUrl) {
                                 AndroidView(
                                     factory = { androidContext ->
-                                        WebView(androidContext).apply {
-                                            installWorkspaceTouchInterceptor()
+                                        ParentInterceptingWebView(androidContext).apply {
                                             commandPreviewHandler.configureWebView(
                                                 this,
                                                 WebViewHandler.WebViewMode.WORKSPACE,
@@ -898,8 +884,7 @@ fun WorkspaceManager(
                             fileInfo.isHtml && isPreviewMode -> {
                                 AndroidView(
                                         factory = { context ->
-                                            WebView(context).apply {
-                                                installWorkspaceTouchInterceptor()
+                                            ParentInterceptingWebView(context).apply {
                                                 webViewHandler.configureWebView(this, WebViewHandler.WebViewMode.WORKSPACE, "workspace_file_preview_${fileInfo.path}")
                                             }
                                          },
@@ -1211,7 +1196,7 @@ fun WorkspaceManager(
                     }
                 },
                 onCopyOutput = { output ->
-                    clipboardManager.setText(AnnotatedString(output))
+                    context.copyPlainTextToClipboard("Kiyori terminal output", output)
                     actualViewModel.showToast(context.getString(R.string.copied_to_clipboard))
                 }
             )
@@ -1452,9 +1437,9 @@ fun ExpandableFabMenu(
             ) {
         // 展开的菜单项
         if (isExpanded) {
-            FabMenuItem(icon = Icons.Default.Undo, text = context.getString(R.string.undo), onClick = onUndoClick)
+            FabMenuItem(icon = Icons.AutoMirrored.Filled.Undo, text = context.getString(R.string.undo), onClick = onUndoClick)
             Spacer(modifier = Modifier.height(12.dp))
-            FabMenuItem(icon = Icons.Default.Redo, text = context.getString(R.string.redo), onClick = onRedoClick)
+            FabMenuItem(icon = Icons.AutoMirrored.Filled.Redo, text = context.getString(R.string.redo), onClick = onRedoClick)
             Spacer(modifier = Modifier.height(12.dp))
             if (canFormat) {
                 FabMenuItem(icon = Icons.Default.AutoFixHigh, text = context.getString(R.string.format_code), onClick = onFormatClick)

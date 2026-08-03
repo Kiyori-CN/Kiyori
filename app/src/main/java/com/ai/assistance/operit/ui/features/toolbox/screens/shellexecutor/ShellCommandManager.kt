@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.features.toolbox.screens.shellexecutor
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ai.assistance.operit.R
@@ -132,7 +133,7 @@ class ShellCommandManager(private val context: Context) {
                 command = context.getString(R.string.shell_cmd_process_cmd),
                 description = context.getString(R.string.shell_cmd_process_desc),
                 category = CommandCategory.SYSTEM,
-                icon = Icons.Default.ViewList
+                icon = Icons.AutoMirrored.Filled.ViewList
             ),
             PresetCommand(
                 name = context.getString(R.string.shell_cmd_properties),
@@ -237,4 +238,4 @@ class ShellCommandManager(private val context: Context) {
             .filter { it.startsWith(prefix, ignoreCase = true) }
             .take(5)
     }
-} 
+}

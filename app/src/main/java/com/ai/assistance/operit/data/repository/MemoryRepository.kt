@@ -1300,10 +1300,10 @@ class MemoryRepository(private val context: Context, profileId: String) {
         }
         com.ai.assistance.operit.util.AppLogger.d(
             "MemoryRepo",
-            "search settings => mode=${resolvedWeights.scoreMode}, keyword=${String.format("%.2f", effectiveKeywordWeight)}, " +
-                "tag=${String.format("%.2f", effectiveTagWeight)}, " +
-                "semantic=${String.format("%.2f", effectiveSemanticWeight)}, " +
-                "semanticNorm=${String.format("%.4f", semanticKeywordNormFactor)}, edge=${String.format("%.2f", effectiveEdgeWeight)}"
+            "search settings => mode=${resolvedWeights.scoreMode}, keyword=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveKeywordWeight)}, " +
+                "tag=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveTagWeight)}, " +
+                "semantic=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveSemanticWeight)}, " +
+                "semanticNorm=${String.format(java.util.Locale.getDefault(), "%.4f", semanticKeywordNormFactor)}, edge=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveEdgeWeight)}"
         )
         com.ai.assistance.operit.util.AppLogger.d(
             "MemoryRepo",
@@ -1441,7 +1441,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
                 } else {
                     com.ai.assistance.operit.util.AppLogger.d(
                         "MemoryRepo",
-                        "Keyword '$keyword': ${semanticResultsWithScores.size} indexed matches (top: ${String.format("%.2f", semanticResultsWithScores.first().second)})"
+                        "Keyword '$keyword': ${semanticResultsWithScores.size} indexed matches (top: ${String.format(java.util.Locale.getDefault(), "%.2f", semanticResultsWithScores.first().second)})"
                     )
                 }
 
@@ -1537,7 +1537,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
         sortedScoresForLogging.take(3).forEach { (id, score) ->
             val memory = scoredMemoryMap[id] ?: memoriesToSearch.find { it.id == id }
             if (memory != null) {
-                com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "  Top: [${memory.title}] = ${String.format("%.4f", score)}")
+                com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "  Top: [${memory.title}] = ${String.format(java.util.Locale.getDefault(), "%.4f", score)}")
             }
         }
 
@@ -1687,11 +1687,11 @@ class MemoryRepository(private val context: Context, profileId: String) {
         com.ai.assistance.operit.util.AppLogger.d(
             "MemoryRepo",
             "Document chunk search settings => mode=${resolvedWeights.scoreMode}, " +
-                "keyword=${String.format("%.2f", effectiveKeywordWeight)}, " +
-                "tag=${String.format("%.2f", effectiveTagWeight)} (ignored for chunks), " +
-                "semantic=${String.format("%.2f", effectiveSemanticWeight)}, " +
-                "semanticNorm=${String.format("%.4f", resolvedWeights.semanticKeywordNormFactor)}, " +
-                "edge=${String.format("%.2f", resolvedWeights.effectiveEdgeWeight)} (ignored for chunks)"
+                "keyword=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveKeywordWeight)}, " +
+                "tag=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveTagWeight)} (ignored for chunks), " +
+                "semantic=${String.format(java.util.Locale.getDefault(), "%.2f", effectiveSemanticWeight)}, " +
+                "semanticNorm=${String.format(java.util.Locale.getDefault(), "%.4f", resolvedWeights.semanticKeywordNormFactor)}, " +
+                "edge=${String.format(java.util.Locale.getDefault(), "%.2f", resolvedWeights.effectiveEdgeWeight)} (ignored for chunks)"
         )
 
         val keywordResults = allChunks
@@ -2531,13 +2531,9 @@ class MemoryRepository(private val context: Context, profileId: String) {
                 ) {
                     // 检测是否为跨文件夹连接
                     // 始终检测跨文件夹连接，无论是否选择了特定文件夹
-                    val isCrossFolder = if (sourceMemory != null && targetMemory != null) {
-                        val sourcePath = normalizeFolderPath(sourceMemory.folderPath) ?: context.getString(R.string.memory_uncategorized)
-                        val targetPath = normalizeFolderPath(targetMemory.folderPath) ?: context.getString(R.string.memory_uncategorized)
-                        sourcePath != targetPath
-                    } else {
-                        false
-                    }
+                    val sourcePath = normalizeFolderPath(sourceMemory.folderPath) ?: context.getString(R.string.memory_uncategorized)
+                    val targetPath = normalizeFolderPath(targetMemory.folderPath) ?: context.getString(R.string.memory_uncategorized)
+                    val isCrossFolder = sourcePath != targetPath
                     
                     edges.add(
                         Edge(

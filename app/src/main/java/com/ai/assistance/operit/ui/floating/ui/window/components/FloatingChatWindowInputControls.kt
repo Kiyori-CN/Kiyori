@@ -24,7 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -247,7 +247,7 @@ private fun BottomInputBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isProcessing) Icons.Default.Close else Icons.Default.Send,
+                    imageVector = if (isProcessing) Icons.Default.Close else Icons.AutoMirrored.Filled.Send,
                     contentDescription = if (isProcessing) stringResource(R.string.floating_cancel) else stringResource(R.string.floating_send),
                     tint = when {
                         isProcessing -> MaterialTheme.colorScheme.onError

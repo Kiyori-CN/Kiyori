@@ -38,7 +38,12 @@ class AvatarModelFactoryImpl : AvatarModelFactory {
             }
             else -> {
                 if (dataModel is Map<*, *>) {
-                    val dataMap = dataModel as? Map<String, Any> ?: return null
+                    val dataMap = LinkedHashMap<String, Any>(dataModel.size)
+                    for ((rawKey, rawValue) in dataModel) {
+                        val key = rawKey as? String ?: return null
+                        val value = rawValue ?: return null
+                        dataMap[key] = value
+                    }
                     val id = dataMap["id"] as? String ?: return null
                     val name = dataMap["name"] as? String ?: return null
                     val typeStr = dataMap["type"] as? String ?: return null

@@ -6,25 +6,16 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <grp.h>
 
-// 从 Shizuku 源码简化移植的 SELinux helper
-typedef int getcon_t(char **context);
-typedef int setcon_t(const char *ctx);
-typedef int setfilecon_t(const char *path, const char *ctx);
-typedef int selinux_check_access_t(const char *scon, const char *tcon,
-                                   const char *tclass, const char *perm,
-                                   void *auditdata);
-typedef void freecon_t(char *con);
-
+// 从 Shizuku 源码简化移植的 SELinux helper。直接读写 procfs，避免运行时动态装载私有实现。
 namespace se {
 
-    static int __getcon(char **context) {
+    static int getcon(char **context) {
         int fd = open("/proc/self/attr/current", O_RDONLY | O_CLOEXEC);
         if (fd < 0)
             return fd;
@@ -68,7 +59,7 @@ namespace se {
         return (int)ret;
     }
 
-    static int __setcon(const char *ctx) {
+    static int setcon(const char *ctx) {
         int fd = open("/proc/self/attr/current", O_WRONLY | O_CLOEXEC);
         if (fd < 0)
             return fd;
@@ -78,52 +69,8 @@ namespace se {
         return rc != (ssize_t)len;
     }
 
-    static int __setfilecon(const char *path, const char *ctx) {
-        int rc = (int)syscall(__NR_setxattr, path,
-                              "security.selinux", ctx,
-                              strlen(ctx) + 1, 0);
-        if (rc) {
-            errno = -rc;
-            return -1;
-        }
-        return 0;
-    }
-
-    static int __selinux_check_access(const char *scon, const char *tcon,
-                                      const char *tclass, const char *perm,
-                                      void *auditdata) {
-        (void)scon;
-        (void)tcon;
-        (void)tclass;
-        (void)perm;
-        (void)auditdata;
-        return 0;
-    }
-
-    static void __freecon(char *con) {
+    static void freecon(char *con) {
         free(con);
-    }
-
-    getcon_t *getcon = __getcon;
-    setcon_t *setcon = __setcon;
-    setfilecon_t *setfilecon = __setfilecon;
-    selinux_check_access_t *selinux_check_access = __selinux_check_access;
-    freecon_t *freecon = __freecon;
-
-    void init() {
-        if (access("/system/lib/libselinux.so", F_OK) != 0 &&
-            access("/system/lib64/libselinux.so", F_OK) != 0)
-            return;
-
-        void *handle = dlopen("libselinux.so", RTLD_LAZY | RTLD_LOCAL);
-        if (handle == nullptr)
-            return;
-
-        getcon = (getcon_t *)dlsym(handle, "getcon");
-        setcon = (setcon_t *)dlsym(handle, "setcon");
-        setfilecon = (setfilecon_t *)dlsym(handle, "setfilecon");
-        selinux_check_access = (selinux_check_access_t *)dlsym(handle, "selinux_check_access");
-        freecon = (freecon_t *)dlsym(handle, "freecon");
     }
 }
 
@@ -143,7 +90,6 @@ int main(int argc, char *argv[]) {
     // 对齐 Shizuku 的思路：在 root(0) 进程中初始化 SELinux helper，打印当前上下文用于调试，
     // 然后将 uid/gid 降级为 shell 用户 (2000)，让后续通过 FakeContext(PACKAGE_NAME=com.android.shell)
     // 调用系统服务时，DisplayManagerService 中的 "packageName must match the calling uid" 校验能够通过。
-    se::init();
     char *cur_ctx = nullptr;
     se::getcon(&cur_ctx);
     if (cur_ctx) {
@@ -169,14 +115,16 @@ int main(int argc, char *argv[]) {
         };
         if (setgroups(sizeof(shell_groups) / sizeof(shell_groups[0]), shell_groups) != 0) {
             perror("[operit_shell_exec] setgroups(shell) failed");
+            return 1;
         }
 
         if (setgid(2000) != 0) {
             perror("setgid(2000) failed");
-            // 即使降级失败，也继续尝试后续步骤，让错误信息在日志中可见。
+            return 1;
         }
         if (setuid(2000) != 0) {
             perror("setuid(2000) failed");
+            return 1;
         }
 
         // 现在已经是 uid/gid=2000，但仍处于 su/Magisk 的 SELinux 域，
@@ -184,14 +132,20 @@ int main(int argc, char *argv[]) {
         const char *target_ctx = "u:r:shell:s0";
         if (se::setcon(target_ctx) != 0) {
             perror("[operit_shell_exec] setcon(u:r:shell:s0) failed");
-        } else {
-            char *after_ctx = nullptr;
-            se::getcon(&after_ctx);
-            if (after_ctx) {
-                fprintf(stderr, "[operit_shell_exec] selinux context (after setcon): %s\n", after_ctx);
-                se::freecon(after_ctx);
-            }
+            return 1;
         }
+        char *after_ctx = nullptr;
+        if (se::getcon(&after_ctx) != 0 || after_ctx == nullptr) {
+            perror("[operit_shell_exec] unable to verify shell SELinux context");
+            return 1;
+        }
+        if (strcmp(after_ctx, target_ctx) != 0) {
+            fprintf(stderr, "[operit_shell_exec] unexpected SELinux context after setcon: %s\n", after_ctx);
+            se::freecon(after_ctx);
+            return 1;
+        }
+        fprintf(stderr, "[operit_shell_exec] selinux context (after setcon): %s\n", after_ctx);
+        se::freecon(after_ctx);
     } else {
         // 以 shell 身份直接启动（uid=2000）时，只尝试记录当前上下文，不修改 uid/gid。
     }

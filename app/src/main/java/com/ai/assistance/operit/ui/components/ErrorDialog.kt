@@ -19,7 +19,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.R
@@ -40,7 +41,7 @@ fun ErrorDialog(
 ) {
     // 创建滚动状态
     val scrollState = rememberScrollState()
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     val displayMessage = errorMessage.ifBlank { stringResource(R.string.unknown_error) }
 
     AlertDialog(
@@ -67,7 +68,7 @@ fun ErrorDialog(
             },
             dismissButton = {
                 TextButton(
-                    onClick = { clipboardManager.setText(AnnotatedString(displayMessage)) }
+                    onClick = { context.copyPlainTextToClipboard("Kiyori error", displayMessage) }
                 ) {
                     Text(stringResource(android.R.string.copy))
                 }

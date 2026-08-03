@@ -1,0 +1,14 @@
+# Debug source-set component rows use kind<TAB>value.
+# Keeping this separate proves the exported QA receivers cannot leak into main/release.
+receiver	.core.tools.javascript.ScriptExecutionReceiver
+receiver	.core.tools.packTool.PackageDebugRefreshReceiver
+receiver	.core.tools.packTool.ToolPkgComposeDslDebugDumpReceiver
+receiver	.core.tools.packTool.ToolPkgDebugInstallReceiver
+action	com.ai.assistance.operit.DEBUG_INSTALL_TOOLPKG
+action	com.ai.assistance.operit.DEBUG_REFRESH_PACKAGES
+action	com.ai.assistance.operit.DUMP_COMPOSE_DSL_UI
+action	com.ai.assistance.operit.EXECUTE_JS
+permission	android.permission.DUMP
+permission	android.permission.DUMP
+permission	android.permission.DUMP
+permission	android.permission.DUMP

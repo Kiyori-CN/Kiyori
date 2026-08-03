@@ -17,6 +17,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.token.webview.WebViewConfig
 
@@ -43,12 +44,13 @@ fun HelpScreen(onBackPressed: () -> Unit = {}) {
                 
                 override fun onReceivedError(
                     view: WebView?,
-                    errorCode: Int,
-                    description: String?,
-                    failingUrl: String?
+                    request: WebResourceRequest?,
+                    error: WebResourceError?
                 ) {
-                    super.onReceivedError(view, errorCode, description, failingUrl)
-                    isLoading = false
+                    super.onReceivedError(view, request, error)
+                    if (request?.isForMainFrame == true) {
+                        isLoading = false
+                    }
                 }
 
                 override fun shouldOverrideUrlLoading(

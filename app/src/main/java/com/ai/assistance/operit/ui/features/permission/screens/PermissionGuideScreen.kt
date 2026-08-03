@@ -34,8 +34,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -412,7 +412,7 @@ fun PermissionGuideScreen(
                         enabled = pagerState.currentPage > 0
                 ) {
                     Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.permission_guide_previous),
                             tint =
                                     if (pagerState.currentPage > 0)
@@ -482,7 +482,7 @@ fun PermissionGuideScreen(
                             imageVector =
                                     if (pagerState.currentPage == PERMISSION_LEVEL_PAGE_INDEX)
                                             Icons.Default.Check
-                                    else Icons.Default.ArrowForward,
+                                    else Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription =
                                     if (pagerState.currentPage == PERMISSION_LEVEL_PAGE_INDEX)
                                             stringResource(R.string.permission_guide_complete)

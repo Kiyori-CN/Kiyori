@@ -145,7 +145,7 @@ private fun ToolPkgDesktopWidgetContent(
                 if (!renderData?.errorMessage.isNullOrBlank()) {
                     Spacer(modifier = GlanceModifier.height(6.dp))
                     Text(
-                        text = renderData?.errorMessage.orEmpty(),
+                        text = renderData.errorMessage.orEmpty(),
                         style = TextStyle(
                             color = bodyColor,
                             fontSize = 11.sp

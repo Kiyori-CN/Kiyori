@@ -1,7 +1,7 @@
 ---
-status: debt_cleanup_in_progress
+status: local_validation_complete
 baseline_commit: 6b6493a0bfd12072116e45fb733d551fad13e32b
-current_phase: qd-07-compiler-warnings
+current_phase: delivery-audit
 device_scope: excluded
 release_scope: excluded
 ---
@@ -51,9 +51,9 @@ Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因�
 `Lint found no new issues`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
-当前 `app/lint-baseline.xml` 另有 `5776` 条历史记录，完整 lint 汇总为
-`1265 errors / 4361 warnings / 150 hints`。baseline SHA-256 为
-`9E557039EF859A818E027196C59734D96E3CA7CCA544A389A8715FFF8D5BD2D9`。
+当前 `app/lint-baseline.xml` 另有 `5606` 条历史记录，完整 lint 汇总为
+`1238 errors / 4218 warnings / 150 hints`。baseline SHA-256 为
+`BEC89B4BF52DE60D7E839336080878B03DB154A7DC072D3C1875BDF0DD1748D0`。
 
 baseline 是历史债务清单，不是永久豁免。清理时只允许删除已经由当前源码证明失效或已经
 修复的记录，禁止吸收任何 current-only 问题。
@@ -202,8 +202,9 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
   唯一 `StandardBrowserSessionTools` 实例，Javascript bridge 显式持有该实例并沿现有
   WebView 销毁路径释放
 - App Bundle 禁用 language split；Manifest 声明 Android 14 selected-media 权限；
-  WorkManager 独占 `0x5000..0x53E7` 的 1,000 个 JobScheduler ID，与 Browser runtime 的
-  `0x4B10` 分离；宽屏判定改用 `LocalWindowInfo.containerSize`
+  WorkManager 独占 `0x5000..0x53E8` 的 1,001 个含首尾 JobScheduler ID（满足
+  WorkManager 的 `max - min >= 1,000` 前置条件），与 Browser runtime 的 `0x4B10`
+  分离；宽屏判定改用 `LocalWindowInfo.containerSize`
 - Player 默认横屏策略从 Manifest 重复声明收口到既有 Activity policy；自定义
   `PlayerSurfaceView` 改为框架 `SurfaceView` 加唯一 callback owner，fullscreen/floating
   的 surface role、overlay 和 session 注册顺序不变
@@ -223,12 +224,13 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
   `40D3B61D111D5899E69BD0C51B059641565C4FC54A0435195A93A46FFD2BBC75`
 - 完整 architecture `phase=m03`、36 项检查通过；门禁源码扫描排除 Debug native
   `.cxx` 生成目录并缓存同一源码快照的字符级掩码后，真实工作树从超过 15 分钟仍未完成
-  收敛为约 179 秒完成，同时重新锁定 QD-02/QD-04 已审阅的 Manifest、Application、
-  root、Software Home、navigation integration 与 PlayerActivity 当前保护值
+  收敛为可重复执行；本轮增加独立 Debug Manifest contract 后共 37 项检查，并重新锁定
+  QD-02/QD-04 已审阅的 Manifest、Application、root、Software Home、navigation
+  integration 与 PlayerActivity 当前保护值
 
 ### QD-07：Kotlin 编译器警报与弃用迁移
 
-状态：`in_progress`
+状态：`completed`
 
 QD-03 的大范围资源变更触发完整 Kotlin 重编译，暴露出增量构建未重复显示的历史编译器
 警报。它们必须在 Stage 4 前形成结构化清单，并按以下类别逐批处理：
@@ -251,6 +253,23 @@ Java boxed 类型 `30`、恒定条件 `28`、冗余非空断言 `28`、冗余 El
 unchecked cast `25`、无效 cast `16`、其他精确诊断 `16`、when 完整性 `16`、
 冗余转换 `10`、无效表达式 `7`、opt-in/delicate API `5`。日志位于
 `app/build/reports/qd07-compile-debug.log`；它是工作区验证产物，不进入 Git。
+
+实现批次已完成：
+
+- 按模块清理 app、terminal、quickjs、dragonbones 与 mnn 的 552 条项目编译器警报，
+  未启用全局 suppress、降低 warning 级别或关闭检查
+- Android/Compose/Media3/WebKit 弃用 API 已迁到当前稳定合同；非空、cast、when、
+  boxed type、opt-in、RTL 图标与无效表达式按实际类型和调用边界修复
+- `app/libs/arsc.jar` 已从直接输入改为精确 JAR 依赖，旧 stack-map D8 警报不再出现
+- terminal 的伪 `libsudo.so` 已删除；运行时由唯一 `TerminalManager` 生成
+  `/system/bin/sh` 命令 shim，native strip 假警报不再出现
+- 增量 `:app:compileDebugKotlin`、`:terminal:testDebugUnitTest` 与相关模块编译通过
+- 最终 `:app:compileDebugKotlin --rerun-tasks` 在 4 分 41 秒内执行 `83/83` tasks；
+  stdout 中项目 warning 为 0，stderr 为 0 bytes
+- 完整 JVM 为 terminal `2 suites / 8 tests`、app `138 suites / 823 tests`，合计
+  `140 suites / 831 tests / 0 failures / 0 errors / 0 skipped`
+- 正式 `:app:lintDebug` 在 7 分 39 秒内通过，报告仅有 1 条 `LintBaseline` 状态 hint；
+  current-only 为 `0 errors / 0 warnings`
 
 ### QD-05：依赖与第三方字节码
 
@@ -336,6 +355,8 @@ QD-05B/QD-05C 已完成：
 
 ### QD-06：历史 baseline 高风险债务
 
+状态：`completed`
+
 current-only 归零后，优先审计 baseline 中项目自有的：
 
 - 权限、receiver、API level 和格式化正确性
@@ -354,6 +375,62 @@ current-only 归零后，优先审计 baseline 中项目自有的：
 - 高风险 baseline 项均有已修复或独立验收记录
 - baseline 只删除已修复/失效项，不新增记录
 - 生成新的 baseline 结构化统计和 SHA-256
+
+验证证据：
+
+- 删除 trust-all TLS owner；所有 WebView SSL error 明确取消，WebView debug 只在
+  `BuildConfig.DEBUG` 开启；file/content/mixed-content、network security 与 JavaScript
+  owner 按现有产品能力收紧
+- Debug 专用 receiver 移入 debug Manifest；四个 Debug receiver 与
+  `ShowerBinderReceiver` 需要 `android.permission.DUMP`，Shower binder 同时校验 action、
+  binder descriptor 与存活状态。`ExternalChatReceiver`、`WorkflowTaskerReceiver` 因稳定
+  外部兼容入口保持公开，并进入设备/外部集成验收
+- RenderX 1.0.0 的依赖 Manifest 错误发布示例 `LatexView` 为第二个 `MAIN/LAUNCHER`；
+  恢复精确 `tools:node="remove"` 合并规则，并把 `MissingClass` 限定在该 selector-only
+  节点。新增 `verifySingleDebugLauncher` 读取 AGP `MERGED_MANIFEST`，要求最终 Debug
+  只能暴露 `MainActivity` 一个 launcher，避免再次出现两个相同桌面图标
+- Shizuku listener 使用同一实例注册与移除；WebKit document-start、message 与
+  audio-mute API 在实际延迟执行闭包内再次验证 feature；URI 持久权限只接受读/写 flag
+- 72 条隐式 Locale 格式化改为显式合同；Composable 使用可观察的
+  `LocalConfiguration.current.locales[0]`，后台/日志沿用系统 Locale，协议 URL 与颜色
+  十六进制使用 `Locale.ROOT`
+- PTY 删除私有 `FileDescriptor.descriptor` 反射，改用 `ParcelFileDescriptor` 明确持有；
+  `exitValue()` 使用 `waitpid(WNOHANG)` 区分运行中、真实退出码和等待失败，并增加 4 个回归测试
+- shell identity launcher 从源码 assets 预编译文件迁为 Gradle 生成资产；NDK 28/API 26、
+  `-nostdlib++`、AArch64 ELF64、四个 `PT_LOAD=0x4000`、无源码路径、无
+  `libc++_shared.so` 依赖均由构建任务失败优先验证
+- Android cached 进程恢复时会集中补跑的两处 `scheduleAtFixedRate` 改为
+  `scheduleWithFixedDelay`
+- 最终完整 baseline：`retained=5606 / stale=92 / current-only=0`；删除项为
+  `DefaultLocale=72`、`RequiresFeature=5`、`ExportedReceiver=5`、
+  `ImplicitSamInstance=4`、`DiscouragedApi=2`，以及 `MissingClass`、
+  `DiscouragedPrivateApi`、`WrongConstant`、`UnsafeNativeCodeLocation` 各 1
+- baseline SHA-256：
+  `BEC89B4BF52DE60D7E839336080878B03DB154A7DC072D3C1875BDF0DD1748D0`
+- 保留项已分类：公开 receiver、target SDK 34、Android ID、用户明确 HTTP/localhost
+  能力、六个受限 JavaScript WebView owner、设备/rootfs 路径和现有 Application/ViewModel
+  生命周期 owner；它们不等同于本地静态验证已证明无风险，退出条件分别在正式开发和设备/
+  发布清单中保留
+
+## 本地最终验证证据
+
+- architecture `37/37 phase=m03`、Python `174/174`、formal readiness、working-tree
+  Markdown `0` 个新增断链、Lint baseline normalization 与 `git diff --check` 通过
+- `:app:assembleDebug` 执行 `238 actionable tasks / 29 executed / 209 up-to-date`，
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过；未出现
+  `arsc.jar` D8 或 `libsudo.so` strip 警报
+- 最终 APK 为 `463718677` bytes，SHA-256
+  `768CAE74E27352DEE038AF0C4C9F8EE5E3C2C97B017B0F3C2BCD3E92080AEF6D`
+- APK 身份为 `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`；
+  Debug v2、单 signer 与 `zipalign -c -P 16 -v 4` 通过
+- `aapt` 只报告 `com.ai.assistance.operit.ui.main.MainActivity` 一条
+  `launchable-activity`；APK 内 `LAUNCHER` category 为 1，`LatexView` 为 0
+- APK 仅含 `arm64-v8a`；51 个 `.so` 无重复 basename。连同 `8016` bytes 的生成式
+  launcher 共 52 个 AArch64 ELF64，全部 `PT_LOAD >= 0x4000`
+- APK 中 `libsudo.so`、`arsc.jar`、旧 launcher 源路径、trust-all manager、
+  `UnsafeModelSsl`、`sshpass -p`、`StrictHostKeyChecking=no` 和 `handler.proceed()` 标记均为 0
+- 提交后的 fresh clone、远端 `main` ref 与工作树干净状态仍属于交付门禁；设备和 Release
+  验收不由本地 Debug 证据替代
 
 ## Stage 4 启动门禁
 

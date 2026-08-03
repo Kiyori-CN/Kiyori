@@ -24,7 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -137,7 +137,7 @@ fun UnifiedMarketManageScreen(
         emptyDescription = stringResource(R.string.click_button_publish_first_artifact),
         emptyActionLabel = stringResource(R.string.publish_to_market),
         topContent = {
-            ScrollableTabRow(
+            SecondaryScrollableTabRow(
                 selectedTabIndex = selectedTab.ordinal,
                 edgePadding = 0.dp
             ) {

@@ -379,7 +379,7 @@ fun MessageEditor(
                         OutlinedButton(
                             onClick = onSave,
                             shape = RoundedCornerShape(16.dp),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                                 width = 1.dp
                             )
                         ) {
@@ -761,7 +761,7 @@ private fun TagEditorDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(16.dp),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                        border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                             width = 1.dp
                         ),
                         modifier = Modifier.weight(1f)

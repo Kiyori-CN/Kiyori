@@ -161,6 +161,7 @@ from check_architecture_boundaries import (  # noqa: E402
     M04B_OPERIT_NAVIGATION_POLICY_PATH,
     actual_manifest_components,
     check_file_hashes,
+    check_debug_manifest,
     check_literals,
     check_manifest,
     check_m02_application_access,
@@ -4521,7 +4522,8 @@ class KiyoriPathsTest {
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "AndroidManifest.xml"
             manifest.write_text(
-                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android" '
+                'xmlns:tools="http://schemas.android.com/tools">'
                 '<application android:name=".App">'
                 '<activity android:name=".MainActivity" android:process=":ui" '
                 'android:permission="com.example.ACTIVITY">'
@@ -4532,6 +4534,7 @@ class KiyoriPathsTest {
                 'android:mimeType="text/plain" />'
                 '</intent-filter>'
                 '</activity>'
+                '<activity android:name=".RemovedLauncher" tools:node="remove" />'
                 '<provider android:name=".Provider" '
                 'android:authorities="${applicationId}.provider" '
                 'android:permission="com.example.PROVIDER" />'
@@ -4603,6 +4606,56 @@ class KiyoriPathsTest {
             self.assertEqual(
                 errors,
                 ["ARCH008 unexpected manifest component: service .DuplicateService"],
+            )
+
+    def test_debug_manifest_contract_is_checked_separately_from_main(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            architecture_root = root / "config/architecture"
+            architecture_root.mkdir(parents=True)
+            manifest = root / "app/src/debug/AndroidManifest.xml"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+                "<application>"
+                '<receiver android:name=".DebugReceiver" android:exported="true" '
+                'android:permission="android.permission.DUMP">'
+                "<intent-filter>"
+                '<action android:name="com.example.DEBUG" />'
+                "</intent-filter>"
+                "</receiver>"
+                "</application></manifest>",
+                encoding="utf-8",
+            )
+            (architecture_root / "debug-manifest-components.txt").write_text(
+                "receiver\t.DebugReceiver\n"
+                "action\tcom.example.DEBUG\n"
+                "permission\tandroid.permission.DUMP\n",
+                encoding="utf-8",
+            )
+            digest = manifest_semantic_hash(manifest)
+            (architecture_root / "debug-manifest-structure-hashes.txt").write_text(
+                f"debug\t{digest}\n",
+                encoding="utf-8",
+            )
+
+            errors: list[str] = []
+            check_debug_manifest(root, architecture_root, errors)
+            self.assertEqual(errors, [])
+
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8").replace(
+                    'android:exported="true"',
+                    'android:exported="false"',
+                ),
+                encoding="utf-8",
+            )
+            check_debug_manifest(root, architecture_root, errors)
+            self.assertEqual(len(errors), 1)
+            self.assertTrue(
+                errors[0].startswith(
+                    "ARCH008 debug manifest semantic structure changed:"
+                )
             )
 
     def test_manifest_semantic_hash_ignores_formatting_attribute_and_sibling_order(self) -> None:

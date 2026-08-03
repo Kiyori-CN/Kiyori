@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,8 @@ internal fun ThemeSettingsFontSection(
     onFontScaleInputChange: (Float) -> Unit,
     onPickFont: () -> Unit,
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
+
     ThemeSettingsSectionTitle(
         title = stringResource(R.string.theme_font_settings),
         icon = Icons.Default.TextFields,
@@ -262,7 +265,7 @@ internal fun ThemeSettingsFontSection(
                     text =
                         context.getString(
                             R.string.font_size_scale_label,
-                            String.format("%.1f", fontScaleInput),
+                            String.format(currentLocale, "%.1f", fontScaleInput),
                         ),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(bottom = 8.dp),

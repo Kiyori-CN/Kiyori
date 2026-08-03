@@ -609,7 +609,7 @@ class MCPStarter(private val context: Context) {
 
             val logsObj =
                 if (success) {
-                    spawnResp?.optJSONObject("result")
+                    spawnResp.optJSONObject("result")
                 } else {
                     spawnResp?.optJSONObject("error")?.optJSONObject("data")
                 }

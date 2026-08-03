@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.ai.assistance.operit.ui.features.settings.sections
 
 import android.content.Context
@@ -56,9 +58,9 @@ import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.features.settings.components.MediaTypeOption
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
-import com.google.android.exoplayer2.ui.StyledPlayerView
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.flow.collect
 import kotlin.math.abs
 
@@ -214,7 +216,7 @@ internal fun ThemeSettingsBackgroundSection(
 
                             IconButton(
                                 onClick = {
-                                    backgroundImageUriInput?.let {
+                                    backgroundImageUriInput.let {
                                         launchImageCrop(Uri.parse(it))
                                     }
                                 },
@@ -243,7 +245,7 @@ internal fun ThemeSettingsBackgroundSection(
                                         R.layout.view_background_texture_player,
                                         null,
                                         false,
-                                    ) as StyledPlayerView).apply {
+                                    ) as PlayerView).apply {
                                         player = exoPlayer
                                         useController = false
                                         layoutParams =

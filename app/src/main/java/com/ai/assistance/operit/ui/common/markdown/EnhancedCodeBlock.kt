@@ -17,9 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -58,7 +58,7 @@ private enum class CodeBlockPreviewType {
  */
 @Composable
 fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = Modifier) {
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showCopiedToast by remember { mutableStateOf(false) }
     var autoWrapEnabled by remember { mutableStateOf(true) }
@@ -89,7 +89,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
 
     // 处理复制事件
     val handleCopy: () -> Unit = {
-        clipboardManager.setText(AnnotatedString(code))
+        context.copyPlainTextToClipboard("Kiyori code", code)
         scope.launch {
             showCopiedToast = true
             delay(1500)
@@ -595,6 +595,8 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
             // 基本设置
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true // 允许DOM存储
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
 
@@ -604,14 +606,14 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
             settings.displayZoomControls = false
 
             // 设置混合内容模式
-            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
 
             // 设置WebViewClient来拦截事件
             webViewClient =
                 object : android.webkit.WebViewClient() {
                     override fun shouldOverrideUrlLoading(
                         view: android.webkit.WebView,
-                        url: String
+                        request: android.webkit.WebResourceRequest
                     ): Boolean {
                         // 拦截所有URL导航，保持在当前WebView内
                         return true
@@ -635,7 +637,11 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
             setOnTouchListener { v, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> v.parent.requestDisallowInterceptTouchEvent(true)
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
+                    MotionEvent.ACTION_UP -> {
+                        v.parent.requestDisallowInterceptTouchEvent(false)
+                        v.performClick()
+                    }
+                    MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
                 }
                 false
             }
@@ -696,7 +702,7 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
                 object : android.webkit.WebViewClient() {
                     override fun shouldOverrideUrlLoading(
                         view: android.webkit.WebView,
-                        url: String
+                        request: android.webkit.WebResourceRequest
                     ): Boolean {
                         return true
                     }
@@ -707,7 +713,11 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
             setOnTouchListener { v, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> v.parent.requestDisallowInterceptTouchEvent(true)
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
+                    MotionEvent.ACTION_UP -> {
+                        v.parent.requestDisallowInterceptTouchEvent(false)
+                        v.performClick()
+                    }
+                    MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
                 }
                 false
             }

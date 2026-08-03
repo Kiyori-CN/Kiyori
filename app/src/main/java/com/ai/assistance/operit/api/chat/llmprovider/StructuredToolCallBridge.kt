@@ -55,11 +55,12 @@ internal object StructuredToolCallBridge {
             val role = message.optString("role", "").trim()
             val contentValue = message.opt("content")
             val content =
-                when (contentValue) {
-                    null,
-                    JSONObject.NULL -> ""
-                    is String -> contentValue
-                    else -> contentValue.toString()
+                if (contentValue == null || contentValue === JSONObject.NULL) {
+                    ""
+                } else if (contentValue is String) {
+                    contentValue
+                } else {
+                    contentValue.toString()
                 }
             val isPlainRoleContentMessage =
                 role.isNotEmpty() &&

@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -64,6 +65,7 @@ fun MemorySearchSettingsDialog(
     onRebuild: () -> Unit,
     onSimulateSearch: () -> Unit
 ) {
+    val currentLocale = LocalConfiguration.current.locales[0]
     var keywordWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.keywordWeight) }
     var tagWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.tagWeight) }
     var vectorWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.vectorWeight) }
@@ -117,28 +119,28 @@ fun MemorySearchSettingsDialog(
                     SliderSettingItem(
                         title = stringResource(R.string.memory_search_keyword_weight),
                         value = keywordWeight,
-                        valueText = String.format("%.2f", keywordWeight),
+                        valueText = String.format(currentLocale, "%.2f", keywordWeight),
                         valueRange = 0.0f..20.0f,
                         onValueChange = { keywordWeight = it }
                     )
                     SliderSettingItem(
                         title = stringResource(R.string.memory_search_tag_weight),
                         value = tagWeight,
-                        valueText = String.format("%.2f", tagWeight),
+                        valueText = String.format(currentLocale, "%.2f", tagWeight),
                         valueRange = 0.0f..20.0f,
                         onValueChange = { tagWeight = it }
                     )
                     SliderSettingItem(
                         title = stringResource(R.string.memory_search_vector_weight),
                         value = vectorWeight,
-                        valueText = String.format("%.2f", vectorWeight),
+                        valueText = String.format(currentLocale, "%.2f", vectorWeight),
                         valueRange = 0.0f..2.0f,
                         onValueChange = { vectorWeight = it }
                     )
                     SliderSettingItem(
                         title = stringResource(R.string.memory_search_edge_weight),
                         value = edgeWeight,
-                        valueText = String.format("%.2f", edgeWeight),
+                        valueText = String.format(currentLocale, "%.2f", edgeWeight),
                         valueRange = 0.0f..2.0f,
                         onValueChange = { edgeWeight = it }
                     )

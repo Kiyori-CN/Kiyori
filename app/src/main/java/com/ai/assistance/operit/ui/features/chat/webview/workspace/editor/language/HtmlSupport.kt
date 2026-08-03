@@ -26,11 +26,6 @@ class HtmlSupport : BaseLanguageSupport() {
         )
         
         private val FILE_EXTENSIONS = listOf("html", "htm", "xhtml")
-        
-        init {
-            // 注册语言支持
-            LanguageSupportRegistry.register(HtmlSupport())
-        }
     }
     
     override fun getName(): String = "html"
@@ -44,4 +39,4 @@ class HtmlSupport : BaseLanguageSupport() {
     override fun getMultiLineCommentEnd(): String? = "-->"
     
     override fun getFileExtensions(): List<String> = FILE_EXTENSIONS
-} 
+}

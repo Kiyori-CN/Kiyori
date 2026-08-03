@@ -409,7 +409,7 @@ fun ModelApiSettingsSection(
                     context,
                     apiKeyInput,
                     apiEndpointInput,
-                    selectedApiProvider ?: ApiProviderType.OPENAI_GENERIC
+                    selectedApiProvider
                 )
         }
     }

@@ -734,8 +734,8 @@ fun GridWorkflowCanvas(
                                 val snappedX = (finalPosition.x / cellSizePx).roundToInt() * cellSizePx
                                 val snappedY = (finalPosition.y / cellSizePx).roundToInt() * cellSizePx
                                 
-                                val finalX = snappedX.toFloat()
-                                val finalY = snappedY.toFloat()
+                                val finalX = snappedX
+                                val finalY = snappedY
                                 
                                 nodePositions[nodeId] = Offset(finalX, finalY)
                                 onNodePositionChanged(nodeId, finalX, finalY)

@@ -482,7 +482,7 @@ fun PackageDetailsDialog(
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            ScrollableTabRow(
+                            SecondaryScrollableTabRow(
                                 selectedTabIndex = selectedTabIndex,
                                 edgePadding = 0.dp
                             ) {

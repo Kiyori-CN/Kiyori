@@ -82,7 +82,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to tap at ($x, $y): ${result.stderr ?: "Unknown error"}"
+                    error = "Failed to tap at ($x, $y): ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -143,7 +143,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to long press at ($x, $y): ${result.stderr ?: "Unknown error"}"
+                    error = "Failed to long press at ($x, $y): ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -206,7 +206,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to perform swipe: ${result.stderr ?: "Unknown error"}"
+                    error = "Failed to perform swipe: ${result.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -305,7 +305,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to paste text: ${pasteResult.stderr ?: "Unknown error"}"
+                    error = "Failed to paste text: ${pasteResult.stderr}"
                 )
             }
         } catch (e: Exception) {
@@ -344,7 +344,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Failed to press key: ${result.stderr ?: "Unknown error"}"
+                    error = "Failed to press key: ${result.stderr}"
                 )
             }
         } catch (e: Exception) {

@@ -116,10 +116,6 @@ class MCPDeployer(private val context: Context) {
                         val terminal = Terminal.getInstance(context)
                         val pluginShortName = pluginId.split("/").last()
                         val sessionId = terminal.createSession("deploy-$pluginShortName")
-                        if (sessionId == null) {
-                            statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_cannot_create_terminal)))
-                            return@withContext false
-                        }
 
                         try {
                             val pluginDir = mcpLocalServer.getPluginRuntimeDirectory(pluginId)
@@ -276,10 +272,6 @@ class MCPDeployer(private val context: Context) {
             val terminal = Terminal.getInstance(context)
             val pluginShortName = pluginId.split("/").last()
             sessionId = terminal.createSession("deploy-$pluginShortName")
-            if (sessionId == null) {
-                statusCallback(DeploymentStatus.Error(context.getString(R.string.mcp_deployment_cannot_create_terminal)))
-                return@withContext false
-            }
 
             AppLogger.d(TAG, "为插件 $pluginId 创建独立部署会话: $sessionId")
 

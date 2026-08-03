@@ -470,7 +470,6 @@ private fun appendInlineNode(
                             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                         )
 
-                    else -> Unit
                 }
             }
         }

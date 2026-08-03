@@ -297,7 +297,6 @@ fun FunctionConfigCard(
             FunctionType.IMAGE_RECOGNITION -> fullConfig.enableDirectImageProcessing
             FunctionType.AUDIO_RECOGNITION -> fullConfig.enableDirectAudioProcessing
             FunctionType.VIDEO_RECOGNITION -> fullConfig.enableDirectVideoProcessing
-            else -> true
         }
 
         if (!isSupported) {
@@ -305,7 +304,6 @@ fun FunctionConfigCard(
                 FunctionType.IMAGE_RECOGNITION -> R.string.functional_config_warning_image_unsupported
                 FunctionType.AUDIO_RECOGNITION -> R.string.functional_config_warning_audio_unsupported
                 FunctionType.VIDEO_RECOGNITION -> R.string.functional_config_warning_video_unsupported
-                else -> null
             }
         }
     }

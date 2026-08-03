@@ -4836,7 +4836,6 @@
 
     <!-- Persona Card Generation Screen -->
     <string name="persona_card_generation_title">将修改的角色卡</string>
-    <string name="error_character_card_not_exist">角色卡不存在</string>
     <string name="error_unsupported_field">不支持的字段: %1$s</string>
     <string name="no_character_card">无角色卡</string>
     <string name="character_card_config">角色卡配置</string>
@@ -6638,7 +6637,6 @@
     <string name="mcp_deployment_start">开始部署插件: %1$s</string>
     <string name="mcp_deployment_output_prefix">输出: </string>
     <string name="mcp_deployment_virtual_plugin_detected">检测到 %1$s 类型插件，执行最小化部署</string>
-    <string name="mcp_deployment_cannot_create_terminal">无法创建终端会话</string>
     <string name="mcp_deployment_creating_directory">创建插件目录: %1$s</string>
     <string name="mcp_deployment_create_directory_failed">创建插件目录失败</string>
     <string name="mcp_deployment_minimal_complete">%1$s 类型插件最小化部署完成，已可直接使用</string>
@@ -6953,7 +6951,6 @@
     <string name="profile_regex_ai_style">(AI风格|期待的AI风格|偏好的AI风格)[:：\s]+([\u4e00-\u9fa5、，,]+)</string>
 
     <!-- AIMessageManager -->
-    <string name="ai_message_user">用户</string>
     <string name="ai_message_replying_to_previous">用户正在回复你之前的这条消息：</string>
     <string name="ai_message_executing_deep_search">正在执行深度搜索...</string>
     <string name="ai_message_media_omitted">[音视频已省略]</string>
@@ -6963,7 +6960,10 @@
     <string name="ai_message_reply_omitted">[回复引用已省略]</string>
     <string name="ai_message_tool_result_omitted">[工具结果已省略: %1$s]</string>
     <string name="ai_message_tool_result_omitted_short">[工具结果已省略]</string>
-    <string name="ai_message_omitted_segment">[...省略%1$s段...]</string>
+    <plurals name="ai_message_omitted_segment">
+        <item quantity="one">[…省略%1$d段…]</item>
+        <item quantity="other">[…省略%1$d段…]</item>
+    </plurals>
     <string name="ai_message_tool_start">[工具: %1$s]</string>
     <string name="ai_message_success">成功</string>
     <string name="ai_message_failure">失败</string>
@@ -7066,7 +7066,7 @@
     <string name="character_card_single_char">单字符</string>
     <string name="character_group_single_char">群</string>
     <string name="waifu_config_bound_to_card">绑定到角色卡</string>
-    <string name="advanced_import_key">导入密钥</string>
+    <string name="advanced_import_key">导入密钥 ····%1$s</string>
     <string name="model_custom_params">自定义参数</string>
     <string name="file_manager_home">主页</string>
     <string name="file_manager_new_tab">新标签页</string>
@@ -7542,7 +7542,6 @@
     <string name="message_role_user">用户</string>
     <string name="role_card_chat_model_binding_parse_failed">角色卡对话模型绑定解析失败</string>
     <string name="message_workspace_sync_failed">工作区状态同步失败: %1$s</string>
-    <string name="message_ai_service_not_initialized">AI服务未初始化</string>
     <string name="message_summarizing">正在总结记忆...</string>
     <string name="message_send_failed">发送消息失败: %1$s</string>
 

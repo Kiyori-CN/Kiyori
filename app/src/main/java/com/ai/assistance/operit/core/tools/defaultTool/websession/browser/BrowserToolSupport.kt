@@ -6,6 +6,8 @@ import android.webkit.WebResourceRequest
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -225,9 +227,9 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
 }
 
 internal fun StandardBrowserSessionTools.notifySessionStateChanged(session: BrowserToolSession) {
-    synchronized(session.stateSignal) {
+    session.stateLock.withLock {
         session.stateVersion += 1L
-        session.stateSignal.notifyAll()
+        session.stateChanged.signalAll()
     }
 }
 
@@ -237,13 +239,15 @@ internal fun StandardBrowserSessionTools.awaitSessionStateChange(
     timeoutMs: Long
 ): Long {
     val safeTimeoutMs = timeoutMs.coerceAtLeast(1L)
-    synchronized(session.stateSignal) {
+    return session.stateLock.withLock {
         if (session.stateVersion == observedVersion) {
-            runCatching {
-                session.stateSignal.wait(safeTimeoutMs)
+            try {
+                session.stateChanged.await(safeTimeoutMs, TimeUnit.MILLISECONDS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
             }
         }
-        return session.stateVersion
+        session.stateVersion
     }
 }
 
@@ -1151,7 +1155,7 @@ internal fun StandardBrowserSessionTools.captureSnapshotModel(
         throw RuntimeException(json?.optString("error").orEmpty().ifBlank { "snapshot_capture_error" })
     }
     val nodes = mutableMapOf<String, BrowserSnapshotNode>()
-    val array = json?.optJSONArray("nodes") ?: JSONArray()
+    val array = json.optJSONArray("nodes") ?: JSONArray()
     for (index in 0 until array.length()) {
         val node = array.optJSONObject(index) ?: continue
         val ref = node.optString("ref").trim()

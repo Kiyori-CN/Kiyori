@@ -5,7 +5,6 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Base64
-import android.view.MotionEvent
 import android.webkit.WebView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -117,7 +116,6 @@ internal fun WorkspaceReadOnlyDocumentPreview(
         }
     }
 }
-
 @Composable
 internal fun rememberWorkspacePreviewFileState(
     fileInfo: OpenFileInfo,
@@ -272,16 +270,15 @@ private fun ReadOnlyHtmlWebView(
 ) {
     AndroidView(
         factory = { androidContext ->
-            WebView(androidContext).apply {
-                installDocumentPreviewTouchInterceptor()
+            ParentInterceptingWebView(androidContext).apply {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
-                settings.allowFileAccess = true
-                settings.allowContentAccess = true
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
             }
         },
         update = { webView ->
@@ -367,7 +364,7 @@ private fun resolvePreviewSourceFile(
             )
         }
 
-        val binaryData = result.result as BinaryFileContentData
+        val binaryData = result.result
         val bytes = Base64.decode(binaryData.contentBase64, Base64.DEFAULT)
         val previewDir = File(context.cacheDir, "workspace_document_preview").apply { mkdirs() }
         val extension = fileInfo.name.substringAfterLast('.', "bin").ifBlank { "bin" }
@@ -492,17 +489,5 @@ private fun renderPdfPage(sourceFile: File?, pageIndex: Int): Bitmap? {
     } catch (e: Exception) {
         AppLogger.e(DOCUMENT_PREVIEW_TAG, "Failed to render PDF page $pageIndex", e)
         null
-    }
-}
-
-private fun WebView.installDocumentPreviewTouchInterceptor() {
-    setOnTouchListener { view, event ->
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> view.parent?.requestDisallowInterceptTouchEvent(true)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                view.parent?.requestDisallowInterceptTouchEvent(false)
-            }
-        }
-        false
     }
 }

@@ -550,13 +550,30 @@ fun ToolPkgComposeDslToolScreen(
                     return@rememberLauncherForActivityResult
                 }
                 if (pending.request.persistPermission) {
-                    val flags =
-                        (data?.flags ?: 0) and
-                            (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    if (flags != 0) {
-                        selectedUris.forEach { uri ->
-                            runCatching {
-                                context.contentResolver.takePersistableUriPermission(uri, flags)
+                    val resultFlags = data?.flags ?: 0
+                    val hasReadPermission =
+                        resultFlags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+                    val hasWritePermission =
+                        resultFlags and Intent.FLAG_GRANT_WRITE_URI_PERMISSION != 0
+                    selectedUris.forEach { uri ->
+                        runCatching {
+                            when {
+                                hasReadPermission && hasWritePermission ->
+                                    context.contentResolver.takePersistableUriPermission(
+                                        uri,
+                                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                    )
+                                hasReadPermission ->
+                                    context.contentResolver.takePersistableUriPermission(
+                                        uri,
+                                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    )
+                                hasWritePermission ->
+                                    context.contentResolver.takePersistableUriPermission(
+                                        uri,
+                                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                    )
                             }
                         }
                     }
@@ -971,13 +988,8 @@ fun ToolPkgComposeDslToolScreen(
             setTopBarTitleContent(null)
         }
 
-        if (requiresWebViewImeResize) {
-            setScreenSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-            setUseScreenImePadding(true)
-        } else {
-            setScreenSoftInputMode(null)
-            setUseScreenImePadding(false)
-        }
+        setScreenSoftInputMode(null)
+        setUseScreenImePadding(requiresWebViewImeResize)
     }
 
     suspend fun render() {
@@ -1504,8 +1516,7 @@ private fun parseCanvasCommands(raw: Any?): List<CanvasCommand> {
         val map = entry as? Map<*, *> ?: return@mapNotNull null
         val type = map["type"]?.toString()?.trim().orEmpty()
         if (type.isBlank()) return@mapNotNull null
-        @Suppress("UNCHECKED_CAST")
-        val values = map.entries.associate { (k, v) -> k.toString() to v } as Map<String, Any?>
+        val values = map.entries.associate { (k, v) -> k.toString() to v }
         val unit =
             canvasUnitFromValue(values["unit"])
                 ?: values["unit"]?.toString()?.trim()?.lowercase(Locale.ROOT)
@@ -1655,7 +1666,7 @@ private fun renderCanvasNode(
                             val y1 = resolve(op["y1"], unit, "y")
                             val x2 = resolve(op["x2"], unit, "x")
                             val y2 = resolve(op["y2"], unit, "y")
-                            path.quadraticBezierTo(x1, y1, x2, y2)
+                            path.quadraticTo(x1, y1, x2, y2)
                         }
                         "close" -> path.close()
                     }
@@ -3459,8 +3470,8 @@ internal fun resolveColorToken(raw: String): Color? {
     val schemeColor =
         colorSchemeFieldByToken[token]?.let { field ->
             when (field.type) {
-                java.lang.Long.TYPE -> Color(field.getLong(scheme).toULong())
-                java.lang.Long::class.java -> Color((field.get(scheme) as Long).toULong())
+                Long::class.java -> Color(field.getLong(scheme).toULong())
+                Long::class.javaObjectType -> Color((field.get(scheme) as Long).toULong())
                 else -> field.get(scheme) as? Color
             }
         }

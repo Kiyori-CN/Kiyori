@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
-import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -42,7 +41,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -75,7 +73,6 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSIO
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_HORIZONTAL_PADDING_DP
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
-import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import kotlinx.coroutines.delay
 
 @Composable
@@ -106,18 +103,6 @@ internal fun WebSessionUserscriptEditorPage(
     var overflowExpanded by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
-    val setScreenSoftInputMode = LocalSetScreenSoftInputMode.current
-    @Suppress("DEPRECATION")
-    val editorSoftInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-
-    DisposableEffect(setScreenSoftInputMode) {
-        // The app shell still owns the window-level soft-input mode through this composition local.
-        // Resizing here keeps the native editor and its single IME toolbar above the keyboard.
-        setScreenSoftInputMode(editorSoftInputMode)
-        onDispose {
-            setScreenSoftInputMode(null)
-        }
-    }
 
     LaunchedEffect(editor?.buffer, editor?.persistedSourceHash) {
         val current = editor ?: return@LaunchedEffect

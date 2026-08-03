@@ -4,6 +4,7 @@ import android.content.Context
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
+import android.system.StructPollfd
 import android.util.Base64
 import android.webkit.CookieManager
 import com.ai.assistance.operit.core.tools.AIToolHandler
@@ -120,16 +121,23 @@ private constructor(
             }
         }
 
-        private fun setSocketReceiveTimeout(descriptor: FileDescriptor, timeoutMs: Int) {
-            try {
-                Os.setsockoptTimeval(
-                    descriptor,
-                    OsConstants.SOL_SOCKET,
-                    OsConstants.SO_RCVTIMEO,
-                    android.system.StructTimeval.fromMillis(timeoutMs.toLong())
-                )
-            } catch (e: ErrnoException) {
-                throw SocketException(e.message)
+        private fun awaitReadable(descriptor: FileDescriptor, timeoutMs: Int) {
+            if (timeoutMs == 0) {
+                return
+            }
+            val pollDescriptor =
+                StructPollfd().apply {
+                    fd = descriptor
+                    events = OsConstants.POLLIN.toShort()
+                }
+            val readyCount =
+                try {
+                    Os.poll(arrayOf(pollDescriptor), timeoutMs)
+                } catch (e: ErrnoException) {
+                    throw SocketException(e.message)
+                }
+            if (readyCount == 0) {
+                throw SocketTimeoutException("Socket read timed out after $timeoutMs ms")
             }
         }
     }
@@ -203,7 +211,6 @@ private constructor(
             val descriptor = createSocket(socketAddress.address)
             try {
                 setSocketIntOption(descriptor, OsConstants.SOL_SOCKET, OsConstants.SO_REUSEADDR, if (reuseAddress) 1 else 0)
-                setSocketReceiveTimeout(descriptor, receiveTimeoutMs)
                 Os.bind(descriptor, socketAddress.address, socketAddress.port)
                 Os.listen(descriptor, if (backlog < 1) 50 else backlog)
                 listenerFd = descriptor
@@ -223,6 +230,7 @@ private constructor(
             if (!bound) throw SocketException("Socket is not bound yet")
             val acceptedAddress = InetSocketAddress(0)
             val descriptor = listenerFd ?: throw SocketException("Socket is closed")
+            awaitReadable(descriptor, receiveTimeoutMs)
             val acceptedFd = try {
                 Os.accept(descriptor, acceptedAddress)
             } catch (e: ErrnoException) {
@@ -263,8 +271,8 @@ private constructor(
         override fun getReuseAddress(): Boolean = reuseAddress
 
         override fun setSoTimeout(timeout: Int) {
+            require(timeout >= 0) { "timeout must be non-negative" }
             receiveTimeoutMs = timeout
-            listenerFd?.let { setSocketReceiveTimeout(it, timeout) }
         }
 
         override fun getSoTimeout(): Int = receiveTimeoutMs
@@ -275,6 +283,7 @@ private constructor(
         private val remoteAddress: InetSocketAddress
     ) : Socket() {
         private var closed = false
+        private var receiveTimeoutMs = 0
 
         override fun isClosed(): Boolean {
             return closed
@@ -295,6 +304,7 @@ private constructor(
 
                 override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
                     if (length == 0) return 0
+                    awaitReadable(descriptor, receiveTimeoutMs)
                     return try {
                         val count = Os.read(descriptor, buffer, offset, length)
                         if (count == 0) -1 else count
@@ -352,8 +362,11 @@ private constructor(
         }
 
         override fun setSoTimeout(timeout: Int) {
-            setSocketReceiveTimeout(requireDescriptor(), timeout)
+            require(timeout >= 0) { "timeout must be non-negative" }
+            receiveTimeoutMs = timeout
         }
+
+        override fun getSoTimeout(): Int = receiveTimeoutMs
 
         override fun getInetAddress(): InetAddress = remoteAddress.address
 
@@ -450,7 +463,7 @@ private constructor(
                 ).addCorsHeaders()
             }
 
-            val data = result.result as BinaryFileContentData
+            val data = result.result
             val base64Content = data.contentBase64
             val bytes = Base64.decode(base64Content, Base64.DEFAULT)
 
@@ -731,7 +744,7 @@ private constructor(
                 ResponseBodyInputStream(response, stream)
             }
             val nanoResponse = if (responseStream != null) {
-                val contentLength = body?.contentLength() ?: -1L
+                val contentLength = body.contentLength()
                 if (contentLength >= 0) {
                     newFixedLengthResponse(status, mimeType, responseStream, contentLength)
                 } else {
@@ -802,7 +815,7 @@ private constructor(
 
             if (result.success && result.result is DirectoryListingData) {
                 // The result from list_files is already a JSON string of a list of file info.
-                val directoryListing = result.result as DirectoryListingData
+                val directoryListing = result.result
                 val apiEntries = directoryListing.entries.map { FileApiEntry(it.name, it.isDirectory) }
                 val jsonResult = Json.encodeToString(apiEntries)
                 return newFixedLengthResponse(Response.Status.OK, "application/json", jsonResult).addCorsHeaders()

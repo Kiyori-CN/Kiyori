@@ -45,7 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
@@ -406,14 +406,14 @@ fun SkillConfigScreen(
                         .padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ScrollableTabRow(
+                    SecondaryScrollableTabRow(
                         selectedTabIndex = importTabIndex,
                         edgePadding = 8.dp,
                         divider = {},
-                        indicator = { tabPositions ->
-                            if (importTabIndex < tabPositions.size) {
+                        indicator = {
+                            if (importTabIndex in 0..1) {
                                 TabRowDefaults.SecondaryIndicator(
-                                    with(TabRowDefaults) { Modifier.tabIndicatorOffset(tabPositions[importTabIndex]) }
+                                    Modifier.tabIndicatorOffset(importTabIndex)
                                 )
                             }
                         }

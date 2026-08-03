@@ -4413,8 +4413,8 @@ open class StandardFileSystemTools(protected val context: Context) {
 
             fun formatSize(bytes: Long): String {
                 return when {
-                    bytes > 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-                    bytes > 1024 -> String.format("%.2f KB", bytes / 1024.0)
+                    bytes > 1024 * 1024 -> String.format(java.util.Locale.getDefault(), "%.2f MB", bytes / (1024.0 * 1024.0))
+                    bytes > 1024 -> String.format(java.util.Locale.getDefault(), "%.2f KB", bytes / 1024.0)
                     else -> "$bytes bytes"
                 }
             }

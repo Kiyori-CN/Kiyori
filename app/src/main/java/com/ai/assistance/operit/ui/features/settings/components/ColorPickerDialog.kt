@@ -16,7 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import com.ai.assistance.operit.ui.common.readPlainTextFromClipboard
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.res.stringResource
@@ -166,13 +167,13 @@ fun ColorPickerDialog(
     var hsvS by remember { mutableStateOf("") }
     var hsvV by remember { mutableStateOf("") }
     
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     // Update input fields when picked color changes
     LaunchedEffect(pickedColor) {
         val color = pickedColor
         // Update HEX
-        hexInput = String.format("#%06X", (0xFFFFFF and color.toArgb()))
+        hexInput = String.format(java.util.Locale.ROOT, "#%06X", (0xFFFFFF and color.toArgb()))
         
         // Update RGB
         rgbR = (color.red * 255).toInt().toString()
@@ -359,8 +360,8 @@ fun ColorPickerDialog(
                                         trailingIcon = {
                                             IconButton(
                                                 onClick = {
-                                                    clipboardManager.getText()?.text?.let { text ->
-                                                        hexInput = text.trim()
+                                                    context.readPlainTextFromClipboard()?.let { text ->
+                                                        hexInput = text.toString().trim()
                                                         applyManualColor()
                                                     }
                                                 }

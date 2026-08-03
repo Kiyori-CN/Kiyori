@@ -21,6 +21,7 @@ class ShizukuAuthorizer {
         // 注册Shizuku权限请求监听器
         private var binderReceivedListenerRegistered = false
         private var permissionRequestListenerRegistered = false
+        private var permissionRequestListener: Shizuku.OnRequestPermissionResultListener? = null
 
         // 服务状态
         private var isServiceAvailable = false
@@ -32,6 +33,29 @@ class ShizukuAuthorizer {
 
         // 状态变更回调
         private val stateChangeListeners = mutableListOf<() -> Unit>()
+        private val binderReceivedListener =
+            Shizuku.OnBinderReceivedListener {
+                AppLogger.d(TAG, "Shizuku binder received")
+                isServiceAvailable = true
+                notifyStateChanged()
+
+                // 当收到 binder 时主动检查权限状态。
+                mainHandler.post {
+                    try {
+                        val hasPermission = hasShizukuPermission()
+                        AppLogger.d(TAG, "Checking permission after binder received: $hasPermission")
+                    } catch (e: Exception) {
+                        AppLogger.e(TAG, "Error checking permission after binder received", e)
+                    }
+                }
+            }
+        private val binderDeadListener =
+            Shizuku.OnBinderDeadListener {
+                AppLogger.d(TAG, "Shizuku binder dead")
+                isServiceAvailable = false
+                cachedConnection = null
+                notifyStateChanged()
+            }
 
         /**
          * 添加状态变更监听器
@@ -278,7 +302,8 @@ class ShizukuAuthorizer {
             // 移除之前的监听器避免重复
             try {
                 if (permissionRequestListenerRegistered) {
-                    Shizuku.removeRequestPermissionResultListener { _, _ -> }
+                    permissionRequestListener?.let(Shizuku::removeRequestPermissionResultListener)
+                    permissionRequestListener = null
                     permissionRequestListenerRegistered = false
                 }
             } catch (e: Exception) {
@@ -290,26 +315,32 @@ class ShizukuAuthorizer {
 
                 AppLogger.d(TAG, "Setting up permission result listener")
 
-                Shizuku.addRequestPermissionResultListener { code, grantResult ->
-                    AppLogger.d(TAG, "Permission result received: code=$code, result=$grantResult")
-                    if (code == requestCode) {
-                        val granted = grantResult == PackageManager.PERMISSION_GRANTED
-                        AppLogger.d(TAG, "Shizuku permission request result: $granted")
-                        onResult(granted)
-                        if (granted) {
-                            // 权限授予时触发状态变更通知
-                            notifyStateChanged()
-                        }
+                val listener =
+                    Shizuku.OnRequestPermissionResultListener { code, grantResult ->
+                        AppLogger.d(TAG, "Permission result received: code=$code, result=$grantResult")
+                        if (code == requestCode) {
+                            val granted = grantResult == PackageManager.PERMISSION_GRANTED
+                            AppLogger.d(TAG, "Shizuku permission request result: $granted")
+                            onResult(granted)
+                            if (granted) {
+                                // 权限授予时触发状态变更通知
+                                notifyStateChanged()
+                            }
 
-                        // 权限请求完成后移除监听器
-                        try {
-                            Shizuku.removeRequestPermissionResultListener { _, _ -> }
-                            permissionRequestListenerRegistered = false
-                        } catch (e: Exception) {
-                            AppLogger.e(TAG, "Error removing permission listener", e)
+                            // 必须注销注册时的同一实例，否则监听器会永久残留并重复回调。
+                            try {
+                                permissionRequestListener?.let(
+                                    Shizuku::removeRequestPermissionResultListener
+                                )
+                                permissionRequestListener = null
+                                permissionRequestListenerRegistered = false
+                            } catch (e: Exception) {
+                                AppLogger.e(TAG, "Error removing permission listener", e)
+                            }
                         }
                     }
-                }
+                permissionRequestListener = listener
+                Shizuku.addRequestPermissionResultListener(listener)
                 permissionRequestListenerRegistered = true
 
                 // 请求权限
@@ -334,8 +365,8 @@ class ShizukuAuthorizer {
             // 移除之前的监听器避免重复
             if (binderReceivedListenerRegistered) {
                 try {
-                    Shizuku.removeBinderReceivedListener {}
-                    Shizuku.removeBinderDeadListener {}
+                    Shizuku.removeBinderReceivedListener(binderReceivedListener)
+                    Shizuku.removeBinderDeadListener(binderDeadListener)
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "Error removing binder listeners", e)
                 }
@@ -343,30 +374,8 @@ class ShizukuAuthorizer {
             }
 
             try {
-                // 设置绑定接收监听器
-                Shizuku.addBinderReceivedListener {
-                    AppLogger.d(TAG, "Shizuku binder received")
-                    isServiceAvailable = true
-                    notifyStateChanged()
-
-                    // 当收到binder时主动检查权限状态
-                    mainHandler.post {
-                        try {
-                            val hasPermission = hasShizukuPermission()
-                            AppLogger.d(TAG, "Checking permission after binder received: $hasPermission")
-                        } catch (e: Exception) {
-                            AppLogger.e(TAG, "Error checking permission after binder received", e)
-                        }
-                    }
-                }
-
-                // 设置绑定断开监听器
-                Shizuku.addBinderDeadListener {
-                    AppLogger.d(TAG, "Shizuku binder dead")
-                    isServiceAvailable = false
-                    cachedConnection = null
-                    notifyStateChanged()
-                }
+                Shizuku.addBinderReceivedListener(binderReceivedListener)
+                Shizuku.addBinderDeadListener(binderDeadListener)
 
                 binderReceivedListenerRegistered = true
 

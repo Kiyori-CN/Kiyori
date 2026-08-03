@@ -711,7 +711,7 @@ class JsEngine(private val context: Context) {
             envOverrides: Map<String, String> = emptyMap(),
             onIntermediateResult: ((Any?) -> Unit)? = null,
             dispatchIntermediateOnMain: Boolean = true,
-            timeoutSec: Long? = JsTimeoutConfig.MAIN_TIMEOUT_SECONDS.toLong(),
+            timeoutSec: Long? = JsTimeoutConfig.MAIN_TIMEOUT_SECONDS,
             executionListener: JsExecutionListener? = null
     ): Any? {
         val effectiveParams = params.toMutableMap()
@@ -894,7 +894,7 @@ class JsEngine(private val context: Context) {
             envOverrides: Map<String, String> = emptyMap(),
             onIntermediateResult: ((Any?) -> Unit)? = null,
             dispatchIntermediateOnMain: Boolean = true,
-            timeoutSec: Long = JsTimeoutConfig.MAIN_TIMEOUT_SECONDS.toLong(),
+            timeoutSec: Long = JsTimeoutConfig.MAIN_TIMEOUT_SECONDS,
             executionListener: JsExecutionListener? = null
     ): Any? {
         val directParams = params.toMutableMap()

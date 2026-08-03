@@ -485,7 +485,7 @@ private fun createItemsAfterList(
     pinnedItems.fastForEach { index ->
         if (index > end) {
             if (list == null) list = mutableListOf()
-            list?.add(measuredItemProvider.getAndMeasure(index))
+            list.add(measuredItemProvider.getAndMeasure(index))
         }
     }
 
@@ -512,7 +512,7 @@ private fun createItemsBeforeList(
     pinnedItems.fastForEachReversed { index ->
         if (index < start) {
             if (list == null) list = mutableListOf()
-            list?.add(measuredItemProvider.getAndMeasure(index))
+            list.add(measuredItemProvider.getAndMeasure(index))
         }
     }
 

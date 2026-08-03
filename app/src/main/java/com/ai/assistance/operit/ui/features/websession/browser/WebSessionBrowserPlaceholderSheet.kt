@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -123,7 +123,7 @@ private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderMode
             PlaceholderModel(
                 title = stringResource(R.string.web_session_reader_mode),
                 description = stringResource(R.string.web_session_placeholder_reader_mode),
-                icon = Icons.Filled.MenuBook,
+                icon = Icons.AutoMirrored.Filled.MenuBook,
                 tone = KiyoriSemanticTone.GREEN,
             )
         WebSessionBrowserPlaceholderPage.AD_MARKING ->

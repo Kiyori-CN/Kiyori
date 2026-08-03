@@ -196,8 +196,7 @@ private class LlmNetworkEventListener(
 
 private object SharedHttpClient {
     val instance: OkHttpClient by lazy {
-        UnsafeModelSsl.apply(
-            OkHttpClient.Builder()
+        OkHttpClient.Builder()
                 // Increase the connection timeout to handle slow networks better.
                 .connectTimeout(60, TimeUnit.SECONDS)
                 // Set long read/write timeouts for streaming responses.
@@ -210,7 +209,6 @@ private object SharedHttpClient {
                 // Explicitly enable HTTP/2, which is the default but good to have declared.
                 // OkHttp will use HTTP/2 if the server supports it, falling back to HTTP/1.1.
                 .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-        )
             .build()
     }
 }

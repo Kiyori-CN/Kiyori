@@ -39,6 +39,9 @@ import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.comple
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.language.LanguageSupport
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.theme.EditorTheme
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.theme.getThemeForLanguage
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.hypot
@@ -81,7 +84,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     )
 
     private val density = resources.displayMetrics.density
-    private val renderSignal = Object()
+    private val renderLock = ReentrantLock()
+    private val renderRequested = renderLock.newCondition()
     private val scroller = OverScroller(context)
     private val viewConfig = ViewConfiguration.get(context)
     private val clipboardManager: ClipboardManager? =
@@ -857,8 +861,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
     private fun requestRender() {
         isDirty = true
-        synchronized(renderSignal) {
-            renderSignal.notifyAll()
+        renderLock.withLock {
+            renderRequested.signalAll()
         }
     }
 
@@ -877,8 +881,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         val activeThread = renderThread ?: return
         renderThread = null
         activeThread.finish()
-        synchronized(renderSignal) {
-            renderSignal.notifyAll()
+        renderLock.withLock {
+            renderRequested.signalAll()
         }
         runCatching {
             activeThread.join(500)
@@ -1704,7 +1708,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             requestFocus()
         }
         inputMethodManager?.restartInput(this)
-        inputMethodManager?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+        inputMethodManager?.showSoftInput(this, 0)
     }
 
     private fun hideSoftKeyboard() {
@@ -1907,12 +1911,12 @@ class CanvasCodeEditorView @JvmOverloads constructor(
                 }
 
                 if (!needsDraw) {
-                    synchronized(renderSignal) {
+                    renderLock.withLock {
                         if (!running && !isDirty) {
                             return
                         }
                         try {
-                            renderSignal.wait(24L)
+                            renderRequested.await(24L, TimeUnit.MILLISECONDS)
                         } catch (_: InterruptedException) {
                             if (!running) {
                                 return
@@ -1923,9 +1927,9 @@ class CanvasCodeEditorView @JvmOverloads constructor(
                 }
 
                 if (!holder.surface.isValid) {
-                    synchronized(renderSignal) {
+                    renderLock.withLock {
                         try {
-                            renderSignal.wait(24L)
+                            renderRequested.await(24L, TimeUnit.MILLISECONDS)
                         } catch (_: InterruptedException) {
                             if (!running) {
                                 return

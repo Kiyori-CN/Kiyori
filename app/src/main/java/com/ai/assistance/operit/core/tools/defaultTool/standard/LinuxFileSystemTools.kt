@@ -376,7 +376,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
             if (fileSize > maxFileSizeBytes) {
                 // 文件过大，读取限制大小
-                val content = fs.readFileWithLimit(path, maxFileSizeBytes.toInt())
+                val content = fs.readFileWithLimit(path, maxFileSizeBytes)
                 if (content == null) {
                     return ToolResult(
                         toolName = tool.name,

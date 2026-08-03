@@ -109,8 +109,8 @@ The final local artifact for this development round is
 `app/build/outputs/apk/debug/app-debug.apk`, written `2026-07-29 14:22:10 +08:00`, size `474822245` bytes, SHA-256
 `969C20C2FC6E1A401CFF51812EC1936AB674ECF5B2F51D0A7AB1589FBB35A6A7`.
 
-- Package: `com.kiyori`, version `45 / 0.1.0`, min SDK 26, target SDK 34, compile SDK 36
-- APK ABI: only `arm64-v8a`; 53 native entries with no duplicate basename
+- Package: `com.kiyori`, version `45 / 0.1.0`, min SDK 26, target SDK 34, compile SDK 37
+- APK ABI: only `arm64-v8a`; 51 native libraries with no duplicate basename
 - ELF: 52 AArch64 ELF64 files; every `PT_LOAD` minimum alignment is at least `0x4000`
 - Non-ELF: inherited two-byte `libsudo.so` shell placeholder only
 - Build gate: all 19 player-related native entries exist once; DEX contains `MPVLib`, `MPVNode`,

@@ -467,7 +467,7 @@ class PhoneAgent(
 
                     if (showerOverlay != null) {
                         useShowerIndicatorForAgent(context, agentId)
-                        showerOverlay?.showAutomationControls(
+                        showerOverlay.showAutomationControls(
                             totalSteps = config.maxSteps,
                             initialStatus = firstStatusText,
                             onTogglePauseResume = { isPaused -> pausedMutable?.value = isPaused },
@@ -476,7 +476,7 @@ class PhoneAgent(
                                 job?.cancel(CancellationException("User cancelled UI automation"))
                             }
                         )
-                        showerOverlay?.updateAutomationProgress(stepCount, config.maxSteps, firstStatusText)
+                        showerOverlay.updateAutomationProgress(stepCount, config.maxSteps, firstStatusText)
                     } else {
                         progressOverlay.show(
                             config.maxSteps,
@@ -524,31 +524,17 @@ class PhoneAgent(
                         useShowerUi = true
                         progressOverlay.hide()
                         showerOverlay = VirtualDisplayOverlay.getInstance(context, agentId)
-                        if (showerOverlay != null) {
-                            useShowerIndicatorForAgent(context, agentId)
-                            showerOverlay?.showAutomationControls(
-                                totalSteps = config.maxSteps,
-                                initialStatus = statusText,
-                                onTogglePauseResume = { isPaused -> pausedMutable?.value = isPaused },
-                                onExit = {
-                                    PhoneAgentJobRegistry.cancelAgent(agentId, "User cancelled UI automation")
-                                    job?.cancel(CancellationException("User cancelled UI automation"))
-                                }
-                            )
-                            showerOverlay?.updateAutomationProgress(stepCount, config.maxSteps, statusText)
-                        } else {
-                            progressOverlay.show(
-                                config.maxSteps,
-                                "Thinking...",
-                                onCancel = {
-                                    PhoneAgentJobRegistry.cancelAgent(agentId, "User cancelled UI automation")
-                                    job?.cancel(CancellationException("User cancelled UI automation"))
-                                },
-                                onToggleTakeOver = { isPaused -> pausedMutable?.value = isPaused }
-                            )
-                            progressOverlay.updateProgress(stepCount, config.maxSteps, statusText)
-                            useShowerUi = false
-                        }
+                        useShowerIndicatorForAgent(context, agentId)
+                        showerOverlay.showAutomationControls(
+                            totalSteps = config.maxSteps,
+                            initialStatus = statusText,
+                            onTogglePauseResume = { isPaused -> pausedMutable?.value = isPaused },
+                            onExit = {
+                                PhoneAgentJobRegistry.cancelAgent(agentId, "User cancelled UI automation")
+                                job?.cancel(CancellationException("User cancelled UI automation"))
+                            }
+                        )
+                        showerOverlay.updateAutomationProgress(stepCount, config.maxSteps, statusText)
                     } else {
                         progressOverlay.updateProgress(stepCount, config.maxSteps, statusText)
                     }

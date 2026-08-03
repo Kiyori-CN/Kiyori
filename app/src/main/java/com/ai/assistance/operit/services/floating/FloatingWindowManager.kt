@@ -226,8 +226,9 @@ class FloatingWindowManager(
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
             visibility = View.GONE
             isClickable = true
-            setOnTouchListener { _, event ->
-                if (event.action == MotionEvent.ACTION_DOWN) {
+            setOnTouchListener { view, event ->
+                if (event.action == MotionEvent.ACTION_UP) {
+                    view.performClick()
                     AppLogger.d(
                         TAG,
                         "Focus dismiss overlay tapped: x=${event.rawX}, y=${event.rawY}, mode=${state.currentMode.value}"
@@ -1179,7 +1180,7 @@ class FloatingWindowManager(
             }
 
             pendingImeFocusRunnable = null
-            imm.showSoftInput(imeHost, InputMethodManager.SHOW_IMPLICIT)
+            imm.showSoftInput(imeHost, 0)
         }
 
         pendingImeFocusRunnable?.let { mainHandler.removeCallbacks(it) }

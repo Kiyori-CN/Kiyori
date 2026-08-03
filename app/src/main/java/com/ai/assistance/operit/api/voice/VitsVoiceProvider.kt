@@ -1271,20 +1271,24 @@ class VitsVoiceProvider(
     private fun JSONObject.optionalInt(key: String): Int? {
         if (!has(key)) return null
         val value = opt(key)
-        return when (value) {
-            is Number -> value.toInt()
-            is String -> value.trim().toIntOrNull()
-            else -> null
+        return if (value is Number) {
+            value.toInt()
+        } else if (value is String) {
+            value.trim().toIntOrNull()
+        } else {
+            null
         }
     }
 
     private fun JSONObject.optionalFloat(key: String): Float? {
         if (!has(key)) return null
         val value = opt(key)
-        return when (value) {
-            is Number -> value.toFloat()
-            is String -> value.trim().toFloatOrNull()
-            else -> null
+        return if (value is Number) {
+            value.toFloat()
+        } else if (value is String) {
+            value.trim().toFloatOrNull()
+        } else {
+            null
         }
     }
 

@@ -972,8 +972,10 @@ class MemoryViewModelFactory(private val context: Context, private val profileId
         ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MemoryViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST") val repository = MemoryRepository(context, profileId)
-            return MemoryViewModel(repository, context.applicationContext, profileId) as T
+            val repository = MemoryRepository(context, profileId)
+            return requireNotNull(
+                modelClass.cast(MemoryViewModel(repository, context.applicationContext, profileId))
+            )
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

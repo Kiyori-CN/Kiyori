@@ -620,7 +620,7 @@ class MessageCoordinationDelegate(
                     when {
                         !memorySpaceIdOverride.isNullOrBlank() -> memorySpaceIdOverride
                         isAutoContinuation -> currentMemorySpaceIdOverride
-                        else -> roleCardId?.let { resolveRoleCardMemoryProfileOverride(it) }
+                        else -> resolveRoleCardMemoryProfileOverride(roleCardId)
                     }
                 Triple(
                     resolvedChatModelConfigIdOverride,
@@ -1685,7 +1685,7 @@ class MessageCoordinationDelegate(
         }
 
         if (shouldCancelCurrentSummarizingUi) {
-            currentChatId?.let { affectedChatIds.add(it) }
+            affectedChatIds.add(currentChatId)
         }
 
         // 先真正取消 SUMMARY 模型请求，再取消协程/清理 UI，避免进度继续推进。
@@ -1974,17 +1974,13 @@ class MessageCoordinationDelegate(
                     }
                 } else if (wasSummarizing) {
                     // 总结成功且不自动续写时，主动恢复到Idle
-                    if (currentChatId != null) {
-                        messageProcessingDelegate.setSuppressIdleCompletedStateForChat(currentChatId, false)
-                        messageProcessingDelegate.setInputProcessingStateForChat(currentChatId, InputProcessingState.Idle)
-                    }
-                }
-            } else if (wasSummarizing) {
-                // 总结未成功时也恢复到Idle，避免卡在Summarizing状态
-                if (currentChatId != null) {
                     messageProcessingDelegate.setSuppressIdleCompletedStateForChat(currentChatId, false)
                     messageProcessingDelegate.setInputProcessingStateForChat(currentChatId, InputProcessingState.Idle)
                 }
+            } else if (wasSummarizing) {
+                // 总结未成功时也恢复到Idle，避免卡在Summarizing状态
+                messageProcessingDelegate.setSuppressIdleCompletedStateForChat(currentChatId, false)
+                messageProcessingDelegate.setInputProcessingStateForChat(currentChatId, InputProcessingState.Idle)
             } else if (currentChatId != null) {
                 messageProcessingDelegate.setSuppressIdleCompletedStateForChat(currentChatId, false)
             }

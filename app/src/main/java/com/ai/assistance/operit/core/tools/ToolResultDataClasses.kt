@@ -1289,7 +1289,12 @@ data class LocationData(
         sb.appendLine("Accuracy: $accuracy meters")
         sb.appendLine("Provider: $provider")
         sb.appendLine(
-                "Timestamp: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date(timestamp))}"
+                "Timestamp: ${
+                    java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss",
+                        java.util.Locale.US
+                    ).format(java.util.Date(timestamp))
+                }"
         )
 
         if (address.isNotEmpty()) {
@@ -1750,7 +1755,7 @@ data class GrepResultData(
 
                             contextLines.forEachIndexed { idx, contextLine ->
                                 val actualLineNum = lineMatch.lineNumber - centerIndex + idx
-                                val lineNumStr = String.format("%6d", actualLineNum)
+                                val lineNumStr = String.format(java.util.Locale.getDefault(), "%6d", actualLineNum)
 
                                 if (idx == centerIndex) {
                                     sb.appendLine("$lineNumStr|>${contextLine}")
@@ -1762,7 +1767,7 @@ data class GrepResultData(
                         sb.appendLine() // Add blank line after each match block
                     } else {
                         // No context, show only matching line
-                        val lineNumStr = String.format("%6d", lineMatch.lineNumber)
+                        val lineNumStr = String.format(java.util.Locale.getDefault(), "%6d", lineMatch.lineNumber)
                         sb.appendLine("$lineNumStr| ${lineMatch.lineContent}")
                     }
                     displayedMatches++
@@ -1816,7 +1821,14 @@ data class WorkflowResultData(
         sb.appendLine("Successful Executions: $successfulExecutions")
         sb.appendLine("Failed Executions: $failedExecutions")
         if (lastExecutionTime != null) {
-            sb.appendLine("Last Execution Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date(lastExecutionTime))}")
+            sb.appendLine(
+                "Last Execution Time: ${
+                    java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss",
+                        java.util.Locale.US
+                    ).format(java.util.Date(lastExecutionTime))
+                }"
+            )
             sb.appendLine("Last Execution Status: ${lastExecutionStatus ?: "Unknown"}")
         }
         return sb.toString().trim()
@@ -1948,7 +1960,14 @@ data class WorkflowDetailResultData(
         sb.appendLine("  Successful Executions: $successfulExecutions")
         sb.appendLine("  Failed Executions: $failedExecutions")
         if (lastExecutionTime != null) {
-            sb.appendLine("  Last Execution Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date(lastExecutionTime))}")
+            sb.appendLine(
+                "  Last Execution Time: ${
+                    java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss",
+                        java.util.Locale.US
+                    ).format(java.util.Date(lastExecutionTime))
+                }"
+            )
             sb.appendLine("  Last Execution Status: ${lastExecutionStatus ?: "Unknown"}")
         }
 
