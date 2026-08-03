@@ -111,8 +111,9 @@ Android Debug V2 签名与 16 KiB page-size 对齐检查均通过。
   创建前台新标签
 - Logs 工作区展示仓库实际保留的最多 200 条日志；单击打开可滚动详情并复制，长按直接复制当前条目；
   “复制全部”和“导出全部”忽略搜索/级别筛选，导出路径为 `Download/Kiyori/exports`
-- 浏览器设置第一组使用 `6` 行，完整分组为 `6/7/4/6/6`，明确区分插件中心、油猴脚本管理、权限与
-  网站范围、当前页诊断和脚本日志；权限列表的脚本条目直达对应 userscript 详情
+- 浏览器设置只保留具有真实 owner 的 `4/4/3` 共 11 行；插件分组收敛为总授权、插件中心、权限与
+  网站范围、诊断与日志四项，工作台的已安装/更新/日志页签不再重复成为设置入口；权限列表的脚本条目
+  直达对应 userscript 详情
 
 ## 3. 全局不变量
 
@@ -210,9 +211,9 @@ Android Debug V2 签名与 16 KiB page-size 对齐检查均通过。
 - [x] 批量检查更新
 - [x] 批量启用和禁用
 - [x] 从 URL 和本地文件导入
-- [ ] 导出 userscript
+- [x] 从详情源码页导出当前 active revision 为 `.user.js`
 - [x] 删除脚本、修订、草稿、值与日志前明确确认
-- [ ] 删除时选择保留或清理脚本数据
+- [x] 删除统一清理脚本绑定数据；当前数值 `scriptId` 无法安全重新关联，不提供制造孤儿数据的保留选项
 
 ### 5.3 UI
 
@@ -413,7 +414,8 @@ Android Debug V2 签名与 16 KiB page-size 对齐检查均通过。
 4. [COMPLETED] 实现 userscript registry v2、私有 immutable revision、draft、transaction journal 和原子迁移
 5. [COMPLETED] 油猴脚本“本页 / 已安装 / 更新 / 日志”、详情、多选、批量操作、更新风险审查、
    全屏编辑器、私有草稿恢复、最终本地测试、Debug APK 和产物核验
-6. [PENDING] 补充 userscript 导出与删除时的数据保留选择
+6. [COMPLETED] 增加 active revision `.user.js` 导出；确认删除必须统一清理脚本绑定数据，
+   在没有稳定身份与重新关联协议前不提供数据保留伪选项
 7. [PENDING] 安装并验证沉浸式翻译 userscript 的页面翻译、设置、网络和更新
 8. [PENDING] 在 Android 设备完成 WebViewFeature、isolated world、恶意页面、旧 document 和 iframe
    origin 验收

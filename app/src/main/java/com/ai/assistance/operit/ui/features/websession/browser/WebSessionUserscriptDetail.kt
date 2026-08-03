@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -32,9 +34,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -47,10 +51,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageStatusPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUnsafeWindowMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.UserscriptDetailUiState
+import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.launch
 
 private enum class UserscriptDetailTab {
     OVERVIEW,
@@ -74,10 +80,13 @@ internal fun WebSessionUserscriptDetail(
     onDelete: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val script = state.installedScripts.firstOrNull { item -> item.id == scriptId }
     val detail = state.details[scriptId]
     var selectedTab by rememberSaveable(scriptId) { mutableStateOf(UserscriptDetailTab.OVERVIEW) }
     var deletePromptVisible by remember { mutableStateOf(false) }
+    var exportingSource by remember { mutableStateOf(false) }
 
     LaunchedEffect(scriptId) {
         onLoad(scriptId)
@@ -190,6 +199,43 @@ internal fun WebSessionUserscriptDetail(
                             },
                         onSetEnabled = { enabled -> onSetEnabled(scriptId, enabled) },
                         onDelete = { deletePromptVisible = true },
+                        exportingSource = exportingSource,
+                        onExportSource = {
+                            val currentScript = requireNotNull(script)
+                            val source = requireNotNull(detail.activeSource)
+                            exportingSource = true
+                            coroutineScope.launch {
+                                UserscriptSourceExportHelper
+                                    .export(
+                                        context = context,
+                                        scriptName = currentScript.name,
+                                        source = source,
+                                    )
+                                    .onSuccess { path ->
+                                        Toast.makeText(
+                                            context,
+                                            "${context.getString(R.string.export_success)}\n$path",
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                    .onFailure { error ->
+                                        AppLogger.e(
+                                            "WebSessionUserscriptDetail",
+                                            "Failed to export userscript source for $scriptId",
+                                            error,
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(
+                                                R.string.toast_operation_failed,
+                                                error.toString(),
+                                            ),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                exportingSource = false
+                            }
+                        },
                     )
                 }
             }
@@ -239,6 +285,8 @@ private fun UserscriptDetailContent(
     logs: List<com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptLogItem>,
     onSetEnabled: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    exportingSource: Boolean,
+    onExportSource: () -> Unit,
 ) {
     when (tab) {
         UserscriptDetailTab.OVERVIEW -> {
@@ -403,13 +451,28 @@ private fun UserscriptDetailContent(
 
         UserscriptDetailTab.SOURCE -> {
             WebSessionItemCard {
-                SelectionContainer {
-                    Text(
-                        text = detail.activeSource.orEmpty(),
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                    )
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = onExportSource,
+                        enabled = detail.activeSource?.isNotBlank() == true && !exportingSource,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FileDownload,
+                            contentDescription = null,
+                        )
+                        Text(stringResource(R.string.export))
+                    }
+                    SelectionContainer {
+                        Text(
+                            text = detail.activeSource.orEmpty(),
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
                 }
             }
         }

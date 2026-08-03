@@ -38,6 +38,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageStatusPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRuntimeCapabilities
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSupportState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.deleteUserscriptsIndependently
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.toParsedMetadata
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.install.UserscriptImportCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.storage.UserscriptRepository
@@ -54,6 +55,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -688,6 +690,13 @@ internal class WebSessionUserscriptManager(
     }
 
     fun setUserScriptsAllowed(allowed: Boolean) {
+        if (allowed && !supportState.isSupported) {
+            AppLogger.w(TAG, "Rejected userscript runtime authorization on an unsupported WebView")
+            mainHandler.post {
+                onToast(context.getString(R.string.web_session_userscript_unsupported))
+            }
+            return
+        }
         scope.launch {
             repository.setUserScriptsAllowed(allowed)
         }
@@ -695,9 +704,18 @@ internal class WebSessionUserscriptManager(
 
     fun deleteScript(scriptId: Long) {
         scope.launch {
-            repository.deleteUserscript(scriptId)
-            mainHandler.post {
-                onToast(context.getString(R.string.web_session_userscript_deleted))
+            try {
+                repository.deleteUserscript(scriptId)
+                mainHandler.post {
+                    onToast(context.getString(R.string.web_session_userscript_deleted))
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "Failed to delete userscript $scriptId", error)
+                mainHandler.post {
+                    onToast(context.getString(R.string.delete_failed, error.toString()))
+                }
             }
         }
     }
@@ -904,17 +922,38 @@ internal class WebSessionUserscriptManager(
             return
         }
         scope.launch {
-            scriptIds.forEach { scriptId ->
-                repository.deleteUserscript(scriptId)
+            val result =
+                deleteUserscriptsIndependently(
+                    scriptIds = scriptIds,
+                    delete = repository::deleteUserscript,
+                )
+            result.failures.forEach { (scriptId, error) ->
+                AppLogger.e(TAG, "Failed to delete userscript $scriptId", error)
             }
             mainHandler.post {
-                onToast(
-                    context.resources.getQuantityString(
-                        R.plurals.web_session_userscript_deleted_count,
-                        scriptIds.size,
-                        scriptIds.size,
-                    ),
-                )
+                val messages =
+                    buildList {
+                        if (result.deletedIds.isNotEmpty()) {
+                            add(
+                                context.resources.getQuantityString(
+                                    R.plurals.web_session_userscript_deleted_count,
+                                    result.deletedIds.size,
+                                    result.deletedIds.size,
+                                ),
+                            )
+                        }
+                        if (result.failures.isNotEmpty()) {
+                            add(
+                                context.getString(
+                                    R.string.delete_failed,
+                                    result.failures.values
+                                        .map(Exception::toString)
+                                        .joinToString(),
+                                ),
+                            )
+                        }
+                    }
+                onToast(messages.joinToString("\n"))
             }
         }
     }

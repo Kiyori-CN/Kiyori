@@ -4,6 +4,7 @@ import com.github.difflib.DiffUtils
 import com.github.difflib.UnifiedDiffUtils
 import com.github.difflib.patch.DeltaType
 import java.net.URI
+import kotlinx.coroutines.CancellationException
 
 internal data class UserscriptUpdateDiff(
     val addedGrants: List<String>,
@@ -43,6 +44,39 @@ internal data class UserscriptEditorReview(
                 syntaxError == null &&
                 preview.blockedReasons.isEmpty() &&
                 preview.unknownGrants.isEmpty()
+}
+
+internal data class UserscriptDeletionBatchResult(
+    val deletedIds: Set<Long>,
+    val failures: Map<Long, Exception>,
+)
+
+internal fun isUserscriptRuntimePermissionActionEnabled(
+    runtimeSupported: Boolean,
+    userScriptsAllowed: Boolean,
+): Boolean = runtimeSupported || userScriptsAllowed
+
+internal suspend fun deleteUserscriptsIndependently(
+    scriptIds: Set<Long>,
+    delete: suspend (Long) -> Unit,
+): UserscriptDeletionBatchResult {
+    val deletedIds = linkedSetOf<Long>()
+    val failures = linkedMapOf<Long, Exception>()
+    // 批量删除必须隔离单项失败；否则一个损坏脚本会阻止其余已选脚本完成删除。
+    scriptIds.forEach { scriptId ->
+        try {
+            delete(scriptId)
+            deletedIds += scriptId
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            failures[scriptId] = error
+        }
+    }
+    return UserscriptDeletionBatchResult(
+        deletedIds = deletedIds,
+        failures = failures,
+    )
 }
 
 internal data class UserscriptEditableMetadata(

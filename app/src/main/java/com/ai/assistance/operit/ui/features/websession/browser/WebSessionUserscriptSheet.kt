@@ -82,6 +82,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageStatusPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUpdateCandidate
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUnsafeWindowMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.isUserscriptRuntimePermissionActionEnabled
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
@@ -252,6 +253,11 @@ internal fun WebSessionUserscriptSheet(
                                     settingsMenuExpanded = false
                                     onSetUserScriptsAllowed(!state.userScriptsAllowed)
                                 },
+                                enabled =
+                                    isUserscriptRuntimePermissionActionEnabled(
+                                        runtimeSupported = state.supportState.isSupported,
+                                        userScriptsAllowed = state.userScriptsAllowed,
+                                    ),
                             )
                         }
                     }
@@ -323,7 +329,13 @@ internal fun WebSessionUserscriptSheet(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (!state.userScriptsAllowed) {
+            if (
+                !state.userScriptsAllowed &&
+                    isUserscriptRuntimePermissionActionEnabled(
+                        runtimeSupported = state.supportState.isSupported,
+                        userScriptsAllowed = state.userScriptsAllowed,
+                    )
+            ) {
                 UserscriptPermissionBanner(onEnable = { onSetUserScriptsAllowed(true) })
             }
 

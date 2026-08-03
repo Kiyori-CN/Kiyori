@@ -522,43 +522,24 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `browser settings group sniffing switches together and only connect verified capabilities`() {
+    fun `browser settings expose only verified capabilities`() {
         assertEquals(
-            listOf(6, 7, 5, 6, 6),
+            listOf(4, 4, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
             listOf(
                 "允许用户脚本",
                 "插件中心",
-                "油猴脚本管理",
                 "插件权限与网站范围",
-                "当前页脚本诊断",
-                "脚本日志",
+                "脚本诊断与日志",
                 "网页主页自定义",
-                "标签栏样式",
-                "返回不重载",
-                "启动时恢复标签",
-                "手势前进后退",
-                "底部上滑手势",
-                "搜索引擎切换条",
-                "搜索栏嗅探入口",
-                "自动悬浮播放",
-                "自动悬浮最小时长",
-                "悬浮嗅探模式",
-                "嗅探规则管理",
                 "允许网页打开应用",
                 "允许网页获取位置",
                 "清除网站 Cookie",
-                "网页翻译接口",
-                "网站配置管理",
-                "网站密码管理",
-                "网页字体大小",
-                "强制页面缩放",
-                "腾讯 X5 调试",
-                "User-Agent 设置",
-                "浏览器代理",
-                "强制新窗口打开",
+                "搜索栏嗅探入口",
+                "自动悬浮播放",
+                "自动悬浮最小时长",
             ),
             kiyoriBrowserSettingsGroups
                 .flatMap(KiyoriBrowserSettingsGroupSpec::entries)
@@ -570,21 +551,10 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
                 "插件中心" to
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_CENTER,
-                "油猴脚本管理" to
-                    KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_MANAGER,
                 "插件权限与网站范围" to
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
-                "当前页脚本诊断" to
-                    KiyoriBrowserSettingsAction.OPEN_CURRENT_PAGE_PLUGIN_DIAGNOSTICS,
-                "脚本日志" to
-                    KiyoriBrowserSettingsAction.OPEN_USERSCRIPT_LOGS,
-                "搜索栏嗅探入口" to
-                    KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
-                "自动悬浮播放" to
-                    KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
-                "自动悬浮最小时长" to
-                    KiyoriBrowserSettingsAction
-                        .SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
+                "脚本诊断与日志" to
+                    KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS,
                 "网页主页自定义" to
                     KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                 "允许网页打开应用" to
@@ -593,19 +563,23 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
                 "清除网站 Cookie" to
                     KiyoriBrowserSettingsAction.CLEAR_COOKIES,
+                "搜索栏嗅探入口" to
+                    KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
+                "自动悬浮播放" to
+                    KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
+                "自动悬浮最小时长" to
+                    KiyoriBrowserSettingsAction
+                        .SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
             ),
             kiyoriBrowserSettingsGroups
                 .flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-                .filter(::isBrowserSettingEnabled)
                 .associate { entry -> entry.title to entry.action },
         )
         assertEquals(
             listOf(
                 "网页插件与脚本",
-                "主页、标签与手势",
+                "主页与网站数据",
                 "音视频嗅探",
-                "网站权限与数据",
-                "显示与高级",
             ),
             kiyoriBrowserSettingsGroups.map(KiyoriBrowserSettingsGroupSpec::title),
         )
@@ -618,19 +592,11 @@ class KiyoriSettingsPagesTest {
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(13, entries.count(::isBrowserSettingEnabled))
-        assertEquals(17, entries.count { entry -> !isBrowserSettingEnabled(entry) })
+        assertEquals(11, entries.size)
         assertEquals(
             "https://example.com/home",
             browserSettingValue(
                 entries.single { entry -> entry.title == "网页主页自定义" },
-                browserSettings,
-            ),
-        )
-        assertEquals(
-            "已安装 0 · 已启用 0",
-            browserSettingValue(
-                entries.single { entry -> entry.title == "油猴脚本管理" },
                 browserSettings,
             ),
         )
@@ -642,9 +608,9 @@ class KiyoriSettingsPagesTest {
             ),
         )
         assertEquals(
-            "0 条保留日志",
+            "运行环境不可用 · 0 条保留日志",
             browserSettingValue(
-                entries.single { entry -> entry.title == "脚本日志" },
+                entries.single { entry -> entry.title == "脚本诊断与日志" },
                 browserSettings,
             ),
         )
@@ -697,6 +663,21 @@ class KiyoriSettingsPagesTest {
         assertEquals(null, parseAutomaticFloatingDurationSeconds("86401"))
         assertEquals("1 分 30 秒", formatAutomaticFloatingMinimumDuration(90_000L))
         assertEquals("空白页", formatBrowserHomeUrl("about:blank"))
+    }
+
+    @Test
+    fun `browser plugin routes close settings before opening the current tab drawer`() {
+        val events = mutableListOf<String>()
+
+        runBrowserPluginRouteFromSettings(
+            onCloseSettings = { events += "close-settings" },
+            onOpenRoute = { events += "open-browser-route" },
+        )
+
+        assertEquals(
+            listOf("close-settings", "open-browser-route"),
+            events,
+        )
     }
 
     @Test

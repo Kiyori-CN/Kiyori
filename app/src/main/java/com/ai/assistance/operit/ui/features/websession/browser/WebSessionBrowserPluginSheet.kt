@@ -249,9 +249,7 @@ private fun BrowserPluginCenterOverview(
             WebSessionFilterChip(
                 label =
                     "${stringResource(R.string.web_session_plugins_tab_current_page)} " +
-                        snapshot.currentPageProviders.sumOf {
-                            it.currentPageEntries.size
-                        },
+                        currentPageProviders.size,
                 selected = selectedTab == BrowserPluginCenterTab.CURRENT_PAGE,
                 tone = KiyoriSemanticTone.PURPLE,
                 onClick = { selectedTab = BrowserPluginCenterTab.CURRENT_PAGE },
@@ -259,7 +257,7 @@ private fun BrowserPluginCenterOverview(
             WebSessionFilterChip(
                 label =
                     "${stringResource(R.string.web_session_plugins_tab_installed)} " +
-                        snapshot.installedPlugins.size,
+                        installedPlugins.size,
                 selected = selectedTab == BrowserPluginCenterTab.INSTALLED,
                 tone = KiyoriSemanticTone.PURPLE,
                 onClick = { selectedTab = BrowserPluginCenterTab.INSTALLED },

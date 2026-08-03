@@ -269,9 +269,12 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `browser settings child retains browser owner until Back`() {
+    fun `closing browser settings reveals the same browser owner and exit contract`() {
         val browserState =
-            KiyoriShellState().openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)
+            KiyoriShellState().openBrowser(
+                returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            )
         val settingsState = browserState.openChild(KiyoriShellChild.BROWSER_SETTINGS)
 
         assertEquals(PrimaryDestination.BROWSER_HOME, settingsState.primaryDestination)

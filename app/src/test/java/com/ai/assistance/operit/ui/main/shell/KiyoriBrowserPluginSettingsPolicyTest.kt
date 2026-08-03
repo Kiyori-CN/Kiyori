@@ -40,9 +40,10 @@ class KiyoriBrowserPluginSettingsPolicyTest {
                     ),
             )
 
-        assertEquals("已安装 1 · 已启用 1", browserPluginManagementSummary(state))
+        assertEquals("1 个插件 · 1 个脚本", browserPluginCenterSummary(state))
         assertEquals("1 个脚本 · 3 项权限 · 3 个范围", browserPluginPermissionSummary(state))
         assertEquals("1 个异常", browserPluginCurrentPageSummary(state))
+        assertEquals("1 个异常 · 0 条保留日志", browserPluginDiagnosticsSummary(state))
         assertEquals(
             "隔离世界 · 3 项权限 · 页面：http*://*.wenku8.com/* · " +
                 "联网：wenku8.com、wenku8-relay.mewx.org",
@@ -51,7 +52,7 @@ class KiyoriBrowserPluginSettingsPolicyTest {
     }
 
     @Test
-    fun `userscript master switch is disabled only when the runtime is unsupported`() {
+    fun `userscript master switch blocks unsupported enable but still allows revoke`() {
         val entry =
             kiyoriBrowserSettingsGroups
                 .flatMap(KiyoriBrowserSettingsGroupSpec::entries)
@@ -81,6 +82,16 @@ class KiyoriBrowserPluginSettingsPolicyTest {
                 WebSessionUserscriptUiState(
                     supportState = UserscriptSupportState(isSupported = false),
                 ),
+            ),
+        )
+        assertTrue(
+            isBrowserSettingRuntimeEnabled(
+                entry = entry,
+                userscriptState =
+                    WebSessionUserscriptUiState(
+                        supportState = UserscriptSupportState(isSupported = false),
+                        userScriptsAllowed = true,
+                    ),
             ),
         )
         assertEquals(

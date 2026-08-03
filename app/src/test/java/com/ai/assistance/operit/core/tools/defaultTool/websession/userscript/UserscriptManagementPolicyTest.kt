@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.userscript
 
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -130,6 +131,45 @@ class UserscriptManagementPolicyTest {
         assertTrue(diff.unifiedDiff.contains("-two"))
         assertTrue(diff.unifiedDiff.contains("+TWO"))
         assertTrue(diff.unifiedDiff.contains("+four"))
+    }
+
+    @Test
+    fun `batch deletion continues after one userscript fails`() = runTest {
+        val attempted = mutableListOf<Long>()
+
+        val result =
+            deleteUserscriptsIndependently(setOf(1L, 2L, 3L)) { scriptId ->
+                attempted += scriptId
+                if (scriptId == 2L) {
+                    throw IllegalStateException("locked")
+                }
+            }
+
+        assertEquals(listOf(1L, 2L, 3L), attempted)
+        assertEquals(setOf(1L, 3L), result.deletedIds)
+        assertEquals(setOf(2L), result.failures.keys)
+    }
+
+    @Test
+    fun `runtime permission can always be revoked but requires support to enable`() {
+        assertTrue(
+            isUserscriptRuntimePermissionActionEnabled(
+                runtimeSupported = true,
+                userScriptsAllowed = false,
+            ),
+        )
+        assertFalse(
+            isUserscriptRuntimePermissionActionEnabled(
+                runtimeSupported = false,
+                userScriptsAllowed = false,
+            ),
+        )
+        assertTrue(
+            isUserscriptRuntimePermissionActionEnabled(
+                runtimeSupported = false,
+                userScriptsAllowed = true,
+            ),
+        )
     }
 
     private fun preview(

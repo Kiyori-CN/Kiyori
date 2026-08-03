@@ -49,10 +49,12 @@ internal fun WebSessionBrowserDropdownItem(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     DropdownMenuItem(
         text = { Text(title, style = MaterialTheme.typography.bodyMedium) },
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(WebSessionBrowserPopupItemHeight),
         contentPadding = PaddingValues(horizontal = 14.dp),
     )
