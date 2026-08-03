@@ -2482,9 +2482,12 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         imports_by_path: dict[str, list[str]] = {}
         for index, relative_path in enumerate(production_paths):
             symbols: list[str] = []
-            if index <= 50:
+            page_source_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 1
+            # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
+            # the stable semantic tone and its Compose color resolver.
+            if index <= 50 or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")
-            if index < 44:
+            if index < 44 or index == page_source_consumer_index:
                 symbols.append("resolveColors")
             if index in (0, 53):
                 symbols.append("kiyoriSemanticToneForStableId")

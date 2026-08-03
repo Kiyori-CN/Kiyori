@@ -56,15 +56,18 @@ fun CodeEditor(
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     showLineNumbers: Boolean = true,
+    softWrap: Boolean = false,
     enableCompletion: Boolean = true,
     showSymbolBar: Boolean = true,
     symbolBarHeight: Dp = 40.dp,
-    editorRef: ((NativeCodeEditor?) -> Unit)? = null
+    editorRef: ((NativeCodeEditor?) -> Unit)? = null,
+    onInteractionStateChanged: ((EditorInteractionState) -> Unit)? = null,
 ) {
     val theme = getThemeForLanguage(language)
     val latestCode = rememberUpdatedState(code)
     val latestOnCodeChange = rememberUpdatedState(onCodeChange)
     val latestEditorRef = rememberUpdatedState(editorRef)
+    val latestOnInteractionStateChanged = rememberUpdatedState(onInteractionStateChanged)
     val density = LocalDensity.current
     val popupVerticalOffsetPx = with(density) { 6.dp.toPx().roundToInt() }
     val imeBottomInsetPx = WindowInsets.ime.getBottom(density)
@@ -123,6 +126,7 @@ fun CodeEditor(
                         view.setLanguage(language)
                         view.setReadOnly(readOnly)
                         view.setShowLineNumbers(showLineNumbers)
+                        view.setSoftWrap(softWrap)
                         view.setCompletionEnabled(enableCompletion)
                         view.setViewportBottomPadding(keyboardAvoidancePaddingPx)
                         view.setOnTextChangedListener { newText ->
@@ -130,6 +134,13 @@ fun CodeEditor(
                                 latestOnCodeChange.value(newText)
                             }
                         }
+                        view.setOnInteractionStateChangedListener(
+                            if (latestOnInteractionStateChanged.value != null) {
+                                { state -> latestOnInteractionStateChanged.value?.invoke(state) }
+                            } else {
+                                null
+                            },
+                        )
                         view.setCompletionCallback(
                             if (enableCompletion) {
                                 object : EditorCompletionCallback {
@@ -283,6 +294,13 @@ class NativeCodeEditor @JvmOverloads constructor(
         canvasEditorView.setShowLineNumbers(showLineNumbers)
     }
 
+    fun setSoftWrap(softWrap: Boolean) {
+        if (isReleased) {
+            return
+        }
+        canvasEditorView.setSoftWrap(softWrap)
+    }
+
     fun setCompletionEnabled(enableCompletion: Boolean) {
         if (isReleased) {
             return
@@ -295,6 +313,13 @@ class NativeCodeEditor @JvmOverloads constructor(
             return
         }
         canvasEditorView.setViewportBottomPadding(bottomPaddingPx)
+    }
+
+    fun setOnInteractionStateChangedListener(listener: ((EditorInteractionState) -> Unit)?) {
+        if (isReleased) {
+            return
+        }
+        canvasEditorView.setOnInteractionStateChangedListener(listener)
     }
 
     fun setText(text: String, fromUpdate: Boolean = false) {
@@ -348,6 +373,17 @@ class NativeCodeEditor @JvmOverloads constructor(
             return
         }
         canvasEditorView.replaceAllText(newText)
+    }
+
+    fun replaceRange(
+        start: Int,
+        end: Int,
+        replacement: String,
+    ) {
+        if (isReleased) {
+            return
+        }
+        canvasEditorView.replaceRange(start, end, replacement)
     }
 
     fun selectRange(

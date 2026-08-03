@@ -128,10 +128,22 @@ internal data class WebSessionSearchRecord(
 
 @Immutable
 internal data class WebSessionPageSourceState(
+    val sessionId: String? = null,
+    val pageUrl: String = "",
+    val pageTitle: String = "",
+    val documentToken: String? = null,
     val isLoading: Boolean = false,
+    val isApplying: Boolean = false,
+    val baselineContent: String? = null,
     val content: String? = null,
     val error: String? = null,
-)
+    val statusMessage: String? = null,
+    val isRetainedEdit: Boolean = false,
+    val exitPromptVisible: Boolean = false,
+) {
+    val hasChanges: Boolean
+        get() = baselineContent != null && content != null && baselineContent != content
+}
 
 @Immutable
 internal data class WebSessionTextSelectionActionsState(
@@ -342,6 +354,7 @@ internal enum class WebSessionBrowserBackAction {
     DISMISS_TEXT_SELECTION,
     DISMISS_PENDING_DIALOG,
     CANCEL_DOWNLOAD_PROMPT,
+    DISMISS_PAGE_SOURCE_EXIT_PROMPT,
     DISMISS_PLUGIN_EDITOR_EXIT_PROMPT,
     POP_PLUGIN_ROUTE,
     CLOSE_SHEET,
@@ -362,6 +375,8 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.DISMISS_PENDING_DIALOG
         state.downloadPrompt != null ->
             WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT
+        state.pageSource.exitPromptVisible ->
+            WebSessionBrowserBackAction.DISMISS_PAGE_SOURCE_EXIT_PROMPT
         state.pluginEditorExitPromptDraftId != null ->
             WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT
         state.sheetRoute == WebSessionBrowserSheetRoute.PLUGINS &&

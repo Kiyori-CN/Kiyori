@@ -383,6 +383,25 @@ fun getJsToolsDefinition(): String {
                     }
                     return toolCall("browser_network_requests", params);
                 },
+                browserPageSource: (options) => {
+                    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+                        throw new Error("browserPageSource only accepts one options object");
+                    }
+                    const params = { ...options };
+                    if (params.scope !== undefined && params.scope !== null) {
+                        params.scope = String(params.scope).trim().toLowerCase();
+                    }
+                    if (params.scope !== "live" && params.scope !== "editor") {
+                        throw new Error("browserPageSource scope must be live or editor");
+                    }
+                    if (params.filename !== undefined && params.filename !== null) {
+                        params.filename = String(params.filename).trim();
+                        if (!params.filename) {
+                            delete params.filename;
+                        }
+                    }
+                    return toolCall("browser_page_source", params);
+                },
                 browserPressKey: (keyOrOptions) => {
                     const params = typeof keyOrOptions === 'string' ? { key: keyOrOptions } : { ...(keyOrOptions || {}) };
                     if (params.key !== undefined && params.key !== null) {

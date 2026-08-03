@@ -42,6 +42,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionFloatin
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimizedCloseAction
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimizedIndicator
 import com.ai.assistance.operit.util.AppLogger
+import java.util.UUID
 import kotlin.math.roundToInt
 import org.json.JSONTokener
 
@@ -91,8 +92,7 @@ internal class WebSessionBrowserHost(
         fun onDeleteSearchHistory(id: Long)
         fun onClearSearchHistory()
         fun onCopyCurrentUrl()
-        fun onOpenPageSource()
-        fun onCopyPageSource()
+        fun onPageSourceApplied(sessionId: String)
         fun onOpenPlugins()
         fun onImportUserscript()
         fun onInstallUserscriptFromUrl(url: String)
@@ -262,8 +262,14 @@ internal class WebSessionBrowserHost(
             onDeleteSearchHistory = callbacks::onDeleteSearchHistory,
             onClearSearchHistory = callbacks::onClearSearchHistory,
             onCopyCurrentUrl = callbacks::onCopyCurrentUrl,
-            onOpenPageSource = callbacks::onOpenPageSource,
-            onCopyPageSource = callbacks::onCopyPageSource,
+            onOpenPageSource = ::beginPageSourceRead,
+            onUpdatePageSourceBuffer = ::updatePageSourceBuffer,
+            onReloadPageSource = { beginPageSourceRead(forceReload = true) },
+            onApplyPageSource = ::applyPageSource,
+            onCopyPageSource = ::copyPageSourceToClipboard,
+            onKeepPageSourceDraftAndClose = ::keepPageSourceDraftAndClose,
+            onDiscardPageSourceDraftAndClose = ::discardPageSourceDraftAndClose,
+            onDismissPageSourceExitPrompt = ::dismissPageSourceExitPrompt,
             onOpenPlugins = callbacks::onOpenPlugins,
             onImportUserscript = callbacks::onImportUserscript,
             onInstallUserscriptFromUrl = callbacks::onInstallUserscriptFromUrl,
@@ -571,6 +577,18 @@ internal class WebSessionBrowserHost(
     fun handleBack(): Boolean {
         // Top-bar Back and system Back both enter this single ordering so browser chrome,
         // transient UI, and WebView history cannot diverge.
+        if (
+            hostState.sheetRoute == WebSessionBrowserSheetRoute.PAGE_SOURCE &&
+                hostState.pageSource.hasChanges &&
+                !hostState.pageSource.exitPromptVisible
+        ) {
+            updateHostState { current ->
+                current.copy(
+                    pageSource = current.pageSource.copy(exitPromptVisible = true),
+                )
+            }
+            return true
+        }
         val editorRoute = hostState.currentPluginRoute as? WebSessionBrowserPluginRoute.UserscriptEditor
         if (
             hostState.pluginEditorExitPromptDraftId == null &&
@@ -593,6 +611,10 @@ internal class WebSessionBrowserHost(
             }
             WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT -> {
                 callbacks.onCancelBrowserDownload(requireNotNull(hostState.downloadPrompt).requestId)
+                true
+            }
+            WebSessionBrowserBackAction.DISMISS_PAGE_SOURCE_EXIT_PROMPT -> {
+                dismissPageSourceExitPrompt()
                 true
             }
             WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT -> {
@@ -737,15 +759,50 @@ internal class WebSessionBrowserHost(
         }
     }
 
-    fun beginPageSourceRead() {
+    fun beginPageSourceRead(
+        forceReload: Boolean = false,
+    ) {
+        val sessionId = hostState.browserState.activeSessionId
+        val retained = hostState.pageSource
+        if (
+            !forceReload &&
+                retained.hasChanges &&
+                retained.sessionId == sessionId &&
+                retained.content != null
+        ) {
+            updateHostState { current ->
+                current.copy(
+                    sheetRoute = WebSessionBrowserSheetRoute.PAGE_SOURCE,
+                    pageSource =
+                        current.pageSource.copy(
+                            isRetainedEdit = true,
+                            exitPromptVisible = false,
+                            statusMessage =
+                                appContext.getString(
+                                    R.string.web_session_source_retained_status,
+                                ),
+                        ),
+                )
+            }
+            return
+        }
+
+        val documentToken = UUID.randomUUID().toString()
         updateHostState {
             it.copy(
                 sheetRoute = WebSessionBrowserSheetRoute.PAGE_SOURCE,
-                pageSource = WebSessionPageSourceState(isLoading = true),
+                pageSource =
+                    WebSessionPageSourceState(
+                        sessionId = sessionId,
+                        pageUrl = it.browserState.currentUrl,
+                        pageTitle = it.browserState.pageTitle,
+                        documentToken = documentToken,
+                        isLoading = true,
+                    ),
             )
         }
         val webView = activeWebView
-        if (webView == null) {
+        if (webView == null || sessionId == null) {
             updateHostState {
                 it.copy(
                     pageSource = WebSessionPageSourceState(
@@ -756,42 +813,275 @@ internal class WebSessionBrowserHost(
             return
         }
         webView.evaluateJavascript(
-            """
-            (function() {
-                var root = document.documentElement;
-                return root ? root.outerHTML : "";
-            })();
-            """.trimIndent()
+            buildBrowserPageSourceCaptureScript(documentToken),
         ) { rawValue ->
-            try {
-                val content = JSONTokener(rawValue).nextValue() as? String
-                if (content.isNullOrBlank()) {
-                    updateHostState {
-                        it.copy(
-                            pageSource = WebSessionPageSourceState(
-                                error = appContext.getString(R.string.web_session_source_empty),
-                            )
-                        )
-                    }
-                } else {
-                    updateHostState {
-                        it.copy(
-                            pageSource = WebSessionPageSourceState(content = content),
-                        )
-                    }
+            val result = parseBrowserPageSourceCaptureResult(rawValue)
+            val capture = result.capture
+            updateHostState { current ->
+                if (
+                    current.pageSource.sessionId != sessionId ||
+                        current.pageSource.documentToken != documentToken
+                ) {
+                    return@updateHostState current
                 }
-            } catch (e: Exception) {
-                AppLogger.e("WebSessionBrowserHost", "Failed to read current page source", e)
-                updateHostState {
-                    it.copy(
-                        pageSource = WebSessionPageSourceState(
-                            error = appContext.getString(R.string.web_session_source_read_failed),
-                        )
+                if (capture == null) {
+                    return@updateHostState current.copy(
+                        pageSource =
+                            current.pageSource.copy(
+                                isLoading = false,
+                                error =
+                                    pageSourceCaptureError(
+                                        errorCode = result.errorCode,
+                                        sourceLength = result.sourceLength,
+                                    ),
+                            ),
                     )
                 }
+                if (capture.documentToken != documentToken) {
+                    return@updateHostState current.copy(
+                        pageSource =
+                            current.pageSource.copy(
+                                isLoading = false,
+                                error =
+                                    appContext.getString(
+                                        R.string.web_session_source_read_failed,
+                                    ),
+                            ),
+                    )
+                }
+                current.copy(
+                    pageSource =
+                        current.pageSource.copy(
+                            pageUrl = capture.pageUrl,
+                            pageTitle = capture.pageTitle,
+                            documentToken = capture.documentToken,
+                            isLoading = false,
+                            baselineContent = capture.source,
+                            content = capture.source,
+                            error = null,
+                            statusMessage = null,
+                            isRetainedEdit = false,
+                        ),
+                )
             }
         }
     }
+
+    fun updatePageSourceBuffer(
+        source: String,
+    ) {
+        updateHostState { current ->
+            current.copy(
+                pageSource =
+                    current.pageSource.copy(
+                        content = source,
+                        error = null,
+                        statusMessage = null,
+                        isRetainedEdit = false,
+                    ),
+            )
+        }
+    }
+
+    fun applyPageSource() {
+        val state = hostState.pageSource
+        val source = state.content
+        val sessionId = state.sessionId
+        val expectedToken = state.documentToken
+        val webView = activeWebView
+        val validation =
+            if (source == null) {
+                BrowserPageSourceValidationFailure.EMPTY
+            } else {
+                validateBrowserPageSource(source)
+            }
+        if (validation != null) {
+            updatePageSourceError(pageSourceValidationError(validation))
+            return
+        }
+        if (
+            sessionId == null ||
+                expectedToken == null ||
+                hostState.browserState.activeSessionId != sessionId ||
+                webView == null
+        ) {
+            updatePageSourceError(
+                appContext.getString(R.string.web_session_source_session_changed),
+            )
+            return
+        }
+
+        val nextToken = UUID.randomUUID().toString()
+        updateHostState { current ->
+            current.copy(
+                pageSource =
+                    current.pageSource.copy(
+                        isApplying = true,
+                        error = null,
+                        statusMessage = null,
+                        exitPromptVisible = false,
+                    ),
+            )
+        }
+        webView.evaluateJavascript(
+            buildBrowserPageSourceApplyScript(
+                source = requireNotNull(source),
+                expectedDocumentToken = expectedToken,
+                nextDocumentToken = nextToken,
+            ),
+        ) { rawValue ->
+            val result = parseBrowserPageSourceApplyResult(rawValue)
+            updateHostState { current ->
+                if (
+                    current.pageSource.sessionId != sessionId ||
+                        current.pageSource.documentToken != expectedToken
+                ) {
+                    return@updateHostState current
+                }
+                if (!result.applied) {
+                    return@updateHostState current.copy(
+                        pageSource =
+                            current.pageSource.copy(
+                                isApplying = false,
+                                error = pageSourceApplyError(result.errorCode),
+                            ),
+                    )
+                }
+                current.copy(
+                    pageSource =
+                        current.pageSource.copy(
+                            pageUrl = result.pageUrl,
+                            pageTitle = result.pageTitle,
+                            documentToken = requireNotNull(result.documentToken),
+                            isApplying = false,
+                            baselineContent = source,
+                            content = source,
+                            error = null,
+                            statusMessage =
+                                appContext.getString(R.string.web_session_source_applied),
+                            isRetainedEdit = false,
+                        ),
+                )
+            }
+            if (result.applied) {
+                callbacks.onPageSourceApplied(sessionId)
+            }
+        }
+    }
+
+    fun currentPageSourceEditorSnapshot(
+        sessionId: String,
+    ): BrowserPageSourceEditorSnapshot? {
+        val state = hostState.pageSource
+        val source = state.content ?: return null
+        if (state.sessionId != sessionId) {
+            return null
+        }
+        return BrowserPageSourceEditorSnapshot(
+            sessionId = sessionId,
+            pageUrl = state.pageUrl,
+            pageTitle = state.pageTitle,
+            source = source,
+            hasChanges = state.hasChanges,
+        )
+    }
+
+    private fun keepPageSourceDraftAndClose() {
+        updateHostState { current ->
+            current.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                pageSource =
+                    current.pageSource.copy(
+                        isRetainedEdit = true,
+                        exitPromptVisible = false,
+                        statusMessage =
+                            appContext.getString(
+                                R.string.web_session_source_retained_status,
+                            ),
+                    ),
+            )
+        }
+    }
+
+    private fun discardPageSourceDraftAndClose() {
+        updateHostState { current ->
+            current.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                pageSource = WebSessionPageSourceState(),
+            )
+        }
+    }
+
+    private fun dismissPageSourceExitPrompt() {
+        updateHostState { current ->
+            current.copy(
+                pageSource = current.pageSource.copy(exitPromptVisible = false),
+            )
+        }
+    }
+
+    private fun updatePageSourceError(
+        message: String,
+    ) {
+        updateHostState { current ->
+            current.copy(
+                pageSource =
+                    current.pageSource.copy(
+                        isApplying = false,
+                        error = message,
+                        statusMessage = null,
+                    ),
+            )
+        }
+    }
+
+    private fun pageSourceCaptureError(
+        errorCode: String?,
+        sourceLength: Int?,
+    ): String =
+        when (errorCode) {
+            "empty_document" -> appContext.getString(R.string.web_session_source_empty)
+            "source_too_large" if sourceLength != null ->
+                appContext.getString(
+                    R.string.web_session_source_too_large,
+                    sourceLength,
+                    BROWSER_PAGE_SOURCE_MAX_CHARS,
+                )
+            else -> appContext.getString(R.string.web_session_source_read_failed)
+        }
+
+    private fun pageSourceValidationError(
+        failure: BrowserPageSourceValidationFailure,
+    ): String =
+        when (failure) {
+            BrowserPageSourceValidationFailure.EMPTY ->
+                appContext.getString(R.string.web_session_source_empty)
+            BrowserPageSourceValidationFailure.TOO_LARGE ->
+                appContext.getString(
+                    R.string.web_session_source_too_large,
+                    hostState.pageSource.content?.length ?: 0,
+                    BROWSER_PAGE_SOURCE_MAX_CHARS,
+                )
+            BrowserPageSourceValidationFailure.CONTAINS_NULL ->
+                appContext.getString(R.string.web_session_source_invalid)
+        }
+
+    private fun pageSourceApplyError(
+        errorCode: String?,
+    ): String =
+        when (errorCode) {
+            "document_changed" ->
+                appContext.getString(R.string.web_session_source_document_changed)
+            "empty_source" -> appContext.getString(R.string.web_session_source_empty)
+            "source_too_large" ->
+                appContext.getString(
+                    R.string.web_session_source_too_large,
+                    hostState.pageSource.content?.length ?: 0,
+                    BROWSER_PAGE_SOURCE_MAX_CHARS,
+                )
+            "invalid_source" -> appContext.getString(R.string.web_session_source_invalid)
+            else -> appContext.getString(R.string.web_session_source_apply_failed)
+        }
 
     fun copyCurrentUrlToClipboard() {
         val url = hostState.browserState.currentUrl

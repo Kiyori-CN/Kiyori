@@ -341,6 +341,24 @@ internal class EditorDocument(initialText: String = "") {
         )
     }
 
+    fun replaceRange(
+        start: Int,
+        end: Int,
+        replacement: String,
+    ) {
+        val safeStart = start.coerceIn(0, buffer.length)
+        val safeEnd = end.coerceIn(safeStart, buffer.length)
+        val cursor = safeStart + replacement.length
+        replaceRangeInternal(
+            start = safeStart,
+            end = safeEnd,
+            replacement = replacement,
+            afterSelectionStart = cursor,
+            afterSelectionEnd = cursor,
+            recordHistory = true,
+        )
+    }
+
     fun insertTextAtCursor(text: String) {
         val range = activeReplaceRange()
         val cursor = range.first + text.length

@@ -284,6 +284,30 @@ APK 时间 `2026-07-28 19:39:17 +08:00`，大小 `455956807` 字节，SHA-256
 Android Debug v2 和 16 KB ZIP 对齐通过。原 vivo Android 16 复测前仍为
 `verification_pending`。
 
+## 2026-08-03 页面源码工作台
+
+浏览器菜单第 3 行第 3 项保留现有蓝色源码图标和“查看源码”名称，旧只读源码子抽屉已经由浏览器
+宿主内全屏原生源码工作台替换。工作台读取活动 WebSession 的实时 DOM，保留 doctype、过滤 Kiyori
+文本选择临时节点，并把基线、编辑缓冲区、session 与 Document token 绑定。现有
+`NativeCodeEditor` 提供 HTML 高亮、行号、补全、查找替换、撤销重做、格式化和输入法符号栏；
+页面源码默认启用不修改源码字符的视觉软换行，并可切换横向浏览。紧凑工具条提供准确历史状态、
+复制、跳转行与行列/选区信息，超长行提示显示数量和最长字符数；顶栏及底部动作区分别遵守状态栏
+和导航栏 Insets。
+
+应用源码必须经用户确认，并只允许写入捕获时的同一 session 与 Document。运行时使用
+`document.open/write/close` 重建该页面，随后刷新同一 Browser Runtime 的 userscript 状态、
+下载、文本选择和媒体观察助手；不创建新 WebView、历史项、网络源码仓库或持久网页副本。
+`browser_page_source` 为 AI 提供 `live/editor` 两种显式读取范围，大源码进入既有浏览器临时输出
+目录；人工工作台的应用确认不交给 AI 静默执行。完整 UI、状态、AI 与验收合同见
+[`7_browser_menu_capabilities.md`](7_browser_menu_capabilities.md)。
+
+本地实现已完成：定向 `22/22`、完整 Debug JVM `853/853`、Kotlin 编译、formal readiness、
+七语种资源、ARCH041 契约测试和 `git diff --check` 通过；Debug APK 的 V2 签名、16 KB 对齐、
+单 launcher 和 Player runtime packaging 已重新核验。APK 为 `471581414` 字节，SHA-256
+`F2D7683FE6EE114B7171F635B58A0FB24EECF32DB1B0E445C6C2D4B5547FA97E`。完整架构门禁仍受
+当前 HEAD 既有 ARCH046 userscript 导出路径消费者快照漂移影响。状态栏、输入法、复杂页面脚本重建、
+刷新恢复、跨标签保护和 AI 协作仍需目标设备验收。
+
 ## 完成定义
 
 - 十一个里程碑均有源码、文档、自动检查和 Debug APK 证据；提交、推送和远端 SHA 仅在另行授权时属于完成证据

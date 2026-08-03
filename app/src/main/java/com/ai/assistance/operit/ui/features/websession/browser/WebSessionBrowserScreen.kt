@@ -101,7 +101,6 @@ import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSession
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WebSessionBrowserTabOverview
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.resolveWebSessionBrowserChromeLayout
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserNetworkLog
-import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPageSource
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserPlaceholderSheet
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserTopBar
@@ -113,7 +112,8 @@ import kotlinx.coroutines.delay
 internal fun WebSessionBrowserSheetRoute.isWebSessionBrowserDrawerRoute(): Boolean =
     this != WebSessionBrowserSheetRoute.NONE &&
         this != WebSessionBrowserSheetRoute.TABS &&
-        this != WebSessionBrowserSheetRoute.USER_AGENT
+        this != WebSessionBrowserSheetRoute.USER_AGENT &&
+        this != WebSessionBrowserSheetRoute.PAGE_SOURCE
 
 private fun WebSessionBrowserSheetRoute.isBrowserChildDrawerRoute(): Boolean =
     isWebSessionBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU
@@ -162,7 +162,13 @@ internal fun WebSessionBrowserScreen(
     onClearSearchHistory: () -> Unit,
     onCopyCurrentUrl: () -> Unit,
     onOpenPageSource: () -> Unit,
+    onUpdatePageSourceBuffer: (String) -> Unit,
+    onReloadPageSource: () -> Unit,
+    onApplyPageSource: () -> Unit,
     onCopyPageSource: () -> Unit,
+    onKeepPageSourceDraftAndClose: () -> Unit,
+    onDiscardPageSourceDraftAndClose: () -> Unit,
+    onDismissPageSourceExitPrompt: () -> Unit,
     onOpenPlugins: () -> Unit,
     onImportUserscript: () -> Unit,
     onInstallUserscriptFromUrl: (String) -> Unit,
@@ -912,8 +918,6 @@ internal fun WebSessionBrowserScreen(
                             onOpenHistoryEntry = onOpenHistoryEntry,
                             onDeleteHistory = onDeleteHistory,
                             onClearNetworkLog = onClearNetworkLog,
-                            onOpenPageSource = onOpenPageSource,
-                            onCopyPageSource = onCopyPageSource,
                             onHostStateChange = onHostStateChange,
                             hostState = hostState,
                             onImportUserscript = onImportUserscript,
@@ -961,6 +965,22 @@ internal fun WebSessionBrowserScreen(
                     }
                 }
             }
+        }
+
+        if (activeSheetRoute == WebSessionBrowserSheetRoute.PAGE_SOURCE) {
+            WebSessionPageSourceEditor(
+                state = hostState.pageSource,
+                onRequestBack = onBack,
+                onOpenAiDialogue = onOpenAiDialogue,
+                onBufferChanged = onUpdatePageSourceBuffer,
+                onCopy = onCopyPageSource,
+                onReload = onReloadPageSource,
+                onApply = onApplyPageSource,
+                onKeepAndClose = onKeepPageSourceDraftAndClose,
+                onDiscardAndClose = onDiscardPageSourceDraftAndClose,
+                onDismissExitPrompt = onDismissPageSourceExitPrompt,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
 
         pluginEditorRoute?.let { editorRoute ->
@@ -1274,8 +1294,6 @@ private fun WebSessionBrowserDrawerContent(
     onOpenHistoryEntry: (WebSessionHistoryEntry) -> Boolean,
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
     onClearNetworkLog: () -> Unit,
-    onOpenPageSource: () -> Unit,
-    onCopyPageSource: () -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
     hostState: WebSessionBrowserHostState,
     onImportUserscript: () -> Unit,
@@ -1452,16 +1470,6 @@ private fun WebSessionBrowserDrawerContent(
                 onDismiss = onDismiss,
             )
 
-        WebSessionBrowserSheetRoute.PAGE_SOURCE ->
-            WebSessionBrowserPageSource(
-                isLoading = hostState.pageSource.isLoading,
-                content = hostState.pageSource.content,
-                error = hostState.pageSource.error,
-                onCopy = onCopyPageSource,
-                onDismiss = onDismiss,
-                modifier = Modifier.fillMaxSize(),
-            )
-
         WebSessionBrowserSheetRoute.PLACEHOLDER ->
             WebSessionBrowserPlaceholderSheet(
                 page = hostState.placeholderPage,
@@ -1472,7 +1480,8 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.NONE,
         WebSessionBrowserSheetRoute.TABS,
         WebSessionBrowserSheetRoute.MENU,
-        WebSessionBrowserSheetRoute.USER_AGENT -> Unit
+        WebSessionBrowserSheetRoute.USER_AGENT,
+        WebSessionBrowserSheetRoute.PAGE_SOURCE -> Unit
         }
     }
 

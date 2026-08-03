@@ -413,6 +413,15 @@ object SystemToolPromptsInternal {
                                 )
                         ),
                         ToolPrompt(
+                            name = "browser_page_source",
+                            description = "Read the current tab's live DOM source or the page-source editor buffer from the shared Browser Runtime. Use scope=live for the current document and scope=editor only when the user has opened or retained the source editor. Large sources require filename.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(name = "scope", type = "string", description = "required source scope: live or editor", required = true),
+                                    ToolParameterSchema(name = "filename", type = "string", description = "optional output file name; required when the source is too large for an inline tool result", required = false)
+                                )
+                        ),
+                        ToolPrompt(
                             name = "browser_press_key",
                             description = "Press a keyboard key in the current page.",
                             parametersStructured =
@@ -3403,6 +3412,15 @@ object SystemToolPromptsInternal {
                                 listOf(
                                     ToolParameterSchema(name = "includeStatic", type = "boolean", description = "可选，是否包含静态资源请求", required = false, default = "false"),
                                     ToolParameterSchema(name = "filename", type = "string", description = "可选，大结果输出文件名", required = false)
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "browser_page_source",
+                            description = "读取共享 Browser Runtime 当前窗口的实时 DOM 源码或页面源码编辑器缓冲区。scope=live 读取当前文档；只有用户已经打开或保留源码编辑器时才使用 scope=editor。大源码必须提供 filename。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(name = "scope", type = "string", description = "必填，源码范围：live 或 editor", required = true),
+                                    ToolParameterSchema(name = "filename", type = "string", description = "可选输出文件名；源码过大而不能内联返回时必填", required = false)
                                 )
                         ),
                         ToolPrompt(

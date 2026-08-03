@@ -864,12 +864,31 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             browserHost?.copyCurrentUrlToClipboard()
         }
 
-        override fun onOpenPageSource() {
-            browserHost?.beginPageSourceRead()
-        }
-
-        override fun onCopyPageSource() {
-            browserHost?.copyPageSourceToClipboard()
+        override fun onPageSourceApplied(sessionId: String) {
+            runOnMainSync<Unit> {
+                val session = sessionById(sessionId) ?: return@runOnMainSync
+                session.currentUrl =
+                    session.webView.url
+                        ?.takeIf(String::isNotBlank)
+                        ?: session.currentUrl
+                session.pageTitle = session.webView.title.orEmpty()
+                session.pageLoaded = true
+                session.isLoading = false
+                session.lastSnapshot = null
+                clearSessionThumbnail(session)
+                userscriptManager.onPageChanged(
+                    sessionId = session.id,
+                    pageUrl = session.currentUrl,
+                    forceReset = true,
+                )
+                notifySessionStateChanged(session)
+                applyViewportOverride(session)
+                refreshNavigationStateFromWebView(session.webView, session)
+                injectDownloadHelper(session.webView)
+                injectTextSelectionHelper(session.webView)
+                injectMediaCandidateObserver(session.webView)
+                requestSessionThumbnailOnMain(session, force = true)
+            }
         }
 
         override fun onOpenPlugins() {

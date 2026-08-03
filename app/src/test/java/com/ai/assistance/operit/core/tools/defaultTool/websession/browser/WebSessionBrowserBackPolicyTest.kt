@@ -49,6 +49,19 @@ class WebSessionBrowserBackPolicyTest {
             resolveWebSessionBrowserBackAction(base.copy(textSelectionActions = null)),
         )
         assertEquals(
+            WebSessionBrowserBackAction.DISMISS_PAGE_SOURCE_EXIT_PROMPT,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    textSelectionActions = null,
+                    downloadPrompt = null,
+                    pageSource =
+                        WebSessionPageSourceState(
+                            exitPromptVisible = true,
+                        ),
+                ),
+            ),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT,
             resolveWebSessionBrowserBackAction(
                 base.copy(

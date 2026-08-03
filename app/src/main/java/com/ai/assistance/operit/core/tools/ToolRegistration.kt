@@ -1214,6 +1214,15 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
     )
 
     handler.registerTool(
+            name = "browser_page_source",
+            descriptionGenerator = { tool ->
+                val scope = tool.parameters.find { it.name == "scope" }?.value ?: ""
+                "Read browser page source from ${scope.ifBlank { "(missing scope)" }}"
+            },
+            executor = { tool -> ToolGetter.getBrowserSessionTools(context).invoke(tool) }
+    )
+
+    handler.registerTool(
             name = "browser_press_key",
             descriptionGenerator = { tool ->
                 val key = tool.parameters.find { it.name == "key" }?.value ?: ""

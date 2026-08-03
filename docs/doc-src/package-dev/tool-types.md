@@ -65,6 +65,7 @@ interface ToolResultMap {
 - `browser_navigate` → `StringResultData`
 - `browser_navigate_back` → `StringResultData`
 - `browser_network_requests` → `StringResultData`
+- `browser_page_source` → `StringResultData`
 - `browser_press_key` → `StringResultData`
 - `browser_resize` → `StringResultData`
 - `browser_run_code` → `StringResultData`

@@ -109,6 +109,53 @@
 - `.kbx`、WebExtension、额外 provider、AI 包管理合并和设备操作不属于本轮；目标设备上的抽屉尺寸、
   窄屏、导出、删除失败反馈和真实 runtime 状态仍需独立验收
 
+## 2026-08-03 页面源码工作台实现合同
+
+- 浏览器菜单第 3 行第 3 项继续使用现有“查看源码”名称、蓝色语义色和源码图标；点击后关闭主菜单，
+  直接打开浏览器宿主内全屏原生源码工作台，不再进入旧的纯文本可拖动子抽屉
+- 工作台读取当前活动 WebView 的运行中 DOM 快照，包含 doctype 与 `documentElement.outerHTML`；
+  捕获副本会排除 Kiyori 文本选择 UI 等浏览器自有临时节点。该内容不是重新发起 HTTP 请求获得的
+  原始响应，也不复制 Cookie、Authorization、请求头或响应体存储
+- `WebSessionPageSourceState` 记录捕获 session、页面 URL、标题、Document token、基线源码、
+  编辑源码、加载/应用状态和明确错误。Document token 只用于确认应用目标仍是捕获时的同一文档，
+  不写入持久存储或网页源码
+- 工作台复用现有 `NativeCodeEditor` 的 HTML 语法着色、行号、补全、撤销重做和符号栏；顶栏使用
+  44dp 动作几何并位于 `statusBarsPadding()` 之后，输入法显示时只保留 36dp 符号栏
+- `NativeCodeEditor` 增加默认关闭的可选视觉软换行能力；页面源码工作台默认开启，按字符簇和显示
+  单元把超长逻辑行映射为连续视觉行，不向源码插入换行。续行保留逻辑行号归属，触摸、光标、选区、
+  上下移动、补全锚点和滚动都使用同一偏移映射；用户可显式切换为原横向浏览。进入横向浏览时视口
+  固定重置到源码左上角，不追随切换前可能位于超长行末尾的光标；之后的点击、选区或键盘移动再恢复
+  正常光标可见性
+- 窄屏顶栏只保留返回、标题、搜索和更多；撤销、重做、格式化、复制、跳转行与换行模式进入可横向
+  滚动的 36dp 紧凑工具条，并显示当前行列或选区。超长行提示明确显示数量、最长字符数和“只改变
+  显示、不改变源码”的语义
+- 查找替换、格式化、复制、重新读取、差异预览和应用均操作同一编辑缓冲区。格式化、替换下一个和
+  全部替换直接进入编辑器历史，撤销/重做按钮按真实历史状态启用。差异预览复用现有
+  `java-diff-utils` 生成统一差异和增删统计，不新增 diff 依赖
+- 应用必须经过显式确认，并同时满足活动 session 与 Document token 未变化、源码非空且未超过
+  规定上限。运行时使用 `document.open()`、`document.write()`、`document.close()` 重建当前文档；
+  不新增导航历史、持久网页副本或第二 WebView。刷新或正常导航会重新加载网站内容
+- 编辑后返回提供继续编辑、保留编辑返回网页和丢弃三种选择；保留只存在于当前 Browser Host 内存，
+  关闭对应 session 或进程后不承诺恢复
+- `browser_page_source` AI 工具显式提供 `live` 与 `editor` 两种读取范围。`live` 从当前活动 WebView
+  读取同一 DOM；`editor` 读取当前 host 中绑定活动 session 的编辑缓冲区。超出内联结果上限时必须
+  指定文件名，输出仍使用现有浏览器临时文件 owner
+- AI 若要修改页面继续使用现有 `browser_evaluate` 或 `browser_run_code`，人工源码工作台的“应用”
+  保持用户确认边界；本轮不让 AI 静默提交编辑缓冲区
+- 本地 JVM 测试覆盖脚本安全编码、doctype、临时节点过滤、大小边界、Document 失效、应用结果、
+  普通/超大源码差异和 Back；AI 工具注册、双语提示与 JavaScript 包装由编译和静态接线检查覆盖
+- Debug 构建不替代真机状态栏、输入法、复杂站点脚本重建、刷新恢复和 AI 协作验收
+
+本地实现状态为 `[DONE]`，设备验收为 `[PENDING]`。页面源码、软换行与 Back 定向测试 `22/22`、
+完整 Debug JVM `853/853`、Kotlin 编译、formal readiness、七语种资源与 `git diff --check` 均通过。
+ARCH041 语义色快照和对应两项架构测试已同步；完整架构门禁只剩当前 HEAD 已有的 ARCH046
+`UserscriptSourceExportHelper.kt` 消费者快照漂移。Debug APK 为
+`app/build/outputs/apk/debug/app-debug.apk`，宿主文件时间 `2026-08-04 03:43:10 +08:00`，
+大小 `471581414` 字节，SHA-256
+`F2D7683FE6EE114B7171F635B58A0FB24EECF32DB1B0E445C6C2D4B5547FA97E`。
+`com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37 / arm64-v8a`，Android Debug
+V2 签名和 16 KB ZIP 对齐通过。未安装 APK、未操作设备。
+
 ## 历史抽屉实现合同
 
 - `WebSessionHistoryStore` 继续是唯一持久化 owner。现有 `history_json` 增加内容分类、媒体来源和来源页，

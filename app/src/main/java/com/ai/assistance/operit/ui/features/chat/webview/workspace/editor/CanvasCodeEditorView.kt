@@ -163,6 +163,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     private var currentLanguage = "text"
     private var currentScale = 1f
     private var showLineNumbers = true
+    private var softWrap = false
     private var completionEnabled = true
     private var readOnly = false
     private var scrollOffsetX = 0f
@@ -185,6 +186,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     private var isScaling = false
 
     private var textChangedListener: ((String) -> Unit)? = null
+    private var interactionStateChangedListener: ((EditorInteractionState) -> Unit)? = null
     private var resolvedKeywordColor = Color.WHITE
     private var resolvedTypeColor = Color.WHITE
     private var resolvedStringColor = Color.WHITE
@@ -196,6 +198,10 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     private var cachedGutterWidth = 0f
     private var cachedGutterDigits = -1
     private var cachedGutterTextSize = -1f
+    private var cachedVisualLayout: EditorVisualLayout? = null
+    private var cachedVisualLayoutVersion = -1
+    private var cachedVisualLayoutMaxCells = -1
+    private var cachedVisualLayoutSoftWrap = false
 
     private val scaleGestureDetector =
         ScaleGestureDetector(
@@ -303,13 +309,19 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         actionMode?.finish()
         actionMode = null
         textChangedListener = null
+        interactionStateChangedListener = null
         completionCallback = null
         highlighter.release()
     }
 
     fun setEditorTheme(theme: EditorTheme) {
+        if (this.theme == theme) {
+            return
+        }
         this.theme = theme
         refreshPaints()
+        clampScrollOffsets()
+        ensureCursorVisible()
         requestRender()
     }
 
@@ -336,7 +348,38 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     }
 
     fun setShowLineNumbers(showLineNumbers: Boolean) {
+        if (this.showLineNumbers == showLineNumbers) {
+            return
+        }
         this.showLineNumbers = showLineNumbers
+        invalidateVisualLayout()
+        clampScrollOffsets()
+        ensureCursorVisible()
+        requestRender()
+    }
+
+    fun setSoftWrap(softWrap: Boolean) {
+        if (this.softWrap == softWrap) {
+            return
+        }
+        val viewportTransition =
+            resolveEditorWrapModeViewportTransition(
+                softWrap = softWrap,
+                currentScrollY = scrollOffsetY,
+            )
+        this.softWrap = softWrap
+        if (!scroller.isFinished) {
+            scroller.forceFinished(true)
+        }
+        scrollOffsetX = viewportTransition.scrollX
+        scrollOffsetY = viewportTransition.scrollY
+        preferredColumnCells = null
+        hideCompletions()
+        invalidateVisualLayout()
+        clampScrollOffsets()
+        if (viewportTransition.ensureCursorVisible) {
+            ensureCursorVisible()
+        }
         requestRender()
     }
 
@@ -363,6 +406,13 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         textChangedListener = listener
     }
 
+    fun setOnInteractionStateChangedListener(listener: ((EditorInteractionState) -> Unit)?) {
+        interactionStateChangedListener = listener
+        if (listener != null) {
+            notifyInteractionStateChanged()
+        }
+    }
+
     fun setCompletionCallback(callback: EditorCompletionCallback?) {
         completionCallback = callback
         if (callback == null) {
@@ -374,6 +424,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
     fun setTextContent(text: String) {
         document.setText(text, clearHistory = true)
+        invalidateVisualLayout()
         highlightSnapshot = HighlightSnapshot(document.version, IntArray(text.length))
         completionPrefix = ""
         preferredColumnCells = null
@@ -406,6 +457,18 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             return
         }
         document.replaceAllText(newText)
+        onDocumentMutated()
+    }
+
+    fun replaceRange(
+        start: Int,
+        end: Int,
+        replacement: String,
+    ) {
+        if (readOnly) {
+            return
+        }
+        document.replaceRange(start, end, replacement)
         onDocumentMutated()
     }
 
@@ -768,10 +831,31 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
     private fun moveCursorVertical(deltaLines: Int, extendSelection: Boolean) {
         val caret = document.selectionEnd
-        val currentLine = document.getLineForOffset(caret)
-        val targetLine = (currentLine + deltaLines).coerceIn(0, document.lineCount() - 1)
-        val targetColumn = preferredColumnCells ?: document.getCellColumnForOffset(caret)
-        val targetOffset = document.getOffsetForLineAndCellColumn(targetLine, targetColumn)
+        val targetOffset: Int
+        val targetColumn: Int
+        if (softWrap) {
+            val layout = visualLayout()
+            val currentRowIndex = layout.rowIndexForOffset(caret)
+            val currentRow = layout.row(currentRowIndex)
+            val targetRow =
+                layout.row((currentRowIndex + deltaLines).coerceIn(0, layout.rowCount - 1))
+            targetColumn =
+                preferredColumnCells
+                    ?: (document.getCellColumnForOffset(caret) - currentRow.startCell)
+                        .coerceAtLeast(0)
+            targetOffset =
+                document
+                    .getOffsetForLineAndCellColumn(
+                        targetRow.logicalLine,
+                        targetRow.startCell + targetColumn,
+                    )
+                    .coerceIn(targetRow.startOffset, targetRow.endOffset)
+        } else {
+            val currentLine = document.getLineForOffset(caret)
+            val targetLine = (currentLine + deltaLines).coerceIn(0, document.lineCount() - 1)
+            targetColumn = preferredColumnCells ?: document.getCellColumnForOffset(caret)
+            targetOffset = document.getOffsetForLineAndCellColumn(targetLine, targetColumn)
+        }
         if (extendSelection) {
             document.setSelection(document.selectionStart, targetOffset)
         } else {
@@ -894,6 +978,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             return
         }
         preferredColumnCells = null
+        invalidateVisualLayout()
         ensureCursorVisible()
         notifySelectionChanged()
         requestHighlight()
@@ -916,6 +1001,23 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             document.selectionEnd,
             document.composingStart,
             document.composingEnd
+        )
+        notifyInteractionStateChanged()
+    }
+
+    private fun notifyInteractionStateChanged() {
+        val listener = interactionStateChangedListener ?: return
+        val cursor = document.selectionEnd
+        val line = document.getLineForOffset(cursor)
+        val lineStart = document.getLineStart(line)
+        listener(
+            EditorInteractionState(
+                canUndo = document.canUndo(),
+                canRedo = document.canRedo(),
+                cursorLine = line + 1,
+                cursorColumn = cursor - lineStart + 1,
+                selectionCharacters = abs(document.selectionEnd - document.selectionStart),
+            )
         )
     }
 
@@ -1018,6 +1120,7 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         cachedGutterDigits = -1
         cachedGutterTextSize = -1f
         cachedGutterWidth = 0f
+        invalidateVisualLayout()
     }
 
     private fun blendColors(baseColor: Int, overlayColor: Int, overlayRatio: Float): Int {
@@ -1040,8 +1143,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     private fun drawEditor(canvas: Canvas) {
         canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), backgroundPaint)
 
-        val lineCount = document.lineCount()
-        if (lineCount <= 0) {
+        val visualLayout = visualLayout()
+        if (visualLayout.rowCount <= 0) {
             return
         }
 
@@ -1051,57 +1154,70 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             canvas.drawRect(0f, 0f, gutterWidth, canvas.height.toFloat(), gutterPaint)
         }
 
-        val firstVisibleLine =
+        val firstVisibleRow =
             max(
                 0,
                 ((scrollOffsetY - verticalPaddingPx) / metrics.lineHeight).toInt()
             )
-        val lastVisibleLine =
+        val lastVisibleRow =
             min(
-                lineCount - 1,
+                visualLayout.rowCount - 1,
                 ceil(
                     ((scrollOffsetY + canvas.height - verticalPaddingPx) / metrics.lineHeight)
                         .toDouble()
                 ).toInt()
             )
 
-        val cursorLine = document.getLineForOffset(document.selectionEnd)
-        if (!document.hasSelection() && cursorLine in firstVisibleLine..lastVisibleLine) {
-            val lineTop = verticalPaddingPx + cursorLine * metrics.lineHeight - scrollOffsetY
+        val cursorRow = visualLayout.rowIndexForOffset(document.selectionEnd)
+        val cursorLogicalLine = document.getLineForOffset(document.selectionEnd)
+        if (!document.hasSelection() && cursorRow in firstVisibleRow..lastVisibleRow) {
+            val rowTop = verticalPaddingPx + cursorRow * metrics.lineHeight - scrollOffsetY
             if (showLineNumbers && gutterWidth > 0f) {
                 canvas.drawRect(
                     0f,
-                    lineTop,
+                    rowTop,
                     gutterWidth,
-                    lineTop + metrics.lineHeight,
+                    rowTop + metrics.lineHeight,
                     activeGutterLinePaint
                 )
             }
             canvas.drawRect(
                 textRegionLeft,
-                lineTop,
+                rowTop,
                 canvas.width.toFloat(),
-                lineTop + metrics.lineHeight,
+                rowTop + metrics.lineHeight,
                 currentLinePaint
             )
         }
 
-        for (line in firstVisibleLine..lastVisibleLine) {
-            val lineTop = verticalPaddingPx + line * metrics.lineHeight - scrollOffsetY
+        for (rowIndex in firstVisibleRow..lastVisibleRow) {
+            val row = visualLayout.row(rowIndex)
+            val rowTop = verticalPaddingPx + rowIndex * metrics.lineHeight - scrollOffsetY
             if (showLineNumbers) {
-                drawLineNumber(canvas, line, lineTop, cursorLine, gutterWidth)
+                if (row.isContinuation) {
+                    drawWrapContinuationMarker(canvas, rowTop, gutterWidth)
+                } else {
+                    drawLineNumber(
+                        canvas = canvas,
+                        logicalLine = row.logicalLine,
+                        rowTop = rowTop,
+                        currentLogicalLine = cursorLogicalLine,
+                        gutterWidth = gutterWidth,
+                    )
+                }
             }
         }
 
         canvas.save()
         canvas.clipRect(textRegionLeft, 0f, canvas.width.toFloat(), canvas.height.toFloat())
-        for (line in firstVisibleLine..lastVisibleLine) {
-            val lineTop = verticalPaddingPx + line * metrics.lineHeight - scrollOffsetY
-            drawIndentGuides(canvas, line, lineTop, textRegionLeft)
-            drawTextForLine(canvas, line, lineTop, textRegionLeft)
-            drawSelectionForLine(canvas, line, lineTop, textRegionLeft)
-            drawComposingUnderline(canvas, line, lineTop, textRegionLeft)
-            drawCursorForLine(canvas, line, lineTop, cursorLine, textRegionLeft)
+        for (rowIndex in firstVisibleRow..lastVisibleRow) {
+            val row = visualLayout.row(rowIndex)
+            val rowTop = verticalPaddingPx + rowIndex * metrics.lineHeight - scrollOffsetY
+            drawIndentGuides(canvas, row, rowTop, textRegionLeft)
+            drawTextForRow(canvas, row, rowTop, textRegionLeft)
+            drawSelectionForRow(canvas, row, rowTop, textRegionLeft)
+            drawComposingUnderline(canvas, row, rowTop, textRegionLeft)
+            drawCursorForRow(canvas, row, rowIndex, rowTop, cursorRow, textRegionLeft)
         }
         canvas.restore()
 
@@ -1112,27 +1228,54 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
     private fun drawLineNumber(
         canvas: Canvas,
-        line: Int,
-        lineTop: Float,
-        currentLine: Int,
+        logicalLine: Int,
+        rowTop: Float,
+        currentLogicalLine: Int,
         gutterWidth: Float
     ) {
-        val baseline = lineTop + metrics.baseline
+        val baseline = rowTop + metrics.baseline
         if (baseline < 0f || baseline > canvas.height + metrics.lineHeight) {
             return
         }
-        val label = (line + 1).toString()
+        val label = (logicalLine + 1).toString()
         val x = gutterWidth - gutterTrailingPaddingPx()
-        if (line == currentLine) {
+        if (logicalLine == currentLogicalLine) {
             canvas.drawText(label, x, baseline, activeLineNumberPaint)
             return
         }
         canvas.drawText(label, x, baseline, lineNumberPaint)
     }
 
-    private fun drawIndentGuides(canvas: Canvas, line: Int, lineTop: Float, textRegionLeft: Float) {
-        val lineStart = document.getLineStart(line)
-        val lineEnd = document.getLineEnd(line)
+    private fun drawWrapContinuationMarker(
+        canvas: Canvas,
+        rowTop: Float,
+        gutterWidth: Float,
+    ) {
+        val markerRight = gutterWidth - gutterTrailingPaddingPx()
+        val markerLeft = markerRight - density * 5f
+        val markerY = rowTop + metrics.lineHeight * 0.5f
+        canvas.drawRoundRect(
+            markerLeft,
+            markerY - density * 0.75f,
+            markerRight,
+            markerY + density * 0.75f,
+            density,
+            density,
+            gutterAccentPaint,
+        )
+    }
+
+    private fun drawIndentGuides(
+        canvas: Canvas,
+        row: EditorVisualRow,
+        rowTop: Float,
+        textRegionLeft: Float,
+    ) {
+        if (row.isContinuation) {
+            return
+        }
+        val lineStart = row.lineStartOffset
+        val lineEnd = row.lineEndOffset
         val text = document.text()
         var cells = 0
         var indentLevels = 0
@@ -1162,18 +1305,18 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             }
             canvas.drawLine(
                 x,
-                lineTop + density * 2f,
+                rowTop + density * 2f,
                 x,
-                lineTop + metrics.lineHeight - density * 2f,
+                rowTop + metrics.lineHeight - density * 2f,
                 indentGuidePaint
             )
         }
     }
 
-    private fun drawSelectionForLine(
+    private fun drawSelectionForRow(
         canvas: Canvas,
-        line: Int,
-        lineTop: Float,
+        row: EditorVisualRow,
+        rowTop: Float,
         textRegionLeft: Float
     ) {
         if (!document.hasSelection()) {
@@ -1182,31 +1325,31 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
         val selectionStart = min(document.selectionStart, document.selectionEnd)
         val selectionEnd = max(document.selectionStart, document.selectionEnd)
-        val lineStart = document.getLineStart(line)
-        val lineEnd = document.getLineEnd(line)
+        val rowStart = row.startOffset
+        val rowEnd = row.endOffset
 
-        val start = max(selectionStart, lineStart)
-        val end = min(selectionEnd, lineEnd)
+        val start = max(selectionStart, rowStart)
+        val end = min(selectionEnd, rowEnd)
 
-        if (selectionEnd <= lineStart || selectionStart >= lineEnd) {
+        if (selectionEnd <= rowStart || selectionStart >= rowEnd) {
             return
         }
 
-        if (start == end && !(selectionStart < lineStart && selectionEnd > lineStart)) {
+        if (start == end && !(selectionStart < rowStart && selectionEnd > rowStart)) {
             return
         }
 
         val left =
-            if (selectionStart < lineStart) {
+            if (selectionStart < rowStart) {
                 textRegionLeft
             } else {
-                textRegionLeft + xForOffsetInLine(start) - scrollOffsetX
+                textRegionLeft + xForOffsetInRow(start, row) - scrollOffsetX
             }
         val right =
-            if (selectionEnd > lineEnd) {
-                textRegionLeft + xForOffsetInLine(lineEnd) - scrollOffsetX
+            if (selectionEnd > rowEnd) {
+                textRegionLeft + xForOffsetInRow(rowEnd, row) - scrollOffsetX
             } else {
-                textRegionLeft + xForOffsetInLine(end) - scrollOffsetX
+                textRegionLeft + xForOffsetInRow(end, row) - scrollOffsetX
             }
         if (right <= left) {
             return
@@ -1214,28 +1357,28 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
         canvas.drawRect(
             left.coerceAtLeast(textRegionLeft),
-            lineTop,
+            rowTop,
             right.coerceAtMost(width.toFloat()),
-            lineTop + metrics.lineHeight,
+            rowTop + metrics.lineHeight,
             selectionPaint
         )
     }
 
-    private fun drawTextForLine(
+    private fun drawTextForRow(
         canvas: Canvas,
-        line: Int,
-        lineTop: Float,
+        row: EditorVisualRow,
+        rowTop: Float,
         textRegionLeft: Float
     ) {
-        val lineStart = document.getLineStart(line)
-        val lineEnd = document.getLineEnd(line)
+        val rowStart = row.startOffset
+        val rowEnd = row.endOffset
         val text = document.text()
         var x = textRegionLeft - scrollOffsetX
-        val baseline = lineTop + metrics.baseline
+        val baseline = rowTop + metrics.baseline
         val leftClip = textRegionLeft - metrics.charWidth * TAB_SPACES
         val rightClip = width.toFloat() + metrics.charWidth * TAB_SPACES
 
-        var offset = lineStart
+        var offset = rowStart
         var runStart = -1
         var runEnd = -1
         var runX = 0f
@@ -1251,9 +1394,9 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             runEnd = -1
         }
 
-        while (offset < lineEnd) {
-            val nextOffset = editorNextSymbolOffset(text, offset, lineEnd)
-            val cellWidth = editorCellWidth(text, offset, lineEnd)
+        while (offset < rowEnd) {
+            val nextOffset = editorNextSymbolOffset(text, offset, rowEnd)
+            val cellWidth = editorCellWidth(text, offset, rowEnd)
             val advance = metrics.charWidth * cellWidth
             if (x + advance < leftClip) {
                 x += advance
@@ -1305,8 +1448,8 @@ class CanvasCodeEditorView @JvmOverloads constructor(
 
     private fun drawComposingUnderline(
         canvas: Canvas,
-        line: Int,
-        lineTop: Float,
+        row: EditorVisualRow,
+        rowTop: Float,
         textRegionLeft: Float
     ) {
         if (!document.hasComposingRegion()) {
@@ -1314,35 +1457,34 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         }
         val composingStart = document.composingStart
         val composingEnd = document.composingEnd
-        val lineStart = document.getLineStart(line)
-        val lineEnd = document.getLineEnd(line)
-        val start = max(composingStart, lineStart)
-        val end = min(composingEnd, lineEnd)
+        val start = max(composingStart, row.startOffset)
+        val end = min(composingEnd, row.endOffset)
         if (start >= end) {
             return
         }
-        val left = textRegionLeft + xForOffsetInLine(start) - scrollOffsetX
-        val right = textRegionLeft + xForOffsetInLine(end) - scrollOffsetX
-        val y = lineTop + metrics.lineHeight - density * 3f
+        val left = textRegionLeft + xForOffsetInRow(start, row) - scrollOffsetX
+        val right = textRegionLeft + xForOffsetInRow(end, row) - scrollOffsetX
+        val y = rowTop + metrics.lineHeight - density * 3f
         canvas.drawLine(left, y, right, y, composingPaint)
     }
 
-    private fun drawCursorForLine(
+    private fun drawCursorForRow(
         canvas: Canvas,
-        line: Int,
-        lineTop: Float,
-        cursorLine: Int,
+        row: EditorVisualRow,
+        rowIndex: Int,
+        rowTop: Float,
+        cursorRow: Int,
         textRegionLeft: Float
     ) {
-        if (document.hasSelection() || line != cursorLine) {
+        if (document.hasSelection() || rowIndex != cursorRow) {
             return
         }
-        val x = textRegionLeft + xForOffsetInLine(document.selectionEnd) - scrollOffsetX
+        val x = textRegionLeft + xForOffsetInRow(document.selectionEnd, row) - scrollOffsetX
         canvas.drawRect(
             x,
-            lineTop + density,
+            rowTop + density,
             x + cursorWidthPx,
-            lineTop + metrics.lineHeight - density,
+            rowTop + metrics.lineHeight - density,
             cursorPaint
         )
     }
@@ -1388,10 +1530,13 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     }
 
     private fun contentHeightPx(): Float {
-        return verticalPaddingPx * 2f + document.lineCount() * metrics.lineHeight
+        return verticalPaddingPx * 2f + visualLayout().rowCount * metrics.lineHeight
     }
 
     private fun contentWidthPx(): Float {
+        if (softWrap) {
+            return textViewportWidth()
+        }
         return horizontalPaddingPx + document.maxLineCells * metrics.charWidth + horizontalPaddingPx
     }
 
@@ -1439,6 +1584,9 @@ class CanvasCodeEditorView @JvmOverloads constructor(
     }
 
     private fun maxScrollX(): Float {
+        if (softWrap) {
+            return 0f
+        }
         return max(0f, contentWidthPx() - textViewportWidth())
     }
 
@@ -1446,24 +1594,28 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         return max(0f, contentHeightPx() - height.toFloat())
     }
 
-    private fun xForOffsetInLine(offset: Int): Float {
-        return document.getCellColumnForOffset(offset) * metrics.charWidth
+    private fun xForOffsetInRow(
+        offset: Int,
+        row: EditorVisualRow,
+    ): Float {
+        val logicalCell = document.getCellColumnForOffset(offset)
+        return (logicalCell - row.startCell).coerceAtLeast(0) * metrics.charWidth
     }
 
     private fun screenToOffset(x: Float, y: Float): Int {
-        val line =
+        val layout = visualLayout()
+        val rowIndex =
             (((y + scrollOffsetY - verticalPaddingPx) / metrics.lineHeight).toInt())
-                .coerceIn(0, document.lineCount() - 1)
+                .coerceIn(0, layout.rowCount - 1)
+        val row = layout.row(rowIndex)
         val targetX = scrollOffsetX + (x - textRegionLeft()).coerceAtLeast(0f)
-        val lineStart = document.getLineStart(line)
-        val lineEnd = document.getLineEnd(line)
         val text = document.text()
         var currentX = 0f
 
-        var offset = lineStart
-        while (offset < lineEnd) {
-            val nextOffset = editorNextSymbolOffset(text, offset, lineEnd)
-            val advance = editorCellWidth(text, offset, lineEnd) * metrics.charWidth
+        var offset = row.startOffset
+        while (offset < row.endOffset) {
+            val nextOffset = editorNextSymbolOffset(text, offset, row.endOffset)
+            val advance = editorCellWidth(text, offset, row.endOffset) * metrics.charWidth
             val midpoint = currentX + advance * 0.5f
             if (targetX < midpoint) {
                 return offset
@@ -1474,22 +1626,25 @@ class CanvasCodeEditorView @JvmOverloads constructor(
             currentX += advance
             offset = nextOffset
         }
-        return lineEnd
+        return row.endOffset
     }
 
     private fun offsetToPoint(offset: Int): Point {
         val safeOffset = offset.coerceIn(0, document.length())
-        val line = document.getLineForOffset(safeOffset)
-        val x = textRegionLeft() + xForOffsetInLine(safeOffset) - scrollOffsetX
-        val y = verticalPaddingPx + line * metrics.lineHeight - scrollOffsetY + metrics.lineHeight
+        val layout = visualLayout()
+        val rowIndex = layout.rowIndexForOffset(safeOffset)
+        val row = layout.row(rowIndex)
+        val x = textRegionLeft() + xForOffsetInRow(safeOffset, row) - scrollOffsetX
+        val y = verticalPaddingPx + rowIndex * metrics.lineHeight - scrollOffsetY + metrics.lineHeight
         return Point(x.roundToInt(), y.roundToInt())
     }
 
     private fun ensureCursorVisible() {
-        val line = document.getLineForOffset(document.selectionEnd)
+        val layout = visualLayout()
+        val rowIndex = layout.rowIndexForOffset(document.selectionEnd)
         val point = offsetToPoint(document.selectionEnd)
-        val lineTop = verticalPaddingPx + line * metrics.lineHeight - scrollOffsetY
-        val lineBottom = lineTop + metrics.lineHeight
+        val rowTop = verticalPaddingPx + rowIndex * metrics.lineHeight - scrollOffsetY
+        val rowBottom = rowTop + metrics.lineHeight
         val leftLimit = textRegionLeft() + metrics.charWidth * 2f
         val rightLimit = width - horizontalPaddingPx - metrics.charWidth * 2f
         val topLimit = verticalPaddingPx
@@ -1502,19 +1657,61 @@ class CanvasCodeEditorView @JvmOverloads constructor(
         var newScrollX = scrollOffsetX
         var newScrollY = scrollOffsetY
 
-        if (point.x < leftLimit) {
-            newScrollX -= (leftLimit - point.x)
-        } else if (point.x > rightLimit) {
-            newScrollX += (point.x - rightLimit)
+        if (!softWrap) {
+            if (point.x < leftLimit) {
+                newScrollX -= (leftLimit - point.x)
+            } else if (point.x > rightLimit) {
+                newScrollX += (point.x - rightLimit)
+            }
+        } else {
+            newScrollX = 0f
         }
 
-        if (lineTop < topLimit) {
-            newScrollY -= (topLimit - lineTop)
-        } else if (lineBottom > bottomLimit) {
-            newScrollY += (lineBottom - bottomLimit)
+        if (rowTop < topLimit) {
+            newScrollY -= (topLimit - rowTop)
+        } else if (rowBottom > bottomLimit) {
+            newScrollY += (rowBottom - bottomLimit)
         }
 
         setScrollOffsets(newScrollX, newScrollY, request = false)
+    }
+
+    private fun visualLayout(): EditorVisualLayout {
+        val maxCells = visualRowCellCapacity()
+        val cached = cachedVisualLayout
+        if (
+            cached != null &&
+                cachedVisualLayoutVersion == document.version &&
+                cachedVisualLayoutMaxCells == maxCells &&
+                cachedVisualLayoutSoftWrap == softWrap
+        ) {
+            return cached
+        }
+
+        val rebuilt =
+            EditorVisualLayout.build(
+                text = document.text(),
+                softWrap = softWrap && width > 0,
+                maxCellsPerRow = maxCells,
+            )
+        cachedVisualLayout = rebuilt
+        cachedVisualLayoutVersion = document.version
+        cachedVisualLayoutMaxCells = maxCells
+        cachedVisualLayoutSoftWrap = softWrap
+        return rebuilt
+    }
+
+    private fun visualRowCellCapacity(): Int {
+        if (!softWrap || width <= 0 || metrics.charWidth <= 0f) {
+            return Int.MAX_VALUE
+        }
+        return max(1, (textViewportWidth() / metrics.charWidth).toInt())
+    }
+
+    private fun invalidateVisualLayout() {
+        cachedVisualLayout = null
+        cachedVisualLayoutVersion = -1
+        cachedVisualLayoutMaxCells = -1
     }
 
     private fun detectHandleHit(x: Float, y: Float): DragHandle {
@@ -1628,28 +1825,19 @@ class CanvasCodeEditorView @JvmOverloads constructor(
                 override fun onGetContentRect(mode: ActionMode, view: View, outRect: Rect) {
                     val start = min(document.selectionStart, document.selectionEnd)
                     val end = max(document.selectionStart, document.selectionEnd)
-                    val startLine = document.getLineForOffset(start)
-                    val endLine = document.getLineForOffset(end)
-                    val left =
-                        (textRegionLeft() + xForOffsetInLine(start) - scrollOffsetX)
-                            .roundToInt()
-                            .coerceIn(0, width)
-                    val right =
-                        (textRegionLeft() + xForOffsetInLine(end) - scrollOffsetX)
-                            .roundToInt()
-                            .coerceIn(0, width)
+                    val startPoint = offsetToPoint(start)
+                    val endPoint = offsetToPoint(end)
+                    val left = min(startPoint.x, endPoint.x).coerceIn(0, width)
+                    val right = max(startPoint.x, endPoint.x).coerceIn(0, width)
                     val top =
-                        (verticalPaddingPx + startLine * metrics.lineHeight - scrollOffsetY)
+                        (min(startPoint.y, endPoint.y) - metrics.lineHeight)
                             .roundToInt()
                             .coerceIn(0, height)
-                    val bottom =
-                        (verticalPaddingPx + endLine * metrics.lineHeight - scrollOffsetY + metrics.lineHeight)
-                            .roundToInt()
-                            .coerceIn(0, height)
+                    val bottom = max(startPoint.y, endPoint.y).coerceIn(0, height)
                     outRect.set(
-                        min(left, right),
+                        left,
                         top,
-                        max(left, right).coerceAtLeast(min(left, right) + 1),
+                        right.coerceAtLeast(left + 1),
                         max(bottom, top + 1)
                     )
                 }

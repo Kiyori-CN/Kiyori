@@ -277,6 +277,7 @@ class StandardBrowserSessionTools private constructor(
                 "browser_navigate" -> browserNavigate(tool)
                 "browser_navigate_back" -> browserNavigateBack(tool)
                 "browser_network_requests" -> browserNetworkRequests(tool)
+                "browser_page_source" -> browserPageSource(tool)
                 "browser_press_key" -> browserPressKey(tool)
                 "browser_resize" -> browserResize(tool)
                 "browser_run_code" -> browserRunCode(tool)
@@ -1412,6 +1413,96 @@ class StandardBrowserSessionTools private constructor(
                 pageState = renderPageState(session),
                 result = resultText
             )
+        )
+    }
+
+    private fun browserPageSource(tool: AITool): ToolResult {
+        val scope = param(tool, "scope")?.trim()?.lowercase(Locale.ROOT)
+        if (scope !in setOf("live", "editor")) {
+            return error(tool.name, "scope must be one of: live, editor")
+        }
+        val session = getSession(null) ?: return error(tool.name, "No active browser tab")
+        val filename = param(tool, "filename")?.trim()?.takeIf(String::isNotBlank)
+        val sourceSnapshot =
+            when (scope) {
+                "live" -> {
+                    ensureBrowserExecutionPresentation(tool.name)?.let { return it }
+                    runOnMainSync<Unit> {
+                        ensureSessionAttachedOnMain(session.id)
+                    }
+                    val rawValue =
+                        evaluateJavascriptAsync(
+                            session.webView,
+                            buildBrowserPageSourceCaptureScript(documentToken = null),
+                            DEFAULT_TIMEOUT_MS,
+                        )
+                    val result = parseBrowserPageSourceCaptureResult(rawValue)
+                    val capture =
+                        result.capture
+                            ?: return error(
+                                tool.name,
+                                when (result.errorCode) {
+                                    "source_too_large" ->
+                                        "The live page source has ${result.sourceLength ?: "more than $BROWSER_PAGE_SOURCE_MAX_CHARS"} characters and exceeds the editor limit of $BROWSER_PAGE_SOURCE_MAX_CHARS."
+                                    "empty_document" -> "The active page has no document element."
+                                    else -> "Failed to read the live page source."
+                                },
+                            )
+                    BrowserPageSourceEditorSnapshot(
+                        sessionId = session.id,
+                        pageUrl = capture.pageUrl,
+                        pageTitle = capture.pageTitle,
+                        source = capture.source,
+                        hasChanges = false,
+                    )
+                }
+                "editor" ->
+                    browserHost?.currentPageSourceEditorSnapshot(session.id)
+                        ?: return error(
+                            tool.name,
+                            "No page-source editor buffer is bound to the active browser tab.",
+                        )
+                else -> throw IllegalStateException("Unreachable page-source scope")
+            }
+
+        if (
+            filename == null &&
+                sourceSnapshot.source.length > BROWSER_PAGE_SOURCE_INLINE_AI_MAX_CHARS
+        ) {
+            return error(
+                tool.name,
+                "The ${scope} page source has ${sourceSnapshot.source.length} characters. Provide filename to write it to the browser temporary output directory.",
+            )
+        }
+        val sourceResult =
+            if (filename != null) {
+                val path =
+                    writeBrowserTextOutput(
+                        filename = filename,
+                        content = sourceSnapshot.source,
+                        defaultPrefix = "page_source",
+                        extension = "html",
+                    )
+                "Saved page source to $path"
+            } else {
+                sourceSnapshot.source
+            }
+        return ok(
+            tool.name,
+            buildBrowserResponse(
+                openTabs = renderOpenTabs(),
+                pageState = renderPageState(session),
+                result =
+                    buildString {
+                        appendLine("Page source scope: $scope")
+                        appendLine("Session: ${sourceSnapshot.sessionId}")
+                        appendLine("URL: ${sourceSnapshot.pageUrl}")
+                        appendLine("Title: ${sourceSnapshot.pageTitle}")
+                        appendLine("Characters: ${sourceSnapshot.source.length}")
+                        appendLine("Editor changes: ${sourceSnapshot.hasChanges}")
+                        append(sourceResult)
+                    },
+            ),
         )
     }
 
