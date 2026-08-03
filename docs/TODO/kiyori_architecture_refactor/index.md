@@ -413,5 +413,6 @@ M-02 至 M-05 已形成 checkpoint
 当前先执行
 [Stage 4 前质量债务与开发就绪精确清单](21_quality_debt_and_stage4_readiness_manifest.md)：
 把 `317` 条 current-only Lint 按正确性、行为保持型现代化、资源、Android/Browser
-平台合同和依赖五批收口，并审计当前 `5786` 条历史 baseline 中项目自有的高风险项。完成该
+平台合同和依赖五批收口；current-only 已在 QD-05 归零，继续清理完整 Kotlin 编译警报并
+审计当前 `5776` 条历史 baseline 中项目自有的高风险项。完成该
 质量门禁后再进入阶段 4 Browser 产品域。

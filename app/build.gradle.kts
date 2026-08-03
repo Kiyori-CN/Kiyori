@@ -12,9 +12,12 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import org.gradle.api.DefaultTask
+import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
@@ -25,6 +28,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.bundling.Zip
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -130,6 +134,110 @@ private fun ByteArray.containsByteSequence(needle: ByteArray): Boolean {
     }
     return false
 }
+
+private fun Project.registerSanitizedDependencyJar(
+    taskName: String,
+    inputConfiguration: Configuration,
+    outputFileName: String,
+    excludedPrefixes: Set<String>,
+    expectedUnsafeEntries: Set<String>,
+): TaskProvider<Zip> =
+    inputConfiguration.elements.map { elements -> elements.single().asFile }.let {
+        inputJarProvider ->
+        tasks.register<Zip>(taskName) {
+            group = "build setup"
+            description =
+                "Removes a closed, unused insecure capability from a fixed upstream dependency JAR."
+            inputs.file(inputJarProvider)
+            archiveFileName.set(outputFileName)
+            destinationDirectory.set(layout.buildDirectory.dir("generated/sanitized-dependencies"))
+            isPreserveFileTimestamps = false
+            isReproducibleFileOrder = true
+
+            doFirst {
+                val inputJar = inputJarProvider.get()
+                ZipFile(inputJar).use { archive ->
+                    val entries =
+                        archive.entries().asSequence().filterNot { it.isDirectory }.toList()
+                    val entryNames = entries.mapTo(mutableSetOf()) { it.name }
+                    val missingUnsafeEntries = expectedUnsafeEntries - entryNames
+                    check(missingUnsafeEntries.isEmpty()) {
+                        "Sanitizer input changed; expected insecure entries are missing from " +
+                            "${inputJar.name}: ${missingUnsafeEntries.sorted()}"
+                    }
+
+                    val excludedPrefixBytes =
+                        excludedPrefixes.map { prefix -> prefix.toByteArray(Charsets.UTF_8) }
+                    val unexpectedReferences = mutableListOf<String>()
+                    for (entry in entries) {
+                        if (!entry.name.endsWith(".class")) {
+                            continue
+                        }
+                        if (
+                            entry.name == "module-info.class" ||
+                                entry.name.endsWith("/module-info.class")
+                        ) {
+                            continue
+                        }
+                        var excluded = false
+                        for (prefix in excludedPrefixes) {
+                            if (entry.name.startsWith(prefix)) {
+                                excluded = true
+                                break
+                            }
+                        }
+                        if (excluded) {
+                            continue
+                        }
+                        val bytecode = archive.getInputStream(entry).use { it.readBytes() }
+                        var referencesExcludedCapability = false
+                        for (prefixBytes in excludedPrefixBytes) {
+                            if (bytecode.containsByteSequence(prefixBytes)) {
+                                referencesExcludedCapability = true
+                                break
+                            }
+                        }
+                        if (referencesExcludedCapability) {
+                            unexpectedReferences += entry.name
+                        }
+                    }
+                    check(unexpectedReferences.isEmpty()) {
+                        "Cannot remove insecure dependency capability because retained classes " +
+                            "reference it: ${unexpectedReferences.joinToString()}"
+                    }
+                }
+            }
+
+            from(inputJarProvider.map { inputJar -> zipTree(inputJar) }) {
+                excludedPrefixes.forEach { prefix -> exclude("$prefix**") }
+                exclude(
+                    "module-info.class",
+                    "META-INF/versions/*/module-info.class",
+                    "META-INF/*.SF",
+                    "META-INF/*.RSA",
+                    "META-INF/*.DSA",
+                    "META-INF/*.EC",
+                )
+            }
+
+            doLast {
+                val outputJar = archiveFile.get().asFile
+                ZipFile(outputJar).use { archive ->
+                    val residualEntries =
+                        archive.entries().asSequence()
+                            .map { it.name }
+                            .filter { name ->
+                                excludedPrefixes.any { prefix -> name.startsWith(prefix) }
+                            }
+                            .toList()
+                    check(residualEntries.isEmpty()) {
+                        "Sanitized dependency still contains excluded entries: " +
+                            residualEntries.joinToString()
+                    }
+                }
+            }
+        }
+    }
 
 @CacheableTask
 abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
@@ -362,7 +470,7 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.ai.assistance.operit"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     signingConfigs {
@@ -514,6 +622,9 @@ android {
             excludes += "/META-INF/NOTICE.txt"
             excludes += "/META-INF/notice.txt"
             excludes += "/META-INF/ASL2.0"
+            // BouncyCastle 1.85 的 bcprov/bcutil/bcpkix 携带逐字节相同的许可证；
+            // 保留一份精确副本，否则 Java resource merge 会因重复路径失败。
+            pickFirsts += "/META-INF/LICENSE.md"
             excludes += "/META-INF/*.SF"
             excludes += "/META-INF/*.DSA"
             excludes += "/META-INF/*.RSA"
@@ -827,7 +938,50 @@ kotlin {
     }
 }
 
+val poiOoxmlSanitizerInput =
+    configurations.create("poiOoxmlSanitizerInput") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        isTransitive = false
+    }
+val bcpkixSanitizerInput =
+    configurations.create("bcpkixSanitizerInput") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        isTransitive = false
+    }
+val sanitizePoiOoxml =
+    project.registerSanitizedDependencyJar(
+        taskName = "sanitizePoiOoxml",
+        inputConfiguration = poiOoxmlSanitizerInput,
+        outputFileName = "poi-ooxml-safe-${libs.versions.poi.get()}.jar",
+        excludedPrefixes =
+            setOf(
+                "org/apache/poi/poifs/crypt/dsig/",
+                "org/apache/poi/xssf/usermodel/XSSFSignatureLine",
+                "org/apache/poi/xwpf/usermodel/XWPFSignatureLine",
+            ),
+        expectedUnsafeEntries =
+            setOf(
+                "org/apache/poi/poifs/crypt/dsig/services/" +
+                    "TimeStampSimpleHttpClient\$UnsafeTrustManager.class",
+            ),
+    )
+val sanitizeBcpkix =
+    project.registerSanitizedDependencyJar(
+        taskName = "sanitizeBcpkix",
+        inputConfiguration = bcpkixSanitizerInput,
+        outputFileName = "bcpkix-safe-${libs.versions.bouncycastle.get()}.jar",
+        excludedPrefixes = setOf("org/bouncycastle/est/"),
+        expectedUnsafeEntries =
+            setOf(
+                "org/bouncycastle/est/jcajce/JcaJceUtils\$1.class",
+            ),
+    )
 dependencies {
+    add(poiOoxmlSanitizerInput.name, libs.poi.ooxml)
+    add(bcpkixSanitizerInput.name, libs.bouncycastle.bcpkix)
+
     implementation("com.github.jelmerk:hnswlib-core:1.2.1")
     implementation(project(":dragonbones"))
     implementation(project(":terminal"))
@@ -959,6 +1113,9 @@ dependencies {
     // Room 数据库
     implementation(libs.room.runtime)
     implementation(libs.room.ktx) // Kotlin扩展和协程支持
+    // Room 2.8.4 的处理器默认解析到 kotlin-metadata-jvm 2.2.0，无法读取 Kotlin 2.4 metadata。
+    // 显式对齐编译器 metadata 库；否则 KAPT 在生成 Room 实现前会因 metadata 版本上限失败。
+    kapt(libs.kotlin.metadata.jvm)
     kapt(libs.room.compiler) // 使用kapt代替ksp
 
     // ObjectBox
@@ -1013,8 +1170,11 @@ dependencies {
 
     // Apache POI - for Document processing (DOC, DOCX, etc.)
     implementation(libs.poi)
-    implementation(libs.poi.ooxml)
+    implementation(files(sanitizePoiOoxml.flatMap { it.archiveFile }).builtBy(sanitizePoiOoxml))
+    implementation(libs.poi.ooxml.lite)
     implementation(libs.poi.scratchpad)
+    implementation(libs.xmlbeans)
+    implementation(libs.curvesapi)
 
     // Kotlin logging
     implementation(libs.kotlin.logging)
@@ -1090,16 +1250,21 @@ dependencies {
 
     implementation("io.modelcontextprotocol.sdk:mcp:1.1.0")
     
-    // Exclude bcprov-jdk15to18 from all configurations to avoid duplicate classes
+    // PDFBox Android still declares the older jdk15to18 line. Keep one current
+    // BouncyCastle family so PKIX, utility, and provider classes cannot diverge.
     configurations.all {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+        exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
+        exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
     }
 
     // Security
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     
     // BouncyCastle - explicitly include jdk18on version to avoid conflicts
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78")
+    implementation(libs.bouncycastle.bcprov)
+    implementation(files(sanitizeBcpkix.flatMap { it.archiveFile }).builtBy(sanitizeBcpkix))
+    implementation(libs.bouncycastle.bcutil)
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

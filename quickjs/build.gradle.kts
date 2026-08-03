@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.ai.assistance.quickjs"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     defaultConfig {

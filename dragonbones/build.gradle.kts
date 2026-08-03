@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.dragonbones"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     defaultConfig {

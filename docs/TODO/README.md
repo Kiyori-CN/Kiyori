@@ -36,7 +36,7 @@ M-01 精确影响清单，并在第一个应用源码里程碑前增加通用架
 - [M-05 Design 与 Platform 精确实施清单](kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md)
 - [Stage 4 前质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
 
-当前状态：`M-05 complete / M-05E sealed / quality gate QD-05 in progress`。QD-01 已补齐
+当前状态：`M-05 complete / M-05E sealed / QD-05 complete / QD-07 in progress`。QD-01 已补齐
 五个非默认语言目录中的 22 个 Browser history 字符串，并把 Compose 动态资源读取改为
 `LocalResources`/`stringResource`；XML、占位符、Kotlin 编译、三组 WebSession 单测和 fresh
 full lint 均通过，current-only Lint 已从 `27 errors / 287 warnings / 3 hints` 收敛到
@@ -58,7 +58,14 @@ language split、selected media、JobScheduler ID、窗口宽度、Player 方向
 Kotlin compiler 警报已纳入 QD-07。QD-05A 随后删除零消费者的 MediaPipe Text 依赖，
 升级 Filament/ONNX Runtime/Junrar/Jsoup，并按 Filament 1.74 的 `DoubleArray` clear color
 合同完成唯一源码适配；完整编译、Jsoup 定向 3/3 测试和 fresh lint 通过，当前为
-`0 errors / 21 warnings / 1 baseline hint`，本批 7 条版本记录归零。正式实施严格按
+`0 errors / 21 warnings / 1 baseline hint`，本批 7 条版本记录归零。QD-05B/QD-05C 又把
+POI/BouncyCastle/MINA/Commons IO 更新到已验证版本，把 compile SDK 统一为 37、Kotlin
+统一为 2.4.10，并为 POI、BouncyCastle 和 terminal-owned MINA 建立失败优先、可复现的
+闭包净化任务；Room KAPT metadata classpath 显式对齐后代码生成和编译通过。final fresh
+lint 为 `0 errors / 0 warnings / 1 baseline hint`，baseline 交集为
+`retained=5776 / stale=0 / current-only=0`，SHA-256 为
+`9E557039EF859A818E027196C59734D96E3CA7CCA544A389A8715FFF8D5BD2D9`。
+强制完整 Kotlin 编译已建立 QD-07 的 552 条精确清单。正式实施严格按
 “本地备份与安全点 -> M-00 -> G-00 -> M-01 -> M-02 -> M-03 -> M-04”串行推进；
 M-00、G-00 和 M-01 的门禁、测试和 Debug APK 验证均已通过；
 后续 G-00 加固已关闭 fresh-clone、Java static import、完全限定项目引用和重复
@@ -308,7 +315,8 @@ M-02 至 M-05 已形成可重现 checkpoint
 `6b6493a0bfd12072116e45fb733d551fad13e32b`，该提交通过 fresh clone 和 formal
 readiness。阶段 4 Browser 产品域开始前，先按
 [质量债务与开发就绪精确清单](kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md)
-收口初始 `27 errors / 287 warnings / 3 hints`，并审计当前 `5786` 条历史 baseline 中的
+收口初始 `27 errors / 287 warnings / 3 hints`；current-only 已在 QD-05 归零，继续审计
+当前 `5776` 条历史 baseline 中的
 项目自有高风险正确性和安全债务。
 
 当前执行顺序固定为：
@@ -319,8 +327,9 @@ readiness。阶段 4 Browser 产品域开始前，先按
 4. 关闭 WebView feature、Context 生命周期、语言、媒体权限、JobScheduler、窗口和
    Player 方向合同
 5. 按官方迁移证据分组升级依赖并消除第三方字节码警报
-6. 审计并修复 baseline 中项目自有高风险项
-7. 运行完整门禁、规定 Debug APK、敏感内容和 Git/远端审计后提交推送
+6. 清理强制完整 Kotlin 编译清单中的项目自有可修复警报
+7. 审计并修复 baseline 中项目自有高风险项
+8. 运行完整门禁、规定 Debug APK、敏感内容和 Git/远端审计后提交推送
 
 禁止通过 suppress、扩大 baseline、关闭 dependency lint、fallback 或行为不明的批量删除
 取得表面全绿。设备和 Release 验收继续独立记录。

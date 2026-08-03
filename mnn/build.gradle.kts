@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.ai.assistance.mnn"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = providers.gradleProperty("kiyori.android.ndkVersion").get()
 
     defaultConfig {

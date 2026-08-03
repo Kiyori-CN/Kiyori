@@ -1781,34 +1781,12 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of org.bouncycastle:bcprov-jdk18on than 1.78 is available: 1.85"
-        errorLine1="    implementation(&quot;org.bouncycastle:bcprov-jdk18on:1.78&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="118"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of io.modelcontextprotocol.sdk:mcp than 1.1.0 is available: 2.0.0"
         errorLine1="    implementation(&quot;io.modelcontextprotocol.sdk:mcp:1.1.0&quot;)"
         errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="build.gradle.kts"
             line="437"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.bouncycastle:bcprov-jdk18on than 1.78 is available: 1.85"
-        errorLine1="    implementation(&quot;org.bouncycastle:bcprov-jdk18on:1.78&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="448"
             column="20"/>
     </issue>
 
@@ -1886,28 +1864,6 @@
         <location
             file="../gradle/libs.versions.toml"
             line="20"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.apache.commons:commons-compress than 1.25.0 is available: 1.28.0"
-        errorLine1="commons-compress = &quot;1.25.0&quot;"
-        errorLine2="                   ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="25"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of commons-io:commons-io than 2.13.0 is available: 2.22.0"
-        errorLine1="commons-io = &quot;2.13.0&quot;"
-        errorLine2="             ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="26"
             column="14"/>
     </issue>
 
@@ -2045,17 +2001,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of org.apache.commons:commons-compress than 1.24.0 is available: 1.28.0"
-        errorLine1="commons-compress-v2 = &quot;1.24.0&quot;"
-        errorLine2="                      ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="50"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of com.squareup.okhttp3:okhttp than 4.12.0 is available: 5.4.0"
         errorLine1="okhttp = &quot;4.12.0&quot;"
         errorLine2="         ~~~~~~~~">
@@ -2074,39 +2019,6 @@
             file="../gradle/libs.versions.toml"
             line="54"
             column="10"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.apache.poi:poi than 5.2.3 is available: 5.5.1"
-        errorLine1="poi = &quot;5.2.3&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="57"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.apache.poi:poi-ooxml than 5.2.3 is available: 5.5.1"
-        errorLine1="poi = &quot;5.2.3&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="57"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.apache.poi:poi-scratchpad than 5.2.3 is available: 5.5.1"
-        errorLine1="poi = &quot;5.2.3&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="57"
-            column="7"/>
     </issue>
 
     <issue
@@ -63525,28 +63437,6 @@
         <location
             file="build.gradle.kts"
             line="453"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.squareup.okhttp3:logging-interceptor:4.11.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="454"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.google.accompanist:accompanist-systemuicontroller:0.32.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="458"
             column="20"/>
     </issue>
 

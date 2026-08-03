@@ -1,6 +1,6 @@
  [versions]
 agp = "9.3.1"
-kotlin = "2.3.21"
+kotlin = "2.4.10"
 coreKtx = "1.12.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -19,8 +19,8 @@ apksig = "9.3.1"
 apk-parser = "2.6.10"
 axml = "2.0.0"
 zipalign = "1.2.1"
-commons-compress = "1.25.0"
-commons-io = "2.13.0"
+commons-compress = "1.28.0"
+commons-io = "2.22.0"
 glide = "4.16.0"
 libsu = "6.0.0"
 androidsvg = "1.4"
@@ -42,14 +42,18 @@ hjson = "3.0.0"
 jieba = "1.0.2"
 hnswlib = "0.0.46"
 room = "2.8.4"
-commons-compress-v2 = "1.24.0"
+commons-compress-v2 = "1.28.0"
 junrar = "8.0.0"
 navigation-compose = "2.7.7"
 shizuku = "13.1.5"
 okhttp = "4.12.0"
 jsoup = "1.23.1"
 datastore = "1.0.0"
-poi = "5.2.3"
+poi = "5.5.1"
+bouncycastle = "1.85"
+mina = "2.2.9"
+xmlbeans = "5.3.0"
+curvesapi = "1.08"
 kotlin-logging = "5.1.0"
 slf4j = "2.0.9"
 colorpicker = "1.0.6"
@@ -158,6 +162,7 @@ renderx = { group = "com.github.tech-pw", name = "RenderX", version.ref = "rende
 kotlinx-serialization = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 kotlin-parcelize-runtime = { group = "org.jetbrains.kotlin", name = "kotlin-parcelize-runtime", version.ref = "kotlin" }
+kotlin-metadata-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-metadata-jvm", version.ref = "kotlin" }
 uuid = { group = "com.benasher44", name = "uuid", version.ref = "uuid" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 hjson = { group = "org.hjson", name = "hjson", version.ref = "hjson" }
@@ -195,7 +200,16 @@ datastore-preferences-core = { group = "androidx.datastore", name = "datastore-p
 # Document processing
 poi = { group = "org.apache.poi", name = "poi", version.ref = "poi" }
 poi-ooxml = { group = "org.apache.poi", name = "poi-ooxml", version.ref = "poi" }
+poi-ooxml-lite = { group = "org.apache.poi", name = "poi-ooxml-lite", version.ref = "poi" }
 poi-scratchpad = { group = "org.apache.poi", name = "poi-scratchpad", version.ref = "poi" }
+xmlbeans = { group = "org.apache.xmlbeans", name = "xmlbeans", version.ref = "xmlbeans" }
+curvesapi = { group = "com.github.virtuald", name = "curvesapi", version.ref = "curvesapi" }
+
+# Security and server runtime
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk18on", version.ref = "bouncycastle" }
+mina-core = { group = "org.apache.mina", name = "mina-core", version.ref = "mina" }
 
 # Logging
 kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging-jvm", version.ref = "kotlin-logging" }

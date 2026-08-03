@@ -1,7 +1,7 @@
 ---
 status: debt_cleanup_in_progress
 baseline_commit: 6b6493a0bfd12072116e45fb733d551fad13e32b
-current_phase: qd-05-dependencies
+current_phase: qd-07-compiler-warnings
 device_scope: excluded
 release_scope: excluded
 ---
@@ -38,22 +38,22 @@ release_scope: excluded
 
 ## 当前 Lint 债务
 
-质量清理初始报告包含 `317` 条未基线化记录。QD-05A 完成后的 fresh full lint 报告包含
-`22` 条 XML 记录：
+质量清理初始报告包含 `317` 条未基线化记录。QD-05 完成并剪枝失效 baseline 后，fresh
+full lint 报告只包含 `1` 条 XML 记录：
 
 | 严重级别 | 数量 | 说明 |
 | --- | ---: | --- |
 | Error | 0 | QD-01 已清除 22 条缺失翻译和 5 条 Compose 资源读取错误 |
-| Warning | 21 | compile SDK、Kotlin plugin 与第三方 TLS 字节码问题 |
+| Warning | 0 | QD-01 至 QD-05 已清除全部 current-only warning |
 | Hint | 1 | 现有 baseline 状态提示 |
 
 Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因此同一次执行摘要为
-`21 warnings`。本清单的结构化数量以
+`Lint found no new issues`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
-当前 `app/lint-baseline.xml` 另有 `5786` 条历史记录，完整 lint 汇总为
-`1265 errors / 4371 warnings / 150 hints`。baseline SHA-256 为
-`E382817E50E5B7FD9B6E62D642C8A6E44488772F690267CD797111E41DF3FCA4`。
+当前 `app/lint-baseline.xml` 另有 `5776` 条历史记录，完整 lint 汇总为
+`1265 errors / 4361 warnings / 150 hints`。baseline SHA-256 为
+`9E557039EF859A818E027196C59734D96E3CA7CCA544A389A8715FFF8D5BD2D9`。
 
 baseline 是历史债务清单，不是永久豁免。清理时只允许删除已经由当前源码证明失效或已经
 修复的记录，禁止吸收任何 current-only 问题。
@@ -228,7 +228,7 @@ baseline 是历史债务清单，不是永久豁免。清理时只允许删除�
 
 ### QD-07：Kotlin 编译器警报与弃用迁移
 
-状态：`pending`
+状态：`in_progress`
 
 QD-03 的大范围资源变更触发完整 Kotlin 重编译，暴露出增量构建未重复显示的历史编译器
 警报。它们必须在 Stage 4 前形成结构化清单，并按以下类别逐批处理：
@@ -244,9 +244,17 @@ override、第三方 ABI 或发布兼容合同的条目，必须记录精确 own
 完成信号：强制完整 `:app:compileDebugKotlin` 日志中项目自有可修复警报为 `0`；保留项有
 逐条审计记录，且编译、JVM、Lint 和 Debug APK 通过。
 
+2026-08-03 使用 Kotlin `2.4.10`、compile SDK `37` 和 `--rerun-tasks` 建立了首份完整
+机器清单：共 `552` 条，按模块为 `app=515 / terminal=27 / quickjs=6 /
+dragonbones=2 / mnn=2`。按诊断族为：弃用 API `296`、非空值上的安全调用 `48`、
+Java boxed 类型 `30`、恒定条件 `28`、冗余非空断言 `28`、冗余 Elvis `27`、
+unchecked cast `25`、无效 cast `16`、其他精确诊断 `16`、when 完整性 `16`、
+冗余转换 `10`、无效表达式 `7`、opt-in/delicate API `5`。日志位于
+`app/build/reports/qd07-compile-debug.log`；它是工作区验证产物，不进入 Git。
+
 ### QD-05：依赖与第三方字节码
 
-状态：`in_progress`
+状态：`completed`
 
 范围：
 
@@ -277,6 +285,54 @@ QD-05A 已完成：
   `0 errors / 21 warnings / 1 baseline hint`，本批 7 条版本记录归零且没有新增类别
 - GitHub `v1.74.1` 标签没有对应 Android Maven 制品，实际仓库解析证据确认可用版本为
   `1.74.0`；该结论由 Gradle 的全部配置仓库逐项 404 和随后成功解析共同证明
+
+QD-05B/QD-05C 已完成：
+
+- POI `5.2.3 -> 5.5.1`、BouncyCastle `1.78 -> 1.85`、MINA
+  `2.1.6 -> 2.2.9`、Commons IO `2.13.0 -> 2.22.0`；两个 Commons Compress
+  坐标统一为 `1.28.0`
+- 根工程、8 个 Android library module、terminal 与 Android project template 的
+  compile SDK 统一为 `37`；根工程和模板 Kotlin 统一为 `2.4.10`，target SDK 保持 `34`
+- Room `2.8.4` 的处理器传递解析到 `kotlin-metadata-jvm:2.2.0`，无法读取 Kotlin
+  metadata `2.4.0`；KAPT classpath 显式对齐到 `2.4.10` 后，Room 与 ObjectBox 代码生成、
+  `:app:kaptDebugKotlin` 和 `:app:compileDebugKotlin` 通过，未改变 Room runtime、schema
+  或数据库行为
+- app 的 `sanitizePoiOoxml` 与 `sanitizeBcpkix`、terminal 的 `sanitizeMinaCore`
+  均使用固定非传递输入，要求预期不安全入口存在，扫描保留 class 的字节码引用闭包，
+  删除封闭且无消费者的 trust-all 能力、JPMS descriptor 和失效 JAR 签名，并在输出端
+  再断言残留为 0；任务使用可复现顺序与固定时间戳且保留许可证/NOTICE
+- 最终净化制品为：`poi-ooxml-safe-5.5.1.jar` `1924579` bytes、SHA-256
+  `64C6482650587734E6F0BD2557126DEF4EC116AD00423EC9B2A3FEC551335ABE`；
+  `bcpkix-safe-1.85.jar` `1186899` bytes、SHA-256
+  `116333E91D90CA1AE5817546A646C5BF02515B5D70AF2E1CB99D4C4B49EB9428`；
+  `mina-core-safe-2.2.9.jar` `697778` bytes、SHA-256
+  `3134009683AD1B71B6B98091B31FDC0F9A6426DD1899B3CC2CAC4DA3111B2585`
+- MINA sanitizer 的唯一 owner 已移入直接使用 FTPServer 的 KiyoriTerminalCore；
+  terminal AAR 只包含 `libs/mina-core-safe-2.2.9.jar`，不再解析原始
+  `mina-core:2.1.6`。子模块 `main@f75a10783b29ca158674b48486321ae26a4d264c`
+  已推送并与远端一致
+- final `:app:lintDebug` 用时 46 秒并通过，输出 `Lint found no new issues`；
+  temporary/full baseline 与已审阅 baseline 交集为
+  `retained=5776 / stale=0 / current-only=0`，只删除 7 条已升级版本记录和
+  3 条已失效版本目录记录，没有吸收新问题或新增 suppress
+- 完整 CI Python `166/166`、architecture `36/36 phase=m03`、formal readiness 和
+  Android JVM `137 suites / 822 tests / 0 failures / 0 errors / 0 skipped` 通过；
+  fresh-clone checker 已确认提交基线 `aa6d700c`，QD-05 父提交需在创建后重新验证
+- `:terminal:assembleDebug` 与 `:app:assembleDebug` 通过；父构建为
+  `236 actionable tasks / 39 executed / 197 up-to-date` 并执行
+  `verifyDebugPlayerRuntimePackaging`
+- APK 为 `463542133` bytes，SHA-256
+  `C20E8BC3F8779EEC3802DAD2D8DE71374841CAD2C05A56EFA0ED5DAEA2A378B1`；
+  package/version/min/target/compile SDK 为
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，Debug v2 签名与
+  `zipalign -c -P 16 -v 4` 通过
+- APK 内保留唯一 `META-INF/LICENSE.md`，其 `1171` bytes 与 BouncyCastle 1.85
+  三个输入的逐字节 SHA-256
+  `0E01F1549C9022F406392AC2947D32223B7C2E977D21EA2F8C182FDEB4DAE5FD`
+  一致；四个被删除的不安全类/包字节串在 APK DEX/JAR entry 中均为 0
+- 首次全量 DEX desugar 仍报告 `app/libs/arsc.jar` 缺少非线性控制流 stack-map，
+  native strip 仍报告 `libsudo.so` 不是有效 object file；两者不属于 QD-05 依赖
+  current-only Lint，但已进入下一警报批次，不能作为无警报构建封板
 
 ### QD-06：历史 baseline 高风险债务
 
