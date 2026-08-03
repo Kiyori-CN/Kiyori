@@ -26,13 +26,16 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +54,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -70,11 +74,12 @@ import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
 import com.ai.assistance.operit.core.player.formatPlayerSpeedLabel
+import com.ai.assistance.operit.core.player.parsePlayerSpeedInput
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private val PlayerAccent = Color(0xFF7792FF)
-private val PlayerAccentSecondary = Color(0xFF9A7BFF)
+internal val PlayerAccent = Color(0xFF7792FF)
+internal val PlayerAccentSecondary = Color(0xFF9A7BFF)
 private val PlayerPopupBackground = Color(0xF21B1E27)
 private val PlayerPopupText = Color(0xFFF7F8FC)
 private val PlayerPopupMutedText = Color(0xFFAEB5C5)
@@ -225,8 +230,8 @@ private fun PlayerTopControls(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlayerStatusColumn(
-                        first = formatNetworkSpeed(networkSpeedBytesPerSecond).first,
-                        second = formatNetworkSpeed(networkSpeedBytesPerSecond).second,
+                        first = formatPlayerNetworkSpeed(networkSpeedBytesPerSecond).first,
+                        second = formatPlayerNetworkSpeed(networkSpeedBytesPerSecond).second,
                         modifier = Modifier.weight(1.15f),
                         compact = true,
                     )
@@ -291,8 +296,8 @@ private fun PlayerTopControls(
                     modifier = Modifier.weight(1f).padding(start = 0.dp, top = 4.dp, end = 8.dp),
                 )
                 PlayerStatusColumn(
-                    first = formatNetworkSpeed(networkSpeedBytesPerSecond).first,
-                    second = formatNetworkSpeed(networkSpeedBytesPerSecond).second,
+                    first = formatPlayerNetworkSpeed(networkSpeedBytesPerSecond).first,
+                    second = formatPlayerNetworkSpeed(networkSpeedBytesPerSecond).second,
                 )
                 Spacer(Modifier.width(4.dp))
                 PlayerStatusColumn(first = batteryText, second = clockText)
@@ -1055,7 +1060,7 @@ private fun PlayerSideActions(
 }
 
 @Composable
-private fun PlayerSpeedMenu(
+internal fun PlayerSpeedMenu(
     speed: Double,
     session: PlayerSession,
     onInteraction: () -> Unit,
@@ -1064,9 +1069,16 @@ private fun PlayerSpeedMenu(
     padding: androidx.compose.ui.unit.Dp = 6.dp,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var customSpeedDialogVisible by remember { mutableStateOf(false) }
     fun setExpanded(value: Boolean) {
         if (expanded == value) return
         expanded = value
+        onPopupVisibilityChanged(value)
+        onInteraction()
+    }
+    fun setCustomSpeedDialogVisible(value: Boolean) {
+        if (customSpeedDialogVisible == value) return
+        customSpeedDialogVisible = value
         onPopupVisibilityChanged(value)
         onInteraction()
     }
@@ -1088,14 +1100,103 @@ private fun PlayerSpeedMenu(
                         label = formatPlayerSpeedLabel(candidate),
                         selected = candidate == speed,
                     )
-                },
+                } +
+                    PlayerPopupItem(
+                        label = "自定义倍速",
+                        supportingText = "输入 0.00x–3.00x，最多两位小数",
+                    ),
             fixedHeight = true,
             showScrollHint = true,
+            compactItems = true,
+            maxListHeight = 340.dp,
         ) { position ->
-            PLAYER_SPEED_MENU_OPTIONS.getOrNull(position)?.let(session::setSpeed)
-            setExpanded(false)
+            val selectedSpeed = PLAYER_SPEED_MENU_OPTIONS.getOrNull(position)
+            if (selectedSpeed != null) {
+                session.setSpeed(selectedSpeed)
+                setExpanded(false)
+            } else {
+                setExpanded(false)
+                setCustomSpeedDialogVisible(true)
+            }
         }
     }
+    if (customSpeedDialogVisible) {
+        PlayerCustomSpeedDialog(
+            currentSpeed = speed,
+            onDismiss = { setCustomSpeedDialogVisible(false) },
+            onConfirm = { customSpeed ->
+                if (customSpeed == 0.0) {
+                    session.setPaused(true)
+                } else {
+                    session.setSpeed(customSpeed)
+                }
+                setCustomSpeedDialogVisible(false)
+            },
+        )
+    }
+}
+
+@Composable
+private fun PlayerCustomSpeedDialog(
+    currentSpeed: Double,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit,
+) {
+    var input by
+        remember(currentSpeed) {
+            mutableStateOf(formatPlayerSpeedLabel(currentSpeed).removeSuffix("x"))
+        }
+    val parsedSpeed = parsePlayerSpeedInput(input)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PlayerPopupBackground,
+        title = {
+            Text(
+                text = "自定义播放速度",
+                color = PlayerPopupText,
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = input,
+                onValueChange = { value ->
+                    if (value.length <= 4) {
+                        input = value
+                    }
+                },
+                singleLine = true,
+                isError = input.isNotBlank() && parsedSpeed == null,
+                label = { Text("倍速") },
+                suffix = { Text("x") },
+                supportingText = {
+                    Text(
+                        text =
+                            if (input.isNotBlank() && parsedSpeed == null) {
+                                "请输入 0.00–3.00，最多两位小数"
+                            } else {
+                                "0.00x 会暂停播放；重新播放时沿用原倍速"
+                            },
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { parsedSpeed?.let(onConfirm) },
+                enabled = parsedSpeed != null,
+            ) {
+                Text("应用", color = PlayerAccent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消", color = PlayerPopupMutedText)
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+    )
 }
 
 @Composable
@@ -1106,6 +1207,8 @@ private fun PlayerPopupMenu(
     items: List<PlayerPopupItem>,
     fixedHeight: Boolean = false,
     showScrollHint: Boolean = false,
+    compactItems: Boolean = false,
+    maxListHeight: androidx.compose.ui.unit.Dp = 300.dp,
     onItemClick: (Int) -> Unit,
 ) {
     DropdownMenu(
@@ -1131,7 +1234,7 @@ private fun PlayerPopupMenu(
             )
             val listModifier =
                 if (fixedHeight) {
-                    Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())
+                    Modifier.heightIn(max = maxListHeight).verticalScroll(rememberScrollState())
                 } else {
                     Modifier
                 }
@@ -1143,7 +1246,7 @@ private fun PlayerPopupMenu(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 52.dp)
+                                .heightIn(min = if (compactItems) 36.dp else 52.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(
                                     if (item.selected) {
@@ -1155,7 +1258,7 @@ private fun PlayerPopupMenu(
                         contentPadding =
                             androidx.compose.foundation.layout.PaddingValues(
                                 horizontal = 12.dp,
-                                vertical = 8.dp,
+                                vertical = if (compactItems) 3.dp else 8.dp,
                             ),
                     ) {
                         Row(
@@ -1478,7 +1581,7 @@ private fun formatAnime4KMode(mode: Anime4KMode): Pair<String, String> =
         Anime4KMode.C_PLUS -> "C+ - 降噪强化" to "降噪放大后追加重建"
     }
 
-private fun formatNetworkSpeed(bytesPerSecond: Long): Pair<String, String> =
+internal fun formatPlayerNetworkSpeed(bytesPerSecond: Long): Pair<String, String> =
     if (bytesPerSecond >= 1024L * 1024L) {
         String.format(Locale.US, "%.1f", bytesPerSecond / (1024.0 * 1024.0)) to "MB/s"
     } else {

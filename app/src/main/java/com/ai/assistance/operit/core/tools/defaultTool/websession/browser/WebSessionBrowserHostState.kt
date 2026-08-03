@@ -98,6 +98,8 @@ internal data class WebSessionBrowserMediaCandidate(
     val lastDiscoveredAt: Long,
     val durationMillis: Long?,
     val isLive: Boolean,
+    val qualityHeight: Int?,
+    val qualityLabel: String?,
     val rankingScore: Int,
     val rankingSummary: String,
     val isRecommended: Boolean,

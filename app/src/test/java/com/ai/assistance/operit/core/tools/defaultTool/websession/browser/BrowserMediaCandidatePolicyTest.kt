@@ -276,7 +276,13 @@ class BrowserMediaCandidatePolicyTest {
                 automaticFloatingEligible = true,
             )
 
-        assertEquals(activeVideo, selectAutomaticFloatingMediaCandidate(listOf(newerManifest, activeVideo)))
+        assertEquals(
+            activeVideo,
+            selectAutomaticFloatingMediaCandidate(
+                candidates = listOf(newerManifest, activeVideo),
+                minimumDurationMillis = 60_000L,
+            ),
+        )
     }
 
     @Test
@@ -299,7 +305,12 @@ class BrowserMediaCandidatePolicyTest {
                 automaticFloatingEligible = false,
             )
 
-        assertNull(selectAutomaticFloatingMediaCandidate(listOf(mimeOnly, blob)))
+        assertNull(
+            selectAutomaticFloatingMediaCandidate(
+                candidates = listOf(mimeOnly, blob),
+                minimumDurationMillis = 60_000L,
+            ),
+        )
     }
 
     @Test
@@ -340,6 +351,136 @@ class BrowserMediaCandidatePolicyTest {
             listOf(activeMainVideo, backgroundLoop),
             sortBrowserMediaCandidates(listOf(backgroundLoop, activeMainVideo)),
         )
+    }
+
+    @Test
+    fun recommendedCandidatesSortByResolutionFromHighToLow() {
+        val candidate1080 =
+            candidate(
+                observation(
+                    url = "https://media.example/master.m3u8?quality=1080",
+                ),
+            )
+        val candidate720 =
+            candidate(
+                observation(
+                    url = "https://media.example/master.m3u8?quality=720",
+                ),
+            )
+        val candidate480 =
+            candidate(
+                observation(
+                    url = "https://media.example/master.m3u8?quality=480",
+                ),
+            )
+
+        assertEquals(1080, rankBrowserMediaCandidate(candidate1080).qualityHeight)
+        assertEquals("1080P", rankBrowserMediaCandidate(candidate1080).qualityLabel)
+        assertEquals(
+            listOf(candidate1080, candidate720, candidate480),
+            sortBrowserMediaCandidates(listOf(candidate480, candidate1080, candidate720)),
+        )
+        assertEquals(
+            BrowserMediaCandidateQuality(width = 3840, height = 2160, label = "2160P"),
+            resolveBrowserMediaCandidateQuality(
+                width = null,
+                height = null,
+                url = "https://media.example/video/3840x2160/index.m3u8",
+            ),
+        )
+    }
+
+    @Test
+    fun automaticFloatingUsesHighestEligibleQualityAndDurationThreshold() {
+        val candidate720 =
+            uiCandidate(
+                id = "720",
+                url = "https://media.example/720p.mp4",
+                sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT),
+                rankingScore = 900,
+                automaticFloatingEligible = true,
+                qualityHeight = 720,
+                durationMillis = 90_000L,
+            )
+        val candidate1080 =
+            uiCandidate(
+                id = "1080",
+                url = "https://media.example/1080p.mp4",
+                sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC),
+                rankingScore = 700,
+                automaticFloatingEligible = true,
+                qualityHeight = 1080,
+                durationMillis = 90_000L,
+            )
+        val short2160 =
+            uiCandidate(
+                id = "2160-short",
+                url = "https://media.example/2160p.mp4",
+                sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT),
+                rankingScore = 1_000,
+                automaticFloatingEligible = true,
+                qualityHeight = 2160,
+                durationMillis = 30_000L,
+            )
+
+        assertEquals(
+            candidate1080,
+            selectAutomaticFloatingMediaCandidate(
+                candidates = listOf(candidate720, short2160, candidate1080),
+                minimumDurationMillis = 60_000L,
+            ),
+        )
+        assertFalse(
+            browserMediaCandidateMeetsAutomaticFloatingDuration(
+                candidate = short2160,
+                minimumDurationMillis = 60_000L,
+            ),
+        )
+        assertTrue(
+            browserMediaCandidateMeetsAutomaticFloatingDuration(
+                candidate = candidate1080.copy(durationMillis = 60_000L),
+                minimumDurationMillis = 60_000L,
+            ),
+        )
+        assertTrue(
+            browserMediaCandidateMeetsAutomaticFloatingDuration(
+                candidate = candidate1080.copy(durationMillis = null, isLive = true),
+                minimumDurationMillis = 60_000L,
+            ),
+        )
+        assertFalse(
+            browserMediaCandidateMeetsAutomaticFloatingDuration(
+                candidate = candidate1080.copy(durationMillis = null, isLive = false),
+                minimumDurationMillis = 60_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun automaticFloatingConfirmationDelayUsesStrongestPassiveEvidence() {
+        val play =
+            uiCandidate(
+                id = "play",
+                url = "https://media.example/play.mp4",
+                sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT),
+            )
+        val current =
+            uiCandidate(
+                id = "current",
+                url = "https://media.example/current.mp4",
+                sources = setOf(BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC),
+            )
+        val manifest =
+            uiCandidate(
+                id = "manifest",
+                url = "https://media.example/master.m3u8",
+                sources = setOf(BrowserMediaCandidateDiscoverySource.NETWORK_REQUEST),
+                videoFormat = BrowserMediaCandidateVideoFormat.M3U8,
+            )
+
+        assertEquals(100L, automaticFloatingCandidateStabilityDelayMillis(play))
+        assertEquals(180L, automaticFloatingCandidateStabilityDelayMillis(current))
+        assertEquals(300L, automaticFloatingCandidateStabilityDelayMillis(manifest))
     }
 
     @Test
@@ -405,6 +546,7 @@ class BrowserMediaCandidatePolicyTest {
         assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('play'"))
         assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('loadedmetadata'"))
         assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('durationchange'"))
+        assertTrue(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT.contains("addEventListener('resize'"))
         assertFalse(Regex("\\.(pause|play|load)\\s*\\(", RegexOption.IGNORE_CASE)
             .containsMatchIn(BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT))
     }
@@ -461,6 +603,9 @@ class BrowserMediaCandidatePolicyTest {
         videoFormat: BrowserMediaCandidateVideoFormat = BrowserMediaCandidateVideoFormat.OTHER_VIDEO,
         rankingScore: Int = 0,
         automaticFloatingEligible: Boolean = false,
+        qualityHeight: Int? = null,
+        durationMillis: Long? = 120_000L,
+        isLive: Boolean = false,
     ): WebSessionBrowserMediaCandidate =
         WebSessionBrowserMediaCandidate(
             id = id,
@@ -472,8 +617,10 @@ class BrowserMediaCandidatePolicyTest {
             discoverySources = sources,
             firstDiscoveredAt = 50L,
             lastDiscoveredAt = lastDiscoveredAt,
-            durationMillis = null,
-            isLive = false,
+            durationMillis = durationMillis,
+            isLive = isLive,
+            qualityHeight = qualityHeight,
+            qualityLabel = qualityHeight?.let { "${it}P" },
             rankingScore = rankingScore,
             rankingSummary = "",
             isRecommended = rankingScore >= 200,

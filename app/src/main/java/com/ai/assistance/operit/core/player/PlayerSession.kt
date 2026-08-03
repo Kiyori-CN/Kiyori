@@ -848,7 +848,7 @@ internal class PlayerSession private constructor(context: Context) {
 
     fun setSpeed(speed: Double) {
         requireMainThread()
-        require(speed in PLAYER_SPEED_OPTIONS) { "Unsupported player speed: $speed" }
+        require(isSupportedPlayerSpeed(speed)) { "Unsupported player speed: $speed" }
         if (!_state.value.hasMedia || !_state.value.runtimeState.acceptsCommands()) return
         activeLongPressSpeedBoost = null
         if (runtimeConnection.setSpeed(speed) != null) {
@@ -874,7 +874,7 @@ internal class PlayerSession private constructor(context: Context) {
         }
         val snapshot = _state.value
         if (!snapshot.hasMedia || !snapshot.runtimeState.acceptsCommands()) return null
-        val boostedSpeed = resolveNextPlayerSpeed(snapshot.speed) ?: return null
+        val boostedSpeed = resolveLongPressPlayerSpeed(snapshot.speed) ?: return null
         if (runtimeConnection.setSpeed(boostedSpeed) == null) return null
         activeLongPressSpeedBoost =
             ActiveLongPressSpeedBoost(

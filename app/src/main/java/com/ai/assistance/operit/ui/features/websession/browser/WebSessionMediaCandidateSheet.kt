@@ -356,9 +356,14 @@ private fun BrowserMediaCandidateCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            if (candidate.rankingSummary.isNotBlank()) {
+            val rankingDetails =
+                listOfNotNull(
+                    candidate.qualityLabel,
+                    candidate.rankingSummary.takeIf(String::isNotBlank),
+                ).joinToString(" · ")
+            if (rankingDetails.isNotBlank()) {
                 Text(
-                    text = candidate.rankingSummary,
+                    text = rankingDetails,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     lineHeight = 14.sp,

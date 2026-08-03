@@ -19,6 +19,7 @@ class PlayerPolicyTest {
         )
         assertFalse(PlayerSettings().followGravityRotation)
         assertFalse(PlayerSettings().longPressSpeedBoostEnabled)
+        assertEquals(PlayerDoubleTapAction.PLAY_PAUSE, PlayerSettings().doubleTapAction)
         assertTrue(PlayerSettings().screenshotDirectoryUri.isBlank())
         assertTrue(PlayerSettings().videoDownloadDirectoryUri.isBlank())
     }
@@ -216,21 +217,59 @@ class PlayerPolicyTest {
     }
 
     @Test
-    fun playerSpeedMenuAndLongPressStepsHaveIndependentExactOrders() {
+    fun playerSpeedMenuCustomInputAndLongPressBucketsHaveExactContracts() {
         assertEquals(
-            listOf(3.0, 2.0, 1.5, 1.25, 0.75, 0.5),
+            listOf(
+                3.0,
+                2.75,
+                2.5,
+                2.25,
+                2.0,
+                1.75,
+                1.5,
+                1.25,
+                1.0,
+                0.75,
+                0.5,
+                0.25,
+            ),
             PLAYER_SPEED_MENU_OPTIONS,
         )
         assertEquals(
-            listOf("3.0x", "2.0x", "1.5x", "1.25x", "0.75x", "0.5x"),
+            listOf(
+                "3.0x",
+                "2.75x",
+                "2.5x",
+                "2.25x",
+                "2.0x",
+                "1.75x",
+                "1.5x",
+                "1.25x",
+                "1.0x",
+                "0.75x",
+                "0.5x",
+                "0.25x",
+            ),
             PLAYER_SPEED_MENU_OPTIONS.map(::formatPlayerSpeedLabel),
         )
-        assertEquals("1.0x", formatPlayerSpeedLabel(1.0))
-        assertEquals(0.75, resolveNextPlayerSpeed(0.5))
-        assertEquals(1.0, resolveNextPlayerSpeed(0.75))
-        assertEquals(1.25, resolveNextPlayerSpeed(1.0))
-        assertEquals(3.0, resolveNextPlayerSpeed(2.0))
-        assertEquals(null, resolveNextPlayerSpeed(3.0))
+        assertEquals(0.0, parsePlayerSpeedInput("0.00")!!, 0.0)
+        assertEquals(0.01, parsePlayerSpeedInput("0.01")!!, 0.0)
+        assertEquals(1.23, parsePlayerSpeedInput("1.23")!!, 0.0)
+        assertEquals(3.0, parsePlayerSpeedInput("3.00")!!, 0.0)
+        assertEquals(null, parsePlayerSpeedInput("-0.25"))
+        assertEquals(null, parsePlayerSpeedInput("1.234"))
+        assertEquals(null, parsePlayerSpeedInput("3.01"))
+        assertTrue(isSupportedPlayerSpeed(0.01))
+        assertTrue(isSupportedPlayerSpeed(3.0))
+        assertFalse(isSupportedPlayerSpeed(0.0))
+        assertFalse(isSupportedPlayerSpeed(3.01))
+        assertEquals(1.0, resolveLongPressPlayerSpeed(0.25))
+        assertEquals(1.0, resolveLongPressPlayerSpeed(0.99))
+        assertEquals(2.0, resolveLongPressPlayerSpeed(1.0))
+        assertEquals(2.0, resolveLongPressPlayerSpeed(1.99))
+        assertEquals(3.0, resolveLongPressPlayerSpeed(2.0))
+        assertEquals(3.0, resolveLongPressPlayerSpeed(2.99))
+        assertEquals(null, resolveLongPressPlayerSpeed(3.0))
     }
 
     @Test

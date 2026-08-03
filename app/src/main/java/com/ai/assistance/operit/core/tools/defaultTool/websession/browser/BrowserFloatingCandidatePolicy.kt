@@ -1,13 +1,22 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import java.util.Locale
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 internal data class BrowserMediaCandidateRanking(
     val score: Int,
     val isRecommended: Boolean,
     val automaticFloatingEligible: Boolean,
+    val qualityHeight: Int?,
+    val qualityLabel: String?,
     val summary: String,
+)
+
+internal data class BrowserMediaCandidateQuality(
+    val width: Int?,
+    val height: Int,
+    val label: String,
 )
 
 internal fun sortBrowserMediaCandidates(
@@ -19,6 +28,7 @@ internal fun sortBrowserMediaCandidates(
             compareByDescending<Pair<BrowserMediaCandidate, BrowserMediaCandidateRanking>> {
                 it.second.isRecommended
             }
+                .thenByDescending { it.second.qualityHeight ?: 0 }
                 .thenByDescending { it.second.score }
                 .thenByDescending { it.first.durationMillis != null || it.first.isLive }
                 .thenByDescending { it.first.lastDiscoveredAt }
@@ -34,6 +44,8 @@ internal fun rankBrowserMediaCandidate(
             score = Int.MIN_VALUE,
             isRecommended = false,
             automaticFloatingEligible = false,
+            qualityHeight = null,
+            qualityLabel = null,
             summary = "不可执行的视频线索",
         )
     }
@@ -43,6 +55,12 @@ internal fun rankBrowserMediaCandidate(
             "An actionable browser media candidate must have an exact video format"
         }
     val reasons = mutableListOf<String>()
+    val quality =
+        resolveBrowserMediaCandidateQuality(
+            width = candidate.videoWidth,
+            height = candidate.videoHeight,
+            url = candidate.url,
+        )
     var score =
         when (videoFormat) {
             BrowserMediaCandidateVideoFormat.M3U8 -> 180.also { reasons += "HLS 清单" }
@@ -82,10 +100,10 @@ internal fun rankBrowserMediaCandidate(
     if (viewportScore >= 45) reasons += "页面主画面"
 
     val resolutionScore =
-        browserMediaResolutionScore(candidate.videoWidth, candidate.videoHeight)
+        browserMediaResolutionScore(quality?.height)
     score += resolutionScore
-    if (resolutionScore >= 35) {
-        reasons += "${candidate.videoWidth}×${candidate.videoHeight}"
+    if (quality != null) {
+        reasons += "${quality.label} 画质"
     }
 
     when {
@@ -142,43 +160,114 @@ internal fun rankBrowserMediaCandidate(
                 hasDomEvidence ||
                     manifest ||
                     candidate.isLive ||
-                    (candidate.durationMillis ?: 0L) >= 60_000L
+                    candidate.durationMillis != null
             )
 
     return BrowserMediaCandidateRanking(
         score = score,
         isRecommended = isRecommended,
         automaticFloatingEligible = automaticFloatingEligible,
+        qualityHeight = quality?.height,
+        qualityLabel = quality?.label,
         summary = reasons.distinct().take(3).joinToString(" · "),
     )
 }
 
 internal fun selectAutomaticFloatingMediaCandidate(
     candidates: List<WebSessionBrowserMediaCandidate>,
+    minimumDurationMillis: Long,
 ): WebSessionBrowserMediaCandidate? =
     candidates
         .asSequence()
         .filter(WebSessionBrowserMediaCandidate::automaticFloatingEligible)
-        .sortedWith(
-            compareByDescending<WebSessionBrowserMediaCandidate>(
-                WebSessionBrowserMediaCandidate::rankingScore,
+        .filter { candidate ->
+            browserMediaCandidateMeetsAutomaticFloatingDuration(
+                candidate = candidate,
+                minimumDurationMillis = minimumDurationMillis,
             )
+        }
+        .sortedWith(
+            compareByDescending<WebSessionBrowserMediaCandidate> { it.qualityHeight ?: 0 }
+                .thenByDescending(WebSessionBrowserMediaCandidate::rankingScore)
                 .thenByDescending(WebSessionBrowserMediaCandidate::lastDiscoveredAt)
                 .thenBy(WebSessionBrowserMediaCandidate::id),
         )
         .firstOrNull()
 
-private fun browserMediaResolutionScore(
+internal fun browserMediaCandidateMeetsAutomaticFloatingDuration(
+    candidate: WebSessionBrowserMediaCandidate,
+    minimumDurationMillis: Long,
+): Boolean {
+    require(isSupportedAutomaticFloatingMinimumDuration(minimumDurationMillis)) {
+        "Unsupported automatic floating minimum duration: $minimumDurationMillis"
+    }
+    return candidate.isLive ||
+        candidate.durationMillis?.let { duration -> duration >= minimumDurationMillis } == true
+}
+
+internal fun automaticFloatingCandidateStabilityDelayMillis(
+    candidate: WebSessionBrowserMediaCandidate,
+): Long =
+    when {
+        BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT in candidate.discoverySources -> 100L
+        BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC in candidate.discoverySources -> 180L
+        else -> 300L
+    }
+
+internal fun resolveBrowserMediaCandidateQuality(
     width: Int?,
     height: Int?,
+    url: String,
+): BrowserMediaCandidateQuality? {
+    if (width != null && width > 0 && height != null && height > 0) {
+        val qualityHeight = min(width, height)
+        return BrowserMediaCandidateQuality(
+            width = width,
+            height = qualityHeight,
+            label = "${qualityHeight}P",
+        )
+    }
+    if (height != null && height > 0) {
+        return BrowserMediaCandidateQuality(
+            width = width,
+            height = height,
+            label = "${height}P",
+        )
+    }
+
+    val normalizedUrl = url.lowercase(Locale.ROOT)
+    BROWSER_MEDIA_DIMENSION_PATTERN.find(normalizedUrl)?.let { match ->
+        val parsedWidth = match.groupValues[1].toInt()
+        val parsedHeight = match.groupValues[2].toInt()
+        val qualityHeight = min(parsedWidth, parsedHeight)
+        return BrowserMediaCandidateQuality(
+            width = parsedWidth,
+            height = qualityHeight,
+            label = "${qualityHeight}P",
+        )
+    }
+    val parsedHeight =
+        BROWSER_MEDIA_QUALITY_PARAMETER_PATTERN.find(normalizedUrl)?.groupValues?.get(1)?.toInt()
+            ?: BROWSER_MEDIA_HEIGHT_PATTERN.find(normalizedUrl)?.groupValues?.get(1)?.toInt()
+            ?: return null
+    return BrowserMediaCandidateQuality(
+        width = null,
+        height = parsedHeight,
+        label = "${parsedHeight}P",
+    )
+}
+
+private fun browserMediaResolutionScore(
+    qualityHeight: Int?,
 ): Int {
-    val pixels = (width ?: 0).toLong() * (height ?: 0).toLong()
     return when {
-        pixels >= 3_840L * 2_160L -> 80
-        pixels >= 1_920L * 1_080L -> 65
-        pixels >= 1_280L * 720L -> 50
-        pixels >= 854L * 480L -> 35
-        pixels > 0L -> 15
+        qualityHeight == null -> 0
+        qualityHeight >= 2_160 -> 80
+        qualityHeight >= 1_440 -> 72
+        qualityHeight >= 1_080 -> 65
+        qualityHeight >= 720 -> 50
+        qualityHeight >= 480 -> 35
+        qualityHeight > 0 -> 15
         else -> 0
     }
 }
@@ -213,3 +302,13 @@ private val BROWSER_MEDIA_NOISE_KEYWORDS =
         ".srt",
         ".ass",
     )
+
+private val BROWSER_MEDIA_DIMENSION_PATTERN =
+    Regex("""(?<!\d)(\d{3,5})[x×](\d{3,5})(?!\d)""", RegexOption.IGNORE_CASE)
+private val BROWSER_MEDIA_QUALITY_PARAMETER_PATTERN =
+    Regex(
+        """(?:quality|resolution|res|height|video[_-]?height)[=:/_-]+(2160|1440|1080|720|576|540|480|360|240|144)""",
+        RegexOption.IGNORE_CASE,
+    )
+private val BROWSER_MEDIA_HEIGHT_PATTERN =
+    Regex("""(?<!\d)(2160|1440|1080|720|576|540|480|360|240|144)p(?!\d)""")

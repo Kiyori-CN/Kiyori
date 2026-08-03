@@ -192,6 +192,10 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserSettingsStore.setAutomaticFloatingPlaybackEnabled(enabled)
     }
 
+    fun setAutomaticFloatingMinimumDurationMillis(durationMillis: Long) {
+        tools.browserSettingsStore.setAutomaticFloatingMinimumDurationMillis(durationMillis)
+    }
+
     fun setUserScriptsAllowed(enabled: Boolean) {
         tools.userscriptManager.setUserScriptsAllowed(enabled)
     }

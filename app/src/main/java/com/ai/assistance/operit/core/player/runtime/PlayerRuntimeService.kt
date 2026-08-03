@@ -12,6 +12,7 @@ import android.util.LruCache
 import android.view.Surface
 import com.ai.assistance.operit.core.player.PlayerDebugLogLevel
 import com.ai.assistance.operit.core.player.describePlayerMediaUriForDiagnostics
+import com.ai.assistance.operit.core.player.isSupportedPlayerSpeed
 import com.ai.assistance.operit.core.player.sanitizePlayerDiagnosticMessage
 import com.ai.assistance.operit.core.player.shortPlayerDiagnosticId
 import java.util.concurrent.ExecutorService
@@ -391,7 +392,7 @@ internal class PlayerRuntimeService : Service() {
                 commandId: Long,
                 speed: Double,
             ) {
-                if (!speed.isFinite() || speed <= 0.0) return
+                if (!isSupportedPlayerSpeed(speed)) return
                 postSimpleCommand(runtimeGeneration, commandId, "设置播放速度") {
                     setSpeed(speed)
                 }

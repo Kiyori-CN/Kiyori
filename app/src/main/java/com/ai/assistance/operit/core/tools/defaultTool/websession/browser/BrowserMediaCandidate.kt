@@ -766,6 +766,9 @@ internal val BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT =
       document.addEventListener('durationchange', function(event) {
         scanVideo(event.target, false);
       }, true);
+      document.addEventListener('resize', function(event) {
+        scanVideo(event.target, false);
+      }, true);
       window[stateKey] = { observer: observer, scan: scan };
       scan(document);
     })();

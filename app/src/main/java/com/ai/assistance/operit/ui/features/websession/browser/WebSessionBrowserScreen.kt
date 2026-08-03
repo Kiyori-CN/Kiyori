@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,6 +89,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserAgentMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.automaticFloatingCandidateStabilityDelayMillis
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionProfileToggleTarget
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
@@ -217,6 +219,7 @@ internal fun WebSessionBrowserScreen(
     onHandlePendingDialog: (Boolean, String?) -> Unit,
     showMediaCandidateBadge: Boolean,
     automaticFloatingPlaybackEnabled: Boolean,
+    automaticFloatingMinimumDurationMillis: Long,
     onCopyTextSelection: () -> Unit,
     onSelectAllTextSelection: () -> Unit,
     onDismissTextSelection: () -> Unit,
@@ -227,6 +230,17 @@ internal fun WebSessionBrowserScreen(
     val density = LocalDensity.current
     val browserState = hostState.browserState
     val automaticFloatingPageKey = "${browserState.activeSessionId.orEmpty()}|${browserState.currentUrl}"
+    val automaticFloatingCandidate =
+        remember(
+            browserState.mediaCandidates,
+            automaticFloatingMinimumDurationMillis,
+        ) {
+            selectAutomaticFloatingMediaCandidate(
+                candidates = browserState.mediaCandidates,
+                minimumDurationMillis = automaticFloatingMinimumDurationMillis,
+            )
+        }
+    val latestMediaCandidates by rememberUpdatedState(browserState.mediaCandidates)
     var dismissedAutomaticFloatingPageKey by remember { mutableStateOf<String?>(null) }
     var totalHeightPx by remember { mutableIntStateOf(0) }
     var browserAreaHeightPx by remember { mutableIntStateOf(0) }
@@ -278,17 +292,22 @@ internal fun WebSessionBrowserScreen(
     LaunchedEffect(
         automaticFloatingPageKey,
         automaticFloatingPlaybackEnabled,
-        browserState.mediaCandidates,
+        automaticFloatingMinimumDurationMillis,
+        automaticFloatingCandidate?.id,
         playerState.request?.requestId,
         playerState.presentation,
     ) {
         if (!automaticFloatingPlaybackEnabled) return@LaunchedEffect
         if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
         if (playerState.hasMedia || playerState.presentation != PlayerPresentation.BROWSER_ONLY) return@LaunchedEffect
-        val selected = selectAutomaticFloatingMediaCandidate(browserState.mediaCandidates) ?: return@LaunchedEffect
-        delay(1_200)
+        val selected = automaticFloatingCandidate ?: return@LaunchedEffect
+        delay(automaticFloatingCandidateStabilityDelayMillis(selected))
         if (dismissedAutomaticFloatingPageKey == automaticFloatingPageKey) return@LaunchedEffect
-        val stableSelection = selectAutomaticFloatingMediaCandidate(browserState.mediaCandidates)
+        val stableSelection =
+            selectAutomaticFloatingMediaCandidate(
+                candidates = latestMediaCandidates,
+                minimumDurationMillis = automaticFloatingMinimumDurationMillis,
+            )
         if (stableSelection?.id == selected.id) {
             onPlayMediaCandidateFloating(selected.id)
         }

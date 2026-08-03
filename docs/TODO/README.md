@@ -4,6 +4,50 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-08-03 播放器倍速、小窗与视频嗅探策略优化
+
+状态：本地实现、自动验证与 Debug APK 完成，目标设备验收待完成。继续复用唯一
+`PlayerSettingsStore`、`PlayerSession`、
+`WebSessionBrowserSettingsStore`、每个 `WebSession` 的 `BrowserMediaCandidate` 和
+`BrowserDownloadManager`，不创建第二播放器、第二候选列表或第二设置 owner。
+
+本轮实施与验收顺序：
+
+1. [DONE] 把播放器倍速固定选项扩展为 `0.25x..3.0x` 的 `0.25x` 步进，弹窗保持从高到低且压缩
+   选项垂直间距；增加 `0.00x..3.00x`、最多两位小数的自定义倍速输入，其中 `0.00x` 明确执行暂停
+2. [DONE] 把未持久化过的“双击手势”默认值改为“暂停/播放”；长按加速按当前倍速分段到
+   `1.0x / 2.0x / 3.0x`，松手或取消后恢复按下前速度且不写入倍速记忆
+3. [DONE] 让浏览器小窗继续按比例投影横屏播放器的顶部、侧边和底部控制结构，并与全屏播放器共用
+   蓝紫进度色、轨道颜色、渐变遮罩和倍速选择控件
+4. [DONE] 消除自动小窗对整个候选列表重复等待 `1.2s` 的路径：以最终候选 ID 为稳定键，只保留短暂
+   稳定等待；候选 DOM 观察补充尺寸变化事件，不主动请求媒体或改写链接
+5. [DONE] 从 DOM 尺寸及原始 URL 中识别 `2160P / 1440P / 1080P / 720P / 480P` 等画质线索；
+   保持推荐资格优先，在推荐组内按画质从高到低排序，并让自动小窗选择达到门槛的最高画质候选
+6. [DONE] 在浏览器“音视频嗅探”设置组增加“自动悬浮最小时长”：默认 `1 分钟`，提供
+   `30 秒 / 1 / 3 / 5 / 10 / 30 / 60 分钟` 和 `1..86400 秒`自定义值；未知时长的非直播候选
+   在获得可验证时长前不自动弹出小窗
+7. [DONE] 同步 `CONTEXT.md`、`README.md`、播放器和嗅探阶段文档，补充纯策略与设置页面测试，
+   再运行 formal readiness、`git diff --check`、相关 JVM 测试以及规定的 Debug APK 构建与制品核验
+8. [ ] 在目标设备验收倍速弹窗输入法与滚动、双击/长按手势、小窗出现时延、画质排序、默认最高
+   画质、阈值边界、悬浮/全屏往返和进度条视觉
+
+本地证据：
+
+- 聚焦 JVM 测试共 `59/59` 通过：`PlayerPolicyTest 24/24`、
+  `BrowserMediaCandidatePolicyTest 19/19`、`KiyoriSettingsPagesTest 11/11`、
+  `KiyoriBrowserPluginSettingsPolicyTest 2/2`、`PlayerControlsPolicyTest 3/3`
+- `.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main`
+  通过；`git diff --check` 无 whitespace error，仅报告既有 CRLF -> LF 提示
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 25s`，238 个任务中 28 executed / 210 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-03 23:59:51 +08:00`，大小 `465086902` 字节，SHA-256
+  `1D7FB126D229E443E8362551189E2AD017DD827BCB325E394236C6528B75BB58`
+- APK 为 `com.kiyori / versionCode 45 / versionName 0.1.0 / minSdk 26 / targetSdk 34`；
+  Android Debug v2 签名与 `zipalign -c -P 16 -v 4` 均通过
+- 未执行 APK 安装、ADB、MuMu 或真机测试；未创建提交、未推送远端
+
 ## 2026-08-03 浏览器主页确认与多窗口回退修复
 
 状态：本地实现与自动验证完成，设备交互待验证。实现位于唯一

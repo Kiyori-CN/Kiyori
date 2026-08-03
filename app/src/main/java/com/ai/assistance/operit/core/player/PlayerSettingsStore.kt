@@ -6,6 +6,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.roundToInt
 
 internal class PlayerSettingsStore private constructor(context: Context) {
     private val appContext = context.applicationContext
@@ -39,8 +40,8 @@ internal class PlayerSettingsStore private constructor(context: Context) {
     }
 
     fun setLastPlaybackSpeed(value: Double) {
-        require(value in PLAYER_SPEED_OPTIONS) { "Unsupported remembered player speed: $value" }
-        preferences.edit { putInt(KEY_LAST_PLAYBACK_SPEED_PERCENT, (value * 100).toInt()) }
+        require(isSupportedPlayerSpeed(value)) { "Unsupported remembered player speed: $value" }
+        preferences.edit { putInt(KEY_LAST_PLAYBACK_SPEED_PERCENT, (value * 100).roundToInt()) }
         _state.value = _state.value.copy(lastPlaybackSpeed = value)
     }
 
@@ -230,7 +231,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
         require(speed in PLAYER_SPEED_OPTIONS) { "Invalid persisted player speed: $speed" }
         val lastPlaybackSpeed =
             preferences.getInt(KEY_LAST_PLAYBACK_SPEED_PERCENT, 100) / 100.0
-        require(lastPlaybackSpeed in PLAYER_SPEED_OPTIONS) {
+        require(isSupportedPlayerSpeed(lastPlaybackSpeed)) {
             "Invalid persisted remembered player speed: $lastPlaybackSpeed"
         }
         return PlayerSettings(
@@ -282,7 +283,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                     requireNotNull(
                         preferences.getString(
                             KEY_DOUBLE_TAP_ACTION,
-                            PlayerDoubleTapAction.SEEK.persistedId,
+                            PlayerDoubleTapAction.PLAY_PAUSE.persistedId,
                         ),
                     ) { "Player double tap action preference is null" },
                 ),

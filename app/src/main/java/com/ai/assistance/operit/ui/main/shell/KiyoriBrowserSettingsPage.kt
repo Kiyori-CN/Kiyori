@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -24,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,10 +34,13 @@ import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.standard.CookiePrivacyManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.parseAutomaticFloatingDurationSeconds
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
@@ -55,6 +60,7 @@ internal enum class KiyoriBrowserSettingsAction {
     OPEN_HOME_CUSTOMIZATION,
     TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
     TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
+    SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
     TOGGLE_WEB_PAGE_OPEN_APP,
     TOGGLE_WEB_PAGE_GEOLOCATION,
     CLEAR_COOKIES,
@@ -176,6 +182,13 @@ internal val kiyoriBrowserSettingsGroups =
                         staticToggleValue = true,
                         action =
                             KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
+                    ),
+                    browserNavigation(
+                        title = "自动悬浮最小时长",
+                        description = "短于该时长的视频不会自动打开小窗；直播不受此限制",
+                        action =
+                            KiyoriBrowserSettingsAction
+                                .SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
                     ),
                     browserNavigation(
                         title = "悬浮嗅探模式",
@@ -312,6 +325,9 @@ internal fun KiyoriBrowserSettingsPage(
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
     var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
     var showClearCookieConfirm by rememberSaveable { mutableStateOf(false) }
+    var settingsSelection by remember { mutableStateOf<KiyoriSettingsSelection?>(null) }
+    var showCustomFloatingDurationDialog by rememberSaveable { mutableStateOf(false) }
+    var customFloatingDurationSeconds by rememberSaveable { mutableStateOf("60") }
     val subPage = subPageName?.let(KiyoriBrowserSettingsSubPage::valueOf)
 
     fun closeCurrentPage() {
@@ -350,6 +366,19 @@ internal fun KiyoriBrowserSettingsPage(
                 onSetShowMediaCandidateBadge = coordinator::setShowMediaCandidateBadge,
                 onSetAutomaticFloatingPlaybackEnabled =
                     coordinator::setAutomaticFloatingPlaybackEnabled,
+                onSelectAutomaticFloatingMinimumDuration = {
+                    settingsSelection =
+                        automaticFloatingMinimumDurationSelection(
+                            settings = settings,
+                            onSelect = coordinator::setAutomaticFloatingMinimumDurationMillis,
+                            onCustom = {
+                                customFloatingDurationSeconds =
+                                    (settings.automaticFloatingMinimumDurationMillis / 1_000L)
+                                        .toString()
+                                showCustomFloatingDurationDialog = true
+                            },
+                        )
+                },
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
                 onSetAllowWebPageGeolocation = coordinator::setAllowWebPageGeolocation,
                 onClearCookies = { showClearCookieConfirm = true },
@@ -449,6 +478,71 @@ internal fun KiyoriBrowserSettingsPage(
             },
         )
     }
+    settingsSelection?.let { selection ->
+        KiyoriSettingsSelectionSheet(
+            selection = selection,
+            onDismiss = { settingsSelection = null },
+            onSelect = { option ->
+                option.onSelect()
+                settingsSelection = null
+            },
+        )
+    }
+    if (showCustomFloatingDurationDialog) {
+        val parsedDuration =
+            parseAutomaticFloatingDurationSeconds(customFloatingDurationSeconds)
+        AlertDialog(
+            onDismissRequest = { showCustomFloatingDurationDialog = false },
+            title = { Text("自定义自动悬浮时长") },
+            text = {
+                OutlinedTextField(
+                    value = customFloatingDurationSeconds,
+                    onValueChange = { value ->
+                        if (value.length <= 5 && value.all(Char::isDigit)) {
+                            customFloatingDurationSeconds = value
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError =
+                        customFloatingDurationSeconds.isNotBlank() && parsedDuration == null,
+                    label = { Text("最小时长") },
+                    suffix = { Text("秒") },
+                    supportingText = {
+                        Text(
+                            if (
+                                customFloatingDurationSeconds.isNotBlank() &&
+                                    parsedDuration == null
+                            ) {
+                                "请输入 1–86400 秒"
+                            } else {
+                                "可精确到 1 秒，最长 24 小时"
+                            },
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = parsedDuration != null,
+                    onClick = {
+                        parsedDuration?.let(
+                            coordinator::setAutomaticFloatingMinimumDurationMillis,
+                        )
+                        showCustomFloatingDurationDialog = false
+                    },
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomFloatingDurationDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -465,6 +559,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     onOpenHomeCustomization: () -> Unit,
     onSetShowMediaCandidateBadge: (Boolean) -> Unit,
     onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
+    onSelectAutomaticFloatingMinimumDuration: () -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
     onClearCookies: () -> Unit,
@@ -483,7 +578,7 @@ private fun KiyoriBrowserSettingsDetailPage(
                 group.entries.forEachIndexed { index, entry ->
                     val enabled =
                         isBrowserSettingEnabled(entry) &&
-                            isBrowserSettingRuntimeEnabled(entry, userscriptState)
+                            isBrowserSettingRuntimeEnabled(entry, userscriptState, settings)
                     val checked =
                         browserSettingToggleValue(
                             entry = entry,
@@ -522,6 +617,9 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onSetShowMediaCandidateBadge(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
                                     onSetAutomaticFloatingPlaybackEnabled(!checked)
+                                KiyoriBrowserSettingsAction
+                                    .SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION ->
+                                    onSelectAutomaticFloatingMinimumDuration()
                                 KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP ->
                                     onSetAllowWebPageOpenApp(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
@@ -548,10 +646,13 @@ internal fun isBrowserSettingEnabled(entry: KiyoriBrowserSettingsEntrySpec): Boo
 internal fun isBrowserSettingRuntimeEnabled(
     entry: KiyoriBrowserSettingsEntrySpec,
     userscriptState: WebSessionUserscriptUiState,
+    settings: WebSessionBrowserSettings = WebSessionBrowserSettings(),
 ): Boolean =
     when (entry.action) {
         KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
             userscriptState.supportState.isSupported
+        KiyoriBrowserSettingsAction.SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION ->
+            settings.automaticFloatingPlaybackEnabled
         else -> true
     }
 
@@ -576,6 +677,10 @@ internal fun browserSettingValue(
                 browserPluginLogSummary(userscriptState)
             KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
                 formatBrowserHomeUrl(settings.homeUrl)
+            KiyoriBrowserSettingsAction.SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION ->
+                formatAutomaticFloatingMinimumDuration(
+                    settings.automaticFloatingMinimumDurationMillis,
+                )
             KiyoriBrowserSettingsAction.CLEAR_COOKIES -> null
             KiyoriBrowserSettingsAction.NONE -> entry.value ?: "未接入"
             else -> entry.value
@@ -600,6 +705,35 @@ private fun browserSettingToggleValue(
             settings.allowWebPageGeolocation
         else -> entry.staticToggleValue
     }
+
+internal fun automaticFloatingMinimumDurationSelection(
+    settings: WebSessionBrowserSettings,
+    onSelect: (Long) -> Unit,
+    onCustom: () -> Unit,
+): KiyoriSettingsSelection {
+    val currentDuration = settings.automaticFloatingMinimumDurationMillis
+    return KiyoriSettingsSelection(
+        title = "自动悬浮最小时长",
+        currentValue = formatAutomaticFloatingMinimumDuration(currentDuration),
+        options =
+            AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS.map { durationMillis ->
+                KiyoriSettingsSelectionOption(
+                    label = formatAutomaticFloatingMinimumDuration(durationMillis),
+                    description = "视频时长达到此值后才允许自动打开小窗",
+                    selected = currentDuration == durationMillis,
+                    onSelect = { onSelect(durationMillis) },
+                )
+            } +
+                KiyoriSettingsSelectionOption(
+                    label = "自定义时长",
+                    description = "输入 1–86400 秒，可精确到 1 秒",
+                    selected =
+                        currentDuration !in
+                            AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS,
+                    onSelect = onCustom,
+                ),
+    )
+}
 
 internal fun browserPluginManagementSummary(state: WebSessionUserscriptUiState): String =
     "已安装 ${state.installedScripts.size} · 已启用 " +

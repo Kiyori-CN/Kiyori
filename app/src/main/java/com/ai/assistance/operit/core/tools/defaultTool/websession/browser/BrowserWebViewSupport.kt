@@ -1648,6 +1648,8 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     lastDiscoveredAt = candidate.lastDiscoveredAt,
                     durationMillis = candidate.durationMillis,
                     isLive = candidate.isLive,
+                    qualityHeight = ranking.qualityHeight,
+                    qualityLabel = ranking.qualityLabel,
                     rankingScore = ranking.score,
                     rankingSummary = ranking.summary,
                     isRecommended = ranking.isRecommended,

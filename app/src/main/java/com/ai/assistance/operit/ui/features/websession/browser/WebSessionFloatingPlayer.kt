@@ -3,8 +3,6 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.net.TrafficStats
-import android.os.SystemClock
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,23 +55,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.core.player.PLAYER_SPEED_OPTIONS
 import com.ai.assistance.operit.core.player.PlayerSession
 import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.PlayerSurfaceRole
+import com.ai.assistance.operit.ui.features.player.PlayerAccent
+import com.ai.assistance.operit.ui.features.player.PlayerAccentSecondary
+import com.ai.assistance.operit.ui.features.player.PlayerSpeedMenu
 import com.ai.assistance.operit.ui.features.player.createPlayerSurfaceView
+import com.ai.assistance.operit.ui.features.player.formatPlayerNetworkSpeed
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
-private const val FLOATING_NETWORK_SPEED_UPDATE_INTERVAL_MS = 1_000L
-private const val FLOATING_UNLOCK_AUTO_HIDE_MS = 5_000L
-private const val FLOATING_BYTES_PER_KILOBYTE = 1_024.0
-private const val FLOATING_BYTES_PER_MEGABYTE = 1_024.0 * 1_024.0
+private const val FLOATING_UNLOCK_AUTO_HIDE_MS = 3_000L
 
 @Composable
 internal fun WebSessionFloatingPlayer(
@@ -97,36 +93,8 @@ internal fun WebSessionFloatingPlayer(
     var horizontalSeekStartSeconds by remember(requestId) { mutableFloatStateOf(0f) }
     var horizontalSeekDeltaPx by remember(requestId) { mutableFloatStateOf(0f) }
     var horizontalSeekPreviewSeconds by remember(requestId) { mutableStateOf<Double?>(null) }
-    var networkSpeedValue by remember { mutableStateOf("0.0") }
-    var networkSpeedUnit by remember { mutableStateOf("KB/s") }
     var batteryText by remember { mutableStateOf(readFloatingPlayerBatteryText(context)) }
     var clockText by remember { mutableStateOf(formatFloatingPlayerClock()) }
-
-    LaunchedEffect(context) {
-        var previousBytes = readFloatingPlayerTrafficBytes()
-        var previousTimestamp = SystemClock.elapsedRealtime()
-        while (true) {
-            delay(FLOATING_NETWORK_SPEED_UPDATE_INTERVAL_MS)
-            val currentBytes = readFloatingPlayerTrafficBytes()
-            val currentTimestamp = SystemClock.elapsedRealtime()
-            if (
-                currentBytes == TrafficStats.UNSUPPORTED.toLong() ||
-                    previousBytes == TrafficStats.UNSUPPORTED.toLong()
-            ) {
-                networkSpeedValue = "0.0"
-                networkSpeedUnit = "KB/s"
-            } else {
-                val elapsedMillis = (currentTimestamp - previousTimestamp).coerceAtLeast(1L)
-                val bytesPerSecond =
-                    ((currentBytes - previousBytes).coerceAtLeast(0L) * 1_000.0) / elapsedMillis
-                val formatted = formatFloatingPlayerNetworkSpeed(bytesPerSecond)
-                networkSpeedValue = formatted.first
-                networkSpeedUnit = formatted.second
-            }
-            previousBytes = currentBytes
-            previousTimestamp = currentTimestamp
-        }
-    }
     LaunchedEffect(context) {
         while (true) {
             batteryText = readFloatingPlayerBatteryText(context)
@@ -145,6 +113,10 @@ internal fun WebSessionFloatingPlayer(
     val positionSeconds = state.positionSeconds.coerceIn(0.0, durationSeconds.coerceAtLeast(0.0))
     val seekStepSeconds = playerSettings.seekStepSeconds
     val featureAction = onFullscreen
+    val networkSpeed =
+        remember(state.networkSpeedBytesPerSecond) {
+            formatPlayerNetworkSpeed(state.networkSpeedBytesPerSecond)
+        }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -224,8 +196,8 @@ internal fun WebSessionFloatingPlayer(
                 if (controlsVisible) {
                     FloatingPlayerTopControls(
                         title = state.request?.title.orEmpty().ifBlank { "在线视频" },
-                        networkSpeedValue = networkSpeedValue,
-                        networkSpeedUnit = networkSpeedUnit,
+                        networkSpeedValue = networkSpeed.first,
+                        networkSpeedUnit = networkSpeed.second,
                         batteryText = batteryText,
                         clockText = clockText,
                         onClose = onClose,
@@ -272,13 +244,10 @@ internal fun WebSessionFloatingPlayer(
                         onRewind = session::seekBackward,
                         onPlayPause = onTogglePause,
                         onForward = session::seekForward,
-                        onSpeed = {
-                            val currentIndex =
-                                PLAYER_SPEED_OPTIONS.indexOfFirst { abs(it - state.speed) < 0.001 }
-                            val nextIndex =
-                                if (currentIndex < 0) 0 else (currentIndex + 1) % PLAYER_SPEED_OPTIONS.size
-                            session.setSpeed(PLAYER_SPEED_OPTIONS[nextIndex])
-                        },
+                        speed = state.speed,
+                        session = session,
+                        onInteraction = { controlsVisible = true },
+                        onPopupVisibilityChanged = { controlsVisible = true },
                         onAnime4K = session::cycleAnime4KMode,
                         onRotate = onFullscreen,
                         modifier = Modifier.align(Alignment.BottomCenter),
@@ -352,8 +321,12 @@ private fun FloatingPlayerTopControls(
                 .height(48.dp)
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.72f),
-                        1f to Color.Transparent,
+                        colorStops =
+                            arrayOf(
+                                0f to Color(0xB0000000),
+                                0.5f to Color(0x60000000),
+                                1f to Color.Transparent,
+                            ),
                     ),
                 )
                 .padding(start = 4.dp, top = 4.dp, end = 6.dp),
@@ -527,7 +500,10 @@ private fun FloatingPlayerBottomControls(
     onRewind: () -> Unit,
     onPlayPause: () -> Unit,
     onForward: () -> Unit,
-    onSpeed: () -> Unit,
+    speed: Double,
+    session: PlayerSession,
+    onInteraction: () -> Unit,
+    onPopupVisibilityChanged: (Boolean) -> Unit,
     onAnime4K: () -> Unit,
     onRotate: () -> Unit,
     modifier: Modifier = Modifier,
@@ -539,8 +515,12 @@ private fun FloatingPlayerBottomControls(
                 .height(84.dp)
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.78f),
+                        colorStops =
+                            arrayOf(
+                                0f to Color.Transparent,
+                                0.5f to Color(0x60000000),
+                                1f to Color(0xB0000000),
+                            ),
                     ),
                 )
                 .padding(start = 8.dp, top = 12.dp, end = 8.dp, bottom = 4.dp),
@@ -624,12 +604,13 @@ private fun FloatingPlayerBottomControls(
                         iconSize = 16.dp,
                     )
                     Spacer(modifier = Modifier.width(2.dp))
-                    FloatingPlayerResourceButton(
-                        description = "倍速",
-                        resId = R.drawable.tachometer_alt_fastest,
+                    PlayerSpeedMenu(
+                        speed = speed,
+                        session = session,
+                        onInteraction = onInteraction,
+                        onPopupVisibilityChanged = onPopupVisibilityChanged,
                         size = 26.dp,
-                        iconSize = 16.dp,
-                        onClick = onSpeed,
+                        padding = 5.dp,
                     )
                 }
                 FloatingPlayerTextButton(
@@ -681,7 +662,7 @@ private fun FloatingPlayerSeekBar(
                     .align(Alignment.CenterStart)
                     .fillMaxWidth()
                     .height(3.dp)
-                    .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(1.5.dp)),
+                    .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(1.5.dp)),
         )
         Box(
             modifier =
@@ -689,7 +670,12 @@ private fun FloatingPlayerSeekBar(
                     .align(Alignment.CenterStart)
                     .fillMaxWidth(progressFraction)
                     .height(3.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(1.5.dp)),
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(PlayerAccent, PlayerAccentSecondary),
+                        ),
+                        RoundedCornerShape(1.5.dp),
+                    ),
         )
         Box(
             modifier =
@@ -700,7 +686,7 @@ private fun FloatingPlayerSeekBar(
                         IntOffset((maxOffset * progressFraction).roundToInt(), 0)
                     }
                     .size(7.dp)
-                    .background(Color.White, CircleShape),
+                    .background(PlayerAccent, CircleShape),
         )
     }
 }
@@ -786,28 +772,6 @@ private fun formatFloatingPlayerTime(positionSeconds: Double): String {
     } else {
         "%02d:%02d".format(Locale.ROOT, minutes, seconds)
     }
-}
-
-private fun readFloatingPlayerTrafficBytes(): Long {
-    val rxBytes = TrafficStats.getTotalRxBytes()
-    val txBytes = TrafficStats.getTotalTxBytes()
-    if (
-        rxBytes == TrafficStats.UNSUPPORTED.toLong() ||
-            txBytes == TrafficStats.UNSUPPORTED.toLong()
-    ) {
-        return TrafficStats.UNSUPPORTED.toLong()
-    }
-    return rxBytes + txBytes
-}
-
-private fun formatFloatingPlayerNetworkSpeed(bytesPerSecond: Double): Pair<String, String> {
-    val (value, unit) =
-        if (bytesPerSecond >= FLOATING_BYTES_PER_MEGABYTE) {
-            bytesPerSecond / FLOATING_BYTES_PER_MEGABYTE to "MB/s"
-        } else {
-            bytesPerSecond / FLOATING_BYTES_PER_KILOBYTE to "KB/s"
-        }
-    return String.format(Locale.ROOT, "%.1f", value) to unit
 }
 
 private fun readFloatingPlayerBatteryText(context: Context): String {

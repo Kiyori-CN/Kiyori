@@ -7,6 +7,7 @@ import com.ai.assistance.operit.core.player.PlayerChapter
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerTrack
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
+import com.ai.assistance.operit.core.player.isSupportedPlayerSpeed
 import java.io.File
 import kotlinx.parcelize.Parcelize
 
@@ -44,7 +45,7 @@ internal data class PlayerRuntimeLoadRequest(
     init {
         require(requestId.isNotBlank()) { "Player runtime request ID is blank" }
         require(uri.isNotBlank()) { "Player runtime URI is blank" }
-        require(initialSpeed.isFinite() && initialSpeed > 0.0) {
+        require(isSupportedPlayerSpeed(initialSpeed)) {
             "Player runtime initial speed is invalid"
         }
         require(

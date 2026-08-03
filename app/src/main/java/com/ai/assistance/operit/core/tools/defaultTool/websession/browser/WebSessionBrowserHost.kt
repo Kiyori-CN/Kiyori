@@ -327,6 +327,8 @@ internal class WebSessionBrowserHost(
             showMediaCandidateBadge = browserSettings.showMediaCandidateBadge,
             automaticFloatingPlaybackEnabled =
                 browserSettings.automaticFloatingPlaybackEnabled,
+            automaticFloatingMinimumDurationMillis =
+                browserSettings.automaticFloatingMinimumDurationMillis,
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
             onDismissTextSelection = ::dismissTextSelectionActions,

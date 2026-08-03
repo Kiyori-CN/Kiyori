@@ -2,6 +2,8 @@ package com.ai.assistance.operit.core.player
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 internal enum class PlayerPresentation {
     BROWSER_ONLY,
@@ -240,37 +242,54 @@ internal fun migrateLegacyAnime4KPersistedId(value: String): String =
         else -> value
     }
 
-internal val PLAYER_SPEED_OPTIONS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0)
-internal val PLAYER_SPEED_MENU_OPTIONS = listOf(3.0, 2.0, 1.5, 1.25, 0.75, 0.5)
+private const val MIN_PLAYER_SPEED_PERCENT = 1
+private const val MAX_PLAYER_SPEED_PERCENT = 300
+private const val PLAYER_SPEED_PRECISION_EPSILON = 0.000_000_1
+
+internal val PLAYER_SPEED_OPTIONS = (25..MAX_PLAYER_SPEED_PERCENT step 25).map { it / 100.0 }
+internal val PLAYER_SPEED_MENU_OPTIONS = PLAYER_SPEED_OPTIONS.asReversed()
 internal val PLAYER_SEEK_STEP_OPTIONS = listOf(5, 10, 15, 20, 30, 45, 60)
 internal val PLAYER_DOUBLE_TAP_SEEK_OPTIONS = listOf(5, 10, 15, 20, 30)
 internal val PLAYER_SUBTITLE_SCALE_OPTIONS = listOf(0.8, 1.0, 1.2, 1.5)
 
+internal fun isSupportedPlayerSpeed(speed: Double): Boolean {
+    if (!speed.isFinite()) return false
+    val speedPercent = (speed * 100.0).roundToInt()
+    return speedPercent in MIN_PLAYER_SPEED_PERCENT..MAX_PLAYER_SPEED_PERCENT &&
+        abs(speed - speedPercent / 100.0) <= PLAYER_SPEED_PRECISION_EPSILON
+}
+
 internal fun formatPlayerSpeedLabel(speed: Double): String {
-    require(speed in PLAYER_SPEED_OPTIONS) { "Unsupported player speed label: $speed" }
-    return when (speed) {
-        0.5 -> "0.5x"
-        0.75 -> "0.75x"
-        1.0 -> "1.0x"
-        1.25 -> "1.25x"
-        1.5 -> "1.5x"
-        2.0 -> "2.0x"
-        3.0 -> "3.0x"
-        else -> error("Player speed options and labels are out of sync")
+    require(isSupportedPlayerSpeed(speed)) { "Unsupported player speed label: $speed" }
+    val speedPercent = (speed * 100.0).roundToInt()
+    return when {
+        speedPercent % 100 == 0 -> "${speedPercent / 100}.0x"
+        speedPercent % 10 == 0 -> "${speedPercent / 100}.${speedPercent % 100 / 10}x"
+        else -> "${speedPercent / 100}.${(speedPercent % 100).toString().padStart(2, '0')}x"
     }
 }
 
-internal fun resolveNextPlayerSpeed(currentSpeed: Double): Double? {
-    require(currentSpeed in PLAYER_SPEED_OPTIONS) {
+internal fun parsePlayerSpeedInput(input: String): Double? {
+    val normalized = input.trim()
+    if (!PLAYER_SPEED_INPUT_PATTERN.matches(normalized)) return null
+    val speed = normalized.toDoubleOrNull() ?: return null
+    return speed.takeIf { value -> value == 0.0 || isSupportedPlayerSpeed(value) }
+}
+
+internal fun resolveLongPressPlayerSpeed(currentSpeed: Double): Double? {
+    require(isSupportedPlayerSpeed(currentSpeed)) {
         "Unsupported current player speed: $currentSpeed"
     }
-    val currentIndex = PLAYER_SPEED_OPTIONS.indexOf(currentSpeed)
-    return if (currentIndex < PLAYER_SPEED_OPTIONS.lastIndex) {
-        PLAYER_SPEED_OPTIONS[currentIndex + 1]
-    } else {
-        null
+    return when {
+        currentSpeed < 1.0 -> 1.0
+        currentSpeed < 2.0 -> 2.0
+        currentSpeed < 3.0 -> 3.0
+        else -> null
     }
 }
+
+private val PLAYER_SPEED_INPUT_PATTERN =
+    Regex("""(?:0(?:\.\d{1,2})?|[12](?:\.\d{1,2})?|3(?:\.0{1,2})?)""")
 
 internal data class LongPressSpeedBoostResult(
     val originalSpeed: Double,
@@ -294,7 +313,7 @@ internal data class PlayerSettings(
     val volumeBoostEnabled: Boolean = false,
     val preciseSeeking: Boolean = true,
     val seekStepSeconds: Int = 10,
-    val doubleTapAction: PlayerDoubleTapAction = PlayerDoubleTapAction.SEEK,
+    val doubleTapAction: PlayerDoubleTapAction = PlayerDoubleTapAction.PLAY_PAUSE,
     val doubleTapSeekSeconds: Int = 10,
     val longPressSpeedBoostEnabled: Boolean = false,
     val chapterBarEnabled: Boolean = true,

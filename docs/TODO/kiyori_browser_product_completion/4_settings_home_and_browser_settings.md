@@ -1,10 +1,27 @@
 # 网页浏览器设置复刻
 
+## 2026-08-03 自动悬浮最小时长
+
+[LOCAL DONE]
+
+- 当前五组实际为 `6/7/5/6/6`：“网页插件与脚本 / 主页、标签与手势 / 音视频嗅探 /
+  网站权限与数据 / 显示与高级”。
+- `WebSessionBrowserSettingsStore` 新增唯一
+  `automaticFloatingMinimumDurationMillis`，默认 `60_000ms`；预设为
+  `30 秒 / 1 / 3 / 5 / 10 / 30 / 60 分钟`，自定义输入接受 `1..86400` 整秒。
+- “自动悬浮最小时长”位于“自动悬浮播放”之后，自动悬浮关闭时显示为依赖禁用；人工播放不读取
+  该阈值。
+- 选择面板继续复用 `KiyoriSettingsSelectionSheet`，自定义值使用明确的数字输入弹窗；设置页不创建
+  第二份状态或媒体选择逻辑。
+- 聚焦 `KiyoriSettingsPagesTest 11/11` 与
+  `KiyoriBrowserPluginSettingsPolicyTest 2/2` 已通过；最终 formal readiness、Debug APK 和真机视觉
+  证据以 `docs/TODO/README.md` 的本轮记录为准。
+
 ## 2026-07-29 播放器标准统一
 
 [LOCAL DONE]
 
-本节后续历史保留旧版复刻过程；当前源码已经以视频播放器设置页为唯一标准重新组织浏览器设置：
+本节后续历史保留旧版复刻过程；其中行数和真实设置 owner 已由上方 2026-08-03 记录替代：
 
 - 五组按 `3/5/4/5/6` 固定为“插件与会话 / 主页、标签与手势 / 音视频嗅探 /
   网站权限与数据 / 显示与高级”

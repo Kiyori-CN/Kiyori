@@ -4,7 +4,10 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.parseAutomaticFloatingDurationSeconds
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
@@ -521,7 +524,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings group sniffing switches together and only connect verified capabilities`() {
         assertEquals(
-            listOf(6, 7, 4, 6, 6),
+            listOf(6, 7, 5, 6, 6),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -541,6 +544,7 @@ class KiyoriSettingsPagesTest {
                 "搜索引擎切换条",
                 "搜索栏嗅探入口",
                 "自动悬浮播放",
+                "自动悬浮最小时长",
                 "悬浮嗅探模式",
                 "嗅探规则管理",
                 "允许网页打开应用",
@@ -578,6 +582,9 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
                 "自动悬浮播放" to
                     KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
+                "自动悬浮最小时长" to
+                    KiyoriBrowserSettingsAction
+                        .SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
                 "网页主页自定义" to
                     KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                 "允许网页打开应用" to
@@ -611,7 +618,7 @@ class KiyoriSettingsPagesTest {
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(12, entries.count(::isBrowserSettingEnabled))
+        assertEquals(13, entries.count(::isBrowserSettingEnabled))
         assertEquals(17, entries.count { entry -> !isBrowserSettingEnabled(entry) })
         assertEquals(
             "https://example.com/home",
@@ -641,6 +648,54 @@ class KiyoriSettingsPagesTest {
                 browserSettings,
             ),
         )
+        val durationEntry =
+            entries.single {
+                it.action ==
+                    KiyoriBrowserSettingsAction.SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION
+            }
+        assertEquals(
+            "1 分钟",
+            browserSettingValue(durationEntry, browserSettings),
+        )
+        assertTrue(
+            isBrowserSettingRuntimeEnabled(
+                entry = durationEntry,
+                userscriptState = WebSessionUserscriptUiState(),
+                settings = browserSettings,
+            ),
+        )
+        assertFalse(
+            isBrowserSettingRuntimeEnabled(
+                entry = durationEntry,
+                userscriptState = WebSessionUserscriptUiState(),
+                settings = browserSettings.copy(automaticFloatingPlaybackEnabled = false),
+            ),
+        )
+        val selection =
+            automaticFloatingMinimumDurationSelection(
+                settings = browserSettings,
+                onSelect = {},
+                onCustom = {},
+            )
+        assertEquals(
+            listOf(
+                "30 秒",
+                "1 分钟",
+                "3 分钟",
+                "5 分钟",
+                "10 分钟",
+                "30 分钟",
+                "60 分钟",
+                "自定义时长",
+            ),
+            selection.options.map(KiyoriSettingsSelectionOption::label),
+        )
+        assertEquals("1 分钟", selection.currentValue)
+        assertEquals(60_000L, parseAutomaticFloatingDurationSeconds("60"))
+        assertEquals(90_000L, parseAutomaticFloatingDurationSeconds("90"))
+        assertEquals(null, parseAutomaticFloatingDurationSeconds("0"))
+        assertEquals(null, parseAutomaticFloatingDurationSeconds("86401"))
+        assertEquals("1 分 30 秒", formatAutomaticFloatingMinimumDuration(90_000L))
         assertEquals("空白页", formatBrowserHomeUrl("about:blank"))
     }
 

@@ -13,6 +13,8 @@ internal data class WebSessionBrowserSettings(
     val allowWebPageGeolocation: Boolean = true,
     val showMediaCandidateBadge: Boolean = true,
     val automaticFloatingPlaybackEnabled: Boolean = true,
+    val automaticFloatingMinimumDurationMillis: Long =
+        DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS,
     val userAgentMode: WebSessionUserAgentMode = WebSessionUserAgentMode.ANDROID,
     val customGlobalUserAgent: String = "",
     val siteUserAgentRules: List<WebSessionSiteUserAgentRule> = emptyList(),
@@ -54,6 +56,17 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     fun setAutomaticFloatingPlaybackEnabled(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_AUTOMATIC_FLOATING_PLAYBACK, enabled) }
         _state.value = _state.value.copy(automaticFloatingPlaybackEnabled = enabled)
+    }
+
+    fun setAutomaticFloatingMinimumDurationMillis(durationMillis: Long) {
+        require(isSupportedAutomaticFloatingMinimumDuration(durationMillis)) {
+            "Unsupported automatic floating minimum duration: $durationMillis"
+        }
+        preferences.edit {
+            putLong(KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION, durationMillis)
+        }
+        _state.value =
+            _state.value.copy(automaticFloatingMinimumDurationMillis = durationMillis)
     }
 
     fun setUserAgentMode(mode: WebSessionUserAgentMode) {
@@ -133,6 +146,17 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                 preferences.getBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, true),
             automaticFloatingPlaybackEnabled =
                 preferences.getBoolean(KEY_AUTOMATIC_FLOATING_PLAYBACK, true),
+            automaticFloatingMinimumDurationMillis =
+                preferences
+                    .getLong(
+                        KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION,
+                        DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS,
+                    )
+                    .also { durationMillis ->
+                        require(isSupportedAutomaticFloatingMinimumDuration(durationMillis)) {
+                            "Invalid automatic floating minimum duration: $durationMillis"
+                        }
+                    },
             userAgentMode = userAgentMode,
             customGlobalUserAgent = customGlobalUserAgent,
             siteUserAgentRules = decodeSiteUserAgentRules(preferences.getString(KEY_SITE_USER_AGENTS, "")),
@@ -180,6 +204,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_ALLOW_WEB_PAGE_GEOLOCATION = "allow_web_page_geolocation"
         private const val KEY_SHOW_MEDIA_CANDIDATE_BADGE = "show_media_candidate_badge"
         private const val KEY_AUTOMATIC_FLOATING_PLAYBACK = "automatic_floating_playback"
+        private const val KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION =
+            "automatic_floating_minimum_duration"
         private const val KEY_USER_AGENT_MODE = "user_agent_mode"
         private const val KEY_CUSTOM_GLOBAL_USER_AGENT = "custom_global_user_agent"
         private const val KEY_SITE_USER_AGENTS = "site_user_agents"
@@ -197,8 +223,45 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
 }
 
 internal const val DEFAULT_BROWSER_HOME_URL = "about:blank"
+internal const val DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS = 60_000L
+internal val AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS =
+    listOf(
+        30_000L,
+        60_000L,
+        3L * 60_000L,
+        5L * 60_000L,
+        10L * 60_000L,
+        30L * 60_000L,
+        60L * 60_000L,
+    )
+
+private const val MIN_AUTOMATIC_FLOATING_DURATION_MILLIS = 1_000L
+private const val MAX_AUTOMATIC_FLOATING_DURATION_MILLIS = 86_400_000L
 
 internal fun isSupportedBrowserHomeUrl(url: String): Boolean =
     url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true) ||
         url.startsWith("http://", ignoreCase = true) ||
         url.startsWith("https://", ignoreCase = true)
+
+internal fun isSupportedAutomaticFloatingMinimumDuration(durationMillis: Long): Boolean =
+    durationMillis in
+        MIN_AUTOMATIC_FLOATING_DURATION_MILLIS..MAX_AUTOMATIC_FLOATING_DURATION_MILLIS &&
+        durationMillis % 1_000L == 0L
+
+internal fun parseAutomaticFloatingDurationSeconds(input: String): Long? {
+    val seconds = input.trim().toLongOrNull() ?: return null
+    if (seconds !in 1L..86_400L) return null
+    return seconds * 1_000L
+}
+
+internal fun formatAutomaticFloatingMinimumDuration(durationMillis: Long): String {
+    require(isSupportedAutomaticFloatingMinimumDuration(durationMillis)) {
+        "Unsupported automatic floating minimum duration label: $durationMillis"
+    }
+    val totalSeconds = durationMillis / 1_000L
+    return when {
+        totalSeconds < 60L -> "$totalSeconds 秒"
+        totalSeconds % 60L == 0L -> "${totalSeconds / 60L} 分钟"
+        else -> "${totalSeconds / 60L} 分 ${totalSeconds % 60L} 秒"
+    }
+}

@@ -1,5 +1,25 @@
 # 浏览器资源嗅探与悬浮播放
 
+## 2026-08-03 画质排序、最高画质自动小窗与快速触发
+
+[LOCAL DONE / DEVICE PENDING]
+
+- 候选仍由每个现有 `WebSession.mediaCandidates` 唯一持有。画质只从被动获得的 DOM
+  `videoWidth/videoHeight` 或原始 URL 中明确的 `3840x2160`、`quality=1080`、`1080p` 等线索解析；
+  不发送 HEAD/GET，不改写 URL，不新增 resolver。
+- 抽屉保持“推荐资格优先”，在推荐组与非推荐组内部按画质高度从高到低排序，再比较推荐分数、
+  元数据和稳定 ID；候选卡显示解析出的 `2160P / 1440P / 1080P / 720P / 480P` 等画质标签。
+- 自动小窗选择达到门槛的最高画质候选。直播不受时长门槛限制；普通视频必须已有被动时长且
+  `durationMillis >= automaticFloatingMinimumDurationMillis`，未知时长在获得元数据前不自动进入小窗。
+- 自动小窗不再把整个候选列表作为 `LaunchedEffect` 稳定键，也不再固定等待 `1.2s`；当前候选 ID
+  为触发键，并按 `DOM_PLAY_EVENT / DOM_CURRENT_SRC / 其他被动证据` 分别短暂确认
+  `100ms / 180ms / 300ms`。确认时从最新候选快照重新选择，只有同一最高画质 ID 仍成立才播放。
+- DOM observer 补充只读 `resize` 事件，用于媒体尺寸或清晰度切换后尽快更新排序；脚本仍不调用
+  `play()`、`pause()`、`load()` 或 seek。
+- 聚焦 `BrowserMediaCandidatePolicyTest 19/19` 已通过，覆盖 URL/DOM 画质、从高到低排序、最高画质
+  自动选择、时长边界、直播/未知时长和稳定确认时延。最终构建与制品记录见
+  `docs/TODO/README.md`；真实站点画质切换和出现时延保持 `verification_pending`。
+
 ## 实现状态（2026-07-28）
 
 - 已在现有 `StandardBrowserSessionTools.WebSession` 内加入有界 `mediaCandidates`；导航开始时清空当前
@@ -72,14 +92,14 @@ Cookie 和 headers 只在内存中交给 player/download owner，不进入普通
 
 - 浏览器菜单“悬浮嗅探”进入真实 `MEDIA_CANDIDATES` drawer。抽屉从标题后直接进入横向滚动的
   “全部 + 本页已发现具体格式”筛选；搜索栏视频资源球与自动悬浮播放器只在浏览器设置页配置。
-- 列表按统一推荐分数降序排列：网页实际播放/当前 `video`、主视口占比、清单/直链、分辨率、时长、
-  直播和多来源证据加分；广告/预览关键词和小型静音自动循环视频扣分。分数相同再按已知时长、
-  最近发现时间和稳定 ID 排序。
+- 列表先按推荐资格分组，再按被动解析出的画质高度从高到低排列；同画质内继续使用网页实际播放/
+  当前 `video`、主视口占比、清单/直链、时长、直播和多来源证据形成的推荐分数。广告/预览关键词
+  和小型静音自动循环视频仍扣分，之后再按已知元数据、最近发现时间和稳定 ID 排序。
 - 每个结果直接显示视频格式、推荐状态、视频时长或直播/未知、完整原始链接和排序摘要；点击或长按
   整行打开“播放资源 / 下载资源 / 复制链接 / 查看链接”，右下角继续保留下载与播放按钮。
 - 人工播放把 candidate 原始 URL 与实际 headers 交给唯一 `PlayerSession` 并固定进入
-  `FULLSCREEN_PLAYER`；`PlayerActivity` 继续使用 `sensorLandscape`。自动悬浮开关只允许排序首位且
-  满足推荐门槛的候选进入 `FLOATING_PLAYER`。
+  `FULLSCREEN_PLAYER`；`PlayerActivity` 继续使用 `sensorLandscape`。自动悬浮开关只允许达到用户
+  时长门槛的推荐候选进入 `FLOATING_PLAYER`，并在这些候选中选择最高画质。
 - 下载动作创建 `PendingBrowserDownloadRequest`，完整使用 candidate 已保存 headers，并继续交给现有
   `BrowserDownloadManager`、默认 engine、确认页和任务数据库。不得重新猜 Referer 或创建第二下载系统。
 
