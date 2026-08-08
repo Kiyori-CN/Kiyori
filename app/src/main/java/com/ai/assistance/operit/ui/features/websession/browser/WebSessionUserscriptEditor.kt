@@ -27,9 +27,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.widthIn
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptEditableMetadata
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptMetadataEditorPolicy
@@ -200,7 +201,7 @@ internal fun WebSessionUserscriptEditorPage(
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
-                            color = KiyoriSemanticTone.PURPLE.resolveColors().icon,
+                            color = WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon,
                         )
                     }
                 }
@@ -502,7 +503,7 @@ private fun UserscriptEditorCompactField(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
                 ),
-            cursorBrush = SolidColor(KiyoriSemanticTone.PURPLE.resolveColors().icon),
+            cursorBrush = SolidColor(WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon),
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (value.isBlank()) {
@@ -538,7 +539,7 @@ private fun UserscriptEditorSearchAction(
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = KiyoriSemanticTone.PURPLE.resolveColors().icon,
+            color = WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon,
             maxLines = 1,
         )
     }
@@ -612,7 +613,7 @@ private fun UserscriptEditorFooterAction(
     modifier: Modifier = Modifier,
     primary: Boolean = false,
 ) {
-    val tone = KiyoriSemanticTone.PURPLE.resolveColors()
+    val tone = WebSessionBrowserMenuTone.PLUGINS.resolveColors()
     Box(
         modifier =
             modifier
@@ -668,12 +669,19 @@ private fun UserscriptMetadataDialog(
     var noFrames by remember(initialValue) { mutableStateOf(initialValue?.noFrames == true) }
     var applyError by remember(source) { mutableStateOf<String?>(null) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.web_session_userscript_editor_metadata)) },
-        text = {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Description,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
+            title = stringResource(R.string.web_session_userscript_editor_metadata),
+            modifier = Modifier.widthIn(min = 300.dp, max = 520.dp).heightIn(max = 720.dp),
+        ) {
             Column(
-                modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                modifier =
+                    Modifier
+                        .heightIn(max = 520.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 initial.exceptionOrNull()?.message?.let { error ->
@@ -753,41 +761,39 @@ private fun UserscriptMetadataDialog(
                     label = { Text("@connect") },
                     minLines = 3,
                 )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    TextButton(
+                        onClick = {
+                            applyError =
+                                onApply(
+                                    UserscriptEditableMetadata(
+                                        name = name,
+                                        namespace = namespace,
+                                        version = version,
+                                        description = description,
+                                        matches = matches,
+                                        includes = includes,
+                                        excludes = excludes,
+                                        excludeMatches = excludeMatches,
+                                        grants = grants,
+                                        connects = connects,
+                                        runAt = runAt,
+                                        injectInto = injectInto,
+                                        noFrames = noFrames,
+                                    ),
+                                )
+                        },
+                        enabled = initialValue != null && name.isNotBlank() && version.isNotBlank(),
+                    ) {
+                        Text(stringResource(R.string.web_session_userscript_editor_apply_to_source))
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    applyError =
-                        onApply(
-                            UserscriptEditableMetadata(
-                                name = name,
-                                namespace = namespace,
-                                version = version,
-                                description = description,
-                                matches = matches,
-                                includes = includes,
-                                excludes = excludes,
-                                excludeMatches = excludeMatches,
-                                grants = grants,
-                                connects = connects,
-                                runAt = runAt,
-                                injectInto = injectInto,
-                                noFrames = noFrames,
-                            ),
-                        )
-                },
-                enabled = initialValue != null && name.isNotBlank() && version.isNotBlank(),
-            ) {
-                Text(stringResource(R.string.web_session_userscript_editor_apply_to_source))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -796,10 +802,21 @@ private fun UserscriptEditorReviewDialog(
     onDismiss: () -> Unit,
 ) {
     val review = editor.review
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.web_session_userscript_editor_review_title)) },
-        text = {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Description,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
+            title = stringResource(R.string.web_session_userscript_editor_review_title),
+            modifier = Modifier.widthIn(min = 300.dp, max = 560.dp).heightIn(max = 720.dp),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .heightIn(max = 600.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             when {
                 editor.isValidating -> {
                     Row(
@@ -807,7 +824,7 @@ private fun UserscriptEditorReviewDialog(
                         horizontalArrangement = Arrangement.Center,
                     ) {
                         CircularProgressIndicator(
-                            color = KiyoriSemanticTone.PURPLE.resolveColors().icon,
+                            color = WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon,
                         )
                     }
                 }
@@ -822,8 +839,7 @@ private fun UserscriptEditorReviewDialog(
                     Column(
                         modifier =
                             Modifier
-                                .heightIn(max = 560.dp)
-                                .verticalScroll(rememberScrollState()),
+                                .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         ReviewStatusLine(
@@ -908,13 +924,14 @@ private fun UserscriptEditorReviewDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.close))
+                    }
+                }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable

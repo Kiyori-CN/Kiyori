@@ -67,6 +67,7 @@ import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkFolder
@@ -88,6 +89,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserAgentMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.areBrowserHomeUrlsEquivalent
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.automaticFloatingCandidateStabilityDelayMillis
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveSelectedProfileAfterRemoval
@@ -117,6 +119,9 @@ internal fun WebSessionBrowserSheetRoute.isWebSessionBrowserDrawerRoute(): Boole
 
 private fun WebSessionBrowserSheetRoute.isBrowserChildDrawerRoute(): Boolean =
     isWebSessionBrowserDrawerRoute() && this != WebSessionBrowserSheetRoute.MENU
+
+internal fun shouldOpenConfiguredHomeAfterClearingWindows(homeUrl: String): Boolean =
+    !areBrowserHomeUrlsEquivalent(homeUrl, DEFAULT_BROWSER_HOME_URL)
 
 @Composable
 internal fun WebSessionBrowserScreen(
@@ -778,19 +783,25 @@ internal fun WebSessionBrowserScreen(
                     dismissSheet()
                 },
                 onCloseAllTabs = {
-                    val remainingProfiles =
-                        browserState.tabs
-                            .filterNot { tab -> tab.profile == hostState.selectedProfile }
-                            .map { tab -> tab.profile }
-                    val selectedProfile =
-                        resolveSelectedProfileAfterRemoval(
-                            selectedProfile = hostState.selectedProfile,
-                            remainingProfiles = remainingProfiles,
-                        )
-                    onCloseAllTabs(hostState.selectedProfile)
-                    if (selectedProfile != hostState.selectedProfile) {
-                        onHostStateChange { current ->
-                            current.copy(selectedProfile = selectedProfile)
+                    val clearedProfile = hostState.selectedProfile
+                    onCloseAllTabs(clearedProfile)
+                    if (shouldOpenConfiguredHomeAfterClearingWindows(homeUrl)) {
+                        onNewTab(clearedProfile)
+                        dismissSheet()
+                    } else {
+                        val remainingProfiles =
+                            browserState.tabs
+                                .filterNot { tab -> tab.profile == clearedProfile }
+                                .map { tab -> tab.profile }
+                        val selectedProfile =
+                            resolveSelectedProfileAfterRemoval(
+                                selectedProfile = clearedProfile,
+                                remainingProfiles = remainingProfiles,
+                            )
+                        if (selectedProfile != clearedProfile) {
+                            onHostStateChange { current ->
+                                current.copy(selectedProfile = selectedProfile)
+                            }
                         }
                     }
                 },
@@ -1111,6 +1122,7 @@ internal fun WebSessionBrowserScreen(
         addBookmarkDraft?.let { draft ->
             WebSessionBookmarkEditorDialog(
                 title = "新增书签",
+                tone = WebSessionBrowserMenuTone.ADD_BOOKMARK,
                 initialDraft = draft,
                 folderOptions = bookmarkFolderOptions,
                 onDismiss = { addBookmarkDraft = null },

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +37,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.FilledTonalButton
@@ -206,7 +206,7 @@ internal fun WebSessionUserscriptSheet(
             WebSessionDrawerHeader(
                 title = stringResource(R.string.web_session_userscript_manager_title),
                 leadingIcon = Icons.Filled.Extension,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 countText =
                     pluralStringResource(
                         R.plurals.web_session_plugins_script_count,
@@ -284,7 +284,7 @@ internal fun WebSessionUserscriptSheet(
             onValueChange = { searchQuery = it },
             onClear = { searchQuery = "" },
             placeholder = stringResource(R.string.web_session_userscript_search_hint),
-            tone = KiyoriSemanticTone.PURPLE,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
             modifier = Modifier.padding(horizontal = 12.dp),
         )
 
@@ -310,7 +310,7 @@ internal fun WebSessionUserscriptSheet(
                                 "${stringResource(R.string.web_session_userscript_logs)} ${state.recentLogs.size}"
                         },
                     selected = selectedTab == tab,
-                    tone = KiyoriSemanticTone.PURPLE,
+                    tone = WebSessionBrowserMenuTone.PLUGINS,
                     onClick = {
                         selectedTab = tab
                         selectedScriptIds = emptySet()
@@ -361,7 +361,7 @@ internal fun WebSessionUserscriptSheet(
                                 } else {
                                     stringResource(R.string.web_session_userscript_search_empty)
                                 },
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.PLUGINS,
                         )
                     } else {
                         BrowserPluginPageEntryList(
@@ -378,7 +378,7 @@ internal fun WebSessionUserscriptSheet(
                     if (newDrafts.isNotEmpty()) {
                         WebSessionSectionLabel(
                             text = stringResource(R.string.web_session_userscript_drafts),
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.PLUGINS,
                         )
                         newDrafts.forEach { draft ->
                             UserscriptDraftRow(
@@ -388,7 +388,7 @@ internal fun WebSessionUserscriptSheet(
                         }
                         WebSessionSectionLabel(
                             text = stringResource(R.string.web_session_userscript_library),
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.PLUGINS,
                         )
                     }
                     if (visibleScripts.isEmpty()) {
@@ -400,7 +400,7 @@ internal fun WebSessionUserscriptSheet(
                                 } else {
                                     stringResource(R.string.web_session_userscript_search_empty)
                                 },
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.PLUGINS,
                         )
                     } else {
                         visibleScripts.forEach { script ->
@@ -471,7 +471,7 @@ internal fun WebSessionUserscriptSheet(
                             icon = Icons.Filled.Refresh,
                             title = stringResource(R.string.web_session_userscript_updates_empty),
                             message = stringResource(R.string.web_session_userscript_updates_empty_summary),
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.PLUGINS,
                         )
                     } else {
                         candidates.forEach { candidate ->
@@ -549,7 +549,7 @@ internal fun WebSessionUserscriptSheet(
                         WebSessionEmptyState(
                             icon = Icons.Filled.Description,
                             title = stringResource(R.string.web_session_userscript_logs_empty),
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.PLUGINS,
                         )
                     } else {
                         visibleLogs.forEach { log ->
@@ -583,73 +583,79 @@ internal fun WebSessionUserscriptSheet(
     }
 
     if (deleteSelectionPrompt) {
-        AlertDialog(
-            onDismissRequest = { deleteSelectionPrompt = false },
-            title = { Text(stringResource(R.string.web_session_userscript_delete_selected_title)) },
-            text = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.web_session_userscript_delete_selected_message,
-                        selectedScriptIds.size,
-                        selectedScriptIds.size,
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteScripts(selectedScriptIds)
-                        selectedScriptIds = emptySet()
-                        deleteSelectionPrompt = false
-                    },
-                ) {
+        WebSessionBrowserModalDialog(onDismissRequest = { deleteSelectionPrompt = false }) {
+            WebSessionBrowserDialogSurface(
+                icon = Icons.Filled.Delete,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
+                title = stringResource(R.string.web_session_userscript_delete_selected_title),
+                modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                     Text(
-                        text = stringResource(R.string.web_session_userscript_delete),
-                        color = MaterialTheme.colorScheme.error,
+                        pluralStringResource(
+                            R.plurals.web_session_userscript_delete_selected_message,
+                            selectedScriptIds.size,
+                            selectedScriptIds.size,
+                        ),
                     )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { deleteSelectionPrompt = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                onDeleteScripts(selectedScriptIds)
+                                selectedScriptIds = emptySet()
+                                deleteSelectionPrompt = false
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.web_session_userscript_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleteSelectionPrompt = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     pendingSingleDeleteId?.let { scriptId ->
         val scriptName =
             state.installedScripts.firstOrNull { script -> script.id == scriptId }?.name.orEmpty()
-        AlertDialog(
-            onDismissRequest = { pendingSingleDeleteId = null },
-            title = { Text(stringResource(R.string.web_session_userscript_delete)) },
-            text = {
-                Text(
-                    listOf(
-                        scriptName,
-                        stringResource(R.string.web_session_userscript_delete_detail_message),
-                    ).filter(String::isNotBlank).joinToString("\n\n"),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingSingleDeleteId = null
-                        onDeleteScript(scriptId)
-                    },
-                ) {
+        WebSessionBrowserModalDialog(onDismissRequest = { pendingSingleDeleteId = null }) {
+            WebSessionBrowserDialogSurface(
+                icon = Icons.Filled.Delete,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
+                title = stringResource(R.string.web_session_userscript_delete),
+                modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                     Text(
-                        text = stringResource(R.string.web_session_userscript_delete),
-                        color = MaterialTheme.colorScheme.error,
+                        listOf(
+                            scriptName,
+                            stringResource(R.string.web_session_userscript_delete_detail_message),
+                        ).filter(String::isNotBlank).joinToString("\n\n"),
                     )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { pendingSingleDeleteId = null }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                pendingSingleDeleteId = null
+                                onDeleteScript(scriptId)
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.web_session_userscript_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingSingleDeleteId = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -710,7 +716,7 @@ private fun UserscriptSelectionHeader(
                 selectedCount,
             ),
         leadingIcon = Icons.Filled.Check,
-        tone = KiyoriSemanticTone.PURPLE,
+        tone = WebSessionBrowserMenuTone.PLUGINS,
         navigationIcon = {
             IconButton(onClick = onClose) {
                 Icon(
@@ -743,16 +749,16 @@ private fun UserscriptPermissionBanner(
 ) {
     WebSessionItemCard(
         highlighted = true,
-        highlightTone = KiyoriSemanticTone.PURPLE,
+        highlightTone = WebSessionBrowserMenuTone.PLUGINS,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            KiyoriSemanticIconBadge(
+            WebSessionBrowserMenuIconBadge(
                 imageVector = Icons.Filled.Extension,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 contentDescription = null,
                 containerSize = 34.dp,
                 iconSize = 18.dp,
@@ -808,7 +814,7 @@ private fun UserscriptInstalledRow(
             )
     WebSessionItemCard(
         highlighted = selected,
-        highlightTone = KiyoriSemanticTone.PURPLE,
+        highlightTone = WebSessionBrowserMenuTone.PLUGINS,
     ) {
         Row(
             modifier =
@@ -822,9 +828,9 @@ private fun UserscriptInstalledRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            KiyoriSemanticIconBadge(
+            WebSessionBrowserMenuIconBadge(
                 imageVector = if (selected) Icons.Filled.Check else Icons.Filled.Description,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 contentDescription = null,
                 containerSize = 36.dp,
                 iconSize = 19.dp,
@@ -1102,7 +1108,7 @@ private fun UserscriptPendingInstallCard(
 ) {
     WebSessionItemCard(
         highlighted = true,
-        highlightTone = KiyoriSemanticTone.PURPLE,
+        highlightTone = WebSessionBrowserMenuTone.PLUGINS,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -1350,7 +1356,7 @@ private fun UserscriptLogFilters(
                         UserscriptLogFilter.ERROR -> stringResource(R.string.web_session_userscript_log_error)
                     },
                 selected = filter == selected,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 onClick = { onSelected(filter) },
             )
         }
@@ -1432,17 +1438,21 @@ internal fun UserscriptLogCard(
     }
 
     if (detailVisible) {
-        AlertDialog(
-            onDismissRequest = { detailVisible = false },
-            title = {
-                Text(
+        WebSessionBrowserModalDialog(onDismissRequest = { detailVisible = false }) {
+            WebSessionBrowserDialogSurface(
+                icon = Icons.Filled.Description,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
+                title =
                     scriptName
                         ?: stringResource(R.string.web_session_userscript_log_details),
-                )
-            },
-            text = {
+                modifier = Modifier.widthIn(min = 300.dp, max = 440.dp).heightIn(max = 560.dp),
+            ) {
                 Column(
-                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState())
+                            .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     UserscriptLogDetailLine(
@@ -1471,24 +1481,22 @@ internal fun UserscriptLogCard(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { detailVisible = false }) {
+                            Text(stringResource(R.string.close))
+                        }
+                        TextButton(onClick = copyLog) {
+                            Icon(
+                                imageVector = Icons.Filled.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(stringResource(R.string.copy))
+                        }
+                    }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = copyLog) {
-                    Icon(
-                        imageVector = Icons.Filled.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(stringResource(R.string.copy))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { detailVisible = false }) {
-                    Text(stringResource(R.string.close))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -1574,37 +1582,41 @@ internal fun UserscriptInstallFromUrlDialog(
     onConfirm: (String) -> Unit,
 ) {
     val normalizedUrl = value.trim()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.web_session_userscript_install_from_url)) },
-        text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChanged,
-                singleLine = true,
-                placeholder = { Text("https://example.com/script.user.js") },
-                supportingText = {
-                    if (value.isNotBlank() && !isSupportedUserscriptInstallUrl(value)) {
-                        Text(stringResource(R.string.web_session_userscript_invalid_url))
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Extension,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
+            title = stringResource(R.string.web_session_userscript_install_from_url),
+            modifier = Modifier.widthIn(min = 300.dp, max = 420.dp),
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChanged,
+                    singleLine = true,
+                    placeholder = { Text("https://example.com/script.user.js") },
+                    supportingText = {
+                        if (value.isNotBlank() && !isSupportedUserscriptInstallUrl(value)) {
+                            Text(stringResource(R.string.web_session_userscript_invalid_url))
+                        }
+                    },
+                    isError = value.isNotBlank() && !isSupportedUserscriptInstallUrl(value),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.cancel))
                     }
-                },
-                isError = value.isNotBlank() && !isSupportedUserscriptInstallUrl(value),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(normalizedUrl) },
-                enabled = isSupportedUserscriptInstallUrl(normalizedUrl),
-            ) {
-                Text(stringResource(R.string.web_session_userscript_install_action))
+                    TextButton(
+                        onClick = { onConfirm(normalizedUrl) },
+                        enabled = isSupportedUserscriptInstallUrl(normalizedUrl),
+                    ) {
+                        Text(stringResource(R.string.web_session_userscript_install_action))
+                    }
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
+        }
+    }
 }
 
 private fun toggleSelectedId(

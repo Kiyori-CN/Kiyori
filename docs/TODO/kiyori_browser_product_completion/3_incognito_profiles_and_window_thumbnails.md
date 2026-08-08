@@ -30,9 +30,12 @@
 ## 窗口页 UI
 
 - 删除顶部大号“窗口”标题；状态栏下方第一行只有“普通窗口”和“无痕窗口”两个 selector
-- selector 显示各自窗口数量和选中指示线
+- 两个 selector 是等宽、同一行的文字标签与数量，不绘制按钮 Surface、徽标、容器或边框；
+  普通标签下方使用蓝色横线，无痕标签下方使用紫色横线
 - 网格按窗口宽度使用 2、3 或 4 列；手机卡片保持可读标题、URL、Profile 标识和关闭按钮
-- 底部固定返回、新建、清空三动作；新建使用当前 selector Profile，清空只清当前 selector 的窗口
+- 当前 Profile 的空态、新建按钮、活动卡片边框、缩略图占位和窗口身份标记沿用同一蓝/紫色彩语言
+- 底部固定返回、新建、清空三动作；新建使用当前 selector Profile，清空只清当前 selector 的窗口；
+  配置自定义首页时，清空后立即创建同 Profile 主页窗口并关闭总览
 - 关闭活动窗口后选择同 Profile 的相邻窗口；该 Profile 已空时切换到另一个仍有窗口的 Profile；全部为空则保持空总览
 
 ## 缩略图
@@ -94,3 +97,12 @@
 - 签名：Android Debug certificate，APK Signature Scheme v2 通过
 - 对齐：`zipalign -c -P 16 4` 通过
 - 真机 WebView Multi-Profile、普通与无痕数据隔离、缩略图视觉和窗口交互仍为 `verification_pending`
+
+## 2026-08-08 彩色窗口总览增量
+
+- `WebSessionProfile` 到语义色的映射固定为 `NORMAL -> BLUE`、`INCOGNITO -> PURPLE`，由纯策略函数
+  提供给窗口总览，不写入 session 或设置状态
+- 普通/无痕 selector 只使用蓝/紫文字强调与下方横线，不使用按钮容器；语义色继续覆盖空态、
+  新建按钮、活动卡片、缩略图占位与身份圆标，关闭全部窗口仍使用红色
+- 自定义首页清空行为复用现有 Profile 新建窗口链路；Profile 隔离、窗口数量和缩略图捕获不变；
+  亮暗主题、2/3/4 列和 320dp 窄屏单行标签仍需设备视觉验收

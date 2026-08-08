@@ -35,10 +35,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -62,6 +64,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -268,138 +271,131 @@ internal fun WebSessionDownloadSheet(
         Column(
             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
         ) {
-            Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = if (batchMode) "已选 ${selectedVisibleItems.size} 项" else "我的下载",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .padding(start = 4.dp)
-                        .size(36.dp)
-                        .semantics { contentDescription = "下载管理菜单" }
-                        .clickable { showTopMenu = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                DownloadMenuTrigger()
-                DownloadTopMenu(
-                    expanded = showTopMenu,
-                    tab = selectedTab,
-                    batchAction = batchAction,
-                    showTime = showTime,
-                    classify = classify,
-                    onDismiss = { showTopMenu = false },
-                    onSort = {
-                        showTopMenu = false
-                        showSortDialog = true
-                    },
-                    onStartBatchDelete = {
-                        showTopMenu = false
-                        enterBatchMode(BrowserDownloadBatchAction.DELETE)
-                    },
-                    onStartBatchCancel = {
-                        showTopMenu = false
-                        enterBatchMode(BrowserDownloadBatchAction.CANCEL)
-                    },
-                    onExitBatch = {
-                        showTopMenu = false
-                        leaveBatchMode()
-                    },
-                    onOpenFileManager = {
-                        showTopMenu = false
-                        onOpenDownloadFileManager()
-                    },
-                    onToggleTime = {
-                        showTopMenu = false
-                        showTime = !showTime
-                    },
-                    onToggleClassify = {
-                        showTopMenu = false
-                        classify = !classify
-                    },
-                    onOpenSettings = {
-                        showTopMenu = false
-                        onOpenDownloadSettings()
-                    },
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            if (batchMode) {
-                DownloadOutlinedActionButton(
-                    title = if (allEligibleVisibleItemsSelected) "取消全选" else "全选",
-                    enabled = eligibleVisibleTaskIds.isNotEmpty(),
-                    onClick = {
-                        selectedTaskIds =
-                            toggleAllBrowserDownloadSelections(
-                                selectedTaskIds = selectedTaskIds,
-                                eligibleTaskIds = eligibleVisibleTaskIds,
-                            )
-                    },
-                )
-            } else {
-                DownloadOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            DownloadOutlinedActionButton(
-                title =
-                    when (batchAction) {
-                        BrowserDownloadBatchAction.DELETE -> "删除"
-                        BrowserDownloadBatchAction.CANCEL -> "取消"
-                        null -> "清理"
-                    },
-                enabled =
-                    if (batchMode) {
-                        selectedVisibleItems.isNotEmpty()
-                    } else {
-                        visibleItems.any { item ->
-                            selectedTab == BrowserDownloadDrawerTab.DOWNLOADED ||
-                                item.status == "failed" ||
-                                item.status == "canceled"
-                        }
-                    },
-                onClick = {
-                    val targets =
-                        if (batchMode) {
-                            selectedVisibleItems
-                        } else if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
-                            visibleItems
-                        } else {
-                            visibleItems.filter { item ->
-                                item.status == "failed" || item.status == "canceled"
-                            }
-                        }
-                    if (targets.isNotEmpty()) {
-                        when (batchAction) {
-                            BrowserDownloadBatchAction.CANCEL -> cancelRequest = targets
-                            BrowserDownloadBatchAction.DELETE,
-                            null ->
-                                deleteRequest =
-                                    BrowserDownloadDeleteRequest(
-                                        items = targets,
-                                        message =
-                                            if (batchMode) {
-                                                "确认删除已选择的 ${targets.size} 项下载吗？"
-                                            } else if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
-                                                "确认清理当前列表中的 ${targets.size} 个已下载文件吗？"
-                                            } else {
-                                                "确认清理 ${targets.size} 条失败或已取消任务吗？"
-                                            },
-                                    )
-                        }
+            WebSessionDrawerHeader(
+                title = if (batchMode) "已选 ${selectedVisibleItems.size} 项" else "我的下载",
+                leadingIcon = Icons.Filled.Download,
+                tone = WebSessionBrowserMenuTone.DOWNLOADS,
+                titleActions = {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP.dp)
+                                .clip(WebSessionDrawerTitleActionShape)
+                                .semantics { contentDescription = "下载管理菜单" }
+                                .clickable { showTopMenu = true },
+                        contentAlignment = WebSessionDrawerTitleActionContentAlignment,
+                    ) {
+                        DownloadMenuTrigger()
+                        DownloadTopMenu(
+                            expanded = showTopMenu,
+                            tab = selectedTab,
+                            batchAction = batchAction,
+                            showTime = showTime,
+                            classify = classify,
+                            onDismiss = { showTopMenu = false },
+                            onSort = {
+                                showTopMenu = false
+                                showSortDialog = true
+                            },
+                            onStartBatchDelete = {
+                                showTopMenu = false
+                                enterBatchMode(BrowserDownloadBatchAction.DELETE)
+                            },
+                            onStartBatchCancel = {
+                                showTopMenu = false
+                                enterBatchMode(BrowserDownloadBatchAction.CANCEL)
+                            },
+                            onExitBatch = {
+                                showTopMenu = false
+                                leaveBatchMode()
+                            },
+                            onOpenFileManager = {
+                                showTopMenu = false
+                                onOpenDownloadFileManager()
+                            },
+                            onToggleTime = {
+                                showTopMenu = false
+                                showTime = !showTime
+                            },
+                            onToggleClassify = {
+                                showTopMenu = false
+                                classify = !classify
+                            },
+                            onOpenSettings = {
+                                showTopMenu = false
+                                onOpenDownloadSettings()
+                            },
+                        )
                     }
                 },
+                actions = {
+                    if (batchMode) {
+                        DownloadOutlinedActionButton(
+                            title = if (allEligibleVisibleItemsSelected) "取消全选" else "全选",
+                            enabled = eligibleVisibleTaskIds.isNotEmpty(),
+                            onClick = {
+                                selectedTaskIds =
+                                    toggleAllBrowserDownloadSelections(
+                                        selectedTaskIds = selectedTaskIds,
+                                        eligibleTaskIds = eligibleVisibleTaskIds,
+                                    )
+                            },
+                        )
+                    } else {
+                        DownloadOutlinedActionButton(title = "新增", onClick = { showAddDialog = true })
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    DownloadOutlinedActionButton(
+                        title =
+                            when (batchAction) {
+                                BrowserDownloadBatchAction.DELETE -> "删除"
+                                BrowserDownloadBatchAction.CANCEL -> "取消"
+                                null -> "清理"
+                            },
+                        enabled =
+                            if (batchMode) {
+                                selectedVisibleItems.isNotEmpty()
+                            } else {
+                                visibleItems.any { item ->
+                                    selectedTab == BrowserDownloadDrawerTab.DOWNLOADED ||
+                                        item.status == "failed" ||
+                                        item.status == "canceled"
+                                }
+                            },
+                        onClick = {
+                            val targets =
+                                if (batchMode) {
+                                    selectedVisibleItems
+                                } else if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
+                                    visibleItems
+                                } else {
+                                    visibleItems.filter { item ->
+                                        item.status == "failed" || item.status == "canceled"
+                                    }
+                                }
+                            if (targets.isNotEmpty()) {
+                                when (batchAction) {
+                                    BrowserDownloadBatchAction.CANCEL -> cancelRequest = targets
+                                    BrowserDownloadBatchAction.DELETE,
+                                    null ->
+                                        deleteRequest =
+                                            BrowserDownloadDeleteRequest(
+                                                items = targets,
+                                                message =
+                                                    if (batchMode) {
+                                                        "确认删除已选择的 ${targets.size} 项下载吗？"
+                                                    } else if (selectedTab == BrowserDownloadDrawerTab.DOWNLOADED) {
+                                                        "确认清理当前列表中的 ${targets.size} 个已下载文件吗？"
+                                                    } else {
+                                                        "确认清理 ${targets.size} 条失败或已取消任务吗？"
+                                                    },
+                                            )
+                                }
+                            }
+                        },
+                    )
+                },
             )
-        }
 
             Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface),
@@ -689,6 +685,7 @@ private fun DownloadOutlinedActionButton(
 
 @Composable
 private fun DownloadMenuTrigger(modifier: Modifier = Modifier) {
+    val iconColor = WebSessionBrowserMenuTone.DOWNLOADS.resolveColors().icon
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
@@ -700,7 +697,7 @@ private fun DownloadMenuTrigger(modifier: Modifier = Modifier) {
                     Modifier
                         .width(2.dp)
                         .height(height)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant, RoundedCornerShape(999.dp)),
+                        .background(iconColor, RoundedCornerShape(999.dp)),
             )
         }
     }
@@ -1163,10 +1160,11 @@ private fun DownloadSortDialog(
     onSelect: (BrowserDownloadSortMode) -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Download,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
+            title = "排序方式",
             modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 BrowserDownloadSortMode.entries.forEachIndexed { index, mode ->
@@ -1211,14 +1209,13 @@ private fun AddBrowserDownloadDialog(
     var errorText by remember { mutableStateOf<String?>(null) }
     var showFullLinkDialog by remember { mutableStateOf(false) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Download,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
+            title = "添加文件下载",
             modifier = Modifier.fillMaxWidth(0.86f),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 24.dp)) {
-                Text("添加文件下载", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(12.dp))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
                 DownloadDialogField(value = fileName, label = "文件名称", onValueChange = { fileName = it })
                 Spacer(modifier = Modifier.height(8.dp))
                 DownloadDialogField(
@@ -1412,15 +1409,14 @@ private fun DownloadFullLinkDialog(
 ) {
     var fullLink by remember(initialValue) { mutableStateOf(initialValue) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Download,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
+            title = "完整链接",
             modifier = Modifier.fillMaxWidth(0.86f),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth().padding(22.dp)) {
-                    Text("完整链接", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                    Spacer(modifier = Modifier.height(12.dp))
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                     TextField(
                         value = fullLink,
                         onValueChange = { fullLink = it },
@@ -1456,18 +1452,17 @@ private fun DownloadDeleteManyDialog(
     onDeleteWithFiles: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Warning,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
+            title = "温馨提示",
             modifier = Modifier.fillMaxWidth(0.86f),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("温馨提示", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                    Spacer(modifier = Modifier.height(14.dp))
                     Text(message, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -1510,19 +1505,13 @@ private fun DownloadActionDialog(
     onDismiss: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Download,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
+            title = "请选择操作",
             modifier = Modifier.fillMaxWidth(if (columns == 1) 0.74f else 0.84f),
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(
-                    "请选择操作",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 14.dp),
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1569,18 +1558,13 @@ private fun RenameBrowserDownloadDialog(
     }
     var showError by remember(item.id, mode) { mutableStateOf(false) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Download,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
+            title = if (mode == BrowserDownloadRenameMode.SUFFIX) "修改后缀" else "重命名",
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-                Text(
-                    if (mode == BrowserDownloadRenameMode.SUFFIX) "修改后缀" else "重命名",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 TextField(
                     value = input,
                     onValueChange = {

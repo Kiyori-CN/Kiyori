@@ -40,9 +40,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.kiyori.design.theme.KiyoriSemanticTone
-import com.kiyori.design.theme.resolveColors
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuIconBadge
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone
+import com.ai.assistance.operit.ui.features.websession.browser.resolveColors
 
 @Composable
 internal fun WebSessionBrowserMenuDrawer(
@@ -131,19 +131,19 @@ internal fun WebSessionBrowserMenuDrawer(
                             iconResId = R.drawable.ic_kiyori_tool_bookmark_add,
                             onClick = onAddBookmark,
                             enabled = canAddBookmark,
-                            tone = KiyoriSemanticTone.BLUE,
+                            tone = WebSessionBrowserMenuTone.ADD_BOOKMARK,
                         ),
-                        MenuAction(stringResource(R.string.web_session_bookmarks), R.drawable.ic_kiyori_tool_bookmarks, onOpenBookmarks, tone = KiyoriSemanticTone.PURPLE),
-                        MenuAction(stringResource(R.string.web_session_history), R.drawable.ic_kiyori_tool_history, onOpenHistory, tone = KiyoriSemanticTone.ORANGE),
-                        MenuAction(stringResource(R.string.web_session_downloads), R.drawable.ic_kiyori_tool_download, onOpenDownloads, tone = KiyoriSemanticTone.GREEN),
-                        MenuAction(stringResource(R.string.web_session_plugins), R.drawable.ic_kiyori_tool_plugin, onOpenPlugins, tone = KiyoriSemanticTone.PURPLE),
+                        MenuAction(stringResource(R.string.web_session_bookmarks), R.drawable.ic_kiyori_tool_bookmarks, onOpenBookmarks, tone = WebSessionBrowserMenuTone.BOOKMARKS),
+                        MenuAction(stringResource(R.string.web_session_history), R.drawable.ic_kiyori_tool_history, onOpenHistory, tone = WebSessionBrowserMenuTone.HISTORY),
+                        MenuAction(stringResource(R.string.web_session_downloads), R.drawable.ic_kiyori_tool_download, onOpenDownloads, tone = WebSessionBrowserMenuTone.DOWNLOADS),
+                        MenuAction(stringResource(R.string.web_session_plugins), R.drawable.ic_kiyori_tool_plugin, onOpenPlugins, tone = WebSessionBrowserMenuTone.PLUGINS),
                     )
                     MenuRow(
-                        MenuAction(stringResource(R.string.web_session_floating_sniffer), R.drawable.ic_kiyori_tool_sniffer, onOpenFloatingSniffer, tone = KiyoriSemanticTone.CYAN),
-                        MenuAction(stringResource(R.string.web_session_user_agent), R.drawable.ic_kiyori_tool_ua, onOpenUserAgent, tone = KiyoriSemanticTone.BLUE),
-                        MenuAction(stringResource(R.string.web_session_network_log), R.drawable.ic_kiyori_tool_network_log, onOpenNetworkLog, tone = KiyoriSemanticTone.CYAN),
-                        MenuAction(stringResource(R.string.web_session_ai_dialogue), R.drawable.ic_kiyori_tool_ai_dialogue, onOpenAiDialogue, tone = KiyoriSemanticTone.BLUE),
-                        MenuAction(stringResource(R.string.web_session_browser_toolbox), R.drawable.ic_kiyori_browser_bottom_toolbox, onOpenToolbox, tone = KiyoriSemanticTone.ORANGE),
+                        MenuAction(stringResource(R.string.web_session_floating_sniffer), R.drawable.ic_kiyori_tool_sniffer, onOpenFloatingSniffer, tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER),
+                        MenuAction(stringResource(R.string.web_session_user_agent), R.drawable.ic_kiyori_tool_ua, onOpenUserAgent, tone = WebSessionBrowserMenuTone.USER_AGENT),
+                        MenuAction(stringResource(R.string.web_session_network_log), R.drawable.ic_kiyori_tool_network_log, onOpenNetworkLog, tone = WebSessionBrowserMenuTone.NETWORK_LOG),
+                        MenuAction(stringResource(R.string.web_session_ai_dialogue), R.drawable.ic_kiyori_tool_ai_dialogue, onOpenAiDialogue, tone = WebSessionBrowserMenuTone.AI_DIALOGUE),
+                        MenuAction(stringResource(R.string.web_session_browser_toolbox), R.drawable.ic_kiyori_browser_bottom_toolbox, onOpenToolbox, tone = WebSessionBrowserMenuTone.TOOLBOX),
                     )
                     MenuRow(
                         MenuAction(
@@ -151,12 +151,12 @@ internal fun WebSessionBrowserMenuDrawer(
                             R.drawable.ic_kiyori_tool_incognito,
                             onToggleIncognito,
                             enabled = incognitoEnabled,
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.INCOGNITO,
                         ),
-                        MenuAction(stringResource(R.string.web_session_reader_mode), R.drawable.ic_kiyori_tool_reader_mode, onOpenReaderMode, tone = KiyoriSemanticTone.GREEN),
-                        MenuAction(stringResource(R.string.web_session_page_source), R.drawable.ic_kiyori_tool_view_source, onOpenPageSource, tone = KiyoriSemanticTone.BLUE),
-                        MenuAction(stringResource(R.string.web_session_ad_marking), R.drawable.ic_kiyori_tool_ad_block, onOpenAdMarking, tone = KiyoriSemanticTone.RED),
-                        MenuAction(stringResource(R.string.web_session_site_config), R.drawable.ic_kiyori_tool_site_config, onOpenSiteConfig, tone = KiyoriSemanticTone.ORANGE),
+                        MenuAction(stringResource(R.string.web_session_reader_mode), R.drawable.ic_kiyori_tool_reader_mode, onOpenReaderMode, tone = WebSessionBrowserMenuTone.READER_MODE),
+                        MenuAction(stringResource(R.string.web_session_page_source), R.drawable.ic_kiyori_tool_view_source, onOpenPageSource, tone = WebSessionBrowserMenuTone.PAGE_SOURCE),
+                        MenuAction(stringResource(R.string.web_session_ad_marking), R.drawable.ic_kiyori_tool_ad_block, onOpenAdMarking, tone = WebSessionBrowserMenuTone.AD_MARKING),
+                        MenuAction(stringResource(R.string.web_session_site_config), R.drawable.ic_kiyori_tool_site_config, onOpenSiteConfig, tone = WebSessionBrowserMenuTone.SITE_CONFIG),
                     )
                     Row(
                         modifier =
@@ -180,7 +180,7 @@ internal fun WebSessionBrowserMenuDrawer(
                                 title = stringResource(R.string.web_session_exit_browser),
                                 iconResId = R.drawable.ic_kiyori_tool_power,
                                 onClick = onExitBrowser,
-                                tone = KiyoriSemanticTone.RED,
+                                tone = WebSessionBrowserMenuTone.EXIT_BROWSER,
                             )
                         }
                         Box(
@@ -194,7 +194,7 @@ internal fun WebSessionBrowserMenuDrawer(
                                 title = stringResource(R.string.collapse_verb),
                                 iconResId = R.drawable.ic_kiyori_tool_collapse,
                                 onClick = onCollapse,
-                                tone = KiyoriSemanticTone.CYAN,
+                                tone = WebSessionBrowserMenuTone.COLLAPSE,
                             )
                         }
                         Box(
@@ -208,7 +208,7 @@ internal fun WebSessionBrowserMenuDrawer(
                                 title = stringResource(R.string.web_session_browser_settings),
                                 iconResId = R.drawable.ic_kiyori_tool_settings,
                                 onClick = onOpenBrowserSettings,
-                                tone = KiyoriSemanticTone.BLUE,
+                                tone = WebSessionBrowserMenuTone.BROWSER_SETTINGS,
                             )
                         }
                     }
@@ -223,7 +223,7 @@ private data class MenuAction(
     val iconResId: Int,
     val onClick: () -> Unit,
     val enabled: Boolean = true,
-    val tone: KiyoriSemanticTone,
+    val tone: WebSessionBrowserMenuTone,
 )
 
 @Composable
@@ -256,7 +256,7 @@ private fun RowScope.MenuCell(action: MenuAction) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(WEB_SESSION_BROWSER_MENU_ICON_LABEL_SPACING_DP.dp),
     ) {
-        KiyoriSemanticIconBadge(
+        WebSessionBrowserMenuIconBadge(
             painter = painterResource(action.iconResId),
             tone = action.tone,
             contentDescription = null,
@@ -283,7 +283,7 @@ private fun BottomMenuAction(
     title: String,
     iconResId: Int,
     onClick: () -> Unit,
-    tone: KiyoriSemanticTone,
+    tone: WebSessionBrowserMenuTone,
 ) {
     val colors = tone.resolveColors()
     Surface(

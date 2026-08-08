@@ -2485,15 +2485,15 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             page_source_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 1
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
-            if index <= 50 or index == page_source_consumer_index:
+            if index < 48 or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")
-            if index < 44 or index == page_source_consumer_index:
+            if index < 43 or index == page_source_consumer_index:
                 symbols.append("resolveColors")
-            if index in (0, 53):
+            if index in (48, 49):
                 symbols.append("kiyoriSemanticToneForStableId")
-            if index == 51:
+            if index == 50:
                 symbols.append("KiyoriBottomNavigationSelectedFillColor")
-            if index == 52:
+            if index == 50:
                 symbols.append("kiyoriWeatherSunColor")
             imports_by_path[relative_path] = symbols
         for relative_path in test_paths:

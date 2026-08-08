@@ -185,41 +185,21 @@ private fun BrowserMediaCandidateHeader(
     candidateCount: Int,
     onDismiss: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        KiyoriSemanticIconBadge(
-            imageVector = Icons.Filled.VideoLibrary,
-            tone = KiyoriSemanticTone.CYAN,
-            contentDescription = null,
-            containerSize = 34.dp,
-            iconSize = 19.dp,
-            shape = RoundedCornerShape(10.dp),
-        )
-        Column(modifier = Modifier.weight(1f).padding(start = 10.dp)) {
-            Text(
-                text = "视频资源",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 20.sp,
-                lineHeight = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "当前网页 · $candidateCount 个视频",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-            )
-        }
-        IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "关闭",
-                modifier = Modifier.size(19.dp),
-            )
-        }
-    }
+    WebSessionDrawerHeader(
+        title = "视频资源",
+        leadingIcon = Icons.Filled.VideoLibrary,
+        tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
+        countText = "$candidateCount 个视频",
+        actions = {
+            IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "关闭",
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -261,7 +241,7 @@ private fun BrowserMediaFormatChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
+    val cyanColors = WebSessionBrowserMenuTone.FLOATING_SNIFFER.resolveColors()
     Surface(
         modifier = Modifier.height(32.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
@@ -306,7 +286,7 @@ private fun BrowserMediaCandidateCard(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
 ) {
-    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
+    val cyanColors = WebSessionBrowserMenuTone.FLOATING_SNIFFER.resolveColors()
     val greenColors = KiyoriSemanticTone.GREEN.resolveColors()
     Surface(
         modifier =
@@ -440,9 +420,9 @@ private fun BrowserMediaCandidateEmptyState() {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            KiyoriSemanticIconBadge(
+            WebSessionBrowserMenuIconBadge(
                 imageVector = Icons.Filled.VideoLibrary,
-                tone = KiyoriSemanticTone.CYAN,
+                tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
                 contentDescription = null,
                 containerSize = 50.dp,
                 iconSize = 28.dp,
@@ -468,28 +448,22 @@ private fun BrowserMediaCandidateActionDialog(
     onViewLink: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.VideoLibrary,
+            tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
+            title = "资源操作",
             modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp),
-            shape = WebSessionBrowserPopupShape,
-            color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                BrowserMediaDialogTitle(
-                    title = "资源操作",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
-                BrowserMediaActionRow(Icons.Filled.PlayArrow, "播放资源", KiyoriSemanticTone.BLUE, onPlay)
-                BrowserMediaActionRow(Icons.Filled.Download, "下载资源", KiyoriSemanticTone.GREEN, onDownload)
-                BrowserMediaActionRow(Icons.Filled.ContentCopy, "复制链接", KiyoriSemanticTone.PURPLE, onCopy)
-                BrowserMediaActionRow(
-                    icon = Icons.Filled.Info,
-                    title = "查看链接",
-                    tone = KiyoriSemanticTone.CYAN,
-                    onClick = onViewLink,
-                    drawDivider = false,
-                )
-            }
+            BrowserMediaActionRow(Icons.Filled.PlayArrow, "播放资源", KiyoriSemanticTone.BLUE, onPlay)
+            BrowserMediaActionRow(Icons.Filled.Download, "下载资源", KiyoriSemanticTone.GREEN, onDownload)
+            BrowserMediaActionRow(Icons.Filled.ContentCopy, "复制链接", KiyoriSemanticTone.PURPLE, onCopy)
+            BrowserMediaActionRow(
+                icon = Icons.Filled.Info,
+                title = "查看链接",
+                tone = KiyoriSemanticTone.CYAN,
+                onClick = onViewLink,
+                drawDivider = false,
+            )
         }
     }
 }
@@ -536,89 +510,55 @@ private fun BrowserMediaCandidateLinkDialog(
     onCopy: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.VideoLibrary,
+            tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
+            title = "视频链接",
             modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).heightIn(max = 520.dp),
-            shape = WebSessionBrowserPopupShape,
-            color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                BrowserMediaDialogTitle(
-                    title = "视频链接",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            SelectionContainer(
+                modifier =
+                    Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = candidate.url,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(16.dp),
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
-                SelectionContainer(
-                    modifier =
-                        Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState()),
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
-                    Text(
-                        text = candidate.url,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    Text(text = "关闭", fontSize = 12.sp)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.End,
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = onCopy,
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.height(36.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                    ) {
-                        Text(text = "关闭", fontSize = 12.sp)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = onCopy,
-                        modifier = Modifier.height(36.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp),
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(text = "复制", fontSize = 12.sp)
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(text = "复制", fontSize = 12.sp)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BrowserMediaDialogTitle(
-    title: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        KiyoriSemanticIconBadge(
-            imageVector = Icons.Filled.VideoLibrary,
-            tone = KiyoriSemanticTone.CYAN,
-            contentDescription = null,
-            containerSize = 32.dp,
-            iconSize = 18.dp,
-            shape = RoundedCornerShape(9.dp),
-        )
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 16.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 

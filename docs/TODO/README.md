@@ -4,6 +4,167 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-08-08 浏览器四行菜单十八色统一
+
+状态：本地实现、自动验证和 Debug APK 已完成；目标设备上的亮暗主题视觉与触控验收待完成。
+Kiyori 当前未发布，本轮直接完善现有浏览器菜单视觉，不保留旧配色兼容开关，不增加回退路径，
+也不改变按钮顺序、路由、Browser Runtime 或各功能状态 owner。
+
+本轮细化步骤：
+
+1. [DONE] 审计四行菜单 18 个按钮、共享抽屉标题、弹窗、搜索/筛选强调色、空态和搜索框右侧
+   资源数字球的颜色调用链
+2. [DONE] 建立浏览器菜单专属 18 色稳定映射，浅色与深色主题下每个入口的图标色和
+   低饱和容器色均保持两两不同
+3. [DONE] 将书签、历史、下载、插件、悬浮嗅探、UA、网络日志、工具箱、阅读模式、
+   查看源码、广告标记和网站配置的子页面身份 UI 统一为对应入口色
+4. [DONE] 让搜索框右侧资源数字球直接复用“悬浮嗅探”入口颜色
+5. [DONE] 增加颜色唯一性、菜单顺序及入口/子页面/数字球一致性测试，并同步浏览器产品文档
+6. [DONE] 运行定向 JVM 测试、正式开发门禁、Markdown/差异检查和 Debug APK 构建与制品核验
+7. [PENDING] 目标设备验收四行菜单、各子抽屉/弹窗、亮暗主题和资源数字球的实际颜色与对比度
+
+当前非目标：
+
+- 不改变普通/无痕窗口蓝紫身份色、按钮功能、页面导航、下载/媒体/脚本数据或持久化格式
+- 不用入口色替换删除危险、执行成功、媒体分类、网络分类等局部状态语义色
+- 不安装 APK、不操作 ADB/MuMu/真机；不创建提交、不推送远端
+
+本地证据：
+
+- `WebSessionBrowserMenuColorPolicyTest` 固定 18 个入口、`5/5/5/3` 四行结构、浅色与深色图标/
+  容器/组合两两唯一、全部不低于 `3:1` 非文本对比度，以及资源数字球对
+  `FLOATING_SNIFFER` 的直接复用
+- 颜色、浏览器视觉、下载、媒体候选、网络日志、页面源码、UA、书签、历史和用户脚本共
+  11 个定向 JVM suite、`70/70` 项通过，零失败、零错误、零跳过
+- ARCH024 App Shell 与 ARCH041 语义色消费者的 4 个正负契约测试通过；完整 `phase=m03`
+  架构检查只剩本轮开始前已记录的 ARCH046
+  `UserscriptSourceExportHelper.kt` 消费者快照漂移，本轮未修改其存储 owner
+- formal readiness 通过；Markdown 检查器 `7/7`、`git diff --check` 和新文件禁用回退语义
+  扫描通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 3s`，238 个任务中 29 executed / 209 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-08 17:34:23 +08:00`，大小 `471581414` 字节，SHA-256
+  `F7DCF31472EC162B7BE4ADAA18C02E76D6DB4D89C8C55F5036E99E1D99ACEE54`
+- APK 为 `com.kiyori / versionCode 45 / versionName 0.1.0 / compileSdk 37 / minSdk 26 /
+  targetSdk 34 / arm64-v8a`；唯一 Launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，Android Debug V2 单签名且
+  `zipalign -c -P 16 -v 4` 通过；包含 `liboperit_ripgrep.so` 与
+  `assets/operit_shell_exec`，不包含 `libsudo.so`
+
+## 2026-08-08 首页底栏与浏览器彩色弹窗统一
+
+状态：上一批与用户复核增量均已完成本地实现、自动验证和 Debug APK，目标设备视觉与交互验收待完成。
+Kiyori 当前未发布，本轮直接完善现有界面，不保留旧视觉兼容开关，不增加回退路径，也不改变
+Browser Runtime、下载、UA、媒体候选或页面源码的状态 owner。
+
+本轮细化步骤：
+
+1. [DONE] 让负一屏或 AI 首页向软件首页拖动时，底部五入口按 Pager 实时偏移立即显现；静止在
+   负一屏、AI 首页、AI 深层页面或打开 Shell 子层/抽屉时仍保持隐藏
+2. [DONE] 为浏览器窗口总览建立普通蓝色、无痕紫色语义色；顶部保持同一行文字标签和不同颜色
+   下划线，不绘制按钮容器；空态、新建按钮、活动卡片、缩略图占位和身份标记继续使用对应色
+3. [DONE] 增加共享语义弹窗 Surface；“我的下载”使用绿色抽屉标题与操作弹窗，UA 选择/编辑使用
+   蓝色弹窗，媒体候选长按及链接查看使用青色弹窗
+4. [DONE] 为页面源码超长行信息条增加右侧关闭按钮；关闭状态只绑定当前 session 与
+   Document token，不改变源码、软换行或统计数据
+5. [DONE] 同步 `README.md`、`CONTEXT.md` 和浏览器产品能力分项文档
+6. [DONE] 运行 Shell/Profile/源码定向 JVM 测试、formal readiness、Markdown/差异检查和
+   禁用回退语义反向扫描
+7. [DONE] 串行执行 `:app:assembleDebug --no-daemon --console=plain`，核验 Debug APK 的时间、
+   大小、SHA-256、包名、版本、唯一 launcher、V2 签名与 16 KB ZIP 对齐
+8. [PENDING] 目标设备验收拖动中底栏首帧、普通/无痕亮暗主题、窄屏下载标题动作区、UA 输入法、
+   嗅探资源长按弹窗和源码提示关闭/重新抓取
+
+当前非目标：
+
+- 不修改普通/无痕 Profile 隔离、标签创建/清理、下载队列、UA 优先级、媒体候选排序或源码应用语义
+- 不创建第二套弹窗状态、下载 owner、Browser Runtime 或持久化字段
+- 不安装 APK、不操作 ADB/MuMu/真机；不创建提交、不推送远端
+
+本地证据：
+
+- JDK 21 下 `:app:compileDebugKotlin` 通过；7 个定向 JVM suite 共 `99/99` 项通过，零失败、
+  零错误、零跳过，其中 `KiyoriShellStateTest 51`、窗口视觉策略 `1`、下载抽屉策略 `10`、
+  UA 策略/路由 `7`、媒体候选策略 `19`、页面源码支持 `11`
+- formal readiness 通过；Markdown 检查器单测 `7/7`，8 个本轮修改 Markdown 文件新增缺失本地链接
+  为 `0`；`git diff --check` 和新增源码禁用回退语义扫描通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 57s`，238 个任务中 28 executed / 210 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-08 15:23:06 +08:00`，大小 `471581414` 字节，SHA-256
+  `1922760B24152AF916BECDEC5846CC1017FD7A13B53F79E228B62B0525E2EFA6`
+- APK 为 `com.kiyori / versionCode 45 / versionName 0.1.0 / compileSdk 37 / minSdk 26 /
+  targetSdk 34 / arm64-v8a`；唯一 launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，Android Debug V2 单签名与
+  `zipalign -c -P 16 -v 4` 均通过
+- 未安装 APK，未操作 ADB、MuMu 或真机；拖动首帧、亮暗主题和窄屏弹窗继续保持
+  `verification_pending`
+
+### 用户复核增量
+
+1. [DONE] 普通窗口和无痕窗口保持等宽、同一行的文字标签，标题强制单行；普通使用蓝色下划线，
+   无痕使用紫色下划线，选中项只改变文字强调、线条透明度和粗细
+2. [DONE] 配置自定义首页时，清空当前 Profile 后复用现有 `onNewTab(profile)` 创建主页窗口并
+   关闭窗口总览；默认 `about:blank` 继续显示剩余 Profile 或空总览
+3. [DONE] `WebSessionDrawerHeader` 增加标题后动作槽位；下载四竖线保留 `36dp` 点击热区，视觉从
+   标题后 `4dp` 开始绘制，新增/清理动作仍位于标题栏右侧
+4. [DONE] JDK 21 下 Debug Kotlin 编译通过；窗口、主页、Profile 与下载抽屉 5 个 suite 共
+   `29/29` 通过，零失败、零错误、零跳过
+5. [DONE] 重新运行 formal readiness、Markdown/差异检查和最终 Debug APK 构建与制品核验
+6. [PENDING] 目标设备验收 320dp 窄屏单行标签、蓝/紫横线、清空后的自定义首页和下载菜单位置
+
+用户复核增量证据：
+
+- JDK 21 下 `:app:compileDebugKotlin` 为 `BUILD SUCCESSFUL in 1m 26s`；窗口清空、主页导航、
+  Profile 与下载抽屉 5 个定向 suite 共 `29/29` 通过，零失败、零错误、零跳过
+- formal readiness 通过；Markdown 检查器单测 `7/7`，8 个修改 Markdown 文件缺失本地链接为 `0`；
+  `git diff --check` 无 whitespace error，新增代码禁用回退语义扫描零命中
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 55s`，238 个任务中 28 executed / 210 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-08 15:47:40 +08:00`，大小 `471581414` 字节，SHA-256
+  `8E1C37CBD651B36417DDF075741802E58FD086AD82CBA884C600F1FE866785C3`
+- APK 为 `com.kiyori / 45 / 0.1.0 / compileSdk 37 / minSdk 26 / targetSdk 34 / arm64-v8a`；
+  唯一 launcher、Android Debug V2 单签名与 `zipalign -c -P 16 -v 4` 通过
+
+### 用户复核增量：抽屉标题栏与弹窗统一
+
+1. [DONE] 下载四竖线继续位于“载”字右侧并保留 `36dp` 热区，按压反馈通过
+   `CircleShape` 裁剪为圆形，图形在圆形反馈内水平和垂直严格居中，不再出现正方形点击阴影
+2. [DONE] 书签、历史、下载、网络日志、视频资源、占位功能页、插件和用户脚本子页全部复用
+   `WebSessionDrawerHeader`；顶部统一为 `52dp` 高度、`34dp` 语义徽标、`8dp` 图标标题间距和
+   同一标题字级，网络日志标题不再紧贴图标
+3. [DONE] 网络日志操作/详情、书签编辑/文件夹选择/确认、下载排序/新增/完整链接/删除/长按操作/
+   重命名、用户脚本安装/删除/日志详情/元数据/审阅等项目自定义弹窗全部复用
+   `WebSessionBrowserDialogSurface`；统一语义色徽标、`20dp` 圆角、细描边、标题分隔线、阴影和
+   全窗口遮罩。历史删除时间范围保留底部选择交互，但复用同一弹窗标题头
+4. [DONE] 增加浏览器视觉策略测试，固定共享标题栏几何、标题动作圆形反馈及内容严格居中合同；
+   最终居中修正后的浏览器视觉与下载抽屉 2 个 suite 共 `13/13` 通过
+5. [DONE] JDK 21 下 Debug Kotlin 编译通过；下载、网络日志、媒体、书签、历史、用户脚本和浏览器
+   视觉策略 7 个 suite 共 `48/48` 通过，零失败、零错误、零跳过
+6. [DONE] formal readiness、Markdown 检查器 `7/7`、8 个修改 Markdown 文件本地链接扫描和
+   `git diff --check` 通过
+7. [DONE] 串行构建 Debug APK；最终居中修正版 `:app:assembleDebug` 为
+   `BUILD SUCCESSFUL in 53s`，238 个任务中 28 executed / 210 up-to-date，唯一 Launcher 与
+   播放器运行时打包校验通过
+8. [PENDING] 目标设备验收 320dp 窄屏顶部动作、网络日志标题间距、抽屉拖动、亮暗主题及各类
+   弹窗的输入法、滚动和系统 Back
+
+本轮制品：
+
+- `app/build/outputs/apk/debug/app-debug.apk`
+- 生成时间 `2026-08-08 16:36:26 +08:00`，大小 `471581414` 字节，SHA-256
+  `089BBDE3288D410E5B3C731EE9E2A5E0087B6ED0276E72AF959189198F7D5408`
+- `com.kiyori / versionCode 45 / versionName 0.1.0 / compileSdk 37 / minSdk 26 /
+  targetSdk 34 / arm64-v8a`
+- 唯一 Launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单签名，
+  `zipalign -c -P 16 -v 4` 通过
+- 未安装 APK、未操作 ADB、MuMu 或真机；未创建提交、未推送远端
+
 ## 2026-08-03 浏览器插件与脚本模块初步封板
 
 状态：本地实现、自动验证与 Debug APK 完成，目标设备验收待完成。继续复用唯一

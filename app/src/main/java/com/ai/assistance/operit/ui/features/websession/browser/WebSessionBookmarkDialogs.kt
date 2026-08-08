@@ -28,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,8 +41,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.kiyori.design.theme.KiyoriSemanticTone
 
 internal data class WebSessionBookmarkFolderOption(
     val id: Long,
@@ -54,6 +51,7 @@ internal data class WebSessionBookmarkFolderOption(
 @Composable
 internal fun WebSessionBookmarkEditorDialog(
     title: String,
+    tone: WebSessionBrowserMenuTone,
     initialDraft: WebSessionBookmarkDraft,
     folderOptions: List<WebSessionBookmarkFolderOption>,
     onDismiss: () -> Unit,
@@ -70,24 +68,20 @@ internal fun WebSessionBookmarkEditorDialog(
     var showFolderPicker by remember { mutableStateOf(false) }
 
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Bookmark,
+            tone = tone,
+            title = title,
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp).heightIn(max = 620.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                        .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                BrowserBookmarkDialogTitle(
-                    title = title,
-                    icon = Icons.Filled.Bookmark,
-                    tone = KiyoriSemanticTone.BLUE,
-                )
                 OutlinedTextField(
                     value = bookmarkTitle,
                     onValueChange = { bookmarkTitle = it },
@@ -170,6 +164,7 @@ internal fun WebSessionBookmarkEditorDialog(
     if (showFolderPicker) {
         WebSessionBookmarkFolderPickerDialog(
             options = folderOptions,
+            tone = tone,
             onDismiss = { showFolderPicker = false },
             onSelect = { option ->
                 selectedFolderId = option?.id
@@ -184,29 +179,25 @@ internal fun WebSessionBookmarkEditorDialog(
 @Composable
 private fun WebSessionBookmarkFolderPickerDialog(
     options: List<WebSessionBookmarkFolderOption>,
+    tone: WebSessionBrowserMenuTone,
     onDismiss: () -> Unit,
     onSelect: (WebSessionBookmarkFolderOption?) -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Folder,
+            tone = tone,
+            title = "选择书签文件夹",
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp).heightIn(max = 520.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                BrowserBookmarkDialogTitle(
-                    title = "选择书签文件夹",
-                    icon = Icons.Filled.Folder,
-                    tone = KiyoriSemanticTone.PURPLE,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                )
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp)) {
-                    item(key = "root") {
-                        WebSessionBookmarkPickerRow(title = "/", depth = 0) { onSelect(null) }
-                    }
-                    items(options, key = { option -> option.id }) { option ->
-                        WebSessionBookmarkPickerRow(option.title, option.depth) { onSelect(option) }
-                    }
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).padding(vertical = 8.dp),
+            ) {
+                item(key = "root") {
+                    WebSessionBookmarkPickerRow(title = "/", depth = 0) { onSelect(null) }
+                }
+                items(options, key = { option -> option.id }) { option ->
+                    WebSessionBookmarkPickerRow(option.title, option.depth) { onSelect(option) }
                 }
             }
         }
@@ -248,18 +239,13 @@ internal fun WebSessionBookmarkTextDialog(
 ) {
     var value by remember(initialValue) { mutableStateOf(initialValue) }
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Bookmark,
+            tone = WebSessionBrowserMenuTone.BOOKMARKS,
+            title = title,
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                BrowserBookmarkDialogTitle(
-                    title = title,
-                    icon = Icons.Filled.Bookmark,
-                    tone = KiyoriSemanticTone.PURPLE,
-                )
-                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = value,
                     onValueChange = { value = it },
@@ -286,18 +272,13 @@ internal fun WebSessionBookmarkOptionsDialog(
     onSelect: (String) -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Tune,
+            tone = WebSessionBrowserMenuTone.BOOKMARKS,
+            title = title,
             modifier = Modifier.widthIn(min = 300.dp, max = 360.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                BrowserBookmarkDialogTitle(
-                    title = title,
-                    icon = Icons.Filled.Tune,
-                    tone = KiyoriSemanticTone.ORANGE,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                )
                 options.forEach { option ->
                     Box(
                         modifier =
@@ -324,18 +305,13 @@ internal fun WebSessionBookmarkConfirmDialog(
     onConfirm: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Warning,
+            tone = WebSessionBrowserMenuTone.BOOKMARKS,
+            title = title,
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                BrowserBookmarkDialogTitle(
-                    title = title,
-                    icon = Icons.Filled.Warning,
-                    tone = KiyoriSemanticTone.RED,
-                )
-                Spacer(modifier = Modifier.height(10.dp))
                 Text(message, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -344,33 +320,5 @@ internal fun WebSessionBookmarkConfirmDialog(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BrowserBookmarkDialogTitle(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    tone: KiyoriSemanticTone,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        KiyoriSemanticIconBadge(
-            imageVector = icon,
-            tone = tone,
-            contentDescription = null,
-            containerSize = 34.dp,
-            iconSize = 18.dp,
-            shape = RoundedCornerShape(10.dp),
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
     }
 }

@@ -243,6 +243,15 @@ Multi-Profile owner，不创建第二套搜索页、搜索记录或无痕状态�
 - 本轮四组浏览器定向 JVM 合计 `15/15`，formal readiness、7 份 `strings.xml` 解析和
   `git diff --check` 通过；最终 Debug APK 证据与第七阶段的同轮记录一致
 
+## 2026-08-08 Pager 返回首页时底栏立即显现
+
+- 静止在负一屏和 AI 首页时继续隐藏底部五入口；AI 深层页面、Shell child 与各共享抽屉也继续隐藏
+- 从负一屏或 AI 首页向软件首页拖动时，底栏透明度直接读取中心页的实时 Pager offset；手势开始产生
+  位移后立即组合并显现，不等待 Pager 吸附完成或 `softwareHomePage` 更新
+- 该调整只修正展示时序，不改变三页 Pager、主目的地、点击动作、底栏选中状态或 AI 页面返回规则
+- 纯策略测试锁定左右两侧拖回中心页的透明度和 AI 非根页面隐藏边界；设备上的首帧、反向拖动、
+  低速吸附和旋转仍需视觉验收
+
 ## 预计文件
 
 - `ui/main/shell/KiyoriShellPages.kt`

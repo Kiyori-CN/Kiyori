@@ -121,36 +121,17 @@ internal fun WebSessionBrowserNetworkLog(
     val externalOpenFailedMessage = stringResource(R.string.web_session_network_log_external_open_failed)
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            KiyoriSemanticIconBadge(
-                imageVector = Icons.Filled.Info,
-                tone = KiyoriSemanticTone.CYAN,
-                contentDescription = null,
-                containerSize = 34.dp,
-                iconSize = 18.dp,
-                shape = RoundedCornerShape(10.dp),
-            )
-            Text(
-                text = stringResource(R.string.web_session_network_log),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text =
-                    pluralStringResource(
-                        R.plurals.web_session_network_log_count,
-                        entries.size,
-                        entries.size,
-                    ),
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 10.dp),
-            )
-            Spacer(modifier = Modifier.weight(1f))
+        WebSessionDrawerHeader(
+            title = stringResource(R.string.web_session_network_log),
+            leadingIcon = Icons.Filled.Info,
+            tone = WebSessionBrowserMenuTone.NETWORK_LOG,
+            countText =
+                pluralStringResource(
+                    R.plurals.web_session_network_log_count,
+                    entries.size,
+                    entries.size,
+                ),
+            actions = {
             Text(
                 text = stringResource(R.string.web_session_network_log_clear),
                 fontSize = 13.sp,
@@ -167,7 +148,8 @@ internal fun WebSessionBrowserNetworkLog(
                         .clickable(enabled = entries.isNotEmpty(), role = Role.Button, onClick = onClear)
                         .padding(horizontal = 10.dp, vertical = 13.dp),
             )
-        }
+            },
+        )
 
         BrowserNetworkLogSearchField(
             value = query,
@@ -309,7 +291,7 @@ private fun BrowserNetworkLogSearchField(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
+    val cyanColors = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors()
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
         shape = RoundedCornerShape(8.dp),
@@ -365,7 +347,7 @@ private fun BrowserNetworkLogFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val cyanColors = KiyoriSemanticTone.CYAN.resolveColors()
+    val cyanColors = WebSessionBrowserMenuTone.NETWORK_LOG.resolveColors()
     Surface(
         modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
@@ -499,53 +481,47 @@ private fun BrowserNetworkLogActionDialog(
 ) {
     val networkUrl = entry.url.startsWith("http://", true) || entry.url.startsWith("https://", true)
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Info,
+            tone = WebSessionBrowserMenuTone.NETWORK_LOG,
+            title = stringResource(R.string.web_session_network_log_action_title),
             modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp),
-            shape = WebSessionBrowserPopupShape,
-            color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                BrowserNetworkDialogTitle(
-                    title = stringResource(R.string.web_session_network_log_action_title),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
+            BrowserNetworkLogActionRow(
+                icon = Icons.Filled.ContentCopy,
+                title = stringResource(R.string.web_session_network_log_copy_link),
+                tone = KiyoriSemanticTone.PURPLE,
+                onClick = onCopy,
+            )
+            if (entry.mediaCandidateId != null) {
                 BrowserNetworkLogActionRow(
-                    icon = Icons.Filled.ContentCopy,
-                    title = stringResource(R.string.web_session_network_log_copy_link),
-                    tone = KiyoriSemanticTone.PURPLE,
-                    onClick = onCopy,
-                )
-                if (entry.mediaCandidateId != null) {
-                    BrowserNetworkLogActionRow(
-                        icon = Icons.Filled.PlayArrow,
-                        title = "在线播放",
-                        tone = KiyoriSemanticTone.BLUE,
-                        onClick = onPlay,
-                    )
-                }
-                if (networkUrl) {
-                    BrowserNetworkLogActionRow(
-                        icon = Icons.Filled.Download,
-                        title = stringResource(R.string.web_session_network_log_download_resource),
-                        tone = KiyoriSemanticTone.GREEN,
-                        onClick = onDownload,
-                    )
-                    BrowserNetworkLogActionRow(
-                        icon = Icons.AutoMirrored.Filled.OpenInNew,
-                        title = stringResource(R.string.web_session_network_log_open_external),
-                        tone = KiyoriSemanticTone.BLUE,
-                        onClick = onOpenExternal,
-                    )
-                }
-                BrowserNetworkLogActionRow(
-                    icon = Icons.Filled.Info,
-                    title = stringResource(R.string.web_session_network_log_view_details),
-                    tone = KiyoriSemanticTone.CYAN,
-                    onClick = onViewDetails,
-                    drawDivider = false,
+                    icon = Icons.Filled.PlayArrow,
+                    title = "在线播放",
+                    tone = KiyoriSemanticTone.BLUE,
+                    onClick = onPlay,
                 )
             }
+            if (networkUrl) {
+                BrowserNetworkLogActionRow(
+                    icon = Icons.Filled.Download,
+                    title = stringResource(R.string.web_session_network_log_download_resource),
+                    tone = KiyoriSemanticTone.GREEN,
+                    onClick = onDownload,
+                )
+                BrowserNetworkLogActionRow(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    title = stringResource(R.string.web_session_network_log_open_external),
+                    tone = KiyoriSemanticTone.BLUE,
+                    onClick = onOpenExternal,
+                )
+            }
+            BrowserNetworkLogActionRow(
+                icon = Icons.Filled.Info,
+                title = stringResource(R.string.web_session_network_log_view_details),
+                tone = KiyoriSemanticTone.CYAN,
+                onClick = onViewDetails,
+                drawDivider = false,
+            )
         }
     }
 }
@@ -591,110 +567,77 @@ private fun BrowserNetworkLogDetailsDialog(
     onCopy: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Info,
+            tone = WebSessionBrowserMenuTone.NETWORK_LOG,
+            title = stringResource(R.string.web_session_network_log_details_title),
             modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).heightIn(max = 560.dp),
-            shape = WebSessionBrowserPopupShape,
-            color = MaterialTheme.colorScheme.surface,
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                BrowserNetworkDialogTitle(
-                    title = stringResource(R.string.web_session_network_log_details_title),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            Column(
+                modifier =
+                    Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_method),
+                    entry.method,
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
-                Column(
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_type),
+                    browserNetworkCategoryLabel(entry.category),
+                )
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_frame),
+                    stringResource(
+                        if (entry.isMainFrame) {
+                            R.string.web_session_network_log_main_frame
+                        } else {
+                            R.string.web_session_network_log_subresource
+                        },
+                    ),
+                )
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_time),
+                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
+                        .format(Date(entry.timestamp)),
+                )
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_url),
+                    entry.url,
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
                     modifier =
                         Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    BrowserNetworkLogDetailRow(
-                        stringResource(R.string.web_session_network_log_detail_method),
-                        entry.method,
-                    )
-                    BrowserNetworkLogDetailRow(
-                        stringResource(R.string.web_session_network_log_detail_type),
-                        browserNetworkCategoryLabel(entry.category),
-                    )
-                    BrowserNetworkLogDetailRow(
-                        stringResource(R.string.web_session_network_log_detail_frame),
-                        stringResource(
-                            if (entry.isMainFrame) {
-                                R.string.web_session_network_log_main_frame
-                            } else {
-                                R.string.web_session_network_log_subresource
-                            },
-                        ),
-                    )
-                    BrowserNetworkLogDetailRow(
-                        stringResource(R.string.web_session_network_log_detail_time),
-                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
-                            .format(Date(entry.timestamp)),
-                    )
-                    BrowserNetworkLogDetailRow(
-                        stringResource(R.string.web_session_network_log_detail_url),
-                        entry.url,
-                    )
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(R.string.cancel),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .clickable(role = Role.Button, onClick = onDismiss)
-                                .padding(top = 14.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                    Text(
-                        text = stringResource(R.string.web_session_network_log_copy_link),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .clickable(role = Role.Button, onClick = onCopy)
-                                .padding(top = 14.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
+                            .weight(1f)
+                            .height(48.dp)
+                            .clickable(role = Role.Button, onClick = onDismiss)
+                            .padding(top = 14.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                Text(
+                    text = stringResource(R.string.web_session_network_log_copy_link),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clickable(role = Role.Button, onClick = onCopy)
+                            .padding(top = 14.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun BrowserNetworkDialogTitle(
-    title: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        KiyoriSemanticIconBadge(
-            imageVector = Icons.Filled.Info,
-            tone = KiyoriSemanticTone.CYAN,
-            contentDescription = null,
-            containerSize = 32.dp,
-            iconSize = 18.dp,
-            shape = RoundedCornerShape(9.dp),
-        )
-        Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 

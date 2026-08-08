@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptListItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
@@ -101,7 +101,7 @@ internal fun WebSessionUserscriptDetail(
         WebSessionDrawerHeader(
             title = script?.name ?: stringResource(R.string.web_session_userscript_detail),
             leadingIcon = Icons.Filled.Description,
-            tone = KiyoriSemanticTone.PURPLE,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
             countText = script?.version?.let { version -> "v$version" },
             navigationIcon = {
                 IconButton(onClick = onNavigateBack) {
@@ -145,7 +145,7 @@ internal fun WebSessionUserscriptDetail(
                 WebSessionFilterChip(
                     label = userscriptDetailTabLabel(tab),
                     selected = selectedTab == tab,
-                    tone = KiyoriSemanticTone.PURPLE,
+                    tone = WebSessionBrowserMenuTone.PLUGINS,
                     onClick = { selectedTab = tab },
                 )
             }
@@ -172,7 +172,7 @@ internal fun WebSessionUserscriptDetail(
                 detail?.isLoading == true || detail == null -> {
                         CircularProgressIndicator(
                             modifier = Modifier.padding(24.dp),
-                            color = KiyoriSemanticTone.PURPLE.resolveColors().icon,
+                            color = WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon,
                         )
                 }
                 detail.error != null -> {
@@ -243,32 +243,35 @@ internal fun WebSessionUserscriptDetail(
     }
 
     if (deletePromptVisible) {
-        AlertDialog(
-            onDismissRequest = { deletePromptVisible = false },
-            title = { Text(stringResource(R.string.web_session_userscript_delete)) },
-            text = {
-                Text(stringResource(R.string.web_session_userscript_delete_detail_message))
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        deletePromptVisible = false
-                        onDelete(scriptId)
-                        onNavigateBack()
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.web_session_userscript_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+        WebSessionBrowserModalDialog(onDismissRequest = { deletePromptVisible = false }) {
+            WebSessionBrowserDialogSurface(
+                icon = Icons.Filled.Delete,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
+                title = stringResource(R.string.web_session_userscript_delete),
+                modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                    Text(stringResource(R.string.web_session_userscript_delete_detail_message))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { deletePromptVisible = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                deletePromptVisible = false
+                                onDelete(scriptId)
+                                onNavigateBack()
+                            },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.web_session_userscript_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletePromptVisible = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -482,7 +485,7 @@ private fun UserscriptDetailContent(
                 WebSessionEmptyState(
                     icon = Icons.Filled.Description,
                     title = stringResource(R.string.web_session_userscript_logs_empty),
-                    tone = KiyoriSemanticTone.PURPLE,
+                    tone = WebSessionBrowserMenuTone.PLUGINS,
                 )
             } else {
                 logs.forEach { log ->
@@ -496,13 +499,13 @@ private fun UserscriptDetailContent(
                 WebSessionEmptyState(
                     icon = Icons.Filled.Code,
                     title = stringResource(R.string.web_session_userscript_versions_empty),
-                    tone = KiyoriSemanticTone.PURPLE,
+                    tone = WebSessionBrowserMenuTone.PLUGINS,
                 )
             } else {
                 detail.revisions.forEach { revision ->
                     WebSessionItemCard(
                         highlighted = revision.active,
-                        highlightTone = KiyoriSemanticTone.PURPLE,
+                        highlightTone = WebSessionBrowserMenuTone.PLUGINS,
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(12.dp),

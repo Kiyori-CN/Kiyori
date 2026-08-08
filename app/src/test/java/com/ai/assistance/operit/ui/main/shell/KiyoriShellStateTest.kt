@@ -31,6 +31,7 @@ import com.kiyori.app.shell.resolveKiyoriAiDrawerTone
 import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedFinalScale
 import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedSpringDampingRatio
 import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedStartScale
+import com.kiyori.app.shell.resolveKiyoriBottomBarAlpha
 import com.kiyori.app.shell.restoreKiyoriShellState
 import com.kiyori.app.shell.shouldComposeKiyoriAiHost
 import com.kiyori.app.shell.shouldEnableKiyoriShellBackHandler
@@ -106,6 +107,37 @@ class KiyoriShellStateTest {
         )
         assertFalse(
             KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME).showsBottomBar,
+        )
+    }
+
+    @Test
+    fun `bottom navigation follows the pager while leaving minus one or AI home`() {
+        assertEquals(
+            0.18f,
+            resolveKiyoriBottomBarAlpha(
+                state = KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE),
+                aiHostIsRoot = true,
+                centerPageOffset = 0.82f,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            0.36f,
+            resolveKiyoriBottomBarAlpha(
+                state = KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+                aiHostIsRoot = true,
+                centerPageOffset = -0.64f,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            resolveKiyoriBottomBarAlpha(
+                state = KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+                aiHostIsRoot = false,
+                centerPageOffset = -0.2f,
+            ),
+            0.0001f,
         )
     }
 

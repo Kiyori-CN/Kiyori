@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -58,6 +60,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSE
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
+import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.resolveColors
 import java.net.URI
 import kotlinx.coroutines.delay
 
@@ -87,6 +91,8 @@ internal fun WebSessionBrowserTabOverview(
     val normalCount = tabs.count { tab -> tab.profile == WebSessionProfile.NORMAL }
     val incognitoCount = tabs.count { tab -> tab.profile == WebSessionProfile.INCOGNITO }
     val visibleTabs = tabs.filter { tab -> tab.profile == selectedProfile }
+    val selectedProfileTone = resolveWebSessionBrowserProfileTone(selectedProfile)
+    val selectedProfileColors = selectedProfileTone.resolveColors()
     val canUseSelectedProfile =
         selectedProfile == WebSessionProfile.NORMAL || incognitoAvailability.isAvailable
 
@@ -115,6 +121,7 @@ internal fun WebSessionBrowserTabOverview(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     WindowProfileSelector(
+                        profile = WebSessionProfile.NORMAL,
                         title = stringResource(R.string.web_session_normal_window),
                         count = normalCount,
                         selected = selectedProfile == WebSessionProfile.NORMAL,
@@ -123,6 +130,7 @@ internal fun WebSessionBrowserTabOverview(
                         modifier = Modifier.weight(1f),
                     )
                     WindowProfileSelector(
+                        profile = WebSessionProfile.INCOGNITO,
                         title = stringResource(R.string.web_session_incognito_title),
                         count = incognitoCount,
                         selected = selectedProfile == WebSessionProfile.INCOGNITO,
@@ -143,6 +151,7 @@ internal fun WebSessionBrowserTabOverview(
                     !canUseSelectedProfile ->
                         BrowserTabEmptyState(
                             icon = Icons.Filled.VisibilityOff,
+                            tone = selectedProfileTone,
                             title = stringResource(R.string.web_session_incognito_unavailable),
                             description = incognitoAvailability.description(),
                             modifier = Modifier.weight(1f),
@@ -156,6 +165,7 @@ internal fun WebSessionBrowserTabOverview(
                                 } else {
                                     Icons.Filled.Language
                                 },
+                            tone = selectedProfileTone,
                             title =
                                 stringResource(
                                     R.string.web_session_no_profile_tabs,
@@ -207,15 +217,21 @@ internal fun WebSessionBrowserTabOverview(
                         shape = CircleShape,
                         color =
                             if (canUseSelectedProfile) {
-                                MaterialTheme.colorScheme.primary
+                                selectedProfileColors.container
                             } else {
                                 MaterialTheme.colorScheme.surfaceContainerHighest
                             },
                         contentColor =
                             if (canUseSelectedProfile) {
-                                MaterialTheme.colorScheme.onPrimary
+                                selectedProfileColors.icon
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        border =
+                            if (canUseSelectedProfile) {
+                                BorderStroke(1.dp, selectedProfileColors.icon.copy(alpha = 0.56f))
+                            } else {
+                                null
                             },
                         tonalElevation = 1.dp,
                         shadowElevation = if (canUseSelectedProfile) 4.dp else 0.dp,
@@ -245,6 +261,7 @@ internal fun WebSessionBrowserTabOverview(
 
 @Composable
 private fun WindowProfileSelector(
+    profile: WebSessionProfile,
     title: String,
     count: Int,
     selected: Boolean,
@@ -252,6 +269,8 @@ private fun WindowProfileSelector(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tone = resolveWebSessionBrowserProfileTone(profile)
+    val colors = tone.resolveColors()
     Column(
         modifier =
             modifier
@@ -261,51 +280,51 @@ private fun WindowProfileSelector(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
+            modifier = Modifier.fillMaxWidth().height(30.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            horizontalArrangement = Arrangement.Center,
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 color =
                     when {
                         !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        selected -> MaterialTheme.colorScheme.primary
+                        selected -> colors.icon
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
             )
-            Surface(
-                shape = CircleShape,
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelSmall,
                 color =
-                    if (selected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    when {
+                        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        selected -> colors.icon
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
-            ) {
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                    color =
-                        if (selected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-            }
+                modifier = Modifier.padding(start = 7.dp),
+                maxLines = 1,
+            )
         }
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .size(width = 48.dp, height = 2.dp)
+                    .width(48.dp)
+                    .height(if (selected) 3.dp else 2.dp)
                     .background(
-                        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        CircleShape,
+                        color =
+                            when {
+                                !enabled ->
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                selected -> colors.icon
+                                else -> colors.icon.copy(alpha = 0.32f)
+                            },
+                        shape = CircleShape,
                     ),
         )
     }
@@ -333,10 +352,12 @@ private fun IncognitoAvailabilityNotice(
 @Composable
 private fun BrowserTabEmptyState(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tone: KiyoriSemanticTone,
     title: String,
     description: String,
     modifier: Modifier = Modifier,
 ) {
+    val colors = tone.resolveColors()
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -344,12 +365,13 @@ private fun BrowserTabEmptyState(
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+            color = colors.container,
+            border = BorderStroke(1.dp, colors.icon.copy(alpha = 0.3f)),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                tint = colors.icon,
                 modifier = Modifier.padding(16.dp).size(34.dp),
             )
         }
@@ -377,11 +399,13 @@ private fun BrowserTabOverviewCard(
     onSelect: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val profileTone = resolveWebSessionBrowserProfileTone(tab.profile)
+    val profileColors = profileTone.resolveColors()
     val borderColor =
         if (tab.isActive) {
-            MaterialTheme.colorScheme.primary
+            profileColors.icon
         } else {
-            MaterialTheme.colorScheme.outlineVariant
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.78f)
         }
     val thumbnail =
         remember(tab.thumbnail, tab.thumbnailUpdatedAt) {
@@ -391,7 +415,12 @@ private fun BrowserTabOverviewCard(
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onSelect),
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color =
+            if (tab.isActive) {
+                profileColors.container.copy(alpha = 0.42f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         border = BorderStroke(if (tab.isActive) 2.dp else 1.dp, borderColor),
         tonalElevation = if (tab.isActive) 1.dp else 0.dp,
     ) {
@@ -401,7 +430,7 @@ private fun BrowserTabOverviewCard(
                     Modifier
                         .fillMaxWidth()
                         .aspectRatio(BROWSER_TAB_THUMBNAIL_ASPECT_RATIO)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        .background(profileColors.container.copy(alpha = 0.38f)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (thumbnail != null) {
@@ -469,31 +498,30 @@ private fun BrowserTabOverviewCard(
 @Composable
 private fun BrowserTabIdentity(tab: WebSessionBrowserTab) {
     val identity = remember(tab.title, tab.url) { tabIdentity(tab) }
+    val colors = resolveWebSessionBrowserProfileTone(tab.profile).resolveColors()
     Surface(
         modifier = Modifier.size(58.dp),
         shape = CircleShape,
-        color =
-            if (tab.profile == WebSessionProfile.INCOGNITO) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.primaryContainer
-            },
+        color = colors.container,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = identity,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color =
-                    if (tab.profile == WebSessionProfile.INCOGNITO) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    },
+                color = colors.icon,
             )
         }
     }
 }
+
+internal fun resolveWebSessionBrowserProfileTone(
+    profile: WebSessionProfile,
+): KiyoriSemanticTone =
+    when (profile) {
+        WebSessionProfile.NORMAL -> KiyoriSemanticTone.BLUE
+        WebSessionProfile.INCOGNITO -> KiyoriSemanticTone.PURPLE
+    }
 
 @Composable
 private fun WebSessionProfile.displayName(): String =
@@ -531,20 +559,36 @@ private fun TabOverviewBottomAction(
     onClick: () -> Unit,
     isError: Boolean = false,
 ) {
+    val tone = if (isError) KiyoriSemanticTone.RED else KiyoriSemanticTone.BLUE
+    val colors = tone.resolveColors()
     IconButton(
         enabled = enabled,
         onClick = onClick,
         modifier = Modifier.size(44.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint =
-                when {
-                    !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    isError -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurface
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color =
+                if (enabled) {
+                    colors.container
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
                 },
-        )
+            contentColor =
+                if (enabled) {
+                    colors.icon
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                },
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+        }
     }
 }

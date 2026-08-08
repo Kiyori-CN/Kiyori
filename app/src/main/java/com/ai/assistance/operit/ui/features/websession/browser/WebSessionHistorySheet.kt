@@ -53,7 +53,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,37 +91,17 @@ internal fun WebSessionHistorySheet(
         }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            KiyoriSemanticIconBadge(
-                imageVector = Icons.Filled.History,
-                tone = KiyoriSemanticTone.ORANGE,
-                contentDescription = null,
-                containerSize = 34.dp,
-                iconSize = 18.dp,
-                shape = RoundedCornerShape(10.dp),
-            )
-            Text(
-                text = stringResource(R.string.web_session_history_title),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-            Text(
-                text =
-                    pluralStringResource(
-                        R.plurals.web_session_history_count,
-                        entries.size,
-                        entries.size,
-                    ),
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 10.dp),
-            )
-            Spacer(modifier = Modifier.weight(1f))
+        WebSessionDrawerHeader(
+            title = stringResource(R.string.web_session_history_title),
+            leadingIcon = Icons.Filled.History,
+            tone = WebSessionBrowserMenuTone.HISTORY,
+            countText =
+                pluralStringResource(
+                    R.plurals.web_session_history_count,
+                    entries.size,
+                    entries.size,
+                ),
+            actions = {
             Text(
                 text = stringResource(R.string.web_session_history_delete),
                 fontSize = 13.sp,
@@ -143,7 +122,8 @@ internal fun WebSessionHistorySheet(
                         )
                         .padding(horizontal = 10.dp, vertical = 13.dp),
             )
-        }
+            },
+        )
 
         HistorySearchField(
             value = query,
@@ -241,7 +221,7 @@ private fun HistorySearchField(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val orangeColors = KiyoriSemanticTone.ORANGE.resolveColors()
+    val orangeColors = WebSessionBrowserMenuTone.HISTORY.resolveColors()
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
         shape = RoundedCornerShape(8.dp),
@@ -297,7 +277,7 @@ private fun HistoryFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val orangeColors = KiyoriSemanticTone.ORANGE.resolveColors()
+    val orangeColors = WebSessionBrowserMenuTone.HISTORY.resolveColors()
     Surface(
         modifier = Modifier.height(36.dp).clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
@@ -417,15 +397,14 @@ private fun HistoryDeleteRangeSheet(
         tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
-            Text(
-                text = stringResource(R.string.web_session_history_delete_range_title),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+            WebSessionBrowserDialogHeader(
+                icon = Icons.Filled.History,
+                tone = WebSessionBrowserMenuTone.HISTORY,
+                title = stringResource(R.string.web_session_history_delete_range_title),
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(
+                color = WebSessionBrowserMenuTone.HISTORY.resolveColors().icon.copy(alpha = 0.16f),
+            )
             WebSessionHistoryDeleteRange.entries.forEach { range ->
                 Text(
                     text = historyDeleteRangeLabel(range),

@@ -29,10 +29,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,30 +42,49 @@ import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 
+internal const val WEB_SESSION_DRAWER_HEADER_HEIGHT_DP = 52
+internal const val WEB_SESSION_DRAWER_HEADER_START_PADDING_DP = 18
+internal const val WEB_SESSION_DRAWER_HEADER_END_PADDING_DP = 8
+internal const val WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP = 34
+internal const val WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP = 8
+internal const val WEB_SESSION_DRAWER_TITLE_ACTION_SIZE_DP = 36
+internal val WebSessionDrawerTitleActionShape = CircleShape
+internal val WebSessionDrawerTitleActionContentAlignment = Alignment.Center
+
 @Composable
 internal fun WebSessionDrawerHeader(
     title: String,
     leadingIcon: ImageVector,
-    tone: KiyoriSemanticTone,
+    tone: WebSessionBrowserMenuTone,
     modifier: Modifier = Modifier,
     countText: String? = null,
     navigationIcon: (@Composable () -> Unit)? = null,
+    titleActions: @Composable RowScope.() -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
+    titleTakesRemainingSpace: Boolean = false,
 ) {
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .padding(start = if (navigationIcon == null) 18.dp else 4.dp, end = 8.dp),
+                .height(WEB_SESSION_DRAWER_HEADER_HEIGHT_DP.dp)
+                .padding(
+                    start =
+                        if (navigationIcon == null) {
+                            WEB_SESSION_DRAWER_HEADER_START_PADDING_DP.dp
+                        } else {
+                            4.dp
+                        },
+                    end = WEB_SESSION_DRAWER_HEADER_END_PADDING_DP.dp,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         navigationIcon?.invoke()
-        KiyoriSemanticIconBadge(
+        WebSessionBrowserMenuIconBadge(
             imageVector = leadingIcon,
             tone = tone,
             contentDescription = null,
-            containerSize = 34.dp,
+            containerSize = WEB_SESSION_DRAWER_HEADER_ICON_SIZE_DP.dp,
             iconSize = 18.dp,
             shape = RoundedCornerShape(10.dp),
         )
@@ -72,8 +93,20 @@ internal fun WebSessionDrawerHeader(
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 8.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier =
+                Modifier
+                    .padding(start = WEB_SESSION_DRAWER_HEADER_TITLE_GAP_DP.dp)
+                    .then(
+                        if (titleTakesRemainingSpace) {
+                            Modifier.weight(1f)
+                        } else {
+                            Modifier
+                        },
+                    ),
         )
+        titleActions()
         if (!countText.isNullOrBlank()) {
             Text(
                 text = countText,
@@ -82,7 +115,9 @@ internal fun WebSessionDrawerHeader(
                 modifier = Modifier.padding(start = 10.dp),
             )
         }
-        Spacer(modifier = Modifier.weight(1f))
+        if (!titleTakesRemainingSpace) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
         actions()
     }
 }
@@ -97,6 +132,45 @@ internal fun WebSessionSearchField(
     modifier: Modifier = Modifier,
 ) {
     val colors = tone.resolveColors()
+    WebSessionSearchFieldContent(
+        value = value,
+        onValueChange = onValueChange,
+        onClear = onClear,
+        placeholder = placeholder,
+        cursorColor = colors.icon,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun WebSessionSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit,
+    placeholder: String,
+    tone: WebSessionBrowserMenuTone,
+    modifier: Modifier = Modifier,
+) {
+    val colors = tone.resolveColors()
+    WebSessionSearchFieldContent(
+        value = value,
+        onValueChange = onValueChange,
+        onClear = onClear,
+        placeholder = placeholder,
+        cursorColor = colors.icon,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun WebSessionSearchFieldContent(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit,
+    placeholder: String,
+    cursorColor: Color,
+    modifier: Modifier,
+) {
     Surface(
         modifier = modifier.fillMaxWidth().height(40.dp),
         shape = RoundedCornerShape(8.dp),
@@ -122,7 +196,7 @@ internal fun WebSessionSearchField(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 13.sp,
                     ),
-                cursorBrush = SolidColor(colors.icon),
+                cursorBrush = SolidColor(cursorColor),
                 decorationBox = { innerTextField ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isBlank()) {
@@ -158,17 +232,55 @@ internal fun WebSessionFilterChip(
     modifier: Modifier = Modifier,
 ) {
     val colors = tone.resolveColors()
+    WebSessionFilterChipContent(
+        label = label,
+        selected = selected,
+        iconColor = colors.icon,
+        containerColor = colors.container,
+        onClick = onClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun WebSessionFilterChip(
+    label: String,
+    selected: Boolean,
+    tone: WebSessionBrowserMenuTone,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = tone.resolveColors()
+    WebSessionFilterChipContent(
+        label = label,
+        selected = selected,
+        iconColor = colors.icon,
+        containerColor = colors.container,
+        onClick = onClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun WebSessionFilterChipContent(
+    label: String,
+    selected: Boolean,
+    iconColor: Color,
+    containerColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
     Surface(
         modifier =
             modifier
                 .height(36.dp)
                 .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) colors.container else MaterialTheme.colorScheme.surface,
+        color = if (selected) containerColor else MaterialTheme.colorScheme.surface,
         border =
             BorderStroke(
                 1.dp,
-                if (selected) colors.icon else MaterialTheme.colorScheme.outlineVariant,
+                if (selected) iconColor else MaterialTheme.colorScheme.outlineVariant,
             ),
     ) {
         Box(
@@ -177,7 +289,7 @@ internal fun WebSessionFilterChip(
         ) {
             Text(
                 text = label,
-                color = if (selected) colors.icon else MaterialTheme.colorScheme.onSurface,
+                color = if (selected) iconColor else MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             )
@@ -236,10 +348,37 @@ internal fun WebSessionSectionLabel(
     tone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
 ) {
     val colors = tone.resolveColors()
+    WebSessionSectionLabelContent(
+        text = text,
+        color = colors.icon,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun WebSessionSectionLabel(
+    text: String,
+    tone: WebSessionBrowserMenuTone,
+    modifier: Modifier = Modifier,
+) {
+    val colors = tone.resolveColors()
+    WebSessionSectionLabelContent(
+        text = text,
+        color = colors.icon,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun WebSessionSectionLabelContent(
+    text: String,
+    color: Color,
+    modifier: Modifier,
+) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        color = colors.icon,
+        color = color,
         fontWeight = FontWeight.SemiBold,
         modifier = modifier.padding(horizontal = 2.dp)
     )
@@ -253,8 +392,46 @@ internal fun WebSessionItemCard(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(14.dp)
     val colors = highlightTone.resolveColors()
+    WebSessionItemCardContent(
+        onClick = onClick,
+        highlighted = highlighted,
+        highlightIconColor = colors.icon,
+        highlightContainerColor = colors.container,
+        modifier = modifier,
+        content = content,
+    )
+}
+
+@Composable
+internal fun WebSessionItemCard(
+    highlightTone: WebSessionBrowserMenuTone,
+    onClick: (() -> Unit)? = null,
+    highlighted: Boolean = false,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val colors = highlightTone.resolveColors()
+    WebSessionItemCardContent(
+        onClick = onClick,
+        highlighted = highlighted,
+        highlightIconColor = colors.icon,
+        highlightContainerColor = colors.container,
+        modifier = modifier,
+        content = content,
+    )
+}
+
+@Composable
+private fun WebSessionItemCardContent(
+    onClick: (() -> Unit)?,
+    highlighted: Boolean,
+    highlightIconColor: Color,
+    highlightContainerColor: Color,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(14.dp)
     Surface(
         modifier =
             modifier
@@ -269,7 +446,7 @@ internal fun WebSessionItemCard(
         shape = shape,
         color =
             if (highlighted) {
-                colors.container
+                highlightContainerColor
             } else {
                 MaterialTheme.colorScheme.surface
             },
@@ -284,7 +461,7 @@ internal fun WebSessionItemCard(
                 width = 1.dp,
                 color =
                     if (highlighted) {
-                        colors.icon.copy(alpha = 0.24f)
+                        highlightIconColor.copy(alpha = 0.24f)
                     } else {
                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     }
@@ -303,6 +480,55 @@ internal fun WebSessionEmptyState(
     message: String? = null,
     modifier: Modifier = Modifier,
     tone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
+) {
+    WebSessionEmptyStateContent(
+        title = title,
+        message = message,
+        modifier = modifier,
+        badge = {
+            KiyoriSemanticIconBadge(
+                imageVector = icon,
+                tone = tone,
+                contentDescription = null,
+                containerSize = 44.dp,
+                iconSize = 24.dp,
+                shape = CircleShape,
+            )
+        },
+    )
+}
+
+@Composable
+internal fun WebSessionEmptyState(
+    icon: ImageVector,
+    title: String,
+    tone: WebSessionBrowserMenuTone,
+    message: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    WebSessionEmptyStateContent(
+        title = title,
+        message = message,
+        modifier = modifier,
+        badge = {
+            WebSessionBrowserMenuIconBadge(
+                imageVector = icon,
+                tone = tone,
+                contentDescription = null,
+                containerSize = 44.dp,
+                iconSize = 24.dp,
+                shape = CircleShape,
+            )
+        },
+    )
+}
+
+@Composable
+private fun WebSessionEmptyStateContent(
+    title: String,
+    message: String?,
+    modifier: Modifier,
+    badge: @Composable () -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -324,14 +550,7 @@ internal fun WebSessionEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            KiyoriSemanticIconBadge(
-                imageVector = icon,
-                tone = tone,
-                contentDescription = null,
-                containerSize = 44.dp,
-                iconSize = 24.dp,
-                shape = CircleShape,
-            )
+            badge()
 
             Text(
                 text = title,

@@ -49,16 +49,12 @@ app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/speechtot
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/speechtotext/SpeechToTextScreen.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/texttospeech/TextToSpeechScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/texttospeech/TextToSpeechScreen.kt	com.kiyori.design.theme.resolveColors
-app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBookmarkDialogs.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBookmarkSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBookmarkSheet.kt	com.kiyori.design.theme.resolveColors
-app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserPlaceholderSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserPluginSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserPluginSheet.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserTopBar.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserTopBar.kt	com.kiyori.design.theme.resolveColors
-app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserUserAgentDialog.kt	com.kiyori.design.theme.KiyoriSemanticTone
-app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserUserAgentDialog.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionHistorySheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionHistorySheet.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionMediaCandidateSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
@@ -75,8 +71,8 @@ app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSes
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionUserscriptEditor.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionUserscriptSheet.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionUserscriptSheet.kt	com.kiyori.design.theme.resolveColors
-app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserMenuDrawer.kt	com.kiyori.design.theme.KiyoriSemanticTone
-app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserMenuDrawer.kt	com.kiyori.design.theme.resolveColors
+app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserTabOverview.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserTabOverview.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/workflow/components/DraggableNodeCard.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/workflow/components/DraggableNodeCard.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/workflow/components/GridWorkflowCanvas.kt	com.kiyori.design.theme.KiyoriSemanticTone
@@ -100,5 +96,6 @@ app/src/main/java/com/kiyori/app/shell/KiyoriSoftwareHome.kt	com.kiyori.design.t
 app/src/main/java/com/kiyori/app/shell/KiyoriSoftwareHome.kt	com.kiyori.design.theme.kiyoriWeatherSunColor
 app/src/main/java/com/kiyori/app/shell/KiyoriSoftwareHome.kt	com.kiyori.design.theme.resolveColors
 app/src/test/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerVisualPolicyTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
+app/src/test/java/com/ai/assistance/operit/ui/features/websession/browser/chrome/WebSessionBrowserVisualPolicyTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriSettingsPagesTest.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/test/java/com/ai/assistance/operit/ui/main/shell/KiyoriShellStateTest.kt	com.kiyori.design.theme.KiyoriSemanticTone

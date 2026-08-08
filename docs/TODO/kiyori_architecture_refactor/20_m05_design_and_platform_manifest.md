@@ -309,7 +309,13 @@ config/architecture/m05a2-semantic-colors-sha256.txt
 config/architecture/m05a2-semantic-theme-sha256.txt
 ```
 
-consumer snapshot 逐条保存 `path + imported symbol`，必须与全部 102 条项目 import 精确
+2026-08-08 浏览器 UI 迭代后，ARCH041 消费者快照按实际依赖演进为 `101` 条导入、`52` 个生产
+消费者路径和 `4` 个外部测试路径。浏览器四行菜单、占位页、书签新增弹窗和 UA/下载身份色改用
+浏览器局部 `WebSessionBrowserMenuTone` 后不再伪装成全应用语义色消费者；窗口总览及其视觉策略
+测试成为新的真实消费者。`KiyoriSemanticColors` 与 `KiyoriSemanticTheme` 的 owner、源码哈希、
+七色枚举和解析行为均未改变。
+
+consumer snapshot 逐条保存 `path + imported symbol`，必须与当前全部 101 条项目 import 精确
 相等。所有旧 package import 和完全限定旧 FQCN 清零；不改变调用表达式、参数、tone 选择、
 页面层级、Compose 嵌套或状态 owner。
 

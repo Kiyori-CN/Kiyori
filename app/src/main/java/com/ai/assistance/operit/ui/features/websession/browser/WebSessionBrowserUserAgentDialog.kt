@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
@@ -46,9 +45,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.extractWebSessionUserAgentHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionUserAgentDomain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveWebSessionPresetUserAgent
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.kiyori.design.theme.KiyoriSemanticTone
-import com.kiyori.design.theme.resolveColors
 
 private enum class UserAgentDialogPage {
     CHOOSER,
@@ -156,12 +152,13 @@ private fun UserAgentChooserDialog(
     onDismiss: () -> Unit,
 ) {
     val choices = UserAgentChoice.entries
-    val blueColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val blueColors = WebSessionBrowserMenuTone.USER_AGENT.resolveColors()
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Language,
+            tone = WebSessionBrowserMenuTone.USER_AGENT,
+            title = stringResource(R.string.web_session_user_agent_dialog_title),
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier =
@@ -170,10 +167,6 @@ private fun UserAgentChooserDialog(
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = 10.dp),
             ) {
-                UserAgentDialogTitle(
-                    text = stringResource(R.string.web_session_user_agent_dialog_title),
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 10.dp),
-                )
                 choices.forEachIndexed { index, choice ->
                     Row(
                         modifier =
@@ -218,10 +211,11 @@ private fun CustomGlobalUserAgentDialog(
     onConfirm: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Language,
+            tone = WebSessionBrowserMenuTone.USER_AGENT,
+            title = stringResource(R.string.web_session_user_agent_custom_global_title),
             modifier = Modifier.widthIn(min = 300.dp, max = 380.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier =
@@ -231,9 +225,6 @@ private fun CustomGlobalUserAgentDialog(
                         .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                UserAgentDialogTitle(
-                    text = stringResource(R.string.web_session_user_agent_custom_global_title),
-                )
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
@@ -279,10 +270,11 @@ private fun CustomSiteUserAgentDialog(
                 resolveWebSessionPresetUserAgent(WebSessionUserAgentMode.SYMBIAN_WAP, ""),
         )
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Language,
+            tone = WebSessionBrowserMenuTone.USER_AGENT,
+            title = stringResource(R.string.web_session_user_agent_custom_site_title),
             modifier = Modifier.widthIn(min = 300.dp, max = 420.dp).heightIn(max = 680.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier =
@@ -292,9 +284,6 @@ private fun CustomSiteUserAgentDialog(
                         .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                UserAgentDialogTitle(
-                    text = stringResource(R.string.web_session_user_agent_custom_site_title),
-                )
                 Text(
                     text = stringResource(R.string.web_session_user_agent_custom_site_description),
                     style = MaterialTheme.typography.bodyMedium,
@@ -360,33 +349,6 @@ private fun CustomSiteUserAgentDialog(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun UserAgentDialogTitle(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        KiyoriSemanticIconBadge(
-            imageVector = Icons.Filled.Language,
-            tone = KiyoriSemanticTone.BLUE,
-            contentDescription = null,
-            containerSize = 34.dp,
-            iconSize = 18.dp,
-            shape = RoundedCornerShape(10.dp),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 

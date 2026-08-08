@@ -212,7 +212,7 @@ private fun BrowserPluginCenterOverview(
         WebSessionDrawerHeader(
             title = stringResource(R.string.web_session_plugins),
             leadingIcon = Icons.Filled.Extension,
-            tone = KiyoriSemanticTone.PURPLE,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
             countText =
                 pluralStringResource(
                     R.plurals.web_session_plugins_script_count,
@@ -234,7 +234,7 @@ private fun BrowserPluginCenterOverview(
             onValueChange = { searchQuery = it },
             onClear = { searchQuery = "" },
             placeholder = stringResource(R.string.web_session_plugins_search_hint),
-            tone = KiyoriSemanticTone.PURPLE,
+            tone = WebSessionBrowserMenuTone.PLUGINS,
             modifier = Modifier.padding(horizontal = 12.dp),
         )
 
@@ -251,7 +251,7 @@ private fun BrowserPluginCenterOverview(
                     "${stringResource(R.string.web_session_plugins_tab_current_page)} " +
                         currentPageProviders.size,
                 selected = selectedTab == BrowserPluginCenterTab.CURRENT_PAGE,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 onClick = { selectedTab = BrowserPluginCenterTab.CURRENT_PAGE },
             )
             WebSessionFilterChip(
@@ -259,7 +259,7 @@ private fun BrowserPluginCenterOverview(
                     "${stringResource(R.string.web_session_plugins_tab_installed)} " +
                         installedPlugins.size,
                 selected = selectedTab == BrowserPluginCenterTab.INSTALLED,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 onClick = { selectedTab = BrowserPluginCenterTab.INSTALLED },
             )
         }
@@ -354,7 +354,7 @@ private fun BrowserPluginCenterEmptyState(
             } else {
                 null
             },
-        tone = KiyoriSemanticTone.PURPLE,
+        tone = WebSessionBrowserMenuTone.PLUGINS,
     )
 }
 
@@ -373,9 +373,9 @@ private fun BrowserPluginCurrentPageProviderSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            KiyoriSemanticIconBadge(
+            WebSessionBrowserMenuIconBadge(
                 imageVector = Icons.Filled.Extension,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 contentDescription = null,
                 containerSize = 34.dp,
                 iconSize = 18.dp,
@@ -543,7 +543,7 @@ private fun BrowserPluginPageEntryCard(
                             Icon(
                                 imageVector = Icons.Filled.PlayArrow,
                                 contentDescription = null,
-                                tint = KiyoriSemanticTone.PURPLE.resolveColors().icon,
+                                tint = WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon,
                                 modifier = Modifier.size(18.dp),
                             )
                             Text(
@@ -662,7 +662,7 @@ private fun BrowserPluginCard(
                 null
             },
         highlighted = plugin.hasPendingInstall,
-        highlightTone = KiyoriSemanticTone.PURPLE,
+        highlightTone = WebSessionBrowserMenuTone.PLUGINS,
     ) {
         Row(
             modifier =

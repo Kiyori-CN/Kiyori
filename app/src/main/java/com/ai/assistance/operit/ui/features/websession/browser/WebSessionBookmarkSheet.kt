@@ -57,7 +57,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -223,37 +222,23 @@ internal fun WebSessionBookmarkSheet(
     val hasAnchoredPopup = topMenuExpanded || folderMenuId != null || bookmarkMenuId != null
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-            Row(
-            modifier = Modifier.fillMaxWidth().height(52.dp).padding(start = 18.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            KiyoriSemanticIconBadge(
-                imageVector = Icons.Filled.Bookmark,
-                tone = KiyoriSemanticTone.PURPLE,
-                contentDescription = null,
-                containerSize = 32.dp,
-                iconSize = 18.dp,
-                shape = RoundedCornerShape(10.dp),
-            )
-            Text(
-                text = currentFolder?.title ?: "我的书签",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(start = 10.dp),
-            )
-            Box {
-                IconButton(onClick = { topMenuExpanded = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "书签更多操作")
-                }
-                DropdownMenu(
-                    expanded = topMenuExpanded,
-                    onDismissRequest = { topMenuExpanded = false },
-                    shape = WebSessionBrowserPopupShape,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    shadowElevation = WebSessionBrowserPopupElevation,
-                ) {
+            WebSessionDrawerHeader(
+                title = currentFolder?.title ?: "我的书签",
+                leadingIcon = Icons.Filled.Bookmark,
+                tone = WebSessionBrowserMenuTone.BOOKMARKS,
+                titleTakesRemainingSpace = true,
+                actions = {
+                    Box {
+                        IconButton(onClick = { topMenuExpanded = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "书签更多操作")
+                        }
+                        DropdownMenu(
+                            expanded = topMenuExpanded,
+                            onDismissRequest = { topMenuExpanded = false },
+                            shape = WebSessionBrowserPopupShape,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            shadowElevation = WebSessionBrowserPopupElevation,
+                        ) {
                     BookmarkTopMenuItem("新建书签") {
                         topMenuExpanded = false
                         editDraft = null to WebSessionBookmarkDraft("", "", "", currentFolderId)
@@ -304,9 +289,10 @@ internal fun WebSessionBookmarkSheet(
                         val invalid = checked.count { normalizeWebSessionBookmarkUrl(it.url) == null }
                         Toast.makeText(context, "已检测 ${checked.size} 个书签，发现 $invalid 个失效地址", Toast.LENGTH_SHORT).show()
                     }
-                }
-            }
-        }
+                        }
+                    }
+                },
+            )
 
             BookmarkSearchField(searchQuery, onValueChange = { searchQuery = it }, onClear = { searchQuery = "" })
             BookmarkBreadcrumbRow(breadcrumbs) { folderId ->
@@ -321,9 +307,9 @@ internal fun WebSessionBookmarkSheet(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        KiyoriSemanticIconBadge(
+                        WebSessionBrowserMenuIconBadge(
                             imageVector = Icons.Filled.Bookmark,
-                            tone = KiyoriSemanticTone.PURPLE,
+                            tone = WebSessionBrowserMenuTone.BOOKMARKS,
                             contentDescription = null,
                             containerSize = 46.dp,
                             iconSize = 24.dp,
@@ -460,6 +446,7 @@ internal fun WebSessionBookmarkSheet(
     editDraft?.let { (bookmarkId, draft) ->
         WebSessionBookmarkEditorDialog(
             title = if (bookmarkId == null) "新增书签" else "编辑书签",
+            tone = WebSessionBrowserMenuTone.BOOKMARKS,
             initialDraft = draft,
             folderOptions = folderOptions,
             onDismiss = { editDraft = null },
@@ -706,9 +693,9 @@ private fun BookmarkFolderRow(
                     .padding(horizontal = 16.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            KiyoriSemanticIconBadge(
+            WebSessionBrowserMenuIconBadge(
                 imageVector = Icons.Outlined.Folder,
-                tone = KiyoriSemanticTone.PURPLE,
+                tone = WebSessionBrowserMenuTone.BOOKMARKS,
                 contentDescription = null,
                 containerSize = 38.dp,
                 iconSize = 22.dp,
@@ -789,7 +776,7 @@ private fun BookmarkItemRow(
 
 @Composable
 private fun BookmarkFavicon(iconUrl: String) {
-    val colors = KiyoriSemanticTone.BLUE.resolveColors()
+    val colors = WebSessionBrowserMenuTone.BOOKMARKS.resolveColors()
     Surface(modifier = Modifier.size(38.dp), shape = CircleShape, color = colors.container) {
         Box(contentAlignment = Alignment.Center) {
             Icon(

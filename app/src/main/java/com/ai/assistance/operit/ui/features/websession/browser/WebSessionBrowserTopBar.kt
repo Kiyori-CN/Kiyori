@@ -194,7 +194,7 @@ internal fun WebSessionBrowserTopBar(
                             fontWeight = FontWeight.Medium,
                         )
                         if (showDetectedVideoBadge && detectedVideoCount > 0) {
-                            val detectedVideoColors = KiyoriSemanticTone.ORANGE.resolveColors()
+                            val detectedVideoColors = WebSessionDetectedMediaBadgeTone.resolveColors()
                             val badgeText = if (detectedVideoCount > 99) "99+" else detectedVideoCount.toString()
                             Box(
                                 modifier =

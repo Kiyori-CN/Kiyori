@@ -219,7 +219,6 @@ internal fun KiyoriAppShell(
                 )
             }
         }
-        val homeBottomBarAlpha = 1f - abs(centerPageOffset).coerceIn(0f, 1f)
         val pagerAcceptsInput =
             aiHostIsRoot &&
                 state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
@@ -375,11 +374,11 @@ internal fun KiyoriAppShell(
         }
 
         val bottomBarAlpha =
-            when {
-                !aiHostIsRoot || state.child != null || !state.showsBottomBar -> 0f
-                state.primaryDestination == PrimaryDestination.SOFTWARE_HOME -> homeBottomBarAlpha
-                else -> 1f
-            }
+            resolveKiyoriBottomBarAlpha(
+                state = state,
+                aiHostIsRoot = aiHostIsRoot,
+                centerPageOffset = centerPageOffset,
+            )
         if (bottomBarAlpha > 0.01f) {
                 KiyoriBottomNavigation(
                     selectedDestination = state.primaryDestination,
@@ -547,3 +546,24 @@ internal fun calculateKiyoriPagerPageOffset(
     pagerState: PagerState,
     page: Int,
 ): Float = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+
+internal fun resolveKiyoriBottomBarAlpha(
+    state: KiyoriShellState,
+    aiHostIsRoot: Boolean,
+    centerPageOffset: Float,
+): Float =
+    when {
+        !aiHostIsRoot ||
+            state.child != null ||
+            state.isAiDrawerOpen ||
+            state.isBookmarkDrawerOpen ||
+            state.isHistoryDrawerOpen ||
+            state.isDownloadDrawerOpen ->
+            0f
+        state.primaryDestination == PrimaryDestination.SOFTWARE_HOME ->
+            // The pager is the source of truth during a drag. Waiting for softwareHomePage to
+            // settle would keep the navigation tree absent until the gesture has already ended.
+            (1f - abs(centerPageOffset)).coerceIn(0f, 1f)
+        !state.showsBottomBar -> 0f
+        else -> 1f
+    }

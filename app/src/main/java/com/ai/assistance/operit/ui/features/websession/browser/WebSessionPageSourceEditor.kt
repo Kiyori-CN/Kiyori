@@ -105,6 +105,10 @@ internal fun WebSessionPageSourceEditor(
     var jumpToLineVisible by remember { mutableStateOf(false) }
     var jumpToLineInput by remember { mutableStateOf("") }
     var softWrap by rememberSaveable { mutableStateOf(true) }
+    // The warning is informational and dismissible for the current captured document; keeping
+    // it local avoids writing UI-only state into the page-source or Browser Runtime owner.
+    var longLineWarningVisible by
+        remember(state.sessionId, state.documentToken) { mutableStateOf(true) }
     var editorInteractionState by remember { mutableStateOf(EditorInteractionState()) }
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
@@ -175,6 +179,8 @@ internal fun WebSessionPageSourceEditor(
                 state = state,
                 layoutStats = layoutStats,
                 softWrap = softWrap,
+                onDismissLongLineWarning = { longLineWarningVisible = false },
+                longLineWarningVisible = longLineWarningVisible,
             )
             if (content != null) {
                 PageSourceEditorCommandBar(
@@ -287,7 +293,7 @@ internal fun WebSessionPageSourceEditor(
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
-                            color = KiyoriSemanticTone.BLUE.resolveColors().icon,
+                            color = WebSessionBrowserMenuTone.PAGE_SOURCE.resolveColors().icon,
                         )
                     }
                 }
@@ -579,6 +585,8 @@ private fun PageSourceEditorMetadata(
     state: WebSessionPageSourceState,
     layoutStats: BrowserPageSourceLayoutStats,
     softWrap: Boolean,
+    longLineWarningVisible: Boolean,
+    onDismissLongLineWarning: () -> Unit,
 ) {
     val content = state.content
     val host =
@@ -614,27 +622,42 @@ private fun PageSourceEditorMetadata(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (layoutStats.longLineCount > 0) {
+            if (layoutStats.longLineCount > 0 && longLineWarningVisible) {
                 val warningColors = KiyoriSemanticTone.ORANGE.resolveColors()
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = warningColors.container,
                     contentColor = warningColors.icon,
                 ) {
-                    Text(
-                        text =
-                            stringResource(
-                                if (softWrap) {
-                                    R.string.web_session_source_long_lines_wrapped
-                                } else {
-                                    R.string.web_session_source_long_lines_horizontal
-                                },
-                                layoutStats.longLineCount,
-                                layoutStats.longestLineCharacters,
-                            ),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text =
+                                stringResource(
+                                    if (softWrap) {
+                                        R.string.web_session_source_long_lines_wrapped
+                                    } else {
+                                        R.string.web_session_source_long_lines_horizontal
+                                    },
+                                    layoutStats.longLineCount,
+                                    layoutStats.longestLineCharacters,
+                                ),
+                            modifier = Modifier.weight(1f).padding(start = 12.dp, top = 6.dp, bottom = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        IconButton(
+                            onClick = onDismissLongLineWarning,
+                            modifier = Modifier.size(34.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.close),
+                                modifier = Modifier.size(17.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -744,7 +767,7 @@ private fun PageSourceCommandChip(
     selected: Boolean = false,
     icon: ImageVector? = null,
 ) {
-    val selectedColors = KiyoriSemanticTone.BLUE.resolveColors()
+    val selectedColors = WebSessionBrowserMenuTone.PAGE_SOURCE.resolveColors()
     Surface(
         modifier =
             Modifier
@@ -960,7 +983,7 @@ private fun PageSourceCompactField(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
                 ),
-            cursorBrush = SolidColor(KiyoriSemanticTone.BLUE.resolveColors().icon),
+            cursorBrush = SolidColor(WebSessionBrowserMenuTone.PAGE_SOURCE.resolveColors().icon),
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (value.isBlank()) {
