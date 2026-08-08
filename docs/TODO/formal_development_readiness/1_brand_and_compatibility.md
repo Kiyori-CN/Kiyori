@@ -29,7 +29,7 @@ Kiyori 是用户可见的产品品牌、仓库名、Gradle 根项目名和 Andro
 
 全局替换会破坏已存在的数据导入、插件发现、OAuth 回调、AIDL、第三方市场和工作区。它也会把上游归属改写成不准确的历史描述。任何协议级改名都必须先提供独立的版本兼容和数据迁移方案。公共数据根目录是产品所有权，不是协议 ID；Kiyori 未发布版本直接使用 `Download/Kiyori`，旧 Operit 数据只允许从显式导入入口读取。
 
-Kiyori `versionName` 标识产品发布，不能代替 Operit 插件运行时兼容级别。当前 `OPERIT_MARKET_COMPAT_VERSION` 为 `1.12.0+4`，与本仓库采用的 Operit 源码能力基线一致；升级该值前必须确认对应插件 API、Hook 和 ToolPkg 生命周期契约已同步。
+Kiyori `versionName` 标识产品发布，不能代替 Operit 插件运行时兼容级别。当前 `OPERIT_MARKET_COMPAT_VERSION` 为 `1.12.0+9`；该值在完成 ChatMessage Hook、共享 Hook 截止时间、角色卡 SoftwareSettings API、定位地址参数、市场修改版发布协议和预置 `message_insert` 并行截止时间闭环后独立提升，不改变 Kiyori 的产品版本。
 
 ## 门禁规则
 

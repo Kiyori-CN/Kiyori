@@ -62,8 +62,16 @@ fun GlobalDisplaySettingsScreen(
     val screenshotQuality by displayPreferencesManager.screenshotQuality.collectAsState(initial = 75)
     val screenshotScalePercent by displayPreferencesManager.screenshotScalePercent.collectAsState(initial = 75)
     val visitWebWaitSeconds by displayPreferencesManager.visitWebWaitSeconds.collectAsState(initial = 0)
+    val toolPkgHookTimeoutSeconds by
+        displayPreferencesManager.toolPkgHookTimeoutSeconds.collectAsState(initial = 10)
     val virtualDisplayBitrateKbps by displayPreferencesManager.virtualDisplayBitrateKbps.collectAsState(initial = 3000)
     val keepScreenOn by apiPreferences.keepScreenOnFlow.collectAsState(initial = true)
+    val convertLongPastedTextToFile by
+        userPreferences.convertLongPastedTextToFile.collectAsState(initial = true)
+    val longPastedTextFileThreshold by
+        userPreferences.longPastedTextFileThreshold.collectAsState(
+            initial = UserPreferencesManager.DEFAULT_LONG_PASTED_TEXT_FILE_THRESHOLD
+        )
 
     val hasBackgroundImage by userPreferences.useBackgroundImage.collectAsState(initial = false)
     val uiAccessibilityMode by userPreferences.uiAccessibilityMode.collectAsState(initial = false)
@@ -81,6 +89,9 @@ fun GlobalDisplaySettingsScreen(
     }
     var visitWebWaitSliderValue by remember(visitWebWaitSeconds) {
         mutableFloatStateOf(visitWebWaitSeconds.toFloat())
+    }
+    var toolPkgHookTimeoutSliderValue by remember(toolPkgHookTimeoutSeconds) {
+        mutableFloatStateOf(toolPkgHookTimeoutSeconds.toFloat())
     }
     var qualitySliderValue by remember(screenshotQuality) {
         mutableFloatStateOf(screenshotQuality.toFloat())
@@ -125,18 +136,22 @@ fun GlobalDisplaySettingsScreen(
     LaunchedEffect(
         collapseModeSliderValue,
         visitWebWaitSliderValue,
+        toolPkgHookTimeoutSliderValue,
         qualitySliderValue,
         scaleSliderValue
     ) {
         val localCollapseMode =
             collapseModeOptions[collapseModeSliderValue.roundToInt().coerceIn(0, collapseModeOptions.lastIndex)]
         val localVisitWebWaitSeconds = visitWebWaitSliderValue.roundToInt().coerceIn(0, 10)
+        val localToolPkgHookTimeoutSeconds =
+            toolPkgHookTimeoutSliderValue.roundToInt().coerceIn(1, 60)
         val localScreenshotQuality = qualitySliderValue.roundToInt().coerceIn(50, 100)
         val localScreenshotScalePercent = scaleSliderValue.roundToInt().coerceIn(50, 100)
 
         val hasPendingSliderChanges =
             localCollapseMode != toolCollapseMode ||
                 localVisitWebWaitSeconds != visitWebWaitSeconds ||
+                localToolPkgHookTimeoutSeconds != toolPkgHookTimeoutSeconds ||
                 localScreenshotQuality != screenshotQuality ||
                 localScreenshotScalePercent != screenshotScalePercent
 
@@ -147,6 +162,12 @@ fun GlobalDisplaySettingsScreen(
         displayPreferencesManager.saveDisplaySettings(
             toolCollapseMode = if (localCollapseMode != toolCollapseMode) localCollapseMode else null,
             visitWebWaitSeconds = if (localVisitWebWaitSeconds != visitWebWaitSeconds) localVisitWebWaitSeconds else null,
+            toolPkgHookTimeoutSeconds =
+                if (localToolPkgHookTimeoutSeconds != toolPkgHookTimeoutSeconds) {
+                    localToolPkgHookTimeoutSeconds
+                } else {
+                    null
+                },
             screenshotQuality = if (localScreenshotQuality != screenshotQuality) localScreenshotQuality else null,
             screenshotScalePercent = if (localScreenshotScalePercent != screenshotScalePercent) localScreenshotScalePercent else null
         )
@@ -326,6 +347,67 @@ fun GlobalDisplaySettingsScreen(
             )
 
             DisplayToggleItem(
+                title = stringResource(R.string.long_pasted_text_to_file),
+                subtitle = stringResource(R.string.long_pasted_text_to_file_desc),
+                checked = convertLongPastedTextToFile,
+                onCheckedChange = {
+                    scope.launch {
+                        userPreferences.saveConvertLongPastedTextToFile(it)
+                    }
+                },
+                backgroundColor = componentBackgroundColor
+            )
+
+            if (convertLongPastedTextToFile) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(componentBackgroundColor)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.long_pasted_text_threshold),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = stringResource(R.string.long_pasted_text_threshold_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Slider(
+                            value = longPastedTextFileThreshold.toFloat(),
+                            onValueChange = { rawValue ->
+                                val normalized =
+                                    ((rawValue / 1_000f).roundToInt() * 1_000)
+                                        .coerceIn(1_000, 100_000)
+                                scope.launch {
+                                    userPreferences.saveLongPastedTextFileThreshold(normalized)
+                                }
+                            },
+                            valueRange = 1_000f..100_000f,
+                            steps = 98,
+                            modifier = Modifier.weight(1f).padding(vertical = 8.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.long_pasted_text_threshold_value,
+                                longPastedTextFileThreshold
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            DisplayToggleItem(
                 title = stringResource(R.string.keep_screen_on),
                 subtitle = stringResource(R.string.keep_screen_on_description),
                 checked = keepScreenOn,
@@ -397,6 +479,50 @@ fun GlobalDisplaySettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.visit_web_wait_time_value, visitWebWaitSliderValue.roundToInt()),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(componentBackgroundColor)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.toolpkg_hook_timeout_title),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.toolpkg_hook_timeout_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Slider(
+                        value = toolPkgHookTimeoutSliderValue,
+                        onValueChange = {
+                            toolPkgHookTimeoutSliderValue = it.roundToInt().toFloat()
+                        },
+                        valueRange = 1f..60f,
+                        steps = 58,
+                        modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.toolpkg_hook_timeout_value,
+                            toolPkgHookTimeoutSliderValue.roundToInt()
+                        ),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

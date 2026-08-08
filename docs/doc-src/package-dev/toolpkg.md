@@ -12,6 +12,7 @@
 - XML 渲染插件。
 - 输入菜单开关插件。
 - AI 聊天输入框监听和提交 Hook。
+- 聊天消息持久化通知 Hook。
 - 工具执行生命周期钩子。
 - Prompt 输入、历史、系统提示词、工具提示词、最终发送前的各类钩子。
 - 摘要生成阶段的各类钩子。
@@ -38,6 +39,7 @@ ToolPkg.registerMessageProcessingPlugin(...)
 - `registerToolPkgXmlRenderPlugin(...)`
 - `registerToolPkgInputMenuTogglePlugin(...)`
 - `registerToolPkgChatInputHook(...)`
+- `registerToolPkgChatMessageHook(...)`
 - `registerToolPkgToolLifecycleHook(...)`
 - `registerToolPkgPromptInputHook(...)`
 - `registerToolPkgPromptHistoryHook(...)`
@@ -89,6 +91,7 @@ type LocalizedText = string | { [lang: string]: string }
 - `xml_render`
 - `input_menu_toggle`
 - 聊天输入框事件
+- 聊天消息持久化事件
 - 工具生命周期事件
 - Prompt 输入 / 历史 / 系统提示词 / 工具提示词 / 最终发送事件
 - 摘要生成事件
@@ -231,6 +234,40 @@ interface PromptTurn {
 - `submit_requested`
 - `submitted`
 
+### `ChatMessageEventPayload`
+
+字段包括：
+
+- `chatId`
+- `timestamp`
+- `sender`
+- `roleName`
+- `content`
+- `completedAt`
+- `provider`
+- `modelName`
+- `inputTokens`
+- `outputTokens`
+- `cachedInputTokens`
+- `sentAt`
+- `outputDurationMs`
+- `waitDurationMs`
+- `displayMode`
+- `selectedVariantIndex`
+- `isFavorite`
+
+聊天消息事件名包括：
+
+- `message_persisted`
+
+说明：
+
+- `timestamp` 对应 `ChatMessage.timestamp` / `MessageEntity.timestamp`，也是当前工程用于定位消息的稳定字段。
+- `timestampMs` 是 Hook 外层事件的派发时间，和 `eventPayload.timestamp` 不是同一个含义。
+- `sender` 对应 `ChatMessage.sender` / `MessageEntity.sender`，表示消息来源，例如 `user`、`ai`、`summary`。
+- `roleName` 对应 `ChatMessage.roleName` / `MessageEntity.roleName`，表示消息展示或角色卡名称，不表示消息来源。
+- `message_persisted` 是通知事件，返回值不会改变已持久化的消息。
+
 ### `ToolLifecycleEventPayload`
 
 字段包括：
@@ -355,6 +392,10 @@ interface PromptTurn {
 - `{ action: 'consume', message?: string, clearInput?: boolean }`
 - 或对应的 `Promise`
 
+### 聊天消息持久化返回
+
+`message_persisted` 的返回值会被忽略。
+
 ### Prompt 相关返回
 
 - `PromptInputHookReturn`
@@ -421,6 +462,13 @@ interface PromptTurn {
 - `id`
 - `function`
 
+### `ChatMessageHookRegistration`
+
+字段：
+
+- `id`
+- `function`
+
 ### 其余注册对象
 
 以下注册对象结构都很简单，字段都是：`id` + `function`：
@@ -448,6 +496,7 @@ interface PromptTurn {
 - `registerXmlRenderPlugin(definition)`
 - `registerInputMenuTogglePlugin(definition)`
 - `registerChatInputHook(definition)`
+- `registerChatMessageHook(definition)`
 - `registerToolLifecycleHook(definition)`
 - `registerPromptInputHook(definition)`
 - `registerPromptHistoryHook(definition)`
@@ -698,6 +747,29 @@ ToolPkg.registerChatInputHook({
         };
       }
     }
+  }
+});
+```
+
+### 注册聊天消息持久化 Hook
+
+```ts
+ToolPkg.registerChatMessageHook({
+  id: 'demo_chat_message_sync',
+  function(event) {
+    if (event.eventName !== 'message_persisted') {
+      return;
+    }
+
+    const message = event.eventPayload;
+    const key = `${message.chatId}:${message.timestamp}`;
+    console.log('persisted message:', {
+      key,
+      sender: message.sender,
+      roleName: message.roleName,
+      completedAt: message.completedAt,
+      length: message.content.length
+    });
   }
 });
 ```

@@ -213,6 +213,21 @@ class MessageCoordinationDelegate(
         return runCatching { characterCardManager.findCharacterCardByName(characterCardName)?.id }.getOrNull()
     }
 
+    private suspend fun resolveRoleCardId(
+        chatId: String?,
+        roleCardId: String?,
+        preferActiveRoleCard: Boolean = false
+    ): String {
+        if (roleCardId != null) {
+            return roleCardId
+        }
+        if (preferActiveRoleCard) {
+            return activePromptManager.resolveActiveCardIdForSend()
+        }
+        return resolveBoundRoleCardId(chatId)
+            ?: activePromptManager.resolveActiveCardIdForSend()
+    }
+
     private suspend fun resolveWindowEstimateRoleCardId(
         chatId: String?,
         roleCardId: String?
@@ -319,6 +334,7 @@ class MessageCoordinationDelegate(
     fun sendUserMessage(
         promptFunctionType: PromptFunctionType = PromptFunctionType.CHAT,
         roleCardIdOverride: String? = null,
+        preferActiveRoleCard: Boolean = false,
         chatIdOverride: String? = null,
         messageTextOverride: String? = null,
         proxySenderNameOverride: String? = null,
@@ -357,6 +373,7 @@ class MessageCoordinationDelegate(
                 sendMessageInternal(
                     promptFunctionType,
                     roleCardIdOverride = roleCardIdOverride,
+                    preferActiveRoleCard = preferActiveRoleCard,
                     chatIdOverride = chatIdOverride,
                     messageTextOverride = messageTextOverride,
                     proxySenderNameOverride = proxySenderNameOverride,
@@ -370,6 +387,7 @@ class MessageCoordinationDelegate(
             sendMessageInternal(
                 promptFunctionType,
                 roleCardIdOverride = roleCardIdOverride,
+                preferActiveRoleCard = preferActiveRoleCard,
                 chatIdOverride = chatIdOverride,
                 messageTextOverride = messageTextOverride,
                 proxySenderNameOverride = proxySenderNameOverride,
@@ -510,6 +528,7 @@ class MessageCoordinationDelegate(
         skipSummaryCheck: Boolean = false,
         isAutoContinuation: Boolean = false,
         roleCardIdOverride: String? = null,
+        preferActiveRoleCard: Boolean = false,
         chatIdOverride: String? = null,
         messageTextOverride: String? = null,
         proxySenderNameOverride: String? = null,
@@ -573,6 +592,7 @@ class MessageCoordinationDelegate(
                         skipSummaryCheck = skipSummaryCheck,
                         isAutoContinuation = isAutoContinuation,
                         roleCardIdOverride = roleCardIdOverride,
+                        preferActiveRoleCard = preferActiveRoleCard,
                         chatIdOverride = chatIdOverride,
                         messageTextOverride = messageTextOverride,
                         proxySenderNameOverride = proxySenderNameOverride,
@@ -600,8 +620,14 @@ class MessageCoordinationDelegate(
         val currentAttachments =
             if (shouldReadComposerState) attachmentDelegate.attachments.value else emptyList()
         // 角色卡和群组地位相等，都可以为 null，优先使用 override，否则使用当前活跃的角色卡（可能为 null）
-        val roleCardId = roleCardIdOverride?.takeIf { it.isNotBlank() }
-            ?: runBlocking { activePromptManager.resolveActiveCardIdForSend() }
+        // 手动发送必须与选择器一致；后台和定向消息仍由窗口绑定决定角色卡。
+        val roleCardId = runBlocking {
+            resolveRoleCardId(
+                chatId = chatId,
+                roleCardId = roleCardIdOverride,
+                preferActiveRoleCard = preferActiveRoleCard
+            )
+        }
         val resolvedOverrides = try {
             if (promptFunctionType == PromptFunctionType.CHAT) {
                 val (resolvedChatModelConfigIdOverride, resolvedChatModelIndexOverride) =

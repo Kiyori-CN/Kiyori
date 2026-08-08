@@ -19,7 +19,9 @@ data class PromptHookContext(
     val toolPrompt: String? = null,
     val modelParameters: List<Map<String, Any?>> = emptyList(),
     val availableTools: List<Map<String, Any?>> = emptyList(),
-    val metadata: Map<String, Any?> = emptyMap()
+    val metadata: Map<String, Any?> = emptyMap(),
+    /** Host-only callback for reporting a timed-out prompt-input Hook to the active chat UI. */
+    val onHookTimeout: ((String) -> Unit)? = null
 )
 
 data class PromptHookMutation(

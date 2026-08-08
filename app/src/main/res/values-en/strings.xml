@@ -1086,6 +1086,10 @@
     <string name="agreement_disclaimer">The plain language version is only for easier understanding. If it differs from the Chinese formal version, the Chinese formal version prevails.</string>
     <string name="agreement_accept">I have read and agree</string>
     <string name="agreement_wait">Please wait... (%1$d)</string>
+    <string name="market_agreement_title">Plugin Market Terms and Conduct</string>
+    <string name="market_agreement_subtitle">Please read and accept these terms before entering the plugin market. The market is for sharing and discovering plugins, and authors are encouraged to publish source code in a public GitHub repository.</string>
+    <string name="market_agreement_version">Market agreement version: %1$s</string>
+    <string name="market_agreement_content">The Operit plugin market indexes and distributes third-party extensions. Publishers must have the right to submit their work and grant the market permission to store, display, download, and install it. Public visibility does not itself grant an open-source license or redistribution rights. Users must follow the author’s license and review plugin permissions, file access, environment variables, network behavior, and external services before installation. Publishers and commenters must not expose credentials, personal data, advertising, payment requests, group invitations, or unrelated links. Operit does not guarantee the security, legality, compatibility, accuracy, availability, or continued hosting of third-party extensions. Violating entries, comments, or accounts may be restricted, hidden, or removed. A substantive agreement update requires acceptance again.</string>
     
     <!-- File Manager -->
     <string name="files_selected">%1$d files selected</string>
@@ -3087,6 +3091,12 @@
     <string name="chat_summarizing_memory">Summarizing memory...</string>
     <string name="chat_input_processing_collect_failed">Failed to collect input processing state: %1$s</string>
     <string name="chat_input_hint">Type a message...</string>
+    <string name="chat_pasted_text_attached">Pasted text added as an attachment: %1$s</string>
+    <string name="long_pasted_text_to_file">Convert long pasted text to a file</string>
+    <string name="long_pasted_text_to_file_desc">Pasted text longer than the configured limit is added as a text attachment</string>
+    <string name="long_pasted_text_threshold">Conversion limit</string>
+    <string name="long_pasted_text_threshold_desc">Pasted text longer than this number of characters is converted to a file</string>
+    <string name="long_pasted_text_threshold_value">%1$d characters</string>
     <string name="chat_pending_queue_title">Pending Queue (%1$d)</string>
     <string name="chat_queue_add_message">Queue Message</string>
     <string name="chat_queue_added">Added to queue</string>
@@ -5541,6 +5551,8 @@
     <string name="memory_auto_save_interval_minutes">Autosave interval (minutes)</string>
     <string name="memory_auto_save_interval_value">%1$d min · range %2$d-%3$d</string>
     <string name="memory_auto_save_interval_hint">Adjustable range %1$d-%2$d minutes, default %3$d minutes</string>
+    <string name="memory_extraction_custom_rules">Additional memory extraction rules</string>
+    <string name="memory_extraction_custom_rules_placeholder">For example: only retain project decisions and user preferences, grouped by project.</string>
     <string name="memory_search_mode_balanced">Balanced</string>
     <string name="memory_search_mode_keyword_first">Keyword First</string>
     <string name="memory_search_mode_semantic_first">Semantic First</string>
@@ -6401,6 +6413,11 @@
     <string name="visit_web_wait_time_title">Visit Web Wait Time</string>
     <string name="visit_web_wait_time_description">Controls how long visit_web waits before returning after page content is extracted. Set to 0 seconds to return immediately.</string>
     <string name="visit_web_wait_time_value">%1$d s</string>
+    <string name="toolpkg_hook_timeout_title">ToolPkg Hook Timeout</string>
+    <string name="toolpkg_hook_timeout_description">Limits the total wait time for ToolPkg chat-input, prompt, and summary hook chains on the send path. On timeout, the current hook is skipped and processing continues. Default: 10 seconds. Does not affect message-processing response takeover.</string>
+    <string name="toolpkg_hook_timeout_value">%1$d s</string>
+    <string name="toolpkg_hook_timeout_continue_sending">A pre-send plugin timed out. It was skipped and the message will continue sending.</string>
+    <string name="toolpkg_hook_timeout_continue_sending_with_plugin">Pre-send plugin "%1$s" timed out. It was skipped and the message will continue sending.</string>
     <string name="tool_collapse_mode_title">Collapse Tools</string>
     <string name="tool_collapse_mode_desc">Set the default collapse scope for tool-call groups in messages</string>
     <string name="tool_collapse_mode_read_only">Collapse Multiple Read-only Tools</string>
@@ -7584,10 +7601,22 @@
     <string name="market_section_manage">Manage</string>
     <string name="market_section_publish">Publish</string>
     <string name="market_notifications_title">Messages</string>
+    <string name="market_agreement_entry">Market agreement</string>
     <string name="market_notifications_empty_title">No messages yet</string>
     <string name="market_notifications_empty_description">Market messages will appear here.</string>
     <string name="market_manage_removed">Submitted removal request for "%1$s"</string>
-    <string name="market_manage_resubmitted">Submitted relist request for "%1$s"</string>
+    <string name="market_manage_submit_revision">Submit revised version</string>
+    <string name="market_manage_revision_cooldown">The revised version is still in the review-return cooldown. Please wait %1$s.</string>
+    <string name="market_manage_revision_time_invalid">The market did not return a valid revision availability time. Refresh and try again later.</string>
+    <string name="market_manage_revision_state_invalid">Only entries with a changes-requested review state can submit a revision.</string>
+    <string name="market_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="market_duration_hours">%1$d h</string>
+    <string name="market_duration_minutes">%1$d min</string>
+    <string name="market_manage_loading_request_title">Loading request</string>
+    <string name="market_manage_loading_request_message">Loading the latest private entry and version data…</string>
+    <string name="market_manage_review_state">Review state: %1$s</string>
+    <string name="market_manage_review_reason">Review reason: %1$s</string>
+    <string name="market_manage_review_detail">Review details: %1$s</string>
     <string name="market_error_load_failed">Load failed</string>
     <string name="market_error_action_failed">Action failed</string>
     <string name="market_manage_artifact">Manage Scripts &amp; Plugins</string>

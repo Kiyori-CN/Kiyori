@@ -91,6 +91,7 @@ import com.ai.assistance.operit.services.ChatServiceUiBridge
 import com.ai.assistance.operit.services.EmptyChatServiceUiBridge
 import com.ai.assistance.operit.ui.features.chat.util.MessageImageGenerator
 import com.ai.assistance.operit.ui.features.chat.components.CharacterSelectorTarget
+import com.ai.assistance.operit.ui.features.chat.components.style.input.common.PendingQueueMessageItem
 enum class ChatHistoryDisplayMode {
     BY_CHARACTER_CARD,
     BY_FOLDER,
@@ -143,6 +144,10 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     val isSpeechSessionActive: StateFlow<Boolean> = _isSpeechSessionActive.asStateFlow()
     private val _isSpeechPaused = MutableStateFlow(false)
     val isSpeechPaused: StateFlow<Boolean> = _isSpeechPaused.asStateFlow()
+
+    private val pendingMessageQueueStore = PendingMessageQueueStore()
+    internal val pendingMessageQueueStates: StateFlow<Map<String, PendingMessageQueueState>> =
+        pendingMessageQueueStore.states
 
     // 添加自动朗读状态 - Now managed by ApiConfigDelegate
     val isAutoReadEnabled: StateFlow<Boolean> by lazy { apiConfigDelegate.enableAutoRead }
@@ -284,7 +289,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     // UI状态相关
     val errorMessage: StateFlow<String?> by lazy { uiStateDelegate.errorMessage }
     val popupMessage: StateFlow<String?> by lazy { uiStateDelegate.popupMessage }
-    val toastEvent: StateFlow<String?> by lazy { uiStateDelegate.toastEvent }
+    val toastEvent: StateFlow<ChatToastEvent?> by lazy { uiStateDelegate.toastEvent }
     val masterPermissionLevel: StateFlow<PermissionLevel> by lazy {
         uiStateDelegate.masterPermissionLevel
     }
@@ -696,7 +701,9 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     fun deleteChatHistory(chatId: String) {
         chatHistoryDelegate.deleteChatHistory(chatId) { deleted ->
-            if (!deleted) {
+            if (deleted) {
+                pendingMessageQueueStore.removeChat(chatId)
+            } else {
                 uiStateDelegate.showToast(context.getString(R.string.chat_locked_cannot_delete))
             }
         }
@@ -1421,15 +1428,58 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     fun sendUserMessage(promptFunctionType: PromptFunctionType = PromptFunctionType.CHAT) {
         hideMentionSuggestionPanel()
-        messageCoordinationDelegate.sendUserMessage(promptFunctionType)
+        messageCoordinationDelegate.sendUserMessage(
+            promptFunctionType = promptFunctionType,
+            preferActiveRoleCard = true
+        )
     }
 
     fun sendTextMessage(text: String, promptFunctionType: PromptFunctionType = PromptFunctionType.CHAT) {
         hideMentionSuggestionPanel()
         messageCoordinationDelegate.sendUserMessage(
             promptFunctionType = promptFunctionType,
+            preferActiveRoleCard = true,
             messageTextOverride = text
         )
+    }
+
+    fun sendTextMessage(
+        text: String,
+        chatId: String,
+        promptFunctionType: PromptFunctionType = PromptFunctionType.CHAT
+    ) {
+        hideMentionSuggestionPanel()
+        messageCoordinationDelegate.sendUserMessage(
+            promptFunctionType = promptFunctionType,
+            chatIdOverride = chatId,
+            messageTextOverride = text
+        )
+    }
+
+    fun enqueuePendingQueueMessage(chatId: String, text: String, isQueueBlocked: Boolean) {
+        pendingMessageQueueStore.enqueue(chatId, text, isQueueBlocked)
+    }
+
+    fun removePendingQueueMessage(
+        chatId: String,
+        messageId: Long
+    ): PendingQueueMessageItem? = pendingMessageQueueStore.remove(chatId, messageId)
+
+    fun restorePendingQueueMessage(chatId: String, message: PendingQueueMessageItem) {
+        pendingMessageQueueStore.restore(chatId, message)
+    }
+
+    fun setPendingQueueExpanded(chatId: String, expanded: Boolean) {
+        pendingMessageQueueStore.setExpanded(chatId, expanded)
+    }
+
+    fun consumePendingQueueAutoDequeueSignal(
+        chatId: String,
+        isQueueBlocked: Boolean
+    ): Boolean = pendingMessageQueueStore.consumeAutoDequeueSignal(chatId, isQueueBlocked)
+
+    fun suppressNextPendingQueueAutoDequeue(chatId: String) {
+        pendingMessageQueueStore.suppressNextAutoDequeue(chatId)
     }
 
     suspend fun removeLastVisibleUserMessageFromCurrentChat(text: String): Boolean {
@@ -1563,14 +1613,17 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     }
 
     fun cancelCurrentMessage() {
-        // 先取消总结（如果正在进行）
-        if (::messageCoordinationDelegate.isInitialized) {
-            messageCoordinationDelegate.cancelSummary()
-        }
         val chatId = chatHistoryDelegate.currentChatId.value
         if (chatId != null) {
-            messageProcessingDelegate.cancelMessage(chatId)
+            cancelMessage(chatId)
         }
+    }
+
+    fun cancelMessage(chatId: String) {
+        if (::messageCoordinationDelegate.isInitialized) {
+            messageCoordinationDelegate.cancelSummaryForChat(chatId)
+        }
+        messageProcessingDelegate.cancelMessage(chatId)
     }
 
     // UI状态相关方法
@@ -1587,7 +1640,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     fun popupMessage(message: String) = uiStateDelegate.showPopupMessage(message)
     fun clearPopupMessage() = uiStateDelegate.clearPopupMessage()
     fun showToast(message: String) = uiStateDelegate.showToast(message)
-    fun clearToastEvent() = uiStateDelegate.clearToastEvent()
+    fun clearToastEvent(eventId: Long) = uiStateDelegate.clearToastEvent(eventId)
 
     // 悬浮窗相关方法
     fun onFloatingButtonClick(
@@ -1672,6 +1725,22 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                     messageProcessingDelegate.setInputProcessingStateForChat(currentChatId, InputProcessingState.Idle)
                 }
             }
+        }
+    }
+
+    suspend fun attachPastedText(text: String): Boolean {
+        val currentChatId = chatHistoryDelegate.currentChatId.value ?: return false
+        messageProcessingDelegate.setInputProcessingStateForChat(
+            currentChatId,
+            InputProcessingState.Processing(context.getString(R.string.chat_processing_attachment))
+        )
+        return try {
+            attachmentDelegate.attachPastedText(text)
+        } finally {
+            messageProcessingDelegate.setInputProcessingStateForChat(
+                currentChatId,
+                InputProcessingState.Idle
+            )
         }
     }
 

@@ -896,8 +896,29 @@ $toolList
         duplicatesPromptPart: String,
         existingMemoriesPrompt: String,
         existingFoldersPrompt: String,
-        useEnglish: Boolean
+        useEnglish: Boolean,
+        memoryExtractionCustomRules: String
     ): String {
+        val memoryExtractionCustomRulesInstruction =
+            if (useEnglish) {
+                """
+
+[User-specified memory extraction rules]
+<memory_extraction_custom_rules>
+$memoryExtractionCustomRules
+</memory_extraction_custom_rules>
+Use these rules to refine the memory domain, retention focus, folder selection, tags, or writing style. The selection gate, evidence requirements, and strict JSON output contract remain mandatory.
+""".trimIndent()
+            } else {
+                """
+
+【用户指定的记忆提取附加规则】
+<memory_extraction_custom_rules>
+$memoryExtractionCustomRules
+</memory_extraction_custom_rules>
+使用这些规则细化记忆领域、入库重点、文件夹、标签或写法。写入前筛选、证据要求和严格 JSON 输出协议仍然必须遵守。
+""".trimIndent()
+            }
         return if (useEnglish) {
             """
 You are building a long-term memory graph from this conversation.
@@ -937,6 +958,7 @@ $existingFoldersPrompt
 - Bad title patterns: `What is X`, `Definition of X`, generic encyclopedia headings.
 - Content should describe happened facts and current confirmed state only.
 - Do not write future actions, TODOs, or speculative plans in content.
+$memoryExtractionCustomRulesInstruction
 
 [Link rules]
 - Create a link only when the relation is explicitly supported by conversation evidence.
@@ -1016,6 +1038,7 @@ $existingFoldersPrompt
 - 不推荐标题：`X是什么`、`X的定义`、百科式泛标题。
 - 内容只写"已发生事实 + 当前已确认状态"。
 - 内容禁止写未来动作、TODO、推测性计划。
+$memoryExtractionCustomRulesInstruction
 
 【连接关系规则】
 - 只有当对话里有明确证据时才建边。

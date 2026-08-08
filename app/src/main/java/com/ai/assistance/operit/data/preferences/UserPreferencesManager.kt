@@ -262,6 +262,10 @@ class UserPreferencesManager private constructor(private val context: Context) {
             floatPreferencesKey("global_text_letter_spacing")
         private val AI_MARKDOWN_PARAGRAPH_SPACING =
             floatPreferencesKey("ai_markdown_paragraph_spacing")
+        private val CONVERT_LONG_PASTED_TEXT_TO_FILE =
+            booleanPreferencesKey("convert_long_pasted_text_to_file")
+        private val LONG_PASTED_TEXT_FILE_THRESHOLD =
+            intPreferencesKey("long_pasted_text_file_threshold")
 
         // 最近使用颜色
         private val RECENT_COLORS = stringPreferencesKey("recent_colors")
@@ -280,6 +284,8 @@ class UserPreferencesManager private constructor(private val context: Context) {
         const val SYSTEM_FONT_SANS_SERIF = "sans-serif"
         const val SYSTEM_FONT_MONOSPACE = "monospace"
         const val SYSTEM_FONT_CURSIVE = "cursive"
+
+        const val DEFAULT_LONG_PASTED_TEXT_FILE_THRESHOLD = 3000
     }
 
     // 获取应用语言设置
@@ -1002,6 +1008,17 @@ class UserPreferencesManager private constructor(private val context: Context) {
             preferences[AI_MARKDOWN_PARAGRAPH_SPACING] ?: 12f
         }
 
+    val convertLongPastedTextToFile: Flow<Boolean> =
+        context.userPreferencesDataStore.data.map { preferences ->
+            preferences[CONVERT_LONG_PASTED_TEXT_TO_FILE] ?: true
+        }
+
+    val longPastedTextFileThreshold: Flow<Int> =
+        context.userPreferencesDataStore.data.map { preferences ->
+            preferences[LONG_PASTED_TEXT_FILE_THRESHOLD]
+                ?: DEFAULT_LONG_PASTED_TEXT_FILE_THRESHOLD
+        }
+
     // 获取最近使用颜色
     val recentColorsFlow: Flow<List<Int>> =
         context.userPreferencesDataStore.data.map { preferences ->
@@ -1065,6 +1082,18 @@ class UserPreferencesManager private constructor(private val context: Context) {
     suspend fun saveAiMarkdownParagraphSpacing(value: Float) {
         context.userPreferencesDataStore.edit { preferences ->
             preferences[AI_MARKDOWN_PARAGRAPH_SPACING] = value
+        }
+    }
+
+    suspend fun saveConvertLongPastedTextToFile(enabled: Boolean) {
+        context.userPreferencesDataStore.edit { preferences ->
+            preferences[CONVERT_LONG_PASTED_TEXT_TO_FILE] = enabled
+        }
+    }
+
+    suspend fun saveLongPastedTextFileThreshold(threshold: Int) {
+        context.userPreferencesDataStore.edit { preferences ->
+            preferences[LONG_PASTED_TEXT_FILE_THRESHOLD] = threshold.coerceIn(1_000, 100_000)
         }
     }
 

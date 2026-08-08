@@ -36,23 +36,25 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatToastEvent
 import kotlin.math.max
 
 @Composable
 fun ChatToastHost(
-    message: String?,
-    onDismiss: () -> Unit,
+    event: ChatToastEvent?,
+    onDismiss: (Long) -> Unit,
     modifier: Modifier = Modifier,
     maxWidth: Dp = 720.dp,
     maxHeight: Dp = 240.dp,
 ) {
+    val message = event?.message
     val scrollState = rememberScrollState()
 
-    LaunchedEffect(message) {
-        if (message == null) return@LaunchedEffect
+    LaunchedEffect(event?.id) {
+        val activeEvent = event ?: return@LaunchedEffect
         scrollState.scrollTo(0)
-        kotlinx.coroutines.delay(estimateToastDurationMs(message))
-        onDismiss()
+        kotlinx.coroutines.delay(estimateToastDurationMs(activeEvent.message))
+        onDismiss(activeEvent.id)
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
@@ -124,7 +126,7 @@ fun ChatToastHost(
                         )
                     }
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = { event?.let { onDismiss(it.id) } },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(

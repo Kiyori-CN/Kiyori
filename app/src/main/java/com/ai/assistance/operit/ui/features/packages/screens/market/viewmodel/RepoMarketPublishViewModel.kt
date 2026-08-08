@@ -164,15 +164,17 @@ class RepoMarketPublishViewModel(
         category: String,
         allowPublicUpdates: Boolean,
         version: String,
-        installConfig: String = ""
+        installConfig: String = "",
+        canEditEntry: Boolean = false
     ): Result<Unit> {
         validateNewVersion(entry, version)
-        val hasEntryPatch =
+        val hasEntryPatch = canEditEntry && (
             title != entry.title ||
                 description != entry.description ||
                 detail != entry.detail ||
                 category != entry.categoryId ||
                 allowPublicUpdates != entry.allowPublicUpdates
+            )
         return submit(
             entryId = entry.id,
             title = title,

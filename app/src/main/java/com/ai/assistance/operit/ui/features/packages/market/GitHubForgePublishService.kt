@@ -251,7 +251,8 @@ class GitHubForgePublishService(
             val entry =
                 registerMarketEntry(
                     payload = payload,
-                    existingEntryId = request.publishContext?.entryId
+                    existingEntryId = request.publishContext?.entryId,
+                    includeEntryPatch = request.publishContext?.canEditEntry ?: true
                 ).getOrElse { error ->
                     resolvedAsset.releaseWasCreated?.let { releaseWasCreated ->
                         rollbackFailedMarketRegistration(
@@ -445,7 +446,8 @@ class GitHubForgePublishService(
 
     private suspend fun registerMarketEntry(
         payload: MarketRegistrationPayload,
-        existingEntryId: String?
+        existingEntryId: String?,
+        includeEntryPatch: Boolean
     ): Result<MarketV2Entry> {
         val request =
             MarketV2PublishRequest(
@@ -479,7 +481,7 @@ class GitHubForgePublishService(
         return marketStatsApiService.publishNewVersion(
             entryId = resolvedEntryId,
             request = request,
-            includeEntryPatch = true
+            includeEntryPatch = includeEntryPatch
         ).map { response ->
             MarketV2Entry(
                 type = payload.type.wireValue,

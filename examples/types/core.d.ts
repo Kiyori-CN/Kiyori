@@ -186,6 +186,12 @@ export namespace NativeInterface {
     function registerToolPkgChatInputHook(specJson: string): void;
 
     /**
+     * Register a chat message hook for current toolpkg main registration session.
+     * @param specJson - JSON object string describing a chat message hook
+     */
+    function registerToolPkgChatMessageHook(specJson: string): void;
+
+    /**
      * Register an image from base64-encoded data into the global image pool
      * and return a `<link type="image" id="...">` tag string that can be
      * embedded into tool results or messages.

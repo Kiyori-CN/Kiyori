@@ -10,7 +10,9 @@
 - 以 `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` 和最新插件版本的最小、最大应用版本判断是否超出范围
 - 超出范围时，列表使用警告不可用图标，详情页使用警告图标和错误色禁用按钮
 
-Kiyori 的 `versionName` 是产品发布版本，不能代表继承的 Operit 插件运行时能力。当前市场兼容版本为 `1.12.0+4`；仍严格执行插件发布者声明的最小、最大版本范围。
+Kiyori 的 `versionName` 是产品发布版本，不能代表继承的 Operit 插件运行时能力。本任务完成时的市场兼容版本为 `1.12.0+4`；该历史基线已由
+[`operit_1_12_0_plus_8_plus_9_ai_plugin_update`](../operit_1_12_0_plus_8_plus_9_ai_plugin_update/index.md)
+在补齐对应运行时契约后提升为 `1.12.0+9`。版本范围判断仍严格执行插件发布者声明的最小、最大版本。
 
 预期结果：
 

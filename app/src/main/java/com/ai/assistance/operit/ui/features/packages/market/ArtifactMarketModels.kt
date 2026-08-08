@@ -140,7 +140,8 @@ data class ArtifactPublishClusterContext(
     val lockedDisplayName: String,
     val projectDisplayName: String,
     val projectDescription: String,
-    val categoryId: String = ""
+    val categoryId: String = "",
+    val canEditEntry: Boolean = false
 )
 
 data class PublishArtifactDescriptor(

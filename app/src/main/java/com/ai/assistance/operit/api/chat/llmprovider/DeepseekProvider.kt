@@ -452,7 +452,7 @@ class DeepseekProvider(
             return null
         }
 
-        val efforts = listOf("high", "high", "max", "max", "max")
+        val efforts = listOf("low", "high", "max", "max", "max")
         val qualityIndex = qualityLevel.coerceIn(
             ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
             ApiPreferences.MAX_THINKING_QUALITY_LEVEL

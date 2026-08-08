@@ -53,6 +53,13 @@ internal data class ToolPkgChatViewHookRegistration(
     val functionSource: String? = null
 )
 
+internal data class ToolPkgChatMessageHookRegistration(
+    val containerPackageName: String,
+    val hookId: String,
+    val functionName: String,
+    val functionSource: String? = null
+)
+
 internal data class ToolPkgToolLifecycleHookRegistration(
     val containerPackageName: String,
     val hookId: String,

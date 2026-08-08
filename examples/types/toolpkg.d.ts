@@ -33,6 +33,7 @@ export namespace ToolPkg {
         | "input_menu_toggle"
         | ChatInputEventName
         | ChatViewEventName
+        | ChatMessageEventName
         | "navigation_entry_action"
         | ToolLifecycleEventName
         | PromptInputEventName
@@ -125,6 +126,9 @@ export namespace ToolPkg {
         | "view_opened"
         | "view_updated"
         | "view_closed";
+
+    export type ChatMessageEventName =
+        | "message_persisted";
 
     export interface ChatInputHookObjectResult extends JsonObject {
         action?: "allow" | "block" | "replace" | "consume";
@@ -372,6 +376,9 @@ export namespace ToolPkg {
     export type ChatInputHookHandler =
         (event: ChatInputHookEvent) => ChatInputHookReturn;
 
+    export type ChatMessageHookHandler =
+        (event: ChatMessageHookEvent) => HookReturn;
+
     export type NavigationEntryActionHookHandler =
         (event: NavigationEntryActionHookEvent) => HookReturn;
 
@@ -466,6 +473,26 @@ export namespace ToolPkg {
         title?: string;
     }
 
+    export interface ChatMessageEventPayload extends JsonObject {
+        chatId: string;
+        timestamp: number;
+        sender: string;
+        roleName: string;
+        content: string;
+        completedAt: number;
+        provider: string;
+        modelName: string;
+        inputTokens: number;
+        outputTokens: number;
+        cachedInputTokens: number;
+        sentAt: number;
+        outputDurationMs: number;
+        waitDurationMs: number;
+        displayMode: string;
+        selectedVariantIndex: number;
+        isFavorite: boolean;
+    }
+
     export interface NavigationEntryActionEventPayload extends JsonObject {
         entryId?: string;
         routeId?: string;
@@ -491,6 +518,9 @@ export namespace ToolPkg {
 
     export interface ChatViewHookEvent
         extends HookEventBase<ChatViewEventName, ChatViewEventPayload> {}
+
+    export interface ChatMessageHookEvent
+        extends HookEventBase<ChatMessageEventName, ChatMessageEventPayload> {}
 
     export interface NavigationEntryActionHookEvent
         extends HookEventBase<"navigation_entry_action", NavigationEntryActionEventPayload> {}
@@ -726,6 +756,11 @@ export namespace ToolPkg {
         function: HookHandler<ChatViewHookEvent>;
     }
 
+    export interface ChatMessageHookRegistration {
+        id: string;
+        function: ChatMessageHookHandler;
+    }
+
     export interface ToolLifecycleHookRegistration {
         id: string;
         function: ToolLifecycleHookHandler;
@@ -863,6 +898,7 @@ export namespace ToolPkg {
         registerInputMenuTogglePlugin(definition: InputMenuTogglePluginRegistration): void;
         registerChatInputHook(definition: ChatInputHookRegistration): void;
         registerChatViewHook(definition: ChatViewHookRegistration): void;
+        registerChatMessageHook(definition: ChatMessageHookRegistration): void;
         registerToolLifecycleHook(definition: ToolLifecycleHookRegistration): void;
         registerPromptInputHook(definition: PromptInputHookRegistration): void;
         registerPromptHistoryHook(definition: PromptHistoryHookRegistration): void;
@@ -900,6 +936,8 @@ declare global {
     function registerToolPkgChatInputHook(definition: ToolPkg.ChatInputHookRegistration): void;
 
     function registerToolPkgChatViewHook(definition: ToolPkg.ChatViewHookRegistration): void;
+
+    function registerToolPkgChatMessageHook(definition: ToolPkg.ChatMessageHookRegistration): void;
 
     function registerToolPkgToolLifecycleHook(definition: ToolPkg.ToolLifecycleHookRegistration): void;
 

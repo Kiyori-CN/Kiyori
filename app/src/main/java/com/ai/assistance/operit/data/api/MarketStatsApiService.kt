@@ -238,9 +238,13 @@ data class MarketV2PublisherEntrySummary(
     val type: String = "",
     val relation: String,
     val stateCode: String = "pending",
+    val listingState: String = "",
     val categoryId: String = "",
     val updatedAt: String = "",
-    val reasonCodes: List<String> = emptyList()
+    val reasonCodes: List<String> = emptyList(),
+    val reviewDetail: String? = null,
+    val reviewDetailUpdatedAt: String? = null,
+    val revisionAvailableAt: String? = null
 )
 
 @Serializable
@@ -828,6 +832,27 @@ class MarketStatsApiService {
             }
         }
 
+    /**
+     * 读取当前发布者的完整条目，包括尚未公开的最新版本。
+     *
+     * 审核打回后的修改版必须基于该私有详情继续发布；公开详情分片可能仍指向上一个公开版本。
+     */
+    suspend fun getMyEntryDetail(entryId: String): Result<MarketV2Entry> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolvedEntryId = entryId.trim().ifBlank { error("Missing entry id") }
+                requestDynamic(
+                    method = "GET",
+                    pathSegments =
+                        listOf("market", "v2", "my", "entries", resolvedEntryId, "detail"),
+                    label = "getMyEntryDetail entryId=$resolvedEntryId"
+                ) { body, _ ->
+                    val response = json.decodeFromString(MarketV2EntryResponse.serializer(), body)
+                    response.item ?: response.entry ?: error("Entry detail not found")
+                }
+            }
+        }
+
     suspend fun getPublisherEntries(authorId: String): Result<List<MarketV2PublisherEntrySummary>> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -973,20 +998,6 @@ class MarketStatsApiService {
                 ) { _, _ ->
                     (getEntry(entryId).getOrNull() ?: MarketV2Entry(id = entryId, stateCode = "withdrawn"))
                         .copy(stateCode = "withdrawn")
-                }
-            }
-        }
-
-    suspend fun resubmitEntry(entryId: String): Result<MarketV2Entry> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                requestDynamic(
-                    method = "POST",
-                    pathSegments = listOf("market", "v2", "entries", entryId, "resubmit"),
-                    label = "resubmitEntry entryId=$entryId"
-                ) { _, _ ->
-                    (getEntry(entryId).getOrNull() ?: MarketV2Entry(id = entryId, stateCode = "pending"))
-                        .copy(stateCode = "pending")
                 }
             }
         }

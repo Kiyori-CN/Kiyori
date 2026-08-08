@@ -216,4 +216,9 @@ object ToolGetter {
     fun getSoftwareSettingsModifyTools(context: Context): StandardSoftwareSettingsModifyTools {
         return StandardSoftwareSettingsModifyTools(context)
     }
+
+    /** 获取 ToolPkg 软件设置命名空间使用的角色卡管理工具。 */
+    fun getCharacterCardSettingsTools(context: Context): StandardCharacterCardSettingsTools {
+        return StandardCharacterCardSettingsTools(context)
+    }
 }

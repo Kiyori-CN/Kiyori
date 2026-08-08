@@ -59,6 +59,21 @@ class MemorySearchSettingsPreferences(context: Context, profileId: String) {
             .apply()
     }
 
+    fun loadMemoryExtractionCustomRules(): String {
+        return requireNotNull(
+            searchPrefs.getString(
+                KEY_MEMORY_EXTRACTION_CUSTOM_RULES,
+                DEFAULT_MEMORY_EXTRACTION_CUSTOM_RULES
+            )
+        ) { "Memory extraction custom rules must not be null" }
+    }
+
+    fun saveMemoryExtractionCustomRules(rules: String) {
+        searchPrefs.edit()
+            .putString(KEY_MEMORY_EXTRACTION_CUSTOM_RULES, rules)
+            .apply()
+    }
+
     fun loadNextAutoSaveRunAtMs(): Long {
         return searchPrefs.getLong(KEY_NEXT_AUTO_SAVE_RUN_AT_MS, 0L)
     }
@@ -100,6 +115,7 @@ class MemorySearchSettingsPreferences(context: Context, profileId: String) {
         private const val KEY_EDGE_WEIGHT = "edge_weight"
         private const val KEY_AUTO_SAVE_INTERVAL_MINUTES = "auto_save_interval_minutes"
         private const val KEY_NEXT_AUTO_SAVE_RUN_AT_MS = "next_auto_save_run_at_ms"
+        private const val KEY_MEMORY_EXTRACTION_CUSTOM_RULES = "memory_extraction_custom_rules"
 
         private const val KEY_CLOUD_ENABLED = "enabled"
         private const val KEY_CLOUD_ENDPOINT = "endpoint"
@@ -109,5 +125,6 @@ class MemorySearchSettingsPreferences(context: Context, profileId: String) {
         const val DEFAULT_AUTO_SAVE_INTERVAL_MINUTES = 5
         const val MIN_AUTO_SAVE_INTERVAL_MINUTES = 1
         const val MAX_AUTO_SAVE_INTERVAL_MINUTES = 30
+        const val DEFAULT_MEMORY_EXTRACTION_CUSTOM_RULES = ""
     }
 }

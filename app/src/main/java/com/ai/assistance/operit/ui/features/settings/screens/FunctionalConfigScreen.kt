@@ -637,7 +637,8 @@ fun FunctionConfigCard(
                                                             duplicatesPromptPart = "",
                                                             existingMemoriesPrompt = existingMemoriesPrompt,
                                                             existingFoldersPrompt = existingFoldersPrompt,
-                                                            useEnglish = useEnglish
+                                                            useEnglish = useEnglish,
+                                                            memoryExtractionCustomRules = ""
                                                         )
                                                     val userPrompt =
                                                         context.getString(R.string.functional_config_test_memory_prompt)

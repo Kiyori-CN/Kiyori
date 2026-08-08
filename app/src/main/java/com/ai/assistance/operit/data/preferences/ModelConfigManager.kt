@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.data.model.CustomParameterData
 import com.ai.assistance.operit.data.model.ModelConfigData
+import com.ai.assistance.operit.data.model.ModelConfigDefaults
 import com.ai.assistance.operit.data.model.ModelConfigSummary
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ParameterCategory
@@ -97,6 +98,7 @@ class ModelConfigManager(private val context: Context) {
                 modelName = ApiPreferences.DEFAULT_MODEL_NAME,
                 apiProviderType = DEFAULT_API_PROVIDER_TYPE,
                 apiProviderTypeId = DEFAULT_API_PROVIDER_TYPE.name,
+                enableToolCall = ModelConfigDefaults.DEFAULT_ENABLE_TOOL_CALL,
                 hasCustomParameters = false,
                 maxTokensEnabled = false,
                 temperatureEnabled = false,
@@ -250,7 +252,7 @@ class ModelConfigManager(private val context: Context) {
                         name = name,
                         apiProviderType = ApiProviderType.OPENAI_GENERIC,
                         apiProviderTypeId = ApiProviderType.OPENAI_GENERIC.name,
-                        enableToolCall = true
+                        enableToolCall = ModelConfigDefaults.DEFAULT_ENABLE_TOOL_CALL
                 )
 
         // 保存新配置

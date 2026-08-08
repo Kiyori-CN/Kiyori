@@ -67,6 +67,8 @@ data class MemoryUiState(
         val isSearchSettingsDialogVisible: Boolean = false,
         val searchConfig: MemorySearchConfig = MemorySearchConfig(),
         val autoSaveIntervalMinutes: Int = MemorySearchSettingsPreferences.DEFAULT_AUTO_SAVE_INTERVAL_MINUTES,
+        val memoryExtractionCustomRules: String =
+            MemorySearchSettingsPreferences.DEFAULT_MEMORY_EXTRACTION_CUSTOM_RULES,
         val cloudEmbeddingConfig: CloudEmbeddingConfig = CloudEmbeddingConfig(),
         val embeddingDimensionUsage: EmbeddingDimensionUsage = EmbeddingDimensionUsage(),
         val isEmbeddingRebuildRunning: Boolean = false,
@@ -180,6 +182,7 @@ class MemoryViewModel(
     fun showSearchSettingsDialog(visible: Boolean) {
         _uiState.update { it.copy(isSearchSettingsDialogVisible = visible) }
         if (visible) {
+            loadSearchSettings()
             loadCloudEmbeddingSettings()
             refreshEmbeddingDimensionUsage()
         }
@@ -257,18 +260,11 @@ class MemoryViewModel(
         }
     }
 
-    fun saveSearchSettings(newConfig: MemorySearchConfig, newCloudConfig: CloudEmbeddingConfig) {
-        saveSearchSettings(
-            newConfig = newConfig,
-            newCloudConfig = newCloudConfig,
-            autoSaveIntervalMinutes = _uiState.value.autoSaveIntervalMinutes
-        )
-    }
-
     fun saveSearchSettings(
         newConfig: MemorySearchConfig,
         newCloudConfig: CloudEmbeddingConfig,
-        autoSaveIntervalMinutes: Int
+        autoSaveIntervalMinutes: Int,
+        memoryExtractionCustomRules: String
     ) {
         val normalizedSearchConfig = newConfig.normalized()
         val normalizedCloudConfig = newCloudConfig.normalized()
@@ -281,12 +277,14 @@ class MemoryViewModel(
             it.copy(
                 searchConfig = normalizedSearchConfig,
                 cloudEmbeddingConfig = normalizedCloudConfig,
-                autoSaveIntervalMinutes = normalizedInterval
+                autoSaveIntervalMinutes = normalizedInterval,
+                memoryExtractionCustomRules = memoryExtractionCustomRules
             )
         }
         viewModelScope.launch(Dispatchers.IO) {
             searchSettingsPreferences.save(normalizedSearchConfig)
             searchSettingsPreferences.saveAutoSaveIntervalMinutes(normalizedInterval)
+            searchSettingsPreferences.saveMemoryExtractionCustomRules(memoryExtractionCustomRules)
             repository.saveCloudEmbeddingConfig(normalizedCloudConfig)
         }
     }
@@ -300,10 +298,13 @@ class MemoryViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val config = searchSettingsPreferences.load()
             val autoSaveIntervalMinutes = searchSettingsPreferences.loadAutoSaveIntervalMinutes()
+            val memoryExtractionCustomRules =
+                searchSettingsPreferences.loadMemoryExtractionCustomRules()
             _uiState.update {
                 it.copy(
                     searchConfig = config,
-                    autoSaveIntervalMinutes = autoSaveIntervalMinutes
+                    autoSaveIntervalMinutes = autoSaveIntervalMinutes,
+                    memoryExtractionCustomRules = memoryExtractionCustomRules
                 )
             }
         }

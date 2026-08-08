@@ -126,11 +126,19 @@ object AIMessageManager {
         enableDirectAudioProcessing: Boolean = false,
         enableDirectVideoProcessing: Boolean = false,
         chatId: String? = null,
-        roleCardId: String? = null
+        roleCardId: String? = null,
+        onHookTimeout: ((String) -> Unit)? = null
     ): String {
         val totalStartTime = messageTimingNow()
         val promptInputStartTime = messageTimingNow()
-        val processedMessageText = InputProcessor.processUserInput(context, messageText, chatId, roleCardId)
+        val processedMessageText =
+            InputProcessor.processUserInput(
+                context = context,
+                input = messageText,
+                chatId = chatId,
+                roleCardId = roleCardId,
+                onHookTimeout = onHookTimeout
+            )
         logMessageTiming(
             stage = "buildUserMessageContent.processUserInput",
             startTimeMs = promptInputStartTime,

@@ -60,7 +60,8 @@ fun RepoMarketPublishScreen(
     type: MarketStatsType,
     onNavigateBack: () -> Unit,
     editingEntry: MarketV2Entry? = null,
-    publishVersionOnly: Boolean = false
+    publishVersionOnly: Boolean = false,
+    canEditEntry: Boolean = false
 ) {
     require(type == MarketStatsType.SKILL || type == MarketStatsType.MCP) {
         "Repo market publish only supports skill and mcp"
@@ -98,6 +99,7 @@ fun RepoMarketPublishScreen(
     var showConfirmationDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var categories by remember { mutableStateOf<List<MarketV2ManifestCategory>>(emptyList()) }
+    val isEntryMetadataLocked = isVersionMode && !canEditEntry
 
     if (!isEditMode) {
         LaunchedEffect(title, description, detail, repositoryUrl, installConfig, category, allowPublicUpdates) {
@@ -139,6 +141,7 @@ fun RepoMarketPublishScreen(
             label = { Text(repoNameLabel(type)) },
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             singleLine = true,
+            enabled = !isEntryMetadataLocked,
             isError = title.isBlank()
         )
 
@@ -149,6 +152,7 @@ fun RepoMarketPublishScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             minLines = 3,
             maxLines = 6,
+            enabled = !isEntryMetadataLocked,
             isError = description.isBlank()
         )
 
@@ -158,7 +162,8 @@ fun RepoMarketPublishScreen(
             label = { Text(stringResource(R.string.market_detail_section_details)) },
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             minLines = 4,
-            maxLines = 10
+            maxLines = 10,
+            enabled = !isEntryMetadataLocked
         )
 
         OutlinedTextField(
@@ -181,7 +186,7 @@ fun RepoMarketPublishScreen(
             selectedCategory = category,
             categories = categories,
             onCategorySelected = { category = it },
-            enabled = true,
+            enabled = !isEntryMetadataLocked,
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         )
 
@@ -368,7 +373,8 @@ fun RepoMarketPublishScreen(
                                     category = category,
                                     allowPublicUpdates = allowPublicUpdates,
                                     version = version,
-                                    installConfig = installConfig
+                                    installConfig = installConfig,
+                                    canEditEntry = canEditEntry
                                 )
                             } else {
                                 viewModel.publish(

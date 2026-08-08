@@ -118,6 +118,29 @@ function createInjectionItemsCard(ctx, items, memoryConfigSection) {
         ctx.UI.Column({ fillMaxWidth: true }, children),
     ]);
 }
+function createInjectionTimeoutConfigSection(ctx, text, value, onValueChange, onApply) {
+    return ctx.UI.Surface(toggleCardStyle, [
+        ctx.UI.Column({ fillMaxWidth: true, padding: { horizontal: 14, vertical: 12 }, spacing: 10 }, [
+            ctx.UI.TextField({
+                label: text.injectionTimeoutFieldLabel,
+                placeholder: text.injectionTimeoutFieldPlaceholder,
+                value,
+                onValueChange,
+                singleLine: true,
+            }),
+            ctx.UI.Text({
+                text: text.injectionTimeoutFieldDescription,
+                style: "bodySmall",
+                color: "onSurfaceVariant",
+            }),
+            ctx.UI.Button({
+                text: text.injectionTimeoutApplyButton,
+                fillMaxWidth: true,
+                onClick: onApply,
+            }),
+        ]),
+    ]);
+}
 function Screen(ctx) {
     const text = (0, shared_1.resolveExtraInfoI18n)();
     const initial = readSettings();
@@ -136,6 +159,8 @@ function Screen(ctx) {
     const allowRepeatedMemorySearchState = useStateValue(ctx, "allowRepeatedMemorySearch", initial.allowRepeatedMemorySearch);
     const memoryLimitState = useStateValue(ctx, "memoryLimit", initial.memoryLimit);
     const memoryLimitInputState = useStateValue(ctx, "memoryLimitInput", String(initial.memoryLimit));
+    const injectionTimeoutSecondsState = useStateValue(ctx, "injectionTimeoutSeconds", initial.injectionTimeoutSeconds);
+    const injectionTimeoutInputState = useStateValue(ctx, "injectionTimeoutInput", String(initial.injectionTimeoutSeconds));
     const successMessageState = useStateValue(ctx, "successMessage", "");
     const errorMessageState = useStateValue(ctx, "errorMessage", "");
     const hasInitializedState = useStateValue(ctx, "hasInitialized", false);
@@ -155,6 +180,8 @@ function Screen(ctx) {
         allowRepeatedMemorySearchState.set(next.allowRepeatedMemorySearch);
         memoryLimitState.set(next.memoryLimit);
         memoryLimitInputState.set(String(next.memoryLimit));
+        injectionTimeoutSecondsState.set(next.injectionTimeoutSeconds);
+        injectionTimeoutInputState.set(String(next.injectionTimeoutSeconds));
     };
     const persistSettings = (patch, successMessage = "") => {
         try {
@@ -164,6 +191,7 @@ function Screen(ctx) {
             successMessageState.set(successMessage);
         }
         catch (error) {
+            (0, shared_1.logExtraInfoInjectionError)("settings.save_failed", error);
             const message = error instanceof Error ? error.message : String(error || "unknown");
             successMessageState.set("");
             errorMessageState.set(`${text.saveErrorPrefix}${message}`);
@@ -180,11 +208,24 @@ function Screen(ctx) {
             memoryLimit: Math.floor(limit),
         });
     };
+    const applyInjectionTimeoutSettings = () => {
+        const timeoutSeconds = Number(injectionTimeoutInputState.value.trim());
+        if (!Number.isFinite(timeoutSeconds) ||
+            timeoutSeconds < shared_1.MIN_INJECTION_TIMEOUT_SECONDS ||
+            timeoutSeconds > shared_1.MAX_INJECTION_TIMEOUT_SECONDS ||
+            !Number.isInteger(timeoutSeconds)) {
+            successMessageState.set("");
+            errorMessageState.set(`${text.saveErrorPrefix}${text.invalidInjectionTimeoutMessage}`);
+            return;
+        }
+        persistSettings({ injectionTimeoutSeconds: timeoutSeconds });
+    };
     const summaryLines = [
         masterEnabledState.value ? text.summaryMasterEnabled : text.summaryMasterDisabled,
         persistInjectedContentState.value
             ? text.summaryPersistEnabled
             : text.summaryPersistDisabled,
+        text.summaryInjectionTimeout.replace("{seconds}", injectionTimeoutSecondsState.value.toString()),
         injectTimeState.value ? text.summaryTimeEnabled : text.summaryTimeDisabled,
         injectBatteryState.value ? text.summaryBatteryEnabled : text.summaryBatteryDisabled,
         injectWeatherState.value ? text.summaryWeatherEnabled : text.summaryWeatherDisabled,
@@ -248,6 +289,9 @@ function Screen(ctx) {
         createToggleCard(ctx, text.persistToggleTitle, text.persistToggleDescription, persistInjectedContentState.value, checked => {
             persistSettings({ persistInjectedContent: checked });
         }),
+        createInjectionTimeoutConfigSection(ctx, text, injectionTimeoutInputState.value, value => {
+            injectionTimeoutInputState.set(value);
+        }, applyInjectionTimeoutSettings),
         createSectionTitle(ctx, "bolt", text.itemsSectionTitle),
         createInjectionItemsCard(ctx, [
             {

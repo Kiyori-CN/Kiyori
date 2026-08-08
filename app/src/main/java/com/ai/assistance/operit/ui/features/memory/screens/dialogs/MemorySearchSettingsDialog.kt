@@ -55,13 +55,14 @@ import kotlin.math.roundToInt
 fun MemorySearchSettingsDialog(
     currentConfig: MemorySearchConfig,
     autoSaveIntervalMinutes: Int,
+    memoryExtractionCustomRules: String,
     cloudConfig: CloudEmbeddingConfig,
     dimensionUsage: EmbeddingDimensionUsage,
     rebuildProgress: EmbeddingRebuildProgress,
     error: String?,
     isRebuilding: Boolean,
     onDismiss: () -> Unit,
-    onSave: (MemorySearchConfig, CloudEmbeddingConfig, Int) -> Unit,
+    onSave: (MemorySearchConfig, CloudEmbeddingConfig, Int, String) -> Unit,
     onRebuild: () -> Unit,
     onSimulateSearch: () -> Unit
 ) {
@@ -73,6 +74,9 @@ fun MemorySearchSettingsDialog(
     var scoreMode by remember(currentConfig) { mutableStateOf(currentConfig.scoreMode) }
     var editedAutoSaveIntervalMinutes by remember(autoSaveIntervalMinutes) {
         mutableFloatStateOf(autoSaveIntervalMinutes.toFloat())
+    }
+    var editedMemoryExtractionCustomRules by remember(memoryExtractionCustomRules) {
+        mutableStateOf(memoryExtractionCustomRules)
     }
 
     var cloudEnabled by remember(cloudConfig) { mutableStateOf(cloudConfig.enabled) }
@@ -171,6 +175,18 @@ fun MemorySearchSettingsDialog(
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = editedMemoryExtractionCustomRules,
+                        onValueChange = { editedMemoryExtractionCustomRules = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = {
+                            Text(stringResource(R.string.memory_extraction_custom_rules))
+                        },
+                        placeholder = {
+                            Text(stringResource(R.string.memory_extraction_custom_rules_placeholder))
+                        },
+                        minLines = 4
                     )
                 }
 
@@ -339,7 +355,8 @@ fun MemorySearchSettingsDialog(
                             edgeWeight = edgeWeight
                         ).normalized(),
                         editedCloudConfig,
-                        editedAutoSaveIntervalMinutes.roundToInt()
+                        editedAutoSaveIntervalMinutes.roundToInt(),
+                        editedMemoryExtractionCustomRules
                     )
                     Toast.makeText(context, settingsSavedMessage, Toast.LENGTH_SHORT).show()
                 }
@@ -358,6 +375,8 @@ fun MemorySearchSettingsDialog(
                         edgeWeight = 0.4f
                         editedAutoSaveIntervalMinutes =
                             MemorySearchSettingsPreferences.DEFAULT_AUTO_SAVE_INTERVAL_MINUTES.toFloat()
+                        editedMemoryExtractionCustomRules =
+                            MemorySearchSettingsPreferences.DEFAULT_MEMORY_EXTRACTION_CUSTOM_RULES
                     }
                 ) {
                     Text(stringResource(R.string.memory_search_reset_default))

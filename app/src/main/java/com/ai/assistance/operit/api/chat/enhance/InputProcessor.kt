@@ -20,7 +20,8 @@ object InputProcessor {
         context: Context,
         input: String,
         chatId: String? = null,
-        roleCardId: String? = null
+        roleCardId: String? = null,
+        onHookTimeout: ((String) -> Unit)? = null
     ): String {
         val activePromptMetadata = buildActivePromptHookMetadata(context, chatId, roleCardId)
         val beforeContext =
@@ -30,7 +31,8 @@ object InputProcessor {
                     chatId = chatId,
                     rawInput = input,
                     processedInput = input,
-                    metadata = activePromptMetadata
+                    metadata = activePromptMetadata,
+                    onHookTimeout = onHookTimeout
                 )
             )
         val processedInput = beforeContext.processedInput ?: beforeContext.rawInput ?: input

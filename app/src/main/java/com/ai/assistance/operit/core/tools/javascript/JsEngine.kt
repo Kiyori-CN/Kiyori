@@ -702,6 +702,7 @@ class JsEngine(private val context: Context) {
      * @param functionName 要调用的函数名称
      * @param params 要传递给函数的参数
      * @param timeoutSec 最长等待秒数；null 表示等待实际完成或主动取消
+     * @param timeoutMillis 精确的最长等待毫秒数；指定后优先于 timeoutSec
      * @return 函数执行结果
      */
     internal fun executeScriptFunction(
@@ -712,6 +713,7 @@ class JsEngine(private val context: Context) {
             onIntermediateResult: ((Any?) -> Unit)? = null,
             dispatchIntermediateOnMain: Boolean = true,
             timeoutSec: Long? = JsTimeoutConfig.MAIN_TIMEOUT_SECONDS,
+            timeoutMillis: Long? = null,
             executionListener: JsExecutionListener? = null
     ): Any? {
         val effectiveParams = params.toMutableMap()
@@ -781,9 +783,16 @@ class JsEngine(private val context: Context) {
         val buildExecutionScriptStartTime = if (shouldLogTiming) messageTimingNow() else 0L
         val paramsObject = JSONObject(effectiveParams)
         val paramsJson = paramsObject.toString()
-        val safeTimeoutSec = timeoutSec?.let { if (it <= 0L) 1L else it }
+        val safeTimeoutMillis = timeoutMillis?.let { if (it <= 0L) 1L else it }
+        val safeTimeoutSec =
+            safeTimeoutMillis?.let { milliseconds ->
+                (milliseconds + 999L) / 1000L
+            } ?: timeoutSec?.let { if (it <= 0L) 1L else it }
         val preTimeoutMs =
-            if (safeTimeoutSec == null) {
+            if (safeTimeoutMillis != null) {
+                (safeTimeoutMillis - JsTimeoutConfig.PRE_TIMEOUT_LEAD_SECONDS * 1000L)
+                    .coerceAtLeast(1_000L)
+            } else if (safeTimeoutSec == null) {
                 null
             } else {
                 (safeTimeoutSec - JsTimeoutConfig.PRE_TIMEOUT_LEAD_SECONDS)
@@ -827,7 +836,9 @@ class JsEngine(private val context: Context) {
         val waitResultStartTime = if (shouldLogTiming) messageTimingNow() else 0L
         return try {
             val result =
-                if (safeTimeoutSec == null) {
+                if (safeTimeoutMillis != null) {
+                    session.future.get(safeTimeoutMillis, TimeUnit.MILLISECONDS)
+                } else if (safeTimeoutSec == null) {
                     session.future.get()
                 } else {
                     session.future.get(safeTimeoutSec, TimeUnit.SECONDS)
@@ -860,8 +871,13 @@ class JsEngine(private val context: Context) {
             }
             val failureReason =
                 when (e) {
-                    is java.util.concurrent.TimeoutException ->
-                        "Script execution timed out after ${safeTimeoutSec ?: 1L} seconds"
+                    is java.util.concurrent.TimeoutException -> {
+                        if (safeTimeoutMillis != null) {
+                            "Script execution timed out after $safeTimeoutMillis milliseconds"
+                        } else {
+                            "Script execution timed out after ${safeTimeoutSec ?: 1L} seconds"
+                        }
+                    }
                     else -> e.message ?: e.javaClass.simpleName
                 }
             AppLogger.e(
@@ -1781,6 +1797,11 @@ class JsEngine(private val context: Context) {
         @JavascriptInterface
         fun registerToolPkgChatViewHook(specJson: String) {
             toolPkgRegistrationSession.appendChatViewHook(specJson)
+        }
+
+        @JavascriptInterface
+        fun registerToolPkgChatMessageHook(specJson: String) {
+            toolPkgRegistrationSession.appendChatMessageHook(specJson)
         }
 
         @JavascriptInterface

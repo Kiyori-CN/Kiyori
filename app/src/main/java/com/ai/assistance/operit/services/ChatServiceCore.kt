@@ -259,11 +259,13 @@ class ChatServiceCore(
         proxySenderNameOverride: String? = null,
         chatModelConfigIdOverride: String? = null,
         chatModelIndexOverride: Int? = null,
-        turnOptions: ChatTurnOptions = ChatTurnOptions()
+        turnOptions: ChatTurnOptions = ChatTurnOptions(),
+        preferActiveRoleCard: Boolean = false
     ) {
         messageCoordinationDelegate.sendUserMessage(
             promptFunctionType = promptFunctionType,
             roleCardIdOverride = roleCardIdOverride,
+            preferActiveRoleCard = preferActiveRoleCard,
             chatIdOverride = chatIdOverride,
             messageTextOverride = messageTextOverride,
             proxySenderNameOverride = proxySenderNameOverride,

@@ -20,6 +20,12 @@ const LEGACY_ATTACHMENT_ID_PREFIXES = [
 
 const NOTIFICATION_FETCH_LIMIT = 5;
 const APP_USAGE_FETCH_LIMIT = 3;
+const LOG_PREFIX = "[message_insert]";
+export const MIN_INJECTION_TIMEOUT_SECONDS = 1;
+export const MAX_INJECTION_TIMEOUT_SECONDS = 120;
+const DEFAULT_INJECTION_TIMEOUT_SECONDS = 8;
+// Weather is a pre-send injection path, so the shared Hook deadline bounds its location and HTTP work.
+const WEATHER_INJECTION_STEP_TIMEOUT_SECONDS = 5;
 
 export type ExtraInfoInjectionSettings = {
   masterEnabled: boolean;
@@ -36,6 +42,7 @@ export type ExtraInfoInjectionSettings = {
   injectMemory: boolean;
   allowRepeatedMemorySearch: boolean;
   memoryLimit: number;
+  injectionTimeoutSeconds: number;
 };
 
 export type ExtraInfoI18n = {
@@ -79,6 +86,11 @@ export type ExtraInfoI18n = {
   memoryLimitFieldPlaceholder: string;
   memoryConfigApplyButton: string;
   invalidMemoryLimitMessage: string;
+  injectionTimeoutFieldLabel: string;
+  injectionTimeoutFieldDescription: string;
+  injectionTimeoutFieldPlaceholder: string;
+  injectionTimeoutApplyButton: string;
+  invalidInjectionTimeoutMessage: string;
   summarySectionTitle: string;
   summaryMasterEnabled: string;
   summaryMasterDisabled: string;
@@ -106,6 +118,7 @@ export type ExtraInfoI18n = {
   summaryMemoryDisabled: string;
   summaryMemoryRepeatEnabled: string;
   summaryMemoryRepeatDisabled: string;
+  summaryInjectionTimeout: string;
   summaryRulesHint: string;
   saveErrorPrefix: string;
   attachmentTimeTitle: string;
@@ -207,6 +220,11 @@ const ZH_CN_I18N: ExtraInfoI18n = {
   memoryLimitFieldPlaceholder: "例如 3",
   memoryConfigApplyButton: "保存记忆设置",
   invalidMemoryLimitMessage: "记忆上限必须是大于等于 1 的整数",
+  injectionTimeoutFieldLabel: "注入超时",
+  injectionTimeoutFieldDescription: "整轮额外信息采集的最长等待时间，单位为秒。超时项目会标注 timeout。范围为 1 到 120 秒。",
+  injectionTimeoutFieldPlaceholder: "例如 8",
+  injectionTimeoutApplyButton: "保存超时设置",
+  invalidInjectionTimeoutMessage: "注入超时必须是 1 到 120 之间的整数秒",
   summarySectionTitle: "当前规则",
   summaryMasterEnabled: "额外信息注入：已开启",
   summaryMasterDisabled: "额外信息注入：已关闭",
@@ -234,6 +252,7 @@ const ZH_CN_I18N: ExtraInfoI18n = {
   summaryMemoryDisabled: "记忆：已关闭",
   summaryMemoryRepeatEnabled: "记忆去重：允许重复命中",
   summaryMemoryRepeatDisabled: "记忆去重：默认排除本会话已命中的记忆",
+  summaryInjectionTimeout: "注入超时：{seconds} 秒",
   summaryRulesHint: "这些设置会直接影响用户消息中显性附件的生成规则。",
   saveErrorPrefix: "保存失败：",
   attachmentTimeTitle: "【当前时间】",
@@ -335,6 +354,11 @@ const EN_US_I18N: ExtraInfoI18n = {
   memoryLimitFieldPlaceholder: "For example 3",
   memoryConfigApplyButton: "Save memory settings",
   invalidMemoryLimitMessage: "Memory limit must be an integer greater than or equal to 1",
+  injectionTimeoutFieldLabel: "Injection timeout",
+  injectionTimeoutFieldDescription: "Maximum wait for the whole extra-info collection round in seconds. Timed-out items are marked timeout. Range: 1 to 120 seconds.",
+  injectionTimeoutFieldPlaceholder: "For example 8",
+  injectionTimeoutApplyButton: "Save timeout settings",
+  invalidInjectionTimeoutMessage: "Injection timeout must be an integer between 1 and 120 seconds",
   summarySectionTitle: "Current Rules",
   summaryMasterEnabled: "Extra info injection: enabled",
   summaryMasterDisabled: "Extra info injection: disabled",
@@ -362,6 +386,7 @@ const EN_US_I18N: ExtraInfoI18n = {
   summaryMemoryDisabled: "Memory: disabled",
   summaryMemoryRepeatEnabled: "Memory dedupe: repeated hits are allowed",
   summaryMemoryRepeatDisabled: "Memory dedupe: previously hit memories are excluded in this chat",
+  summaryInjectionTimeout: "Injection timeout: {seconds}s",
   summaryRulesHint: "These settings directly control how visible attachments are generated for user messages.",
   saveErrorPrefix: "Save failed: ",
   attachmentTimeTitle: "[Current Time]",
@@ -437,7 +462,42 @@ const DEFAULT_SETTINGS: ExtraInfoInjectionSettings = {
   injectMemory: false,
   allowRepeatedMemorySearch: false,
   memoryLimit: 3,
+  injectionTimeoutSeconds: DEFAULT_INJECTION_TIMEOUT_SECONDS,
 };
+
+// Keep diagnostics useful without persisting message or collected device data to application logs.
+function formatLogError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function logExtraInfoInjectionInfo(event: string, details = ""): void {
+  console.info(`${LOG_PREFIX} ${event}${details ? ` ${details}` : ""}`);
+}
+
+export function logExtraInfoInjectionError(
+  event: string,
+  error: unknown,
+  details = ""
+): void {
+  console.error(
+    `${LOG_PREFIX} ${event}${details ? ` ${details}` : ""} error=${formatLogError(error)}`
+  );
+}
+
+function describeEnabledItems(settings: ExtraInfoInjectionSettings): string {
+  const items = [
+    settings.injectTime && "time",
+    settings.injectBattery && "battery",
+    settings.injectWeather && "weather",
+    settings.injectLocation && "location",
+    settings.injectCurrentScreenApp && "current_screen_app",
+    settings.injectRecentAppUsage && "recent_app_usage",
+    settings.injectScreenText && "screen_text",
+    settings.injectNotifications && "notifications",
+    settings.injectMemory && "memory",
+  ].filter((item): item is string => Boolean(item));
+  return items.join(",");
+}
 
 function normalizeLocale(locale?: string): string {
   const value = String(locale || "").trim().toLowerCase();
@@ -475,6 +535,7 @@ function getPrefs() {
 
 function sanitizeSettings(input: Partial<ExtraInfoInjectionSettings> | null | undefined): ExtraInfoInjectionSettings {
   const memoryLimit = Number(input?.memoryLimit);
+  const injectionTimeoutSeconds = Number(input?.injectionTimeoutSeconds);
   return {
     masterEnabled: Boolean(input?.masterEnabled ?? DEFAULT_SETTINGS.masterEnabled),
     persistInjectedContent: Boolean(
@@ -502,6 +563,12 @@ function sanitizeSettings(input: Partial<ExtraInfoInjectionSettings> | null | un
     memoryLimit: Number.isFinite(memoryLimit) && memoryLimit >= 1
       ? Math.floor(memoryLimit)
       : DEFAULT_SETTINGS.memoryLimit,
+    injectionTimeoutSeconds:
+      Number.isFinite(injectionTimeoutSeconds) &&
+      injectionTimeoutSeconds >= MIN_INJECTION_TIMEOUT_SECONDS &&
+      injectionTimeoutSeconds <= MAX_INJECTION_TIMEOUT_SECONDS
+        ? Math.floor(injectionTimeoutSeconds)
+        : DEFAULT_SETTINGS.injectionTimeoutSeconds,
   };
 }
 
@@ -512,7 +579,8 @@ export function loadSettings(): ExtraInfoInjectionSettings {
       return { ...DEFAULT_SETTINGS };
     }
     return sanitizeSettings(JSON.parse(raw) as Partial<ExtraInfoInjectionSettings>);
-  } catch {
+  } catch (error) {
+    logExtraInfoInjectionError("settings.load_failed", error);
     return { ...DEFAULT_SETTINGS };
   }
 }
@@ -522,6 +590,10 @@ export function saveSettings(
 ): ExtraInfoInjectionSettings {
   const next = sanitizeSettings({ ...loadSettings(), ...patch });
   getPrefs().edit().putString(SETTINGS_KEY, JSON.stringify(next)).apply();
+  logExtraInfoInjectionInfo(
+    "settings.saved",
+    `master_enabled=${next.masterEnabled} persist=${next.persistInjectedContent} items=${describeEnabledItems(next) || "none"} memory_limit=${next.memoryLimit} injection_timeout_seconds=${next.injectionTimeoutSeconds}`
+  );
   return next;
 }
 
@@ -608,13 +680,17 @@ function buildLocationParts(location: any): string[] {
   ].map((item: unknown) => String(item || "").trim()).filter(Boolean);
 }
 
-async function readLocationSnapshot(highAccuracy = false): Promise<{
+async function readLocationSnapshot(
+  highAccuracy = false,
+  timeoutSeconds = 8,
+  includeAddress = true
+): Promise<{
   location: any;
   latitude: number;
   longitude: number;
   addressParts: string[];
 }> {
-  const location = await Tools.System.getLocation(highAccuracy, 8);
+  const location = await Tools.System.getLocation(highAccuracy, timeoutSeconds, includeAddress);
   const latitude = Number(location?.latitude);
   const longitude = Number(location?.longitude);
 
@@ -705,6 +781,88 @@ function buildErrorContent(title: string, error: unknown): string {
   ].join("\n");
 }
 
+// Keep the attachment shape visible when a provider misses the deadline without exposing partial data.
+function buildTimeoutContent(title: string): string {
+  return [title, "timeout"].join("\n");
+}
+
+function isTimeoutError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /timeout|timed out|超时/i.test(message);
+}
+
+/**
+ * 所有采集项共享同一个绝对截止时间，避免天气、定位、OCR、通知和记忆串行累加等待。
+ *
+ * 先为原始任务绑定完成与拒绝处理，再参与竞速；即使任务在截止时间后结束，也不会产生
+ * 未处理的 Promise 拒绝或把迟到数据写入附件。
+ */
+async function buildOptionalContent(
+  item: string,
+  title: string,
+  build: () => string | Promise<string>,
+  deadlineAt: number
+): Promise<string> {
+  const startedAt = Date.now();
+  const remainingMs = Math.max(0, deadlineAt - startedAt);
+  if (remainingMs === 0) {
+    logExtraInfoInjectionInfo("item.timeout", `item=${item} elapsed_ms=${Date.now() - startedAt}`);
+    return buildTimeoutContent(title);
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  const markTimeout = (): string => {
+    if (!timedOut) {
+      timedOut = true;
+      logExtraInfoInjectionInfo(
+        "item.timeout",
+        `item=${item} elapsed_ms=${Date.now() - startedAt}`
+      );
+    }
+    return buildTimeoutContent(title);
+  };
+  const timeoutPromise = new Promise<string>((resolve) => {
+    timeoutId = setTimeout(() => resolve(markTimeout()), remainingMs);
+  });
+  // Attach rejection handling before racing so a provider that finishes after the deadline cannot
+  // create an unhandled rejection while its result is intentionally discarded.
+  const contentPromise = Promise.resolve()
+    .then(build)
+    .then(
+      (content) => {
+        if (Date.now() >= deadlineAt) {
+          return markTimeout();
+        }
+        logExtraInfoInjectionInfo(
+          "item.completed",
+          `item=${item} elapsed_ms=${Date.now() - startedAt} content_length=${content.length}`
+        );
+        return content;
+      },
+      (error) => {
+        if (Date.now() >= deadlineAt || isTimeoutError(error)) {
+          return markTimeout();
+        }
+        logExtraInfoInjectionError(
+          "item.failed",
+          error,
+          `item=${item} elapsed_ms=${Date.now() - startedAt}`
+        );
+        return buildErrorContent(title, error);
+      }
+    );
+
+  try {
+    const content = await Promise.race([contentPromise, timeoutPromise]);
+    return content;
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 async function fetchWeatherPayload(
   latitude: number,
   longitude: number,
@@ -718,8 +876,8 @@ async function fetchWeatherPayload(
     headers: {
       Accept: "application/json",
     },
-    connect_timeout: 8,
-    read_timeout: 8,
+    connect_timeout: WEATHER_INJECTION_STEP_TIMEOUT_SECONDS,
+    read_timeout: WEATHER_INJECTION_STEP_TIMEOUT_SECONDS,
     validateStatus: false,
   });
 
@@ -735,6 +893,7 @@ async function fetchWeatherPayload(
   try {
     return JSON.parse(rawContent);
   } catch (error) {
+    logExtraInfoInjectionError("weather.response_parse_failed", error);
     const message = error instanceof Error ? error.message : String(error || "unknown");
     throw new Error(`weather response parse failed: ${message}`);
   }
@@ -743,16 +902,21 @@ async function fetchWeatherPayload(
 async function buildWeatherContent(): Promise<string> {
   const text = resolveExtraInfoI18n();
   const locale = typeof getLang === "function" ? String(getLang() || "") : "";
-  const locationSnapshot = await readLocationSnapshot();
+  const locationSnapshot = await readLocationSnapshot(
+    false,
+    WEATHER_INJECTION_STEP_TIMEOUT_SECONDS,
+    false
+  );
   const payload = await fetchWeatherPayload(
     locationSnapshot.latitude,
     locationSnapshot.longitude,
     locale
   );
   const current = Array.isArray(payload?.current_condition) ? payload.current_condition[0] : null;
-  const locationText = locationSnapshot.addressParts.length
-    ? locationSnapshot.addressParts.join(" / ")
-    : "-";
+  const locationText = formatCoordinates(
+    locationSnapshot.latitude,
+    locationSnapshot.longitude
+  );
   const weatherDesc = normalizeLocale(locale) === "en-US"
     ? String(current?.weatherDesc?.[0]?.value || "").trim()
     : String(current?.lang_zh?.[0]?.value || "").trim();
@@ -812,7 +976,8 @@ function resolveAppLabel(packageName: string): string {
     const applicationInfo = context.packageManager.getApplicationInfo(normalizedPackageName, 0);
     const label = String(applicationInfo.loadLabel(context.packageManager) || "").trim();
     return label || normalizedPackageName;
-  } catch {
+  } catch (error) {
+    logExtraInfoInjectionError("app_label.resolve_failed", error);
     return normalizedPackageName;
   }
 }
@@ -1110,6 +1275,7 @@ export async function appendExtraInfoToMessage(
   activePrompt?: ToolPkg.ActivePromptSnapshot | null
 ): Promise<string | null> {
   if (!stripMessageForMemorySearch(messageText)) {
+    logExtraInfoInjectionInfo("append.skipped", "reason=empty_message_after_metadata_removal");
     return null;
   }
 
@@ -1119,10 +1285,16 @@ export async function appendExtraInfoToMessage(
     activePrompt
   );
   if (!tags.length) {
+    logExtraInfoInjectionInfo("append.skipped", "reason=no_attachment_tags");
     return null;
   }
 
-  return `${String(messageText || "").replace(/\s+$/, "")} ${tags.join(" ")}`.trim();
+  const result = `${String(messageText || "").replace(/\s+$/, "")} ${tags.join(" ")}`.trim();
+  logExtraInfoInjectionInfo(
+    "append.completed",
+    `attachment_count=${tags.length} result_length=${result.length}`
+  );
+  return result;
 }
 
 export async function buildExtraInfoAttachmentTags(
@@ -1131,106 +1303,125 @@ export async function buildExtraInfoAttachmentTags(
   activePrompt?: ToolPkg.ActivePromptSnapshot | null
 ): Promise<string[]> {
   const settings = loadSettings();
-  if (!settings.masterEnabled || containsExtraInfoAttachment(messageText)) {
+  if (!settings.masterEnabled) {
+    logExtraInfoInjectionInfo("attachment_build.skipped", "reason=master_disabled");
+    return [];
+  }
+  if (containsExtraInfoAttachment(messageText)) {
+    logExtraInfoInjectionInfo("attachment_build.skipped", "reason=attachment_already_present");
     return [];
   }
 
   const attachmentTimestampMs = Date.now();
-  const contentBlocks: string[] = [];
+  const deadlineAt = attachmentTimestampMs + settings.injectionTimeoutSeconds * 1_000;
+  logExtraInfoInjectionInfo(
+    "attachment_build.started",
+    `items=${describeEnabledItems(settings) || "none"} persist=${settings.persistInjectedContent}`
+  );
+  const text = resolveExtraInfoI18n();
+  const contentTasks: Array<Promise<string>> = [];
 
   if (settings.injectTime) {
-    contentBlocks.push(buildTimeContent());
+    contentTasks.push(
+      buildOptionalContent("time", text.attachmentTimeTitle, buildTimeContent, deadlineAt)
+    );
   }
 
   if (settings.injectBattery) {
-    let content = "";
-    try {
-      content = buildBatteryContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentBatteryTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent("battery", text.attachmentBatteryTitle, buildBatteryContent, deadlineAt)
+    );
   }
 
   if (settings.injectWeather) {
-    let content = "";
-    try {
-      content = await buildWeatherContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentWeatherTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent("weather", text.attachmentWeatherTitle, buildWeatherContent, deadlineAt)
+    );
   }
 
   if (settings.injectLocation) {
-    let content = "";
-    try {
-      content = await buildLocationContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentLocationTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent(
+        "location",
+        text.attachmentLocationTitle,
+        buildLocationContent,
+        deadlineAt
+      )
+    );
   }
 
   if (settings.injectCurrentScreenApp) {
-    let content = "";
-    try {
-      content = await buildCurrentScreenAppContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentCurrentScreenAppTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent(
+        "current_screen_app",
+        text.attachmentCurrentScreenAppTitle,
+        buildCurrentScreenAppContent,
+        deadlineAt
+      )
+    );
   }
 
   if (settings.injectRecentAppUsage) {
-    let content = "";
-    try {
-      content = await buildRecentAppUsageContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentRecentAppUsageTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent(
+        "recent_app_usage",
+        text.attachmentRecentAppUsageTitle,
+        buildRecentAppUsageContent,
+        deadlineAt
+      )
+    );
   }
 
   if (settings.injectScreenText) {
-    let content = "";
-    try {
-      content = await buildScreenTextContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentScreenTextTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent(
+        "screen_text",
+        text.attachmentScreenTextTitle,
+        buildScreenTextContent,
+        deadlineAt
+      )
+    );
   }
 
   if (settings.injectNotifications) {
-    let content = "";
-    try {
-      content = await buildNotificationsContent();
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentNotificationsTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent(
+        "notifications",
+        text.attachmentNotificationsTitle,
+        buildNotificationsContent,
+        deadlineAt
+      )
+    );
   }
 
   if (settings.injectMemory) {
-    let content = "";
-    try {
-      content = await buildMemoryContent(messageText, chatId, activePrompt);
-    } catch (error) {
-      content = buildErrorContent(resolveExtraInfoI18n().attachmentMemoryTitle, error);
-    }
-    contentBlocks.push(content);
+    contentTasks.push(
+      buildOptionalContent(
+        "memory",
+        text.attachmentMemoryTitle,
+        () => buildMemoryContent(messageText, chatId, activePrompt),
+        deadlineAt
+      )
+    );
   }
 
+  const contentBlocks = await Promise.all(contentTasks);
   if (!contentBlocks.length) {
+    logExtraInfoInjectionInfo(
+      "attachment_build.skipped",
+      contentTasks.length ? "reason=no_items_completed_before_deadline" : "reason=no_items_enabled"
+    );
     return [];
   }
 
-  return [
-    buildAttachmentTag(
-      COMBINED_ATTACHMENT_ID_PREFIX,
-      buildCombinedAttachmentFileName(attachmentTimestampMs),
-      contentBlocks.join("\n\n")
-    ),
-  ];
+  const attachment = buildAttachmentTag(
+    COMBINED_ATTACHMENT_ID_PREFIX,
+    buildCombinedAttachmentFileName(attachmentTimestampMs),
+    contentBlocks.join("\n\n")
+  );
+  logExtraInfoInjectionInfo(
+    "attachment_build.completed",
+    `content_blocks=${contentBlocks.length} attachment_length=${attachment.length} elapsed_ms=${Date.now() - attachmentTimestampMs}`
+  );
+  return [attachment];
 }

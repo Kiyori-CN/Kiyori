@@ -172,6 +172,16 @@ class MessageProcessingDelegate(
     private val _nonFatalErrorEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val nonFatalErrorEvent = _nonFatalErrorEvent.asSharedFlow()
 
+    /** 通过现有聊天通知流展示 ToolPkg Hook 非致命超时，不创建第二套提示通道。 */
+    fun reportNonFatalError(message: String) {
+        if (message.isBlank()) {
+            return
+        }
+        coroutineScope.launch {
+            _nonFatalErrorEvent.emit(message)
+        }
+    }
+
     private val _turnCompleteCounterByChatId = MutableStateFlow<Map<String, Long>>(emptyMap())
     val turnCompleteCounterByChatId: StateFlow<Map<String, Long>> =
         _turnCompleteCounterByChatId.asStateFlow()
@@ -317,7 +327,15 @@ class MessageProcessingDelegate(
             enableDirectImageProcessing = enableDirectImageProcessing,
             enableDirectAudioProcessing = enableDirectAudioProcessing,
             enableDirectVideoProcessing = enableDirectVideoProcessing,
-            chatId = chatId
+            chatId = chatId,
+            onHookTimeout = { pluginIdentifier ->
+                reportNonFatalError(
+                    context.getString(
+                        R.string.toolpkg_hook_timeout_continue_sending_with_plugin,
+                        pluginIdentifier
+                    )
+                )
+            }
         )
         logMessageTiming(
             stage = "delegate.groupOrchestration.buildUserMessageContent",
@@ -753,7 +771,15 @@ class MessageProcessingDelegate(
                 enableDirectAudioProcessing = enableDirectAudioProcessing,
                 enableDirectVideoProcessing = enableDirectVideoProcessing,
                 chatId = chatId,
-                roleCardId = roleCardId
+                roleCardId = roleCardId,
+                onHookTimeout = { pluginIdentifier ->
+                    reportNonFatalError(
+                        context.getString(
+                            R.string.toolpkg_hook_timeout_continue_sending_with_plugin,
+                            pluginIdentifier
+                        )
+                    )
+                }
             )
             logMessageTiming(
                 stage = "delegate.buildUserMessageContent",

@@ -13,12 +13,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,8 +78,8 @@ private enum class ManageTypeTab(val kind: UnifiedMarketManageKind, val labelRes
 fun UnifiedMarketManageScreen(
     onNavigateToEditArtifact: (MarketV2Entry) -> Unit,
     onNavigateToEditRepo: (MarketStatsType, MarketV2Entry) -> Unit,
-    onNavigateToPublishArtifactVersion: (MarketV2Entry) -> Unit,
-    onNavigateToPublishRepoVersion: (MarketStatsType, MarketV2Entry) -> Unit,
+    onNavigateToPublishArtifactVersion: (MarketV2Entry, Boolean) -> Unit,
+    onNavigateToPublishRepoVersion: (MarketStatsType, MarketV2Entry, Boolean) -> Unit,
     onNavigateToPublishArtifact: () -> Unit,
     onNavigateToPublishRepo: (MarketStatsType) -> Unit,
     onNavigateToDetail: (MarketV2Entry) -> Unit
@@ -101,10 +102,8 @@ fun UnifiedMarketManageScreen(
     val entries by viewModel.entries.collectAsState()
     val hasLoaded by viewModel.hasLoaded.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val resubmittingEntryId by viewModel.resubmittingEntryId.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
-    var showResubmitDialog by remember { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
     var showReviewDialog by remember { mutableStateOf<MarketV2PublisherEntrySummary?>(null) }
     var showGitHubLogin by remember { mutableStateOf(false) }
     var showPublishDialog by remember { mutableStateOf(false) }
@@ -118,6 +117,7 @@ fun UnifiedMarketManageScreen(
     }
 
     val showManageLoading = isLoggedIn && !hasLoaded && entries.isEmpty()
+    val showRequestLoading = isLoggedIn && hasLoaded && isLoading
     val showEmptyState = hasLoaded && errorMessage == null && entries.isEmpty()
     val ownedEntries = remember(entries) { entries.filter { it.isOwnerRelation() } }
     val contributedEntries = remember(entries) { entries.filter { it.isContributorRelation() } }
@@ -182,7 +182,26 @@ fun UnifiedMarketManageScreen(
                                 onNavigateToEditRepo = onNavigateToEditRepo,
                                 onNavigateToPublishArtifactVersion = onNavigateToPublishArtifactVersion,
                                 onNavigateToPublishRepoVersion = onNavigateToPublishRepoVersion,
-                                onRequestResubmit = { showResubmitDialog = it },
+                                onRequestRevision = { target ->
+                                    viewModel.openEntryForRevision(target) { fullEntry ->
+                                        when (val type = fullEntry.marketStatsType()) {
+                                            MarketStatsType.SCRIPT,
+                                            MarketStatsType.PACKAGE ->
+                                                onNavigateToPublishArtifactVersion(
+                                                    fullEntry,
+                                                    target.isOwnerRelation(),
+                                                )
+                                            MarketStatsType.SKILL,
+                                            MarketStatsType.MCP ->
+                                                onNavigateToPublishRepoVersion(
+                                                    type,
+                                                    fullEntry,
+                                                    target.isOwnerRelation(),
+                                                )
+                                            null -> Unit
+                                        }
+                                    }
+                                },
                                 onShowReview = { showReviewDialog = it },
                                 onDelete = { showDeleteDialog = it }
                             )
@@ -205,7 +224,26 @@ fun UnifiedMarketManageScreen(
                                 onNavigateToEditRepo = onNavigateToEditRepo,
                                 onNavigateToPublishArtifactVersion = onNavigateToPublishArtifactVersion,
                                 onNavigateToPublishRepoVersion = onNavigateToPublishRepoVersion,
-                                onRequestResubmit = { showResubmitDialog = it },
+                                onRequestRevision = { target ->
+                                    viewModel.openEntryForRevision(target) { fullEntry ->
+                                        when (val type = fullEntry.marketStatsType()) {
+                                            MarketStatsType.SCRIPT,
+                                            MarketStatsType.PACKAGE ->
+                                                onNavigateToPublishArtifactVersion(
+                                                    fullEntry,
+                                                    target.isOwnerRelation(),
+                                                )
+                                            MarketStatsType.SKILL,
+                                            MarketStatsType.MCP ->
+                                                onNavigateToPublishRepoVersion(
+                                                    type,
+                                                    fullEntry,
+                                                    target.isOwnerRelation(),
+                                                )
+                                            null -> Unit
+                                        }
+                                    }
+                                },
                                 onShowReview = { showReviewDialog = it },
                                 onDelete = { showDeleteDialog = it }
                             )
@@ -247,15 +285,8 @@ fun UnifiedMarketManageScreen(
         )
     }
 
-    showResubmitDialog?.let { entry ->
-        MarketManageResubmitDialog(
-            entry = entry,
-            onConfirm = {
-                viewModel.resubmitEntry(entry)
-                showResubmitDialog = null
-            },
-            onDismiss = { showResubmitDialog = null }
-        )
+    if (showRequestLoading) {
+        MarketManageRequestLoadingDialog()
     }
 
     showReviewDialog?.let { entry ->
@@ -265,11 +296,6 @@ fun UnifiedMarketManageScreen(
         )
     }
 
-    if (resubmittingEntryId != null) {
-        MarketManageBlockingProgressDialog(
-            text = stringResource(R.string.market_manage_resubmitting_message)
-        )
-    }
 }
 
 @Composable
@@ -283,53 +309,23 @@ private fun ManageSectionTitle(text: String) {
 }
 
 @Composable
-private fun MarketManageBlockingProgressDialog(text: String) {
+private fun MarketManageRequestLoadingDialog() {
     AlertDialog(
         onDismissRequest = {},
-        title = { Text(stringResource(R.string.market_manage_resubmitting_title)) },
+        title = { Text(stringResource(R.string.market_manage_loading_request_title)) },
         text = {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(14.dp))
-                Text(text = text)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(stringResource(R.string.market_manage_loading_request_message))
             }
         },
         confirmButton = {}
-    )
-}
-
-@Composable
-private fun MarketManageResubmitDialog(
-    entry: MarketV2PublisherEntrySummary,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.market_manage_resubmit_confirm_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.market_manage_resubmit_confirm_message, entry.title))
-                MarketManageReviewDialogContent(entry = entry)
-                Text(
-                    text = stringResource(R.string.market_manage_resubmit_confirm_warning),
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.market_manage_resubmit_confirm_action))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
     )
 }
 
@@ -359,14 +355,24 @@ private fun MarketManageReviewDialogContent(entry: MarketV2PublisherEntrySummary
         remember(review.reasons) {
             review.reasons.map { reason -> context.getString(reason.labelResId()) }.joinToString(separator = " / ")
         }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val reviewDetail = remember(entry.reviewDetail) { entry.reviewDetail?.trim().orEmpty() }
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         Text(
-            text = stringResource(R.string.market_manage_resubmit_last_state, stateText),
+            text = stringResource(R.string.market_manage_review_state, stateText),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (reasonText.isNotBlank()) {
             Text(
-                text = stringResource(R.string.market_manage_resubmit_last_reason, reasonText),
+                text = stringResource(R.string.market_manage_review_reason, reasonText),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (reviewDetail.isNotBlank()) {
+            Text(
+                text = stringResource(R.string.market_manage_review_detail, reviewDetail),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -381,20 +387,23 @@ private fun ManagedEntryCard(
     onNavigateToDetail: (MarketV2Entry) -> Unit,
     onNavigateToEditArtifact: (MarketV2Entry) -> Unit,
     onNavigateToEditRepo: (MarketStatsType, MarketV2Entry) -> Unit,
-    onNavigateToPublishArtifactVersion: (MarketV2Entry) -> Unit,
-    onNavigateToPublishRepoVersion: (MarketStatsType, MarketV2Entry) -> Unit,
-    onRequestResubmit: (MarketV2PublisherEntrySummary) -> Unit,
+    onNavigateToPublishArtifactVersion: (MarketV2Entry, Boolean) -> Unit,
+    onNavigateToPublishRepoVersion: (MarketStatsType, MarketV2Entry, Boolean) -> Unit,
+    onRequestRevision: (MarketV2PublisherEntrySummary) -> Unit,
     onShowReview: (MarketV2PublisherEntrySummary) -> Unit,
     onDelete: (MarketV2PublisherEntrySummary) -> Unit
 ) {
     val review = remember(entry) { entry.resolveMarketReviewSnapshot() }
+    val reviewDetail = entry.reviewDetail?.trim().orEmpty()
+    val canSubmitRevision = review.state == MarketReviewState.CHANGES_REQUESTED
+    val canOpenPublicEntry = entry.isOpen() && entry.listingState != "pending_listing"
     MarketManageItemCard(
         title = entry.title,
         description = entry.manageSummaryText(),
-        isOpen = entry.isOpen(),
-        showActions = canManageEntry || entry.isOpen(),
+        isOpen = canOpenPublicEntry,
+        showActions = canManageEntry || canOpenPublicEntry || canSubmitRevision,
         onClick = {
-            if (entry.isOpen()) {
+            if (canOpenPublicEntry) {
                 viewModel.openEntryDetail(entry, onNavigateToDetail)
             } else {
                 onShowReview(entry)
@@ -407,7 +416,8 @@ private fun ManagedEntryCard(
         supportingContent = {
             MarketManageReviewFlow(
                 reviewState = review.state,
-                isOpen = entry.isOpen()
+                isOpen = entry.isOpen(),
+                listingState = entry.listingState
             )
             if (review.reasons.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -416,9 +426,18 @@ private fun ManagedEntryCard(
                     }
                 }
             }
+            if (reviewDetail.isNotBlank()) {
+                Text(
+                    text = reviewDetail,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         },
         actions = {
-            if (canManageEntry) {
+            if (canManageEntry && canOpenPublicEntry) {
                 MarketManageSecondaryActionButton(
                     label = stringResource(R.string.edit),
                     icon = Icons.Default.Edit,
@@ -435,7 +454,7 @@ private fun ManagedEntryCard(
                     }
                 )
             }
-            if (entry.isOpen()) {
+            if (canOpenPublicEntry) {
                 MarketManageSecondaryActionButton(
                     label = stringResource(R.string.market_publish_new_version),
                     icon = Icons.Default.NewReleases,
@@ -443,29 +462,34 @@ private fun ManagedEntryCard(
                         viewModel.openEntryDetail(entry) { fullEntry ->
                             when (val type = fullEntry.marketStatsType()) {
                                 MarketStatsType.SCRIPT,
-                                MarketStatsType.PACKAGE -> onNavigateToPublishArtifactVersion(fullEntry)
+                                MarketStatsType.PACKAGE ->
+                                    onNavigateToPublishArtifactVersion(fullEntry, canManageEntry)
                                 MarketStatsType.SKILL,
-                                MarketStatsType.MCP -> onNavigateToPublishRepoVersion(type, fullEntry)
+                                MarketStatsType.MCP ->
+                                    onNavigateToPublishRepoVersion(
+                                        type,
+                                        fullEntry,
+                                        canManageEntry,
+                                    )
                                 null -> Unit
                             }
                         }
                     }
                 )
             }
-            if (canManageEntry) {
-                if (entry.isOpen()) {
-                    MarketManageDangerActionButton(
-                        label = stringResource(R.string.remove),
-                        icon = Icons.Default.Delete,
-                        onClick = { onDelete(entry) }
-                    )
-                } else if (review.state == MarketReviewState.CHANGES_REQUESTED) {
-                    MarketManagePrimaryActionButton(
-                        label = stringResource(R.string.market_manage_resubmit),
-                        icon = Icons.Default.UploadFile,
-                        onClick = { onRequestResubmit(entry) }
-                    )
-                }
+            if (canManageEntry && entry.isOpen()) {
+                MarketManageDangerActionButton(
+                    label = stringResource(R.string.remove),
+                    icon = Icons.Default.Delete,
+                    onClick = { onDelete(entry) }
+                )
+            }
+            if (canSubmitRevision) {
+                MarketManagePrimaryActionButton(
+                    label = stringResource(R.string.market_manage_submit_revision),
+                    icon = Icons.Default.NewReleases,
+                    onClick = { onRequestRevision(entry) }
+                )
             }
         }
     )

@@ -467,14 +467,24 @@ fun MemoryScreen() {
                 MemorySearchSettingsDialog(
                     currentConfig = uiState.searchConfig,
                     autoSaveIntervalMinutes = uiState.autoSaveIntervalMinutes,
+                    memoryExtractionCustomRules = uiState.memoryExtractionCustomRules,
                     cloudConfig = uiState.cloudEmbeddingConfig,
                     dimensionUsage = uiState.embeddingDimensionUsage,
                     rebuildProgress = uiState.embeddingRebuildProgress,
                     error = uiState.error,
                     isRebuilding = uiState.isEmbeddingRebuildRunning,
                     onDismiss = { viewModel.showSearchSettingsDialog(false) },
-                    onSave = { config, cloudConfig, autoSaveIntervalMinutes ->
-                        viewModel.saveSearchSettings(config, cloudConfig, autoSaveIntervalMinutes)
+                    onSave = {
+                            config,
+                            cloudConfig,
+                            autoSaveIntervalMinutes,
+                            memoryExtractionCustomRules ->
+                        viewModel.saveSearchSettings(
+                            config,
+                            cloudConfig,
+                            autoSaveIntervalMinutes,
+                            memoryExtractionCustomRules
+                        )
                         viewModel.searchMemories()
                     },
                     onRebuild = { viewModel.rebuildVectorIndex() },

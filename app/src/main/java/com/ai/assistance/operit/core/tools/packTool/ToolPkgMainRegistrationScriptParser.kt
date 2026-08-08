@@ -58,6 +58,11 @@ internal object ToolPkgMainRegistrationScriptParser {
                     registrations = captured.chatViewHooks,
                     registryName = TOOLPKG_REGISTRATION_CHAT_VIEW_HOOK
                 )
+            val chatMessageHooks =
+                parseRegisteredFunctionHooks(
+                    registrations = captured.chatMessageHooks,
+                    registryName = TOOLPKG_REGISTRATION_CHAT_MESSAGE_HOOK
+                )
             val toolLifecycleHooks =
                 parseRegisteredFunctionHooks(
                     registrations = captured.toolLifecycleHooks,
@@ -121,6 +126,7 @@ internal object ToolPkgMainRegistrationScriptParser {
                         inputMenuTogglePlugins = inputMenuTogglePlugins,
                         chatInputHooks = chatInputHooks,
                         chatViewHooks = chatViewHooks,
+                        chatMessageHooks = chatMessageHooks,
                         toolLifecycleHooks = toolLifecycleHooks,
                         promptInputHooks = promptInputHooks,
                         promptHistoryHooks = promptHistoryHooks,

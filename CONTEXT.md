@@ -181,7 +181,7 @@ The following names are implementation or interoperability identifiers, not the 
 
 Changing one of these identifiers requires a separate compatibility design and migration plan.
 
-Kiyori's user-visible `versionName` and the **Operit Market Compatibility Version** are independent version axes. `versionName` identifies the Kiyori product release. `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` is a non-user-facing semantic version that identifies the inherited Operit script and ToolPkg runtime contract used for market `minAppVer` and `maxAppVer` checks. Its current value is `1.12.0+4`, matching the Operit source compatibility baseline; it changes only when Kiyori adopts a different market runtime contract.
+Kiyori's user-visible `versionName` and the **Operit Market Compatibility Version** are independent version axes. `versionName` identifies the Kiyori product release. `BuildConfig.OPERIT_MARKET_COMPAT_VERSION` is a non-user-facing semantic version that identifies the inherited Operit script and ToolPkg runtime contract used for market `minAppVer` and `maxAppVer` checks. Its current value is `1.12.0+9`; this contract includes persisted-message Hooks, shared pre-send Hook deadlines, character-card SoftwareSettings operations, address-aware location queries, the market revision workflow, and the bundled extra-info injection deadline. It changes only when Kiyori adopts and verifies a different market runtime contract.
 
 ## Development identity and migration
 

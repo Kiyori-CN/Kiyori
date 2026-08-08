@@ -3,6 +3,8 @@ package com.ai.assistance.operit.core.tools.packTool
 import android.content.Context
 import com.ai.assistance.operit.core.tools.javascript.JsEngine
 import java.util.ArrayDeque
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
@@ -84,6 +86,17 @@ class ToolPkgManagerTest {
         assertThrows(IllegalStateException::class.java) {
             manager.getToolPkgExecutionEngine("toolpkg_main:package-a", "package-a")
         }
+    }
+
+    @Test
+    fun `chat message hook keeps a distinct registration and event contract`() {
+        assertEquals("registerToolPkgChatMessageHook", TOOLPKG_REGISTRATION_CHAT_MESSAGE_HOOK)
+        assertEquals("toolpkg_chat_message", TOOLPKG_EVENT_CHAT_MESSAGE)
+        assertNotEquals(
+            TOOLPKG_REGISTRATION_CHAT_INPUT_HOOK,
+            TOOLPKG_REGISTRATION_CHAT_MESSAGE_HOOK
+        )
+        assertNotEquals(TOOLPKG_EVENT_CHAT_VIEW, TOOLPKG_EVENT_CHAT_MESSAGE)
     }
 
     private fun createManager(vararg engines: JsEngine): ToolPkgManager {

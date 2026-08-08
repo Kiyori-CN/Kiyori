@@ -242,17 +242,20 @@ fun MarketManageLabelChip(
 fun MarketManageReviewFlow(
     reviewState: MarketReviewState,
     isOpen: Boolean,
+    listingState: String,
     modifier: Modifier = Modifier
 ) {
     val reviewColor = marketReviewFlowColor(reviewState)
-    val publicationActive = reviewState == MarketReviewState.APPROVED && isOpen
+    val isPendingListing = listingState == "pending_listing"
+    val publicationActive =
+        reviewState == MarketReviewState.APPROVED && isOpen && !isPendingListing
     val publicationLabel =
         when (reviewState) {
             MarketReviewState.APPROVED ->
-                if (isOpen) {
-                    stringResource(R.string.published)
-                } else {
+                if (isPendingListing || !isOpen) {
                     stringResource(R.string.market_review_step_scheduled)
+                } else {
+                    stringResource(R.string.published)
                 }
             MarketReviewState.PENDING,
             MarketReviewState.CHANGES_REQUESTED,

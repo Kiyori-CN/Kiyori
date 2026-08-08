@@ -270,6 +270,44 @@ class AttachmentDelegate(private val context: Context, private val toolHandler: 
                 }
             }
 
+    suspend fun attachPastedText(text: String): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val externalDir = OperitPaths.cleanOnExitDir()
+                if (!externalDir.exists()) {
+                    externalDir.mkdirs()
+                }
+
+                val noMediaFile = File(externalDir, ".nomedia")
+                if (!noMediaFile.exists()) {
+                    noMediaFile.createNewFile()
+                }
+
+                val textFile = File.createTempFile("pasted_text_", ".txt", externalDir)
+                textFile.writeText(text, Charsets.UTF_8)
+
+                val addedAttachment =
+                    appendAttachment(
+                        AttachmentInfo(
+                            filePath = textFile.absolutePath,
+                            fileName = textFile.name,
+                            mimeType = "text/plain",
+                            fileSize = textFile.length()
+                        )
+                    )
+                _toastEvent.emit(
+                    context.getString(R.string.chat_pasted_text_attached, addedAttachment.fileName)
+                )
+                true
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "Error creating pasted text attachment", error)
+                _toastEvent.emit(
+                    context.getString(R.string.attachment_add_failed, error.message ?: "")
+                )
+                false
+            }
+        }
+
     /** 从URI创建临时文件 */
     private suspend fun createTempFileFromUri(uri: Uri, fileName: String): java.io.File? =
             withContext(Dispatchers.IO) {

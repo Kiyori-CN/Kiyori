@@ -4,6 +4,8 @@ import {
   getAppContext,
   getExtraInfoInjectionEnabled,
   loadSettings,
+  logExtraInfoInjectionError,
+  logExtraInfoInjectionInfo,
   resolveExtraInfoI18n,
   setExtraInfoInjectionEnabled,
 } from "./shared";
@@ -22,6 +24,7 @@ function pushInjectionProcessingState(chatId?: string): void {
   try {
     const context = getAppContext();
     if (!context) {
+      logExtraInfoInjectionInfo("processing_state.skipped", "reason=application_context_unavailable");
       return;
     }
     const resolvedChatId = String(chatId ?? getChatId() ?? "").trim();
@@ -33,8 +36,12 @@ function pushInjectionProcessingState(chatId?: string): void {
       resolveInjectionStatusText()
     );
     service.setInputProcessingState(state);
+    logExtraInfoInjectionInfo(
+      "processing_state.updated",
+      `chat_id_present=${Boolean(resolvedChatId)}`
+    );
   } catch (error) {
-    console.log("message_insert pushInjectionProcessingState error", String(error));
+    logExtraInfoInjectionError("processing_state.failed", error);
   }
 }
 
@@ -43,12 +50,32 @@ async function appendExtraInfoWithStatus(
   chatId?: string,
   activePrompt?: ToolPkg.ActivePromptSnapshot
 ) {
+  const startedAt = Date.now();
   pushInjectionProcessingState(chatId);
-  return appendExtraInfoToMessage(
-    processedInput,
-    chatId || undefined,
-    activePrompt
+  logExtraInfoInjectionInfo(
+    "injection.started",
+    `chat_id_present=${Boolean(chatId)} active_prompt_type=${activePrompt?.type ?? "none"}`
   );
+
+  try {
+    const result = await appendExtraInfoToMessage(
+      processedInput,
+      chatId || undefined,
+      activePrompt
+    );
+    logExtraInfoInjectionInfo(
+      "injection.completed",
+      `injected=${Boolean(result)} elapsed_ms=${Date.now() - startedAt}`
+    );
+    return result;
+  } catch (error) {
+    logExtraInfoInjectionError(
+      "injection.failed",
+      error,
+      `elapsed_ms=${Date.now() - startedAt}`
+    );
+    throw error;
+  }
 }
 
 function resolveHookActivePrompt(
@@ -84,6 +111,7 @@ export function registerToolPkg(): boolean {
     function: onInputMenuToggle,
   });
 
+  logExtraInfoInjectionInfo("plugin.registered");
   return true;
 }
 
@@ -92,10 +120,13 @@ export async function onPromptInput(
 ) {
   const stage = String(input.eventPayload.stage ?? input.eventName ?? "");
   if (stage !== "before_process") {
+    logExtraInfoInjectionInfo("prompt_input.skipped", `reason=unexpected_stage stage=${stage}`);
     return null;
   }
 
-  if (!loadSettings().persistInjectedContent) {
+  const settings = loadSettings();
+  if (!settings.persistInjectedContent) {
+    logExtraInfoInjectionInfo("prompt_input.skipped", "reason=transient_mode");
     return null;
   }
 
@@ -103,11 +134,13 @@ export async function onPromptInput(
     input.eventPayload.processedInput ?? input.eventPayload.rawInput ?? ""
   );
   if (!processedInput.trim()) {
+    logExtraInfoInjectionInfo("prompt_input.skipped", "reason=empty_input");
     return null;
   }
 
   const chatId = String(input.eventPayload.chatId ?? getChatId() ?? "").trim();
   const activePrompt = resolveHookActivePrompt(input);
+  logExtraInfoInjectionInfo("prompt_input.running", "mode=persisted");
   return appendExtraInfoWithStatus(
     processedInput,
     chatId || undefined,
@@ -120,10 +153,13 @@ export async function onPromptFinalize(
 ) {
   const stage = String(input.eventPayload.stage ?? input.eventName ?? "");
   if (stage !== "before_send_to_model") {
+    logExtraInfoInjectionInfo("prompt_finalize.skipped", `reason=unexpected_stage stage=${stage}`);
     return null;
   }
 
-  if (loadSettings().persistInjectedContent) {
+  const settings = loadSettings();
+  if (settings.persistInjectedContent) {
+    logExtraInfoInjectionInfo("prompt_finalize.skipped", "reason=persisted_mode");
     return null;
   }
 
@@ -131,11 +167,13 @@ export async function onPromptFinalize(
     input.eventPayload.processedInput ?? input.eventPayload.rawInput ?? ""
   );
   if (!processedInput.trim()) {
+    logExtraInfoInjectionInfo("prompt_finalize.skipped", "reason=empty_input");
     return null;
   }
 
   const chatId = String(input.eventPayload.chatId ?? getChatId() ?? "").trim();
   const activePrompt = resolveHookActivePrompt(input);
+  logExtraInfoInjectionInfo("prompt_finalize.running", "mode=transient");
   return appendExtraInfoWithStatus(
     processedInput,
     chatId || undefined,
@@ -149,15 +187,19 @@ export function onInputMenuToggle(
   const action = String(input.eventPayload.action ?? "").toLowerCase();
 
   if (action === "toggle") {
-    setExtraInfoInjectionEnabled(!getExtraInfoInjectionEnabled());
+    const enabled = !getExtraInfoInjectionEnabled();
+    setExtraInfoInjectionEnabled(enabled);
+    logExtraInfoInjectionInfo("menu_toggle.updated", `enabled=${enabled}`);
     return [];
   }
 
   if (action !== "create") {
+    logExtraInfoInjectionInfo("menu_toggle.skipped", `reason=unsupported_action action=${action}`);
     return [];
   }
 
   const text = resolveExtraInfoI18n();
+  logExtraInfoInjectionInfo("menu_toggle.created");
   return [
     {
       id: "message_extra_info_injection",

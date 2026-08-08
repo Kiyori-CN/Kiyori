@@ -5582,6 +5582,10 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="visit_web_wait_time_title">Visite o tempo de espera para acesso à página da Web</string>
     <string name="visit_web_wait_time_description">Controla quanto tempo visit_web espera antes de retornar automaticamente após buscar o conteúdo da página. Defina como 0 segundos para retornar imediatamente.</string>
     <string name="visit_web_wait_time_value">%1$d segundos</string>
+    <string name="toolpkg_hook_timeout_title">Tempo limite de Hook do ToolPkg</string>
+    <string name="toolpkg_hook_timeout_description">Limita o tempo total de espera das cadeias de Hook de entrada de chat, prompt e resumo do ToolPkg no caminho de envio. Ao expirar, o Hook atual é ignorado e o processamento continua. Padrão: 10 segundos. Não afeta a tomada de resposta de message_processing.</string>
+    <string name="toolpkg_hook_timeout_value">%1$d segundos</string>
+    <string name="toolpkg_hook_timeout_continue_sending">Um plugin anterior ao envio excedeu o tempo limite. Ele foi ignorado e a mensagem continuará sendo enviada.</string>
     <string name="enable_enter_to_send">Entre para enviar</string>
     <string name="enable_enter_to_send_description">Depois de ligado, pressionar Enter na caixa de entrada do bate-papo o enviará diretamente, e a tecla de envio do teclado também será exibida como enviar.</string>
     <string name="tool_collapse_mode_title">Ferramenta dobrável</string>

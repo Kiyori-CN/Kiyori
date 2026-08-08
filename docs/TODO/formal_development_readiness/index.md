@@ -59,7 +59,7 @@ formal_development_readiness/
 - 16KB native：APK 仅包含 `arm64-v8a`，共 `51` 个 `.so`，零重复 basename；加上生成式 `assets/operit_shell_exec` 共 `52` 个 AArch64 ELF64，全部 `PT_LOAD >= 0x4000`。launcher 只依赖五个 Android 系统库，不依赖 `libc++_shared.so`；Gradle 的 player native input/runtime packaging 检查和 16 KB ZIP 对齐通过。ELF 输入哈希、owner、符号闭包和 `PT_LOAD` 合同继续由 [Android 工具链与 16 KB native](../android_toolchain_16kb_native/index.md) 与 Gradle verify task 管理
 - 新鲜克隆：父仓库 `main@6b6493a0` 已通过克隆、`terminal` 初始化及 gitlink 对齐检查；提交后的主工作树干净，因此 M-02 至 M-05 当前结果已纳入新鲜克隆证据
 - Android 身份迁移：已记录为新 application ID，旧 Operit 安装不能直接覆盖
-- 插件与存储修复：源码已接入生产 ToolPkg 生成任务、插件/脚本包市场分类、独立的 Operit `1.12.0+4` 市场兼容版本和 `Download/Kiyori` 路径所有者。CI 已修复生产白名单路径，并把白名单变更纳入 ToolPkg 与完整 Android lane；本地 APK 已验证全部 42 个生产包。实时市场代表资产的下载、SHA 与 ToolPkg 结构已验证；Android 市场安装、抽屉/输入框插件与 AI 首页快速点击仍待真机验证
+- 插件与存储修复：源码已接入生产 ToolPkg 生成任务、插件/脚本包市场分类、独立的 Operit `1.12.0+9` 市场兼容版本和 `Download/Kiyori` 路径所有者。`+9` 闭环包含 ChatMessage Hook、共享 Hook 截止时间、角色卡 SoftwareSettings API、定位地址参数、市场协议与修改版发布流程，以及预置 `message_insert` 并行截止时间；CI 已修复生产白名单路径，并把白名单变更纳入 ToolPkg 与完整 Android lane。实时市场资产的下载、SHA 与 ToolPkg 结构已验证；Android 市场安装、抽屉/输入框插件与 AI 首页快速点击仍待真机验证
 - 真机验收：待验证，不由静态检查或 Debug 构建代替
 
 详细约束见：[品牌与兼容性](1_brand_and_compatibility.md)、[可复现开发](2_reproducible_development.md)、[CI 与安全门禁](3_ci_and_security_gates.md)、[身份与数据迁移](4_identity_and_data_migration.md)、[发布与真机验收](5_release_and_device_acceptance.md)。

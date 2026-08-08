@@ -154,6 +154,7 @@ internal data class ToolPkgContainerRuntime(
     val inputMenuTogglePlugins: List<ToolPkgFunctionHookRuntime>,
     val chatInputHooks: List<ToolPkgFunctionHookRuntime>,
     val chatViewHooks: List<ToolPkgFunctionHookRuntime>,
+    val chatMessageHooks: List<ToolPkgFunctionHookRuntime>,
     val toolLifecycleHooks: List<ToolPkgFunctionHookRuntime>,
     val promptInputHooks: List<ToolPkgFunctionHookRuntime>,
     val promptHistoryHooks: List<ToolPkgFunctionHookRuntime>,
@@ -299,6 +300,7 @@ internal data class ToolPkgMainRegistration(
     val inputMenuTogglePlugins: List<ToolPkgRegisteredFunctionHook> = emptyList(),
     val chatInputHooks: List<ToolPkgRegisteredFunctionHook> = emptyList(),
     val chatViewHooks: List<ToolPkgRegisteredFunctionHook> = emptyList(),
+    val chatMessageHooks: List<ToolPkgRegisteredFunctionHook> = emptyList(),
     val toolLifecycleHooks: List<ToolPkgRegisteredFunctionHook> = emptyList(),
     val promptInputHooks: List<ToolPkgRegisteredFunctionHook> = emptyList(),
     val promptHistoryHooks: List<ToolPkgRegisteredFunctionHook> = emptyList(),
@@ -974,6 +976,30 @@ internal object ToolPkgArchiveParser {
             )
         }
 
+        val chatMessageHooks = mutableListOf<ToolPkgFunctionHookRuntime>()
+        val chatMessageIds = linkedSetOf<String>()
+        mainRegistration.chatMessageHooks.forEachIndexed { index, hook ->
+            val id = hook.id.trim()
+            if (id.isBlank()) {
+                throw IllegalArgumentException("$TOOLPKG_REGISTRATION_CHAT_MESSAGE_HOOK[$index].id is required")
+            }
+            if (!chatMessageIds.add(id.lowercase())) {
+                throw IllegalArgumentException("Duplicate chat message hook id: $id")
+            }
+
+            val function = hook.function.trim()
+            if (function.isBlank()) {
+                throw IllegalArgumentException("$TOOLPKG_REGISTRATION_CHAT_MESSAGE_HOOK[$index].function is required")
+            }
+            chatMessageHooks.add(
+                ToolPkgFunctionHookRuntime(
+                    id = id,
+                    function = function,
+                    functionSource = hook.functionSource
+                )
+            )
+        }
+
         val toolLifecycleHooks = mutableListOf<ToolPkgFunctionHookRuntime>()
         val toolLifecycleIds = linkedSetOf<String>()
         mainRegistration.toolLifecycleHooks.forEachIndexed { index, hook ->
@@ -1279,6 +1305,7 @@ internal object ToolPkgArchiveParser {
                 inputMenuTogglePlugins = inputMenuTogglePlugins,
                 chatInputHooks = chatInputHooks,
                 chatViewHooks = chatViewHooks,
+                chatMessageHooks = chatMessageHooks,
                 toolLifecycleHooks = toolLifecycleHooks,
                 promptInputHooks = promptInputHooks,
                 promptHistoryHooks = promptHistoryHooks,
