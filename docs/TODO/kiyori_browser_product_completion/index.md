@@ -27,7 +27,8 @@ Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态�
 
 ## 用户目标
 
-- 悬浮球展开浏览器时，浏览器背景延伸到状态栏区域，系统 Back 与左上角返回都能收起网页为悬浮球
+- 浏览器顶栏左侧返回直接回到打开 Browser Home 前的应用入口页；系统 Back 与底栏左下角返回负责
+  临时界面、网页历史和每窗口主页根
 - 人工创建和导航的浏览器窗口始终能被 Operit AI 发现、读取和操作
 - 软件首页、全屏网页搜索、普通/无痕窗口、设置和下载形成现代、清晰、适配手机与平板的产品界面
 - 浏览器窗口总览显示真实网页缩略图，普通与无痕窗口拥有真实隔离语义
@@ -85,7 +86,11 @@ kiyori_browser_product_completion/
 
 - Browser Home、1×1 background anchor 和 AI 只转挂同一个活动 WebView，不在展示切换时调用 `loadUrl`、`reload` 或重建
 - 完整浏览器 UI 只存在于 App Shell Browser Home。离开 Browser Home 必须显式选择“关闭展示”或“最小化到 indicator”：底部浏览器入口、软件首页搜索、书签和外部网址等普通入口关闭时不显示 indicator；浏览器菜单进入 AI 对话、AI 首页顶栏进入浏览器后返回，以及点击已有 indicator 恢复浏览器后再次返回时，才把同一活动 WebView 转挂到 background anchor 并显示 indicator。AI `browser_*` 在 Browser Home 未挂载时主动使用浏览器，也可按现有唯一 WebSession 路径创建 background anchor 并显示 indicator
-- 系统 Back、浏览器顶栏返回和底栏返回共用同一逐级回退状态机：先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再执行当前窗口主页根之后的 WebView 历史后退；历史耗尽且当前窗口尚未位于自定义主页时先进入主页并建立新的历史根，只有已经位于主页根时才按本次入口的离开方式退出 Browser Home
+- 浏览器顶栏左侧返回直接按 Shell 记录的入口页和 presentation 方式离开 Browser Home，不调用
+  WebView Back。系统 Back、底栏左下角返回和 AI `browser_navigate_back` 共用逐级回退状态机：
+  先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再执行当前窗口
+  主页根之后的 WebView 历史后退；历史耗尽且当前窗口尚未位于自定义主页时先进入主页并建立新的
+  历史根，只有已经位于主页根时才按本次入口的离开方式退出 Browser Home
 - 系统层最小 indicator 单击时通过专用恢复 action 打开 Browser Home，长按时消费进入动作并创建球体右上角外围的透明 `28dp` 临时关闭窗口，其中只绘制 `16dp` 红色叉号。该窗口按住期间不可触摸，松手后保留 3 秒，随拖动同步且不越出屏幕，点击复用菜单 `onExitBrowser`；后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
 - 软件首页全屏搜索创建新窗口；浏览器顶栏搜索继续导航当前窗口，两者不混用
 - 普通窗口和无痕窗口不能互相转换；关闭窗口后其 Profile 语义不改变
@@ -109,6 +114,47 @@ kiyori_browser_product_completion/
 `libmp*.so` FFmpeg 命名空间；主进程 FFmpegKit 工具栈保持不变。用户已于
 `2026-07-29 14:31 +08:00` 确认 HTTPS MP4 真机播放成功；HLS、更多请求头站点、证书错误路径和本轮
 控制层交互仍为 `verification_pending`。
+
+### 2026-08-08 浏览器顶栏返回入口页
+
+- Browser Home 顶栏左侧返回从逐级网页 Back 状态机中拆出，直接释放当前 App presentation，
+  并通过现有 `KiyoriShellState.exitBrowser()` 回到记录的应用入口页
+- Shell 返回目标覆盖负一屏、软件首页、AI 首页、微应用、文件管理和设置首页；底部浏览器入口、
+  书签/历史共享抽屉和普通外部浏览器请求均从当前 Shell 状态解析来源
+- `CLOSE` 仍只销毁浏览器 presentation，`MINIMIZED_INDICATOR` 仍转挂同一活动 WebView；
+  WebSession、窗口顺序、Profile、网页历史、下载和用户脚本状态保持不变
+- 系统 Back 与底栏左下角返回继续复用 `WebSessionBrowserHost` 的临时界面、网页历史和主页根状态机
+- 本地策略与 Shell 测试 `56/56`、formal readiness、Markdown `7/7` 与 257 个工作树文件链接检查、
+  `git diff --check`、规定 Debug 构建、唯一 Launcher、Player runtime packaging、V2 Debug 单签名和
+  16 KB ZIP 对齐均通过。APK 为 `471581414` 字节，SHA-256
+  `B274A738017A4F371A42F4003A503F7137A3964BDC4510334EF48095C802F7E3`
+- 完整架构门禁只报告任务开始前已记录的 ARCH046 `UserscriptSourceExportHelper.kt` 消费者快照漂移；
+  本轮触及的 ARCH020、ARCH021、ARCH023、ARCH024 均通过。目标设备交互继续保持
+  `verification_pending`
+
+### 2026-08-08 浏览器插件与负一屏入口配色调整
+
+- 浏览器菜单 `PLUGINS` 从高饱和洋红改为低饱和深梅紫：浅色
+  `#5E3A8A / #EEE8F4`，深色 `#CBB8E2 / #2D2238`
+- 插件中心、用户脚本“本页 / 已安装 / 更新 / 日志”、详情与编辑器的主插件图标统一复用
+  `PLUGINS`；错误、成功、警告和更新安全性继续使用独立状态色
+- 负一屏“收藏 / 书签 / 历史 / 下载”分别复用浏览器菜单
+  `ADD_BOOKMARK / BOOKMARKS / HISTORY / DOWNLOADS`；收藏仍为零计数和空点击，专用于未来
+  小程序服务，不连接网页书签或其他当前能力
+- “新版 / 手册 / 版本 / 搜索 / 工具箱 / 清理 / 备份 / 退出”八个空动作快捷工具分别复用
+  `PAGE_SOURCE / READER_MODE / PLUGINS / AI_DIALOGUE / TOOLBOX / AD_MARKING / DOWNLOADS /
+  EXIT_BROWSER`，颜色两两不同且不新增第二套主题 owner
+- 颜色策略与负一屏结构定向 JVM 两个 suite、插件与导航相关回归合计 9 个 suite 共 `89/89`
+  通过；ARCH041 消费者正反向测试 `2/2`、formal readiness、Markdown `7/7`、257 个工作树
+  Markdown 文件缺失本地链接 `0` 和 `git diff --check` 通过
+- 最终 `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 52s`，238 个任务中 28 executed / 210 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `471581414` 字节，生成时间 `2026-08-08 20:08:41 +08:00`，SHA-256
+  `B585A865CE7C349EB41897F1B568E78B8802F8FF13DC95F22DB23C3DCEDC9084`；
+  `com.kiyori / 45 / 0.1.0 / arm64-v8a`，Android Debug V2 单签名和 16 KB ZIP 对齐通过
+- 完整架构门禁只报告任务开始前已记录的 ARCH046 `UserscriptSourceExportHelper.kt` 消费者快照
+  漂移；目标设备视觉验收继续为 `verification_pending`
 
 ### 2026-08-08 首页返回与浏览器彩色 UI 统一
 
@@ -164,6 +210,8 @@ kiyori_browser_product_completion/
 - 浏览器顶栏返回、底栏返回与系统 Back 共用 `WebSessionBrowserHost` 的逐级状态机；网页有当前
   窗口主页根之后的历史时先后退，历史耗尽且尚未位于自定义主页时先进入主页并重建该窗口历史根，
   已位于主页根后才按本次入口退出
+- 上述顶栏接线是 2026-07-30 的历史合同；2026-08-08 起，顶栏左侧返回改为直接回到记录的
+  App Shell 入口页，逐级状态机仅保留给系统 Back、底栏左下角返回和 AI 浏览器后退
 - 菜单“无痕模式”不再打开窗口总览；它与全屏搜索右上角按钮共用默认 Profile 切换和短时提示，
   不切换当前不可变 Profile 标签，也不关闭仍在显示的菜单
 - 用户实测发现首次实现从 Browser Home 切回软件 Shell 时，Pager 同步协程会先消费旧的
@@ -188,8 +236,9 @@ kiyori_browser_product_completion/
   书签、用户脚本、AI 与网页 popup 直接创建的目标窗口在历史耗尽后先进入当前主页
 - 主页完成后只清理该窗口主页根之前的 WebView 历史，防止再次穿越旧目标页形成循环；窗口切换和
   关闭继续由 `activeSessionId` 与现有窗口顺序选择新活动 `WebSession`
-- 系统 Back、顶栏返回、底栏返回和 AI `browser_navigate_back` 复用同一每窗口页面回退函数；
-  临时界面、有效历史、主页根与 Browser Home 离开方式保持明确分层
+- 系统 Back、底栏返回和 AI `browser_navigate_back` 复用同一每窗口页面回退函数；临时界面、
+  有效历史、主页根与 Browser Home 离开方式保持明确分层。顶栏返回已在 2026-08-08 改为
+  App Shell 入口页返回，不再调用该页面回退函数
 - 本地相关 JVM 测试 `94/94`、主代码 Kotlin 编译、formal readiness、工作树 Markdown 链接、
   `git diff --check` 和新增代码禁用兜底扫描通过。规定 Debug 构建及唯一 launcher、Player runtime
   packaging 通过；APK 为 `465765311` 字节，SHA-256

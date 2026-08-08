@@ -67,10 +67,10 @@ internal enum class WebSessionBrowserMenuTone(
     PLUGINS(
         0,
         4,
-        Color(0xFFC026D3),
-        Color(0xFFFAE8FF),
-        Color(0xFFF0ABFC),
-        Color(0xFF4A044E),
+        Color(0xFF5E3A8A),
+        Color(0xFFEEE8F4),
+        Color(0xFFCBB8E2),
+        Color(0xFF2D2238),
     ),
     FLOATING_SNIFFER(
         1,

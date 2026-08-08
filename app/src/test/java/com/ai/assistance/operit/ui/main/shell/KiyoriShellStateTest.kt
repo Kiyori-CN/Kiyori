@@ -54,6 +54,7 @@ import com.kiyori.integration.operit.navigation.toAiPrimaryRouteEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -89,6 +90,10 @@ class KiyoriShellStateTest {
                     browserReturnTarget = KiyoriBrowserReturnTarget.AI_HOME,
                     browserExitPresentation =
                         KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+                ),
+                KiyoriShellState(
+                    primaryDestination = PrimaryDestination.BROWSER_HOME,
+                    browserReturnTarget = KiyoriBrowserReturnTarget.SETTINGS_HOME,
                 ),
             )
 
@@ -196,6 +201,67 @@ class KiyoriShellStateTest {
             KiyoriShellState(),
             browserState.exitBrowser(),
         )
+    }
+
+    @Test
+    fun `browser home restores every top-level entry page`() {
+        val cases =
+            listOf(
+                Triple(
+                    KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE),
+                    KiyoriBrowserReturnTarget.MINUS_ONE_PAGE,
+                    KiyoriShellState(softwareHomePage = SoftwareHomePage.MINUS_ONE),
+                ),
+                Triple(
+                    KiyoriShellState(),
+                    KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+                    KiyoriShellState(),
+                ),
+                Triple(
+                    KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+                    KiyoriBrowserReturnTarget.AI_HOME,
+                    KiyoriShellState(softwareHomePage = SoftwareHomePage.AI_HOME),
+                ),
+                Triple(
+                    KiyoriShellState(primaryDestination = PrimaryDestination.MINI_APP_HOME),
+                    KiyoriBrowserReturnTarget.MINI_APP_HOME,
+                    KiyoriShellState(primaryDestination = PrimaryDestination.MINI_APP_HOME),
+                ),
+                Triple(
+                    KiyoriShellState(primaryDestination = PrimaryDestination.FILE_MANAGEMENT_HOME),
+                    KiyoriBrowserReturnTarget.FILE_MANAGEMENT_HOME,
+                    KiyoriShellState(primaryDestination = PrimaryDestination.FILE_MANAGEMENT_HOME),
+                ),
+                Triple(
+                    KiyoriShellState(primaryDestination = PrimaryDestination.SETTINGS_HOME),
+                    KiyoriBrowserReturnTarget.SETTINGS_HOME,
+                    KiyoriShellState(primaryDestination = PrimaryDestination.SETTINGS_HOME),
+                ),
+            )
+
+        cases.forEach { (source, expectedReturnTarget, expectedRestoredState) ->
+            val browserState =
+                source.openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME)
+
+            assertEquals(PrimaryDestination.BROWSER_HOME, browserState.primaryDestination)
+            assertEquals(expectedReturnTarget, browserState.browserReturnTarget)
+            assertEquals(expectedRestoredState, browserState.exitBrowser())
+        }
+    }
+
+    @Test
+    fun `browser home requires a recorded app entry page`() {
+        val invalidBrowserState =
+            KiyoriShellState(primaryDestination = PrimaryDestination.BROWSER_HOME)
+
+        assertThrows(IllegalStateException::class.java) {
+            invalidBrowserState.exitBrowser()
+        }
+        assertThrows(IllegalStateException::class.java) {
+            invalidBrowserState.openExternalDestination(
+                KiyoriShellExternalDestination.BROWSER_HOME,
+            )
+        }
     }
 
     @Test

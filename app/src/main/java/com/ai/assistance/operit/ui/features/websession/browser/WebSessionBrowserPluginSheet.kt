@@ -56,7 +56,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 
@@ -471,14 +470,9 @@ private fun BrowserPluginPageEntryCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                KiyoriSemanticIconBadge(
+                WebSessionBrowserMenuIconBadge(
                     imageVector = Icons.Filled.Extension,
-                    tone =
-                        if (entry.status == BrowserPluginPageStatus.ERROR) {
-                            KiyoriSemanticTone.RED
-                        } else {
-                            KiyoriSemanticTone.PURPLE
-                        },
+                    tone = WebSessionBrowserMenuTone.PLUGINS,
                     contentDescription = null,
                     containerSize = 34.dp,
                     iconSize = 18.dp,
@@ -672,19 +666,9 @@ private fun BrowserPluginCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            KiyoriSemanticIconBadge(
-                imageVector =
-                    if (plugin.availability == BrowserPluginAvailability.AVAILABLE) {
-                        Icons.Filled.Extension
-                    } else {
-                        Icons.Filled.Warning
-                    },
-                tone =
-                    if (plugin.availability == BrowserPluginAvailability.AVAILABLE) {
-                        KiyoriSemanticTone.PURPLE
-                    } else {
-                        KiyoriSemanticTone.RED
-                    },
+            WebSessionBrowserMenuIconBadge(
+                imageVector = Icons.Filled.Extension,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 contentDescription = null,
                 containerSize = 38.dp,
                 iconSize = 20.dp,
@@ -731,7 +715,7 @@ private fun BrowserPluginCard(
                         style = MaterialTheme.typography.labelSmall,
                         color =
                             if (plugin.availability == BrowserPluginAvailability.AVAILABLE) {
-                                KiyoriSemanticTone.PURPLE.resolveColors().icon
+                                WebSessionBrowserMenuTone.PLUGINS.resolveColors().icon
                             } else {
                                 KiyoriSemanticTone.RED.resolveColors().icon
                             },

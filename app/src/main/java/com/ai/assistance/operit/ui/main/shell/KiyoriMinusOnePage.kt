@@ -52,9 +52,9 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
-import com.kiyori.design.theme.KiyoriSemanticTone
-import com.kiyori.design.theme.resolveColors
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuIconBadge
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone
+import com.ai.assistance.operit.ui.features.websession.browser.resolveColors
 
 internal enum class KiyoriMinusOneDataAction {
     NONE,
@@ -67,14 +67,14 @@ internal data class KiyoriMinusOneDataItem(
     val title: String,
     val count: Int,
     val icon: ImageVector,
-    val tone: KiyoriSemanticTone,
+    val tone: WebSessionBrowserMenuTone,
     val action: KiyoriMinusOneDataAction = KiyoriMinusOneDataAction.NONE,
 )
 
 internal data class KiyoriMinusOneQuickTool(
     val title: String,
     val iconResId: Int,
-    val tone: KiyoriSemanticTone,
+    val tone: WebSessionBrowserMenuTone,
 )
 
 internal val kiyoriMinusOneDataItems =
@@ -83,41 +83,73 @@ internal val kiyoriMinusOneDataItems =
             title = "收藏",
             count = 0,
             icon = Icons.Default.Favorite,
-            tone = KiyoriSemanticTone.PURPLE,
+            tone = WebSessionBrowserMenuTone.ADD_BOOKMARK,
         ),
         KiyoriMinusOneDataItem(
             title = "书签",
             count = 0,
             icon = Icons.Default.Bookmark,
-            tone = KiyoriSemanticTone.BLUE,
+            tone = WebSessionBrowserMenuTone.BOOKMARKS,
             action = KiyoriMinusOneDataAction.OPEN_BOOKMARK_DRAWER,
         ),
         KiyoriMinusOneDataItem(
             title = "历史",
             count = 0,
             icon = Icons.Default.History,
-            tone = KiyoriSemanticTone.ORANGE,
+            tone = WebSessionBrowserMenuTone.HISTORY,
             action = KiyoriMinusOneDataAction.OPEN_HISTORY_DRAWER,
         ),
         KiyoriMinusOneDataItem(
             title = "下载",
             count = 0,
             icon = Icons.Default.Download,
-            tone = KiyoriSemanticTone.GREEN,
+            tone = WebSessionBrowserMenuTone.DOWNLOADS,
             action = KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER,
         ),
     )
 
 internal val kiyoriMinusOneQuickTools =
     listOf(
-        KiyoriMinusOneQuickTool("新版", R.drawable.ic_kiyori_minus_one_new, KiyoriSemanticTone.BLUE),
-        KiyoriMinusOneQuickTool("手册", R.drawable.ic_kiyori_minus_one_manual, KiyoriSemanticTone.ORANGE),
-        KiyoriMinusOneQuickTool("版本", R.drawable.ic_kiyori_minus_one_version, KiyoriSemanticTone.PURPLE),
-        KiyoriMinusOneQuickTool("搜索", R.drawable.ic_kiyori_minus_one_search, KiyoriSemanticTone.CYAN),
-        KiyoriMinusOneQuickTool("工具箱", R.drawable.ic_kiyori_minus_one_toolbox, KiyoriSemanticTone.BLUE),
-        KiyoriMinusOneQuickTool("清理", R.drawable.ic_kiyori_minus_one_clean, KiyoriSemanticTone.RED),
-        KiyoriMinusOneQuickTool("备份", R.drawable.ic_kiyori_minus_one_backup, KiyoriSemanticTone.GREEN),
-        KiyoriMinusOneQuickTool("退出", R.drawable.ic_kiyori_minus_one_exit, KiyoriSemanticTone.RED),
+        KiyoriMinusOneQuickTool(
+            "新版",
+            R.drawable.ic_kiyori_minus_one_new,
+            WebSessionBrowserMenuTone.PAGE_SOURCE,
+        ),
+        KiyoriMinusOneQuickTool(
+            "手册",
+            R.drawable.ic_kiyori_minus_one_manual,
+            WebSessionBrowserMenuTone.READER_MODE,
+        ),
+        KiyoriMinusOneQuickTool(
+            "版本",
+            R.drawable.ic_kiyori_minus_one_version,
+            WebSessionBrowserMenuTone.PLUGINS,
+        ),
+        KiyoriMinusOneQuickTool(
+            "搜索",
+            R.drawable.ic_kiyori_minus_one_search,
+            WebSessionBrowserMenuTone.AI_DIALOGUE,
+        ),
+        KiyoriMinusOneQuickTool(
+            "工具箱",
+            R.drawable.ic_kiyori_minus_one_toolbox,
+            WebSessionBrowserMenuTone.TOOLBOX,
+        ),
+        KiyoriMinusOneQuickTool(
+            "清理",
+            R.drawable.ic_kiyori_minus_one_clean,
+            WebSessionBrowserMenuTone.AD_MARKING,
+        ),
+        KiyoriMinusOneQuickTool(
+            "备份",
+            R.drawable.ic_kiyori_minus_one_backup,
+            WebSessionBrowserMenuTone.DOWNLOADS,
+        ),
+        KiyoriMinusOneQuickTool(
+            "退出",
+            R.drawable.ic_kiyori_minus_one_exit,
+            WebSessionBrowserMenuTone.EXIT_BROWSER,
+        ),
     )
 
 @Composable
@@ -249,7 +281,7 @@ private fun KiyoriMinusOneDataSection(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            KiyoriSemanticIconBadge(
+                            WebSessionBrowserMenuIconBadge(
                                 imageVector = item.icon,
                                 tone = item.tone,
                                 contentDescription = null,
@@ -322,7 +354,7 @@ private fun KiyoriMinusOneQuickToolsSection() {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                KiyoriSemanticIconBadge(
+                                WebSessionBrowserMenuIconBadge(
                                     painter = painterResource(tool.iconResId),
                                     tone = tool.tone,
                                     contentDescription = tool.title,

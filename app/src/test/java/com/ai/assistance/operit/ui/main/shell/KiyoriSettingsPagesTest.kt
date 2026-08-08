@@ -8,6 +8,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.format
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.parseAutomaticFloatingDurationSeconds
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
+import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
@@ -695,6 +696,12 @@ class KiyoriSettingsPagesTest {
         assertEquals(listOf("收藏", "书签", "历史", "下载"), kiyoriMinusOneDataItems.map(KiyoriMinusOneDataItem::title))
         assertTrue(kiyoriMinusOneDataItems.all { item -> item.count == 0 })
         assertEquals(
+            listOf("收藏"),
+            kiyoriMinusOneDataItems
+                .filter { item -> item.action == KiyoriMinusOneDataAction.NONE }
+                .map(KiyoriMinusOneDataItem::title),
+        )
+        assertEquals(
             listOf("下载"),
             kiyoriMinusOneDataItems
                 .filter { item -> item.action == KiyoriMinusOneDataAction.OPEN_DOWNLOAD_DRAWER }
@@ -712,25 +719,29 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             listOf(
-                KiyoriSemanticTone.PURPLE,
-                KiyoriSemanticTone.BLUE,
-                KiyoriSemanticTone.ORANGE,
-                KiyoriSemanticTone.GREEN,
+                WebSessionBrowserMenuTone.ADD_BOOKMARK,
+                WebSessionBrowserMenuTone.BOOKMARKS,
+                WebSessionBrowserMenuTone.HISTORY,
+                WebSessionBrowserMenuTone.DOWNLOADS,
             ),
             kiyoriMinusOneDataItems.map(KiyoriMinusOneDataItem::tone),
         )
         assertEquals(
             listOf(
-                KiyoriSemanticTone.BLUE,
-                KiyoriSemanticTone.ORANGE,
-                KiyoriSemanticTone.PURPLE,
-                KiyoriSemanticTone.CYAN,
-                KiyoriSemanticTone.BLUE,
-                KiyoriSemanticTone.RED,
-                KiyoriSemanticTone.GREEN,
-                KiyoriSemanticTone.RED,
+                WebSessionBrowserMenuTone.PAGE_SOURCE,
+                WebSessionBrowserMenuTone.READER_MODE,
+                WebSessionBrowserMenuTone.PLUGINS,
+                WebSessionBrowserMenuTone.AI_DIALOGUE,
+                WebSessionBrowserMenuTone.TOOLBOX,
+                WebSessionBrowserMenuTone.AD_MARKING,
+                WebSessionBrowserMenuTone.DOWNLOADS,
+                WebSessionBrowserMenuTone.EXIT_BROWSER,
             ),
             kiyoriMinusOneQuickTools.map(KiyoriMinusOneQuickTool::tone),
+        )
+        assertEquals(
+            kiyoriMinusOneQuickTools.size,
+            kiyoriMinusOneQuickTools.map(KiyoriMinusOneQuickTool::tone).toSet().size,
         )
     }
 

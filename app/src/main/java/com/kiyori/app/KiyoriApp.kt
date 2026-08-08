@@ -255,7 +255,9 @@ fun KiyoriApp(
         }
 
         BrowserPresentationCoordinator.getInstance(context).openUrl(targetUrl)
-        updateShellState(shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME))
+        updateShellState(
+            shellState.openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME),
+        )
         lastHandledBrowserOpenRequestId = browserOpenRequestId
         onBrowserOpenHandled(browserOpenRequestId)
     }

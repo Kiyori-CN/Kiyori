@@ -84,7 +84,6 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUnsafeWindowMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.isUserscriptRuntimePermissionActionEnabled
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import kotlinx.coroutines.launch
@@ -676,9 +675,9 @@ private fun UserscriptDraftRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            KiyoriSemanticIconBadge(
+            WebSessionBrowserMenuIconBadge(
                 imageVector = Icons.Filled.Edit,
-                tone = KiyoriSemanticTone.ORANGE,
+                tone = WebSessionBrowserMenuTone.PLUGINS,
                 contentDescription = null,
                 containerSize = 36.dp,
                 iconSize = 19.dp,
@@ -1007,14 +1006,9 @@ private fun UserscriptUpdateCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                KiyoriSemanticIconBadge(
+                WebSessionBrowserMenuIconBadge(
                     imageVector = Icons.Filled.Refresh,
-                    tone =
-                        if (candidate.safeToAutoApply) {
-                            KiyoriSemanticTone.GREEN
-                        } else {
-                            KiyoriSemanticTone.ORANGE
-                        },
+                    tone = WebSessionBrowserMenuTone.PLUGINS,
                     contentDescription = null,
                     containerSize = 36.dp,
                     iconSize = 19.dp,

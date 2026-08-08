@@ -19,6 +19,35 @@ import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoo
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
 
+internal enum class KiyoriBrowserHomeBackSource {
+    TOP_BAR,
+    SYSTEM_BACK,
+}
+
+internal enum class KiyoriBrowserHomeBackAction {
+    EXIT_TO_ENTRY_PAGE,
+    HANDLE_BROWSER_BACK_STACK,
+}
+
+internal fun resolveKiyoriBrowserHomeBackAction(
+    source: KiyoriBrowserHomeBackSource,
+): KiyoriBrowserHomeBackAction =
+    when (source) {
+        KiyoriBrowserHomeBackSource.TOP_BAR ->
+            KiyoriBrowserHomeBackAction.EXIT_TO_ENTRY_PAGE
+        KiyoriBrowserHomeBackSource.SYSTEM_BACK ->
+            KiyoriBrowserHomeBackAction.HANDLE_BROWSER_BACK_STACK
+    }
+
+internal fun resolveBrowserAppPresentationReleaseMode(
+    exitPresentation: KiyoriBrowserExitPresentation,
+): BrowserAppPresentationReleaseMode =
+    when (exitPresentation) {
+        KiyoriBrowserExitPresentation.CLOSE -> BrowserAppPresentationReleaseMode.DESTROY
+        KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR ->
+            BrowserAppPresentationReleaseMode.MINIMIZE
+    }
+
 @Composable
 internal fun KiyoriBrowserHome(
     onExitBrowser: () -> Unit,
@@ -55,22 +84,30 @@ internal fun KiyoriBrowserHome(
         }
     }
 
-    fun handleBrowserBack() {
-        val handledByBrowser = presentationLease?.presentation?.handleBack() == true
-        if (!handledByBrowser) {
-            val releaseMode =
-                when (exitPresentation) {
-                    KiyoriBrowserExitPresentation.CLOSE ->
-                        BrowserAppPresentationReleaseMode.DESTROY
-                    KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR ->
-                        BrowserAppPresentationReleaseMode.MINIMIZE
+    fun finishBrowserHome() {
+        finishPresentation(
+            resolveBrowserAppPresentationReleaseMode(exitPresentation),
+            onExitBrowser,
+        )
+    }
+
+    fun handleBrowserBack(source: KiyoriBrowserHomeBackSource) {
+        when (resolveKiyoriBrowserHomeBackAction(source)) {
+            KiyoriBrowserHomeBackAction.EXIT_TO_ENTRY_PAGE -> {
+                // 顶栏返回属于 App Shell 层级；复用网页 Back 会先消费 WebView 历史，无法回到入口页。
+                finishBrowserHome()
+            }
+            KiyoriBrowserHomeBackAction.HANDLE_BROWSER_BACK_STACK -> {
+                val handledByBrowser = presentationLease?.presentation?.handleBack() == true
+                if (!handledByBrowser) {
+                    finishBrowserHome()
                 }
-            finishPresentation(releaseMode, onExitBrowser)
+            }
         }
     }
 
     BackHandler(enabled = presentationLease != null) {
-        handleBrowserBack()
+        handleBrowserBack(KiyoriBrowserHomeBackSource.SYSTEM_BACK)
     }
 
     Box(
@@ -81,7 +118,9 @@ internal fun KiyoriBrowserHome(
     ) {
         presentationLease?.presentation?.BrowserContent(
             webViewHost = webViewHost,
-            onTopBarBack = ::handleBrowserBack,
+            onTopBarBack = {
+                handleBrowserBack(KiyoriBrowserHomeBackSource.TOP_BAR)
+            },
             onOpenAiDialogue = {
                 finishPresentation(
                     BrowserAppPresentationReleaseMode.MINIMIZE,

@@ -2483,17 +2483,24 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         for index, relative_path in enumerate(production_paths):
             symbols: list[str] = []
             page_source_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 1
+            stable_id_consumer_indices = (
+                M05A2_PRODUCTION_CONSUMER_COUNT - 4,
+                M05A2_PRODUCTION_CONSUMER_COUNT - 3,
+            )
+            navigation_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 2
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
-            if index < 48 or index == page_source_consumer_index:
+            # Minus-One now consumes browser-local action identities, so the global semantic
+            # fixture has one fewer two-import production consumer than the sealed M-05A2 layout.
+            if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")
-            if index < 43 or index == page_source_consumer_index:
+            if index < stable_id_consumer_indices[0] - 5 or index == page_source_consumer_index:
                 symbols.append("resolveColors")
-            if index in (48, 49):
+            if index in stable_id_consumer_indices:
                 symbols.append("kiyoriSemanticToneForStableId")
-            if index == 50:
+            if index == navigation_consumer_index:
                 symbols.append("KiyoriBottomNavigationSelectedFillColor")
-            if index == 50:
+            if index == navigation_consumer_index:
                 symbols.append("kiyoriWeatherSunColor")
             imports_by_path[relative_path] = symbols
         for relative_path in test_paths:

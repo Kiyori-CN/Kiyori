@@ -52,6 +52,30 @@ class WebSessionBrowserMenuColorPolicyTest {
     }
 
     @Test
+    fun `plugin identity uses the approved muted deep plum palette`() {
+        assertEquals(
+            WebSessionBrowserMenuColors(
+                icon = Color(0xFF5E3A8A),
+                container = Color(0xFFEEE8F4),
+            ),
+            resolveWebSessionBrowserMenuColors(
+                WebSessionBrowserMenuTone.PLUGINS,
+                isDark = false,
+            ),
+        )
+        assertEquals(
+            WebSessionBrowserMenuColors(
+                icon = Color(0xFFCBB8E2),
+                container = Color(0xFF2D2238),
+            ),
+            resolveWebSessionBrowserMenuColors(
+                WebSessionBrowserMenuTone.PLUGINS,
+                isDark = true,
+            ),
+        )
+    }
+
+    @Test
     fun `detected media badge reuses the floating sniffer identity`() {
         assertEquals(
             WebSessionBrowserMenuTone.FLOATING_SNIFFER,

@@ -12,8 +12,12 @@ enum class PrimaryDestination {
 }
 
 enum class KiyoriBrowserReturnTarget {
+    MINUS_ONE_PAGE,
     SOFTWARE_HOME,
     AI_HOME,
+    MINI_APP_HOME,
+    FILE_MANAGEMENT_HOME,
+    SETTINGS_HOME,
 }
 
 enum class SoftwareHomePage(val pagerIndex: Int) {
@@ -109,36 +113,45 @@ data class KiyoriShellState(
             browserExitPresentation = exitPresentation,
         )
 
-    fun exitBrowser(): KiyoriShellState =
-        when (browserReturnTarget) {
-            KiyoriBrowserReturnTarget.AI_HOME ->
-                copy(
-                    primaryDestination = PrimaryDestination.SOFTWARE_HOME,
-                    softwareHomePage = SoftwareHomePage.AI_HOME,
-                    child = null,
-                    childBackTarget = null,
-                    isAiDrawerOpen = false,
-                    isBookmarkDrawerOpen = false,
-                    isHistoryDrawerOpen = false,
-                    isDownloadDrawerOpen = false,
-                    browserReturnTarget = null,
-                    browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
-                )
-            KiyoriBrowserReturnTarget.SOFTWARE_HOME,
-            null ->
-                copy(
-                    primaryDestination = PrimaryDestination.SOFTWARE_HOME,
-                    softwareHomePage = SoftwareHomePage.HOME,
-                    child = null,
-                    childBackTarget = null,
-                    isAiDrawerOpen = false,
-                    isBookmarkDrawerOpen = false,
-                    isHistoryDrawerOpen = false,
-                    isDownloadDrawerOpen = false,
-                    browserReturnTarget = null,
-                    browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
-                )
-        }
+    fun exitBrowser(): KiyoriShellState {
+        val returnTarget =
+            checkNotNull(browserReturnTarget) {
+                "Browser Home must record its app return target before exit."
+            }
+        val targetPrimaryDestination =
+            when (returnTarget) {
+                KiyoriBrowserReturnTarget.MINUS_ONE_PAGE,
+                KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+                KiyoriBrowserReturnTarget.AI_HOME,
+                -> PrimaryDestination.SOFTWARE_HOME
+                KiyoriBrowserReturnTarget.MINI_APP_HOME -> PrimaryDestination.MINI_APP_HOME
+                KiyoriBrowserReturnTarget.FILE_MANAGEMENT_HOME ->
+                    PrimaryDestination.FILE_MANAGEMENT_HOME
+                KiyoriBrowserReturnTarget.SETTINGS_HOME -> PrimaryDestination.SETTINGS_HOME
+            }
+        val targetSoftwareHomePage =
+            when (returnTarget) {
+                KiyoriBrowserReturnTarget.MINUS_ONE_PAGE -> SoftwareHomePage.MINUS_ONE
+                KiyoriBrowserReturnTarget.SOFTWARE_HOME -> SoftwareHomePage.HOME
+                KiyoriBrowserReturnTarget.AI_HOME -> SoftwareHomePage.AI_HOME
+                KiyoriBrowserReturnTarget.MINI_APP_HOME,
+                KiyoriBrowserReturnTarget.FILE_MANAGEMENT_HOME,
+                KiyoriBrowserReturnTarget.SETTINGS_HOME,
+                -> softwareHomePage
+            }
+        return copy(
+            primaryDestination = targetPrimaryDestination,
+            softwareHomePage = targetSoftwareHomePage,
+            child = null,
+            childBackTarget = null,
+            isAiDrawerOpen = false,
+            isBookmarkDrawerOpen = false,
+            isHistoryDrawerOpen = false,
+            isDownloadDrawerOpen = false,
+            browserReturnTarget = null,
+            browserExitPresentation = KiyoriBrowserExitPresentation.CLOSE,
+        )
+    }
 
     fun showSoftwareHomePage(page: SoftwareHomePage): KiyoriShellState =
         copy(
@@ -373,13 +386,21 @@ internal fun KiyoriShellState.resolveExternalBrowserExitPresentation():
         }
 
 internal fun KiyoriShellState.resolveExternalBrowserReturnTarget(): KiyoriBrowserReturnTarget =
-    when {
-        primaryDestination == PrimaryDestination.BROWSER_HOME ->
-            browserReturnTarget ?: KiyoriBrowserReturnTarget.SOFTWARE_HOME
-        primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
-            softwareHomePage == SoftwareHomePage.AI_HOME ->
-            KiyoriBrowserReturnTarget.AI_HOME
-        else -> KiyoriBrowserReturnTarget.SOFTWARE_HOME
+    when (primaryDestination) {
+        PrimaryDestination.BROWSER_HOME ->
+            checkNotNull(browserReturnTarget) {
+                "Browser Home must preserve its app return target."
+            }
+        PrimaryDestination.SOFTWARE_HOME ->
+            when (softwareHomePage) {
+                SoftwareHomePage.MINUS_ONE -> KiyoriBrowserReturnTarget.MINUS_ONE_PAGE
+                SoftwareHomePage.HOME -> KiyoriBrowserReturnTarget.SOFTWARE_HOME
+                SoftwareHomePage.AI_HOME -> KiyoriBrowserReturnTarget.AI_HOME
+            }
+        PrimaryDestination.MINI_APP_HOME -> KiyoriBrowserReturnTarget.MINI_APP_HOME
+        PrimaryDestination.FILE_MANAGEMENT_HOME ->
+            KiyoriBrowserReturnTarget.FILE_MANAGEMENT_HOME
+        PrimaryDestination.SETTINGS_HOME -> KiyoriBrowserReturnTarget.SETTINGS_HOME
     }
 
 internal fun calculateKiyoriAiDrawerWidthDp(

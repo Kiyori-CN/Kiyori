@@ -386,7 +386,9 @@ internal fun KiyoriAppShell(
                     onDestinationSelected = { destination ->
                     onStateChange(
                         if (destination == PrimaryDestination.BROWSER_HOME) {
-                            state.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME)
+                            state.openExternalDestination(
+                                KiyoriShellExternalDestination.BROWSER_HOME,
+                            )
                         } else {
                             state.selectPrimary(destination)
                         }
@@ -429,7 +431,7 @@ internal fun KiyoriAppShell(
                 latestOnStateChange(
                     latestState
                         .closeHistoryDrawer()
-                        .openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                        .openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME),
                 )
             },
             modifier = Modifier.fillMaxSize().zIndex(30f),
@@ -447,14 +449,18 @@ internal fun KiyoriAppShell(
             onOpenBookmark = { url ->
                 onOpenBookmark(url)
                 latestOnStateChange(
-                    latestState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                    latestState.openExternalDestination(
+                        KiyoriShellExternalDestination.BROWSER_HOME,
+                    ),
                 )
             },
             onOpenBookmarkInTab = { url, active ->
                 onOpenBookmarkInTab(url, active)
                 if (active) {
                     latestOnStateChange(
-                        latestState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
+                        latestState.openExternalDestination(
+                            KiyoriShellExternalDestination.BROWSER_HOME,
+                        ),
                     )
                 }
             },

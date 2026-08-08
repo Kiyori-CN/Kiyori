@@ -4,6 +4,101 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-08-08 浏览器插件与负一屏入口配色调整
+
+状态：本地实现、自动验证和 Debug APK 已完成；目标设备视觉验收待完成。Kiyori 当前未发布，本轮直接迭代现有浏览器 18 色身份表和负一屏颜色映射，
+不保留旧洋红插件色兼容开关，不增加第二套主题或状态 owner。
+
+本轮细化步骤：
+
+1. [DONE] 审计插件入口、插件中心“本页 / 已安装 / 更新 / 日志”、插件卡主图标、负一屏四张
+   数据卡和八个快捷工具的颜色调用链
+2. [DONE] 将 `PLUGINS` 从高饱和洋红调整为低饱和深梅紫，并让插件中心各子页的
+   插件主图标统一复用该入口色；错误、成功、更新风险等状态提示继续使用状态语义色
+3. [DONE] 让负一屏“收藏 / 书签 / 历史 / 下载”分别复用浏览器菜单
+   `ADD_BOOKMARK / BOOKMARKS / HISTORY / DOWNLOADS` 的身份色
+4. [DONE] 为“新版 / 手册 / 版本 / 搜索 / 工具箱 / 清理 / 备份 / 退出”选择八个
+   两两不同且语义接近的现有浏览器入口色
+5. [DONE] 增加插件色、负一屏四入口一致性和八色唯一性测试，同步 `README.md`、
+   `CONTEXT.md` 与浏览器产品完成清单
+6. [DONE] 运行定向 JVM、正式开发门禁、Markdown/架构/差异检查和最终 Debug APK
+   构建与制品核验
+7. [PENDING] 目标设备验收插件深梅紫、各插件子页、负一屏四入口及八个快捷工具在浅色/
+   深色主题下的实际观感与可读性
+
+当前非目标：
+
+- 不改变插件、书签、历史、下载、Browser Runtime、用户脚本或负一屏快捷工具的功能和状态所有权；
+  “收藏”继续保持零计数和空点击，专用于未来小程序服务
+- 不用插件身份色覆盖错误、危险、执行成功、更新安全性等局部状态反馈
+- 不安装 APK、不操作 ADB、MuMu 或真机；不创建提交、不推送远端
+
+本地证据：
+
+- 9 个相关 JVM suite 共 `89/89` 项通过，零失败、零错误、零跳过；其中颜色策略 `5/5`、
+  负一屏与设置页 `12/12`、Shell 返回/恢复 `53/53`、顶栏返回策略 `2/2`
+- ARCH041 消费者架构正反向测试 `2/2` 通过；完整 `phase=m03` 架构门禁只剩任务开始前已记录且
+  本轮未修改的 ARCH046 `UserscriptSourceExportHelper.kt` 消费者快照漂移
+- formal readiness 通过；Markdown 单测 `7/7`，257 个工作树 Markdown 文件缺失本地链接为
+  `0`；`git diff --check` 和新增 Kotlin 禁用兜底语义扫描通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 52s`，238 个任务中 28 executed / 210 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-08 20:08:41 +08:00`，大小 `471581414` 字节，SHA-256
+  `B585A865CE7C349EB41897F1B568E78B8802F8FF13DC95F22DB23C3DCEDC9084`
+- APK 为 `com.kiyori / versionCode 45 / versionName 0.1.0 / compileSdk 37 / minSdk 26 /
+  targetSdk 34 / arm64-v8a`；唯一 Launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，Android Debug V2 单签名、
+  `zipalign -c -P 16 -v 4` 通过
+
+## 2026-08-08 浏览器顶栏返回入口页
+
+状态：本地实现、自动验证和 Debug APK 已完成；目标设备上的入口页返回、浏览器状态恢复和
+网页前进/后退交互待验收。Kiyori 当前未发布，本轮直接修正浏览器顶栏返回语义，不保留旧的
+逐级网页回退接线，不增加第二套 Browser Runtime、WebView、窗口或 Shell 导航状态。
+
+本轮细化步骤：
+
+1. [DONE] 将浏览器顶栏左侧返回与系统 Back、底栏网页后退解耦；顶栏直接结束
+   Browser Home 展示，系统 Back 和底栏左右按钮继续处理临时界面及网页历史
+2. [DONE] 扩展 Shell 的浏览器返回目标，使软件首页三页、AI 对话、微应用、文件管理和设置首页
+   进入浏览器后都能返回原入口页
+3. [DONE] 复用现有 presentation release 与 `KiyoriShellState.exitBrowser()`，保留唯一
+   WebSession、活动 WebView、窗口顺序、网页历史和 Profile 状态
+4. [DONE] 增加顶栏 release mode 与各入口页返回目标测试，同步 `README.md`、`CONTEXT.md`
+   和浏览器产品完成清单
+5. [DONE] 运行定向 JVM、正式开发门禁、Markdown/差异检查和 Debug APK 构建与制品核验
+6. [PENDING] 目标设备验收从 AI 对话、设置首页及其他底栏入口进入后的顶栏返回、浏览器状态恢复、
+   系统 Back 和底栏网页前进/后退
+
+当前非目标：
+
+- 不改变底栏网页后退/前进、主页按钮、窗口管理、网页历史根或 AI `browser_navigate_back`
+- 不改变浏览器菜单“退出浏览器”和最小化 indicator 的既有语义
+- 不安装 APK、不操作 ADB、MuMu 或真机；不创建提交、不推送远端
+
+本地证据：
+
+- 顶栏策略、Shell 返回目标和原浏览器 Back 策略 3 个定向 JVM suite 共 `56/56` 项通过，
+  零失败、零错误、零跳过
+- formal readiness 通过；Markdown 检查器单测 `7/7`，257 个工作树 Markdown 文件缺失本地链接为
+  `0`；`git diff --check` 和新增代码禁用兜底语义扫描通过
+- 完整 `phase=m03` 架构门禁执行 37 段；本轮触及的 ARCH020、ARCH021、ARCH023、ARCH024
+  均通过，只报告任务开始前已记录且本轮未修改的 ARCH046
+  `UserscriptSourceExportHelper.kt` 消费者快照漂移
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 22s`，238 个任务中 28 executed / 210 up-to-date；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-08 19:35:38 +08:00`，大小 `471581414` 字节，SHA-256
+  `B274A738017A4F371A42F4003A503F7137A3964BDC4510334EF48095C802F7E3`
+- APK 为 `com.kiyori / versionCode 45 / versionName 0.1.0 / compileSdk 37 / minSdk 26 /
+  targetSdk 34 / arm64-v8a`；唯一 Launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`，Android Debug V2 单签名且
+  `zipalign -c -P 16 -v 4` 通过；包含 `liboperit_ripgrep.so` 与
+  `assets/operit_shell_exec`，不包含 `libsudo.so`
+
 ## 2026-08-08 浏览器四行菜单十八色统一
 
 状态：本地实现、自动验证和 Debug APK 已完成；目标设备上的亮暗主题视觉与触控验收待完成。
@@ -330,9 +425,10 @@ Browser Runtime、下载、UA、媒体候选或页面源码的状态 owner。
    `WebSessionBrowserSettingsStore.homeUrl` 设为 `about:blank`
 2. 在每个现有 `WebSession` 内记录该窗口自己的主页根导航状态，覆盖直接从软件首页搜索、
    书签、用户脚本、AI 或网页弹窗创建且没有主页历史的窗口
-3. 系统 Back、浏览器顶栏返回和底栏返回统一进入 `WebSessionBrowserHost` 的逐级状态机：
+3. 系统 Back、浏览器顶栏返回和底栏返回当时统一进入 `WebSessionBrowserHost` 的逐级状态机：
    先关闭临时界面，再后退当前窗口的有效网页历史；历史耗尽且尚未位于当前自定义主页时，
-   导航到主页并建立新的历史根；只有已经位于主页根时才按入口关闭或最小化 Browser Home
+   导航到主页并建立新的历史根；只有已经位于主页根时才按入口关闭或最小化 Browser Home。
+   其中顶栏接线已由 2026-08-08 的当前任务替代，现只保留系统 Back、底栏返回和 AI 浏览器后退
 4. 切换或关闭窗口后只读取新活动 `WebSession` 自己的主页根与历史，不跨窗口复用返回状态；
    普通与无痕 Profile、窗口顺序、presentation、下载、用户脚本和 AI 共用合同保持不变
 5. 增加主页 URL 等价、重定向后主页根、直接目标窗口、历史优先、主页后退出和底栏可用性测试，
