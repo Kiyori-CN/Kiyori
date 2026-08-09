@@ -98,7 +98,7 @@ fun PluginTabContent(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp)
+                contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
             ) {
                 if (plugins.isEmpty()) {
                     item(key = "empty_plugins_state") {

@@ -22,7 +22,9 @@ Don't Break Userspace ，但是开发中能内部消解的方案更换不算，�
 
 用户表达愤怒的时候，需要先停下一切工作，仔细确认用户需求再去实现
 
-如果运行python，项目用的是venv（将迁移到pixi）
+运行仓库自有 Python 脚本时使用项目 `.venv`（将迁移到 pixi）。Codex 全局 skill、
+控制面和外部工具必须使用各自返回、记录或明确指定的 Python 运行时，不得因为当前目录位于
+Kiyori 就自动改用项目 `.venv`。
 
 严禁使用powershell编辑代码文件，否则会出现严重的编码错误和损坏。
 

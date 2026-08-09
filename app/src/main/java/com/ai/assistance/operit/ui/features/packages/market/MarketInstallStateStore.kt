@@ -27,6 +27,8 @@ typealias MarketInstallProgressReporter = (MarketInstallStage, Float?) -> Unit
 object MarketInstallStateStore {
     private val _installStates = MutableStateFlow<Map<String, MarketInstallProgress>>(emptyMap())
     val installStates: StateFlow<Map<String, MarketInstallProgress>> = _installStates.asStateFlow()
+    private val _artifactCatalogRevision = MutableStateFlow(0L)
+    val artifactCatalogRevision: StateFlow<Long> = _artifactCatalogRevision.asStateFlow()
 
     @Synchronized
     fun start(entryId: String): Boolean {
@@ -50,5 +52,10 @@ object MarketInstallStateStore {
         val id = entryId.trim()
         if (id.isBlank() || !_installStates.value.containsKey(id)) return
         _installStates.value = _installStates.value - id
+    }
+
+    @Synchronized
+    fun notifyArtifactCatalogChanged() {
+        _artifactCatalogRevision.value += 1L
     }
 }

@@ -4,6 +4,110 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-08-09 包管理顶栏、固定搜索与市场安装刷新
+
+状态：本地实现、自动验证和 Debug APK 已完成；目标设备交互保持 `verification_pending`。
+
+Kiyori 始终未发布，本轮直接删除包管理右下角的环境变量、市场、添加和错误浮动入口，
+不保留旧布局、兼容开关或并行入口。包管理顶栏在“包管理”标题右侧按固定顺序显示
+“环境变量 / 市场 / 添加 / 刷新”；搜索框单独固定在顶栏下方，四个页签固定在搜索框下方，
+只有列表内容滚动。
+
+细化步骤：
+
+1. [DONE] 核对宿主顶栏动作绑定、页面搜索状态、四页签结构和底部浮动按钮
+2. [DONE] 定位市场安装成功后页面本地包快照未更新的根因
+3. [DONE] 冻结顶栏动作顺序、固定搜索/页签层级、错误提示入口和加载状态
+4. [DONE] 抽取唯一包管理快照重载入口，并接通手动刷新和市场安装成功信号
+5. [DONE] 删除浮动按钮与旧顶栏搜索绑定，收回列表底部遮挡预留空间
+6. [DONE] 增加动作顺序、市场目录修订信号和源码合同测试
+7. [DONE] 同步 README、CONTEXT、架构文档并完成正式门禁与 Debug APK 核验
+8. [PENDING] 在目标设备验收窄屏顶栏、输入法、搜索、页签、自动刷新和开关触摸
+
+设计与验收入口：
+
+- [`package_manager_header_and_market_refresh/`](package_manager_header_and_market_refresh/index.md)
+
+本轮本地验收证据：
+
+- 包管理相关 JVM 测试 `19/19` 通过，失败、错误和跳过均为 `0`
+- 正式开发准备门禁通过；7 个新增资源键在 7 个语言目录中全部存在且 XML 可解析
+- 当前工作树 8 份相关 Markdown 本地链接检查通过，`git diff --check` 无 whitespace error
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功完成 `238` 个任务，
+  其中 `29` 个执行、`209` 个为最新状态
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`475317754` 字节，
+  SHA-256 `8807B82473E086428396132915FD44D40D48ACB43C64A6AA25995A4A84C9227B`
+- APK 为 `com.kiyori / versionCode 45 / versionName 0.1.0 / arm64-v8a`，Debug V2 签名和
+  `zipalign -c -P 16 4` 均通过
+
+目标设备上的真实窄屏顶栏、输入法、市场返回路径和安装后即时显示仍需单独验收。
+
+## 2026-08-09 包管理环境变量配置抽屉
+
+状态：首轮抽屉替换、分类视觉、紧凑密度和统一排序均已完成，目标设备交互保持
+`verification_pending`。
+
+Kiyori 始终未发布，本轮直接用可拖动底部抽屉替换包管理右下角环境变量按钮打开的旧弹窗，
+不保留旧弹窗状态、兼容开关或并行入口。变量声明、读写与保存继续使用现有 `ToolPackage.env`
+和 `EnvPreferences`，不改变 ToolPkg 格式、包启用校验或 MCP 环境变量页面。
+
+细化步骤：
+
+1. [DONE] 核对旧弹窗、环境变量 owner、包显示名和浏览器三态抽屉实现
+2. [DONE] 冻结标题、搜索、横向分类、工具包折叠、固定操作区和取消/保存语义
+3. [DONE] 抽取共享三态底部抽屉基础件，并保持浏览器现有入口与行为
+4. [DONE] 实现环境变量搜索、按工具包类型分类、分组折叠、状态摘要和草稿编辑
+5. [DONE] 删除旧弹窗专用实现，同步资源、语义文档和自动检查
+6. [LOCAL DONE] 运行定向测试、正式开发门禁、差异检查和 Debug APK 构建核验
+7. [PENDING] 在目标设备验收抽屉拖动、输入法、搜索、折叠与保存结果
+8. [DONE] 为 17 个现有类型建立独立图标与浅深主题配色
+9. [DONE] 压缩环境变量工具包头、变量项和横向分类条的垂直密度
+10. [DONE] 类型按英文 A 到 Z、类型内按英文或中文拼音首字母排序
+11. [DONE] 更新策略测试、语义文档并重新构建核验 Debug APK
+12. [DONE] 每次打开时仅自动展开所有存在未填写必填变量的工具包，其余默认收起
+
+设计与验收入口：
+
+- [`package_environment_variables_drawer/`](package_environment_variables_drawer/index.md)
+
+本地验收证据详见
+[`package_environment_variables_drawer/`](package_environment_variables_drawer/index.md)；
+本轮最终 APK 指纹为 `263252033D05E2E5FBCAECF882CAE1688F2032D329D1248070472CF7AE439776`。
+
+## 2026-08-09 Python 环境与任务日记恢复运行时
+
+状态：本地实现、Skill 全量验证、正式开发准备检查与 Debug APK 核验均已完成。
+
+本轮只调整开发工作流，不改变 Android 产品行为或 Python 项目依赖。Kiyori `.venv` 继续服务
+仓库自有 `ci/script` 与测试入口；Codex 全局 Skill 和控制面使用自身记录或指定的绝对运行时，
+不向项目 `.venv` 安装与 Kiyori 无关的 `tzdata`。
+
+细化步骤：
+
+1. [DONE] 确认 IANA 失败来自 task-diary 错用项目 `.venv`，不是 Kiyori 运行依赖缺失
+2. [DONE] 收窄全局和项目 `AGENTS.md` 的 Python 运行时路由边界
+3. [DONE] 让 task-diary 新日记持久化 Python 与恢复命令，旧日记首次成功写入时透明补录
+4. [DONE] 让 `resolve/list` 和 IANA 错误路径公开恢复命令来源，不伪称旧日记存在原始运行时
+5. [DONE] 运行 task-diary 全量测试、Skill 快速验证、真实隔离恢复演练和数据边界审计
+6. [DONE] 运行正式开发准备检查、差异检查和规定的 Debug APK 构建核验
+
+本地验收证据：
+
+- task-diary 全量测试 `65` 项通过；Skill `quick_validate.py`、Python 语法编译与目标差异检查通过
+- 私有日记索引共 `187` 份，校验错误 `0`、索引拒绝 `0`；第二次增量索引读取正文 `0`
+- 使用 Kiyori `.venv` 复现 IANA 时区失败后，错误信息明确给出已记录的系统 Python 和精确恢复命令；
+  使用该命令成功恢复当前日记，未安装 `tzdata`，也未使用固定时差或其他回退逻辑
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功完成 `238` 个任务，
+  其中 `25` 个执行、`213` 个为最新状态
+- `D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk` 大小
+  `475308770` 字节，SHA-256
+  `2BEEE13F9CB206F8AC2EE9D5AA0DC85C0C2BA7B39B391863F374B2B20E903B0F`；
+  `com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`，
+  Android Debug v2 签名与 `zipalign -c -P 16 4` 均通过
+
+本轮未改变 Kiyori Python 依赖、未安装 `tzdata`、未安装 APK、未执行设备操作，也未提交或推送。
+
 ## 2026-08-09 Operit v1.12.1 必要 AI 插件发布更新
 
 本轮只处理 Kiyori 上次 `1.12.0+9` 审计终点之后的真实增量。上游

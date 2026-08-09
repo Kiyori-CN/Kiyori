@@ -5062,6 +5062,9 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mcp_server_save_config">Simpan konfigurasi</string>
     <string name="mcp_server_not_installed_cannot_configure">Plugin ini belum terpasang, tidak dapat dikonfigurasi</string>
     <string name="pkg_manage_env_vars">Kelola variabel lingkungan</string>
+    <string name="package_manager_refresh_success">Daftar paket diperbarui</string>
+    <string name="package_manager_refresh_failed">Gagal memperbarui daftar paket: %1$s</string>
+    <string name="package_manager_load_errors_summary">Beberapa skrip atau plugin gagal dimuat (%1$d)</string>
     <string name="pkg_config_env_vars">Konfigurasi variabel lingkungan</string>
     <string name="pkg_no_env_vars">Paket alat yang diimpor saat ini tidak mendeklarasikan variabel lingkungan yang diperlukan.</string>
     <string name="pkg_default">Bawaan: %1$s</string>
@@ -5069,6 +5072,15 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="pkg_input_optional">Masukkan nilai (opsional)</string>
     <string name="pkg_save">Simpan</string>
     <string name="pkg_cancel">Batal</string>
+    <string name="pkg_env_summary">%1$d paket · %2$d variabel · %3$d wajib belum diatur</string>
+    <string name="pkg_env_search_hint">Cari paket, nama variabel, atau deskripsi</string>
+    <string name="pkg_env_category_all">Semua</string>
+    <string name="pkg_env_category_count">%1$s %2$d</string>
+    <string name="pkg_env_group_summary">%1$d variabel · %2$d dikonfigurasi</string>
+    <string name="pkg_env_missing_required">%1$d item wajib belum diatur</string>
+    <string name="pkg_env_empty_filter">Tidak ada variabel lingkungan yang cocok</string>
+    <string name="pkg_env_required">Wajib</string>
+    <string name="pkg_env_optional">Opsional</string>
     <string name="pkg_confirm_delete">Konfirmasi penghapusan</string>
     <string name="pkg_delete_warning">Yakin ingin menghapus paket "%1$s"? Tindakan ini tidak dapat dibatalkan.</string>
     <string name="pkg_delete">Hapus</string>

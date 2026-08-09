@@ -187,6 +187,7 @@ class MarketEntryInstallController(
         withContext(Dispatchers.IO) {
             writeMarketInstallMarker(artifactMarketMarkerRoot(packageManager, defaultVersion.runtimePackageId), entry)
         }
+        MarketInstallStateStore.notifyArtifactCatalogChanged()
         Toast.makeText(
             context,
             context.getString(

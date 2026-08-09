@@ -4831,6 +4831,9 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mcp_server_save_config">Salvar configuração</string>
     <string name="mcp_server_not_installed_cannot_configure">Este plugin não foi instalado e não pode ser configurado</string>
     <string name="pkg_manage_env_vars">Gerenciar variáveis ​​de ambiente</string>
+    <string name="package_manager_refresh_success">Lista de pacotes atualizada</string>
+    <string name="package_manager_refresh_failed">Falha ao atualizar a lista de pacotes: %1$s</string>
+    <string name="package_manager_load_errors_summary">Alguns scripts ou plugins não foram carregados (%1$d)</string>
     <string name="pkg_config_env_vars">Configurar variáveis ​​de ambiente</string>
     <string name="pkg_no_env_vars">O kit de ferramentas importado atualmente não declara as variáveis ​​de ambiente necessárias.</string>
     <string name="pkg_default">Padrão: %1$s</string>
@@ -4838,6 +4841,15 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="pkg_input_optional">Insira o valor (opcional)</string>
     <string name="pkg_save">salvar</string>
     <string name="pkg_cancel">Cancelar</string>
+    <string name="pkg_env_summary">%1$d pacotes · %2$d variáveis · %3$d obrigatórias ausentes</string>
+    <string name="pkg_env_search_hint">Pesquisar pacotes, nomes de variáveis ou descrições</string>
+    <string name="pkg_env_category_all">Todos</string>
+    <string name="pkg_env_category_count">%1$s %2$d</string>
+    <string name="pkg_env_group_summary">%1$d variáveis · %2$d configuradas</string>
+    <string name="pkg_env_missing_required">%1$d itens obrigatórios ausentes</string>
+    <string name="pkg_env_empty_filter">Nenhuma variável de ambiente correspondente</string>
+    <string name="pkg_env_required">Obrigatória</string>
+    <string name="pkg_env_optional">Opcional</string>
     <string name="pkg_confirm_delete">Confirmar exclusão</string>
     <string name="pkg_delete_warning">Tem certeza de que deseja excluir o pacote "%1$s"? Esta ação não pode ser desfeita.</string>
     <string name="pkg_delete">excluir</string>

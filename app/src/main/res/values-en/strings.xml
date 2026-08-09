@@ -5764,6 +5764,9 @@
 
     <!-- Package Manager Module -->
     <string name="pkg_manage_env_vars">Manage Environment Variables</string>
+    <string name="package_manager_refresh_success">Package list refreshed</string>
+    <string name="package_manager_refresh_failed">Failed to refresh package list: %1$s</string>
+    <string name="package_manager_load_errors_summary">Some scripts or plugins failed to load (%1$d)</string>
     <string name="pkg_config_env_vars">Configure Environment Variables</string>
     <string name="pkg_no_env_vars">The currently imported tool packages have not declared any required environment variables.</string>
     <string name="pkg_default">Default: %1$s</string>
@@ -5771,6 +5774,15 @@
     <string name="pkg_input_optional">Input value (optional)</string>
     <string name="pkg_save">Save</string>
     <string name="pkg_cancel">Cancel</string>
+    <string name="pkg_env_summary">%1$d packages · %2$d variables · %3$d required missing</string>
+    <string name="pkg_env_search_hint">Search packages, variable names, or descriptions</string>
+    <string name="pkg_env_category_all">All</string>
+    <string name="pkg_env_category_count">%1$s %2$d</string>
+    <string name="pkg_env_group_summary">%1$d variables · %2$d configured</string>
+    <string name="pkg_env_missing_required">%1$d required items missing</string>
+    <string name="pkg_env_empty_filter">No matching environment variables</string>
+    <string name="pkg_env_required">Required</string>
+    <string name="pkg_env_optional">Optional</string>
 
     <!-- Package Details Dialog -->
     <string name="pkg_confirm_delete">Confirm Delete</string>

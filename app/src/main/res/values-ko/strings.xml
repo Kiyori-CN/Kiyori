@@ -5254,6 +5254,9 @@
     <string name="mcp_server_save_config">구성 저장</string>
     <string name="mcp_server_not_installed_cannot_configure">이 플러그인은 설치되지 않았으며 구성할 수 없습니다.</string>
     <string name="pkg_manage_env_vars">환경 변수 관리</string>
+    <string name="package_manager_refresh_success">패키지 목록을 새로고침했습니다</string>
+    <string name="package_manager_refresh_failed">패키지 목록을 새로고침하지 못했습니다: %1$s</string>
+    <string name="package_manager_load_errors_summary">일부 스크립트 또는 플러그인을 불러오지 못했습니다(%1$d)</string>
     <string name="pkg_config_env_vars">환경 변수 구성</string>
     <string name="pkg_no_env_vars">현재 가져온 도구 패키지에는 필수 환경 변수가 선언되지 않았습니다.</string>
     <string name="pkg_default">기본값: %1$s</string>
@@ -5261,6 +5264,15 @@
     <string name="pkg_input_optional">입력값(선택사항)</string>
     <string name="pkg_save">저장</string>
     <string name="pkg_cancel">취소</string>
+    <string name="pkg_env_summary">패키지 %1$d개 · 변수 %2$d개 · 필수 미설정 %3$d개</string>
+    <string name="pkg_env_search_hint">패키지, 변수 이름 또는 설명 검색</string>
+    <string name="pkg_env_category_all">전체</string>
+    <string name="pkg_env_category_count">%1$s %2$d</string>
+    <string name="pkg_env_group_summary">변수 %1$d개 · 설정됨 %2$d개</string>
+    <string name="pkg_env_missing_required">필수 항목 %1$d개가 설정되지 않음</string>
+    <string name="pkg_env_empty_filter">일치하는 환경 변수가 없습니다</string>
+    <string name="pkg_env_required">필수</string>
+    <string name="pkg_env_optional">선택</string>
     <string name="pkg_confirm_delete">삭제 확인</string>
     <string name="pkg_delete_warning">정말로 "%1$s" 패키지를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
     <string name="pkg_delete">삭제</string>

@@ -5059,6 +5059,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="mcp_server_save_config">Simpan Konfigurasi</string>
     <string name="mcp_server_not_installed_cannot_configure">Plugin ini belum dipasang, tidak boleh dikonfigurasikan</string>
     <string name="pkg_manage_env_vars">Urus Pembolehubah Persekitaran</string>
+    <string name="package_manager_refresh_success">Senarai pakej telah disegar semula</string>
+    <string name="package_manager_refresh_failed">Gagal menyegar semula senarai pakej: %1$s</string>
+    <string name="package_manager_load_errors_summary">Sesetengah skrip atau plugin gagal dimuatkan (%1$d)</string>
     <string name="pkg_config_env_vars">Konfigurasi Pembolehubah Persekitaran</string>
     <string name="pkg_no_env_vars">Pakej yang telah diimport semasa tidak mengisytiharkan pembolehubah persekitaran yang diperlukan.</string>
     <string name="pkg_default">Lalai: %1$s</string>
@@ -5066,6 +5069,15 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="pkg_input_optional">Masukkan nilai (pilihan)</string>
     <string name="pkg_save">Simpan</string>
     <string name="pkg_cancel">Batal</string>
+    <string name="pkg_env_summary">%1$d pakej · %2$d pembolehubah · %3$d wajib belum dikonfigurasi</string>
+    <string name="pkg_env_search_hint">Cari pakej, nama pembolehubah atau penerangan</string>
+    <string name="pkg_env_category_all">Semua</string>
+    <string name="pkg_env_category_count">%1$s %2$d</string>
+    <string name="pkg_env_group_summary">%1$d pembolehubah · %2$d dikonfigurasi</string>
+    <string name="pkg_env_missing_required">%1$d item diperlukan belum dikonfigurasi</string>
+    <string name="pkg_env_empty_filter">Tiada pembolehubah persekitaran sepadan</string>
+    <string name="pkg_env_required">Diperlukan</string>
+    <string name="pkg_env_optional">Pilihan</string>
     <string name="pkg_confirm_delete">Sahkan Padam</string>
     <string name="pkg_delete_warning">Adakah anda pasti mahu memadam pakej "%1$s"? Tindakan ini tidak boleh dibatalkan.</string>
     <string name="pkg_delete">Padam</string>

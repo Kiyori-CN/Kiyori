@@ -18,10 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoMode
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -31,10 +27,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,10 +38,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.ToolPackage
-import com.ai.assistance.operit.ui.features.packages.components.EmptyState
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.features.packages.components.EmptyState
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
+
+private data class PackageListEntry(
+    val packageName: String,
+    val displayName: String,
+    val description: String,
+    val categoryKey: String,
+    val categoryLabel: String,
+)
 
 @Composable
 fun PackageTabContent(
@@ -58,6 +62,7 @@ fun PackageTabContent(
     onTogglePackage: (String, Boolean) -> Unit
 ) {
     val context = LocalContext.current
+    val enabledPackageNameSet = remember(enabledPackageNames) { enabledPackageNames.toSet() }
 
     Box(
         modifier = Modifier
@@ -74,32 +79,40 @@ fun PackageTabContent(
                 color = MaterialTheme.colorScheme.background,
                 shape = MaterialTheme.shapes.medium
             ) {
-                val groupedPackagesRaw = packages.entries.groupBy { it.value.category }
-                val categoryOrder = listOf("Automatic", "Experimental", "Draw", "Other")
-                val sortedCategories =
-                    groupedPackagesRaw.keys.sortedWith { a, b ->
-                        val indexA = categoryOrder.indexOf(a)
-                        val indexB = categoryOrder.indexOf(b)
-                        when {
-                            indexA == -1 && indexB == -1 -> a.compareTo(b)
-                            indexA == -1 -> 1
-                            indexB == -1 -> -1
-                            else -> indexA - indexB
+                val orderedPackages =
+                    remember(packages, context) {
+                        packages.map { (packageName, toolPackage) ->
+                            val categoryLabel =
+                                normalizePackageCategoryLabel(toolPackage.category)
+                            val packageDisplayName =
+                                toolPackage
+                                    .displayName
+                                    .resolve(context)
+                                    .trim()
+                                    .takeIf { displayName -> displayName.isNotBlank() }
+                            PackageListEntry(
+                                packageName = packageName,
+                                displayName =
+                                    packageDisplayName ?: toolPackage.name.ifBlank { packageName },
+                                description = toolPackage.description.resolve(context),
+                                categoryKey = packageCategoryKey(categoryLabel),
+                                categoryLabel = categoryLabel,
+                            )
                         }
+                            .sortedWith(
+                                packageCategoryAndDisplayNameComparator(
+                                    categorySelector = PackageListEntry::categoryLabel,
+                                    displayNameSelector = PackageListEntry::displayName,
+                                    internalNameSelector = PackageListEntry::packageName,
+                                ),
+                            )
                     }
-
-                val groupedPackages = linkedMapOf<String, Map<String, ToolPackage>>()
-                sortedCategories.forEach { category ->
-                    val entries = groupedPackagesRaw[category].orEmpty()
-                    val sortedEntries = entries.sortedBy { it.key }
-                    groupedPackages[category] =
-                        sortedEntries.associate { entry -> entry.key to entry.value }
-                }
+                val groupedPackages = orderedPackages.groupBy(PackageListEntry::categoryKey)
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp)
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
                 ) {
                     if (!isSearchActive) {
                         item(key = "quick_plugin_creator_entry") {
@@ -122,31 +135,30 @@ fun PackageTabContent(
                         }
                     }
 
-                    groupedPackages.forEach { (category, packagesInCategory) ->
-                        val categoryTone = when (category) {
-                            "Automatic" -> KiyoriSemanticTone.ORANGE
-                            "Experimental" -> KiyoriSemanticTone.PINK
-                            "Draw" -> KiyoriSemanticTone.PURPLE
-                            else -> KiyoriSemanticTone.CYAN
-                        }
+                    groupedPackages.forEach { (_, packagesInCategory) ->
+                        val category = packagesInCategory.first().categoryLabel
+                        val categoryVisual = resolvePackageCategoryVisual(category)
+                        val firstPackageName = packagesInCategory.first().packageName
 
                         items(
-                            packagesInCategory.keys.toList(),
-                            key = { it }
-                        ) { packageName ->
-                            val isFirstInCategory = packageName == packagesInCategory.keys.first()
+                            items = packagesInCategory,
+                            key = PackageListEntry::packageName,
+                        ) { packageEntry ->
+                            val isFirstInCategory =
+                                packageEntry.packageName == firstPackageName
 
                             PackageListItemWithTag(
-                                packageName = packageName,
-                                toolPackage = packagesInCategory[packageName],
-                                isImported = enabledPackageNames.contains(packageName),
+                                packageEntry = packageEntry,
+                                isImported =
+                                    packageEntry.packageName in enabledPackageNameSet,
                                 categoryTag = if (isFirstInCategory) category else null,
-                                category = category,
-                                categoryTone = categoryTone,
-                                onPackageClick = { onPackageClick(packageName) },
+                                categoryVisual = categoryVisual,
+                                onPackageClick = {
+                                    onPackageClick(packageEntry.packageName)
+                                },
                                 onToggleImport = { isChecked ->
-                                    onTogglePackage(packageName, isChecked)
-                                }
+                                    onTogglePackage(packageEntry.packageName, isChecked)
+                                },
                             )
                         }
                     }
@@ -220,24 +232,14 @@ private fun QuickPluginCreatorEntry(
 
 @Composable
 private fun PackageListItemWithTag(
-    packageName: String,
-    toolPackage: ToolPackage?,
+    packageEntry: PackageListEntry,
     isImported: Boolean,
     categoryTag: String?,
-    category: String,
-    categoryTone: KiyoriSemanticTone,
+    categoryVisual: PackageCategoryVisual,
     onPackageClick: () -> Unit,
     onToggleImport: (Boolean) -> Unit
 ) {
-    val context = LocalContext.current
-    val categoryColors = categoryTone.resolveColors()
-    val packageDisplayName =
-        toolPackage
-            ?.displayName
-            ?.resolve(context)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-    val displayName = packageDisplayName ?: toolPackage?.name ?: packageName
+    val categoryColors = categoryVisual.resolveColors()
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (categoryTag != null) {
@@ -257,6 +259,13 @@ private fun PackageListItemWithTag(
                     shape = RoundedCornerShape(1.5.dp)
                 ) {}
                 Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = categoryVisual.icon.toImageVector(),
+                    contentDescription = null,
+                    tint = categoryColors.icon,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = categoryTag,
                     style = MaterialTheme.typography.labelSmall,
@@ -284,15 +293,8 @@ private fun PackageListItemWithTag(
                         ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                KiyoriSemanticIconBadge(
-                    imageVector = when (category) {
-                        "Automatic" -> Icons.Default.AutoMode
-                        "Experimental" -> Icons.Default.Science
-                        "Draw" -> Icons.Default.Palette
-                        "Other" -> Icons.Default.Widgets
-                        else -> Icons.Default.Extension
-                    },
-                    tone = categoryTone,
+                PackageCategoryIconBadge(
+                    visual = categoryVisual,
                     contentDescription = null,
                     containerSize = 34.dp,
                     iconSize = 19.dp,
@@ -301,16 +303,15 @@ private fun PackageListItemWithTag(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = displayName,
+                        text = packageEntry.displayName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    val description = toolPackage?.description?.resolve(context).orEmpty()
-                    if (description.isNotBlank()) {
+                    if (packageEntry.description.isNotBlank()) {
                         Text(
-                            text = description,
+                            text = packageEntry.description,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

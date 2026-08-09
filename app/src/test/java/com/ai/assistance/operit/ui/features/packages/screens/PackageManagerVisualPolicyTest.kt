@@ -18,4 +18,24 @@ class PackageManagerVisualPolicyTest {
             PackageTab.entries.associateWith(::packageManagerTabTone),
         )
     }
+
+    @Test
+    fun `plugin and script tabs publish the requested top bar action order`() {
+        val expected =
+            listOf(
+                PackageManagerTopBarAction.ENVIRONMENT,
+                PackageManagerTopBarAction.MARKET,
+                PackageManagerTopBarAction.ADD,
+                PackageManagerTopBarAction.REFRESH,
+            )
+
+        assertEquals(expected, packageManagerTopBarActions(PackageTab.PLUGINS))
+        assertEquals(expected, packageManagerTopBarActions(PackageTab.PACKAGES))
+    }
+
+    @Test
+    fun `skill and mcp tabs keep their own page actions`() {
+        assertEquals(emptyList<PackageManagerTopBarAction>(), packageManagerTopBarActions(PackageTab.SKILLS))
+        assertEquals(emptyList<PackageManagerTopBarAction>(), packageManagerTopBarActions(PackageTab.MCP))
+    }
 }

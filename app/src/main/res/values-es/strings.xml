@@ -5124,6 +5124,9 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="mcp_server_save_config">Guardar configuración</string>
     <string name="mcp_server_not_installed_cannot_configure">Este plugin no está instalado, no se puede configurar</string>
     <string name="pkg_manage_env_vars">Gestionar variables de entorno</string>
+    <string name="package_manager_refresh_success">Lista de paquetes actualizada</string>
+    <string name="package_manager_refresh_failed">No se pudo actualizar la lista de paquetes: %1$s</string>
+    <string name="package_manager_load_errors_summary">Algunos scripts o plugins no se pudieron cargar (%1$d)</string>
     <string name="pkg_config_env_vars">Configurar variables de entorno</string>
     <string name="pkg_no_env_vars">El paquete de herramientas importado actualmente no declara variables de entorno necesarias.</string>
     <string name="pkg_default">Predeterminado: %1$s</string>
@@ -5131,6 +5134,15 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="pkg_input_optional">Introduce un valor (opcional)</string>
     <string name="pkg_save">Guardar</string>
     <string name="pkg_cancel">Cancelar</string>
+    <string name="pkg_env_summary">%1$d paquetes · %2$d variables · faltan %3$d obligatorias</string>
+    <string name="pkg_env_search_hint">Buscar paquetes, nombres de variables o descripciones</string>
+    <string name="pkg_env_category_all">Todos</string>
+    <string name="pkg_env_category_count">%1$s %2$d</string>
+    <string name="pkg_env_group_summary">%1$d variables · %2$d configuradas</string>
+    <string name="pkg_env_missing_required">Faltan %1$d elementos obligatorios</string>
+    <string name="pkg_env_empty_filter">No hay variables de entorno coincidentes</string>
+    <string name="pkg_env_required">Obligatoria</string>
+    <string name="pkg_env_optional">Opcional</string>
     <string name="pkg_confirm_delete">Confirmar eliminación</string>
     <string name="pkg_delete_warning">¿Estás seguro de que deseas eliminar el paquete "%1$s"? Esta acción no se puede deshacer.</string>
     <string name="pkg_delete">Eliminar</string>
