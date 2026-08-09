@@ -3061,8 +3061,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="no_models_found">Tidak ada model yang tersedia ditemukan</string>
     <string name="models_displayed">%d model ditampilkan</string>
     <string name="models_displayed_filtered"> (difilter)</string>
-    <string name="models_selected_suffix"> dipilih</string>
-    <string name="model_name_multiple_hint"> (dapat dipisahkan dengan koma untuk beberapa model)</string>
     <string name="auto_save_failed">Penyimpanan otomatis gagal</string>
     <string name="provider_openai">OpenAI (Seri GPT)</string>
     <string name="provider_openai_responses">OpenAI (Responses API)</string>
@@ -3348,9 +3346,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="api_key">Kunci API</string>
     <string name="api_key_placeholder_default">Gunakan Kunci default, dapat langsung dimasukkan</string>
     <string name="api_key_placeholder_custom">Masukkan kunci API</string>
-    <string name="model_name">Nama model</string>
-    <string name="model_name_placeholder">Contoh: gpt-4, claude-3-opus-20240229...</string>
-    <string name="get_models_list">Dapatkan daftar model</string>
     <string name="getting_models_list">Mendapatkan daftar model...</string>
     <string name="models_list_success">Berhasil mendapatkan %d model</string>
     <string name="get_models_list_failed">Gagal mendapatkan daftar model: %s</string>
@@ -3919,7 +3914,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="mnn_download_complete">Unduhan selesai</string>
     <string name="mnn_download_failed">Unduhan gagal: %1$s</string>
     <string name="mnn_no_models_downloaded">Belum ada model yang diunduh</string>
-    <string name="mnn_select_downloaded_model">Pilih model yang telah diunduh</string>
     <string name="mnn_model_name_only">Nama Model</string>
     <string name="mnn_download_progress">Progres: %1$d%%</string>
     <string name="mnn_pause_download">Jeda unduhan</string>
@@ -4161,7 +4155,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="llama_local_model_download_tip">Model llama.cpp perlu diunduh sendiri (.gguf). Letakkan file model di folder berikut, lalu isi nama file di "Nama Model":</string>
     <string name="llama_local_model_dir">Direktori model default: %1$s</string>
     <string name="llama_auto_config_tip">Parameter kompatibilitas Android seperti ukuran batch, mmap, Flash Attention, KV, dll. telah disertakan. Untuk penggunaan biasa, cukup sesuaikan jumlah thread, ukuran konteks, dan jumlah lapisan GPU.</string>
-    <string name="llama_select_downloaded_model">Pilih model yang telah diunduh</string>
     <string name="llama_thread_count">Jumlah thread</string>
     <string name="llama_context_size">Panjang konteks</string>
     <string name="llama_context_size_subtitle">Di Android, disarankan untuk mulai dari 2048, terlalu besar dapat menyebabkan kegagalan inisialisasi karena tekanan memori</string>

@@ -30,6 +30,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
@@ -44,6 +45,7 @@ import com.ai.assistance.operit.api.chat.llmprovider.ModelConfigConnectionTester
 import com.ai.assistance.operit.api.chat.llmprovider.ModelConnectionTestType
 import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.ModelConfigData
+import com.ai.assistance.operit.data.model.getModelList
 import com.ai.assistance.operit.data.preferences.FunctionalConfigManager
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.ui.features.settings.DebouncedModelConfigAutoSaveEffect
@@ -56,6 +58,11 @@ import com.ai.assistance.operit.ui.features.settings.sections.SettingsInfoBanner
 import com.ai.assistance.operit.ui.features.settings.sections.SettingsSectionHeader
 import com.ai.assistance.operit.ui.features.settings.sections.SettingsSwitchRow
 import com.ai.assistance.operit.ui.features.settings.sections.SettingsTextField
+import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionContentSpacing
+import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionHeight
+import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionHorizontalPadding
+import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionIconSize
+import com.ai.assistance.operit.ui.features.settings.components.ModelSettingsActionShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -182,6 +189,7 @@ fun ModelConfigScreen(
     // 连接测试状态
     var isTestingConnection by remember { mutableStateOf(false) }
     var testResults by remember { mutableStateOf<List<ConnectionTestItem>?>(null) }
+    var testedModelName by remember { mutableStateOf("") }
     var connectionTestJob by remember { mutableStateOf<Job?>(null) }
     var activeConnectionTestService by remember { mutableStateOf<AIService?>(null) }
 
@@ -213,6 +221,7 @@ fun ModelConfigScreen(
     // 加载选中的配置
     LaunchedEffect(selectedConfigId) {
         testResults = null
+        testedModelName = ""
         selectedConfig.value = null
         configManager.getModelConfigFlow(selectedConfigId).collect { config ->
             selectedConfig.value = config
@@ -355,30 +364,49 @@ fun ModelConfigScreen(
                             }
                         }
 
-                        FlowRow(
-                            modifier = Modifier.padding(top = 12.dp),
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (selectedConfigId != "default") {
-                                TextButton(
+                                OutlinedButton(
                                     onClick = {
                                         renameConfigName = selectedConfig.value?.name ?: ""
                                         showRenameConfigDialog = true
                                     },
-                                    contentPadding = PaddingValues(horizontal = 12.dp),
-                                    modifier = Modifier.height(36.dp)
+                                    contentPadding =
+                                        PaddingValues(
+                                            horizontal =
+                                                ModelSettingsActionHorizontalPadding
+                                        ),
+                                    modifier =
+                                        Modifier
+                                            .weight(0.92f)
+                                            .height(ModelSettingsActionHeight),
+                                    shape = ModelSettingsActionShape
                                 ) {
                                     Icon(
                                         Icons.Default.Edit,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(ModelSettingsActionIconSize)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(stringResource(R.string.rename_action), fontSize = 14.sp)
+                                    Spacer(
+                                        modifier =
+                                            Modifier.width(ModelSettingsActionContentSpacing)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.rename_action),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
                                 }
 
-                                TextButton(
+                                OutlinedButton(
                                     onClick = {
                                         scope.launch {
                                             configManager.deleteConfig(selectedConfigId)
@@ -386,29 +414,50 @@ fun ModelConfigScreen(
                                             showNotification(context.getString(R.string.config_deleted))
                                         }
                                     },
-                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    contentPadding =
+                                        PaddingValues(
+                                            horizontal =
+                                                ModelSettingsActionHorizontalPadding
+                                        ),
                                     colors =
-                                        ButtonDefaults.textButtonColors(
+                                        ButtonDefaults.outlinedButtonColors(
                                             contentColor = MaterialTheme.colorScheme.error
                                         ),
-                                    modifier = Modifier.height(36.dp)
+                                    border =
+                                        BorderStroke(
+                                            0.8.dp,
+                                            MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
+                                        ),
+                                    modifier =
+                                        Modifier
+                                            .weight(0.82f)
+                                            .height(ModelSettingsActionHeight),
+                                    shape = ModelSettingsActionShape
                                 ) {
                                     Icon(
                                         Icons.Default.Delete,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(ModelSettingsActionIconSize)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(stringResource(R.string.delete_action), fontSize = 14.sp)
+                                    Spacer(
+                                        modifier =
+                                            Modifier.width(ModelSettingsActionContentSpacing)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.delete_action),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
                                 }
                             }
 
-                            TextButton(
+                            FilledTonalButton(
                                 onClick = {
                                     if (isTestingConnection) {
                                         activeConnectionTestService?.cancelStreaming()
                                         connectionTestJob?.cancel()
-                                        return@TextButton
+                                        return@FilledTonalButton
                                     }
 
                                     connectionTestJob = scope.launch {
@@ -431,6 +480,7 @@ fun ModelConfigScreen(
                                                                 activeConnectionTestService = it
                                                             }
                                                         )
+                                                    testedModelName = report.testedModelName
 
                                                     report.items.forEach { item ->
                                                         val result =
@@ -480,28 +530,53 @@ fun ModelConfigScreen(
                                         }
                                     }
                                 },
-                                modifier = Modifier.height(36.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp)
+                                modifier =
+                                    Modifier
+                                        .weight(
+                                            if (selectedConfigId == "default") {
+                                                1f
+                                            } else {
+                                                1.16f
+                                            }
+                                        )
+                                        .height(ModelSettingsActionHeight),
+                                contentPadding =
+                                    PaddingValues(
+                                        horizontal =
+                                            ModelSettingsActionHorizontalPadding
+                                    ),
+                                shape = ModelSettingsActionShape,
+                                enabled =
+                                    isTestingConnection ||
+                                        selectedConfig.value?.let { selected ->
+                                            getModelList(selected.modelName).isNotEmpty()
+                                        } == true
                             ) {
                                 if (isTestingConnection) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(ModelSettingsActionIconSize),
                                         strokeWidth = 2.dp
                                     )
                                 } else {
                                     Icon(
                                         Icons.Default.Dns,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(ModelSettingsActionIconSize)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(
+                                    modifier =
+                                        Modifier.width(ModelSettingsActionContentSpacing)
+                                )
                                 Text(
-                                    stringResource(
-                                        if (isTestingConnection) R.string.cancel
-                                        else R.string.test_connection_desc
+                                    text =
+                                        stringResource(
+                                            if (isTestingConnection) R.string.cancel
+                                            else R.string.test_model
                                     ),
-                                    fontSize = 14.sp
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
@@ -522,6 +597,19 @@ fun ModelConfigScreen(
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
+                                        if (testedModelName.isNotEmpty()) {
+                                            Text(
+                                                text =
+                                                    stringResource(
+                                                        R.string.tested_model_name,
+                                                        testedModelName
+                                                    ),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
                                         results.forEachIndexed { index, item ->
                                             val isSuccess = item.result.isSuccess
                                             val statusText =
@@ -652,6 +740,14 @@ fun ModelConfigScreen(
                         configManager = configManager,
                         saveCoordinator = saveCoordinator,
                         showNotification = { message -> showNotification(message) },
+                        showUndoableNotification = { message ->
+                            snackbarHostState.showSnackbar(
+                                message = message,
+                                actionLabel = context.getString(R.string.undo),
+                                withDismissAction = true,
+                                duration = SnackbarDuration.Short
+                            ) == SnackbarResult.ActionPerformed
+                        },
                         navigateToMnnModelDownload = navigateToMnnModelDownload
                     )
                 }

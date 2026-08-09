@@ -92,7 +92,6 @@
     <string name="configure_ai">Configurar interfaz AI</string>
     <string name="api_endpoint">Dirección de la interfaz API</string>
     <string name="api_key">Clave API</string>
-    <string name="model_name">Nombre del modelo</string>
     <string name="save_and_start">Guardar e iniciar chat</string>
     <string name="ai_chat">Chat IA</string>
     <string name="start_chat_hint">Comience una nueva conversación. Ingrese su pregunta para obtener una respuesta de la IA.</string>
@@ -1148,8 +1147,6 @@
     <string name="endpoint_completion_hint">Sugerencia: Si ingresas una URL base, el sistema completará automáticamente la ruta. Para desactivar, agrega # al final de la URL.</string>
     <string name="api_key_placeholder_default">Usando clave predeterminada, puedes ingresar directamente</string>
     <string name="api_key_placeholder_custom">Ingresa clave API</string>
-    <string name="model_name_placeholder">ej.: gpt-4, claude-3-opus-20240229...</string>
-    <string name="get_models_list">Obtener Lista de Modelos</string>
     <string name="getting_models_list">Obteniendo lista de modelos...</string>
     <string name="models_list_success">Se obtuvieron exitosamente %d modelos</string>
     <string name="unknown_error">Error desconocido</string>
@@ -3557,8 +3554,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="enable_claude_1h_prompt_cache_desc">Al activarlo, Claude y proveedores compatibles con Claude usarán un TTL de caché de prompts de 1 hora</string>
     <string name="search_sources">Fuentes de búsqueda</string>
     <string name="clear">Limpiar</string>
-    <string name="models_selected_suffix"> seleccionado(s)</string>
-    <string name="model_name_multiple_hint"> (se pueden separar varios modelos con comas)</string>
     <string name="auto_save_failed">Error al guardar automáticamente</string>
     <string name="provider_nous_portal">Nous Portal</string>
     <string name="provider_alipay_bailing">Modelo Bailing de Alipay</string>
@@ -4013,7 +4008,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="mnn_download_complete">Descarga completada</string>
     <string name="mnn_download_failed">Error en la descarga: %1$s</string>
     <string name="mnn_no_models_downloaded">No hay modelos descargados</string>
-    <string name="mnn_select_downloaded_model">Seleccionar modelo descargado</string>
     <string name="mnn_model_name_only">Nombre del modelo</string>
     <string name="mnn_download_progress">Progreso: %1$d%%</string>
     <string name="mnn_pause_download">Pausar descarga</string>
@@ -4477,7 +4471,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="llama_local_model_download_tip">El modelo llama.cpp debe descargarse por separado (.gguf). Coloca el archivo del modelo en la siguiente carpeta y luego escribe el nombre del archivo en "Nombre del modelo":</string>
     <string name="llama_local_model_dir">Directorio de modelos predeterminado: %1$s</string>
     <string name="llama_auto_config_tip">Parámetros compatibles con Android como tamaño de lote, mmap, Flash Attention, KV, etc., ya están integrados. Para uso normal, solo necesitas ajustar el número de hilos, el tamaño del contexto y el número de capas de GPU.</string>
-    <string name="llama_select_downloaded_model">Seleccionar modelo descargado</string>
     <string name="llama_thread_count">Número de hilos</string>
     <string name="llama_context_size">Longitud del contexto</string>
     <string name="llama_context_size_subtitle">En Android, se recomienda empezar con 2048. Un tamaño demasiado grande puede provocar fallos de inicialización por presión de memoria.</string>

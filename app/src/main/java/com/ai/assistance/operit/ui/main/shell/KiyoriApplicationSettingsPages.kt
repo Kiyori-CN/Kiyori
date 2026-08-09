@@ -73,7 +73,7 @@ internal val kiyoriAiAssistantSettingsGroups =
                 listOf(
                     KiyoriNavigationSettingsEntrySpec(
                         title = "模型与 API",
-                        description = "管理模型提供方、API、模型名称和生成参数",
+                        description = "管理模型提供方、API、模型列表和生成参数",
                         icon = Icons.Default.Settings,
                         iconTone = KiyoriSemanticTone.BLUE,
                         action = KiyoriAiAssistantSettingsAction.OPEN_MODEL_CONFIG,

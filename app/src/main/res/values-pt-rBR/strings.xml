@@ -3107,9 +3107,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="api_key">Chave de API</string>
     <string name="api_key_placeholder_default">Use a chave padrão e insira-a diretamente</string>
     <string name="api_key_placeholder_custom">Insira a chave API</string>
-    <string name="model_name">Nome do modelo</string>
-    <string name="model_name_placeholder">Por exemplo: gpt-4, claude-3-opus-20240229...</string>
-    <string name="get_models_list">Obter lista de modelos</string>
     <string name="getting_models_list">Obtendo lista de modelos...</string>
     <string name="models_list_success">%d modelos obtidos com sucesso</string>
     <string name="get_models_list_failed">Falha ao obter lista de modelos: %s</string>
@@ -3146,8 +3143,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="no_models_found">Nenhum modelo disponível encontrado</string>
     <string name="models_displayed">%d modelos mostrados</string>
     <string name="models_displayed_filtered">(filtrado)</string>
-    <string name="models_selected_suffix">selecionado</string>
-    <string name="model_name_multiple_hint">(Você pode separar vários modelos com vírgulas)</string>
     <string name="auto_save_failed">Falha no salvamento automático</string>
     <string name="provider_openai">OpenAI (série GPT)</string>
     <string name="provider_openai_responses">OpenAI (API de respostas)</string>
@@ -3830,7 +3825,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="mnn_download_complete">Download concluído</string>
     <string name="mnn_download_failed">Falha no download: %1$s</string>
     <string name="mnn_no_models_downloaded">Ainda não há modelos baixados</string>
-    <string name="mnn_select_downloaded_model">Selecione o modelo baixado</string>
     <string name="mnn_model_name_only">Nome do modelo</string>
     <string name="mnn_download_progress">Progresso: %1$d%%</string>
     <string name="mnn_pause_download">Pausar download</string>
@@ -3888,7 +3882,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="llama_local_model_tip">A capacidade de compreender o modelo de funcionamento local é fraca. Recomenda-se desligar o link de memória e habilitar ferramentas desabilitadas para diálogo.</string>
     <string name="llama_local_model_download_tip">O modelo llama.cpp precisa ser baixado por você mesmo (.gguf). Coloque o arquivo do modelo na seguinte pasta e preencha o nome do arquivo em "Nome do modelo":</string>
     <string name="llama_local_model_dir">Diretório de modelo padrão: %1$s</string>
-    <string name="llama_select_downloaded_model">Selecione o modelo baixado</string>
     <string name="llama_thread_count">Número de tópicos</string>
     <string name="llama_context_size">comprimento do contexto</string>
     <string name="workflow_execution_running">Executando…</string>

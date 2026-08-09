@@ -171,17 +171,146 @@ data class ModelConfigSummary(
         val modelIndex: Int = 0 // 当modelName包含多个模型（逗号分隔）时，选择第几个模型（从0开始）
 )
 
+private val MODEL_NAME_INPUT_SEPARATOR = Regex("[,，\\r\\n]+")
+
+/**
+ * 规范化模型名称列表。
+ *
+ * 模型顺序同时定义测试模型与外部索引语义，因此只移除空项和完全重复项，
+ * 不做排序、大小写折叠或模型名改写。
+ */
+fun normalizeModelNames(modelNames: Iterable<String>): List<String> {
+    val seen = LinkedHashSet<String>()
+    modelNames.forEach { rawName ->
+        val modelName = rawName.trim()
+        if (modelName.isNotEmpty()) {
+            seen.add(modelName)
+        }
+    }
+    return seen.toList()
+}
+
+/** 解析手动粘贴内容；支持英文逗号、中文逗号和换行。 */
+fun parseModelNameInput(input: String): List<String> {
+    if (input.isBlank()) return emptyList()
+    return normalizeModelNames(input.split(MODEL_NAME_INPUT_SEPARATOR))
+}
+
+/** 将模型名称列表写回既有逗号字符串边界。 */
+fun serializeModelNames(modelNames: Iterable<String>): String {
+    return normalizeModelNames(modelNames).joinToString(",")
+}
+
+/** 在不改变既有顺序的前提下追加新模型。 */
+fun mergeModelNames(
+    currentModels: Iterable<String>,
+    addedModels: Iterable<String>
+): List<String> {
+    return normalizeModelNames(currentModels + addedModels)
+}
+
+data class UpstreamModelSelectionChange(
+    val nextModels: List<String>,
+    val addedModels: List<String>,
+    val removedModels: List<String>
+) {
+    val hasChanges: Boolean
+        get() = addedModels.isNotEmpty() || removedModels.isNotEmpty()
+}
+
+/**
+ * 将上游选择应用到当前模型列表。
+ *
+ * 本次上游未返回的模型不属于选择范围，必须保留；仍被选中的当前模型保持原顺序，
+ * 新选模型按上游顺序追加，取消选择只移除当前上游范围内的模型。
+ */
+fun reconcileUpstreamModelSelection(
+    currentModels: Iterable<String>,
+    upstreamModels: Iterable<String>,
+    selectedUpstreamModels: Iterable<String>
+): UpstreamModelSelectionChange {
+    val normalizedCurrentModels = normalizeModelNames(currentModels)
+    val normalizedUpstreamModels = normalizeModelNames(upstreamModels)
+    val upstreamModelSet = normalizedUpstreamModels.toSet()
+    val selectedModelSet =
+        normalizeModelNames(selectedUpstreamModels)
+            .filterTo(LinkedHashSet(), upstreamModelSet::contains)
+    val currentModelSet = normalizedCurrentModels.toSet()
+    val retainedModels =
+        normalizedCurrentModels.filter { modelName ->
+            modelName !in upstreamModelSet || modelName in selectedModelSet
+        }
+    val addedModels =
+        normalizedUpstreamModels.filter { modelName ->
+            modelName in selectedModelSet && modelName !in currentModelSet
+        }
+    val removedModels =
+        normalizedCurrentModels.filter { modelName ->
+            modelName in upstreamModelSet && modelName !in selectedModelSet
+        }
+
+    return UpstreamModelSelectionChange(
+        nextModels = retainedModels + addedModels,
+        addedModels = addedModels,
+        removedModels = removedModels
+    )
+}
+
+/** 将一个模型移动到目标索引，供标签排序面板使用。 */
+fun moveModelName(
+    modelNames: List<String>,
+    fromIndex: Int,
+    toIndex: Int
+): List<String> {
+    require(fromIndex in modelNames.indices) { "fromIndex is outside the model list" }
+    require(toIndex in modelNames.indices) { "toIndex is outside the model list" }
+    if (fromIndex == toIndex) return modelNames
+    return modelNames.toMutableList().apply {
+        add(toIndex, removeAt(fromIndex))
+    }
+}
+
+/**
+ * 根据模型名重映射索引。
+ *
+ * 重排时目标模型仍在新列表中，索引直接跟随模型名移动。删除已绑定模型时，
+ * 调用方必须在用户确认后显式提供 replacementModelName；本函数不会自行猜测替代模型。
+ */
+fun remapModelIndex(
+    oldModels: List<String>,
+    newModels: List<String>,
+    requestedIndex: Int,
+    replacementModelName: String? = null
+): Int {
+    require(oldModels.isNotEmpty()) { "Cannot remap an index from an empty model list" }
+    val oldIndex = if (requestedIndex in oldModels.indices) requestedIndex else 0
+    val selectedModelName = oldModels[oldIndex]
+    val retainedIndex = newModels.indexOf(selectedModelName)
+    if (retainedIndex >= 0) {
+        return retainedIndex
+    }
+
+    requireNotNull(replacementModelName) {
+        "Model '$selectedModelName' was removed without an explicit replacement"
+    }
+    val replacementIndex = newModels.indexOf(replacementModelName)
+    require(replacementIndex >= 0) {
+        "Replacement model '$replacementModelName' is not present in the new model list"
+    }
+    return replacementIndex
+}
+
 /** 从逗号分隔的模型名称字符串中根据索引获取具体模型 */
 fun getModelByIndex(modelName: String, index: Int): String {
     if (modelName.isEmpty()) return ""
-    val models = modelName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    val models = getModelList(modelName)
     return if (index >= 0 && index < models.size) models[index] else models.getOrNull(0) ?: ""
 }
 
 /** 获取模型列表 */
 fun getModelList(modelName: String): List<String> {
     if (modelName.isEmpty()) return emptyList()
-    return modelName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    return normalizeModelNames(modelName.split(","))
 }
 
 /** 

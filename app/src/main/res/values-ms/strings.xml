@@ -3071,8 +3071,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="no_models_found">Tiada model tersedia ditemui</string>
     <string name="models_displayed">%d model dipaparkan</string>
     <string name="models_displayed_filtered"> (telah ditapis)</string>
-    <string name="models_selected_suffix"> telah dipilih</string>
-    <string name="model_name_multiple_hint"> (boleh pisahkan berbilang model dengan koma)</string>
     <string name="auto_save_failed">Simpanan automatik gagal</string>
     <string name="provider_openai">OpenAI (siri GPT)</string>
     <string name="provider_openai_responses">OpenAI (Responses API)</string>
@@ -3222,9 +3220,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="api_key">Kunci API</string>
     <string name="api_key_placeholder_default">Gunakan Kunci lalai, boleh dimasukkan terus</string>
     <string name="api_key_placeholder_custom">Masukkan kunci API</string>
-    <string name="model_name">Nama model</string>
-    <string name="model_name_placeholder">Contoh: gpt-4, claude-3-opus-20240229...</string>
-    <string name="get_models_list">Dapatkan senarai model</string>
     <string name="getting_models_list">Mendapatkan senarai model...</string>
     <string name="models_list_success">Berjaya mendapatkan %d model</string>
     <string name="get_models_list_failed">Gagal mendapatkan senarai model: %s</string>
@@ -3958,7 +3953,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="mnn_download_complete">Muat turun selesai</string>
     <string name="mnn_download_failed">Muat turun gagal: %1$s</string>
     <string name="mnn_no_models_downloaded">Tiada model yang dimuat turun buat masa ini</string>
-    <string name="mnn_select_downloaded_model">Pilih model yang telah dimuat turun</string>
     <string name="mnn_model_name_only">Nama model</string>
     <string name="mnn_download_progress">Kemajuan: %1$d%%</string>
     <string name="mnn_pause_download">Hentikan sementara muat turun</string>
@@ -4100,7 +4094,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="external_http_chat_web_title">Kemasukan Perbualan Web</string>
 
     <string name="llama_auto_config_tip">Parameter keserasian Android seperti saiz kelompok, mmap, Flash Attention, KV telah terbina dalam. Untuk kegunaan biasa, hanya perlu laraskan bilangan benang, saiz konteks dan bilangan lapisan GPU.</string>
-    <string name="llama_select_downloaded_model">Pilih model yang telah dimuat turun</string>
     <string name="llama_thread_count">Bilangan benang</string>
     <string name="llama_context_size">Saiz konteks</string>
     <string name="llama_context_size_subtitle">Disyorkan bermula dengan 2048 pada Android, terlalu besar lebih mudah gagal inisialisasi kerana tekanan memori</string>

@@ -18,9 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -52,12 +50,21 @@ import com.ai.assistance.operit.data.collects.ApiProviderConfigs
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelConfigData
 import com.ai.assistance.operit.data.model.ModelOption
+import com.ai.assistance.operit.data.model.getModelList
+import com.ai.assistance.operit.data.model.mergeModelNames
+import com.ai.assistance.operit.data.model.reconcileUpstreamModelSelection
+import com.ai.assistance.operit.data.model.serializeModelNames
+import com.ai.assistance.operit.data.model.UpstreamModelSelectionChange
+import com.ai.assistance.operit.data.preferences.ModelConfigBindingImpact
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
+import com.ai.assistance.operit.data.preferences.ModelConfigModelBindingCoordinator
 import com.ai.assistance.operit.plugins.toolpkg.ToolPkgAiProviderRegistry
 import com.ai.assistance.operit.ui.common.input.bringIntoViewOnImeFocus
 import com.ai.assistance.operit.ui.features.settings.DebouncedModelConfigAutoSaveEffect
 import com.ai.assistance.operit.ui.features.settings.ModelConfigSaveCoordinator
 import com.ai.assistance.operit.ui.features.settings.RegisterModelConfigSaveAction
+import com.ai.assistance.operit.ui.features.settings.components.ModelNameTagEditor
+import com.ai.assistance.operit.ui.features.settings.components.UpstreamModelPickerSheet
 import com.ai.assistance.operit.util.LocationUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +82,29 @@ private data class ProviderSelectionOption(
     val displayName: String
 )
 
+private data class PendingModelDeletion(
+    val modelName: String,
+    val impact: ModelConfigBindingImpact,
+    val nextModels: List<String>
+)
+
+private data class PendingUpstreamModelSelection(
+    val change: UpstreamModelSelectionChange,
+    val impact: ModelConfigBindingImpact
+)
+
+private sealed interface ModelClearDialogState {
+    data object Checking : ModelClearDialogState
+
+    data class Confirm(
+        val modelCount: Int
+    ) : ModelClearDialogState
+
+    data class Blocked(
+        val bindingCount: Int
+    ) : ModelClearDialogState
+}
+
 @Composable
 @SuppressLint("MissingPermission")
 fun ModelApiSettingsSection(
@@ -82,10 +112,13 @@ fun ModelApiSettingsSection(
         configManager: ModelConfigManager,
         saveCoordinator: ModelConfigSaveCoordinator,
         showNotification: (String) -> Unit,
+        showUndoableNotification: suspend (String) -> Boolean,
         navigateToMnnModelDownload: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val modelBindingCoordinator =
+        remember(context) { ModelConfigModelBindingCoordinator(context) }
 
     // 区域告警可见性
     var showRegionWarning by remember { mutableStateOf(false) }
@@ -109,7 +142,17 @@ fun ModelApiSettingsSection(
     // API编辑状态
     var apiEndpointInput by remember(config.id) { mutableStateOf(config.apiEndpoint) }
     var apiKeyInput by remember(config.id) { mutableStateOf(config.apiKey) }
-    var modelNameInput by remember(config.id) { mutableStateOf(config.modelName) }
+    var modelNamesInput by remember(config.id) { mutableStateOf(getModelList(config.modelName)) }
+    var modelBindingReplacementName by remember(config.id) { mutableStateOf<String?>(null) }
+    var pendingModelDeletion by remember(config.id) {
+        mutableStateOf<PendingModelDeletion?>(null)
+    }
+    var pendingUpstreamModelSelection by remember(config.id) {
+        mutableStateOf<PendingUpstreamModelSelection?>(null)
+    }
+    var modelClearDialogState by remember(config.id) {
+        mutableStateOf<ModelClearDialogState?>(null)
+    }
     var selectedProviderTypeId by remember(config.id) { mutableStateOf(config.apiProviderTypeId) }
     var hasInitializedProviderEndpointSync by remember(config.id) { mutableStateOf(false) }
     var previousProviderTypeId by remember(config.id) { mutableStateOf(config.apiProviderTypeId) }
@@ -159,36 +202,43 @@ fun ModelApiSettingsSection(
         val enableGoogleSearch: Boolean,
         val enableClaude1hPromptCache: Boolean,
         val enableToolCall: Boolean,
+        val replacementModelName: String?,
     )
 
     // 保存设置的通用函数
-    suspend fun persist(state: ApiAutoSaveState) {
-        modelApiSettingsSaveMutex.withLock {
-            withContext(Dispatchers.IO) {
-                configManager.updateApiSettingsFull(
+    suspend fun persist(state: ApiAutoSaveState): ModelConfigBindingImpact {
+        return modelApiSettingsSaveMutex.withLock {
+            val impact =
+                modelBindingCoordinator.reconcileAndPersist(
                     configId = config.id,
-                    apiKey = state.apiKey,
-                    apiEndpoint = state.apiEndpoint,
-                    modelName = state.modelName,
-                    apiProviderType = state.provider,
-                    apiProviderTypeId = state.providerTypeId,
-                    mnnForwardType = state.mnnForwardType,
-                    mnnThreadCount = state.mnnThreadCount,
-                    llamaThreadCount = state.llamaThreadCount,
-                    llamaContextSize = state.llamaContextSize,
-                    llamaGpuLayers = state.llamaGpuLayers,
-                    enableDirectImageProcessing = state.enableDirectImageProcessing,
-                    enableDirectAudioProcessing = state.enableDirectAudioProcessing,
-                    enableDirectVideoProcessing = state.enableDirectVideoProcessing,
-                    enableGoogleSearch = state.enableGoogleSearch,
-                    enableClaude1hPromptCache = state.enableClaude1hPromptCache,
-                    enableToolCall = state.enableToolCall,
-                )
+                    nextModels = getModelList(state.modelName),
+                    replacementModelName = state.replacementModelName
+                ) {
+                    withContext(Dispatchers.IO) {
+                        configManager.updateApiSettingsFull(
+                            configId = config.id,
+                            apiKey = state.apiKey,
+                            apiEndpoint = state.apiEndpoint,
+                            modelName = state.modelName,
+                            apiProviderType = state.provider,
+                            apiProviderTypeId = state.providerTypeId,
+                            mnnForwardType = state.mnnForwardType,
+                            mnnThreadCount = state.mnnThreadCount,
+                            llamaThreadCount = state.llamaThreadCount,
+                            llamaContextSize = state.llamaContextSize,
+                            llamaGpuLayers = state.llamaGpuLayers,
+                            enableDirectImageProcessing = state.enableDirectImageProcessing,
+                            enableDirectAudioProcessing = state.enableDirectAudioProcessing,
+                            enableDirectVideoProcessing = state.enableDirectVideoProcessing,
+                            enableGoogleSearch = state.enableGoogleSearch,
+                            enableClaude1hPromptCache = state.enableClaude1hPromptCache,
+                            enableToolCall = state.enableToolCall,
+                        )
+                    }
+                }
 
-                EnhancedAIService.refreshAllServices(
-                    configManager.appContext
-                )
-            }
+            EnhancedAIService.refreshAllServices(configManager.appContext)
+            impact
         }
     }
 
@@ -196,7 +246,7 @@ fun ModelApiSettingsSection(
         return ApiAutoSaveState(
             apiEndpoint = apiEndpointInput,
             apiKey = apiKeyInput,
-            modelName = modelNameInput,
+            modelName = serializeModelNames(modelNamesInput),
             providerTypeId = selectedProviderTypeId,
             provider = selectedApiProvider ?: ApiProviderType.OTHER,
             mnnForwardType = mnnForwardTypeInput,
@@ -210,21 +260,23 @@ fun ModelApiSettingsSection(
             enableGoogleSearch = enableGoogleSearchInput,
             enableClaude1hPromptCache = enableClaude1hPromptCacheInput,
             enableToolCall = enableToolCallInput,
+            replacementModelName = modelBindingReplacementName,
         )
     }
 
-    suspend fun flushSettings(showSuccess: Boolean) {
+    suspend fun flushSettings(showSuccess: Boolean): ModelConfigBindingImpact {
         val state = buildAutoSaveState()
         try {
             AppLogger.d(
                 TAG,
                 "保存API设置: apiKey=${state.apiKey.take(5)}..., endpoint=${state.apiEndpoint}, model=${state.modelName}, providerType=${state.provider.name}"
             )
-            persist(state)
+            val impact = persist(state)
             AppLogger.d(TAG, "API设置保存完成并刷新服务")
             if (showSuccess) {
                 showNotification(context.getString(R.string.api_settings_saved))
             }
+            return impact
         } catch (e: Exception) {
             if (showSuccess) {
                 showNotification((e.message ?: context.getString(R.string.save_failed)))
@@ -267,13 +319,16 @@ fun ModelApiSettingsSection(
 
         val moonshotDefaultModel = getDefaultModelName(ApiProviderType.MOONSHOT.name)
         val isKimiCodeEndpoint = endpoint.contains("api.kimi.com/coding/v1", ignoreCase = true)
+        val currentSingleModel = modelNamesInput.singleOrNull()
 
         if (isKimiCodeEndpoint) {
-            if (modelNameInput.isEmpty() || modelNameInput == moonshotDefaultModel) {
-                modelNameInput = "kimi-for-coding"
+            if (modelNamesInput.isEmpty() || currentSingleModel == moonshotDefaultModel) {
+                modelNamesInput = listOf("kimi-for-coding")
+                modelBindingReplacementName = "kimi-for-coding"
             }
-        } else if (modelNameInput == "kimi-for-coding") {
-            modelNameInput = moonshotDefaultModel
+        } else if (currentSingleModel == "kimi-for-coding" && moonshotDefaultModel.isNotEmpty()) {
+            modelNamesInput = listOf(moonshotDefaultModel)
+            modelBindingReplacementName = moonshotDefaultModel
         }
     }
 
@@ -345,11 +400,6 @@ fun ModelApiSettingsSection(
     val isMnnProvider = selectedApiProvider == ApiProviderType.MNN
     val isLlamaProvider = selectedApiProvider == ApiProviderType.LLAMA_CPP
     val isToolPkgProvider = selectedApiProvider == null
-    val canUseKeylessModelUi = isToolPkgProvider || !providerRequiresApiKey
-    val canEditModelName =
-        !isMnnProvider &&
-            !isLlamaProvider &&
-            (canUseKeylessModelUi || !isUsingDefaultApiKey)
     val canRequestModelList =
         isToolPkgProvider ||
             isMnnProvider ||
@@ -384,7 +434,7 @@ fun ModelApiSettingsSection(
                             config.copy(
                                 apiKey = apiKeyInput,
                                 apiEndpoint = apiEndpointInput,
-                                modelName = modelNameInput,
+                                modelName = serializeModelNames(modelNamesInput),
                                 apiProviderType = ApiProviderType.OTHER,
                                 apiProviderTypeId = selectedProviderTypeId,
                                 enableDirectImageProcessing = enableDirectImageProcessingInput,
@@ -413,7 +463,337 @@ fun ModelApiSettingsSection(
                 )
         }
     }
-    // 移除了强制锁定模型名称的逻辑，允许用户自由修改
+
+    fun requestAvailableModels() {
+        AppLogger.d(
+            TAG,
+            "请求上游模型列表 - API端点: $apiEndpointInput, API类型: $selectedProviderTypeId"
+        )
+        val gettingModelsText = context.getString(R.string.getting_models_list)
+        val getModelsFailedText = context.getString(R.string.get_models_list_failed)
+        val defaultConfigNoModelsText =
+            context.getString(R.string.default_config_no_models_list)
+        val fillEndpointKeyText = context.getString(R.string.fill_endpoint_and_key)
+        val modelsListSuccessText = context.getString(R.string.models_list_success)
+
+        scope.launch {
+            if (canRequestModelList) {
+                showNotification(gettingModelsText)
+                isLoadingModels = true
+                modelLoadError = null
+                try {
+                    val result = fetchAvailableModels()
+                    if (result.isSuccess) {
+                        val models = result.getOrThrow()
+                        modelsList = models
+                        modelLoadError = null
+                        showModelsDialog = true
+                        showNotification(modelsListSuccessText.format(models.size))
+                    } else {
+                        val error = requireNotNull(result.exceptionOrNull())
+                        val failureText =
+                            getModelsFailedText.format(error.toString())
+                        modelLoadError = failureText
+                        showNotification(failureText)
+                    }
+                } catch (error: Exception) {
+                    AppLogger.e(TAG, "获取模型列表发生异常", error)
+                    val failureText = getModelsFailedText.format(error.toString())
+                    modelLoadError = failureText
+                    showNotification(failureText)
+                } finally {
+                    isLoadingModels = false
+                }
+            } else if (
+                !isToolPkgProvider &&
+                    isUsingDefaultApiKey &&
+                    providerRequiresApiKey
+            ) {
+                showNotification(defaultConfigNoModelsText)
+            } else {
+                showNotification(fillEndpointKeyText)
+            }
+        }
+    }
+
+    fun refreshAvailableModels() {
+        if (!canRequestModelList || isLoadingModels) return
+
+        scope.launch {
+            isLoadingModels = true
+            try {
+                val result = fetchAvailableModels()
+                if (result.isSuccess) {
+                    modelsList = result.getOrThrow()
+                    modelLoadError = null
+                } else {
+                    val error = requireNotNull(result.exceptionOrNull())
+                    val failureText =
+                        context.getString(
+                            R.string.refresh_models_list_failed,
+                            error.toString()
+                        )
+                    modelLoadError = failureText
+                    showNotification(failureText)
+                }
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "刷新模型列表发生异常", error)
+                val failureText =
+                    context.getString(
+                        R.string.refresh_models_list_failed,
+                        error.toString()
+                    )
+                modelLoadError = failureText
+                showNotification(failureText)
+            } finally {
+                isLoadingModels = false
+            }
+        }
+    }
+
+    fun addModels(addedModels: List<String>) {
+        val mergedModels = mergeModelNames(modelNamesInput, addedModels)
+        val addedCount = mergedModels.size - modelNamesInput.size
+        if (addedCount == 0) {
+            showNotification(context.getString(R.string.model_add_no_new_items))
+            return
+        }
+        modelNamesInput = mergedModels
+        modelBindingReplacementName = null
+        showNotification(context.getString(R.string.model_add_result, addedCount))
+    }
+
+    suspend fun applyUpstreamModelSelection(
+        change: UpstreamModelSelectionChange,
+        impact: ModelConfigBindingImpact
+    ) {
+        val previousModels = modelNamesInput
+        val previousReplacement = modelBindingReplacementName
+        modelNamesInput = change.nextModels
+        modelBindingReplacementName =
+            if (impact.hasBindings) {
+                require(change.nextModels.isNotEmpty()) {
+                    "Cannot replace bindings when the model list is empty"
+                }
+                change.nextModels.first()
+            } else {
+                null
+            }
+
+        try {
+            flushSettings(showSuccess = false)
+            modelBindingReplacementName = null
+            if (selectedApiProvider == ApiProviderType.MNN) {
+                AppLogger.d(
+                    TAG,
+                    "应用MNN模型选择: ${serializeModelNames(change.nextModels)}"
+                )
+            }
+            showNotification(
+                context.getString(
+                    R.string.model_upstream_change_applied,
+                    change.addedModels.size,
+                    change.removedModels.size
+                )
+            )
+        } catch (error: Exception) {
+            modelNamesInput = previousModels
+            modelBindingReplacementName = previousReplacement
+            AppLogger.e(TAG, "应用上游模型选择失败", error)
+            showNotification("${context.getString(R.string.save_failed)}: $error")
+        }
+    }
+
+    fun requestUpstreamModelSelection(selectedModels: Set<String>) {
+        scope.launch {
+            try {
+                flushSettings(showSuccess = false)
+                val change =
+                    reconcileUpstreamModelSelection(
+                        currentModels = modelNamesInput,
+                        upstreamModels = modelsList.map(ModelOption::id),
+                        selectedUpstreamModels = selectedModels
+                    )
+                if (!change.hasChanges) {
+                    showModelsDialog = false
+                    return@launch
+                }
+
+                val impact =
+                    modelBindingCoordinator.inspectModelBindings(
+                        configId = config.id,
+                        modelNames = change.removedModels
+                    )
+                if (impact.hasBindings && change.nextModels.isEmpty()) {
+                    showNotification(
+                        context.getString(
+                            R.string.model_upstream_remove_bound_blocked,
+                            impact.totalCount
+                        )
+                    )
+                    return@launch
+                }
+
+                showModelsDialog = false
+                if (impact.hasBindings) {
+                    pendingUpstreamModelSelection =
+                        PendingUpstreamModelSelection(
+                            change = change,
+                            impact = impact
+                        )
+                } else {
+                    applyUpstreamModelSelection(change = change, impact = impact)
+                }
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "检查上游模型选择失败", error)
+                showNotification("${context.getString(R.string.save_failed)}: $error")
+            }
+        }
+    }
+
+    suspend fun applyModelDeletion(
+        modelName: String,
+        impact: ModelConfigBindingImpact,
+        nextModels: List<String>
+    ) {
+        val deletedIndex = modelNamesInput.indexOf(modelName)
+        if (deletedIndex < 0) return
+
+        val previousModels = modelNamesInput
+        val previousReplacement = modelBindingReplacementName
+        modelNamesInput = nextModels
+        modelBindingReplacementName =
+            if (impact.hasBindings) nextModels.first() else null
+
+        val appliedImpact =
+            try {
+                flushSettings(showSuccess = false)
+            } catch (error: Exception) {
+                modelNamesInput = previousModels
+                modelBindingReplacementName = previousReplacement
+                AppLogger.e(TAG, "删除模型保存失败", error)
+                showNotification("${context.getString(R.string.save_failed)}: $error")
+                return
+            }
+
+        val shouldUndo =
+            showUndoableNotification(
+                context.getString(R.string.model_deleted, modelName)
+            )
+        if (!shouldUndo) return
+
+        val restoredModels =
+            modelNamesInput.toMutableList().apply {
+                if (modelName !in this) {
+                    add(deletedIndex.coerceAtMost(size), modelName)
+                }
+            }
+        modelNamesInput = restoredModels
+        modelBindingReplacementName = null
+        try {
+            flushSettings(showSuccess = false)
+            modelBindingCoordinator.restoreBindings(
+                configId = config.id,
+                modelName = modelName,
+                impact = appliedImpact
+            )
+            EnhancedAIService.refreshAllServices(configManager.appContext)
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "撤销模型删除失败", error)
+            showNotification("${context.getString(R.string.save_failed)}: $error")
+        }
+    }
+
+    fun requestModelDeletion(modelName: String) {
+        scope.launch {
+            try {
+                flushSettings(showSuccess = false)
+                val nextModels = modelNamesInput.filterNot { it == modelName }
+                val impact =
+                    modelBindingCoordinator.inspectModelBindings(
+                        configId = config.id,
+                        modelName = modelName
+                    )
+                if (impact.hasBindings && nextModels.isEmpty()) {
+                    showNotification(
+                        context.getString(
+                            R.string.model_delete_last_bound_blocked,
+                            modelName
+                        )
+                    )
+                    return@launch
+                }
+                if (impact.hasBindings) {
+                    pendingModelDeletion =
+                        PendingModelDeletion(
+                            modelName = modelName,
+                            impact = impact,
+                            nextModels = nextModels
+                        )
+                } else {
+                    applyModelDeletion(
+                        modelName = modelName,
+                        impact = impact,
+                        nextModels = nextModels
+                    )
+                }
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "检查模型绑定失败", error)
+                showNotification("${context.getString(R.string.save_failed)}: $error")
+            }
+        }
+    }
+
+    fun requestClearModels() {
+        if (modelClearDialogState != null) return
+        // 页面级通知位于长列表末尾，不能承担当前视口中的关键反馈；异步检查开始前先展示模态状态。
+        modelClearDialogState = ModelClearDialogState.Checking
+        scope.launch {
+            try {
+                flushSettings(showSuccess = false)
+                val impact = modelBindingCoordinator.inspectConfigBindings(config.id)
+                modelClearDialogState =
+                    if (impact.hasBindings) {
+                        ModelClearDialogState.Blocked(impact.totalCount)
+                    } else {
+                        ModelClearDialogState.Confirm(modelNamesInput.size)
+                    }
+            } catch (error: Exception) {
+                modelClearDialogState = null
+                AppLogger.e(TAG, "检查模型列表绑定失败", error)
+                showNotification("${context.getString(R.string.save_failed)}: $error")
+            }
+        }
+    }
+
+    suspend fun clearModelsWithUndo() {
+        val previousModels = modelNamesInput
+        val previousReplacement = modelBindingReplacementName
+        modelNamesInput = emptyList()
+        modelBindingReplacementName = null
+        try {
+            flushSettings(showSuccess = false)
+        } catch (error: Exception) {
+            modelNamesInput = previousModels
+            modelBindingReplacementName = previousReplacement
+            AppLogger.e(TAG, "清空模型列表失败", error)
+            showNotification("${context.getString(R.string.save_failed)}: $error")
+            return
+        }
+
+        val shouldUndo =
+            showUndoableNotification(context.getString(R.string.model_cleared))
+        if (!shouldUndo) return
+
+        modelNamesInput = mergeModelNames(modelNamesInput, previousModels)
+        modelBindingReplacementName = null
+        try {
+            flushSettings(showSuccess = false)
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "撤销清空模型列表失败", error)
+            showNotification("${context.getString(R.string.save_failed)}: $error")
+        }
+    }
 
     Card(
             modifier = Modifier
@@ -447,13 +827,20 @@ fun ModelApiSettingsSection(
                         onProviderSelected = { provider ->
                             selectedProviderTypeId = provider.id
 
-                            // 对有默认模型名的供应商，视为“有强制内容”：切换时总是重置为该供应商默认模型名
-                            val hasForcedModelName = getDefaultModelName(provider.id).isNotEmpty()
-                            if (hasForcedModelName) {
-                                modelNameInput = getDefaultModelName(provider.id)
-                            } else if (modelNameInput.isEmpty() || isDefaultModelName(modelNameInput)) {
-                                // 通用/无默认模型名的供应商仍沿用旧逻辑
-                                modelNameInput = getDefaultModelName(provider.id)
+                            val providerDefaultModel = getDefaultModelName(provider.id)
+                            val currentSingleModel = modelNamesInput.singleOrNull()
+                            val shouldUseProviderDefault =
+                                providerDefaultModel.isNotEmpty() &&
+                                    (
+                                        modelNamesInput.isEmpty() ||
+                                            (
+                                                currentSingleModel != null &&
+                                                    isDefaultModelName(currentSingleModel)
+                                            )
+                                    )
+                            if (shouldUseProviderDefault) {
+                                modelNamesInput = listOf(providerDefaultModel)
+                                modelBindingReplacementName = providerDefaultModel
                             }
 
                             showApiProviderDialog = false
@@ -623,101 +1010,20 @@ fun ModelApiSettingsSection(
                         interactionSource = apiKeyInteractionSource
                 )
             }
-            SettingsTextField(
-                    title = stringResource(R.string.model_name),
-                    subtitle = when {
-                        isMnnProvider -> stringResource(R.string.mnn_select_downloaded_model)
-                        isLlamaProvider -> stringResource(R.string.llama_select_downloaded_model)
-                        else -> stringResource(R.string.model_name_placeholder) + stringResource(R.string.model_name_multiple_hint)
-                    },
-                        value = modelNameInput,
-                        onValueChange = {
-                        if (canEditModelName) {
-                                modelNameInput = it.replace("\n", "").replace("\r", "")
-                            }
-                        },
-                    enabled = !isMnnProvider && !isLlamaProvider && canEditModelName,
-                    trailingContent = {
-                IconButton(
-                        onClick = {
-                            AppLogger.d(
-                                    TAG,
-                                    "模型列表按钮被点击 - API端点: $apiEndpointInput, API类型: $selectedProviderTypeId"
-                            )
-                            val gettingModelsText = context.getString(R.string.getting_models_list)
-                            val unknownErrorText = context.getString(R.string.unknown_error)
-                            val getModelsFailedText = context.getString(R.string.get_models_list_failed)
-                            val defaultConfigNoModelsText = context.getString(R.string.default_config_no_models_list)
-                            val fillEndpointKeyText = context.getString(R.string.fill_endpoint_and_key)
-                            val modelsListSuccessText = context.getString(R.string.models_list_success)
-                            
-                            showNotification(gettingModelsText)
-
-                            scope.launch {
-                                if (canRequestModelList) {
-                                    isLoadingModels = true
-                                    modelLoadError = null
-                                    AppLogger.d(
-                                            TAG,
-                                            "开始获取模型列表: 端点=$apiEndpointInput, API类型=$selectedProviderTypeId"
-                                    )
-
-                                    try {
-                                        val result = fetchAvailableModels()
-                                        if (result.isSuccess) {
-                                            val models = result.getOrThrow()
-                                            AppLogger.d(TAG, "模型列表获取成功，共 ${models.size} 个模型")
-                                            modelsList = models
-                                            showModelsDialog = true
-                                            showNotification(modelsListSuccessText.format(models.size))
-                                        } else {
-                                            val errorMsg =
-                                                    result.exceptionOrNull()?.message ?: unknownErrorText
-                                            AppLogger.e(TAG, "模型列表获取失败: $errorMsg")
-                                            modelLoadError = getModelsFailedText.format(errorMsg)
-                                            showNotification(modelLoadError ?: getModelsFailedText.format(""))
-                                        }
-                                    } catch (e: Exception) {
-                                        AppLogger.e(TAG, "获取模型列表发生异常", e)
-                                        modelLoadError = getModelsFailedText.format(e.message ?: "")
-                                        showNotification(modelLoadError ?: getModelsFailedText.format(""))
-                                    } finally {
-                                        isLoadingModels = false
-                                        AppLogger.d(TAG, "模型列表获取流程完成")
-                                    }
-                                } else if (!isToolPkgProvider && isUsingDefaultApiKey && providerRequiresApiKey) {
-                                    AppLogger.d(TAG, "使用默认配置，不获取模型列表")
-                                    showNotification(defaultConfigNoModelsText)
-                                } else {
-                                    AppLogger.d(TAG, "API端点或密钥为空")
-                                    showNotification(fillEndpointKeyText)
-                                }
-                            }
-                        },
-                        modifier = Modifier.size(48.dp),
-                        colors =
-                                IconButtonDefaults.iconButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.primary
-                                ),
-                                enabled = canRequestModelList
-                ) {
-                    if (isLoadingModels) {
-                        CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                                imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
-                                contentDescription = stringResource(R.string.get_models_list),
-                                tint =
-                                                if (!canRequestModelList && !isToolPkgProvider)
-                                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                                else MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
+            ModelNameTagEditor(
+                models = modelNamesInput,
+                canAddManually = true,
+                canFetchFromUpstream = true,
+                isFetchingFromUpstream = isLoadingModels,
+                onAddModels = ::addModels,
+                onFetchFromUpstream = ::requestAvailableModels,
+                onDeleteModel = ::requestModelDeletion,
+                onReorderModels = { orderedModels ->
+                    modelNamesInput = orderedModels
+                    modelBindingReplacementName = null
+                },
+                onClearModels = ::requestClearModels,
+                showNotification = showNotification
             )
 
             SettingsSwitchRow(
@@ -773,280 +1079,188 @@ fun ModelApiSettingsSection(
         }
     }
 
-    // 模型列表对话框
     if (showModelsDialog) {
-        var searchQuery by remember { mutableStateOf("") }
-        // 维护已选中的模型集合
-        val selectedModels = remember {
-            mutableStateOf(
-                modelNameInput.split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .toSet()
-            )
-        }
-        val filteredModelsList =
-                remember(searchQuery, modelsList) {
-                    if (searchQuery.isEmpty()) modelsList
-                    else modelsList.filter { it.id.contains(searchQuery, ignoreCase = true) }
+        UpstreamModelPickerSheet(
+            models = modelsList,
+            existingModels = modelNamesInput.toSet(),
+            isRefreshing = isLoadingModels,
+            loadError = modelLoadError,
+            onRefresh = ::refreshAvailableModels,
+            onApplySelection = { selectedModels ->
+                showModelsDialog = false
+                requestUpstreamModelSelection(selectedModels)
+            },
+            onDismissRequest = { showModelsDialog = false }
+        )
+    }
+
+    pendingUpstreamModelSelection?.let { pending ->
+        val replacementModelName = pending.change.nextModels.first()
+        AlertDialog(
+            onDismissRequest = { pendingUpstreamModelSelection = null },
+            title = { Text(stringResource(R.string.model_upstream_bound_change_title)) },
+            text = {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.model_upstream_bound_change_message,
+                            pending.change.removedModels.size,
+                            pending.impact.functionTypes.size,
+                            pending.impact.characterCards.size,
+                            replacementModelName
+                        )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingUpstreamModelSelection = null
+                        scope.launch {
+                            applyUpstreamModelSelection(
+                                change = pending.change,
+                                impact = pending.impact
+                            )
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.model_upstream_apply_changes))
                 }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingUpstreamModelSelection = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
-        Dialog(onDismissRequest = { showModelsDialog = false }) {
-            Surface(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    tonalElevation = 6.dp,
-                    shadowElevation = 8.dp
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // 标题栏
-                    Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                                stringResource(R.string.available_models_list),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+    pendingModelDeletion?.let { pending ->
+        val replacementModelName = pending.nextModels.first()
+        AlertDialog(
+            onDismissRequest = { pendingModelDeletion = null },
+            title = { Text(stringResource(R.string.model_delete_bound_title)) },
+            text = {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.model_delete_bound_message,
+                            pending.modelName,
+                            pending.impact.functionTypes.size,
+                            pending.impact.characterCards.size,
+                            replacementModelName
                         )
-
-                        FilledIconButton(
-                                onClick = {
-                                    scope.launch {
-                                        if (canRequestModelList) {
-                                            isLoadingModels = true
-                                            try {
-                                                val result = fetchAvailableModels()
-                                                if (result.isSuccess) {
-                                                    modelsList = result.getOrThrow()
-                                                } else {
-                                                    val errorMsg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)
-                                                    modelLoadError = context.getString(R.string.refresh_models_list_failed, errorMsg)
-                                                    showNotification(modelLoadError ?: context.getString(R.string.refresh_models_failed))
-                                                }
-                                            } catch (e: Exception) {
-                                                val errorMsg = e.message ?: context.getString(R.string.unknown_error)
-                                                modelLoadError = context.getString(R.string.refresh_models_list_failed, errorMsg)
-                                                showNotification(modelLoadError ?: context.getString(R.string.refresh_models_failed))
-                                            } finally {
-                                                isLoadingModels = false
-                                            }
-                                        }
-                                    }
-                                },
-                                colors =
-                                        IconButtonDefaults.filledIconButtonColors(
-                                                containerColor =
-                                                        MaterialTheme.colorScheme.primaryContainer,
-                                                contentColor =
-                                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                        ),
-                                modifier = Modifier.size(36.dp)
-                        ) {
-                            if (isLoadingModels) {
-                                CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            } else {
-                                Icon(
-                                        Icons.Default.Refresh,
-                                        contentDescription = stringResource(R.string.refresh_models_list),
-                                        modifier = Modifier.size(18.dp)
-                                )
-                            }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingModelDeletion = null
+                        scope.launch {
+                            applyModelDeletion(
+                                modelName = pending.modelName,
+                                impact = pending.impact,
+                                nextModels = pending.nextModels
+                            )
                         }
                     }
+                ) {
+                    Text(stringResource(R.string.delete_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingModelDeletion = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
-                    // 搜索框 - 用普通的OutlinedTextField替代实验性的SearchBar
-                    OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text(stringResource(R.string.search_models), fontSize = 14.sp) },
-                            leadingIcon = {
-                                Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = stringResource(R.string.search),
-                                        modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(
-                                            onClick = { searchQuery = "" },
-                                            modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                                Icons.Default.Clear,
-                                                contentDescription = stringResource(R.string.clear),
-                                                modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            modifier =
-                                    Modifier.fillMaxWidth().padding(bottom = 12.dp).height(48.dp),
-                            colors =
-                                    OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                            unfocusedBorderColor =
-                                                    MaterialTheme.colorScheme.outline,
-                                            focusedLeadingIconColor =
-                                                    MaterialTheme.colorScheme.primary,
-                                            unfocusedLeadingIconColor =
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                    ),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
+    modelClearDialogState?.let { clearDialogState ->
+        AlertDialog(
+            onDismissRequest = {
+                if (clearDialogState !is ModelClearDialogState.Checking) {
+                    modelClearDialogState = null
+                }
+            },
+            title = {
+                Text(
+                    stringResource(
+                        if (clearDialogState is ModelClearDialogState.Blocked) {
+                            R.string.model_clear_bound_title
+                        } else {
+                            R.string.model_clear_all_title
+                        }
                     )
-
-                    // 模型列表
-                    if (modelsList.isEmpty()) {
-                        Box(
-                                modifier = Modifier.fillMaxWidth().height(200.dp),
-                                contentAlignment = Alignment.Center
+                )
+            },
+            text = {
+                when (clearDialogState) {
+                    ModelClearDialogState.Checking -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint =
-                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                                        alpha = 0.6f
-                                                )
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                        text = modelLoadError ?: stringResource(R.string.no_models_found),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else {
-                        androidx.compose.foundation.lazy.LazyColumn(
-                                modifier = Modifier.fillMaxWidth().weight(1f)
-                        ) {
-                            items(filteredModelsList.size) { index ->
-                                val model = filteredModelsList[index]
-                                val isSelected = selectedModels.value.contains(model.id)
-                                
-                                // 使用带Checkbox的Row实现多选
-                                Row(
-                                        modifier =
-                                                Modifier.fillMaxWidth()
-                                                        .clickable {
-                                                            // 切换选中状态
-                                                            val newSelection = selectedModels.value.toMutableSet()
-                                                            if (isSelected) {
-                                                                newSelection.remove(model.id)
-                                                            } else {
-                                                                newSelection.add(model.id)
-                                                            }
-                                                            selectedModels.value = newSelection
-                                                        }
-                                                        .padding(
-                                                                horizontal = 12.dp,
-                                                                vertical = 6.dp
-                                                        ),
-                                        verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Checkbox(
-                                            checked = isSelected,
-                                            onCheckedChange = { checked ->
-                                                val newSelection = selectedModels.value.toMutableSet()
-                                                if (checked) {
-                                                    newSelection.add(model.id)
-                                                } else {
-                                                    newSelection.remove(model.id)
-                                                }
-                                                selectedModels.value = newSelection
-                                            },
-                                            colors = CheckboxDefaults.colors(
-                                                    checkedColor = MaterialTheme.colorScheme.primary
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                            text = model.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.weight(1f),
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (isSelected) 
-                                                    MaterialTheme.colorScheme.primary 
-                                                else 
-                                                    MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-
-                                if (index < filteredModelsList.size - 1) {
-                                    HorizontalDivider(
-                                            thickness = 0.5.dp,
-                                            color =
-                                                    MaterialTheme.colorScheme.outlineVariant.copy(
-                                                            alpha = 0.5f
-                                                    ),
-                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                    )
-                                }
-                            }
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            Text(stringResource(R.string.model_clear_checking))
                         }
                     }
 
-                    // 底部信息
-                    if (filteredModelsList.isNotEmpty()) {
+                    is ModelClearDialogState.Confirm -> {
                         Text(
-                                text =
-                                        stringResource(R.string.models_displayed, filteredModelsList.size) +
-                                                (if (searchQuery.isNotEmpty()) stringResource(R.string.models_displayed_filtered) else "") +
-                                                (if (selectedModels.value.isNotEmpty()) " • ${selectedModels.value.size}" + stringResource(R.string.models_selected_suffix) else ""),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
-                                fontSize = 12.sp
+                            text =
+                                stringResource(
+                                    R.string.model_clear_all_message,
+                                    clearDialogState.modelCount
+                                )
                         )
                     }
 
-                    // 底部按钮
-                    Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-                    ) {
-                        FilledTonalButton(
-                                onClick = { showModelsDialog = false },
-                                modifier = Modifier.height(36.dp)
-                        ) { Text(stringResource(R.string.close), fontSize = 14.sp) }
-                        
+                    is ModelClearDialogState.Blocked -> {
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.model_clear_bound_blocked,
+                                    clearDialogState.bindingCount
+                                )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                when (clearDialogState) {
+                    ModelClearDialogState.Checking -> Unit
+
+                    is ModelClearDialogState.Confirm -> {
                         Button(
-                                onClick = {
-                                    // 将选中的模型用逗号连接
-                                    val orderedSelection = modelsList.map { it.id }
-                                        .filter { selectedModels.value.contains(it) }
-                                    modelNameInput = orderedSelection.joinToString(",")
-                                    if (selectedApiProvider == ApiProviderType.MNN) {
-                                        AppLogger.d(TAG, "选择MNN模型: $modelNameInput")
-                                    }
-                                    showModelsDialog = false
-                                },
-                                modifier = Modifier.height(36.dp),
-                                enabled = selectedModels.value.isNotEmpty()
-                        ) { 
-                            Text(
-                                stringResource(R.string.confirm_action) + 
-                                    if (selectedModels.value.isNotEmpty()) " (${selectedModels.value.size})" else "",
-                                fontSize = 14.sp
-                            ) 
+                            onClick = {
+                                modelClearDialogState = null
+                                scope.launch { clearModelsWithUndo() }
+                            },
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                )
+                        ) {
+                            Text(stringResource(R.string.model_clear_all_action))
                         }
+                    }
+
+                    is ModelClearDialogState.Blocked -> {
+                        TextButton(onClick = { modelClearDialogState = null }) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                if (clearDialogState is ModelClearDialogState.Confirm) {
+                    TextButton(onClick = { modelClearDialogState = null }) {
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             }
-        }
+        )
     }
 }
 

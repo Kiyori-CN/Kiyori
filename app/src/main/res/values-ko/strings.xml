@@ -3243,9 +3243,6 @@
     <string name="api_key">API 키</string>
     <string name="api_key_placeholder_default">기본 키 사용 중입니다. 직접 입력할 수 있습니다.</string>
     <string name="api_key_placeholder_custom">API 키 입력</string>
-    <string name="model_name">모델명</string>
-    <string name="model_name_placeholder">예: gpt-4, claude-3-opus-20240229...</string>
-    <string name="get_models_list">모델 목록 가져오기</string>
     <string name="getting_models_list">모델 목록을 가져오는 중...</string>
     <string name="models_list_success">%d개 모델을 성공적으로 가져왔습니다.</string>
     <string name="get_models_list_failed">모델 목록을 가져오지 못했습니다: %s</string>
@@ -3282,8 +3279,6 @@
     <string name="no_models_found">모델을 찾을 수 없습니다.</string>
     <string name="models_displayed">%d 모델 표시 중</string>
     <string name="models_displayed_filtered"> (필터링됨)</string>
-    <string name="models_selected_suffix"> 선택됨</string>
-    <string name="model_name_multiple_hint"> (쉼표로 여러 모델을 구분할 수 있음)</string>
     <string name="auto_save_failed">자동 저장 실패</string>
     <string name="provider_openai">OpenAI(GPT 시리즈)</string>
     <string name="provider_openai_responses">OpenAI(Responses API)</string>
@@ -4180,7 +4175,6 @@
     <string name="mnn_download_complete">다운로드 완료</string>
     <string name="mnn_download_failed">다운로드 실패: %1$s</string>
     <string name="mnn_no_models_downloaded">아직 다운로드된 모델이 없습니다.</string>
-    <string name="mnn_select_downloaded_model">다운로드한 모델 선택</string>
     <string name="mnn_model_name_only">모델명</string>
     <string name="mnn_download_progress">진행률: %1$d%%</string>
     <string name="mnn_pause_download">다운로드 일시중지</string>
@@ -4239,7 +4233,6 @@
     <string name="llama_local_model_download_tip">llama.cpp 모델은 수동으로 다운로드해야 합니다(.gguf). 모델 파일을 아래 폴더에 넣은 후 "모델 이름"에 파일 이름을 입력하세요.</string>
     <string name="llama_local_model_dir">기본 모델 폴더: %1$s</string>
     <string name="llama_auto_config_tip">배치 크기, mmap, Flash Attention, KV 및 기타 Android 호환성 설정이 내장되어 있습니다. 일반적인 사용에는 스레드 수, 컨텍스트 크기 및 GPU 레이어만 필요합니다.</string>
-    <string name="llama_select_downloaded_model">다운로드한 모델 선택</string>
     <string name="llama_thread_count">스레드 수</string>
     <string name="llama_context_size">컨텍스트 크기</string>
     <string name="llama_context_size_subtitle">Android에서는 먼저 2048부터 시작하세요. 값이 클수록 초기화 중에 실패할 가능성이 더 높습니다.</string>
