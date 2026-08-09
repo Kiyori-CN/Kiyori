@@ -117,6 +117,9 @@ class StandardBrowserSessionTools private constructor(
     internal val browserSettingsStore by lazy {
         WebSessionBrowserSettingsStore.getInstance(context.applicationContext)
     }
+    internal val browserCredentialVault by lazy {
+        BrowserCredentialVault.getInstance(context.applicationContext)
+    }
     internal val profileManager = WebSessionProfileManager()
     private val _browserWindowCount = MutableStateFlow(0)
     internal val browserWindowCount: StateFlow<Int> = _browserWindowCount.asStateFlow()
@@ -220,6 +223,8 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var usesDesktopUserAgentLayout: Boolean = false
         @Volatile var appliedUserAgent: String = ""
         @Volatile var appliedViewportScaleFactor: Float = 1f
+        @Volatile var credentialDocumentToken: String = UUID.randomUUID().toString()
+        @Volatile var returnWithoutReloadOriginalCacheMode: Int? = null
         @Volatile var lastSnapshot: BrowserSnapshot? = null
         @Volatile var thumbnail: Bitmap? = null
         @Volatile var thumbnailUpdatedAt: Long = 0L

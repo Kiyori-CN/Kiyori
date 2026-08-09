@@ -36,10 +36,12 @@ import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoo
 import com.ai.assistance.operit.core.tools.defaultTool.standard.CookiePrivacyManager
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserCredentialVaultSnapshot
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatWebTextZoomPercent
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.parseAutomaticFloatingDurationSeconds
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptExecutionWorld
@@ -57,11 +59,15 @@ internal enum class KiyoriBrowserSettingsAction {
     OPEN_PLUGIN_PERMISSIONS,
     OPEN_PLUGIN_DIAGNOSTICS,
     OPEN_HOME_CUSTOMIZATION,
+    TOGGLE_RETURN_WITHOUT_RELOAD,
+    TOGGLE_FORCE_PAGE_ZOOM,
+    OPEN_WEB_TEXT_SIZE,
     TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
     TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
     SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
     TOGGLE_WEB_PAGE_OPEN_APP,
     TOGGLE_WEB_PAGE_GEOLOCATION,
+    OPEN_PASSWORD_MANAGER,
     CLEAR_COOKIES,
 }
 
@@ -110,8 +116,8 @@ internal val kiyoriBrowserSettingsGroups =
                 ),
         ),
         KiyoriBrowserSettingsGroupSpec(
-            title = "主页与网站数据",
-            description = "管理主页入口、网页外部能力和普通网站数据",
+            title = "主页与导航",
+            description = "管理主页入口与网页历史返回时的加载方式",
             entries =
                 listOf(
                     browserNavigation(
@@ -119,6 +125,35 @@ internal val kiyoriBrowserSettingsGroups =
                         description = "设置浏览器主页按钮和新会话使用的入口地址",
                         action = KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                     ),
+                    browserToggle(
+                        title = "返回不重载",
+                        description = "网页后退时使用历史缓存，减少重新请求和页面状态丢失",
+                        action = KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
+                    ),
+                ),
+        ),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "网页显示",
+            description = "控制网页缩放限制和站点正文的显示比例",
+            entries =
+                listOf(
+                    browserToggle(
+                        title = "强制页面缩放",
+                        description = "忽略网页禁止缩放声明，始终允许双指缩放页面",
+                        action = KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
+                    ),
+                    browserNavigation(
+                        title = "网页文字大小",
+                        description = "调整所有网页正文的文字缩放比例并实时预览",
+                        action = KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE,
+                    ),
+                ),
+        ),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "网站权限与数据",
+            description = "管理网页外部能力、网站凭据和普通浏览数据",
+            entries =
+                listOf(
                     browserToggle(
                         title = "允许网页打开应用",
                         description = "允许网页通过外部链接唤起已安装应用",
@@ -128,6 +163,11 @@ internal val kiyoriBrowserSettingsGroups =
                         title = "允许网页获取位置",
                         description = "允许网页在系统授权后请求设备位置",
                         action = KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
+                    ),
+                    browserNavigation(
+                        title = "网站密码管理",
+                        description = "管理普通窗口中安全保存并自动填充的网站账号密码",
+                        action = KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER,
                     ),
                     browserNavigation(
                         title = "清除网站 Cookie",
@@ -190,6 +230,8 @@ private fun browserToggle(
 private enum class KiyoriBrowserSettingsSubPage {
     HOME_CUSTOMIZATION,
     PLUGIN_PERMISSIONS,
+    WEB_TEXT_SIZE,
+    PASSWORD_MANAGER,
 }
 
 @Composable
@@ -206,6 +248,7 @@ internal fun KiyoriBrowserSettingsPage(
     val historyStore = remember(context) { WebSessionHistoryStore.getInstance(context) }
     val scope = rememberCoroutineScope()
     val settings by coordinator.browserSettings.collectAsState()
+    val credentialVaultState by coordinator.browserCredentialVaultState.collectAsState()
     val userscriptState by coordinator.userscriptState.collectAsState()
     val searchEngine by
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
@@ -258,6 +301,12 @@ internal fun KiyoriBrowserSettingsPage(
                 onOpenHomeCustomization = {
                     subPageName = KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION.name
                 },
+                onSetReturnWithoutReloadEnabled =
+                    coordinator::setReturnWithoutReloadEnabled,
+                onSetForcePageZoomEnabled = coordinator::setForcePageZoomEnabled,
+                onOpenWebTextSize = {
+                    subPageName = KiyoriBrowserSettingsSubPage.WEB_TEXT_SIZE.name
+                },
                 onSetShowMediaCandidateBadge = coordinator::setShowMediaCandidateBadge,
                 onSetAutomaticFloatingPlaybackEnabled =
                     coordinator::setAutomaticFloatingPlaybackEnabled,
@@ -276,7 +325,11 @@ internal fun KiyoriBrowserSettingsPage(
                 },
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
                 onSetAllowWebPageGeolocation = coordinator::setAllowWebPageGeolocation,
+                onOpenPasswordManager = {
+                    subPageName = KiyoriBrowserSettingsSubPage.PASSWORD_MANAGER.name
+                },
                 onClearCookies = { showClearCookieConfirm = true },
+                credentialVaultState = credentialVaultState,
                 modifier = modifier,
             )
         KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION ->
@@ -321,6 +374,25 @@ internal fun KiyoriBrowserSettingsPage(
                         coordinator.openUserscriptDetail(scriptId)
                     }
                 },
+                modifier = modifier,
+            )
+        KiyoriBrowserSettingsSubPage.WEB_TEXT_SIZE ->
+            KiyoriBrowserTextSizePage(
+                currentPercent = settings.webTextZoomPercent,
+                onBack = ::closeCurrentPage,
+                onSetPercent = coordinator::setWebTextZoomPercent,
+                modifier = modifier,
+            )
+        KiyoriBrowserSettingsSubPage.PASSWORD_MANAGER ->
+            KiyoriBrowserPasswordManagerPage(
+                settings = settings,
+                vaultState = credentialVaultState,
+                onBack = ::closeCurrentPage,
+                onSetPasswordSavingEnabled =
+                    coordinator::setWebsitePasswordSavingEnabled,
+                onLoadCredential = coordinator::browserCredential,
+                onUpdateCredential = coordinator::updateBrowserCredential,
+                onDeleteCredential = coordinator::deleteBrowserCredential,
                 modifier = modifier,
             )
     }
@@ -452,12 +524,17 @@ private fun KiyoriBrowserSettingsDetailPage(
     onOpenPluginPermissions: () -> Unit,
     onOpenPluginDiagnostics: () -> Unit,
     onOpenHomeCustomization: () -> Unit,
+    onSetReturnWithoutReloadEnabled: (Boolean) -> Unit,
+    onSetForcePageZoomEnabled: (Boolean) -> Unit,
+    onOpenWebTextSize: () -> Unit,
     onSetShowMediaCandidateBadge: (Boolean) -> Unit,
     onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
     onSelectAutomaticFloatingMinimumDuration: () -> Unit,
     onSetAllowWebPageOpenApp: (Boolean) -> Unit,
     onSetAllowWebPageGeolocation: (Boolean) -> Unit,
+    onOpenPasswordManager: () -> Unit,
     onClearCookies: () -> Unit,
+    credentialVaultState: BrowserCredentialVaultSnapshot,
     modifier: Modifier = Modifier,
 ) {
     KiyoriCollapsingSettingsPage(
@@ -488,6 +565,12 @@ private fun KiyoriBrowserSettingsDetailPage(
                                 entry = entry,
                                 settings = settings,
                                 userscriptState = userscriptState,
+                                savedCredentialCount =
+                                    credentialVaultState.credentials.size,
+                                credentialVaultLoading =
+                                    credentialVaultState.isLoading,
+                                credentialVaultAvailable =
+                                    credentialVaultState.isAvailable,
                             ),
                         checked = checked,
                         enabled = enabled,
@@ -503,6 +586,12 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onOpenPluginDiagnostics()
                                 KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
                                     onOpenHomeCustomization()
+                                KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD ->
+                                    onSetReturnWithoutReloadEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM ->
+                                    onSetForcePageZoomEnabled(!checked)
+                                KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE ->
+                                    onOpenWebTextSize()
                                 KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
                                     onSetShowMediaCandidateBadge(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
@@ -514,6 +603,8 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onSetAllowWebPageOpenApp(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION ->
                                     onSetAllowWebPageGeolocation(!checked)
+                                KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER ->
+                                    onOpenPasswordManager()
                                 KiyoriBrowserSettingsAction.CLEAR_COOKIES ->
                                     onClearCookies()
                             }
@@ -548,6 +639,9 @@ internal fun browserSettingValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
     userscriptState: WebSessionUserscriptUiState = WebSessionUserscriptUiState(),
+    savedCredentialCount: Int = 0,
+    credentialVaultLoading: Boolean = false,
+    credentialVaultAvailable: Boolean = true,
 ): String? =
     if (entry.kind != KiyoriSettingsRowKind.NAVIGATION) {
         null
@@ -561,12 +655,22 @@ internal fun browserSettingValue(
                 browserPluginDiagnosticsSummary(userscriptState)
             KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION ->
                 formatBrowserHomeUrl(settings.homeUrl)
+            KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE ->
+                formatWebTextZoomPercent(settings.webTextZoomPercent)
             KiyoriBrowserSettingsAction.SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION ->
                 formatAutomaticFloatingMinimumDuration(
                     settings.automaticFloatingMinimumDurationMillis,
                 )
+            KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER ->
+                when {
+                    credentialVaultLoading -> "解锁中"
+                    credentialVaultAvailable -> "$savedCredentialCount 项"
+                    else -> "不可用"
+                }
             KiyoriBrowserSettingsAction.CLEAR_COOKIES -> null
             KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
+            KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
+            KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
             KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
             KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
@@ -582,6 +686,10 @@ private fun browserSettingToggleValue(
     when (entry.action) {
         KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED ->
             userscriptState.userScriptsAllowed
+        KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD ->
+            settings.returnWithoutReloadEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM ->
+            settings.forcePageZoomEnabled
         KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
             settings.showMediaCandidateBadge
         KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->
@@ -594,7 +702,9 @@ private fun browserSettingToggleValue(
         KiyoriBrowserSettingsAction.OPEN_PLUGIN_PERMISSIONS,
         KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS,
         KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
+        KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE,
         KiyoriBrowserSettingsAction.SELECT_AUTOMATIC_FLOATING_MINIMUM_DURATION,
+        KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER,
         KiyoriBrowserSettingsAction.CLEAR_COOKIES -> false
     }
 

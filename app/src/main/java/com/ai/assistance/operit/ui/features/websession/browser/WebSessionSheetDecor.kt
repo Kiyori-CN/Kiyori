@@ -477,8 +477,8 @@ private fun WebSessionItemCardContent(
 internal fun WebSessionEmptyState(
     icon: ImageVector,
     title: String,
-    message: String? = null,
     modifier: Modifier = Modifier,
+    message: String? = null,
     tone: KiyoriSemanticTone = KiyoriSemanticTone.BLUE,
 ) {
     WebSessionEmptyStateContent(
@@ -503,8 +503,8 @@ internal fun WebSessionEmptyState(
     icon: ImageVector,
     title: String,
     tone: WebSessionBrowserMenuTone,
-    message: String? = null,
     modifier: Modifier = Modifier,
+    message: String? = null,
 ) {
     WebSessionEmptyStateContent(
         title = title,

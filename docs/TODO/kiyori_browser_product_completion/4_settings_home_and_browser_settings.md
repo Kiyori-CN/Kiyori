@@ -1,5 +1,52 @@
 # 网页浏览器设置复刻
 
+## 2026-08-09 返回、缩放、文字与网站密码
+
+[LOCAL DONE]
+
+- 当前浏览器设置从 `4/4/3` 三组 11 行调整为 `4/2/2/4/3` 五组 15 行：
+  “网页插件与脚本 / 主页与导航 / 网页显示 / 网站权限与数据 / 音视频嗅探”。
+- “返回不重载”由 `WebSessionBrowserSettingsStore` 持久化，只在系统 Back、浏览器底栏
+  Back 和 AI `browser_navigate_back` 已决定进入网页历史时改变当前 WebView 的返回缓存策略；
+  浏览器顶栏返回、临时界面关闭、主页根与 Shell presentation 合同保持不变。
+- “强制页面缩放”继续使用当前 WebView 的内建双指缩放能力，并对活动文档的 viewport 声明
+  应用可撤销覆盖；关闭时恢复该文档进入 Kiyori 覆盖前的 viewport 内容。
+- “网页文字大小”使用 `WebSettings.textZoom`，范围固定为 `50%..200%`、`5%` 步进、
+  默认 `100%`；设置子页显示实时示例、滑杆、增减和恢复默认，修改同时作用于全部现有 WebSession
+  和后续创建的 WebView。
+- “网站密码管理”由唯一 `BrowserCredentialVault` 持有，设置页只投影 vault 状态。
+  自动保存默认关闭；启用后只在普通 Profile 的登录表单提交路径捕获非空账号和单一密码字段，
+  按精确 HTTP/HTTPS origin 保存或更新，并在同 origin 页面按保存的字段定位自动填充但不自动提交。
+- 凭据记录整体使用 Android Keystore AES-GCM 加密并原子写入 `noBackupFilesDir`；
+  无痕 Profile 不捕获、不读取、不填充，当前备份与恢复流程不包含该设备密钥绑定数据。
+- 管理页支持按网站或账号搜索、遮蔽查看、显式显示、敏感剪贴板复制、编辑和删除；
+  除用户在详情或编辑弹窗中的显式操作外，其他页面和日志不得展示或记录未遮蔽密码。
+- 本轮不引入第二个浏览器、第二份设置 store、系统密码管理器、云同步、跨设备迁移或回退逻辑。
+- 本地自动验证、formal readiness、Lint 与 Debug APK 已完成；目标设备上的真实网页 Back、
+  动态 viewport、双指缩放、站点字体和登录表单仍保持 `verification_pending`。
+
+### 2026-08-09 本地验收结果
+
+- 四组策略与设置页面定向 JVM `22/22` 通过，零失败、零错误、零跳过。
+- Lint 从本轮开始时的 `91 errors / 28 warnings / 1 hint` 压至零可见问题；清理后的
+  `app/lint-baseline.xml` 保留 `5567` 项，校验为 `stale=0`、`current-only=0`。
+- 五个缺少同批 key 的非英语语言目录补齐 `77` 个字符串 key，共 `385` 条翻译；AAPT 资源处理通过。
+- 与本轮相关的 CI Python 测试 `115` 项通过；正式开发准备门禁和 `git diff --check` 通过。
+- Media3 从 `1.10.1` 升级到 `1.11.0`，升级后的定向 JVM、Lint、资源处理和 Debug 构建均通过。
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 在 `1m 29s` 完成，
+  `238` 个任务中 `31` 个执行、`207` 个为 up-to-date，零失败。
+- Debug APK：
+  `D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- 生成时间：`2026-08-09 13:19:22 +08:00`
+- 大小：`475308770` 字节
+- SHA-256：`19DCD1D1F184344E6C196D896D30B70F454D0CAF1567BA8E2AF8ACEF3B96E2AB`
+- application ID：`com.kiyori`
+- 版本：`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`
+- ABI：`arm64-v8a`
+- 签名：Android Debug certificate，APK Signature Scheme v2 通过
+- 对齐：`zipalign -c -P 16 4` 通过
+- 本轮未安装 APK、未执行 ADB/MuMu/真机操作；设备验收边界不由本地证据替代。
+
 ## 2026-08-03 插件与脚本设置初步封板
 
 [LOCAL DONE]

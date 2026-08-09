@@ -9,8 +9,12 @@ import org.json.JSONObject
 
 internal data class WebSessionBrowserSettings(
     val homeUrl: String = DEFAULT_BROWSER_HOME_URL,
+    val returnWithoutReloadEnabled: Boolean = false,
+    val forcePageZoomEnabled: Boolean = false,
+    val webTextZoomPercent: Int = DEFAULT_WEB_TEXT_ZOOM_PERCENT,
     val allowWebPageOpenApp: Boolean = true,
     val allowWebPageGeolocation: Boolean = true,
+    val websitePasswordSavingEnabled: Boolean = false,
     val showMediaCandidateBadge: Boolean = true,
     val automaticFloatingPlaybackEnabled: Boolean = true,
     val automaticFloatingMinimumDurationMillis: Long =
@@ -38,6 +42,24 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         _state.value = _state.value.copy(homeUrl = url)
     }
 
+    fun setReturnWithoutReloadEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_RETURN_WITHOUT_RELOAD, enabled) }
+        _state.value = _state.value.copy(returnWithoutReloadEnabled = enabled)
+    }
+
+    fun setForcePageZoomEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_FORCE_PAGE_ZOOM, enabled) }
+        _state.value = _state.value.copy(forcePageZoomEnabled = enabled)
+    }
+
+    fun setWebTextZoomPercent(percent: Int) {
+        require(isSupportedWebTextZoomPercent(percent)) {
+            "Unsupported web text zoom percent: $percent"
+        }
+        preferences.edit { putInt(KEY_WEB_TEXT_ZOOM_PERCENT, percent) }
+        _state.value = _state.value.copy(webTextZoomPercent = percent)
+    }
+
     fun setAllowWebPageOpenApp(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_ALLOW_WEB_PAGE_OPEN_APP, enabled) }
         _state.value = _state.value.copy(allowWebPageOpenApp = enabled)
@@ -46,6 +68,11 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     fun setAllowWebPageGeolocation(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_ALLOW_WEB_PAGE_GEOLOCATION, enabled) }
         _state.value = _state.value.copy(allowWebPageGeolocation = enabled)
+    }
+
+    fun setWebsitePasswordSavingEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_WEBSITE_PASSWORD_SAVING, enabled) }
+        _state.value = _state.value.copy(websitePasswordSavingEnabled = enabled)
     }
 
     fun setShowMediaCandidateBadge(enabled: Boolean) {
@@ -139,9 +166,23 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                 requireNotNull(preferences.getString(KEY_HOME_URL, DEFAULT_BROWSER_HOME_URL)) {
                     "Browser home URL preference must not be null"
                 },
+            returnWithoutReloadEnabled =
+                preferences.getBoolean(KEY_RETURN_WITHOUT_RELOAD, false),
+            forcePageZoomEnabled =
+                preferences.getBoolean(KEY_FORCE_PAGE_ZOOM, false),
+            webTextZoomPercent =
+                preferences
+                    .getInt(KEY_WEB_TEXT_ZOOM_PERCENT, DEFAULT_WEB_TEXT_ZOOM_PERCENT)
+                    .also { percent ->
+                        require(isSupportedWebTextZoomPercent(percent)) {
+                            "Invalid web text zoom percent: $percent"
+                        }
+                    },
             allowWebPageOpenApp = preferences.getBoolean(KEY_ALLOW_WEB_PAGE_OPEN_APP, true),
             allowWebPageGeolocation =
                 preferences.getBoolean(KEY_ALLOW_WEB_PAGE_GEOLOCATION, true),
+            websitePasswordSavingEnabled =
+                preferences.getBoolean(KEY_WEBSITE_PASSWORD_SAVING, false),
             showMediaCandidateBadge =
                 preferences.getBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, true),
             automaticFloatingPlaybackEnabled =
@@ -200,8 +241,12 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     companion object {
         private const val PREFERENCES_NAME = "web_session_browser_settings"
         private const val KEY_HOME_URL = "home_url"
+        private const val KEY_RETURN_WITHOUT_RELOAD = "return_without_reload"
+        private const val KEY_FORCE_PAGE_ZOOM = "force_page_zoom"
+        private const val KEY_WEB_TEXT_ZOOM_PERCENT = "web_text_zoom_percent"
         private const val KEY_ALLOW_WEB_PAGE_OPEN_APP = "allow_web_page_open_app"
         private const val KEY_ALLOW_WEB_PAGE_GEOLOCATION = "allow_web_page_geolocation"
+        private const val KEY_WEBSITE_PASSWORD_SAVING = "website_password_saving"
         private const val KEY_SHOW_MEDIA_CANDIDATE_BADGE = "show_media_candidate_badge"
         private const val KEY_AUTOMATIC_FLOATING_PLAYBACK = "automatic_floating_playback"
         private const val KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION =
@@ -223,6 +268,10 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
 }
 
 internal const val DEFAULT_BROWSER_HOME_URL = "about:blank"
+internal const val DEFAULT_WEB_TEXT_ZOOM_PERCENT = 100
+internal const val MIN_WEB_TEXT_ZOOM_PERCENT = 50
+internal const val MAX_WEB_TEXT_ZOOM_PERCENT = 200
+internal const val WEB_TEXT_ZOOM_STEP_PERCENT = 5
 internal const val DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS = 60_000L
 internal val AUTOMATIC_FLOATING_MINIMUM_DURATION_OPTIONS_MILLIS =
     listOf(
@@ -242,6 +291,21 @@ internal fun isSupportedBrowserHomeUrl(url: String): Boolean =
     url.equals(DEFAULT_BROWSER_HOME_URL, ignoreCase = true) ||
         url.startsWith("http://", ignoreCase = true) ||
         url.startsWith("https://", ignoreCase = true)
+
+internal fun isSupportedWebTextZoomPercent(percent: Int): Boolean =
+    percent in MIN_WEB_TEXT_ZOOM_PERCENT..MAX_WEB_TEXT_ZOOM_PERCENT &&
+        percent % WEB_TEXT_ZOOM_STEP_PERCENT == 0
+
+internal fun formatWebTextZoomPercent(percent: Int): String {
+    require(isSupportedWebTextZoomPercent(percent)) {
+        "Unsupported web text zoom percent label: $percent"
+    }
+    return if (percent == DEFAULT_WEB_TEXT_ZOOM_PERCENT) {
+        "默认 · $percent%"
+    } else {
+        "$percent%"
+    }
+}
 
 internal fun isSupportedAutomaticFloatingMinimumDuration(durationMillis: Long): Boolean =
     durationMillis in

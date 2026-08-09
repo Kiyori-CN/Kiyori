@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -64,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_PAGE_SOURCE_FORMAT_MAX_CHARS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserPageSourceDiff
@@ -591,7 +591,7 @@ private fun PageSourceEditorMetadata(
     val content = state.content
     val host =
         remember(state.pageUrl) {
-            runCatching { Uri.parse(state.pageUrl).host }
+            runCatching { state.pageUrl.toUri().host }
                 .getOrNull()
                 .orEmpty()
                 .ifBlank { state.pageUrl }

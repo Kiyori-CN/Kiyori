@@ -181,7 +181,7 @@ ARCH040 必须锁定：
    Window、system bar、lifecycle、permission、storage、repository、ViewModel 或 Operit import
 5. `ThemeColorSchemeResolver` 保留两个现有 overload；bool overload 只委派
    `resolveKiyoriColorScheme`，Context/snapshot overload 的浅深决策不变
-6. 11 个生产消费者全部使用新 package，旧 package 对已迁移 symbol 的 import 为 0
+6. 13 个生产消费者全部使用新 package，旧 package 对已迁移 symbol 的 import 为 0
 7. `operit-ui` 只新增 `com.kiyori.design` allowed root；其他 Operit ownership record 不变
 8. 新测试包镜像 production owner，固定颜色和 contrast 断言不减少
 
@@ -206,8 +206,9 @@ M-05A1 已于 2026-08-02 完成本地封板：
   `12079306E3546980B85854A548A75546DE6694E1359E6715224024C1019FA9A4`
 - 两个旧 Browser/Settings theme 文件已删除；`ThemeColorSchemeResolver` 只保留两个既有
   overload 和偏好浅深决策，并由 bool overload 唯一委派 `resolveKiyoriColorScheme`
-- 11 个生产消费者和新旧测试所有权已迁移，只有 `operit-ui` 获得
-  `com.kiyori.design` allowed root
+- 初始 11 个生产消费者和新旧测试所有权已迁移；2026-08-09 浏览器文字大小与网站密码管理
+  两个设置子页继续复用 `LocalKiyoriSettingsColors`，ARCH040 精确 consumer 合同同步增至
+  13 个。只有 `operit-ui` 获得 `com.kiyori.design` allowed root
 - ARCH040 在生产 source 出现前真实失败于缺少 `KiyoriColorSchemes.kt`；实现后的正反向
   fixture 和真实 gate 均通过
 - M-05A1 批准的两条 design import 使 M-04B App Shell checker-normalized hash 更新为

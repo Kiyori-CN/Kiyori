@@ -3657,7 +3657,6 @@
     <string name="save_api_settings">保存API设置</string>
     <string name="available_models_list">可用模型列表</string>
     <string name="refresh_models_list_failed">刷新模型列表失败: %s</string>
-    <string name="refresh_models_failed">刷新模型列表失败</string>
     <string name="refresh_models_list">刷新模型列表</string>
     <string name="search_models">搜索模型</string>
     <string name="search">搜索</string>
@@ -6922,7 +6921,6 @@
     <string name="toolpkg_hook_timeout_title">前置插件 Hook 超时</string>
     <string name="toolpkg_hook_timeout_description">限制发送路径上的 ToolPkg 聊天输入、Prompt 和摘要 Hook 链总等待时间。超时会跳过当前 Hook 并继续处理，默认 10 秒；不影响消息处理回复接管。</string>
     <string name="toolpkg_hook_timeout_value">%1$d 秒</string>
-    <string name="toolpkg_hook_timeout_continue_sending">前置插件响应超时，已跳过并继续发送</string>
     <string name="toolpkg_hook_timeout_continue_sending_with_plugin">前置插件「%1$s」响应超时，已跳过并继续发送</string>
     <string name="enable_enter_to_send">回车发送</string>
     <string name="enable_enter_to_send_description">开启后，聊天输入框按回车会直接发送，键盘发送键也会显示为发送。</string>
@@ -7819,7 +7817,6 @@
     <string name="web_session_network_log_external_open_failed">没有应用可以打开此链接</string>
     <string name="web_session_page_source">查看源码</string>
     <string name="web_session_copy_source">复制源码</string>
-    <string name="web_session_source_loading">正在读取当前页面源码…</string>
     <string name="web_session_source_unavailable">当前页面没有可读取的 WebView</string>
     <string name="web_session_source_empty">当前页面源码为空</string>
     <string name="web_session_source_read_failed">读取页面源码失败</string>

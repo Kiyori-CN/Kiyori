@@ -2204,6 +2204,10 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             },
             "LocalKiyoriSettingsColors": {
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+                "KiyoriBrowserPasswordManagerPage.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+                "KiyoriBrowserTextSizePage.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriCollapsingSettingsPage.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriSettingsHomePage.kt",

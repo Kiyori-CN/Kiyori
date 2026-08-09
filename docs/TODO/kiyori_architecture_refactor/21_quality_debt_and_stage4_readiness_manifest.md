@@ -51,9 +51,11 @@ Gradle 控制台不把 `LintBaseline` 状态提示计入 actionable hint，因�
 `Lint found no new issues`。本清单的结构化数量以
 `app/build/reports/lint-results-debug.xml` 为准。
 
-当前 `app/lint-baseline.xml` 另有 `5606` 条历史记录，完整 lint 汇总为
-`1238 errors / 4218 warnings / 150 hints`。baseline SHA-256 为
-`BEC89B4BF52DE60D7E839336080878B03DB154A7DC072D3C1875BDF0DD1748D0`。
+当前 `app/lint-baseline.xml` 另有 `5567` 条历史记录，完整 lint 汇总为
+`1208 errors / 4210 warnings / 149 hints`。baseline SHA-256 为
+`DDA9A10B3C899698271AECA2B3BE9812674D3041ADF20AF4EA6D15D80C552405`。
+2026-08-09 的结构化交集只删除 `39` 条已失效记录，`current-only=0`，未把本轮问题
+吸收到 baseline。
 
 baseline 是历史债务清单，不是永久豁免。清理时只允许删除已经由当前源码证明失效或已经
 修复的记录，禁止吸收任何 current-only 问题。

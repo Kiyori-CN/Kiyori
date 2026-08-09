@@ -4,6 +4,61 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-08-09 网页浏览器返回、缩放、文字与网站密码设置
+
+状态：本地实现与自动验证完成，目标设备网页行为保持 `verification_pending`。继续使用
+[`kiyori_browser_product_completion/`](kiyori_browser_product_completion/index.md)
+作为浏览器产品能力的唯一进度载体，不创建第二套 Browser Runtime、设置 owner 或凭据数据库。
+参考 `D:\10_Project\hikerView` 的 WebView 行为和指定截图的信息层级，但界面统一使用当前
+`KiyoriSettingsUi` 折叠标题、分组卡片、Material Switch 与页面内子页。
+
+细化步骤：
+
+1. [DONE] 核对当前 `WebSessionBrowserSettingsStore`、网页 Back 状态机、WebView 设置应用点、
+   参考源码与四张参考图片
+2. [DONE] 将浏览器设置规划为“网页插件与脚本 / 主页与导航 / 网页显示 /
+   网站权限与数据 / 音视频嗅探”五组
+3. [DONE] 新增“返回不重载”，只改变现有网页历史 Back 的缓存策略；不改变浏览器顶栏返回、
+   每窗口主页根、Shell 返回目标或 WebSession 生命周期
+4. [DONE] 新增“强制页面缩放”，通过当前页面 viewport 合同解除网页禁止缩放限制；
+   新旧页面和设置即时切换继续使用同一 WebView
+5. [DONE] 新增“网页文字大小”子页，提供实时文字示例、`50%..200%` 的 `5%` 步进、
+   增减与恢复默认操作，并由 `WebSettings.textZoom` 应用到全部现有及后续 WebSession
+6. [DONE] 新增“网站密码管理”子页和唯一私有凭据 vault；自动保存默认关闭，只允许普通
+   Profile 捕获和填充，按精确 HTTP/HTTPS origin 匹配，支持搜索、查看、复制、编辑和删除
+7. [DONE] 凭据使用 Android Keystore AES-GCM 加密，文件位于 `noBackupFilesDir`；
+   不记录日志、不进入当前原始快照备份、不向无痕 Profile 或其他网站暴露
+8. [DONE] 增加设置结构、持久化约束、Back 缓存策略、缩放脚本、凭据 origin/脚本合同和
+   管理行为测试，同步 `CONTEXT.md`、README 与浏览器设置里程碑
+9. [LOCAL DONE] 运行定向 JVM、正式开发门禁、资源与差异检查，串行构建并核验 Debug APK；
+   目标设备上的网页 Back、双指缩放、站点字体和真实登录表单保持单独验收
+
+本地验收证据：
+
+- 四组策略与设置页面定向 JVM：`22` 项通过，零失败、零错误、零跳过
+- Lint 新问题与可见报告均为 `0`；基线保留 `5567` 项，`stale=0`、`current-only=0`
+- Lint 清理同步修正五个非英语语言目录中的 `77` 个缺失 key（共 `385` 条翻译）、Compose
+  资源读取、KTX、状态类型、Modifier 顺序和复数候选问题，并将 Media3 升级到 `1.11.0`
+- 本轮相关 CI Python 测试 `115` 项通过；正式开发准备门禁、AAPT 资源处理和
+  `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 于
+  `2026-08-09 13:19:22 +08:00` 成功生成
+  `D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk`
+- APK 大小 `475308770` 字节，SHA-256
+  `19DCD1D1F184344E6C196D896D30B70F454D0CAF1567BA8E2AF8ACEF3B96E2AB`；
+  `com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、
+  `targetSdk 34`、`arm64-v8a`，v2 调试签名和 `zipalign -c -P 16 4` 均通过
+- 本轮未安装 APK、未执行 ADB/MuMu/真机操作；真实网页连续 Back、动态 viewport、
+  双指缩放、站点字体和登录表单保存/自动填充仍待目标设备验收
+
+当前非目标：
+
+- 不改变浏览器顶栏左侧返回 App Shell 入口页的语义
+- 不给无痕窗口保存、读取或自动填充网站密码
+- 不接入 Android 系统密码管理器、云同步、备份导入或跨设备凭据迁移
+- 不增加第二个 WebView、第二套历史、第二份设置状态或任何回退路径
+- 不提交、不推送、不安装 APK、不执行 ADB、MuMu 或真机操作
+
 ## 2026-08-08 AI 助手模型名称标签管理
 
 状态：第五轮三行折叠、真实隐藏数量标签与清空反馈修复已完成本地实现、定向验证和 Debug APK 核验；Android 目标设备上的视觉与触摸验收仍待执行。继续使用稳定的自定义测量和纯行计划，不恢复高度裁切或已否决的 Flow overflow API。继续保留 `ModelConfigData.modelName` 作为既有序列化边界，不创建第二个模型数据源。
@@ -762,7 +817,9 @@ M-05 只读 owner 审计已完成并形成
 旧 theme 目录混合纯 Kiyori design、偏好读取、system-bar、AI 字体和 glass，禁止整体移动。
 M-05A1 已建立三个纯 `com.kiyori.design.theme` owner，迁移固定 ColorScheme、Browser theme
 与 Settings theme，删除两个旧 theme 文件，并让旧 `ThemeColorSchemeResolver` 只保留偏好
-决策 adapter。ARCH040 缺失源文件的 failure-first 证据、正反向 fixture、11 个生产消费者、
+决策 adapter。ARCH040 缺失源文件的 failure-first 证据、正反向 fixture、初始 11 个生产消费者
+均已实现；2026-08-09 浏览器文字大小与网站密码管理两个设置子页继续复用同一设置主题，
+精确 consumer 合同同步增至 13 个。
 新旧测试分工与 ownership 许可均已实现；ARCH024 的 App Shell hash 和完整项目 import
 snapshot 已同步到批准后的 design import。封板验证通过完整 architecture、Python
 `154/154`、JVM `135 suites / 810 tests`、formal readiness、lint 交集

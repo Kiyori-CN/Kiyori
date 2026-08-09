@@ -13,6 +13,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,7 +32,7 @@ fun MarketAgreementDialog(
 ) {
     val scrollState = rememberScrollState()
     var isAcceptEnabled by remember { mutableStateOf(false) }
-    var remainingSeconds by remember { mutableStateOf(5) }
+    var remainingSeconds by remember { mutableIntStateOf(5) }
 
     LaunchedEffect(Unit) {
         repeat(5) {

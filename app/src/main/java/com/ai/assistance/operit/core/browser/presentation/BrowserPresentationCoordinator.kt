@@ -7,11 +7,15 @@ import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserCredentialVaultSnapshot
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserSavedCredential
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.activateSessionOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.applyBrowserDisplaySettingsOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.applyWebsitePasswordSavingSettingOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureSessionAttachedOnMain
@@ -28,6 +32,8 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destro
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.util.AppLogger
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal class BrowserPresentationReleaseGate {
     private var released = false
@@ -66,6 +72,8 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     private val tools = ToolGetter.getBrowserSessionTools(appContext)
     val browserWindowCount: StateFlow<Int> = tools.browserWindowCount
     val browserSettings: StateFlow<WebSessionBrowserSettings> = tools.browserSettingsStore.state
+    val browserCredentialVaultState: StateFlow<BrowserCredentialVaultSnapshot> =
+        tools.browserCredentialVault.state
     val userscriptState: StateFlow<WebSessionUserscriptUiState> = tools.userscriptManager.uiStore.state
 
     fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): BrowserAppPresentationLease =
@@ -174,6 +182,24 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserSettingsStore.setHomeUrl(url)
     }
 
+    fun setReturnWithoutReloadEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setReturnWithoutReloadEnabled(enabled)
+    }
+
+    fun setForcePageZoomEnabled(enabled: Boolean) {
+        tools.runOnMainSync<Unit> {
+            tools.browserSettingsStore.setForcePageZoomEnabled(enabled)
+            tools.applyBrowserDisplaySettingsOnMain()
+        }
+    }
+
+    fun setWebTextZoomPercent(percent: Int) {
+        tools.runOnMainSync<Unit> {
+            tools.browserSettingsStore.setWebTextZoomPercent(percent)
+            tools.applyBrowserDisplaySettingsOnMain()
+        }
+    }
+
     fun setAllowWebPageOpenApp(enabled: Boolean) {
         tools.runOnMainSync<Unit> {
             tools.browserSettingsStore.setAllowWebPageOpenApp(enabled)
@@ -182,6 +208,13 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 
     fun setAllowWebPageGeolocation(enabled: Boolean) {
         tools.browserSettingsStore.setAllowWebPageGeolocation(enabled)
+    }
+
+    fun setWebsitePasswordSavingEnabled(enabled: Boolean) {
+        tools.runOnMainSync<Unit> {
+            tools.browserSettingsStore.setWebsitePasswordSavingEnabled(enabled)
+            tools.applyWebsitePasswordSavingSettingOnMain()
+        }
     }
 
     fun setShowMediaCandidateBadge(enabled: Boolean) {
@@ -195,6 +228,30 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
     fun setAutomaticFloatingMinimumDurationMillis(durationMillis: Long) {
         tools.browserSettingsStore.setAutomaticFloatingMinimumDurationMillis(durationMillis)
     }
+
+    suspend fun browserCredential(id: String): BrowserSavedCredential? =
+        withContext(Dispatchers.IO) {
+            tools.browserCredentialVault.credential(id)
+        }
+
+    suspend fun updateBrowserCredential(
+        id: String,
+        username: String,
+        password: String,
+    ) {
+        withContext(Dispatchers.IO) {
+            tools.browserCredentialVault.updateCredential(
+                id = id,
+                username = username,
+                password = password,
+            )
+        }
+    }
+
+    suspend fun deleteBrowserCredential(id: String): Boolean =
+        withContext(Dispatchers.IO) {
+            tools.browserCredentialVault.deleteCredential(id)
+        }
 
     fun setUserScriptsAllowed(enabled: Boolean) {
         tools.userscriptManager.setUserScriptsAllowed(enabled)

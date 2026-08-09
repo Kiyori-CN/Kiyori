@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -196,6 +197,7 @@ internal fun ModelNameTagEditor(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     var expanded by rememberSaveable { mutableStateOf(false) }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
@@ -294,7 +296,7 @@ internal fun ModelNameTagEditor(
                                         text = modelName
                                     )
                                     showNotification(
-                                        context.getString(
+                                        resources.getString(
                                             R.string.model_copy_success,
                                             modelName
                                         )
@@ -458,7 +460,7 @@ internal fun ModelNameTagEditor(
                                 text = serializeModelNames(models)
                             )
                             showNotification(
-                                context.getString(
+                                resources.getString(
                                     R.string.model_copy_all_success,
                                     models.size
                                 )

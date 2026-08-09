@@ -2,6 +2,7 @@ package com.ai.assistance.operit.data.preferences
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 /** Stores the locally bundled plugin market agreement version accepted by the user. */
 class MarketAgreementPreferences(context: Context) {
@@ -13,9 +14,9 @@ class MarketAgreementPreferences(context: Context) {
     }
 
     fun acceptCurrentAgreement() {
-        prefs.edit()
-            .putString(ACCEPTED_VERSION_KEY, CURRENT_MARKET_AGREEMENT_VERSION)
-            .apply()
+        prefs.edit {
+            putString(ACCEPTED_VERSION_KEY, CURRENT_MARKET_AGREEMENT_VERSION)
+        }
     }
 
     companion object {

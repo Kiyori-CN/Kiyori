@@ -113,6 +113,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
         setSupportZoom(true)
         builtInZoomControls = true
         displayZoomControls = false
+        textZoom = browserSettingsStore.current.webTextZoomPercent
         allowFileAccess = false
         allowContentAccess = false
         cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
@@ -166,6 +167,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
         addJavascriptInterface(
             BrowserMediaCandidateBridge(this@configureWebView, session),
             "OperitMediaCandidateBridge",
+        )
+        addJavascriptInterface(
+            BrowserCredentialBridge(this@configureWebView, session),
+            BROWSER_CREDENTIAL_BRIDGE_NAME,
         )
         setDownloadListener(createDownloadListener(session))
         setOnLongClickListener { true }
@@ -334,6 +339,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 // subresources inherit the previous page's site-specific identity.
                 applySessionUserAgent(session, resolveSessionUserAgent(session, url))
                 session.currentUrl = url
+                session.credentialDocumentToken = UUID.randomUUID().toString()
                 session.pageLoaded = false
                 session.isLoading = true
                 session.hasSslError = false
@@ -353,6 +359,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 super.onPageCommitVisible(view, url)
                 session.currentUrl = url
                 session.lastSnapshot = null
+                restoreReturnWithoutReloadOnMain(session)
                 notifySessionStateChanged(session)
                 userscriptManager.onPageChanged(session.id, url)
                 refreshNavigationStateFromWebView(view, session)
@@ -361,6 +368,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 session.currentUrl = url
+                restoreReturnWithoutReloadOnMain(session)
                 userscriptManager.onPageChanged(session.id, url)
                 session.pageTitle = view.title ?: ""
                 session.pageLoaded = true
@@ -368,9 +376,11 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 completeBrowserHomeNavigationOnMain(view, session, url)
                 notifySessionStateChanged(session)
                 applyViewportOverride(session)
+                applyBrowserDisplaySettingsOnPage(session)
                 refreshNavigationStateFromWebView(view, session)
                 injectDownloadHelper(view)
                 injectTextSelectionHelper(view)
+                injectBrowserCredentialSupport(session)
                 // This observer only reads video URLs and reports them to the owning WebSession.
                 // Calling webpage media controls here would mutate site state during presentation changes.
                 injectMediaCandidateObserver(view)
@@ -428,6 +438,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 session.currentUrl = url
                 userscriptManager.syncUrlChange(session.id, url)
                 val pageTitle = view.title.orEmpty()
+                restoreReturnWithoutReloadOnMain(session)
                 notifySessionStateChanged(session)
                 refreshNavigationStateFromWebView(view, session)
                 if (session.profile.shouldPersistBrowserHistory) {
@@ -448,6 +459,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                         "session=${session.id}, url=${error.url}, primaryError=${error.primaryError}"
                 )
                 handler.cancel()
+                restoreReturnWithoutReloadOnMain(session)
                 session.pageLoaded = false
                 session.isLoading = false
                 session.hasSslError = true
@@ -455,6 +467,17 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 notifySessionStateChanged(session)
                 updateNavigationState(session)
                 refreshSessionUiOnMain(session.id)
+            }
+
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: android.webkit.WebResourceError,
+            ) {
+                super.onReceivedError(view, request, error)
+                if (request.isForMainFrame) {
+                    restoreReturnWithoutReloadOnMain(session)
+                }
             }
 
             override fun onRenderProcessGone(
@@ -468,6 +491,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 )
                 session.pageLoaded = false
                 session.isLoading = false
+                restoreReturnWithoutReloadOnMain(session)
                 session.lastSnapshot = null
                 session.pendingDialog?.jsPromptResult?.cancel()
                 session.pendingDialog?.jsResult?.cancel()
@@ -1419,7 +1443,13 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
         when {
             session.canGoBack -> {
                 applyHistoryTargetUserAgent(session, delta = -1)
-                session.webView.goBack()
+                try {
+                    prepareReturnWithoutReloadOnMain(session)
+                    session.webView.goBack()
+                } catch (error: Exception) {
+                    restoreReturnWithoutReloadOnMain(session)
+                    throw error
+                }
                 BrowserSessionBackResult.WEB_HISTORY
             }
             !isAtConfiguredBrowserHome(

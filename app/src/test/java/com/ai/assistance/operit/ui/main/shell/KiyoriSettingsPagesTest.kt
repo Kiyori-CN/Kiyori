@@ -5,6 +5,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatWebTextZoomPercent
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.parseAutomaticFloatingDurationSeconds
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
@@ -525,7 +526,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings expose only verified capabilities`() {
         assertEquals(
-            listOf(4, 4, 3),
+            listOf(4, 2, 2, 4, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -535,8 +536,12 @@ class KiyoriSettingsPagesTest {
                 "插件权限与网站范围",
                 "脚本诊断与日志",
                 "网页主页自定义",
+                "返回不重载",
+                "强制页面缩放",
+                "网页文字大小",
                 "允许网页打开应用",
                 "允许网页获取位置",
+                "网站密码管理",
                 "清除网站 Cookie",
                 "搜索栏嗅探入口",
                 "自动悬浮播放",
@@ -558,10 +563,18 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.OPEN_PLUGIN_DIAGNOSTICS,
                 "网页主页自定义" to
                     KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
+                "返回不重载" to
+                    KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
+                "强制页面缩放" to
+                    KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
+                "网页文字大小" to
+                    KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE,
                 "允许网页打开应用" to
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
                 "允许网页获取位置" to
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_GEOLOCATION,
+                "网站密码管理" to
+                    KiyoriBrowserSettingsAction.OPEN_PASSWORD_MANAGER,
                 "清除网站 Cookie" to
                     KiyoriBrowserSettingsAction.CLEAR_COOKIES,
                 "搜索栏嗅探入口" to
@@ -579,7 +592,9 @@ class KiyoriSettingsPagesTest {
         assertEquals(
             listOf(
                 "网页插件与脚本",
-                "主页与网站数据",
+                "主页与导航",
+                "网页显示",
+                "网站权限与数据",
                 "音视频嗅探",
             ),
             kiyoriBrowserSettingsGroups.map(KiyoriBrowserSettingsGroupSpec::title),
@@ -593,7 +608,7 @@ class KiyoriSettingsPagesTest {
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(11, entries.size)
+        assertEquals(15, entries.size)
         assertEquals(
             "https://example.com/home",
             browserSettingValue(
@@ -613,6 +628,43 @@ class KiyoriSettingsPagesTest {
             browserSettingValue(
                 entries.single { entry -> entry.title == "脚本诊断与日志" },
                 browserSettings,
+            ),
+        )
+        assertEquals(
+            "默认 · 100%",
+            browserSettingValue(
+                entries.single { entry -> entry.title == "网页文字大小" },
+                browserSettings,
+            ),
+        )
+        assertEquals(
+            "3 项",
+            browserSettingValue(
+                entry =
+                    entries.single { entry -> entry.title == "网站密码管理" },
+                settings = browserSettings,
+                savedCredentialCount = 3,
+            ),
+        )
+        assertEquals(
+            "不可用",
+            browserSettingValue(
+                entry =
+                    entries.single { entry -> entry.title == "网站密码管理" },
+                settings = browserSettings,
+                savedCredentialCount = 3,
+                credentialVaultAvailable = false,
+            ),
+        )
+        assertEquals(
+            "解锁中",
+            browserSettingValue(
+                entry =
+                    entries.single { entry -> entry.title == "网站密码管理" },
+                settings = browserSettings,
+                savedCredentialCount = 3,
+                credentialVaultLoading = true,
+                credentialVaultAvailable = false,
             ),
         )
         val durationEntry =
@@ -663,6 +715,8 @@ class KiyoriSettingsPagesTest {
         assertEquals(null, parseAutomaticFloatingDurationSeconds("0"))
         assertEquals(null, parseAutomaticFloatingDurationSeconds("86401"))
         assertEquals("1 分 30 秒", formatAutomaticFloatingMinimumDuration(90_000L))
+        assertEquals("默认 · 100%", formatWebTextZoomPercent(100))
+        assertEquals("135%", formatWebTextZoomPercent(135))
         assertEquals("空白页", formatBrowserHomeUrl("about:blank"))
     }
 

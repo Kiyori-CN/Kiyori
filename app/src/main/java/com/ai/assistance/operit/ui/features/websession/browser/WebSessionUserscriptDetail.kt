@@ -38,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +82,7 @@ internal fun WebSessionUserscriptDetail(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
     val script = state.installedScripts.firstOrNull { item -> item.id == scriptId }
     val detail = state.details[scriptId]
@@ -214,7 +216,7 @@ internal fun WebSessionUserscriptDetail(
                                     .onSuccess { path ->
                                         Toast.makeText(
                                             context,
-                                            "${context.getString(R.string.export_success)}\n$path",
+                                            "${resources.getString(R.string.export_success)}\n$path",
                                             Toast.LENGTH_LONG,
                                         ).show()
                                     }
@@ -226,7 +228,7 @@ internal fun WebSessionUserscriptDetail(
                                         )
                                         Toast.makeText(
                                             context,
-                                            context.getString(
+                                            resources.getString(
                                                 R.string.toast_operation_failed,
                                                 error.toString(),
                                             ),

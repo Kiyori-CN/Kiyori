@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.ui.features.settings.sections
 
 import android.annotation.SuppressLint
+import android.content.res.Resources
 import com.ai.assistance.operit.util.AppLogger
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedVisibility
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -116,6 +118,7 @@ fun ModelApiSettingsSection(
         navigateToMnnModelDownload: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val modelBindingCoordinator =
         remember(context) { ModelConfigModelBindingCoordinator(context) }
@@ -274,12 +277,12 @@ fun ModelApiSettingsSection(
             val impact = persist(state)
             AppLogger.d(TAG, "API设置保存完成并刷新服务")
             if (showSuccess) {
-                showNotification(context.getString(R.string.api_settings_saved))
+                showNotification(resources.getString(R.string.api_settings_saved))
             }
             return impact
         } catch (e: Exception) {
             if (showSuccess) {
-                showNotification((e.message ?: context.getString(R.string.save_failed)))
+                showNotification((e.message ?: resources.getString(R.string.save_failed)))
             } else {
                 AppLogger.e(TAG, "API设置自动保存失败: ${e.message}", e)
             }
@@ -298,7 +301,7 @@ fun ModelApiSettingsSection(
         valueProvider = { buildAutoSaveState() },
         persist = { state -> persist(state) },
         onError = { e ->
-            showNotification((e.message ?: context.getString(R.string.auto_save_failed)))
+            showNotification((e.message ?: resources.getString(R.string.auto_save_failed)))
         }
     )
 
@@ -352,7 +355,7 @@ fun ModelApiSettingsSection(
             showRegionWarning = inChina
             if (inChina) {
                 AppLogger.d("ModelApiSettingsSection", "检测到位于中国大陆")
-                showNotification(context.getString(R.string.overseas_provider_warning))
+                showNotification(resources.getString(R.string.overseas_provider_warning))
             } else {
                 AppLogger.d("ModelApiSettingsSection", "检测到位于海外")
             }
@@ -469,12 +472,12 @@ fun ModelApiSettingsSection(
             TAG,
             "请求上游模型列表 - API端点: $apiEndpointInput, API类型: $selectedProviderTypeId"
         )
-        val gettingModelsText = context.getString(R.string.getting_models_list)
-        val getModelsFailedText = context.getString(R.string.get_models_list_failed)
+        val gettingModelsText = resources.getString(R.string.getting_models_list)
+        val getModelsFailedText = resources.getString(R.string.get_models_list_failed)
         val defaultConfigNoModelsText =
-            context.getString(R.string.default_config_no_models_list)
-        val fillEndpointKeyText = context.getString(R.string.fill_endpoint_and_key)
-        val modelsListSuccessText = context.getString(R.string.models_list_success)
+            resources.getString(R.string.default_config_no_models_list)
+        val fillEndpointKeyText = resources.getString(R.string.fill_endpoint_and_key)
+        val modelsListSuccessText = resources.getString(R.string.models_list_success)
 
         scope.launch {
             if (canRequestModelList) {
@@ -529,7 +532,7 @@ fun ModelApiSettingsSection(
                 } else {
                     val error = requireNotNull(result.exceptionOrNull())
                     val failureText =
-                        context.getString(
+                        resources.getString(
                             R.string.refresh_models_list_failed,
                             error.toString()
                         )
@@ -539,7 +542,7 @@ fun ModelApiSettingsSection(
             } catch (error: Exception) {
                 AppLogger.e(TAG, "刷新模型列表发生异常", error)
                 val failureText =
-                    context.getString(
+                    resources.getString(
                         R.string.refresh_models_list_failed,
                         error.toString()
                     )
@@ -555,12 +558,12 @@ fun ModelApiSettingsSection(
         val mergedModels = mergeModelNames(modelNamesInput, addedModels)
         val addedCount = mergedModels.size - modelNamesInput.size
         if (addedCount == 0) {
-            showNotification(context.getString(R.string.model_add_no_new_items))
+            showNotification(resources.getString(R.string.model_add_no_new_items))
             return
         }
         modelNamesInput = mergedModels
         modelBindingReplacementName = null
-        showNotification(context.getString(R.string.model_add_result, addedCount))
+        showNotification(resources.getString(R.string.model_add_result, addedCount))
     }
 
     suspend fun applyUpstreamModelSelection(
@@ -590,7 +593,7 @@ fun ModelApiSettingsSection(
                 )
             }
             showNotification(
-                context.getString(
+                resources.getString(
                     R.string.model_upstream_change_applied,
                     change.addedModels.size,
                     change.removedModels.size
@@ -600,7 +603,7 @@ fun ModelApiSettingsSection(
             modelNamesInput = previousModels
             modelBindingReplacementName = previousReplacement
             AppLogger.e(TAG, "应用上游模型选择失败", error)
-            showNotification("${context.getString(R.string.save_failed)}: $error")
+            showNotification("${resources.getString(R.string.save_failed)}: $error")
         }
     }
 
@@ -626,7 +629,7 @@ fun ModelApiSettingsSection(
                     )
                 if (impact.hasBindings && change.nextModels.isEmpty()) {
                     showNotification(
-                        context.getString(
+                        resources.getString(
                             R.string.model_upstream_remove_bound_blocked,
                             impact.totalCount
                         )
@@ -646,7 +649,7 @@ fun ModelApiSettingsSection(
                 }
             } catch (error: Exception) {
                 AppLogger.e(TAG, "检查上游模型选择失败", error)
-                showNotification("${context.getString(R.string.save_failed)}: $error")
+                showNotification("${resources.getString(R.string.save_failed)}: $error")
             }
         }
     }
@@ -672,13 +675,13 @@ fun ModelApiSettingsSection(
                 modelNamesInput = previousModels
                 modelBindingReplacementName = previousReplacement
                 AppLogger.e(TAG, "删除模型保存失败", error)
-                showNotification("${context.getString(R.string.save_failed)}: $error")
+                showNotification("${resources.getString(R.string.save_failed)}: $error")
                 return
             }
 
         val shouldUndo =
             showUndoableNotification(
-                context.getString(R.string.model_deleted, modelName)
+                resources.getString(R.string.model_deleted, modelName)
             )
         if (!shouldUndo) return
 
@@ -700,7 +703,7 @@ fun ModelApiSettingsSection(
             EnhancedAIService.refreshAllServices(configManager.appContext)
         } catch (error: Exception) {
             AppLogger.e(TAG, "撤销模型删除失败", error)
-            showNotification("${context.getString(R.string.save_failed)}: $error")
+            showNotification("${resources.getString(R.string.save_failed)}: $error")
         }
     }
 
@@ -716,7 +719,7 @@ fun ModelApiSettingsSection(
                     )
                 if (impact.hasBindings && nextModels.isEmpty()) {
                     showNotification(
-                        context.getString(
+                        resources.getString(
                             R.string.model_delete_last_bound_blocked,
                             modelName
                         )
@@ -739,7 +742,7 @@ fun ModelApiSettingsSection(
                 }
             } catch (error: Exception) {
                 AppLogger.e(TAG, "检查模型绑定失败", error)
-                showNotification("${context.getString(R.string.save_failed)}: $error")
+                showNotification("${resources.getString(R.string.save_failed)}: $error")
             }
         }
     }
@@ -761,7 +764,7 @@ fun ModelApiSettingsSection(
             } catch (error: Exception) {
                 modelClearDialogState = null
                 AppLogger.e(TAG, "检查模型列表绑定失败", error)
-                showNotification("${context.getString(R.string.save_failed)}: $error")
+                showNotification("${resources.getString(R.string.save_failed)}: $error")
             }
         }
     }
@@ -777,12 +780,12 @@ fun ModelApiSettingsSection(
             modelNamesInput = previousModels
             modelBindingReplacementName = previousReplacement
             AppLogger.e(TAG, "清空模型列表失败", error)
-            showNotification("${context.getString(R.string.save_failed)}: $error")
+            showNotification("${resources.getString(R.string.save_failed)}: $error")
             return
         }
 
         val shouldUndo =
-            showUndoableNotification(context.getString(R.string.model_cleared))
+            showUndoableNotification(resources.getString(R.string.model_cleared))
         if (!shouldUndo) return
 
         modelNamesInput = mergeModelNames(modelNamesInput, previousModels)
@@ -791,7 +794,7 @@ fun ModelApiSettingsSection(
             flushSettings(showSuccess = false)
         } catch (error: Exception) {
             AppLogger.e(TAG, "撤销清空模型列表失败", error)
-            showNotification("${context.getString(R.string.save_failed)}: $error")
+            showNotification("${resources.getString(R.string.save_failed)}: $error")
         }
     }
 
@@ -817,7 +820,7 @@ fun ModelApiSettingsSection(
             SettingsSelectorRow(
                     title = stringResource(R.string.api_provider),
                     subtitle = stringResource(R.string.select_api_provider),
-                    value = getProviderDisplayName(selectedProviderTypeId, context),
+                    value = getProviderDisplayName(selectedProviderTypeId, resources),
                     onClick = { showApiProviderDialog = true }
             )
 
@@ -1264,59 +1267,59 @@ fun ModelApiSettingsSection(
     }
 }
 
-private fun getBuiltInProviderDisplayName(provider: ApiProviderType, context: android.content.Context): String {
+private fun getBuiltInProviderDisplayName(provider: ApiProviderType, resources: Resources): String {
     return when (provider) {
-        ApiProviderType.OPENAI -> context.getString(R.string.provider_openai)
-        ApiProviderType.OPENAI_RESPONSES -> context.getString(R.string.provider_openai_responses)
-        ApiProviderType.OPENAI_RESPONSES_GENERIC -> context.getString(R.string.provider_openai_responses_generic)
-        ApiProviderType.OPENAI_GENERIC -> context.getString(R.string.provider_openai_generic)
-        ApiProviderType.ANTHROPIC -> context.getString(R.string.provider_anthropic)
-        ApiProviderType.ANTHROPIC_GENERIC -> context.getString(R.string.provider_anthropic_generic)
-        ApiProviderType.GOOGLE -> context.getString(R.string.provider_google)
-        ApiProviderType.GEMINI_GENERIC -> context.getString(R.string.provider_gemini_generic)
-        ApiProviderType.BAIDU -> context.getString(R.string.provider_baidu)
-        ApiProviderType.ALIYUN -> context.getString(R.string.provider_aliyun)
-        ApiProviderType.XUNFEI -> context.getString(R.string.provider_xunfei)
-        ApiProviderType.ZHIPU -> context.getString(R.string.provider_zhipu)
-        ApiProviderType.BAICHUAN -> context.getString(R.string.provider_baichuan)
-        ApiProviderType.MOONSHOT -> context.getString(R.string.provider_moonshot)
-        ApiProviderType.MIMO -> context.getString(R.string.provider_mimo)
-        ApiProviderType.DEEPSEEK -> context.getString(R.string.provider_deepseek)
-        ApiProviderType.MISTRAL -> context.getString(R.string.provider_mistral)
-        ApiProviderType.SILICONFLOW -> context.getString(R.string.provider_siliconflow)
-        ApiProviderType.IFLOW -> context.getString(R.string.provider_iflow)
-        ApiProviderType.OPENROUTER -> context.getString(R.string.provider_openrouter)
-        ApiProviderType.FOUR_ROUTER -> context.getString(R.string.provider_4router)
-        ApiProviderType.NOUS_PORTAL -> context.getString(R.string.provider_nous_portal)
-        ApiProviderType.INFINIAI -> context.getString(R.string.provider_infiniai)
-        ApiProviderType.ALIPAY_BAILING -> context.getString(R.string.provider_alipay_bailing)
-        ApiProviderType.DOUBAO -> context.getString(R.string.provider_doubao)
-        ApiProviderType.NVIDIA -> context.getString(R.string.provider_nvidia)
-        ApiProviderType.LMSTUDIO -> context.getString(R.string.provider_lmstudio)
-        ApiProviderType.OLLAMA -> context.getString(R.string.provider_ollama)
-        ApiProviderType.OPENAI_LOCAL -> context.getString(R.string.provider_openai_local)
-        ApiProviderType.MNN -> context.getString(R.string.provider_mnn)
-        ApiProviderType.LLAMA_CPP -> context.getString(R.string.provider_llama_cpp)
-        ApiProviderType.PPINFRA -> context.getString(R.string.provider_ppinfra)
-        ApiProviderType.NOVITA -> context.getString(R.string.provider_novita)
-        ApiProviderType.OTHER -> context.getString(R.string.provider_other)
+        ApiProviderType.OPENAI -> resources.getString(R.string.provider_openai)
+        ApiProviderType.OPENAI_RESPONSES -> resources.getString(R.string.provider_openai_responses)
+        ApiProviderType.OPENAI_RESPONSES_GENERIC -> resources.getString(R.string.provider_openai_responses_generic)
+        ApiProviderType.OPENAI_GENERIC -> resources.getString(R.string.provider_openai_generic)
+        ApiProviderType.ANTHROPIC -> resources.getString(R.string.provider_anthropic)
+        ApiProviderType.ANTHROPIC_GENERIC -> resources.getString(R.string.provider_anthropic_generic)
+        ApiProviderType.GOOGLE -> resources.getString(R.string.provider_google)
+        ApiProviderType.GEMINI_GENERIC -> resources.getString(R.string.provider_gemini_generic)
+        ApiProviderType.BAIDU -> resources.getString(R.string.provider_baidu)
+        ApiProviderType.ALIYUN -> resources.getString(R.string.provider_aliyun)
+        ApiProviderType.XUNFEI -> resources.getString(R.string.provider_xunfei)
+        ApiProviderType.ZHIPU -> resources.getString(R.string.provider_zhipu)
+        ApiProviderType.BAICHUAN -> resources.getString(R.string.provider_baichuan)
+        ApiProviderType.MOONSHOT -> resources.getString(R.string.provider_moonshot)
+        ApiProviderType.MIMO -> resources.getString(R.string.provider_mimo)
+        ApiProviderType.DEEPSEEK -> resources.getString(R.string.provider_deepseek)
+        ApiProviderType.MISTRAL -> resources.getString(R.string.provider_mistral)
+        ApiProviderType.SILICONFLOW -> resources.getString(R.string.provider_siliconflow)
+        ApiProviderType.IFLOW -> resources.getString(R.string.provider_iflow)
+        ApiProviderType.OPENROUTER -> resources.getString(R.string.provider_openrouter)
+        ApiProviderType.FOUR_ROUTER -> resources.getString(R.string.provider_4router)
+        ApiProviderType.NOUS_PORTAL -> resources.getString(R.string.provider_nous_portal)
+        ApiProviderType.INFINIAI -> resources.getString(R.string.provider_infiniai)
+        ApiProviderType.ALIPAY_BAILING -> resources.getString(R.string.provider_alipay_bailing)
+        ApiProviderType.DOUBAO -> resources.getString(R.string.provider_doubao)
+        ApiProviderType.NVIDIA -> resources.getString(R.string.provider_nvidia)
+        ApiProviderType.LMSTUDIO -> resources.getString(R.string.provider_lmstudio)
+        ApiProviderType.OLLAMA -> resources.getString(R.string.provider_ollama)
+        ApiProviderType.OPENAI_LOCAL -> resources.getString(R.string.provider_openai_local)
+        ApiProviderType.MNN -> resources.getString(R.string.provider_mnn)
+        ApiProviderType.LLAMA_CPP -> resources.getString(R.string.provider_llama_cpp)
+        ApiProviderType.PPINFRA -> resources.getString(R.string.provider_ppinfra)
+        ApiProviderType.NOVITA -> resources.getString(R.string.provider_novita)
+        ApiProviderType.OTHER -> resources.getString(R.string.provider_other)
     }
 }
 
-private fun getProviderDisplayName(providerTypeId: String, context: android.content.Context): String {
+private fun getProviderDisplayName(providerTypeId: String, resources: Resources): String {
     val builtInProvider = ApiProviderType.fromProviderTypeId(providerTypeId)
     if (builtInProvider != null) {
-        return getBuiltInProviderDisplayName(builtInProvider, context)
+        return getBuiltInProviderDisplayName(builtInProvider, resources)
     }
     return ToolPkgAiProviderRegistry.get(providerTypeId)?.displayName ?: providerTypeId
 }
 
-private fun getProviderSelectionOptions(context: android.content.Context): List<ProviderSelectionOption> {
+private fun getProviderSelectionOptions(resources: Resources): List<ProviderSelectionOption> {
     val builtInProviders =
         ApiProviderType.values().map { provider ->
             ProviderSelectionOption(
                 id = provider.name,
-                displayName = getBuiltInProviderDisplayName(provider, context)
+                displayName = getBuiltInProviderDisplayName(provider, resources)
             )
         }
     val toolPkgProviders =
@@ -1782,8 +1785,8 @@ private fun ApiProviderDialog(
         onDismissRequest: () -> Unit,
         onProviderSelected: (ProviderSelectionOption) -> Unit
 ) {
-    val context = LocalContext.current
-    val providers = remember { getProviderSelectionOptions(context) }
+    val resources = LocalResources.current
+    val providers = remember(resources) { getProviderSelectionOptions(resources) }
     var searchQuery by remember { mutableStateOf("") }
     
     val filteredProviders = remember(searchQuery) {

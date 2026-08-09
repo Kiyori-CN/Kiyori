@@ -3755,7 +3755,6 @@
     <string name="save_api_settings">Save API Settings</string>
     <string name="available_models_list">Available Models List</string>
     <string name="refresh_models_list_failed">Failed to refresh models list: %s</string>
-    <string name="refresh_models_failed">Failed to refresh models list</string>
     <string name="refresh_models_list">Refresh Models List</string>
     <string name="search_models">Search models</string>
     <string name="no_models_found">No models found</string>
@@ -3763,7 +3762,7 @@
     <string name="models_displayed_filtered"> (filtered)</string>
     <string name="model_tags_title">Models</string>
     <string name="model_tags_description">The first model is used for connection tests. Tap to copy; long press to sort.</string>
-    <string name="model_tags_count">%1$d total</string>
+    <string name="model_tags_count">Total: %1$d</string>
     <string name="model_tags_empty">No models added</string>
     <string name="model_tags_empty_description">Enter a model name manually, or search and add from upstream.</string>
     <string name="model_test_badge">Test model</string>
@@ -3782,17 +3781,17 @@
     <string name="model_add_no_new_items">No new models to add</string>
     <string name="model_copy_success">Copied: %1$s</string>
     <string name="model_copy_all">Copy all</string>
-    <string name="model_copy_all_success">Copied all %1$d model(s)</string>
+    <string name="model_copy_all_success">Copied all models. Total: %1$d</string>
     <string name="model_clear_all_action">Clear all</string>
     <string name="model_clear_all_title">Clear the model list?</string>
-    <string name="model_clear_all_message">This removes all %1$d models from the current configuration. You can undo it immediately.</string>
+    <string name="model_clear_all_message">This removes every model from the current configuration. Total: %1$d. You can undo it immediately.</string>
     <string name="model_cleared">Cleared the model list</string>
     <string name="model_clear_checking">Checking model bindings…</string>
     <string name="model_clear_bound_title">Cannot clear the model list</string>
-    <string name="model_clear_bound_blocked">This configuration still has %1$d function or character-card binding(s). Remove those bindings before clearing the list.</string>
+    <string name="model_clear_bound_blocked">This configuration still has function or character-card bindings. Total: %1$d. Remove those bindings before clearing the list.</string>
     <string name="model_deleted">Deleted model: %1$s</string>
     <string name="model_delete_bound_title">Delete a bound model?</string>
-    <string name="model_delete_bound_message">“%1$s” is used by %2$d function(s) and %3$d character card(s). Those bindings will use the new test model “%4$s”.</string>
+    <string name="model_delete_bound_message">“%1$s” has function bindings: %2$d. Character-card bindings: %3$d. Those bindings will use the new test model “%4$s”.</string>
     <string name="model_delete_last_bound_blocked">“%1$s” is still bound and there is no new test model to assign.</string>
     <string name="model_expand_remaining">%1$d more</string>
     <string name="model_collapse">Collapse</string>
@@ -3804,10 +3803,10 @@
     <string name="model_upstream_select_filtered">Select current results</string>
     <string name="model_upstream_unselect_filtered">Unselect current results</string>
     <string name="model_upstream_change_summary">Add %1$d, remove %2$d</string>
-    <string name="model_upstream_change_applied">Added %1$d model(s), removed %2$d model(s)</string>
+    <string name="model_upstream_change_applied">Models added: %1$d. Models removed: %2$d.</string>
     <string name="model_upstream_bound_change_title">Apply model selection changes?</string>
-    <string name="model_upstream_bound_change_message">This removes %1$d model(s) used by %2$d function(s) and %3$d character card(s). Those bindings will use the new test model “%4$s”.</string>
-    <string name="model_upstream_remove_bound_blocked">This change removes every model while %1$d function or character-card binding(s) remain. Keep at least one model.</string>
+    <string name="model_upstream_bound_change_message">Models removed: %1$d. Affected function bindings: %2$d. Affected character-card bindings: %3$d. Those bindings will use the new test model “%4$s”.</string>
+    <string name="model_upstream_remove_bound_blocked">Function or character-card bindings remain: %1$d. This change removes every model, so keep at least one model.</string>
     <string name="model_delete_accessibility">Delete model %1$s</string>
     <string name="model_drag_accessibility">Drag model %1$s to reorder</string>
     <string name="test_model">Test model</string>
@@ -4880,7 +4879,7 @@
     
     <!-- Character Selector -->
     <string name="select_character">Select Character</string>
-    <string name="character_count">%1$d characters</string>
+    <string name="character_count">Character count: %1$d</string>
     
     <!-- Attachment Selector -->
     <string name="attachment_photo">Photo</string>
@@ -5099,7 +5098,7 @@
     
     <string name="backup_model_config">Model Configurations</string>
     <string name="backup_model_config_subtitle">Backup and restore all model settings, including API keys and parameters</string>
-    <string name="backup_model_config_current_count">Currently %1$d model configuration(s).</string>
+    <string name="backup_model_config_current_count">Current model configurations: %1$d.</string>
     
     <string name="backup_exporting">Exporting %1$s...</string>
     <string name="backup_importing">Importing %1$s...</string>
@@ -6460,7 +6459,6 @@
     <string name="toolpkg_hook_timeout_title">ToolPkg Hook Timeout</string>
     <string name="toolpkg_hook_timeout_description">Limits the total wait time for ToolPkg chat-input, prompt, and summary hook chains on the send path. On timeout, the current hook is skipped and processing continues. Default: 10 seconds. Does not affect message-processing response takeover.</string>
     <string name="toolpkg_hook_timeout_value">%1$d s</string>
-    <string name="toolpkg_hook_timeout_continue_sending">A pre-send plugin timed out. It was skipped and the message will continue sending.</string>
     <string name="toolpkg_hook_timeout_continue_sending_with_plugin">Pre-send plugin "%1$s" timed out. It was skipped and the message will continue sending.</string>
     <string name="tool_collapse_mode_title">Collapse Tools</string>
     <string name="tool_collapse_mode_desc">Set the default collapse scope for tool-call groups in messages</string>
@@ -7954,7 +7952,7 @@
     <string name="workspace_attachment_environment">Workspace environment: %1$s</string>
     <string name="workspace_attachment_initial_load">Initial workspace load:</string>
     <string name="workspace_attachment_file_changes">Workspace file changes:</string>
-    <string name="workspace_attachment_omitted_changes">- %1$d more changes not listed</string>
+    <string name="workspace_attachment_omitted_changes">- Additional changes not listed: %1$d</string>
     <string name="workspace_attachment_change_created">Created</string>
     <string name="workspace_attachment_change_modified">Modified</string>
     <string name="workspace_attachment_change_deleted">Deleted</string>
@@ -8107,7 +8105,6 @@
     <string name="web_session_network_log_external_open_failed">No app can open this link</string>
     <string name="web_session_page_source">View source</string>
     <string name="web_session_copy_source">Copy source</string>
-    <string name="web_session_source_loading">Reading the current page source…</string>
     <string name="web_session_source_unavailable">The current page has no readable WebView</string>
     <string name="web_session_source_empty">The current page source is empty</string>
     <string name="web_session_source_read_failed">Failed to read page source</string>
@@ -8125,30 +8122,30 @@
     <string name="web_session_source_diff_title">Review changes</string>
     <string name="web_session_source_diff_summary">Characters: %1$d → %2$d\nLines: %3$d → %4$d</string>
     <string name="web_session_source_diff_unchanged">The source has not changed.</string>
-    <string name="web_session_source_diff_line_changes">%1$d lines added, %2$d lines deleted</string>
+    <string name="web_session_source_diff_line_changes">Added lines: %1$d · Deleted lines: %2$d</string>
     <string name="web_session_source_diff_large">This source is large, so only character and line-count changes are shown here. Copy the source or ask AI for a deeper review.</string>
     <string name="web_session_source_reload">Read again</string>
     <string name="web_session_source_status_edited">Edited</string>
     <string name="web_session_source_status_retained">Retained</string>
     <string name="web_session_source_status_live_dom">Live DOM</string>
-    <string name="web_session_source_metadata">%1$s · %2$s · %3$d characters · %4$d lines</string>
+    <string name="web_session_source_metadata">%1$s · %2$s · Characters: %3$d · Lines: %4$d</string>
     <string name="web_session_source_applying">Applying…</string>
     <string name="web_session_source_apply">Apply</string>
     <string name="web_session_source_retained_status">Restored retained source edits for this tab</string>
-    <string name="web_session_source_too_large">The page source contains %1$d characters, exceeding the editor limit of %2$d.</string>
+    <string name="web_session_source_too_large">Page source character count: %1$d. Editor limit: %2$d.</string>
     <string name="web_session_source_session_changed">The active browser tab has changed. Open View source again.</string>
     <string name="web_session_source_applied">Source changes applied to the current page</string>
     <string name="web_session_source_invalid">The source contains content that cannot be applied.</string>
     <string name="web_session_source_document_changed">The page document changed. Read the source again before editing to avoid overwriting the new page.</string>
     <string name="web_session_source_apply_failed">Failed to apply source changes</string>
-    <string name="web_session_source_long_lines_wrapped">Found %1$d long lines; the longest has %2$d characters. They are wrapped visually without changing the source.</string>
-    <string name="web_session_source_long_lines_horizontal">Found %1$d long lines; the longest has %2$d characters. Horizontal browsing is active; switch to line wrap to fit them on screen.</string>
+    <string name="web_session_source_long_lines_wrapped">Long lines found: %1$d. Longest line character count: %2$d. They are wrapped visually without changing the source.</string>
+    <string name="web_session_source_long_lines_horizontal">Long lines found: %1$d. Longest line character count: %2$d. Horizontal browsing is active; switch to line wrap to fit them on screen.</string>
     <string name="web_session_source_soft_wrap">Line wrap</string>
     <string name="web_session_source_horizontal_browse">Horizontal browse</string>
     <string name="web_session_source_jump_to_line">Go to line</string>
-    <string name="web_session_source_selected_characters">%1$d characters selected</string>
+    <string name="web_session_source_selected_characters">Selected characters: %1$d</string>
     <string name="web_session_source_cursor_position">Line %1$d · Column %2$d</string>
     <string name="web_session_source_line_number">Line number</string>
-    <string name="web_session_source_total_lines">%1$d lines total</string>
+    <string name="web_session_source_total_lines">Total lines: %1$d</string>
     <string name="web_session_source_jump">Go</string>
 </resources>

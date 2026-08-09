@@ -2552,17 +2552,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="        actualViewModel.showToast(context.getString(R.string.chat_queue_added))"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt"
-            line="1802"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="            packageInfo.versionName ?: context.getString(R.string.about_version_unknown)"
         errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -9702,182 +9691,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                showNotification(context.getString(R.string.api_settings_saved))"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="226"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                showNotification((e.message ?: context.getString(R.string.save_failed)))"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="230"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            showNotification((e.message ?: context.getString(R.string.auto_save_failed)))"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="249"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                showNotification(context.getString(R.string.overseas_provider_warning))"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="300"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            val gettingModelsText = context.getString(R.string.getting_models_list)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="647"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            val unknownErrorText = context.getString(R.string.unknown_error)"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="648"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            val getModelsFailedText = context.getString(R.string.get_models_list_failed)"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="649"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            val defaultConfigNoModelsText = context.getString(R.string.default_config_no_models_list)"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="650"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            val fillEndpointKeyText = context.getString(R.string.fill_endpoint_and_key)"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="651"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            val modelsListSuccessText = context.getString(R.string.models_list_success)"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="652"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    val errorMsg = result.exceptionOrNull()?.message ?: context.getString(R.string.unknown_error)"
-        errorLine2="                                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="824"
-            column="105"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    modelLoadError = context.getString(R.string.refresh_models_list_failed, errorMsg)"
-        errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="825"
-            column="70"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    showNotification(modelLoadError ?: context.getString(R.string.refresh_models_failed))"
-        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="826"
-            column="88"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                val errorMsg = e.message ?: context.getString(R.string.unknown_error)"
-        errorLine2="                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="829"
-            column="77"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                modelLoadError = context.getString(R.string.refresh_models_list_failed, errorMsg)"
-        errorLine2="                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="830"
-            column="66"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                showNotification(modelLoadError ?: context.getString(R.string.refresh_models_failed))"
-        errorLine2="                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/settings/sections/ModelApiSettingsSection.kt"
-            line="831"
-            column="84"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                            Toast.makeText(context, context.getString(R.string.avatar_updated), Toast.LENGTH_SHORT).show()"
         errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -15795,155 +15608,12 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;market_manage_resubmitted&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmitted&quot;>已提交重新上架「%1$s」的请求&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4280"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit&quot;>重新提交&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4281"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmitting_title&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmitting_title&quot;>正在重新提交&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4282"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmitting_message&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmitting_message&quot;>正在提交审核请求，请稍候…&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4283"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_cooldown_message&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_cooldown_message&quot;>该条目已进入本地冷却期，剩余 %1$s 后才能再次提交。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4284"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_rejected_blocked&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_rejected_blocked&quot;>该条目已被拒绝，客户端不允许再次提交。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4285"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_state_blocked&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_state_blocked&quot;>只有已打回的条目可以重新提交。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4286"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_confirm_title&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_confirm_title&quot;>确认重新提交？&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4287"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_confirm_message&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_confirm_message&quot;>将把「%1$s」重新提交到审核队列。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4288"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_last_state&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_last_state&quot;>上次审核：%1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4289"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_last_reason&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_last_reason&quot;>打回原因：%1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4290"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;market_manage_review_dialog_title&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
         errorLine1="    &lt;string name=&quot;market_manage_review_dialog_title&quot;>审核状态&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="4291"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_confirm_warning&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_confirm_warning&quot;>请确认已经按打回原因完成修改。提交成功后，本地 12 小时内不可再次提交。&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4292"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;market_manage_resubmit_confirm_action&quot; is not translated in &quot;ko&quot; (Korean), &quot;pt&quot; (Portuguese), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;id&quot; (Indonesian), &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;market_manage_resubmit_confirm_action&quot;>确认提交&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4293"
             column="13"/>
     </issue>
 
@@ -20121,17 +19791,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt"
             line="903"
             column="41"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableLongStateOf` instead of `mutableStateOf`"
-        errorLine1="    var nextPendingQueueId by remember(currentChatId) { mutableStateOf(1L) }"
-        errorLine2="                                                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/screens/AIChatScreen.kt"
-            line="1591"
-            column="57"/>
     </issue>
 
     <issue
@@ -57768,17 +57427,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_processing_message&quot;>메시지 처리 중...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6484"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;loading_your_artifacts&quot;>Carregando seu conteúdo publicado...&lt;/string>"
         errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -58164,17 +57812,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;share_preview_generating&quot;>Gerando pré-visualização...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6723"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;apk_signing_info&quot;>Signing APK...\nAPK: %1$s\nKeystore: %2$s\nKey alias: %3$s\nSigner: %4$s&lt;/string>"
         errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -58472,28 +58109,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;share_preview_generating&quot;>Menjana pratonton...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6883"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;share_preview_generating&quot;>Membuat pratinjau...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6886"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;enhanced_processing_input&quot;>Processing input...&lt;/string>"
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~">
         <location
@@ -58549,17 +58164,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;openai_retry_with_count&quot;>%1$s, retrying for the %2$d time...&lt;/string>"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6906"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;provider_error_retry_message&quot;>%1$s，正在进行第 %2$d 次重试...&lt;/string>"
         errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -58599,17 +58203,6 @@
             file="src/main/res/values/strings.xml"
             line="6947"
             column="42"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;share_preview_generating&quot;>Generando vista previa...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6953"
-            column="45"/>
     </issue>
 
     <issue
@@ -58796,17 +58389,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="7365"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_response&quot;>正在接收AI响应...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7366"
             column="48"/>
     </issue>
 
@@ -61239,17 +60821,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/UnifiedMarketDetailEntryScreen.kt"
             line="792"
             column="58"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = preferences.edit()"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/market/viewmodel/UnifiedMarketManageViewModel.kt"
-            line="255"
-            column="22"/>
     </issue>
 
     <issue

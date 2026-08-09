@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.data.preferences
 
 import android.content.Context
+import androidx.core.content.edit
 import com.ai.assistance.operit.data.model.CloudEmbeddingConfig
 import com.ai.assistance.operit.data.model.MemoryScoreMode
 import com.ai.assistance.operit.data.model.MemorySearchConfig
@@ -95,12 +96,12 @@ class MemorySearchSettingsPreferences(context: Context, profileId: String) {
 
     fun saveCloudEmbedding(config: CloudEmbeddingConfig) {
         val normalized = config.normalized()
-        cloudPrefs.edit()
-            .putBoolean(KEY_CLOUD_ENABLED, normalized.enabled)
-            .putString(KEY_CLOUD_ENDPOINT, normalized.endpoint)
-            .putString(KEY_CLOUD_API_KEY, normalized.apiKey)
-            .putString(KEY_CLOUD_MODEL, normalized.model)
-            .apply()
+        cloudPrefs.edit {
+            putBoolean(KEY_CLOUD_ENABLED, normalized.enabled)
+            putString(KEY_CLOUD_ENDPOINT, normalized.endpoint)
+            putString(KEY_CLOUD_API_KEY, normalized.apiKey)
+            putString(KEY_CLOUD_MODEL, normalized.model)
+        }
     }
 
     fun resetCloudEmbedding() {
