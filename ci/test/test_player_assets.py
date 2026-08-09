@@ -227,7 +227,7 @@ class PlayerAssetsTest(unittest.TestCase):
             session_source.index("fun beginLongPressSpeedBoost("):
             session_source.index("fun setAudioTrack(")
         ]
-        self.assertIn("resolveNextPlayerSpeed(snapshot.speed)", boost_body)
+        self.assertIn("resolveLongPressPlayerSpeed(snapshot.speed)", boost_body)
         self.assertIn("activeLongPressSpeedBoost", boost_body)
         self.assertNotIn("setLastPlaybackSpeed", boost_body)
 

@@ -4,6 +4,31 @@ For_Agent: 对项目大规模动工前按本规范协作
 
 # TODO不误砍柴功
 
+## 2026-08-09 Operit v1.12.1 必要 AI 插件发布更新
+
+本轮只处理 Kiyori 上次 `1.12.0+9` 审计终点之后的真实增量。上游
+`v1.12.1@4faa5cd2` 相对 `93a28251` 只新增市场登记失败后的 GitHub Release 资产保留修复，
+同时包含不属于 Kiyori 的 Operit 应用版本号变更。
+
+细化步骤：
+
+1. [DONE] 核验 `v1.12.1` 标签、提交图、发布补丁和 Kiyori `1.12.0+9` 既有能力
+2. [DONE] 确认角色卡选中发送等 AI 更新已落地，当前唯一缺口是登记失败后的破坏性资产清理
+3. [DONE] 保留已上传 Release/asset，继续返回原有 `RegistrationFailed`
+4. [DONE] 增加源码合同测试，保持同名资产上传前替换语义不变
+5. [DONE] 执行正式开发门禁、差异检查、Debug APK 构建与产物核验
+6. [DONE] 修复完整 Python 门禁中遗留的播放器长按倍速源码合同漂移
+7. [DONE] 运行完整 Python、JVM、Lint、正式准备检查和最终 Debug 构建
+8. [DONE] 审计敏感内容、构建产物、子模块、Git mode、异常大文件和暂存树
+9. [DONE] 提交并推送 `main`，核对本地、跟踪和远端 ref 一致
+
+Kiyori `versionCode/versionName` 和 `OPERIT_MARKET_COMPAT_VERSION=1.12.0+9` 均保持不变。
+现有 WASM、A2A、远程 MCP、用户资料、主题、签名、国际化和发布素材不属于本轮必要范围。
+本地自动验证与 Debug APK 核验已完成；未创建真实 GitHub Release 或触发线上登记失败，
+远端发布链保持 `verification_pending`。
+完整记录见
+[`operit_1_12_1_ai_update/`](operit_1_12_1_ai_update/index.md)。
+
 ## 2026-08-09 网页浏览器返回、缩放、文字与网站密码设置
 
 状态：本地实现与自动验证完成，目标设备网页行为保持 `verification_pending`。继续使用
