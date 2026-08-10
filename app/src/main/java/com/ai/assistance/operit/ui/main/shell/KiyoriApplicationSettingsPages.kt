@@ -117,7 +117,7 @@ internal val kiyoriAiAssistantSettingsGroups =
                         title = "分句回复",
                         description = "配置 AI 回复分句发送和角色化表达模式",
                         icon = Icons.Default.Forum,
-                        iconTone = KiyoriSemanticTone.PURPLE,
+                        iconTone = KiyoriSemanticTone.CYAN,
                         action = KiyoriAiAssistantSettingsAction.OPEN_WAIFU_MODE,
                     ),
                 ),
@@ -217,6 +217,9 @@ internal enum class KiyoriDataSettingsAction {
     OPEN_CHAT_HISTORY,
 }
 
+internal const val KIYORI_ACCOUNT_SETTINGS_PAGE_TITLE = "我的账号"
+internal const val KIYORI_DATA_SETTINGS_PAGE_TITLE = "数据备份"
+
 internal val kiyoriDataSettingsGroups =
     listOf(
         KiyoriNavigationSettingsGroupSpec(
@@ -274,7 +277,7 @@ internal fun KiyoriDataSettingsPage(
     modifier: Modifier = Modifier,
 ) {
     KiyoriNavigationSettingsPage(
-        title = "数据备份与同步",
+        title = KIYORI_DATA_SETTINGS_PAGE_TITLE,
         groups = kiyoriDataSettingsGroups,
         onAction = onAction,
         modifier = modifier,
@@ -302,7 +305,7 @@ internal fun KiyoriAccountConnectionsSettingsPage(
         }
 
     KiyoriCollapsingSettingsPage(
-        title = "账号与连接",
+        title = KIYORI_ACCOUNT_SETTINGS_PAGE_TITLE,
         onBack = navigation.onClick,
         navigationIcon = navigation.icon,
         modifier = modifier,

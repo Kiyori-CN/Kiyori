@@ -26,6 +26,7 @@ import androidx.navigation.NavController
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.NavItem
 import com.ai.assistance.operit.ui.features.about.screens.AboutScreen
+import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriLegalDocumentsScreen
 import com.ai.assistance.operit.ui.features.assistant.screens.AssistantConfigScreen
 import com.ai.assistance.operit.ui.features.chat.screens.AIChatScreen
 import com.ai.assistance.operit.ui.features.demo.screens.ShizukuDemoScreen
@@ -767,8 +768,8 @@ sealed class Screen(
             onError: (String) -> Unit,
             onGestureConsumed: (Boolean) -> Unit
         ) {
-            com.ai.assistance.operit.ui.features.agreement.screens.AgreementScreen(
-                    onAgreementAccepted = onGoBack
+            KiyoriLegalDocumentsScreen(
+                    onBack = onGoBack
             )
         }
     }

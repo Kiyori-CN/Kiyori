@@ -1,6 +1,4 @@
-com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 com.ai.assistance.operit.data.preferences.AgreementPreferences
-com.ai.assistance.operit.data.preferences.androidPermissionPreferences
-com.ai.assistance.operit.ui.features.agreement.screens.AgreementScreen
-com.ai.assistance.operit.ui.features.permission.screens.PermissionGuideScreen
-com.kiyori.platform.logging.KiyoriLogger
+com.ai.assistance.operit.ui.features.agreement.screens.KiyoriAgreementConfirmationScreen
+com.kiyori.integration.operit.onboarding.KiyoriOnboardingPreferences
+com.kiyori.integration.operit.onboarding.KiyoriOnboardingScreen

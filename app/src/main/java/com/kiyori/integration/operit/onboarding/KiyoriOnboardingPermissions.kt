@@ -1,0 +1,538 @@
+package com.kiyori.integration.operit.onboarding
+
+import android.Manifest
+import android.app.AlarmManager
+import android.app.AppOpsManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.PowerManager
+import android.os.Process
+import android.provider.Settings
+import androidx.core.content.ContextCompat
+import com.ai.assistance.operit.core.tools.system.RootAuthorizer
+import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
+import com.ai.assistance.operit.core.tools.system.ShizukuInstaller
+import com.ai.assistance.operit.data.repository.UIHierarchyManager
+
+internal fun kiyoriRuntimePermissionsForSdk(
+    sdkInt: Int,
+    selectedPermissionIds: Set<KiyoriPermissionId> = KiyoriPermissionId.entries.toSet(),
+): List<String> =
+    buildList {
+        if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+            if (KiyoriPermissionId.NOTIFICATIONS in selectedPermissionIds) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (KiyoriPermissionId.MEDIA in selectedPermissionIds) {
+                add(Manifest.permission.READ_MEDIA_AUDIO)
+                add(Manifest.permission.READ_MEDIA_VIDEO)
+            }
+        } else {
+            if (KiyoriPermissionId.LEGACY_STORAGE in selectedPermissionIds) {
+                add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (sdkInt <= Build.VERSION_CODES.P &&
+                KiyoriPermissionId.LEGACY_STORAGE in selectedPermissionIds
+            ) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+        if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+            KiyoriPermissionId.MEDIA in selectedPermissionIds
+        ) {
+            add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+        }
+        if (KiyoriPermissionId.CAMERA in selectedPermissionIds) {
+            add(Manifest.permission.CAMERA)
+        }
+        if (KiyoriPermissionId.MICROPHONE in selectedPermissionIds) {
+            add(Manifest.permission.RECORD_AUDIO)
+        }
+        if (KiyoriPermissionId.LOCATION in selectedPermissionIds) {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        if (sdkInt >= Build.VERSION_CODES.S) {
+            if (KiyoriPermissionId.BLUETOOTH in selectedPermissionIds) {
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+                add(Manifest.permission.BLUETOOTH_SCAN)
+            }
+        }
+        if (KiyoriPermissionId.PHONE in selectedPermissionIds) {
+            add(Manifest.permission.CALL_PHONE)
+        }
+        if (KiyoriPermissionId.SMS in selectedPermissionIds) {
+            add(Manifest.permission.SEND_SMS)
+            add(Manifest.permission.READ_SMS)
+            add(Manifest.permission.RECEIVE_SMS)
+        }
+    }.distinct()
+
+internal fun isKiyoriRuntimePermission(
+    permissionId: KiyoriPermissionId,
+): Boolean =
+    when (permissionId) {
+        KiyoriPermissionId.NOTIFICATIONS,
+        KiyoriPermissionId.MEDIA,
+        KiyoriPermissionId.CAMERA,
+        KiyoriPermissionId.MICROPHONE,
+        KiyoriPermissionId.LOCATION,
+        KiyoriPermissionId.BLUETOOTH,
+        KiyoriPermissionId.PHONE,
+        KiyoriPermissionId.SMS,
+        KiyoriPermissionId.LEGACY_STORAGE,
+        -> true
+
+        KiyoriPermissionId.ALL_FILES,
+        KiyoriPermissionId.OVERLAY,
+        KiyoriPermissionId.WRITE_SETTINGS,
+        KiyoriPermissionId.USAGE_ACCESS,
+        KiyoriPermissionId.INSTALL_PACKAGES,
+        KiyoriPermissionId.EXACT_ALARM,
+        KiyoriPermissionId.BATTERY_OPTIMIZATION,
+        KiyoriPermissionId.NOTIFICATION_LISTENER,
+        KiyoriPermissionId.DEFAULT_ASSISTANT,
+        KiyoriPermissionId.ACCESSIBILITY,
+        KiyoriPermissionId.SHIZUKU,
+        KiyoriPermissionId.ROOT,
+        KiyoriPermissionId.SCREEN_CAPTURE,
+        -> false
+    }
+
+internal fun readKiyoriPermissionSnapshot(
+    context: Context,
+): KiyoriPermissionSnapshot {
+    val sdkInt = Build.VERSION.SDK_INT
+    val statuses =
+        buildMap {
+            put(
+                KiyoriPermissionId.NOTIFICATIONS,
+                if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                    permissionGroupStatus(
+                        context = context,
+                        permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
+                    )
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.MEDIA,
+                if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                    permissionGroupStatus(
+                        context = context,
+                        permissions =
+                            buildList {
+                                add(Manifest.permission.READ_MEDIA_AUDIO)
+                                add(Manifest.permission.READ_MEDIA_VIDEO)
+                                if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                    add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+                                }
+                            },
+                    )
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.CAMERA,
+                permissionGroupStatus(
+                    context = context,
+                    permissions = listOf(Manifest.permission.CAMERA),
+                ),
+            )
+            put(
+                KiyoriPermissionId.MICROPHONE,
+                permissionGroupStatus(
+                    context = context,
+                    permissions = listOf(Manifest.permission.RECORD_AUDIO),
+                ),
+            )
+            put(
+                KiyoriPermissionId.LOCATION,
+                permissionGroupStatus(
+                    context = context,
+                    permissions =
+                        listOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ),
+                ),
+            )
+            put(
+                KiyoriPermissionId.BLUETOOTH,
+                if (sdkInt >= Build.VERSION_CODES.S) {
+                    permissionGroupStatus(
+                        context = context,
+                        permissions =
+                            listOf(
+                                Manifest.permission.BLUETOOTH_CONNECT,
+                                Manifest.permission.BLUETOOTH_SCAN,
+                            ),
+                    )
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.PHONE,
+                permissionGroupStatus(
+                    context = context,
+                    permissions = listOf(Manifest.permission.CALL_PHONE),
+                ),
+            )
+            put(
+                KiyoriPermissionId.SMS,
+                permissionGroupStatus(
+                    context = context,
+                    permissions =
+                        listOf(
+                            Manifest.permission.SEND_SMS,
+                            Manifest.permission.READ_SMS,
+                            Manifest.permission.RECEIVE_SMS,
+                        ),
+                ),
+            )
+            put(
+                KiyoriPermissionId.LEGACY_STORAGE,
+                if (sdkInt < Build.VERSION_CODES.TIRAMISU) {
+                    permissionGroupStatus(
+                        context = context,
+                        permissions =
+                            listOf(
+                                Manifest.permission.READ_EXTERNAL_STORAGE,
+                            ) +
+                                if (sdkInt <= Build.VERSION_CODES.P) {
+                                    listOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                } else {
+                                    emptyList()
+                                },
+                    )
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.ALL_FILES,
+                if (sdkInt >= Build.VERSION_CODES.R) {
+                    grantedStatus(Environment.isExternalStorageManager())
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.OVERLAY,
+                if (sdkInt >= Build.VERSION_CODES.M) {
+                    grantedStatus(Settings.canDrawOverlays(context))
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.WRITE_SETTINGS,
+                if (sdkInt >= Build.VERSION_CODES.M) {
+                    grantedStatus(Settings.System.canWrite(context))
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.USAGE_ACCESS,
+                grantedStatus(hasUsageStatsAccess(context)),
+            )
+            put(
+                KiyoriPermissionId.INSTALL_PACKAGES,
+                if (sdkInt >= Build.VERSION_CODES.O) {
+                    grantedStatus(context.packageManager.canRequestPackageInstalls())
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.EXACT_ALARM,
+                if (sdkInt >= Build.VERSION_CODES.S) {
+                    val alarmManager =
+                        context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                    grantedStatus(alarmManager.canScheduleExactAlarms())
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.BATTERY_OPTIMIZATION,
+                if (sdkInt >= Build.VERSION_CODES.M) {
+                    val powerManager =
+                        context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                    grantedStatus(
+                        powerManager.isIgnoringBatteryOptimizations(context.packageName),
+                    )
+                } else {
+                    KiyoriPermissionStatus.NOT_APPLICABLE
+                },
+            )
+            put(
+                KiyoriPermissionId.NOTIFICATION_LISTENER,
+                grantedStatus(hasNotificationListenerAccess(context)),
+            )
+            put(
+                KiyoriPermissionId.DEFAULT_ASSISTANT,
+                grantedStatus(isKiyoriDefaultAssistant(context)),
+            )
+            put(
+                KiyoriPermissionId.ACCESSIBILITY,
+                when {
+                    !UIHierarchyManager.isProviderAppInstalled(context) ->
+                        KiyoriPermissionStatus.REQUIRES_SETUP
+
+                    UIHierarchyManager.isUpdateNeeded(context) ->
+                        KiyoriPermissionStatus.REQUIRES_SETUP
+
+                    isKiyoriAccessibilityProviderEnabled(context) ->
+                        KiyoriPermissionStatus.GRANTED
+
+                    else -> KiyoriPermissionStatus.NOT_GRANTED
+                },
+            )
+            put(
+                KiyoriPermissionId.SHIZUKU,
+                when {
+                    !ShizukuAuthorizer.isShizukuInstalled(context) ->
+                        KiyoriPermissionStatus.REQUIRES_SETUP
+
+                    !ShizukuAuthorizer.isShizukuServiceRunning() ->
+                        KiyoriPermissionStatus.REQUIRES_SETUP
+
+                    ShizukuAuthorizer.hasShizukuPermission() ->
+                        KiyoriPermissionStatus.GRANTED
+
+                    else -> KiyoriPermissionStatus.NOT_GRANTED
+                },
+            )
+            put(
+                KiyoriPermissionId.ROOT,
+                when {
+                    RootAuthorizer.hasRootAccess.value -> KiyoriPermissionStatus.GRANTED
+                    RootAuthorizer.isRooted.value -> KiyoriPermissionStatus.NOT_GRANTED
+                    else -> KiyoriPermissionStatus.REQUIRES_SETUP
+                },
+            )
+            put(
+                KiyoriPermissionId.SCREEN_CAPTURE,
+                KiyoriPermissionStatus.ON_DEMAND,
+            )
+        }
+    return KiyoriPermissionSnapshot(statuses)
+}
+
+internal fun launchKiyoriPermissionSettings(
+    context: Context,
+    permissionId: KiyoriPermissionId,
+) {
+    val packageUri = Uri.parse("package:${context.packageName}")
+    val intent =
+        when (permissionId) {
+            KiyoriPermissionId.ALL_FILES ->
+                Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.OVERLAY ->
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.WRITE_SETTINGS ->
+                Intent(
+                    Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.USAGE_ACCESS ->
+                Intent(
+                    Settings.ACTION_USAGE_ACCESS_SETTINGS,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.INSTALL_PACKAGES ->
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.EXACT_ALARM ->
+                Intent(
+                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.BATTERY_OPTIMIZATION ->
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    packageUri,
+                )
+
+            KiyoriPermissionId.NOTIFICATION_LISTENER ->
+                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+
+            KiyoriPermissionId.DEFAULT_ASSISTANT ->
+                Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+
+            KiyoriPermissionId.ACCESSIBILITY ->
+                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+
+            KiyoriPermissionId.NOTIFICATIONS,
+            KiyoriPermissionId.MEDIA,
+            KiyoriPermissionId.CAMERA,
+            KiyoriPermissionId.MICROPHONE,
+            KiyoriPermissionId.LOCATION,
+            KiyoriPermissionId.BLUETOOTH,
+            KiyoriPermissionId.PHONE,
+            KiyoriPermissionId.SMS,
+            KiyoriPermissionId.LEGACY_STORAGE,
+            KiyoriPermissionId.SHIZUKU,
+            KiyoriPermissionId.ROOT,
+            KiyoriPermissionId.SCREEN_CAPTURE,
+            -> error("Permission does not have one Android settings intent: $permissionId")
+        }
+    context.startActivity(intent)
+}
+
+internal fun performKiyoriAccessibilityAction(
+    context: Context,
+) {
+    if (
+        UIHierarchyManager.isProviderAppInstalled(context) &&
+        !UIHierarchyManager.isUpdateNeeded(context)
+    ) {
+        launchKiyoriPermissionSettings(
+            context = context,
+            permissionId = KiyoriPermissionId.ACCESSIBILITY,
+        )
+    } else {
+        UIHierarchyManager.launchProviderInstall(context)
+    }
+}
+
+internal fun performKiyoriShizukuAction(
+    context: Context,
+    onPermissionResult: (Boolean) -> Unit,
+) {
+    when {
+        !ShizukuAuthorizer.isShizukuInstalled(context) -> {
+            check(ShizukuInstaller.installBundledShizuku(context)) {
+                "Bundled Shizuku installation could not be started"
+            }
+        }
+
+        !ShizukuAuthorizer.isShizukuServiceRunning() -> {
+            val launchIntent =
+                checkNotNull(
+                    context.packageManager.getLaunchIntentForPackage(
+                        SHIZUKU_PACKAGE_NAME,
+                    ),
+                ) {
+                    "Installed Shizuku does not expose a launch activity"
+                }
+            context.startActivity(launchIntent)
+        }
+
+        else -> ShizukuAuthorizer.requestShizukuPermission(onPermissionResult)
+    }
+}
+
+private fun permissionGroupStatus(
+    context: Context,
+    permissions: List<String>,
+): KiyoriPermissionStatus {
+    if (permissions.isEmpty()) {
+        return KiyoriPermissionStatus.NOT_APPLICABLE
+    }
+    val grantedCount =
+        permissions.count { permission ->
+            ContextCompat.checkSelfPermission(
+                context,
+                permission,
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    return when (grantedCount) {
+        0 -> KiyoriPermissionStatus.NOT_GRANTED
+        permissions.size -> KiyoriPermissionStatus.GRANTED
+        else -> KiyoriPermissionStatus.PARTIAL
+    }
+}
+
+private fun grantedStatus(granted: Boolean): KiyoriPermissionStatus =
+    if (granted) {
+        KiyoriPermissionStatus.GRANTED
+    } else {
+        KiyoriPermissionStatus.NOT_GRANTED
+    }
+
+@Suppress("DEPRECATION")
+private fun hasUsageStatsAccess(context: Context): Boolean {
+    val appOpsManager =
+        context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+    val mode =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOpsManager.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName,
+            )
+        } else {
+            appOpsManager.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName,
+            )
+        }
+    return mode == AppOpsManager.MODE_ALLOWED
+}
+
+private fun hasNotificationListenerAccess(context: Context): Boolean {
+    val enabledListeners =
+        Settings.Secure.getString(
+            context.contentResolver,
+            "enabled_notification_listeners",
+        ).orEmpty()
+    return enabledListeners
+        .split(":")
+        .asSequence()
+        .mapNotNull(ComponentName::unflattenFromString)
+        .any { componentName ->
+            componentName.packageName == context.packageName
+        }
+}
+
+private fun isKiyoriDefaultAssistant(context: Context): Boolean =
+    Settings.Secure.getString(
+        context.contentResolver,
+        "voice_interaction_service",
+    )?.let(ComponentName::unflattenFromString)
+        ?.packageName == context.packageName
+
+private fun isKiyoriAccessibilityProviderEnabled(context: Context): Boolean {
+    val enabledServices =
+        Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ).orEmpty()
+    return enabledServices
+        .split(":")
+        .asSequence()
+        .mapNotNull(ComponentName::unflattenFromString)
+        .any { componentName ->
+            componentName.packageName == ACCESSIBILITY_PROVIDER_PACKAGE_NAME
+        }
+}
+
+private const val SHIZUKU_PACKAGE_NAME = "moe.shizuku.privileged.api"
+private const val ACCESSIBILITY_PROVIDER_PACKAGE_NAME =
+    "com.ai.assistance.operit.provider"

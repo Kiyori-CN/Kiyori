@@ -20,7 +20,6 @@ com.kiyori.app.startup.KiyoriMainContentHost
 com.kiyori.app.startup.KiyoriMainIntentCommand
 com.kiyori.app.startup.KiyoriMainIntentContract
 com.kiyori.app.startup.KiyoriMainDisplayCoordinator
-com.kiyori.app.startup.KiyoriMainNotificationPermissionCoordinator
 com.kiyori.app.startup.KiyoriMainOrientationCoordinator
 com.kiyori.app.startup.KiyoriMainOrientationDialog
 com.kiyori.app.startup.KiyoriMainPendingRequests

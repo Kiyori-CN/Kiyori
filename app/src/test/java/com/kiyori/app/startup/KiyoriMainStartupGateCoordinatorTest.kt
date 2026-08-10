@@ -1,6 +1,5 @@
 package com.kiyori.app.startup
 
-import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,123 +7,91 @@ import org.junit.Test
 
 class KiyoriMainStartupGateCoordinatorTest {
     @Test
-    fun `agreement has precedence over the permission guide`() {
+    fun `incomplete onboarding has precedence over agreement state`() {
+        assertEquals(
+            KiyoriMainStartupDestination.ONBOARDING,
+            resolveKiyoriMainStartupDestination(
+                agreementAccepted = false,
+                onboardingCompleted = false,
+            ),
+        )
+        assertEquals(
+            KiyoriMainStartupDestination.ONBOARDING,
+            resolveKiyoriMainStartupDestination(
+                agreementAccepted = true,
+                onboardingCompleted = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `completed onboarding with outdated agreement requires confirmation`() {
         assertEquals(
             KiyoriMainStartupDestination.AGREEMENT,
             resolveKiyoriMainStartupDestination(
                 agreementAccepted = false,
-                showPermissionGuide = true,
+                onboardingCompleted = true,
             ),
         )
     }
 
     @Test
-    fun `accepted agreement with missing permission level shows the guide`() {
-        assertEquals(
-            KiyoriMainStartupDestination.PERMISSION_GUIDE,
-            resolveKiyoriMainStartupDestination(
-                agreementAccepted = true,
-                showPermissionGuide = true,
-            ),
-        )
-    }
-
-    @Test
-    fun `accepted agreement and configured permission level show content`() {
+    fun `completed onboarding and current agreement show content`() {
         assertEquals(
             KiyoriMainStartupDestination.CONTENT,
             resolveKiyoriMainStartupDestination(
                 agreementAccepted = true,
-                showPermissionGuide = false,
+                onboardingCompleted = true,
             ),
         )
     }
 
     @Test
-    fun `accepting the agreement delegates to the persistent owner`() {
+    fun `accepting agreement updates persistent owner and memory projection`() {
         var agreementAccepted = false
         val coordinator =
             coordinator(
                 isAgreementAccepted = { agreementAccepted },
                 acceptCurrentAgreement = { agreementAccepted = true },
-                readPermissionLevel = { AndroidPermissionLevel.STANDARD },
+                isOnboardingCompleted = { false },
             )
 
-        assertEquals(KiyoriMainStartupDestination.AGREEMENT, coordinator.destination)
-
+        assertFalse(coordinator.isAgreementAccepted)
         coordinator.acceptCurrentAgreement()
 
-        assertEquals(KiyoriMainStartupDestination.CONTENT, coordinator.destination)
+        assertTrue(agreementAccepted)
+        assertTrue(coordinator.isAgreementAccepted)
+        assertEquals(KiyoriMainStartupDestination.ONBOARDING, coordinator.destination)
     }
 
     @Test
-    fun `missing permission level updates only the guide projection`() {
-        val logs = mutableListOf<String>()
+    fun `completing onboarding exposes content only after agreement acceptance`() {
+        var onboardingCompleted = false
         val coordinator =
             coordinator(
-                readPermissionLevel = { null },
-                logger = { _, message -> logs += message },
+                isAgreementAccepted = { true },
+                isOnboardingCompleted = { onboardingCompleted },
+                completeOnboarding = { onboardingCompleted = true },
             )
 
-        coordinator.refreshPermissionLevel()
-
-        assertEquals(KiyoriMainStartupDestination.PERMISSION_GUIDE, coordinator.destination)
         assertFalse(coordinator.isReadyForContent)
-        assertEquals(
-            listOf(
-                "当前权限级别: null",
-                "权限级别检查: 已设置=false, 将显示权限引导界面",
-            ),
-            logs,
-        )
-    }
+        coordinator.completeOnboarding()
 
-    @Test
-    fun `configured permission level keeps content ready`() {
-        val logs = mutableListOf<String>()
-        val coordinator =
-            coordinator(
-                readPermissionLevel = { AndroidPermissionLevel.STANDARD },
-                logger = { _, message -> logs += message },
-            )
-
-        coordinator.refreshPermissionLevel()
-
-        assertEquals(KiyoriMainStartupDestination.CONTENT, coordinator.destination)
+        assertTrue(onboardingCompleted)
         assertTrue(coordinator.isReadyForContent)
-        assertEquals(
-            listOf(
-                "当前权限级别: STANDARD",
-                "权限级别检查: 已设置=true, 将不显示权限引导界面",
-            ),
-            logs,
-        )
-    }
-
-    @Test
-    fun `completing the permission guide clears its ui projection`() {
-        val coordinator =
-            coordinator(
-                readPermissionLevel = { null },
-            )
-        coordinator.refreshPermissionLevel()
-        assertEquals(KiyoriMainStartupDestination.PERMISSION_GUIDE, coordinator.destination)
-
-        coordinator.completePermissionGuide()
-
         assertEquals(KiyoriMainStartupDestination.CONTENT, coordinator.destination)
     }
 
     private fun coordinator(
-        isAgreementAccepted: () -> Boolean = { true },
+        isAgreementAccepted: () -> Boolean,
         acceptCurrentAgreement: () -> Unit = {},
-        readPermissionLevel: () -> AndroidPermissionLevel?,
-        logger: (tag: String, message: String) -> Unit = { _, _ -> },
+        isOnboardingCompleted: () -> Boolean,
+        completeOnboarding: () -> Unit = {},
     ): KiyoriMainStartupGateCoordinator =
         KiyoriMainStartupGateCoordinator(
             isAgreementAccepted = isAgreementAccepted,
             acceptCurrentAgreement = acceptCurrentAgreement,
-            readPermissionLevel = readPermissionLevel,
-            logger = logger,
+            isOnboardingCompleted = isOnboardingCompleted,
+            completeOnboarding = completeOnboarding,
         )
 }

@@ -1,13 +1,13 @@
 <resources>
     <string name="app_name">Kiyori</string>
     <string name="accessibility_service_description">用于获取UI层次结构，为AI助手提供更快速的界面分析能力，不会收集或存储任何个人信息。</string>
-    
+
     <!-- 模型选择器相关 -->
     <string name="model_selector_title">选择模型配置</string>
     <string name="model_selector_toggle">显示模型选择器</string>
     <string name="model_selector_toggle_desc">在聊天界面顶部显示模型配置选择器，方便快速切换不同的模型配置</string>
     <string name="model">模型</string>
-    
+
     <!-- Navigation -->
     <string name="nav_ai_chat">AI 对话</string>
     <string name="nav_adb_commands">权限授予</string>
@@ -117,7 +117,7 @@
     <string name="token_config">获取密钥</string>
     <string name="package_category_plugin">插件</string>
     <string name="desktop_pet_start">启动桌宠</string>
-    
+
     <!-- 工作流相关 -->
     <string name="workflow_list_title">工作流列表</string>
     <string name="workflow_create">创建工作流</string>
@@ -321,18 +321,18 @@
     <string name="current_notifications">当前通知</string>
     <string name="current_location">当前位置</string>
     <string name="screen_ocr_select">圈选识别</string>
-    
+
     <!-- 模型建议对话框 -->
     <string name="model_suggestion_title">模型建议</string>
     <string name="model_suggestion_message">检测到您当前使用的模型能力较弱，会影响使用体验。建议您前往更换为其他性能更强的模型。</string>
     <string name="change_model">更换模型</string>
     <string name="ignore">忽略</string>
-    
+
     <!-- 权限请求 -->
     <string name="requested_operation">请求的操作</string>
     <string name="used_tool">使用的工具</string>
     <string name="tool_category">工具类别</string>
-    
+
     <!-- 助手配置界面 -->
     <string name="assistant_config_title">助手配置</string>
     <string name="import_model">导入模型</string>
@@ -520,7 +520,7 @@
     <string name="character_card_change_prompt">角色卡已变更，是否前往对话管理界面处理聊天绑定的角色卡？</string>
     <string name="go_to_chat_management">前往对话管理</string>
     <string name="maybe_later">暂不处理</string>
-    
+
     <!-- 聊天记录管理界面 -->
     <string name="chat_history_manager">聊天记录管理</string>
     <string name="export_chat_history">导出聊天记录</string>
@@ -549,14 +549,14 @@
     <string name="history_auto_switch_character_desc">切换对话时自动匹配绑定的角色卡</string>
     <string name="history_auto_switch_chat">自动切换聊天</string>
     <string name="history_auto_switch_chat_desc">切换角色卡或群组时自动进入对应的最新对话，没有则创建</string>
-    
+
     <!-- Terminal Screen -->
     <string name="termux_not_installed">Termux 未安装</string>
     <string name="termux_not_running">Termux 未运行</string>
     <string name="termux_command">Termux 命令</string>
     <string name="execute_termux_command">执行命令</string>
     <string name="termux_result">命令结果</string>
-    
+
     <!-- Termux Installation -->
     <string name="install_termux_title">安装 Termux</string>
     <string name="install_termux_from_store">从应用商店安装 Termux</string>
@@ -565,7 +565,7 @@
     <string name="install_termux_failed">安装 Termux 失败</string>
     <string name="open_termux">打开 Termux</string>
     <string name="termux_setup_guide">Termux 设置向导</string>
-    
+
     <!-- About Screen -->
     <string name="about_title">关于 Kiyori</string>
     <string name="about_version">版本: %1$s</string>
@@ -601,13 +601,13 @@
     <string name="one_click_config_login_prompt">请登录或注册账号</string>
     <string name="one_click_config_info_text">请先登录或注册，登录后系统将自动获取API密钥</string>
     <string name="one_click_config_getting_key">正在获取API密钥...</string>
-    
+
     <!-- Token Info Dialog -->
     <string name="token_info_title">获取 DeepSeek API Token</string>
     <string name="token_info_content">你将会前往DeepSeek API官网。我们内置DeepSeek官网访问，是因为我们认为其为国内使用性价比最高的API，不仅性能强悍，而且还有各种优惠和磁盘缓存降低使用成本。\n\nAPI的访问和Token的设置与软件开发者无关，我们不会提供这方面的任何服务，也不会赚取任何费用。\n\n第一次使用自己的token建议只充1元，完全够用。</string>
     <string name="token_info_cancel">取消</string>
     <string name="token_info_confirm">前往获取</string>
-    
+
     <!-- Free Usage Dialog -->
     <string name="free_usage_title">确认使用免费资源</string>
     <string name="free_usage_message_1">少薅点，再薅真破产了qwq</string>
@@ -626,7 +626,7 @@
     <string name="free_usage_interval_tip">为了防止作者破产，每次使用后等待时间会翻倍哦～</string>
     <string name="free_usage_first_tip">这是第一次使用，之后需要等1天才能再次使用喔～</string>
     <string name="free_usage_later_tip">薅羊毛也要有度，需要再等 %1$d 天才能继续薅(๑•̀ㅂ•́)و✧</string>
-    
+
     <!-- Plugin Loading Screen -->
     <string name="plugin_skip">跳过</string>
     <string name="plugin_app_name">Kiyori</string>
@@ -732,7 +732,7 @@
     <string name="theme_chat_input_liquid_glass_desc">开启后，透明输入框会显示 iOS 风格磨砂玻璃效果</string>
     <string name="theme_chat_input_water_glass">水玻璃输入框</string>
     <string name="theme_chat_input_water_glass_desc">开启后，透明输入框会显示水玻璃效果</string>
-    
+
     <!-- Floating Window -->
     <string name="floating_chat_window">聊天悬浮窗</string>
     <string name="floating_chat_window_desc">在屏幕上显示一个悬浮窗，用于快速访问聊天功能</string>
@@ -741,14 +741,14 @@
     <string name="overlay_permission_required">需要悬浮窗权限</string>
     <string name="overlay_permission_denied">未获得悬浮窗权限，无法显示悬浮窗</string>
     <string name="close_floating_window">关闭悬浮窗</string>
-    
+
     <!-- 麦克风权限 -->
     <string name="microphone_permission">麦克风权限</string>
     <string name="microphone_permission_required">需要麦克风权限</string>
     <string name="microphone_permission_desc">允许应用录制音频，用于语音输入和语音识别</string>
     <string name="microphone_permission_denied">未获得麦克风权限，无法启用悬浮窗功能</string>
     <string name="microphone_permission_floating_required">悬浮窗功能需要麦克风权限来支持语音交互</string>
-    
+
     <!-- AI Tools -->
     <string name="ai_tools_enabled">已启用AI工具功能</string>
     <string name="tools_extracting">正在检测工具调用...</string>
@@ -769,7 +769,7 @@
     <string name="ai_planning_desc">将会进行任务分解和触发多个子agent去搜集信息，最后汇总。子agent的工具调用能力和聊天用的agent相同。这会变得非常耗时，仅建议搜集信息的时候开启。</string>
     <string name="enhanced_service_not_initialized">增强AI服务未初始化，请检查设置</string>
     <string name="ui_automation_in_progress">正在执行界面任务...</string>
-    
+
     <!-- Settings Screen -->
     <string name="settings">设置</string>
     <string name="no_settings">暂无设置选项可用</string>
@@ -779,7 +779,7 @@
     <string name="show_thinking">显示思考过程</string>
     <string name="show_fps_counter">显示帧率</string>
     <string name="fps_counter_description">在屏幕右上角显示实时帧率</string>
-    
+
     <!-- Settings Screen Sections -->
     <string name="settings_user_preferences_desc">编辑会作为用户上下文发送给 AI 的 user.md</string>
     <string name="settings_configure_preferences">配置用户偏好</string>
@@ -789,7 +789,7 @@
     <string name="settings_theme_appearance_desc">个性化应用外观，包括深色/浅色模式和自定义配色方案</string>
     <string name="settings_customize_theme">自定义主题</string>
     <string name="settings_manage_backup">管理备份</string>
-    
+
     <string name="reset_successful">重置成功</string>
     <string name="reset_default_character">重置默认角色卡</string>
     <string name="reset_default_character_confirm">确定要重置默认角色卡吗？这将恢复默认的名称、设定和提示词，并重置头像和主题。</string>
@@ -798,7 +798,7 @@
     <string name="settings_configure_model">配置模型</string>
     <string name="settings_functional_model_desc">为不同功能（如对话、总结、记忆库等）配置专用的模型与API设置</string>
     <string name="settings_configure_function">配置功能</string>
-    
+
     <string name="settings_enable_summary">启用对话总结</string>
     <string name="settings_enable_summary_desc">当上下文过长时自动生成对话总结，节省Token消耗</string>
     <string name="settings_enable_summary_by_message_count">按消息条数触发总结</string>
@@ -816,15 +816,13 @@
     <string name="settings_reply_notification_desc">AI完成回复后发送通知提醒</string>
     <string name="notification_ai_reply_title">AI助手</string>
     <string name="notification_ai_reply_content">AI已完成回复</string>
-    <string name="notification_permission_rationale">为了在AI完成回复后及时通知您，需要授予通知权限</string>
-    <string name="notification_permission_denied">通知权限被拒绝，您将无法收到AI回复提醒</string>
     <string name="settings_auto_accessibility">自动授予无障碍权限</string>
     <string name="settings_auto_accessibility_desc">关闭后需每次打开软件手动授权</string>
-    
+
     <string name="settings_section_permissions">权限与安全</string>
     <string name="settings_tool_permissions_desc">配置AI助手工具的权限级别，可以设置为自动允许、询问或禁止</string>
     <string name="settings_configure_permissions">配置工具权限</string>
-    
+
     <string name="settings_section_usage">使用统计</string>
     <string name="settings_token_statistics">Token统计</string>
     <string name="settings_total_tokens_breakdown">输入: %1$d (缓存: %2$d) / 输出: %3$d</string>
@@ -837,7 +835,7 @@
     <string name="settings_preference_input_token">偏好分析输入Token</string>
     <string name="settings_preference_output_token">偏好分析输出Token</string>
     <string name="settings_total">总计</string>
-    
+
     <!-- Shizuku Command Screen -->
     <string name="shizuku_command_executor">Shizuku ADB 命令执行器</string>
     <string name="device_info">设备信息</string>
@@ -872,13 +870,13 @@
     <string name="grant_permission_first">请授予Shizuku权限</string>
     <string name="feature_unavailable">无法使用ADB命令功能</string>
     <string name="thinking_process">思考过程</string>
-    
+
     <!-- 内置Shizuku -->
     <string name="install_from_store">从应用商店安装 Shizuku</string>
     <string name="install_bundled">安装内置版本 (v%1$s)</string>
     <string name="installing_bundled">正在安装内置的Shizuku，请授予安装权限</string>
     <string name="install_failed">安装内置Shizuku失败，请尝试从应用商店安装</string>
-    
+
     <!-- 用户偏好 -->
     <string name="user_preferences_guide">个性化设置</string>
     <string name="user_preferences">用户偏好设置</string>
@@ -916,7 +914,7 @@
     <string name="tag_count_lock">锁定数量</string>
     <string name="tag_count_limit">最多可选数量</string>
     <string name="tag_count_locked_status">已选择 %1$d / 上限 %2$d</string>
-    
+
     <!-- Package Manager Screen -->
     <string name="skills">技能</string>
     <string name="quick_plugin_creator_title">快速创作你的脚本包</string>
@@ -985,7 +983,7 @@
     <string name="import_failed">导入失败: %1$s</string>
     <string name="package_import_failed">脚本包导入失败</string>
     <string name="package_remove_failed">脚本包移除失败</string>
-    
+
     <!-- OperScript Execution -->
     <string name="run_script">运行脚本</string>
     <string name="edit_script">编辑脚本</string>
@@ -1000,10 +998,10 @@
     <string name="script_execution_success">脚本执行成功</string>
     <string name="script_execution_error">脚本执行错误: %1$s</string>
     <string name="missing_parameters">缺少必要参数: %1$s</string>
-    
+
     <string name="save_changes">保存更改</string>
     <string name="back_to_list">返回列表</string>
-    
+
     <!-- Language Settings -->
     <string name="language_settings_desc">更改应用界面显示语言</string>
     <string name="change_language">更改语言</string>
@@ -1011,7 +1009,7 @@
     <string name="language_info">更改语言后，应用将自动重启以应用新的语言设置</string>
     <string name="language_changing">正在切换语言...</string>
     <string name="language_changed">语言已更改，正在重启应用</string>
-    
+
     <!-- 用户协议界面 -->
     <string name="agreement_title">用户协议与隐私政策</string>
     <string name="agreement_subtitle">请在使用前仔细阅读并同意以下条款。</string>
@@ -1036,21 +1034,21 @@
     <string name="market_agreement_subtitle">进入插件市场前，请阅读并同意本协议。市场用于分享和发现插件，我们推荐作者通过公开 GitHub 仓库直接开源。</string>
     <string name="market_agreement_version">市场协议版本：%1$s</string>
     <string name="market_agreement_content">1. 市场定位。Operit 插件市场仅用于分享、发现和索引脚本、工具包、Skill、MCP 及其他扩展，并提供市场内的浏览、下载和安装入口。市场不是插件作者、买方、卖方、经纪方、收费方、担保方或权利登记机构；市场展示、收录、排序或推荐某个插件，不表示该插件由 Operit 开发、拥有、代理或背书。\n\n2. 发布授权。发布者提交插件到市场，即授予 Operit 一项非独占、非转让、仅为运营市场所必要的许可，用于保存、缓存、复制、处理、展示、索引市场条目，并向市场用户提供该插件的下载和安装。发布行为同时表示发布者允许市场用户通过市场下载、安装并在插件设计用途范围内正常使用，但不当然允许修改或再分发。该许可不转移插件的著作权、所有权或其他权利，市场不得据此取得插件在市场之外的自由再许可权。发布者应确保自己有权作出上述授权。\n\n3. GitHub 开源建议。我们推荐发布者在自己控制的公开 GitHub 仓库直接发布源代码、README、许可证、版本或 Release 和变更记录，并从该仓库向市场登记来源。GitHub 仓库公开可见不等于自动授予开源许可；是否允许使用、修改和再分发，以作者明确声明的开源许可证或其他书面授权为准。\n\n4. 用户使用和再分发。插件的再分发权原则上由作者或其他权利人保留。前述下载、安装和正常使用权限，不等于向每一名用户授予再次上传、转发、改包、出售或重新发布插件的权利。除法律另有规定外，用户只能按照作者声明的许可证或授权修改和再分发；未声明允许再分发的插件，不得自行再分发。开源插件的权利范围以其开源许可证为准。\n\n5. 第三方风险和安全责任。插件具有独立的代码、配置和运行权限，可能执行代码、启动本地服务、访问文件、读取环境变量或连接网络。用户应自行审查并承担启用、安装和使用插件的风险。发布者不得在插件、仓库、示例或配置中提交 API Key、Cookie、Token、私钥、账号密码或用户数据，并应如实说明作者、许可证、权限、联网行为、环境变量、外部服务和已知风险。Operit 不对第三方扩展的安全性、准确性、可用性、合法性或兼容性作保证。\n\n6. 评论和社区行为。评论内容应与插件功能、使用体验、缺陷或安全问题相关。不得发布 QQ、Telegram、Discord 等群号、联系方式、广告、导流信息、交易信息、无关链接或其他可能扰乱社区秩序的内容；不得公开 API Key、Cookie、Token、私钥、账号密码或其他个人数据。\n\n7. 禁止交易和导流。不得在市场内买卖、倒卖、代装插件，不得通过收款、打赏、会员、私聊或第三方链接诱导他人为免费插件付费。市场不提供支付、履约、退款或交易纠纷处理服务。免费插件无需向任何人付费；第三方渠道的收费、授权或承诺不代表 Operit 官方认可。\n\n8. 市场服务边界。为提供分享、下载和安装服务，市场可能保存、缓存或传输市场条目和插件文件，但不承诺永久托管、备份、保密或防复制。发布到市场意味着作者授权市场按本协议向市场用户提供下载和安装，不意味着公众自动获得再分发权。插件是否可访问、下载和继续可用，还取决于作者仓库、GitHub 及其他第三方服务。\n\n9. 规范执行与协议更新。违反本规范的评论、条目或账号可能被限制、隐藏或移除。市场协议因功能、法律或安全要求发生实质变化时，将提高协议版本；用户再次进入市场时需要重新阅读并确认。</string>
-    
+
     <!-- Sherpa -->
     <string name="sherpa_k2_ncnn_init_failed">实时语音识别引擎初始化失败</string>
     <string name="sherpa_k2_ncnn_init_success">实时语音识别引擎初始化成功</string>
-    
+
     <!-- File Manager -->
     <string name="files_selected">已选择 %1$d 个文件</string>
     <string name="file_count">%1$d 个项目</string>
-    
+
     <!-- Search Dialog -->
     <string name="search_files">搜索文件</string>
     <string name="searching">正在搜索...</string>
     <string name="case_sensitive">区分大小写</string>
     <string name="use_wildcard">使用通配符</string>
-    
+
     <!-- File Operations -->
     <string name="new_folder">新建文件夹</string>
     <string name="folder_name">文件夹名称</string>
@@ -1077,66 +1075,18 @@
     <string name="network_transfer_failed">网络传输失败，请检查网络连接</string>
     <string name="try_again_later">请求失败，请稍后再试</string>
 
-    <!-- Permission Guide Screen -->
-    <string name="permission_guide_previous">上一步</string>
-    <string name="permission_guide_next">下一步</string>
-    <string name="permission_guide_complete">完成</string>
-    <string name="permission_guide_welcome">欢迎</string>
-    <string name="permission_guide_basic_permissions">基础权限设置</string>
-    <string name="permission_guide_permission_level">权限级别选择</string>
-    
-    <string name="permission_guide_welcome_title">欢迎使用</string>
-    <string name="permission_guide_welcome_desc">在开始使用应用前，我们需要设置一些基本权限并选择您偏好的权限级别。</string>
-    <string name="permission_guide_welcome_hint">这个过程只需要几分钟，将帮助应用更好地为您服务。</string>
-    <string name="permission_guide_welcome_start">点击右下角按钮开始设置</string>
-    
-    <string name="permission_guide_basic_title">基础权限设置</string>
-    <string name="permission_guide_basic_desc">请授予以下基础权限，以确保应用正常运行</string>
-    <string name="permission_guide_storage_title">存储权限</string>
-    <string name="permission_guide_storage_desc">允许应用读写文件</string>
-    <string name="permission_guide_overlay_title">悬浮窗权限</string>
-    <string name="permission_guide_overlay_desc">允许应用显示悬浮窗</string>
-    <string name="permission_guide_battery_title">电池优化豁免</string>
-    <string name="permission_guide_battery_desc">允许应用在后台运行</string>
-    <string name="permission_guide_location_title">位置权限</string>
-    <string name="permission_guide_location_desc">允许应用获取位置信息</string>
-    <string name="permission_guide_check_permissions">检查权限状态</string>
-    <string name="permission_guide_all_granted">所有基础权限已授予，可以继续下一步</string>
-    
-    <string name="permission_guide_warning_title">权限授予不完整</string>
-    <string name="permission_guide_warning_message">您尚未授予所有必要权限，这可能导致应用功能不完整或异常退出。确定要继续吗？</string>
-    <string name="permission_guide_warning_continue">继续</string>
-    <string name="permission_guide_warning_return">返回授权</string>
-    
-    <string name="permission_guide_level_title">选择权限级别</string>
-    <string name="permission_guide_level_desc">请选择您偏好的权限级别，这将决定应用可以使用的功能范围</string>
-    <string name="permission_guide_standard_title">标准权限</string>
-    <string name="permission_guide_standard_desc">基本的应用运行权限，无需特殊权限</string>
-    <string name="permission_guide_accessibility_title">无障碍权限</string>
-    <string name="permission_guide_accessibility_desc">通过无障碍服务实现屏幕内容分析和模拟操作</string>
-    <string name="permission_guide_debugger_title">调试权限</string>
-    <string name="permission_guide_debugger_desc">通过Shizuku提供ADB级别的系统访问</string>
-    <string name="permission_guide_root_title">Root权限</string>
-    <string name="permission_guide_root_desc">超级用户权限，可执行任意系统操作</string>
-    <string name="permission_guide_confirm">确认选择</string>
-    <string name="permission_guide_change_anytime">您随时可以在设置中更改权限级别</string>
-    
-    <!-- Permission Guide Toast Messages -->
-    <string name="permission_guide_storage_setting_failed">无法打开存储权限设置，请手动授权</string>
-    <string name="permission_guide_overlay_setting_failed">无法打开悬浮窗设置，请手动授权</string>
-    <string name="permission_guide_battery_hint">请在列表中找到应用并设置为"不优化"</string>
-    <string name="permission_guide_battery_setting_failed">无法打开电池优化设置，请手动设置</string>
-    
-    <!-- Permission Status Description -->
-    <string name="permission_guide_granted">已授权</string>
-    <string name="permission_guide_not_granted">未授权</string>
-    <string name="permission_guide_selected">已选择</string>
-    
+
+
+
+
+
+
+
     <!-- Wizard Cards Common -->
     <string name="wizard_collapse">收起</string>
     <string name="wizard_expand">展开</string>
     <string name="wizard_open_docs">官方文档</string>
-    
+
     <!-- RootWizardCard -->
     <string name="root_wizard_title">Root权限设置向导</string>
     <string name="root_wizard_step1">步骤1：Root设备</string>
@@ -1152,7 +1102,7 @@
     <string name="root_wizard_device_not_rooted">未检测到您的设备已Root。ROOT需要特定的系统修改，且可能会导致设备保修失效。如需使用ROOT功能，请先完成设备ROOT操作。</string>
     <string name="root_wizard_risk_notice">注意：Root操作风险提示</string>
     <string name="root_wizard_risk_details">1. ROOT操作具有一定风险，可能导致设备保修失效\n2. 部分应用可能会拒绝在ROOT设备上运行\n3. 不当的ROOT操作可能导致系统不稳定</string>
-    
+
     <!-- ShizukuWizardCard -->
     <string name="shizuku_wizard_title">Shizuku 设置向导</string>
     <string name="shizuku_wizard_update_title">Shizuku 更新向导</string>
@@ -1178,7 +1128,7 @@
     <string name="shizuku_wizard_current_version">当前版本：%1$s</string>
     <string name="shizuku_wizard_latest_version">最新版本：%1$s</string>
     <string name="shizuku_wizard_update">更新Shizuku</string>
-    
+
     <!-- TermuxWizardCard -->
     <string name="termux_wizard_title">Termux 设置向导</string>
     <string name="termux_wizard_step1">步骤1：安装Termux</string>
@@ -1222,7 +1172,7 @@
     <string name="termux_wizard_success_title">恭喜！Termux环境已完全配置好</string>
     <string name="termux_wizard_success_message">现在您可以使用Termux进行各种命令行操作</string>
     <string name="termux_wizard_open">打开Termux</string>
-    
+
     <!-- ShizukuDemoScreen -->
     <string name="shizuku_demo_loading">正在加载应用状态...</string>
     <string name="shizuku_demo_permission_failed">无法打开权限设置</string>
@@ -1272,7 +1222,7 @@
     <string name="battery_optimization">电池优化豁免</string>
     <string name="location_permission">位置权限</string>
     <string name="operit_terminal">Kiyori终端</string>
-    
+
     <!-- 权限级别描述 -->
     <string name="permission_level_standard">标准权限</string>
     <string name="permission_level_accessibility">无障碍权限</string>
@@ -1289,12 +1239,12 @@
     <string name="permission_level_admin_full_desc">管理员权限：允许应用访问更多系统功能，如位置服务等</string>
     <string name="permission_level_debugger_full_desc">调试权限：允许通过ADB调试功能进行高级操作，需要Shizuku服务</string>
     <string name="permission_level_root_full_desc">Root权限：允许应用以超级用户身份运行，需要设备已Root</string>
-    
+
     <!-- Root 状态信息 -->
     <string name="root_access_granted">应用已获取Root权限，可执行特权命令</string>
     <string name="device_rooted_request_permission">设备已Root，点击申请应用权限</string>
     <string name="device_not_rooted">设备未Root，无法获取Root权限</string>
-    
+
     <!-- Toast 消息 -->
     <string name="toast_download_link_failed">无法打开下载链接</string>
     <string name="toast_apk_extract_failed">提取APK失败，请稍后再试</string>
@@ -1302,7 +1252,7 @@
     <string name="toast_operation_failed">操作失败: %1$s</string>
     <string name="toast_skip_tuna_source">已跳过清华源配置，您可以稍后在Termux中自行配置源</string>
     <string name="toast_skip_tuna_source_dialog">您已选择跳过清华源配置。如需后续手动配置，请在Termux中执行以下命令：\n\ntermux-change-repo\n\n然后从列表中选择清华源或其他源。</string>
-    
+
     <!-- 聊天历史选择器 -->
     <string name="chat_history">对话历史</string>
     <string name="search_chat_history_hint">搜索</string>
@@ -1316,7 +1266,7 @@
     <string name="chat_shared_file_target_recent_section">最近的 5 个对话</string>
     <string name="chat_shared_file_target_current_badge">当前对话</string>
     <string name="chat_shared_file_target_no_recent">暂无可选的最近对话，可以直接新建对话。</string>
-    
+
     <!-- 聊天屏幕头部 -->
     <string name="exit_edit_mode">退出编辑模式</string>
     <string name="enter_edit_mode">进入编辑模式</string>
@@ -1331,7 +1281,7 @@
     <string name="ask">询问</string>
     <string name="ai_planning_mode">深度搜索:</string>
     <string name="disabled">已关闭</string>
-    
+
     <!-- Termux 相关 -->
     <string name="termux_not_installed_message">请先安装Termux应用</string>
     <string name="termux_manual_auth_title">需要手动授权</string>
@@ -1368,7 +1318,7 @@
     <string name="crash_report_copy_success">已复制到剪贴板</string>
     <string name="crash_report_export_success">错误报告已导出到\n%1$s</string>
     <string name="crash_report_export_failed">导出失败: %1$s</string>
-    
+
     <!-- 模型提示词设置屏幕 -->
     <string name="model_prompts_title">提示词设置</string>
     <string name="select_persona_config">选择AI助手的人设卡配置</string>
@@ -1395,7 +1345,7 @@
     <string name="create">创建</string>
     <string name="unnamed_config">未命名配置</string>
     <string name="delete_config">删除</string>
-    
+
     <!-- 功能提示词配置屏幕 -->
     <string name="functional_prompt_title">功能提示词配置设置</string>
     <string name="functional_prompt_desc">为不同功能设置单独的提示词配置，使每个功能都能使用最适合的提示词。</string>
@@ -1410,11 +1360,11 @@
     <string name="voice_function_desc">语音互动功能，自定义语音助手的提示词配置</string>
     <string name="desktop_pet_function">桌宠功能</string>
     <string name="desktop_pet_function_desc">桌面宠物功能，自定义桌宠的性格和互动方式</string>
-    
+
     <!-- 桌宠服务通知 -->
     <string name="pet_service_notification_title">桌面宠物服务</string>
     <string name="pet_service_notification_text">桌面宠物正在运行中</string>
-    
+
     <!-- 设置屏幕新增字符串 -->
     <string name="settings_prompt_desc">自定义AI助手的行为和性格的提示词</string>
     <string name="settings_configure_prompt">配置提示词</string>
@@ -1422,7 +1372,7 @@
     <string name="settings_functional_prompt_desc">为不同功能（对话、语音）设置专用的提示词</string>
     <string name="settings_configure_functional_prompt">配置功能提示词</string>
     <string name="settings_appearance_section">外观设置</string>
-    
+
     <!-- 关于屏幕 -->
     <string name="ok">确定</string>
     <string name="dialog_title_prompt">提示</string>
@@ -1446,19 +1396,19 @@
     <string name="open_source_licenses">开源许可声明</string>
     <string name="license_format">许可: %1$s</string>
     <string name="visit_project">访问项目</string>
-    
+
     <!-- AccessibilityWizardCard -->
     <string name="accessibility_wizard_title">无障碍服务设置向导</string>
-    <string name="accessibility_wizard_step1">步骤1：安装服务提供者应用</string>
+    <string name="accessibility_wizard_step1">步骤1：安装 Kiyori 无障碍支持</string>
     <string name="accessibility_wizard_step2">步骤2：启用无障碍服务</string>
     <string name="accessibility_wizard_completed">无障碍服务已配置完成</string>
-    <string name="accessibility_wizard_install_message">无障碍服务提供者是一个独立的应用，它提供了无障碍服务功能，可以帮助AI分析和操作屏幕内容。</string>
-    <string name="accessibility_wizard_install_provider">安装服务提供者</string>
-    <string name="accessibility_wizard_enable_message">服务提供者已安装，现在需要在系统设置中启用无障碍服务。</string>
+    <string name="accessibility_wizard_install_message">Kiyori 无障碍支持是独立的系统辅助应用，用于在你明确授权后理解界面，并执行点击、输入和手势操作。</string>
+    <string name="accessibility_wizard_install_provider">安装 Kiyori 无障碍支持</string>
+    <string name="accessibility_wizard_enable_message">Kiyori 无障碍支持已安装，现在需要在系统设置中启用“Kiyori UI 自动化服务”。</string>
     <string name="accessibility_wizard_enable_note">注意事项：</string>
-    <string name="accessibility_wizard_enable_note_details">1. 在系统设置中找到"无障碍服务提供者"\n2. 点击开启服务\n3. 在弹出的确认对话框中选择"允许"</string>
+    <string name="accessibility_wizard_enable_note_details">1. 在系统设置中找到“Kiyori UI 自动化服务”\n2. 打开服务开关\n3. 核对系统提示后选择“允许”</string>
     <string name="accessibility_wizard_open_settings">打开无障碍设置</string>
-    <string name="accessibility_wizard_success_message">恭喜！无障碍服务已成功配置，现在AI可以分析和操作屏幕内容。</string>
+    <string name="accessibility_wizard_success_message">Kiyori UI 自动化服务已配置完成。之后只有在你主动使用相关功能时，Kiyori 才会读取界面并执行操作。</string>
 
     <!-- Context Menu -->
     <string name="copy_message">复制消息</string>
@@ -1544,14 +1494,6 @@
     <string name="load_more_history">点击加载更早的历史记录</string>
     <string name="load_newer_history">点击加载较新的消息</string>
 
-    <!-- Permission Guide Screen -->
-    <string name="permission_guide_intro_1_title">语音驱动的UI自动化</string>
-    <string name="permission_guide_intro_1_desc">通过完全在您设备上运行的本地语音识别与合成，与AI自然对话。您的声音就是指令，可以命令它完成屏幕点击、应用跳转等复杂操作，彻底解放双手。</string>
-    <string name="permission_guide_intro_2_title">为极客与开发者打造的强大工具箱</string>
-    <string name="permission_guide_intro_2_desc">内置超过40种专业工具，涵盖文件管理、网络请求、脚本执行和系统控制。结合强大的插件系统，您可以自动化任务，深度掌控您的设备。</string>
-    <string name="permission_guide_intro_3_title">释放创造力，随时待命</string>
-    <string name="permission_guide_intro_3_desc">无论是设计网页、处理媒体文件，还是通过悬浮窗随时唤醒AI，Kiyori都为您提供强大、灵活且安全的创作与辅助环境。您的数据，由您掌控。</string>
-    <string name="permission_guide_intro_page_indicator">功能介绍 %1$d/%2$d</string>
 
     <!-- 调试模式 -->
     <string name="debugger_accessibility_fallback_title">无障碍加速方案 (高风险)</string>
@@ -1559,7 +1501,7 @@
 
     <string name="accessibility_risk_warning_title">无障碍服务风险提示</string>
     <string name="accessibility_risk_warning_message">启用无障碍服务虽然可以加速UI操作，但某些应用可能会检测到此服务并采取限制措施，包括封号。请仅在了解并接受相关风险后开启。</string>
-    
+
     <string name="accessibility_risk_warning_additional">请注意: 调试模式默认已具备UI操作能力，开启无障碍服务仅用于加速UI操作，但会增加被封号风险。若无极速需求，建议不要开启。若已开启，建议用完后立即关闭。</string>
     <string name="accessibility_risk_warning_input">请输入\"我已明确并知晓无障碍权限导致的其他应用封号、限制账号功能风险，并后果自己承担\"确认</string>
     <string name="accessibility_risk_warning_input_error">请输入\"我已明确并知晓无障碍权限导致的其他应用封号、限制账号功能风险，并后果自己承担\"确认您已了解风险</string>
@@ -1652,7 +1594,7 @@
     <string name="cannot_open_overlay_settings">无法打开悬浮窗设置</string>
     <string name="cannot_open_battery_settings">无法打开电池优化设置</string>
     <string name="cannot_open_accessibility_settings">无法打开无障碍服务设置</string>
-    <string name="accessibility_provider_installed">服务提供者已安装</string>
+    <string name="accessibility_provider_installed">Kiyori 无障碍支持已安装</string>
     <string name="cannot_open_root_tutorial">无法打开Root教程链接</string>
     <string name="cannot_find_shizuku_app">无法找到Shizuku应用</string>
     <string name="cannot_launch_shizuku_app">无法启动Shizuku应用</string>
@@ -1796,7 +1738,7 @@
     <string name="ffmpeg_template_note">注意: 使用模板时，请将input.mp4和output.mp4替换为实际文件路径</string>
     <string name="ffmpeg_help">FFmpeg帮助</string>
     <string name="ffmpeg_description">FFmpeg是一个强大的音视频处理工具。在此界面，您可以直接执行FFmpeg命令。</string>
-    
+
     <!-- FFmpeg Command Templates -->
     <string name="ffmpeg_video_conversion_desc">将视频转换为MP4格式</string>
     <string name="ffmpeg_video_compression">视频压缩</string>
@@ -1812,19 +1754,19 @@
     <string name="ffmpeg_get_info_failed">获取信息失败</string>
     <string name="ffmpeg_view_more_info">查看更多信息</string>
     <string name="ffmpeg_executing_command">正在执行命令，请稍候...</string>
-    
+
     <!-- Tool Tester Screen -->
     <string name="ai_tools_availability_test">AI工具可用性测试</string>
     <string name="ai_tools_grouped_desc">所有AI工具已按功能分组，点击格子查看详情和操作。</string>
     <string name="test_input_field">测试输入框 (用于UI测试)</string>
     <string name="batch_testing_in_progress">正在执行批量测试...</string>
     <string name="start_comprehensive_test">开始全面自动化测试</string>
-    
+
     <!-- Terminal Components -->
     <string name="terminal_yes_y">是 (Y)</string>
     <string name="terminal_no_n">否 (N)</string>
     <string name="terminal_send_custom_input">发送自定义输入</string>
- 
+
     <!-- Status and Error Messages -->
     <string name="check_video_size_error">检查视频大小时出错</string>
     <string name="cannot_read_image_file">无法读取图像文件: %1$s</string>
@@ -1886,13 +1828,13 @@
     <string name="overwrite_existing">覆盖已有同名 Skill</string>
 
     <!-- Update History -->
-    
+
     <!-- Toolbox Categories -->
     <string name="tool_category_all">全部工具</string>
     <string name="tool_category_file_management">文件管理</string>
     <string name="tool_category_development">开发工具</string>
     <string name="tool_category_system">系统工具</string>
-    
+
     <!-- Tool Names -->
     <string name="tool_test_center">工具测试中心</string>
     <string name="tool_test_center_desc">测试AI工具的可用性和功能状态</string>
@@ -2015,7 +1957,7 @@
     <string name="tool_autoglm_one_click_desc">一键为 UI 控制器配置 autoglm-phone 模型并切换 AutoGLM 工具包</string>
     <string name="tool_autoglm_tool">AutoGLM 执行</string>
     <string name="tool_autoglm_tool_desc">使用 autoglm-phone 代理按步骤执行手机自动化任务</string>
-    
+
     <!-- AutoGLM One-Click Configuration -->
     <string name="autoglm_config_name">AutoGLM 配置</string>
     <string name="autoglm_one_click_title">AutoGLM 一键配置</string>
@@ -2125,14 +2067,14 @@
     <string name="name">名称</string>
     <string name="description">描述</string>
     <string name="author">作者</string>
-    
+
     <!-- 缺失的字符串 -->
     <string name="configure_speech_services">配置语音服务</string>
     <string name="microphone_permission_required_title">需要麦克风权限</string>
     <string name="speech_services_settings">语音服务设置</string>
     <string name="speech_services_settings_desc">配置文本转语音和语音识别设置</string>
     <string name="wifi">WiFi</string>
-    
+
     <!-- Toast 消息 -->
     <string name="confirmation_code_copied">返回码已复制！</string>
     <string name="message_copied">消息已复制到剪贴板</string>
@@ -2155,7 +2097,7 @@
     <string name="doc_link_failed">无法打开文档链接</string>
     <string name="root_tutorial_failed">无法打开Root教程链接</string>
     <string name="file_open_failed">无法打开文件: %1$s</string>
-    
+
     <!-- Snackbar 消息 -->
     <string name="automation_config_imported">自动化配置导入成功</string>
     <string name="tab_import_not_supported">当前标签页不支持导入</string>
@@ -2164,11 +2106,11 @@
     <string name="tools_load_error">获取工具列表时出错: %1$s</string>
     <string name="plugin_deployed_success">插件 %1$s 已成功部署</string>
     <string name="remote_service_updated">远程服务 %1$s 已更新</string>
-    
+
     <!-- UI 文本 -->
     <string name="plugin_zip_file">插件压缩包</string>
     <string name="mcp_plugin">MCP 插件</string>
-    
+
     <!-- Toolbox Permission Manager -->
     <string name="toolbox_permissions_search_hint">搜索应用</string>
     <string name="toolbox_permissions_system_apps">系统应用</string>
@@ -2194,7 +2136,7 @@
     <string name="try_different_keywords">尝试使用其他关键词搜索</string>
     <string name="try_show_system_apps">尝试勾选"系统应用"查看更多应用</string>
     <string name="no_apps_found_anywhere">未找到任何应用</string>
-    
+
     <!-- Permission Groups -->
     <string name="permission_group_activity">活动识别</string>
     <string name="permission_group_calendar">日历</string>
@@ -2210,25 +2152,25 @@
     <string name="permission_group_other_granted">其他已授权权限</string>
     <string name="permission_group_other_denied">其他未授权权限</string>
     <string name="permission_group_other">其他权限</string>
-    
+
     <string name="target_format">目标格式</string>
     <string name="start_conversion">开始转换</string>
     <string name="conversion_success">转换成功</string>
     <string name="unknown_file">未知文件</string>
-    
+
     <!-- File Types -->
     <string name="file_type_document">文档</string>
     <string name="file_type_image">图片</string>
     <string name="file_type_audio">音频</string>
     <string name="file_type_video">视频</string>
     <string name="file_type_archive">压缩包</string>
-    
+
     <!-- Stream Markdown Demo -->
     <string name="stream_markdown_title">流式渲染 (Streaming)</string>
     <string name="stream_markdown_demo_title">流式Markdown渲染演示</string>
     <string name="static_rendering">静态渲染</string>
     <string name="stream_speed_format">速度 (x%.1f)</string>
-    
+
     <!-- Additional Actions -->
     <string name="back">返回</string>
     <string name="pause">暂停</string>
@@ -2239,13 +2181,13 @@
     <string name="dangerous_permission">危险权限</string>
     <string name="granted">已授权</string>
     <string name="not_granted">未授权</string>
-    
+
     <!-- Toolbox Screen -->
     <string name="toolbox_title">工具箱</string>
     <string name="toolbox_subtitle">开发和系统管理工具集合</string>
     <string name="toolbox_no_tools">此分类下暂无工具</string>
     <string name="toolbox_animation_loading">正在加载工具...</string>
-    
+
     <!-- File Manager -->
     <string name="file_manager_title">文件管理器</string>
     <string name="file_manager_dual_pane">双面板模式</string>
@@ -2332,7 +2274,7 @@
     <string name="file_op_confirm_delete_message">确定要删除选中的文件吗？此操作无法撤销。</string>
     <string name="file_op_confirm_overwrite">文件已存在</string>
     <string name="file_op_confirm_overwrite_message">目标位置已存在同名文件，是否覆盖？</string>
-    
+
     <!-- Terminal -->
     <string name="terminal_title">终端模拟器</string>
     <string name="terminal_new_session">新建会话</string>
@@ -2360,7 +2302,7 @@
     <string name="terminal_command_not_found">命令未找到</string>
     <string name="terminal_process_running">进程正在运行...</string>
     <string name="terminal_process_completed">进程已完成</string>
-    
+
     <!-- Terminal Auto Config -->
     <string name="terminal_auto_config_title">终端自动配置</string>
     <string name="terminal_auto_config_desc">自动检测和配置终端环境</string>
@@ -2372,7 +2314,7 @@
     <string name="terminal_auto_config_failed">配置失败</string>
     <string name="terminal_auto_config_detecting">正在检测环境...</string>
     <string name="terminal_auto_config_applying">正在应用配置...</string>
-    
+
     <!-- FFmpeg Toolbox -->
     <string name="ffmpeg_toolbox_title">FFmpeg工具箱</string>
     <string name="ffmpeg_input_file">输入文件</string>
@@ -2404,7 +2346,7 @@
     <string name="ffmpeg_no_file_selected">未选择文件</string>
     <string name="ffmpeg_invalid_file">无效的文件格式</string>
     <string name="ffmpeg_permission_error">权限错误，无法访问文件</string>
-    
+
     <!-- Log Viewer (Logcat) -->
     <string name="logcat_title">日志查看器</string>
     <string name="logcat_start">开始日志</string>
@@ -2457,7 +2399,7 @@
     <string name="stt_timeout">识别超时</string>
     <string name="stt_result_saved">识别结果已保存</string>
     <string name="stt_save_failed">保存结果失败</string>
-    
+
     <!-- Speech Services Settings -->
     <string name="speech_services_tts_title">文本转语音 (TTS) 设置</string>
     <string name="speech_services_tts_desc">配置如何将文本转换为语音输出</string>
@@ -2469,7 +2411,7 @@
     <string name="speech_services_tts_engine">TTS 引擎</string>
     <string name="speech_services_stt_engine">STT 引擎</string>
     <string name="speech_services_dropdown_expand">展开下拉菜单</string>
-    
+
     <!-- TTS Service Types -->
     <string name="speech_services_tts_type_simple">系统 TTS (简单)</string>
     <string name="speech_services_simple_tts_settings">系统 TTS 设置</string>
@@ -2489,13 +2431,13 @@
     <string name="speech_services_tts_type_openai_ws">OpenAI Realtime (WebSocket)</string>
     <string name="speech_services_tts_type_openai">OpenAI 语音 (HTTP)</string>
     <string name="speech_services_tts_type_vits">VITS/Piper TTS (本地)</string>
-    
+
     <!-- STT Service Types -->
     <string name="speech_services_stt_type_sherpa">Sherpa NCNN (本地)</string>
     <string name="speech_services_stt_type_sherpa_mnn">Sherpa MNN (本地, 带VAD)</string>
     <string name="speech_services_stt_type_openai">OpenAI STT (远程)</string>
     <string name="speech_services_stt_type_deepgram">Deepgram STT (远程)</string>
-    
+
     <!-- TTS Cleaner Regex -->
     <string name="speech_services_tts_cleaner_title">TTS 清理正则列表</string>
     <string name="speech_services_tts_cleaner_desc">在朗读前，使用这些正则表达式移除匹配的文本。</string>
@@ -2508,7 +2450,7 @@
     <string name="speech_services_tts_cleaner_template_parenthesis">删除 (xxx)</string>
     <string name="speech_services_tts_cleaner_template_chinese_parenthesis">删除 （xxxx）</string>
     <string name="speech_services_tts_cleaner_template_xml">删除 XML 标签</string>
-    
+
     <!-- HTTP TTS Configuration -->
     <string name="speech_services_http_tts_config">HTTP TTS 配置</string>
     <string name="speech_services_http_url_template">URL 模板</string>
@@ -2541,7 +2483,7 @@
     <string name="speech_services_vits_options_placeholder">{\"sample_rate\":\"22050\",\"noise_scale\":\"0.667\",\"length_scale\":\"1.0\",\"noise_w\":\"0.8\",\"frontend\":\"lexicon\"}</string>
     <string name="speech_services_vits_options_hint">可选：sample_rate、threads、noise_scale、length_scale、noise_w、frontend、text_mode、speaker_count、input 名称、blank/bos/eos token、model_path、config_path、lexicon_path 等。</string>
     <string name="speech_services_vits_options_error">无效的 VITS/Piper 参数 JSON</string>
-    
+
     <!-- SiliconFlow TTS Configuration -->
     <string name="speech_services_siliconflow_config">硅基流动 TTS 配置</string>
     <string name="speech_services_siliconflow_api_key">API 密钥</string>
@@ -2652,21 +2594,21 @@
 
     <!-- STT Configuration -->
     <string name="speech_services_stt_info">支持本地 Sherpa 引擎以及 OpenAI / Deepgram STT（远程）。</string>
-    
+
     <!-- Save Actions -->
     <string name="speech_services_save_button">保存设置</string>
     <string name="speech_services_saving">正在保存...</string>
     <string name="speech_services_save_success">设置已保存</string>
     <string name="speech_services_save_error">保存失败：%1$s</string>
     <string name="speech_services_test_tts">测试 TTS 功能</string>
-    
+
     <!-- Info Card -->
     <string name="speech_services_info_title">关于语音服务</string>
     <string name="speech_services_info_tts_title">文本转语音 (TTS)</string>
     <string name="speech_services_info_tts_desc">TTS 服务将文本转换为语音。您可以使用内置系统 TTS，或连接远程 HTTP / WebSocket 语音接口。</string>
     <string name="speech_services_info_stt_title">语音转文本 (STT)</string>
     <string name="speech_services_info_stt_desc">STT 服务将语音转换为文本。支持内置的 Sherpa NCNN 和 Sherpa MNN 引擎，均可在本地设备上运行，不需要网络连接。Sherpa MNN 集成了 VAD（语音活动检测）功能，可提升识别准确性和资源利用效率。</string>
-    
+
     <!-- Permission Names -->
     <string name="perm_name_camera">相机</string>
     <string name="perm_name_read_contacts">读取联系人</string>
@@ -2702,7 +2644,7 @@
     <string name="perm_name_read_sms">读取短信</string>
     <string name="perm_name_receive_wap_push">接收WAP推送消息</string>
     <string name="perm_name_receive_mms">接收彩信</string>
-    
+
     <!-- Permission Descriptions -->
     <string name="perm_desc_camera">允许应用使用相机拍摄照片和视频</string>
     <string name="perm_desc_read_contacts">允许应用读取您的联系人数据</string>
@@ -2738,9 +2680,9 @@
     <string name="perm_desc_read_sms">允许应用读取短信</string>
     <string name="perm_desc_receive_wap_push">允许应用接收WAP推送消息</string>
     <string name="perm_desc_receive_mms">允许应用接收彩信</string>
-    
+
     <!-- OperitTerminal Wizard Card -->
-    
+
     <!-- Functional Config Screen -->
     <string name="functional_model_config_title">功能模型配置设置</string>
     <string name="functional_model_config_desc">为不同功能设置单独的模型配置，使每个功能都能使用最适合的API设置。</string>
@@ -2776,7 +2718,7 @@
     <string name="function_type_image_recognition">图像识别</string>
     <string name="function_type_audio_recognition">音频识别</string>
     <string name="function_type_video_recognition">视频识别</string>
-    
+
     <!-- Function Descriptions -->
     <string name="function_desc_chat">主要的对话功能，用于与用户进行日常对话交互</string>
     <string name="function_desc_title_generation">根据用户第一条消息自动生成简短、准确的对话标题</string>
@@ -2790,7 +2732,7 @@
     <string name="function_desc_image_recognition">用于图像内容识别和分析，调用read_file工具读取图片时支持intent参数进行深度理解。建议使用支持视觉的多模态模型。</string>
     <string name="function_desc_audio_recognition">用于音频内容识别和分析，调用read_file工具读取音频时可使用intent参数进行深度理解（如转写/总结/识别说话内容）。建议使用支持音频输入或高质量转写的模型。</string>
     <string name="function_desc_video_recognition">用于视频内容识别和分析，调用read_file工具读取视频时可使用intent参数进行深度理解（如抽帧理解/场景描述/对话总结）。建议使用支持视频/图像输入的多模态模型。</string>
-    
+
     <!-- Functional Prompt Config Screen -->
     <string name="advanced_config_notice">如需修改系统提示模板等高级配置，请前往「管理所有提示词」页面。</string>
     <string name="perm_default_desc">允许应用访问系统功能</string>
@@ -2800,12 +2742,12 @@
     <string name="requested_permissions_list">请求的权限: %s</string>
     <string name="granted_permissions_list">已授权的权限: %s</string>
     <string name="permission_error_desc">获取权限时出错: %s</string>
-    
+
     <!-- Tool Tester Screen -->
     <string name="parameters_label">参数:</string>
     <string name="detailed_result">详细结果:</string>
     <string name="retest">重新测试</string>
-    
+
     <!-- Tool Test Groups -->
     <string name="env_setup_group">环境准备 (顺序执行)</string>
     <string name="basic_http_group">基础与HTTP (并行)</string>
@@ -2814,7 +2756,7 @@
     <string name="system_group">系统 (并行)</string>
     <string name="ui_automation_group">UI自动化 (并行, 可能失败)</string>
     <string name="cleanup_group">清理环境 (自动执行)</string>
-    
+
     <!-- Tool Test Names -->
     <string name="create_test_dir">创建测试目录</string>
     <string name="download_test_image">下载测试图片</string>
@@ -2851,7 +2793,7 @@
     <string name="simulate_tap_test">模拟点击</string>
     <string name="simulate_swipe_test">模拟滑动</string>
     <string name="cleanup_test_dir">清理测试目录</string>
-    
+
     <!-- Tool Test Descriptions -->
     <string name="create_test_dir_desc">创建所有测试文件的根目录。</string>
     <string name="download_test_image_desc">下载一张图片用于后续测试。</string>
@@ -2888,7 +2830,7 @@
     <string name="simulate_tap_test_desc">在(1,1)处点击，预期失败</string>
     <string name="simulate_swipe_test_desc">在屏幕中央短距离滑动</string>
     <string name="cleanup_test_dir_desc">删除所有测试文件和目录。</string>
-    
+
     <!-- Additional missing strings -->
     <string name="termux_auth_failed">Termux授权失败</string>
     <string name="tsinghua_source_error">清华源配置错误</string>
@@ -2898,7 +2840,7 @@
     <string name="ffmpeg_video_info_desc">获取详细的视频文件信息</string>
     <string name="ffmpeg_video_output_placeholder">输出文件路径(可选)</string>
     <string name="ffmpeg_video_transcode">视频转码</string>
-    
+
     <!-- ShizukuDemoScreen 字符串 -->
     <string name="loading_app_state">正在加载应用状态...</string>
     <string name="setup_wizard">设置向导</string>
@@ -2907,7 +2849,7 @@
     <string name="cannot_open_doc_link">无法打开文档链接</string>
     <string name="welcome_termux_config">欢迎使用Termux配置工具\n点击对应按钮开始配置</string>
     <string name="executing_task">正在执行: %1$s...</string>
-    
+
     <!-- Permission Level Features -->
     <string name="feature_overlay_window">悬浮窗</string>
     <string name="feature_file_operations">文件操作</string>
@@ -2922,7 +2864,7 @@
     <string name="no_description">暂无描述</string>
     <string name="builtin">内置</string>
     <string name="external">外部</string>
-    
+
     <!-- Chat Components -->
     <string name="memory_auto_update_active">长期记忆自动保存已开启</string>
     <string name="thinking_mode_active">思考模式已激活</string>
@@ -3227,7 +3169,7 @@
     <string name="history_fast_scroll">历史记录快速滚动</string>
     <string name="history_scroll_to_top">滚动到顶部</string>
     <string name="history_scroll_to_bottom">滚动到底部</string>
-    
+
     <!-- Settings Screen Subtitles -->
     <string name="settings_custom_headers">自定义请求头</string>
     <string name="settings_custom_headers_subtitle">API请求头字段配置</string>
@@ -3240,14 +3182,14 @@
     <string name="settings_max_context_length_subtitle">模型API支持的最大上下文长度(k tokens)</string>
     <string name="settings_summary_threshold">上下文使用比例阈值</string>
     <string name="settings_summary_threshold_subtitle">当上下文使用超过此比例时触发总结(0.1-0.95)</string>
-    
+
     <!-- 截断设置 -->
     <string name="settings_history_retention_title">历史媒体保留设置</string>
     <string name="settings_max_image_history_user_turns">历史图片保留回合数</string>
     <string name="settings_max_image_history_user_turns_subtitle">仅保留最近 N 次用户对话中的图片，避免历史图片重复发送</string>
     <string name="settings_max_media_history_user_turns">历史音视频保留回合数</string>
     <string name="settings_max_media_history_user_turns_subtitle">仅保留最近 N 次用户对话中的音频/视频，避免历史音视频重复发送</string>
-    
+
     <!-- 布局调整设置 -->
     <string name="layout_adjustment_settings_title">布局调整设置</string>
     <string name="layout_adjustment_description">在这里可以调整界面元素的位置和边距，自定义您的使用体验</string>
@@ -3275,7 +3217,7 @@
     <string name="reset_to_default">恢复默认</string>
     <string name="layout_reset_settings">重置布局设置</string>
     <string name="layout_reset_settings_desc">将所有布局调整设置恢复为默认值</string>
-    
+
     <string name="clear_cookies_dialog_title">清除 Cookie？</string>
     <string name="clear_cookies_dialog_message">将清除搜索工具、Browser 包和内置浏览器保存的 Cookie，已打开的网页可能需要重新登录。</string>
     <string name="clear_cookies_confirm">清除</string>
@@ -3332,7 +3274,7 @@
     <string name="settings_cached_tokens_label">缓存Token</string>
     <string name="settings_price_format">¥%.2f/1M</string>
     <string name="settings_cost">费用</string>
-    
+
     <!-- User Preferences Guide Screen -->
     <string name="user_male">男</string>
     <string name="user_female">女</string>
@@ -3359,7 +3301,7 @@
     <string name="communication_style_general">清晰有条理的交流方式，关注实用性和效率</string>
     <string name="preferences_intro_template">我是%1$s，%2$s。我对%3$s特别感兴趣。在沟通中我喜欢%4$s。</string>
     <string name="preferences_intro_template_no_age">我是%1$s，%2$s。我对%3$s特别感兴趣。在沟通中我喜欢%4$s。</string>
-    
+
     <!-- Occupation Options -->
     <string name="occupation_student">学生</string>
     <string name="occupation_employee">职员</string>
@@ -3374,7 +3316,7 @@
     <string name="occupation_freelancer">自由职业</string>
     <string name="occupation_retired">退休人员</string>
     <string name="occupation_other">其他</string>
-    
+
     <!-- Personality Traits -->
     <string name="personality_extroverted">外向</string>
     <string name="personality_introverted">内向</string>
@@ -3392,7 +3334,7 @@
     <string name="personality_innovative">创新</string>
     <string name="personality_meticulous">细致</string>
     <string name="personality_rough">粗放</string>
-    
+
     <!-- Identity Options -->
     <string name="identity_student">学生</string>
     <string name="identity_teacher">教师</string>
@@ -3406,7 +3348,7 @@
     <string name="identity_foodie">美食家</string>
     <string name="identity_entrepreneur">创业者</string>
     <string name="identity_professional">专业人士</string>
-    
+
     <!-- AI Style Options -->
     <string name="ai_style_professional">专业严谨</string>
     <string name="ai_style_humorous">活泼幽默</string>
@@ -3416,7 +3358,7 @@
     <string name="ai_style_technical">技术导向</string>
     <string name="ai_style_educational">教学指导</string>
     <string name="ai_style_supportive">情感支持</string>
-    
+
     <!-- User Preferences Settings Screen -->
     <string name="default_profile">默认配置</string>
     <string name="date_format_chinese">yyyy年MM月dd日</string>
@@ -3458,7 +3400,7 @@
     <string name="confirm_rename">确认重命名</string>
     <string name="confirm_delete_profile">确认删除配置</string>
     <string name="delete_profile_warning">您确定要删除该偏好配置吗？此操作会同时删除其绑定的记忆库数据，且无法恢复。\n\n建议您提前备份重要内容。</string>
-    
+
     <!-- Profile Selection for Import/Export -->
     <string name="select_profile">选择配置</string>
     <string name="export_from_profile">从配置导出</string>
@@ -3469,7 +3411,7 @@
     <string name="select_export_profile">选择要导出的配置</string>
     <string name="select_import_profile">选择要导入到的配置</string>
 
-    
+
     <!-- User Preferences Guide Screen Dialog -->
     <string name="add_custom_personality">添加自定义性格特点</string>
     <string name="add_custom_identity">添加自定义身份认同</string>
@@ -3492,7 +3434,7 @@
     <string name="info_icon">信息</string>
     <string name="add_icon">添加</string>
     <string name="delete_icon">删除</string>
-    
+
     <!-- Theme Settings Additional Strings -->
     <string name="chat_style_title">聊天风格</string>
     <string name="chat_style_desc">选择聊天界面风格</string>
@@ -3591,18 +3533,18 @@
     <string name="avatar_corner_radius">头像圆角</string>
     <string name="avatar_corner_decrease">减小圆角</string>
     <string name="avatar_corner_increase">增大圆角</string>
-    
+
     <!-- Global User Name Settings -->
     <string name="global_user_name_title">全局用户名称</string>
     <string name="global_user_name_label">用户名称</string>
     <string name="global_user_name_placeholder">请输入您的名称</string>
     <string name="global_user_name_desc">设置一个全局用户名称，将在所有对话中被AI用来称呼您。这个名称在所有角色卡中共享使用。</string>
-    
+
     <string name="ui_text_title">界面文本</string>
     <string name="custom_chat_title_label">自定义聊天标题</string>
     <string name="custom_chat_title_placeholder">例如：AI助手</string>
     <string name="save_title_desc">保存标题</string>
-    
+
     <!-- Model Configuration Screen -->
     <string name="select_model_config">选择模型配置</string>
     <string name="connection_test_success">连接成功</string>
@@ -3619,7 +3561,7 @@
     <string name="rename_model_config">重命名模型配置</string>
     <string name="rename_model_config_desc">修改模型配置的名称</string>
     <string name="config_renamed">配置已重命名</string>
-    
+
     <!-- ModelApiSettingsSection strings -->
     <string name="api_settings">API设置</string>
     <string name="api_endpoint">API端点</string>
@@ -3791,7 +3733,7 @@
     <string name="parameter_value">参数值</string>
     <string name="parameter_range_format">范围: %1$s - %2$s</string>
     <string name="overseas_provider_warning">检测到您在中国大陆，但选择了海外服务商。请确认是否已开启代理工具</string>
-    
+
     <!-- 自定义参数对话框 -->
     <string name="custom_parameter_added">自定义参数已新增</string>
     <string name="parameter_name">参数名称</string>
@@ -3802,13 +3744,13 @@
     <string name="parameter_enable_by_default">默认启用</string>
     <string name="parameter_name_required">参数名称不能为空</string>
     <string name="api_name_required">API名称不能为空</string>
-    
+
     <!-- 模型參數設置新增字符串 -->
     <string name="model_parameters_title">模型参数设置</string>
     <string name="repetition_parameters">重复控制参数</string>
     <string name="api_name_label">API名称: %1$s</string>
     <string name="must_be_boolean">必须为\'true\'或\'false\'</string>
-    
+
     <string name="add_custom_parameter_failed">添加自定义参数失败: %s</string>
     <string name="add_custom_parameter">添加</string>
     <string name="custom_parameters_section">自定义参数</string>
@@ -3833,7 +3775,7 @@
     <string name="api_settings_title">API 设置</string>
 
     <!-- 人设卡生成和Waifu模式设置 -->
-    
+
     <!-- 酒馆角色卡导入 -->
     <string name="import_tavern_card">导入酒馆角色卡</string>
     <string name="import_tavern_card_desc">从JSON或PNG文件导入酒馆格式的角色卡</string>
@@ -3945,7 +3887,7 @@
     <string name="copy_tone_prompt">复制语气词</string>
     <string name="old_config_usage_tip">您可以复制这些内容到新的角色卡系统中使用。</string>
     <string name="close">关闭</string>
-    
+
     <!-- Waifu Mode Settings Screen -->
     <string name="waifu_mode">Waifu模式</string>
     <string name="waifu_mode_description">启用后，AI的回复将按标点分割逐句发送，营造更自然的对话体验。</string>
@@ -3991,7 +3933,7 @@
     <string name="github_account_info_following">关注</string>
     <string name="github_account_info_not_available">登录后可查看账号信息</string>
     <string name="github_account_not_logged_in_desc">请先登录 GitHub 账号</string>
-    
+
     <!-- 角色卡对话框 -->
     <string name="character_card_description">描述</string>
     <string name="character_card_character_setting">角色设定</string>
@@ -4600,7 +4542,7 @@
     <string name="screen_title_package_market">插件市场</string>
     <string name="screen_title_package_manage">管理插件</string>
     <string name="screen_title_package_publish">发布插件</string>
-    
+
     <string name="install_command_example">例如：pnpm install xxx@xxxx</string>
     <string name="install_command_optional_description">如果无填写则使用软件自动识别项目结构。建议为空。</string>
     <string name="install_config_example">{"mcpServers": {"example": {"command": "npx", "args": ["example@latest"]}}}</string>
@@ -4923,7 +4865,7 @@
     <string name="message_limit_reached_title">对话数量已达上限</string>
     <string name="message_limit_reached_message">当前对话数量已达 %1$d 条上限。\n为了保持对话质量和性能，请清空历史记录后继续。</string>
     <string name="go_clear">去清空</string>
-    
+
     <!-- MNN 本地推理 -->
     <string name="mnn_local_model_tip">本地运行模型理解能力较差，建议关闭记忆链接、开启禁用工具进行对话</string>
     <string name="mnn_model_path">模型文件路径</string>
@@ -4953,7 +4895,7 @@
     <string name="llama_kv_unified_subtitle">单会话聊天默认建议开启，可降低 Android 上的上下文管理开销</string>
     <string name="llama_offload_kqv">卸载 KQV 到 GPU</string>
     <string name="llama_offload_kqv_subtitle">仅在 GPU 层数大于 0 时有意义，没有 GPU backend 时会自动忽略</string>
-    
+
     <!-- 工作流执行状态 -->
     <string name="workflow_execution_running">执行中…</string>
     <string name="workflow_execution_success">执行成功</string>
@@ -4999,7 +4941,7 @@
     <string name="default_assistant_guide_subtitle">让Kiyori成为您的智能助手</string>
     <string name="default_assistant_guide_intro">将Kiyori设置为系统默认助手后，您可以通过长按Home键或使用语音唤醒快速启动Kiyori语音助手，获得更便捷的AI交互体验。</string>
     <string name="default_assistant_guide_steps_title">设置步骤</string>
-    
+
     <!-- 步骤1: 设置为默认助理 -->
     <string name="default_assistant_guide_step1_title">设置为默认助理</string>
     <string name="default_assistant_guide_step1_desc">将 Kiyori 设置为系统的默认数字助理应用</string>
@@ -5007,7 +4949,7 @@
     <string name="default_assistant_guide_step1_detail2">• 在助手应用列表中找到并选择"Kiyori"</string>
     <string name="default_assistant_guide_step1_detail_android12">Android 12+: 设置 → 应用 → 默认应用 → 数字助理应用 → 默认数字助理应用</string>
     <string name="default_assistant_guide_open_settings">打开助理设置</string>
-    
+
     <!-- 步骤2: 配置启动手势 -->
     <string name="default_assistant_guide_open_gesture_settings">打开手势设置</string>
     <string name="default_assistant_guide_step2_title">配置启动手势</string>
@@ -5017,24 +4959,24 @@
     <string name="default_assistant_guide_step2_detail_android12">Android 12+: 设置 → 应用 → 默认应用 → 数字助理应用 → 默认数字助理应用</string>
     <string name="default_assistant_guide_step2_detail3">• 语音唤醒："Hey Google"或设备指定的唤醒词（需设备支持）</string>
     <string name="default_assistant_guide_step2_note">注意：不同品牌手机的手势设置可能有所不同，请在系统设置中查看可用选项</string>
-    
+
     <!-- 步骤4: 测试语音助手 -->
     <string name="default_assistant_guide_step4_title">测试语音助手</string>
     <string name="default_assistant_guide_step4_desc">设置完成后，测试是否能正常启动</string>
     <string name="default_assistant_guide_step4_detail1">• 长按Home键（主屏幕按钮）应该会调起 Kiyori 语音助手</string>
     <string name="default_assistant_guide_step4_detail2">• 如果设备支持语音唤醒，说"Hey Google"或设备指定的唤醒词也可能触发 Kiyori</string>
-    
+
     <!-- 步骤3: 测试助手功能 -->
     <string name="default_assistant_guide_step3_title">测试助手功能</string>
     <string name="default_assistant_guide_step3_desc">完成设置后，测试 Kiyori 是否能正常唤起</string>
     <string name="default_assistant_guide_step3_detail1">• 使用您设置的手势（如长按Home键）唤起助手</string>
     <string name="default_assistant_guide_step3_detail2">• 如果成功，应该会看到 Kiyori 的语音助手界面</string>
     <string name="default_assistant_guide_step3_detail3">• 可以尝试说话或输入文字与助手交互</string>
-    
+
     <!-- 疑难解答 -->
     <string name="default_assistant_guide_troubleshooting_title">遇到问题？</string>
     <string name="default_assistant_guide_troubleshooting_content">如果在列表中找不到Kiyori，请确保：\n\n• 应用已正确安装且未被禁用\n• 已授予必要的权限（麦克风、悬浮窗等）\n• 尝试重启设备后再次设置\n\n部分定制系统可能限制第三方应用作为默认助手，如遇此情况，您仍可通过应用内的悬浮窗功能使用Kiyori。</string>
-    
+
     <!-- Voice Interaction Service -->
     <string name="voice_interaction_service_name">Kiyori 助手</string>
     <string name="voice_interaction_service_summary">智能语音助手服务</string>
@@ -5177,7 +5119,7 @@
     <string name="insert_attachment">插入附件</string>
     <string name="remove_attachment">删除附件</string>
     <string name="token_limit_exceeded_message">已超出最大Token限制 (%1$d / %2$d)</string>
-    
+
     <!-- Font Settings -->
     <string name="font_file_saved">字体文件已保存 (.%1$s)</string>
     <string name="font_file_save_failed">字体文件保存失败</string>
@@ -5198,7 +5140,7 @@
     <string name="clear_font">清除字体</string>
     <string name="current_font_file_path">当前字体文件:\n%1$s</string>
     <string name="font_size_scale_label">字体大小缩放 (%1$s)</string>
-    
+
     <!-- Chat History Batch -->
     <string name="no_available_character_cards_toast">暂无可用角色卡，请先创建一个角色卡</string>
     <string name="no_available_character_groups_toast">暂无可用角色群聊，请先创建一个角色群聊</string>
@@ -5221,7 +5163,7 @@
     <string name="filter_chat_history">筛选聊天记录</string>
     <string name="no_chat_records_for_batch">暂无聊天记录，无法进行批量操作。</string>
     <string name="no_matching_chats_adjust_filter">没有匹配的聊天记录，请调整筛选条件。</string>
-    
+
     <!-- Assign Dialog -->
     <string name="assign_to_character_card_title">归类到角色卡</string>
     <string name="unbound_chats_select_card">共有 %1$d 条聊天记录未绑定角色卡。请选择要归类到的目标角色卡：</string>
@@ -5245,11 +5187,11 @@
     <string name="chat_records_label">聊天记录</string>
     <string name="group_label">分组：%1$s</string>
     <string name="unnamed_conversation">未命名对话</string>
-    
+
     <!-- Character Selector -->
     <string name="select_character">选择角色</string>
     <string name="character_count">%1$d 个角色</string>
-    
+
     <!-- Attachment Selector -->
     <string name="attachment_photo">照片</string>
     <string name="attachment_camera">拍照</string>
@@ -5266,7 +5208,7 @@
     <string name="attachment_package_added">已添加包: %1$s</string>
     <string name="attachment_package_failed">添加包失败: %1$s</string>
     <string name="attachments_count">附件 (%1$d)</string>
-    
+
     <!-- Workspace -->
     <string name="mention_selector_hint">输入包名、文件名或路径</string>
     <string name="mention_selector_packages_section">Packages</string>
@@ -5288,7 +5230,7 @@
     <string name="create_new_workspace_in_app">在应用内创建新工作区</string>
     <string name="select_existing_workspace">选择现有</string>
     <string name="select_folder_from_device">从设备中选择一个文件夹</string>
-    
+
     <!-- Global Display Settings -->
     <string name="global_display_settings_description">这些设置控制全局显示行为，独立于角色卡和主题配置。</string>
     <string name="message_display_settings">消息显示设置</string>
@@ -5333,7 +5275,7 @@
     <string name="experimental_virtual_display_description">使用基于虚拟屏幕的 ADB+Shizuku 自动化，功能仍在实验阶段，可能不稳定。</string>
     <string name="hide_runtime_task_view">运行时任务视图隐藏</string>
     <string name="hide_runtime_task_view_description">AI 处理消息或执行工具时，从系统最近任务中隐藏应用任务卡片，避免在最近任务里被误滑关闭。</string>
-    
+
     <!-- Chat History Management -->
     <string name="default_profile_name">默认配置</string>
     <string name="removed_character_card_binding">已移除 %1$d 条对话的角色卡绑定</string>
@@ -5383,7 +5325,7 @@
     <string name="delete_selected_workspaces">删除选中的工作区 (%1$d)</string>
     <string name="delete_workspaces_confirmation">确定要删除选中的 %1$d 个工作区吗？\n\n删除后将无法恢复所有文件和数据。</string>
     <string name="not_used_by_any_chat">未被任何对话使用</string>
-    
+
     <!-- 无障碍朗读 - Markdown 块类型 -->
     <string name="code_block">代码块</string>
     <string name="table_block">表格</string>
@@ -5405,7 +5347,7 @@
     <string name="mood_tag_block">情绪标签</string>
     <string name="thinking_tools_group_title_with_count">思考与工具调用（%1$d）</string>
     <string name="tools_group_title_with_count">工具调用（%1$d）</string>
-    
+
     <!-- 备份设置界面 -->
     <string name="backup_data_overview">数据概览</string>
     <string name="backup_current_profile">当前配置：%1$s</string>
@@ -5487,15 +5429,15 @@
     <string name="backup_export">导出</string>
     <string name="backup_import">导入</string>
     <string name="backup_delete_all">删除全部</string>
-    
+
     <string name="backup_memory_library">记忆库</string>
     <string name="backup_memory_library_subtitle">跨配置备份与恢复，保持思维链一致</string>
     <string name="backup_memory_current_count">当前共有 %1$d 条记忆和 %2$d 个链接。</string>
-    
+
     <string name="backup_model_config">模型配置</string>
     <string name="backup_model_config_subtitle">备份与恢复所有模型设置，包括API密钥和参数</string>
     <string name="backup_model_config_current_count">当前共有 %1$d 个模型配置。</string>
-    
+
     <string name="backup_exporting">正在导出%1$s...</string>
     <string name="backup_importing">正在导入%1$s...</string>
     <string name="backup_deleting">正在清除聊天记录...</string>
@@ -5503,7 +5445,7 @@
     <string name="backup_import_success">导入成功</string>
     <string name="backup_delete_success">清除成功</string>
     <string name="backup_operation_failed">操作失败</string>
-    
+
     <string name="backup_faq_title">常见问题</string>
     <string name="backup_faq_subtitle">了解备份与导入时的注意事项，避免常见误区。</string>
     <string name="backup_faq_why">为什么要备份数据？</string>
@@ -5512,7 +5454,7 @@
     <string name="backup_faq_where_answer">导出的备份文件会保存在您手机的「下载/Kiyori」文件夹中，文件名包含导出的数据类型、日期和时间。</string>
     <string name="backup_faq_duplicate">导入后会出现重复的数据吗？</string>
     <string name="backup_faq_duplicate_answer">系统会根据记录ID判断，相同ID的记录会被更新而不是重复导入。不同ID的记录会作为新记录添加。</string>
-    
+
     <!-- 导出格式选择 -->
     <string name="backup_select_export_format">选择导出格式</string>
     <string name="backup_select_format_hint">请选择要导出的聊天记录格式：</string>
@@ -5524,7 +5466,7 @@
     <string name="backup_format_html_desc">网页格式，适合在浏览器中查看</string>
     <string name="backup_format_txt">纯文本</string>
     <string name="backup_format_txt_desc">简单的文本格式，便于分享</string>
-    
+
     <!-- 导入格式选择 -->
     <string name="backup_select_import_format">选择导入格式</string>
     <string name="backup_import_format_hint">请选择要导入的聊天记录格式：</string>
@@ -5536,7 +5478,7 @@
     <string name="backup_format_chatbox_desc">ChatBox 桌面应用导出格式</string>
     <string name="backup_format_generic_json">通用 JSON</string>
     <string name="backup_format_generic_json_desc">标准 role-content 结构的 JSON（支持 Claude、LibreChat 等）</string>
-    
+
     <string name="backup_import_result_success">成功导入 %1$s 格式：\n- 新增记录：%2$d条\n- 更新记录：%3$d条%4$s</string>
     <string name="backup_import_result_skipped">\n- 跳过无效记录：%1$d条</string>
     <string name="backup_import_result_failed">导入失败：未找到有效的聊天记录</string>
@@ -5686,7 +5628,7 @@
     <string name="backup_model_config_warning_tips">• 请勿将此文件分享给他人\n• 请勿上传到公共云存储\n• 建议将文件移动到安全位置\n• 建议使用加密工具保护文件</string>
     <string name="backup_model_config_warning_export_path">导出位置：</string>
     <string name="backup_model_config_warning_confirm">我知道了</string>
-    
+
     <!-- 记忆库导入策略 -->
     <string name="backup_memory_import_strategy_title">选择导入策略</string>
     <string name="backup_memory_import_profile_title">选择配置</string>
@@ -8159,4 +8101,182 @@
 
     <string name="theme_fixed_palette_title">Kiyori 固定配色</string>
     <string name="theme_fixed_palette_desc">浅色、深色与跟随系统主题仍然保留；AI 背景、消息、头像和输入区可在其他标签中单独调整。</string>
+
+    <!-- Kiyori onboarding -->
+    <string name="kiyori_onboarding_back">返回上一步</string>
+    <string name="kiyori_onboarding_progress">第 %1$d 步，共 %2$d 步</string>
+    <string name="kiyori_onboarding_welcome_title">欢迎使用 Kiyori</string>
+    <string name="kiyori_onboarding_welcome_desc">Kiyori 是一款以网页为入口的 AI 浏览器，把网页、视频、音乐、小说、AI 对话、文件管理和设备端工具放在同一个工作空间里。</string>
+    <string name="kiyori_onboarding_welcome_card_content_title">浏览与内容</string>
+    <string name="kiyori_onboarding_welcome_card_content_desc">网页、影音与阅读，发现后继续处理</string>
+    <string name="kiyori_onboarding_welcome_card_ai_title">AI 与语音</string>
+    <string name="kiyori_onboarding_welcome_card_ai_desc">对话、理解、总结与自然语音交互</string>
+    <string name="kiyori_onboarding_welcome_card_workspace_title">文件与工具</string>
+    <string name="kiyori_onboarding_welcome_card_workspace_desc">下载、文件、终端与实用工具协同</string>
+    <string name="kiyori_onboarding_welcome_card_extension_title">连接与扩展</string>
+    <string name="kiyori_onboarding_welcome_card_extension_desc">账号、小程序、工作流与运行日志</string>
+    <string name="kiyori_onboarding_welcome_next">开始了解</string>
+
+    <string name="kiyori_onboarding_browser_eyebrow">内容工作台</string>
+    <string name="kiyori_onboarding_browser_title">从发现到播放，内容自然流动</string>
+    <string name="kiyori_onboarding_browser_desc">网页浏览、下载、播放与阅读彼此衔接；找到的内容可以随手保存，保存的内容也能继续处理。</string>
+    <string name="kiyori_onboarding_browser_card_browser_title">网页浏览器</string>
+    <string name="kiyori_onboarding_browser_card_browser_desc">搜索、标签、网页操作与广告拦截</string>
+    <string name="kiyori_onboarding_browser_card_download_title">文件下载器</string>
+    <string name="kiyori_onboarding_browser_card_download_desc">集中管理下载任务与本地内容</string>
+    <string name="kiyori_onboarding_browser_card_video_title">视频播放器</string>
+    <string name="kiyori_onboarding_browser_card_video_desc">网页视频发现、在线与本地播放</string>
+    <string name="kiyori_onboarding_browser_card_reading_title">音乐与小说</string>
+    <string name="kiyori_onboarding_browser_card_reading_desc">音乐播放与沉浸式小说阅读</string>
+    <string name="kiyori_onboarding_browser_next">了解 AI 能力</string>
+
+    <string name="kiyori_onboarding_ai_eyebrow">AI 协作层</string>
+    <string name="kiyori_onboarding_ai_title">让 AI 读懂上下文，也能继续行动</string>
+    <string name="kiyori_onboarding_ai_desc">把网页、文件、语音和工具放进同一条工作流；你可以从对话开始，也可以让 AI 帮你整理、调用和执行。</string>
+    <string name="kiyori_onboarding_ai_card_assistant_title">AI 助手</string>
+    <string name="kiyori_onboarding_ai_card_assistant_desc">对话、总结、检索与上下文理解</string>
+    <string name="kiyori_onboarding_ai_card_voice_title">语音服务</string>
+    <string name="kiyori_onboarding_ai_card_voice_desc">语音输入、朗读与语音服务接入</string>
+    <string name="kiyori_onboarding_ai_card_connection_title">账号与连接</string>
+    <string name="kiyori_onboarding_ai_card_connection_desc">模型账号、服务端点与连接管理</string>
+    <string name="kiyori_onboarding_ai_card_toolbox_title">工具箱</string>
+    <string name="kiyori_onboarding_ai_card_toolbox_desc">常用工具、自动化动作与任务执行</string>
+    <string name="kiyori_onboarding_ai_next">了解文件与工具</string>
+
+    <string name="kiyori_onboarding_files_eyebrow">本地工作区</string>
+    <string name="kiyori_onboarding_files_title">文件、终端与扩展能力，一处展开</string>
+    <string name="kiyori_onboarding_files_desc">下载内容、文档和项目都可以在设备端整理；终端、工具箱、小程序与日志记录，帮助你把想法推进成可执行的结果。</string>
+    <string name="kiyori_onboarding_files_card_manager_title">文件管理器</string>
+    <string name="kiyori_onboarding_files_card_manager_desc">整理下载、文档、目录与工作区</string>
+    <string name="kiyori_onboarding_files_card_terminal_title">终端</string>
+    <string name="kiyori_onboarding_files_card_terminal_desc">运行命令、脚本与设备端任务</string>
+    <string name="kiyori_onboarding_files_card_miniprogram_title">小程序管理</string>
+    <string name="kiyori_onboarding_files_card_miniprogram_desc">安装、组织并管理小程序与扩展</string>
+    <string name="kiyori_onboarding_files_card_logs_title">日志记录器</string>
+    <string name="kiyori_onboarding_files_card_logs_desc">追踪运行状态、错误与问题线索</string>
+    <string name="kiyori_onboarding_files_next">查看协议</string>
+
+    <string name="kiyori_onboarding_agreement_title">用户协议与隐私政策</string>
+    <string name="kiyori_onboarding_agreement_subtitle">使用 Kiyori 前，请确认你已了解服务规则与数据处理方式。两份文档可分别查看。</string>
+    <string name="kiyori_onboarding_agreement_version">协议版本：%1$s</string>
+    <!-- 多语言阶段完成前保留上一版键，避免未改语言形成仅区域资源；生产 UI 已零引用。 -->
+    <string name="kiyori_onboarding_agreement_local_title">设备端数据，由你掌控</string>
+    <string name="kiyori_onboarding_agreement_local_desc">聊天、角色、记忆、配置、凭据和工作区通常保存在本机；主动导出、备份或分享的文件由你选择保存位置。</string>
+    <string name="kiyori_onboarding_agreement_network_title">联网只因你主动使用服务</string>
+    <string name="kiyori_onboarding_agreement_network_desc">模型、语音、搜索、市场、GitHub、MCP、插件和自定义服务会按你的选择连接相应提供方。</string>
+    <string name="kiyori_onboarding_agreement_permission_title">强大能力需要明确授权</string>
+    <string name="kiyori_onboarding_agreement_permission_desc">文件、通知、屏幕、位置、终端、安装、无障碍、Shizuku 与 Root 等能力可能处理敏感数据或改变设备状态。</string>
+    <string name="kiyori_onboarding_agreement_open_document">阅读完整协议与隐私政策</string>
+    <string name="kiyori_onboarding_agreement_document_title">Kiyori 用户协议与隐私政策</string>
+    <string name="kiyori_onboarding_agreement_document_content"><![CDATA[
+        <p><b>Kiyori 用户协议与隐私政策</b><br>版本：2026-08-09；拟生效日期：2026 年 8 月 9 日。</p>
+        <p><b>1. 适用范围</b><br>本协议适用于 Kiyori Android 客户端及你主动启用的相关功能。Kiyori 是运行在用户设备上的开源客户端，产品中心是浏览器、内容处理与设备端工作空间；Operit AI 是内嵌的 AI 子系统。安装、启动或使用 Kiyori 前，请阅读并理解本协议。只有明确确认当前版本后，应用才会完成首次启动。</p>
+        <p><b>2. 产品与服务边界</b><br>Kiyori 不向用户提供共享模型凭据，也不把第三方模型、语音、搜索、GitHub、MCP、插件或自定义 HTTP 服务包装成由 Kiyori 运营的统一云服务。你选择并使用这些服务时，请自行确认提供方、端点、模型、价格、配额、服务条款和隐私规则。第三方服务的可用性、内容、计费、账号处理和数据保留由相应提供方负责。</p>
+        <p><b>3. 设备端数据</b><br>聊天记录、角色卡、记忆、模型配置、API Key、环境变量、浏览器状态、工作流和其他配置通常保存在应用私有数据或你明确选择的本地目录中。应用私有数据通常会在卸载 Kiyori 时由 Android 删除；你主动导出的备份、下载、日志、媒体、工作区和其他公共文件不会因卸载自动删除。请自行备份重要数据并妥善保护设备、账号和凭据。</p>
+        <p><b>4. 联网与第三方数据处理</b><br>当你主动发送模型请求、使用联网语音、网页搜索、浏览网站、登录 GitHub、进入插件市场、安装或运行联网扩展、连接 MCP、调用自定义端点、上传文件或分享内容时，相关文字、文件、语音、网页地址、设备信息或请求参数会按功能需要发送给对应服务或网站。发送前请检查内容是否包含个人信息、商业秘密、凭据或其他敏感数据。第三方网站通过浏览器请求相机、麦克风、位置等能力时，仍需经过 Kiyori 和 Android 的明确授权流程。</p>
+        <p><b>5. 权限与设备能力</b><br>Kiyori 可能请求通知、媒体、相机、麦克风、位置、蓝牙、电话、短信和旧版存储等 Android 运行时权限，也可能引导你授予所有文件访问、悬浮窗、修改系统设置、使用情况访问、未知来源安装、精确闹钟、电池优化豁免、通知读取、默认助手、无障碍、Shizuku 或 Root 等特殊能力。每项授权都会在应用内说明用途并由 Android、Shizuku、Root 管理器或其他真实 owner 确认。拒绝授权不会被记录成成功，但相应功能将不可用或在使用时再次由你主动处理。</p>
+        <p><b>6. 高风险操作</b><br>终端、脚本、工作流、插件、AI 工具、文件管理、应用安装、通知读取、屏幕操作、无障碍、Shizuku、ADB 和 Root 可能读取、修改或删除数据，启动服务，安装软件，调用网络，改变系统状态，或对其他应用和账号产生影响。执行前应核对目标、参数、来源和预期结果，并为重要数据保留可恢复备份。不要把高权限能力交给不可信的提示词、网页、文件、插件、脚本或远程服务。</p>
+        <p><b>7. AI 输出与自动化</b><br>AI 输出和自动化计划可能存在错误、遗漏、延迟、幻觉或不适合当前设备的操作。你是实际操作和配置的决定者。AI 输出不构成医疗、心理危机、法律、金融或其他专业建议；紧急或高风险事项应联系相应专业机构或当地紧急服务。</p>
+        <p><b>8. 扩展生态</b><br>第三方插件、脚本包、Skill、ToolPkg、MCP、模型、工作流和其他扩展由其作者或提供方负责。市场展示、安装入口或兼容标识不表示 Kiyori 对扩展的安全性、合法性、准确性、持续可用性或许可证作出保证。安装前应检查来源、代码、权限、环境变量、联网行为和许可证，不得上传或公开 API Key、Cookie、Token、私钥、账号密码或他人数据。</p>
+        <p><b>9. 数据管理与删除</b><br>你可以通过应用内相应页面管理聊天、模型、网站数据、下载、备份、日志、插件和配置，也可以通过 Android 系统设置撤销权限或清除应用数据。删除、覆盖、卸载、Root、系统清理或第三方文件工具可能造成不可恢复的数据丢失。公共目录、SAF 目录和第三方服务中的数据需要在对应位置单独管理。</p>
+        <p><b>10. 合法使用</b><br>你应遵守适用法律法规、网站规则、第三方服务条款、软件许可证和他人合法权益，不得利用 Kiyori 未经授权访问系统或数据、规避安全控制、传播违法有害内容、实施欺诈或骚扰，或从事其他违法侵权活动。将机器人、HTTP 服务、自动回复或工作流开放给他人时，你作为实际部署者负责访问控制、提示、内容安全、数据保护和其他适用义务。</p>
+        <p><b>11. 开源许可与免责声明</b><br>Kiyori 源码按仓库 LICENSE 和 NOTICE 中的 GPL-3.0-or-later 边界提供；第三方组件适用各自许可证。开源许可与本协议共同适用，本协议不限制开源许可证和适用法律赋予你的权利。在适用法律允许的范围内，软件按“现状”和“可用”状态提供，不保证第三方服务、扩展、网络、设备兼容性或 AI 输出持续可用、准确、安全或适合特定目的。</p>
+        <p><b>12. 协议更新与联系</b><br>功能、数据处理、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。你可以通过应用内反馈入口或项目仓库提出问题。若你不同意当前版本，应停止使用并退出应用；在卸载或清除数据前，请先导出需要保留的内容。</p>
+    ]]></string>
+    <string name="kiyori_onboarding_agreement_read_prompt">查看完整文本</string>
+    <string name="kiyori_onboarding_agreement_checkbox">我已阅读并同意《用户协议》和《隐私政策》</string>
+    <string name="kiyori_onboarding_agreement_accept">同意并继续</string>
+    <string name="kiyori_onboarding_agreement_decline">不同意并退出</string>
+    <string name="kiyori_onboarding_user_agreement_title">Kiyori 用户协议</string>
+    <string name="kiyori_onboarding_user_agreement_summary">产品边界、使用规则、高影响操作与开源许可。</string>
+    <string name="kiyori_onboarding_user_agreement_content"><![CDATA[
+        <p><b>Kiyori 用户协议</b><br>版本：2026-08-09-r3；拟生效日期：2026 年 8 月 9 日。</p>
+        <p><b>1. 产品定位与适用范围</b><br>本协议适用于 Kiyori Android 客户端及你主动启用的相关功能。Kiyori 是运行在用户设备上的开源 AI 浏览器，网页浏览、内容搜索、下载、视频播放和设备端内容处理是产品中心；Operit AI 是内嵌的 AI 子系统。安装、启动或使用 Kiyori 前，请阅读并理解本协议。</p>
+        <p><b>2. 产品与服务边界</b><br>Kiyori 不向用户提供共享模型凭据，也不把第三方模型、语音、搜索、GitHub、MCP、插件或自定义 HTTP 服务包装成由 Kiyori 运营的统一云服务。你选择并使用这些服务时，请自行确认提供方、端点、模型、价格、配额、服务条款和隐私规则。第三方服务的可用性、内容、计费、账号处理和数据保留由相应提供方负责。</p>
+        <p><b>3. 高影响操作</b><br>终端、脚本、工作流、插件、AI 工具、文件管理、应用安装、通知读取、屏幕操作、无障碍、Shizuku、ADB 和 Root 可能读取、修改或删除数据，启动服务，安装软件，调用网络，改变系统状态，或对其他应用和账号产生影响。执行前应核对目标、参数、来源和预期结果，并为重要数据保留可恢复备份。不要把高权限能力交给不可信的提示词、网页、文件、插件、脚本或远程服务。</p>
+        <p><b>4. AI 输出与自动化</b><br>AI 输出和自动化计划可能存在错误、遗漏、延迟、幻觉或不适合当前设备的操作。你是实际操作和配置的决定者。AI 输出不构成医疗、心理危机、法律、金融或其他专业建议；紧急或高风险事项应联系相应专业机构或当地紧急服务。</p>
+        <p><b>5. 扩展生态</b><br>第三方插件、脚本包、Skill、ToolPkg、MCP、模型、工作流和其他扩展由其作者或提供方负责。市场展示、安装入口或兼容标识不表示 Kiyori 对扩展的安全性、合法性、准确性、持续可用性或许可证作出保证。安装前应检查来源、代码、权限、环境变量、联网行为和许可证，不得上传或公开 API Key、Cookie、Token、私钥、账号密码或他人数据。</p>
+        <p><b>6. 合法使用</b><br>你应遵守适用法律法规、网站规则、第三方服务条款、软件许可证和他人合法权益，不得利用 Kiyori 未经授权访问系统或数据、规避安全控制、传播违法有害内容、实施欺诈或骚扰，或从事其他违法侵权活动。将机器人、HTTP 服务、自动回复或工作流开放给他人时，你作为实际部署者负责访问控制、提示、内容安全、数据保护和其他适用义务。</p>
+        <p><b>7. 开源许可与免责声明</b><br>Kiyori 源码按仓库 LICENSE 和 NOTICE 中的 GPL-3.0-or-later 边界提供；第三方组件适用各自许可证。开源许可与本协议共同适用，本协议不限制开源许可证和适用法律赋予你的权利。在适用法律允许的范围内，软件按“现状”和“可用”状态提供，不保证第三方服务、扩展、网络、设备兼容性或 AI 输出持续可用、准确、安全或适合特定目的。</p>
+        <p><b>8. 协议更新与联系</b><br>功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。你可以通过应用内反馈入口或项目仓库提出问题。若你不同意当前版本，应停止使用并退出应用；在卸载或清除数据前，请先导出需要保留的内容。</p>
+    ]]></string>
+    <string name="kiyori_onboarding_privacy_policy_title">Kiyori 隐私政策</string>
+    <string name="kiyori_onboarding_privacy_policy_summary">本地与网站数据、联网场景、权限用途与删除方式。</string>
+    <string name="kiyori_onboarding_privacy_policy_content"><![CDATA[
+        <p><b>Kiyori 隐私政策</b><br>版本：2026-08-09-r3；拟生效日期：2026 年 8 月 9 日。</p>
+        <p><b>1. 适用范围与处理原则</b><br>本政策说明 Kiyori Android 客户端在网页浏览、下载、视频播放、AI、语音、文件、自动化和扩展功能中如何处理数据。Kiyori 优先在设备端保存和处理信息；只有当你主动使用需要联网的功能时，相关数据才会发送给对应网站或服务提供方。</p>
+        <p><b>2. 设备端数据</b><br>聊天记录、角色卡、记忆、模型配置、API Key、环境变量、浏览器状态、网站数据、工作流和其他配置通常保存在应用私有数据或你明确选择的本地目录中。下载、备份、日志、媒体、工作区和其他公共文件保存在你选择或功能明确显示的位置。请自行备份重要数据并妥善保护设备、账号和凭据。</p>
+        <p><b>3. 浏览器与网站数据</b><br>网页可能使用 Cookie、本地存储、缓存、登录状态、权限和其他站点数据提供服务。你访问的网站负责其内容和隐私规则；Kiyori 作为浏览器在设备上保存相应网站数据，并提供适用的清理入口。网站请求相机、麦克风、位置等能力时，仍需经过 Kiyori 和 Android 的明确授权。</p>
+        <p><b>4. 联网与第三方处理</b><br>当你主动发送模型请求、使用联网语音、网页搜索、浏览网站、登录 GitHub、进入插件市场、安装或运行联网扩展、连接 MCP、调用自定义端点、上传文件或分享内容时，相关文字、文件、语音、网页地址、设备信息或请求参数会按功能需要发送给对应服务或网站。发送前请检查内容是否包含个人信息、商业秘密、凭据或其他敏感数据。</p>
+        <p><b>5. 权限与设备能力</b><br>Kiyori 可能请求通知、媒体、相机、麦克风、位置、蓝牙、电话、短信和旧版存储等 Android 运行时权限，也可能引导你授予所有文件访问、悬浮窗、修改系统设置、使用情况访问、未知来源安装、精确闹钟、电池优化豁免、通知读取、默认助手、无障碍、Shizuku 或 Root 等特殊能力。每项授权都会说明用途，并由 Android、Shizuku、Root 管理器或其他真实状态 owner 确认；拒绝授权不会被记录成成功。</p>
+        <p><b>6. 数据管理与删除</b><br>你可以通过应用内相应页面管理聊天、模型、网站数据、下载、备份、日志、插件和配置，也可以通过 Android 系统设置撤销权限或清除应用数据。卸载 Kiyori 通常会删除 Android 管理的应用私有数据；你主动导出的公共文件、SAF 目录内容和第三方服务中的数据不会被自动删除，需要在对应位置单独管理。</p>
+        <p><b>7. 数据安全</b><br>请为设备设置可靠的锁屏保护，妥善保管 API Key、Cookie、Token、私钥、账号密码和备份文件，不要把敏感内容交给不可信的网页、提示词、插件、脚本或远程服务。删除、覆盖、Root、系统清理或第三方文件工具可能造成不可恢复的数据丢失。</p>
+        <p><b>8. 政策更新与联系</b><br>数据处理、功能、法律或安全边界发生实质变化时，Kiyori 会提高协议版本并要求重新确认。你可以通过应用内反馈入口或项目仓库提出隐私问题。若你不同意当前政策，应停止使用相应功能并退出应用。</p>
+    ]]></string>
+    <string name="kiyori_onboarding_legal_documents_title">用户协议与隐私政策</string>
+    <string name="kiyori_onboarding_legal_documents_desc">用户协议与隐私政策是两份独立文档，可分别查看当前完整内容。</string>
+
+    <string name="kiyori_onboarding_permissions_title">权限设置</string>
+    <string name="kiyori_onboarding_permissions_desc">按需选择现在启用的权限；未选择不影响进入 Kiyori，之后仍可在设置中管理。</string>
+    <string name="kiyori_onboarding_permissions_all_items">权限清单</string>
+    <string name="kiyori_onboarding_permissions_select_all">全选</string>
+    <string name="kiyori_onboarding_permissions_clear_all">清空</string>
+    <string name="kiyori_onboarding_permissions_selected_count">已选择 %1$d 项</string>
+    <string name="kiyori_onboarding_permissions_authorize_and_enter">授权并进入 Kiyori</string>
+    <string name="kiyori_onboarding_permissions_enter">进入 Kiyori</string>
+    <string name="kiyori_onboarding_permissions_overview_count">已就绪 %1$d / %2$d</string>
+    <string name="kiyori_onboarding_permission_action_failed">无法打开“%1$s”的授权入口，请检查系统支持情况。</string>
+    <string name="kiyori_onboarding_permission_screen_capture_on_demand">Android 只允许在实际截屏或录屏时确认屏幕捕获；该能力无法在首次启动中永久预授权。</string>
+
+    <string name="kiyori_onboarding_permission_status_granted">已授权</string>
+    <string name="kiyori_onboarding_permission_status_partial">部分授权</string>
+    <string name="kiyori_onboarding_permission_status_not_granted">未授权</string>
+    <string name="kiyori_onboarding_permission_status_setup">需要配置</string>
+    <string name="kiyori_onboarding_permission_status_not_applicable">无需授权</string>
+    <string name="kiyori_onboarding_permission_status_on_demand">使用时确认</string>
+
+    <string name="kiyori_onboarding_permission_notifications_title">通知</string>
+    <string name="kiyori_onboarding_permission_notifications_desc">显示 AI 回复、下载、后台任务和服务状态。</string>
+    <string name="kiyori_onboarding_permission_media_title">照片、视频与音频</string>
+    <string name="kiyori_onboarding_permission_media_desc">读取你选择处理、播放、上传或分析的媒体内容。</string>
+    <string name="kiyori_onboarding_permission_camera_title">相机</string>
+    <string name="kiyori_onboarding_permission_camera_desc">拍摄附件、网页媒体和视觉输入。</string>
+    <string name="kiyori_onboarding_permission_microphone_title">麦克风</string>
+    <string name="kiyori_onboarding_permission_microphone_desc">语音输入、语音助手、录音和网页音频采集。</string>
+    <string name="kiyori_onboarding_permission_location_title">位置</string>
+    <string name="kiyori_onboarding_permission_location_desc">天气、定位工具和经你允许的网站地理位置请求。</string>
+    <string name="kiyori_onboarding_permission_bluetooth_title">附近设备与蓝牙</string>
+    <string name="kiyori_onboarding_permission_bluetooth_desc">扫描并连接你主动使用的蓝牙设备。</string>
+    <string name="kiyori_onboarding_permission_phone_title">拨打电话</string>
+    <string name="kiyori_onboarding_permission_phone_desc">在工具或自动化中执行你明确要求的电话操作。</string>
+    <string name="kiyori_onboarding_permission_sms_title">短信</string>
+    <string name="kiyori_onboarding_permission_sms_desc">发送、读取和接收你明确授权处理的短信。</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_title">旧版外部存储</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_desc">Android 12 及以下读取公共存储；Android 9 及以下写入公共存储所需的兼容权限。</string>
+    <string name="kiyori_onboarding_permission_all_files_title">所有文件访问</string>
+    <string name="kiyori_onboarding_permission_all_files_desc">完整文件管理、终端和需要跨目录处理文件的工具。</string>
+    <string name="kiyori_onboarding_permission_overlay_title">悬浮窗</string>
+    <string name="kiyori_onboarding_permission_overlay_desc">在其他应用上方显示语音助手、调试器和悬浮能力。</string>
+    <string name="kiyori_onboarding_permission_write_settings_title">修改系统设置</string>
+    <string name="kiyori_onboarding_permission_write_settings_desc">允许经你确认的工具修改亮度、旋转等系统设置。</string>
+    <string name="kiyori_onboarding_permission_usage_title">使用情况访问</string>
+    <string name="kiyori_onboarding_permission_usage_desc">识别前台应用和使用状态，为自动化提供上下文。</string>
+    <string name="kiyori_onboarding_permission_install_title">安装未知来源应用</string>
+    <string name="kiyori_onboarding_permission_install_desc">安装你选择的 APK、内置 Shizuku 或 Kiyori 无障碍支持。</string>
+    <string name="kiyori_onboarding_permission_alarm_title">精确闹钟</string>
+    <string name="kiyori_onboarding_permission_alarm_desc">让定时工作流在你设定的时间准确触发。</string>
+    <string name="kiyori_onboarding_permission_battery_title">忽略电池优化</string>
+    <string name="kiyori_onboarding_permission_battery_desc">提高长任务、下载、语音和后台服务的持续运行能力。</string>
+    <string name="kiyori_onboarding_permission_notification_listener_title">通知读取</string>
+    <string name="kiyori_onboarding_permission_notification_listener_desc">读取设备通知内容，供你主动使用的通知工具和自动化处理。</string>
+    <string name="kiyori_onboarding_permission_assistant_title">系统默认助手</string>
+    <string name="kiyori_onboarding_permission_assistant_desc">通过系统助手手势或入口快速唤起 Kiyori。</string>
+    <string name="kiyori_onboarding_permission_accessibility_title">无障碍 UI 自动化</string>
+    <string name="kiyori_onboarding_permission_accessibility_desc">安装 Kiyori 无障碍支持并启用 UI 自动化服务，用于界面理解、点击、输入和手势。</string>
+    <string name="kiyori_onboarding_permission_shizuku_title">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_permission_shizuku_desc">使用由你启动并授权的 Shizuku 服务执行 ADB 级系统操作。</string>
+    <string name="kiyori_onboarding_permission_root_title">Root</string>
+    <string name="kiyori_onboarding_permission_root_desc">请求超级用户访问，可读取和修改受保护的系统与应用数据。</string>
+    <string name="kiyori_onboarding_permission_screen_capture_title">屏幕捕获</string>
+    <string name="kiyori_onboarding_permission_screen_capture_desc">截屏、录屏和视觉分析时，由 Android 针对本次操作确认。</string>
 </resources>

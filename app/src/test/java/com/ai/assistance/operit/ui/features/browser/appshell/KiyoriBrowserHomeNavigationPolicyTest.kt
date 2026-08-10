@@ -3,6 +3,8 @@ package com.ai.assistance.operit.ui.features.browser.appshell
 import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentationReleaseMode
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriBrowserHomeNavigationPolicyTest {
@@ -28,6 +30,28 @@ class KiyoriBrowserHomeNavigationPolicyTest {
             BrowserAppPresentationReleaseMode.MINIMIZE,
             resolveBrowserAppPresentationReleaseMode(
                 KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            ),
+        )
+    }
+
+    @Test
+    fun `queued foreground URL waits for the Browser Home presentation lease`() {
+        assertFalse(
+            shouldDispatchPendingForegroundBrowserUrl(
+                hasPresentationLease = false,
+                pendingForegroundUrl = "https://example.com",
+            ),
+        )
+        assertFalse(
+            shouldDispatchPendingForegroundBrowserUrl(
+                hasPresentationLease = true,
+                pendingForegroundUrl = null,
+            ),
+        )
+        assertTrue(
+            shouldDispatchPendingForegroundBrowserUrl(
+                hasPresentationLease = true,
+                pendingForegroundUrl = "https://example.com",
             ),
         )
     }

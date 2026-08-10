@@ -13,6 +13,7 @@ import sys
 import time
 import tomllib
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
@@ -489,9 +490,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 51
+M05A2_PRODUCTION_CONSUMER_COUNT = 50
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 99
+M05A2_CONSUMER_IMPORT_COUNT = 98
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -711,7 +712,7 @@ M05B_NEW_FORMATTER_IMPORT = (
 M05B_OLD_FORMATTER_IMPORT = (
     "com.ai.assistance.operit.util.ThrowableTextFormatter"
 )
-M05B_KIYORI_CONSUMER_COUNT = 8
+M05B_KIYORI_CONSUMER_COUNT = 7
 M05B_HASHED_PATHS = (
     M05B_LOGGER_PATH,
     M05B_FORMATTER_PATH,
@@ -833,6 +834,57 @@ M05D_DIRECT_CONSUMER_PATHS = (
     "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/"
     "websession/userscript/runtime/WebSessionUserscriptManager.kt",
     M05D_PLATFORM_PERMISSION_PATH,
+)
+KIYORI_FIRST_RUN_CONTRACT_PATH = (
+    "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+    "KiyoriOnboardingContract.kt"
+)
+KIYORI_FIRST_RUN_PREFERENCES_PATH = (
+    "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+    "KiyoriOnboardingPreferences.kt"
+)
+KIYORI_FIRST_RUN_PERMISSIONS_PATH = (
+    "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+    "KiyoriOnboardingPermissions.kt"
+)
+KIYORI_FIRST_RUN_SCREEN_PATH = (
+    "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+    "KiyoriOnboardingScreen.kt"
+)
+KIYORI_FIRST_RUN_AGREEMENT_PATH = (
+    "app/src/main/java/com/ai/assistance/operit/ui/features/agreement/screens/"
+    "KiyoriAgreementScreen.kt"
+)
+KIYORI_FIRST_RUN_CONTRACT_TEST_PATH = (
+    "app/src/test/java/com/kiyori/integration/operit/onboarding/"
+    "KiyoriOnboardingContractTest.kt"
+)
+KIYORI_FIRST_RUN_AGREEMENT_TEST_PATH = (
+    "app/src/test/java/com/ai/assistance/operit/ui/features/agreement/screens/"
+    "KiyoriAgreementReadinessTest.kt"
+)
+KIYORI_ACCESSIBILITY_SUPPORT_APK_PATH = (
+    "app/src/main/assets/accessibility.apk"
+)
+KIYORI_ACCESSIBILITY_SUPPORT_VERSION_PATH = (
+    "app/src/main/assets/accessibility_version.txt"
+)
+KIYORI_ACCESSIBILITY_SUPPORT_HASH_PATH = (
+    "config/architecture/kiyori-accessibility-support-sha256.txt"
+)
+KIYORI_LAUNCHER_FOREGROUND_PATH = (
+    "app/src/main/res/drawable-nodpi/ic_kiyori_launcher_foreground.png"
+)
+KIYORI_FIRST_RUN_LEGACY_PATHS = (
+    M04D_MAIN_NOTIFICATION_PERMISSION_COORDINATOR_PATH,
+    M05D_PLATFORM_PERMISSION_PATH,
+    M05D_OPERIT_RESOURCE_BRIDGE_PATH,
+    "app/src/main/java/com/ai/assistance/operit/ui/features/agreement/screens/"
+    "AgreementScreen.kt",
+    "app/src/main/java/com/ai/assistance/operit/ui/features/permission/screens/"
+    "PermissionGuideScreen.kt",
+    "app/src/main/java/com/ai/assistance/operit/ui/features/permission/viewmodel/"
+    "PermissionGuideViewModel.kt",
 )
 M05D_ARCHITECTURE_TEST_PATH = "ci/test/test_architecture_boundaries.py"
 M05E_KIYORI_PATHS_PATH = (
@@ -5327,6 +5379,453 @@ def check_m04d_main_orientation_coordinator(
                 )
 
 
+def check_kiyori_first_run_flow(
+    root: Path,
+    errors: list[str],
+) -> None:
+    required_paths = (
+        KIYORI_FIRST_RUN_CONTRACT_PATH,
+        KIYORI_FIRST_RUN_PREFERENCES_PATH,
+        KIYORI_FIRST_RUN_PERMISSIONS_PATH,
+        KIYORI_FIRST_RUN_SCREEN_PATH,
+        KIYORI_FIRST_RUN_AGREEMENT_PATH,
+        KIYORI_FIRST_RUN_CONTRACT_TEST_PATH,
+        KIYORI_FIRST_RUN_AGREEMENT_TEST_PATH,
+        M04D_MAIN_STARTUP_GATE_COORDINATOR_PATH,
+        M04D_MAIN_STARTUP_GATE_COORDINATOR_TEST_PATH,
+        M04_MAIN_ACTIVITY_PATH,
+        KIYORI_ACCESSIBILITY_SUPPORT_APK_PATH,
+        KIYORI_ACCESSIBILITY_SUPPORT_VERSION_PATH,
+        KIYORI_ACCESSIBILITY_SUPPORT_HASH_PATH,
+        KIYORI_LAUNCHER_FOREGROUND_PATH,
+        "app/src/main/AndroidManifest.xml",
+        "app/src/main/res/values/strings.xml",
+    )
+    missing_paths = [
+        relative_path
+        for relative_path in required_paths
+        if not (root / relative_path).is_file()
+    ]
+    for relative_path in missing_paths:
+        errors.append(
+            "ARCH036 Kiyori first-run contract path missing: "
+            f"{relative_path}"
+        )
+    if missing_paths:
+        return
+
+    for legacy_path in KIYORI_FIRST_RUN_LEGACY_PATHS:
+        if (root / legacy_path).exists():
+            errors.append(
+                "ARCH036 legacy startup or onboarding owner remains: "
+                f"{legacy_path}"
+            )
+
+    support_version = (
+        root / KIYORI_ACCESSIBILITY_SUPPORT_VERSION_PATH
+    ).read_text(encoding="utf-8").strip()
+    if support_version != "1.7":
+        errors.append(
+            "ARCH045 bundled Kiyori accessibility support version differs: "
+            f"expected 1.7, found {support_version or '<empty>'}"
+        )
+
+    support_apk_path = root / KIYORI_ACCESSIBILITY_SUPPORT_APK_PATH
+    support_apk_bytes = support_apk_path.read_bytes()
+    expected_support_hash = (
+        root / KIYORI_ACCESSIBILITY_SUPPORT_HASH_PATH
+    ).read_text(encoding="utf-8").strip().upper()
+    actual_support_hash = hashlib.sha256(support_apk_bytes).hexdigest().upper()
+    if actual_support_hash != expected_support_hash:
+        errors.append(
+            "ARCH045 bundled Kiyori accessibility support hash differs: "
+            f"expected {expected_support_hash}, found {actual_support_hash}"
+        )
+
+    for required_brand_text in (
+        "Kiyori 无障碍支持",
+        "Kiyori UI 自动化服务",
+        "Theme.KiyoriAccessibilitySupport",
+    ):
+        if required_brand_text.encode("utf-8") not in support_apk_bytes:
+            errors.append(
+                "ARCH045 bundled Kiyori accessibility support brand missing: "
+                f"{required_brand_text}"
+            )
+    for forbidden_brand_text in (
+        "Accessibility Operit Support",
+        "Theme.OperitAccessibilitySupport",
+        "AI助手接口服务",
+        "此服务为AI助手提供UI自动化能力",
+    ):
+        if forbidden_brand_text.encode("utf-8") in support_apk_bytes:
+            errors.append(
+                "ARCH045 legacy accessibility support brand remains: "
+                f"{forbidden_brand_text}"
+            )
+    try:
+        with zipfile.ZipFile(support_apk_path) as support_archive:
+            support_entries = set(support_archive.namelist())
+            expected_icon = (
+                root / KIYORI_LAUNCHER_FOREGROUND_PATH
+            ).read_bytes()
+            for icon_entry in (
+                "res/drawable-nodpi/ic_kiyori_brand_foreground.png",
+                "res/drawable-nodpi/ic_launcher_foreground.png",
+            ):
+                if icon_entry not in support_entries:
+                    errors.append(
+                        "ARCH045 bundled Kiyori accessibility support icon missing: "
+                        f"{icon_entry}"
+                    )
+                elif support_archive.read(icon_entry) != expected_icon:
+                    errors.append(
+                        "ARCH045 bundled Kiyori accessibility support icon differs "
+                        f"from {KIYORI_LAUNCHER_FOREGROUND_PATH}: {icon_entry}"
+                    )
+            if "res/drawable/ic_launcher_foreground.xml" in support_entries:
+                errors.append(
+                    "ARCH045 legacy accessibility support launcher foreground XML remains"
+                )
+    except zipfile.BadZipFile:
+        errors.append(
+            "ARCH045 bundled Kiyori accessibility support is not a valid APK"
+        )
+
+    permissions_code = source_code_mask(
+        (root / KIYORI_FIRST_RUN_PERMISSIONS_PATH).read_text(encoding="utf-8")
+    )
+    required_runtime_permissions = (
+        "Manifest.permission.POST_NOTIFICATIONS",
+        "Manifest.permission.READ_MEDIA_AUDIO",
+        "Manifest.permission.READ_MEDIA_VIDEO",
+        "Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "Manifest.permission.CAMERA",
+        "Manifest.permission.RECORD_AUDIO",
+        "Manifest.permission.ACCESS_FINE_LOCATION",
+        "Manifest.permission.ACCESS_COARSE_LOCATION",
+        "Manifest.permission.BLUETOOTH_CONNECT",
+        "Manifest.permission.BLUETOOTH_SCAN",
+        "Manifest.permission.CALL_PHONE",
+        "Manifest.permission.SEND_SMS",
+        "Manifest.permission.READ_SMS",
+        "Manifest.permission.RECEIVE_SMS",
+        "Manifest.permission.READ_EXTERNAL_STORAGE",
+        "Manifest.permission.WRITE_EXTERNAL_STORAGE",
+    )
+    for token in required_runtime_permissions:
+        if token not in permissions_code:
+            errors.append(
+                "ARCH036 centralized runtime-permission coverage missing: "
+                f"{token}"
+            )
+
+    required_special_access = (
+        "Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION",
+        "Settings.ACTION_MANAGE_OVERLAY_PERMISSION",
+        "Settings.ACTION_MANAGE_WRITE_SETTINGS",
+        "Settings.ACTION_USAGE_ACCESS_SETTINGS",
+        "Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES",
+        "Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM",
+        "Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS",
+        "Settings.ACTION_VOICE_INPUT_SETTINGS",
+        "Settings.ACTION_ACCESSIBILITY_SETTINGS",
+        "UIHierarchyManager.launchProviderInstall",
+        "UIHierarchyManager.isUpdateNeeded",
+        "ShizukuInstaller.installBundledShizuku",
+        "ShizukuAuthorizer.requestShizukuPermission",
+    )
+    for token in required_special_access:
+        if token not in permissions_code:
+            errors.append(
+                "ARCH045 first-run special-access coverage missing: "
+                f"{token}"
+            )
+
+    screen_code = source_code_mask(
+        (root / KIYORI_FIRST_RUN_SCREEN_PATH).read_text(encoding="utf-8")
+    )
+    required_screen_tokens = (
+        "ActivityResultContracts.RequestMultiplePermissions",
+        "kiyoriRuntimePermissionsForSdk",
+        "KiyoriOnboardingStep.WELCOME",
+        "KiyoriOnboardingStep.BROWSER_AND_MEDIA",
+        "KiyoriOnboardingStep.AI_ASSISTANT",
+        "KiyoriOnboardingStep.FILES_AND_TOOLS",
+        "KiyoriOnboardingStep.AGREEMENT",
+        "KiyoriOnboardingStep.PERMISSIONS",
+        "isKiyoriRuntimePermission",
+        "sanitizeKiyoriPermissionSelection",
+        "selectedPermissionIds",
+        "authorizationActive",
+        "KiyoriPermissionId.entries",
+        "RootAuthorizer.requestRootPermission",
+        "HorizontalPager(",
+        "rememberPagerState(",
+        "snapshotFlow { pagerState.settledPage }",
+        "pagerState.animateScrollToPage",
+        "PagerSnapDistance.atMost(1)",
+        "userScrollEnabled = pagerInputEnabled",
+        "shouldEnableKiyoriOnboardingPagerInput",
+        "resolveKiyoriOnboardingSwipeTarget",
+        "onboardingPreviousSwipe",
+        "resolveKiyoriOnboardingTitleAlignment",
+    )
+    for token in required_screen_tokens:
+        if token not in screen_code:
+            errors.append(
+                "ARCH036 first-run screen contract missing: "
+                f"{token}"
+            )
+    if "ActivityResultContracts.RequestPermission" in screen_code:
+        errors.append(
+            "ARCH036 first-run runtime permissions split into a second launcher"
+        )
+    for obsolete_token in (
+        "KiyoriOnboardingStep.VOICE_AUTOMATION",
+        "KiyoriOnboardingStep.DEVELOPER_TOOLBOX",
+        "KiyoriOnboardingStep.CREATIVE_WORKSPACE",
+        "KiyoriOnboardingStep.READY",
+        "KiyoriPermissionSection.RUNTIME",
+        "KiyoriPermissionSection.SPECIAL_ACCESS",
+        "KiyoriPermissionSection.ADVANCED",
+        "AutomationLevelSelector",
+        "KiyoriReadyPage",
+        "onSkip =",
+        "private sealed interface KiyoriOnboardingContent",
+        "LinearProgressIndicator(",
+        "AnimatedContent(",
+    ):
+        if obsolete_token in screen_code:
+            errors.append(
+                "ARCH037 obsolete Kiyori onboarding UI contract remains: "
+                f"{obsolete_token}"
+            )
+    for token in (
+        "KiyoriLegalDocument.USER_AGREEMENT",
+        "KiyoriLegalDocument.PRIVACY_POLICY",
+        "maxLines = 1",
+    ):
+        if token not in screen_code:
+            errors.append(
+                "ARCH037 first-run legal-navigation contract missing: "
+                f"{token}"
+            )
+    progress_indicator_index = screen_code.find("OnboardingProgressBar(")
+    progress_label_index = screen_code.find(
+        "R.string.kiyori_onboarding_progress",
+        progress_indicator_index + 1,
+    )
+    if progress_indicator_index < 0 or progress_label_index < 0:
+        errors.append(
+            "ARCH037 onboarding progress label must follow the compact progress bar"
+        )
+
+    agreement_code = source_code_mask(
+        (root / KIYORI_FIRST_RUN_AGREEMENT_PATH).read_text(encoding="utf-8")
+    )
+    for token in (
+        "KiyoriLegalDocument.USER_AGREEMENT",
+        "KiyoriLegalDocument.PRIVACY_POLICY",
+        "canAcceptKiyoriAgreement",
+        "KiyoriLegalDocumentsScreen",
+    ):
+        if token not in agreement_code:
+            errors.append(
+                "ARCH037 split legal-document UI contract missing: "
+                f"{token}"
+            )
+    if "Icons.Default.Policy" in agreement_code:
+        errors.append("ARCH037 decorative agreement title icon remains")
+    for obsolete_token in (
+        "canAcceptKiyoriLegalDocuments",
+        "canScrollVertically(1)",
+        "onReadComplete",
+        "alreadyRead",
+        "kiyori_onboarding_agreement_read_and_return",
+    ):
+        if obsolete_token in agreement_code:
+            errors.append(
+                "ARCH037 agreement read-to-end contract remains: "
+                f"{obsolete_token}"
+            )
+    for obsolete_token in (
+        "R.string.kiyori_onboarding_agreement_document_content",
+        "R.string.kiyori_onboarding_agreement_local_title",
+        "R.string.kiyori_onboarding_agreement_network_title",
+        "R.string.kiyori_onboarding_agreement_permission_title",
+        "R.string.kiyori_onboarding_agreement_open_document",
+    ):
+        if obsolete_token in agreement_code:
+            errors.append(
+                "ARCH037 legacy combined agreement UI reference remains: "
+                f"{obsolete_token}"
+            )
+
+    startup_code = source_code_mask(
+        (root / M04D_MAIN_STARTUP_GATE_COORDINATOR_PATH).read_text(
+            encoding="utf-8"
+        )
+    )
+    for token in (
+        "KiyoriMainStartupDestination.ONBOARDING",
+        "KiyoriMainStartupDestination.AGREEMENT",
+        "KiyoriMainStartupDestination.CONTENT",
+        "KiyoriOnboardingPreferences",
+        "KiyoriOnboardingScreen",
+        "KiyoriAgreementConfirmationScreen",
+        "completeOnboarding",
+    ):
+        if token not in startup_code:
+            errors.append(
+                "ARCH037 first-run startup-gate contract missing: "
+                f"{token}"
+            )
+    for forbidden_token in (
+        "PermissionGuideScreen",
+        "PermissionGuideViewModel",
+        "refreshPermissionLevel",
+        "completePermissionGuide",
+        "AndroidPermissionPreferences",
+        "delay(300)",
+    ):
+        if forbidden_token in startup_code:
+            errors.append(
+                "ARCH037 legacy startup-gate contract remains: "
+                f"{forbidden_token}"
+            )
+
+    main_activity_code = source_code_mask(
+        (root / M04_MAIN_ACTIVITY_PATH).read_text(encoding="utf-8")
+    )
+    for token in (
+        "KiyoriMainStartupGate(",
+        "startupGateCoordinator.acceptCurrentAgreement()",
+        "startupGateCoordinator.completeOnboarding()",
+        "startPluginLoadingIfReady()",
+        "!mainApplicationReady",
+        "!startupGateCoordinator.isReadyForContent",
+        "pluginLoadingStarted",
+    ):
+        if token not in main_activity_code:
+            errors.append(
+                "ARCH037 MainActivity first-run host contract missing: "
+                f"{token}"
+            )
+    for forbidden_token in (
+        "KiyoriMainNotificationPermissionCoordinator",
+        "notificationPermissionCoordinator",
+        "Manifest.permission.POST_NOTIFICATIONS",
+        "ActivityResultContracts.RequestPermission",
+        "PermissionGuideScreen",
+        "AgreementScreen(",
+        "refreshPermissionLevel",
+        "delay(300)",
+    ):
+        if forbidden_token in main_activity_code:
+            errors.append(
+                "ARCH036 MainActivity still owns a first-run implementation detail: "
+                f"{forbidden_token}"
+            )
+
+    manifest_text = (
+        root / "app/src/main/AndroidManifest.xml"
+    ).read_text(encoding="utf-8")
+    notification_manifest_count = manifest_text.count(
+        "android.permission.POST_NOTIFICATIONS"
+    )
+    if notification_manifest_count != 1:
+        errors.append(
+            "ARCH045 POST_NOTIFICATIONS Manifest declaration differs: "
+            f"expected 1, found {notification_manifest_count}"
+        )
+
+    agreement_text = (
+        root / "app/src/main/res/values/strings.xml"
+    ).read_text(encoding="utf-8")
+    for token in (
+        "kiyori_onboarding_user_agreement_content",
+        "kiyori_onboarding_privacy_policy_content",
+        "kiyori_onboarding_welcome_title",
+        "kiyori_onboarding_browser_title",
+        "kiyori_onboarding_ai_title",
+        "kiyori_onboarding_files_title",
+        "以网页为入口的 AI 浏览器",
+        "从发现到播放，内容自然流动",
+        "让 AI 读懂上下文，也能继续行动",
+        "文件、终端与扩展能力，一处展开",
+        "网页浏览器",
+        "文件下载器",
+        "视频播放器",
+        "搜索、标签、网页操作与广告拦截",
+        "音乐播放与沉浸式小说阅读",
+        "AI 助手",
+        "语音服务",
+        "账号与连接",
+        "工具箱",
+        "文件管理器",
+        "终端",
+        "小程序管理",
+        "日志记录器",
+        "Kiyori 无障碍支持",
+        "Kiyori UI 自动化服务",
+        "GPL-3.0-or-later",
+        "Operit AI 是内嵌的 AI 子系统",
+        "kiyori_onboarding_permissions_authorize_and_enter",
+        "Android 运行时权限",
+        "Shizuku",
+        "Root",
+    ):
+        if token not in agreement_text:
+            errors.append(
+                "ARCH037 Kiyori agreement fact contract missing: "
+                f"{token}"
+            )
+    if "AI 浏览器 · 内容工作台" in agreement_text:
+        errors.append(
+            "ARCH037 obsolete welcome eyebrow still present: AI 浏览器 · 内容工作台"
+        )
+    contract_test_code = source_code_mask(
+        (root / KIYORI_FIRST_RUN_CONTRACT_TEST_PATH).read_text(
+            encoding="utf-8"
+        )
+    )
+    for token in (
+        "KiyoriOnboardingStep",
+        "resolveInitialKiyoriOnboardingStep",
+        "KiyoriPermissionSnapshot",
+        "sanitizeKiyoriPermissionSelection",
+        "KiyoriPermissionStatus.ON_DEMAND",
+        "KiyoriPermissionStatus.NOT_APPLICABLE",
+        "KiyoriOnboardingSwipeDirection",
+        "resolveKiyoriOnboardingSwipeTarget",
+        "shouldEnableKiyoriOnboardingPagerInput",
+        "resolveKiyoriOnboardingTitleAlignment",
+    ):
+        if token not in contract_test_code:
+            errors.append(
+                "ARCH045 first-run contract test assertion missing: "
+                f"{token}"
+            )
+    agreement_test_code = source_code_mask(
+        (root / KIYORI_FIRST_RUN_AGREEMENT_TEST_PATH).read_text(
+            encoding="utf-8"
+        )
+    )
+    for token in (
+        "canAcceptKiyoriAgreement",
+        "checked = true",
+        "assertTrue",
+        "assertFalse",
+    ):
+        if token not in agreement_test_code:
+            errors.append(
+                "ARCH037 Kiyori legal readiness test missing: "
+                f"{token}"
+            )
+
+
 def check_m04d_main_notification_permission_coordinator(
     root: Path,
     errors: list[str],
@@ -8414,13 +8913,16 @@ def check_m05b_platform_logging(
                 not relative_path.startswith(
                     "app/src/main/java/com/kiyori/app/"
                 )
+                and not relative_path.startswith(
+                    "app/src/main/java/com/kiyori/integration/operit/onboarding/"
+                )
                 and relative_path != M03_APPLICATION_PATH
                 for relative_path in consumer_entries
             )
         ):
             errors.append(
                 "ARCH043 M-05B Kiyori logger consumer snapshot differs: "
-                f"expected {M05B_KIYORI_CONSUMER_COUNT} unique app paths, "
+                f"expected {M05B_KIYORI_CONSUMER_COUNT} unique Kiyori paths, "
                 f"found {len(consumer_entries)}"
             )
 
@@ -9580,7 +10082,13 @@ def check_m05e_storage_paths(
     ownership_path: Path,
     errors: list[str],
 ) -> None:
-    if not (root / M05D_PLATFORM_PERMISSION_PATH).is_file():
+    if not any(
+        (root / path).is_file()
+        for path in (
+            M05D_PLATFORM_PERMISSION_PATH,
+            KIYORI_FIRST_RUN_PERMISSIONS_PATH,
+        )
+    ):
         return
 
     kiyori_paths_path = root / M05E_KIYORI_PATHS_PATH
@@ -10368,8 +10876,7 @@ def main() -> int:
         lambda: check_m04d_main_shared_content_coordinator(root, errors),
         lambda: check_m04d_main_task_visibility_coordinator(root, errors),
         lambda: check_m04d_main_orientation_coordinator(root, errors),
-        lambda: check_m04d_main_notification_permission_coordinator(root, errors),
-        lambda: check_m04d_main_startup_gate_coordinator(root, errors),
+        lambda: check_kiyori_first_run_flow(root, errors),
         lambda: check_m04d_main_content_host(root, errors),
         lambda: check_m04e_finalization(root, ownership_path, errors),
         lambda: check_m05a1_design_theme(root, ownership_path, errors),
@@ -10377,11 +10884,6 @@ def main() -> int:
         lambda: check_m05a3_root_theme(root, ownership_path, errors),
         lambda: check_m05b_platform_logging(root, ownership_path, errors),
         lambda: check_m05c_platform_lifecycle(
-            root,
-            ownership_path,
-            errors,
-        ),
-        lambda: check_m05d_android_permission_capability(
             root,
             ownership_path,
             errors,

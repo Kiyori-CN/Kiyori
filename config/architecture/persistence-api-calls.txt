@@ -65,3 +65,4 @@ app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetHost.kt	ge
 app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetHost.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetHost.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetHost.kt	getSharedPreferences	PREFS_NAME
+app/src/main/java/com/kiyori/integration/operit/onboarding/KiyoriOnboardingPreferences.kt	getSharedPreferences	PREFERENCES_NAME

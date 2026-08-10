@@ -1,11 +1,15 @@
 ---
 title: 已发布用户协议版本确认
-status: completed
+status: superseded
 document_type: implementation-plan-index
 last_reviewed: 2026-07-15
 ---
 
-# 已发布用户协议版本确认
+# 已发布用户协议版本确认（历史记录）
+
+> 本目录记录的 2026-07-15 协议版本属于旧的 Operit 启动合同，已被
+> `docs/TODO/kiyori_first_run_experience/` 与 Kiyori 2026-08-09-r3 首启协议取代。
+> 本目录仅保留历史审计信息，不得作为当前产品文案、版权许可或首启流程实现依据。
 
 本计划为已发布客户端补充可审计的协议版本确认。现有布尔确认记录不能证明用户阅读过更新后的条款。
 
@@ -24,4 +28,7 @@ last_reviewed: 2026-07-15
 
 ## 完成记录
 
-状态：完成。协议版本门禁、中文协议正文和现有多语言协议资源均已同步到 `2026-07-15`；未执行编译、构建或测试命令。
+状态：历史记录已归档。当前协议版本为 `2026-08-09-r3`。现行中文用户协议与隐私政策分别
+位于 `app/src/main/res/values/strings.xml` 的
+`kiyori_onboarding_user_agreement_*` 与 `kiyori_onboarding_privacy_policy_*` 资源。
+其他语言在六个中文首启页面全部定稿后统一同步。

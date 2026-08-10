@@ -14,6 +14,11 @@ last_reviewed: 2026-08-02
 
 # Kiyori 项目架构与 Operit 命名重构
 
+> 首启相关的旧 M-04D/M-05D 通知权限与 PermissionGuide 记录已被
+> `docs/TODO/kiyori_first_run_experience/` 的 Kiyori 首启权限中心取代。历史章节中的
+> `KiyoriMainNotificationPermissionCoordinator`、`PermissionGuideScreen` 和旧协议版本仅用于
+> 迁移审计，不是当前 owner，也不得据此恢复启动后第二次授权。
+
 ## 当前结论
 
 本项目适合重构，但不适合一次性重写、全局替换或立即拆分 Gradle 模块。

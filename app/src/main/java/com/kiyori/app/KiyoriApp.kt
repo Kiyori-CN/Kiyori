@@ -130,6 +130,7 @@ fun KiyoriApp(
     var shellState by rememberSaveable(stateSaver = KiyoriShellStateSaver) {
         mutableStateOf(KiyoriShellState())
     }
+    var pendingForegroundBrowserUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val updateShellState: (KiyoriShellState) -> Unit = { nextState ->
         shellState = nextState
     }
@@ -254,7 +255,7 @@ fun KiyoriApp(
             return@LaunchedEffect
         }
 
-        BrowserPresentationCoordinator.getInstance(context).openUrl(targetUrl)
+        pendingForegroundBrowserUrl = targetUrl
         updateShellState(
             shellState.openExternalDestination(KiyoriShellExternalDestination.BROWSER_HOME),
         )
@@ -623,7 +624,9 @@ fun KiyoriApp(
                         shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
                     )
                 },
-                onOpenBookmark = browserCoordinator::openUrl,
+                onQueueForegroundBrowserUrl = { url ->
+                    pendingForegroundBrowserUrl = url
+                },
                 onOpenBookmarkInTab = browserCoordinator::openUrlInSiblingSession,
                 onOpenAccountConnectionsFromKiyoriSettings = {
                     openKiyoriSettingsRoot(
@@ -699,6 +702,12 @@ fun KiyoriApp(
                         },
                         onCloseBrowser = {
                             updateShellState(shellState.exitBrowser())
+                        },
+                        pendingForegroundUrl = pendingForegroundBrowserUrl,
+                        onPendingForegroundUrlHandled = { handledUrl ->
+                            if (pendingForegroundBrowserUrl == handledUrl) {
+                                pendingForegroundBrowserUrl = null
+                            }
                         },
                         exitPresentation = shellState.browserExitPresentation,
                         modifier = modifier,

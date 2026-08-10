@@ -48,7 +48,6 @@ import com.kiyori.app.startup.KiyoriMainContentHost
 import com.kiyori.app.startup.KiyoriMainIntentCommand
 import com.kiyori.app.startup.KiyoriMainIntentContract
 import com.kiyori.app.startup.KiyoriMainDisplayCoordinator
-import com.kiyori.app.startup.KiyoriMainNotificationPermissionCoordinator
 import com.kiyori.app.startup.KiyoriMainOrientationCoordinator
 import com.kiyori.app.startup.KiyoriMainOrientationDialog
 import com.kiyori.app.startup.KiyoriMainPendingRequests
@@ -97,13 +96,13 @@ class MainActivity : ComponentActivity() {
 
     // ======== MCP插件状态 ========
     private val pluginLoadingState = PluginLoadingState()
+    private var mainApplicationReady = false
+    private var pluginLoadingStarted = false
 
     // ======== 双击返回退出相关变量 ========
     private var backPressedTime: Long = 0
     private val backPressedInterval: Long = 2000 // 两次点击的时间间隔，单位为毫秒
 
-    private val notificationPermissionCoordinator =
-        KiyoriMainNotificationPermissionCoordinator(this)
     private val orientationCoordinator = KiyoriMainOrientationCoordinator()
     private val pendingRequests = KiyoriMainPendingRequests()
     private val sharedContentCoordinator by lazy(LazyThreadSafetyMode.NONE) {
@@ -186,11 +185,13 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.Default) {
                         mainApplicationInitialization.initializeMainApplication()
                     }
+                    mainApplicationReady = true
                     KiyoriMainTaskVisibilityCoordinator.restoreIfNeeded(this@MainActivity)
                     processPendingGitHubAuth()
                     if (performInitialChecks) {
                         performInitialChecks()
                     }
+                    startPluginLoadingIfReady()
                 }
             }
         }
@@ -381,16 +382,30 @@ class MainActivity : ComponentActivity() {
         try {
             val displayPreferencesManager =
                 DisplayPreferencesManager.getInstance(this@MainActivity)
-            if (!displayPreferencesManager.startWithNewChat.first()) {
+            val chatHistoryManager = ChatHistoryManager.getInstance(this@MainActivity)
+            val currentChatId = chatHistoryManager.readPersistedCurrentChatId()
+            val currentChatExists =
+                currentChatId != null && chatHistoryManager.chatExists(currentChatId)
+            val startWithNewChat = displayPreferencesManager.startWithNewChat.first()
+            if (
+                !shouldCreateKiyoriStartupChat(
+                    currentChatId = currentChatId,
+                    currentChatExists = currentChatExists,
+                    startWithNewChat = startWithNewChat,
+                )
+            ) {
                 return
             }
 
-            val chatHistoryManager = ChatHistoryManager.getInstance(this@MainActivity)
-            val newChat = chatHistoryManager.createNewChat(
-                setAsCurrentChat = false
+            chatHistoryManager.createNewChat()
+            AppLogger.d(
+                TAG,
+                if (currentChatId == null || !currentChatExists) {
+                    "启动时已为 AI 首页创建首个空白聊天"
+                } else {
+                    "已按用户偏好在启动时创建新的空白聊天"
+                },
             )
-            chatHistoryManager.setCurrentChatId(newChat.id)
-            AppLogger.d(TAG, "启动时已创建新的空白聊天")
         } catch (e: Exception) {
             AppLogger.e(TAG, "启动时创建空白聊天失败", e)
         }
@@ -420,21 +435,20 @@ class MainActivity : ComponentActivity() {
     // ======== 设置初始占位内容 ========
 
     // ======== 执行初始化检查 ========
-    private fun performInitialChecks() {
-        lifecycleScope.launch {
-            // 1. 检查通知权限（Android 13+）
-            notificationPermissionCoordinator.checkAndRequest()
+    private suspend fun performInitialChecks() {
+        prepareStartupChatIfNeeded()
+    }
 
-            // 2. 检查权限级别设置
-            startupGateCoordinator.refreshPermissionLevel()
-
-            prepareStartupChatIfNeeded()
-
-            // 3. 在协议已接受且无需权限引导时，启动插件加载
-            if (startupGateCoordinator.isReadyForContent) {
-                startPluginLoading()
-            }
+    private fun startPluginLoadingIfReady() {
+        if (
+            !mainApplicationReady ||
+            !startupGateCoordinator.isReadyForContent ||
+            pluginLoadingStarted
+        ) {
+            return
         }
+        pluginLoadingStarted = true
+        startPluginLoading()
     }
 
     // ======== 启动插件加载 ========
@@ -524,25 +538,17 @@ class MainActivity : ComponentActivity() {
                 Box {
                     KiyoriMainStartupGate(
                         destination = startupGateCoordinator.destination,
+                        agreementAccepted = startupGateCoordinator.isAgreementAccepted,
                         onAgreementAccepted = {
                             startupGateCoordinator.acceptCurrentAgreement()
-                            // 协议接受后，检查权限级别设置
-                            lifecycleScope.launch {
-                                // 确保使用非阻塞方式更新UI
-                                delay(300) // 短暂延迟确保UI状态更新
-                                startupGateCoordinator.refreshPermissionLevel()
-                                if (startupGateCoordinator.isReadyForContent) {
-                                    startPluginLoading()
-                                }
-                                // 重新设置应用内容
-                                setAppContent()
-                            }
+                            startPluginLoadingIfReady()
                         },
-                        onPermissionGuideComplete = {
-                            startupGateCoordinator.completePermissionGuide()
-                            // 权限设置完成后，启动插件加载并更新内容
-                            startPluginLoading()
-                            setAppContent()
+                        onAgreementDeclined = {
+                            finish()
+                        },
+                        onOnboardingComplete = {
+                            startupGateCoordinator.completeOnboarding()
+                            startPluginLoadingIfReady()
                         },
                     ) {
                         KiyoriMainContentHost(

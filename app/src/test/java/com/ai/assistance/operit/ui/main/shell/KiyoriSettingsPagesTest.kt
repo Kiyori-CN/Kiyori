@@ -9,11 +9,13 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.format
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isSupportedBrowserHomeUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.parseAutomaticFloatingDurationSeconds
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
+import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserMenuTone
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.screens.Screen
 import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
 import com.kiyori.design.theme.KiyoriSemanticTone
+import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
 import com.kiyori.integration.operit.navigation.AppRouteCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -75,10 +77,10 @@ class KiyoriSettingsPagesTest {
         )
         assertEquals(
             listOf(
-                "账号与连接",
-                "AI 助手",
+                "我的账号",
+                "AI助手",
                 "语音服务",
-                "小程序管理",
+                "小程序",
                 "网页浏览器",
                 "视频播放器",
                 "音乐播放器",
@@ -88,14 +90,14 @@ class KiyoriSettingsPagesTest {
                 "广告拦截器",
                 "日志记录器",
                 "界面定制",
-                "数据备份与同步",
-                "开发手册与模式",
+                "数据备份",
+                "开发手册",
                 "更多功能",
             ),
             kiyoriSettingsHomeGroups.flatten().map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
-            listOf("账号与连接"),
+            listOf("我的账号"),
             kiyoriSettingsHomeGroups
                 .flatten()
                 .filter { entry ->
@@ -104,7 +106,7 @@ class KiyoriSettingsPagesTest {
                 .map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
-            listOf("AI 助手"),
+            listOf("AI助手"),
             kiyoriSettingsHomeGroups
                 .flatten()
                 .filter { entry ->
@@ -122,10 +124,10 @@ class KiyoriSettingsPagesTest {
                 .map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
-            listOf("小程序管理"),
+            listOf("小程序"),
             kiyoriSettingsHomeGroups
                 .flatten()
-                .filter { entry -> entry.title == "小程序管理" }
+                .filter { entry -> entry.title == "小程序" }
                 .filter { entry -> entry.action == KiyoriSettingsHomeAction.NONE }
                 .map(KiyoriSettingsHomeEntry::title),
         )
@@ -166,7 +168,7 @@ class KiyoriSettingsPagesTest {
                 .map(KiyoriSettingsHomeEntry::title),
         )
         assertEquals(
-            listOf("数据备份与同步"),
+            listOf("数据备份"),
             kiyoriSettingsHomeGroups
                 .flatten()
                 .filter { entry ->
@@ -178,6 +180,8 @@ class KiyoriSettingsPagesTest {
 
     @Test
     fun `application settings roots keep AI application and data ownership separated`() {
+        assertEquals("我的账号", KIYORI_ACCOUNT_SETTINGS_PAGE_TITLE)
+        assertEquals("数据备份", KIYORI_DATA_SETTINGS_PAGE_TITLE)
         assertEquals(
             listOf(2, 4, 2, 2),
             kiyoriAiAssistantSettingsGroups.map { group -> group.entries.size },
@@ -241,7 +245,9 @@ class KiyoriSettingsPagesTest {
                 kiyoriAppearanceSettingsGroups +
                 kiyoriDataSettingsGroups).all { group ->
                 group.description.isNotBlank() &&
-                    group.entries.all { entry -> entry.description.isNotBlank() }
+                    group.entries.all { entry -> entry.description.isNotBlank() } &&
+                    group.entries.map { entry -> entry.iconTone }.toSet().size ==
+                    group.entries.size
             },
         )
         assertEquals(
@@ -263,13 +269,53 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
-    fun `settings home uses the complete semantic color vocabulary`() {
+    fun `settings quick theme resolves selection and effective appearance from the sole owner`() {
         assertEquals(
-            KiyoriSemanticTone.entries.toSet(),
-            kiyoriSettingsHomeGroups
-                .flatten()
-                .map { entry -> entry.iconTone }
-                .toSet(),
+            KiyoriSettingsQuickTheme.FOLLOW_SYSTEM,
+            resolveKiyoriSettingsQuickTheme(
+                useSystemTheme = true,
+                themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
+            ),
+        )
+        assertEquals(
+            KiyoriSettingsQuickTheme.LIGHT,
+            resolveKiyoriSettingsQuickTheme(
+                useSystemTheme = false,
+                themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
+            ),
+        )
+        assertEquals(
+            KiyoriSettingsQuickTheme.DARK,
+            resolveKiyoriSettingsQuickTheme(
+                useSystemTheme = false,
+                themeMode = UserPreferencesManager.THEME_MODE_DARK,
+            ),
+        )
+        assertTrue(
+            resolveKiyoriSettingsEffectiveDarkTheme(
+                useSystemTheme = true,
+                themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
+                systemDarkTheme = true,
+            ),
+        )
+        assertFalse(
+            resolveKiyoriSettingsEffectiveDarkTheme(
+                useSystemTheme = false,
+                themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
+                systemDarkTheme = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `settings home uses sixteen unique icons and semantic palettes`() {
+        val entries = kiyoriSettingsHomeGroups.flatten()
+
+        assertEquals(16, entries.size)
+        assertEquals(16, entries.map { entry -> entry.icon.name }.toSet().size)
+        assertEquals(
+            KiyoriSettingsHomeIconPalette.entries.toList(),
+            entries.map { entry -> entry.iconPalette },
         )
     }
 

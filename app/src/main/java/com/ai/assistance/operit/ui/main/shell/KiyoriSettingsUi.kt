@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
-import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.resolveSettingsIconColors
 
 internal const val KIYORI_SETTINGS_ROW_VERTICAL_PADDING_DP = 16
 internal const val KIYORI_SETTINGS_SELECTION_CORNER_RADIUS_DP = 26
@@ -123,7 +123,7 @@ internal fun KiyoriSettingsRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         icon?.let { imageVector ->
-            val iconColors = iconTone.resolveColors()
+            val iconColors = iconTone.resolveSettingsIconColors()
             Box(
                 modifier =
                     Modifier

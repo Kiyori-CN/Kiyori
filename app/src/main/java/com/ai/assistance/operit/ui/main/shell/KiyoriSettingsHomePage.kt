@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -25,22 +26,36 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
@@ -49,15 +64,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
-import com.kiyori.design.theme.KiyoriSemanticTone
+import com.ai.assistance.operit.data.preferences.UserPreferencesManager
+import com.kiyori.design.theme.KiyoriSettingsHomeIconPalette
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
-import com.kiyori.design.theme.resolveColors
+import com.kiyori.design.theme.resolveKiyoriSettingsThemeShortcutIconColor
+import com.kiyori.design.theme.resolveSettingsHomeIconColors
+import kotlinx.coroutines.launch
 
 internal data class KiyoriSettingsHomeEntry(
     val title: String,
     val icon: ImageVector,
-    val iconTone: KiyoriSemanticTone,
+    val iconPalette: KiyoriSettingsHomeIconPalette,
     val action: KiyoriSettingsHomeAction = KiyoriSettingsHomeAction.NONE,
 )
 
@@ -73,102 +91,137 @@ internal enum class KiyoriSettingsHomeAction {
     OPEN_DATA_SETTINGS,
 }
 
+internal enum class KiyoriSettingsQuickTheme {
+    FOLLOW_SYSTEM,
+    LIGHT,
+    DARK,
+}
+
+internal fun resolveKiyoriSettingsQuickTheme(
+    useSystemTheme: Boolean,
+    themeMode: String,
+): KiyoriSettingsQuickTheme =
+    if (useSystemTheme) {
+        KiyoriSettingsQuickTheme.FOLLOW_SYSTEM
+    } else {
+        when (themeMode) {
+            UserPreferencesManager.THEME_MODE_LIGHT -> KiyoriSettingsQuickTheme.LIGHT
+            UserPreferencesManager.THEME_MODE_DARK -> KiyoriSettingsQuickTheme.DARK
+            else -> error("Unsupported theme mode: $themeMode")
+        }
+    }
+
+internal fun resolveKiyoriSettingsEffectiveDarkTheme(
+    useSystemTheme: Boolean,
+    themeMode: String,
+    systemDarkTheme: Boolean,
+): Boolean =
+    if (useSystemTheme) {
+        systemDarkTheme
+    } else {
+        when (themeMode) {
+            UserPreferencesManager.THEME_MODE_LIGHT -> false
+            UserPreferencesManager.THEME_MODE_DARK -> true
+            else -> error("Unsupported theme mode: $themeMode")
+        }
+    }
+
 internal val kiyoriSettingsHomeGroups =
     listOf(
         listOf(
             KiyoriSettingsHomeEntry(
-                "账号与连接",
+                "我的账号",
                 Icons.Default.AccountCircle,
-                KiyoriSemanticTone.GREEN,
+                KiyoriSettingsHomeIconPalette.ACCOUNT_CONNECTION,
                 KiyoriSettingsHomeAction.OPEN_ACCOUNT_CONNECTIONS,
             ),
             KiyoriSettingsHomeEntry(
-                "AI 助手",
+                "AI助手",
                 Icons.Outlined.SmartToy,
-                KiyoriSemanticTone.PURPLE,
+                KiyoriSettingsHomeIconPalette.AI_ASSISTANT,
                 KiyoriSettingsHomeAction.OPEN_AI_ASSISTANT,
             ),
             KiyoriSettingsHomeEntry(
                 "语音服务",
                 Icons.Default.RecordVoiceOver,
-                KiyoriSemanticTone.CYAN,
+                KiyoriSettingsHomeIconPalette.SPEECH_SERVICES,
                 KiyoriSettingsHomeAction.OPEN_SPEECH_SERVICES,
             ),
             KiyoriSettingsHomeEntry(
-                "小程序管理",
+                "小程序",
                 Icons.Default.Apps,
-                KiyoriSemanticTone.BLUE,
+                KiyoriSettingsHomeIconPalette.MINI_APP,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 "网页浏览器",
                 Icons.Default.Language,
-                KiyoriSemanticTone.BLUE,
+                KiyoriSettingsHomeIconPalette.BROWSER,
                 KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "视频播放器",
                 Icons.Default.PlayCircle,
-                KiyoriSemanticTone.RED,
+                KiyoriSettingsHomeIconPalette.VIDEO_PLAYER,
                 KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "音乐播放器",
                 Icons.Default.Audiotrack,
-                KiyoriSemanticTone.PURPLE,
+                KiyoriSettingsHomeIconPalette.MUSIC_PLAYER,
             ),
             KiyoriSettingsHomeEntry(
                 "小说阅读器",
                 Icons.AutoMirrored.Filled.MenuBook,
-                KiyoriSemanticTone.ORANGE,
+                KiyoriSettingsHomeIconPalette.NOVEL_READER,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 "文件下载器",
                 Icons.Default.Download,
-                KiyoriSemanticTone.RED,
+                KiyoriSettingsHomeIconPalette.DOWNLOADS,
                 KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "文件管理器",
                 Icons.Default.Folder,
-                KiyoriSemanticTone.GREEN,
+                KiyoriSettingsHomeIconPalette.FILE_MANAGER,
             ),
             KiyoriSettingsHomeEntry(
                 "广告拦截器",
                 Icons.Default.Block,
-                KiyoriSemanticTone.RED,
+                KiyoriSettingsHomeIconPalette.AD_BLOCKER,
             ),
             KiyoriSettingsHomeEntry(
                 "日志记录器",
                 Icons.Default.BugReport,
-                KiyoriSemanticTone.BLUE,
+                KiyoriSettingsHomeIconPalette.LOGS,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
                 "界面定制",
                 Icons.Default.Palette,
-                KiyoriSemanticTone.PINK,
+                KiyoriSettingsHomeIconPalette.APPEARANCE,
                 KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
-                "数据备份与同步",
+                "数据备份",
                 Icons.Default.Backup,
-                KiyoriSemanticTone.CYAN,
+                KiyoriSettingsHomeIconPalette.DATA_BACKUP,
                 KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
-                "开发手册与模式",
-                Icons.AutoMirrored.Filled.MenuBook,
-                KiyoriSemanticTone.ORANGE,
+                "开发手册",
+                Icons.Default.Code,
+                KiyoriSettingsHomeIconPalette.DEVELOPER_GUIDE,
             ),
             KiyoriSettingsHomeEntry(
                 "更多功能",
                 Icons.Default.Widgets,
-                KiyoriSemanticTone.BLUE,
+                KiyoriSettingsHomeIconPalette.MORE_FEATURES,
             ),
         ),
     )
@@ -186,6 +239,27 @@ internal fun KiyoriSettingsHomePage(
     modifier: Modifier = Modifier,
 ) {
     KiyoriSettingsTheme {
+        val context = LocalContext.current
+        val preferencesManager =
+            remember(context) { UserPreferencesManager.getInstance(context.applicationContext) }
+        val useSystemTheme by preferencesManager.useSystemTheme.collectAsState(initial = false)
+        val themeMode by
+            preferencesManager.themeMode.collectAsState(
+                initial = UserPreferencesManager.THEME_MODE_LIGHT,
+            )
+        val systemDarkTheme = isSystemInDarkTheme()
+        val effectiveDarkTheme =
+            resolveKiyoriSettingsEffectiveDarkTheme(
+                useSystemTheme = useSystemTheme,
+                themeMode = themeMode,
+                systemDarkTheme = systemDarkTheme,
+            )
+        val selectedQuickTheme =
+            resolveKiyoriSettingsQuickTheme(
+                useSystemTheme = useSystemTheme,
+                themeMode = themeMode,
+            )
+        val scope = rememberCoroutineScope()
         val colors = LocalKiyoriSettingsColors.current
         LazyColumn(
             modifier = modifier.fillMaxSize().background(colors.pageBackground),
@@ -193,7 +267,26 @@ internal fun KiyoriSettingsHomePage(
         ) {
             item {
                 KiyoriSettingsHomeHeader(
-                    onOpenAppearanceSettings = onOpenAppearanceSettings,
+                    effectiveDarkTheme = effectiveDarkTheme,
+                    selectedQuickTheme = selectedQuickTheme,
+                    onSelectQuickTheme = { selection ->
+                        scope.launch {
+                            when (selection) {
+                                KiyoriSettingsQuickTheme.FOLLOW_SYSTEM ->
+                                    preferencesManager.saveThemeSettings(useSystemTheme = true)
+                                KiyoriSettingsQuickTheme.LIGHT ->
+                                    preferencesManager.saveThemeSettings(
+                                        themeMode = UserPreferencesManager.THEME_MODE_LIGHT,
+                                        useSystemTheme = false,
+                                    )
+                                KiyoriSettingsQuickTheme.DARK ->
+                                    preferencesManager.saveThemeSettings(
+                                        themeMode = UserPreferencesManager.THEME_MODE_DARK,
+                                        useSystemTheme = false,
+                                    )
+                            }
+                        }
+                    },
                 )
             }
             itemsIndexed(kiyoriSettingsHomeGroups) { _, group ->
@@ -216,9 +309,12 @@ internal fun KiyoriSettingsHomePage(
 
 @Composable
 private fun KiyoriSettingsHomeHeader(
-    onOpenAppearanceSettings: () -> Unit,
+    effectiveDarkTheme: Boolean,
+    selectedQuickTheme: KiyoriSettingsQuickTheme,
+    onSelectQuickTheme: (KiyoriSettingsQuickTheme) -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
+    var showThemeMenu by remember { mutableStateOf(false) }
     Row(
         modifier =
             Modifier
@@ -239,13 +335,113 @@ private fun KiyoriSettingsHomeHeader(
         KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_search, "搜索")
         KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_scan, "扫描")
         KiyoriSettingsHeaderAction(R.drawable.ic_kiyori_settings_header_top_refresh, "刷新")
-        KiyoriSettingsHeaderAction(
-            iconResId = R.drawable.ic_kiyori_settings_header_sun,
-            contentDescription = "外观",
-            onClick = onOpenAppearanceSettings,
+        KiyoriSettingsThemeShortcut(
+            effectiveDarkTheme = effectiveDarkTheme,
+            selectedQuickTheme = selectedQuickTheme,
+            expanded = showThemeMenu,
+            onExpandedChange = { showThemeMenu = it },
+            onSelect = { selection ->
+                showThemeMenu = false
+                onSelectQuickTheme(selection)
+            },
         )
     }
 }
+
+@Composable
+private fun KiyoriSettingsThemeShortcut(
+    effectiveDarkTheme: Boolean,
+    selectedQuickTheme: KiyoriSettingsQuickTheme,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onSelect: (KiyoriSettingsQuickTheme) -> Unit,
+) {
+    val colors = LocalKiyoriSettingsColors.current
+    val shortcutColor = resolveKiyoriSettingsThemeShortcutIconColor(effectiveDarkTheme)
+    Box {
+        Box(
+            modifier =
+                Modifier
+                    .size(36.dp)
+                    .clickable { onExpandedChange(!expanded) }
+                    .padding(2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector =
+                    if (effectiveDarkTheme) {
+                        Icons.Default.DarkMode
+                    } else {
+                        Icons.Default.LightMode
+                    },
+                contentDescription = if (effectiveDarkTheme) "深色主题" else "浅色主题",
+                tint = shortcutColor,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) },
+            modifier =
+                Modifier
+                    .width(172.dp)
+                    .background(colors.cardBackground),
+        ) {
+            KiyoriSettingsQuickTheme.entries.forEach { option ->
+                val selected = option == selectedQuickTheme
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = option.label,
+                            color = colors.primaryText,
+                            fontSize = 14.sp,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = option.icon,
+                            contentDescription = null,
+                            tint =
+                                if (selected) {
+                                    shortcutColor
+                                } else {
+                                    colors.secondaryText
+                                },
+                            modifier = Modifier.size(19.dp),
+                        )
+                    },
+                    trailingIcon = {
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "当前主题",
+                                tint = shortcutColor,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    },
+                    onClick = { onSelect(option) },
+                )
+            }
+        }
+    }
+}
+
+private val KiyoriSettingsQuickTheme.label: String
+    get() =
+        when (this) {
+            KiyoriSettingsQuickTheme.FOLLOW_SYSTEM -> "跟随系统"
+            KiyoriSettingsQuickTheme.LIGHT -> "浅色模式"
+            KiyoriSettingsQuickTheme.DARK -> "深色模式"
+        }
+
+private val KiyoriSettingsQuickTheme.icon: ImageVector
+    get() =
+        when (this) {
+            KiyoriSettingsQuickTheme.FOLLOW_SYSTEM -> Icons.Default.BrightnessAuto
+            KiyoriSettingsQuickTheme.LIGHT -> Icons.Default.LightMode
+            KiyoriSettingsQuickTheme.DARK -> Icons.Default.DarkMode
+        }
 
 @Composable
 private fun KiyoriSettingsHeaderAction(
@@ -325,7 +521,7 @@ private fun KiyoriSettingsHomeRow(
     onOpenDataSettings: () -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
-    val iconColors = entry.iconTone.resolveColors()
+    val iconColors = entry.iconPalette.resolveSettingsHomeIconColors()
     Row(
         modifier =
             Modifier

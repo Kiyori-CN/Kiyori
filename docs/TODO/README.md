@@ -2,7 +2,142 @@
 For_Agent: 对项目大规模动工前按本规范协作
 ---
 
+## 2026-08-10 设置页主题快捷入口与负一屏网址直达
+
+状态：本地实现、自动验证和 Debug APK 构建已完成，目标设备视觉与交互验收待完成。本轮在
+既有设置首页 16 入口和主题 owner 基础上继续收口，不新增第二主题状态源、不改变已存在的
+设置详情状态所有者；负一屏书签和历史 URL 进入同一 Browser Home，不创建悬浮浏览器入口。
+
+细化计划：
+
+1. [DONE] 核对 `AGENTS.md`、正式开发准备清单、现有脏工作树和本轮重叠差异
+2. [DONE] 定位 `UserPreferencesManager` 主题 owner、设置首页第 4 个按钮和
+   `BrowserPresentationCoordinator` 的负一屏入口顺序
+3. [DONE] 将首页与详情页标题统一为“我的账号”“数据备份”，并调整设置首页及详情页图案配色
+4. [DONE] 在第 4 个顶栏按钮正下方实现“跟随系统 / 浅色模式 / 深色模式”快捷菜单，点击即时写入
+   既有主题偏好，按钮图标随有效主题显示太阳或月亮
+5. [DONE] 让负一屏书签和历史中的网页 URL 先进入 Browser Home，再在可见网页宿主中导航；保留
+   视频/音乐历史的播放器语义和浏览器其他入口语义
+6. [DONE] 增加相关 JVM/源码合同测试，更新 `CONTEXT.md`、设置信息架构与主题视觉文档
+7. [DONE] 串行执行 `:app:assembleDebug --no-daemon --console=plain` 并核验 Debug APK
+8. [DONE] 审查差异、构建产物和既有工作树，完成任务日记收尾；不提交、不推送
+
+验收边界：
+
+- 本地自动检查和 Debug 构建不替代目标设备上的设置点击、主题切换和 Browser Home 真实导航验收
+- 本轮不安装 APK、不执行 ADB/MuMu/真机操作、不提交、不推送
+
+本地验证证据：
+
+- 设置、设计主题和 Browser Home 导航策略 3 个 JVM 测试类共 `29/29` 通过，失败、错误和
+  跳过均为 `0`
+- `ci.test.test_architecture_boundaries` 共 `106/106` 通过；正式开发准备检查通过；
+  `git diff --check` 无 whitespace error
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功完成 `238` 个任务，
+  其中 `29` 个执行、`209` 个为最新状态
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`475435609` bytes，SHA-256
+  `1108CDB7D0D4CFFC376585D1B141370C7D70785D7F09B0B6CF18347D24E135C8`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min/target/compile SDK `26 / 34 / 37`、唯一
+  `arm64-v8a`；包含 `51` 个原生库且 basename 无重复，内置 `assets/accessibility.apk`
+  恰好一份
+- Android Debug v2 单 signer 签名和 `zipalign -c -P 16 -v 4` 验证通过
+
 # TODO不误砍柴功
+
+## 2026-08-10 Kiyori 首启收口、默认新对话与设置首页16色
+
+状态：本地实现、自动化验证、Debug APK 构建和静态审计完成。范围仅包含首启第一页标题对齐、
+六页流程静态与自动化复核、首次 AI 首页真实空白对话初始化、设置首页 16 个入口的文案/图标/
+配色，以及对应文档、测试和 Debug APK。不新增设置详情页，不改变已有入口的状态所有者，
+不安装 APK、不操作设备。
+
+设计与验收合同：
+
+1. [DONE] 仅将第一页“欢迎使用 Kiyori”居中，带眉题的第 2 至第 4 页标题继续左对齐
+2. [DONE] 复核唯一 `HorizontalPager`、六页顺序、协议门禁、权限队列和授权完成直达应用
+3. [DONE] 当前对话为空或已不存在时创建并选中真实空白对话；已有有效对话时尊重
+   “每次启动新建空白聊天”偏好
+4. [DONE] 设置首页顶部固定为“账号连接 / AI助手 / 语音服务 / 小程序”，底部固定为
+   “界面定制 / 数据备份 / 开发手册 / 更多功能”
+5. [DONE] 16 个入口使用 16 个互不重复的图标和 16 组功能语义配色；浅色、深色下的图标
+   前景色与容器色均保持一一对应且互不重复
+6. [DONE] 同步设置视觉、信息架构、首启和 AI 首页初始化文档，更新自动约束
+7. [DONE] 执行定向 JVM 测试、架构门禁、正式准备、差异检查、Debug 构建和 APK 静态核验
+8. [PENDING] 在目标设备验收六页视觉、左右滑动、系统授权往返、首个对话可见性和设置页配色
+
+本地自动验证证据：
+
+- 7 个相关 JVM 测试类共 `50/50` 通过，失败、错误和跳过均为 `0`
+- `ci.test.test_architecture_boundaries` 共 `106/106` 通过；首启专属架构检查通过
+- 正式开发准备检查通过，`git diff --check` 无 whitespace error，Markdown 链接单测 `7/7` 通过
+- 完整 `phase=m03` 门禁仍发现工作树基线已有的市场持久化合同漂移、`AppDatabase` 受控哈希
+  漂移和 `UserscriptSourceExportHelper.kt` 的 M-05E 路径消费者漂移；这些不属于本轮首启/
+  设置范围
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功完成 `238` 个任务，
+  其中 `29` 个执行、`209` 个为最新状态
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`475435894` bytes，SHA-256
+  `ABA70E52CA7099C2C9AE644EFF5295D8670F64AF75625EE2EB97B1CC35CF762C`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、target 34、唯一 `arm64-v8a`；包含 `51` 个原生库，
+  ZIP 路径和原生库 basename 均无重复，内置 `assets/accessibility.apk` 恰好一份
+- Android Debug v2 签名和 `zipalign -c -P 16 -v 4` 验证通过
+
+## 2026-08-10 Kiyori 首启前四页统一版式与16能力图标
+
+状态：中文前四页本地实现、自动验证与 Debug APK 已完成，已修复最新截图中的卡片文案截断、
+主视觉图标错配、图标重复和页面间卡片位置漂移；协议、权限和左右滑动流程保持不变，真机
+视觉继续保持 `verification_pending`。
+
+本轮前四页统一使用同一个展示骨架：固定主视觉槽、标题槽、介绍槽和 2×2 能力网格基线。
+第一页不再显示“AI 浏览器 · 内容工作台”，标题直接贴近主视觉，并把等量纵向节奏转移到介绍
+与能力网格之间，因此四页能力网格的常规坐标保持一致；标题下方介绍正文使用两个中文字符
+宽度的首行缩进，大字体和极窄屏允许槽位自然增高并由页面滚动承载。
+
+四页只定义一份 `OnboardingFeatureCard` 列表，主视觉与下方卡片共同消费同一列表。产品总览
+使用 `Explore / SmartToy / Layers / Extension`，浏览与内容使用
+`Language / Download / PlayCircle / MenuBook`，AI 协作使用
+`AutoAwesome / RecordVoiceOver / AccountCircle / Widgets`，本地工作区使用
+`Folder / Terminal / Apps / BugReport`，四页共 16 个图标互不重复。
+
+能力卡移除固定 86dp 和两行省略限制，改为行内等高、自适应最小高度和完整正文显示；文案
+继续保持中文优先，并覆盖网页、下载、视频、音乐、小说、广告拦截、AI、语音、账号、工具箱、
+文件、终端、小程序和日志等 Kiyori 能力。
+
+设计、实施步骤与验收入口：
+
+- [`kiyori_first_run_experience/`](kiyori_first_run_experience/index.md)
+
+## 2026-08-09 Kiyori 完整首次启动体验
+
+状态：中文六页信息密度与视觉层级已完成 r5 精修，支持应用图标一致性与首页 UI 已完成 r6 精修，左右滑动和本地自动验证已完成；真机视觉和系统授权往返保持
+`verification_pending`。
+
+本轮彻底替换 Operit 风格的协议、宣传、权限等级和完成页流程，建立 Kiyori 自有的六页中文首次
+启动体验。流程依次为产品总览、浏览器与内容工作台、AI 与连接服务、本地文件/终端/小程序工作区、双协议
+确认、权限选择；第六页完成用户所选授权后直接进入应用，不再保留独立完成页。
+
+前四页不再使用“插画 + 一段正文 + 少量标签”的稀疏宣传布局，改为紧凑插画、主题导语和
+2×2 能力卡片。产品总览覆盖浏览与内容、AI 与语音、文件与工具、连接与扩展；后三张介绍页
+进一步展示网页浏览器、文件下载器、视频播放器、音乐/小说/广告拦截、AI 助手、语音服务、
+账号与连接、工具箱、文件管理器、终端、小程序管理和日志记录器。
+
+六页由同一个横向 Pager 管理，主按钮、顶部返回、左右滑动、步骤进度和持久化当前页保持一致；
+单次滑动最多切换一页。未同意协议时不能向前滑入权限页，但可以向右返回上一页；授权处理中锁定
+滑动与返回，避免系统授权队列和可见页面分离。
+
+每页只保留一个主操作。协议不要求打开或滚动到底，勾选同意后即可继续；权限取消运行时、特殊
+访问、高级能力分区和标准、无障碍、Shizuku、Root 等等级选择，改为统一清单，由用户逐项选择
+需要授权的能力。当前只维护中文默认资源，其他语言在六页中文定稿和真机视觉验收后统一处理。
+
+无障碍条目安装的独立支持应用已改为 `Kiyori 无障碍支持`，系统服务名为
+`Kiyori UI 自动化服务`，并使用 Kiyori 图标。内部包名和 AIDL action 继续保留原值，因为它们是
+主应用与支持应用之间的 IPC 兼容标识，不属于用户可见品牌。
+
+Kiyori 始终未发布，旧 PermissionGuide 页面、ViewModel、资源、重复 `setContent` 和启动时无条件
+通知请求直接删除，不保留兼容开关或并行入口。协议许可事实同步修正为 GPL-3.0-or-later。
+
+设计、实施步骤与验收入口：
+
+- [`kiyori_first_run_experience/`](kiyori_first_run_experience/index.md)
 
 ## 2026-08-09 包管理顶栏、固定搜索与市场安装刷新
 

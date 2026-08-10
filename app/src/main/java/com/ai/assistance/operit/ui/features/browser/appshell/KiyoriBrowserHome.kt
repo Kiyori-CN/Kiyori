@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,11 @@ internal fun resolveBrowserAppPresentationReleaseMode(
             BrowserAppPresentationReleaseMode.MINIMIZE
     }
 
+internal fun shouldDispatchPendingForegroundBrowserUrl(
+    hasPresentationLease: Boolean,
+    pendingForegroundUrl: String?,
+): Boolean = hasPresentationLease && !pendingForegroundUrl.isNullOrBlank()
+
 @Composable
 internal fun KiyoriBrowserHome(
     onExitBrowser: () -> Unit,
@@ -55,6 +61,8 @@ internal fun KiyoriBrowserHome(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onCloseBrowser: () -> Unit,
+    pendingForegroundUrl: String?,
+    onPendingForegroundUrlHandled: (String) -> Unit,
     exitPresentation: KiyoriBrowserExitPresentation,
     modifier: Modifier = Modifier,
 ) {
@@ -71,6 +79,21 @@ internal fun KiyoriBrowserHome(
         onDispose {
             // A Compose rebuild is not a user request to show the minimized indicator.
             acquired.release(BrowserAppPresentationReleaseMode.DETACH)
+        }
+    }
+
+    LaunchedEffect(presentationLease, pendingForegroundUrl) {
+        val targetUrl = pendingForegroundUrl ?: return@LaunchedEffect
+        // 负一屏 URL 必须等 Browser Home 获得前台 presentation lease 后再导航。
+        // 若在 Shell 切页前调用 openUrl，协调器会先创建后台锚点并显示悬浮入口。
+        if (
+            shouldDispatchPendingForegroundBrowserUrl(
+                hasPresentationLease = presentationLease != null,
+                pendingForegroundUrl = targetUrl,
+            )
+        ) {
+            coordinator.openUrl(targetUrl)
+            onPendingForegroundUrlHandled(targetUrl)
         }
     }
 

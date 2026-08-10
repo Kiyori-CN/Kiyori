@@ -5,131 +5,127 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
 import com.ai.assistance.operit.data.preferences.AgreementPreferences
-import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
-import com.ai.assistance.operit.ui.features.agreement.screens.AgreementScreen
-import com.ai.assistance.operit.ui.features.permission.screens.PermissionGuideScreen
-import com.kiyori.platform.logging.KiyoriLogger
+import com.ai.assistance.operit.ui.features.agreement.screens.KiyoriAgreementConfirmationScreen
+import com.kiyori.integration.operit.onboarding.KiyoriOnboardingPreferences
+import com.kiyori.integration.operit.onboarding.KiyoriOnboardingScreen
 
 internal enum class KiyoriMainStartupDestination {
+    ONBOARDING,
     AGREEMENT,
-    PERMISSION_GUIDE,
     CONTENT,
 }
 
 internal fun resolveKiyoriMainStartupDestination(
     agreementAccepted: Boolean,
-    showPermissionGuide: Boolean,
+    onboardingCompleted: Boolean,
 ): KiyoriMainStartupDestination =
     when {
+        !onboardingCompleted -> KiyoriMainStartupDestination.ONBOARDING
         !agreementAccepted -> KiyoriMainStartupDestination.AGREEMENT
-        showPermissionGuide -> KiyoriMainStartupDestination.PERMISSION_GUIDE
         else -> KiyoriMainStartupDestination.CONTENT
     }
 
 private data class KiyoriMainStartupGateDependencies(
     val isAgreementAccepted: () -> Boolean,
     val acceptCurrentAgreement: () -> Unit,
-    val readPermissionLevel: () -> AndroidPermissionLevel?,
+    val isOnboardingCompleted: () -> Boolean,
+    val completeOnboarding: () -> Unit,
 )
 
 private fun createKiyoriMainStartupGateDependencies(
     context: Context,
 ): KiyoriMainStartupGateDependencies {
     val agreementPreferences = AgreementPreferences(context)
+    val onboardingPreferences = KiyoriOnboardingPreferences(context)
     return KiyoriMainStartupGateDependencies(
         isAgreementAccepted = agreementPreferences::isAgreementAccepted,
         acceptCurrentAgreement = agreementPreferences::acceptCurrentAgreement,
-        readPermissionLevel = androidPermissionPreferences::getPreferredPermissionLevel,
+        isOnboardingCompleted = onboardingPreferences::isCompleted,
+        completeOnboarding = onboardingPreferences::complete,
     )
 }
 
-private val kiyoriMainStartupGateLogger: (tag: String, message: String) -> Unit =
-    { tag, message ->
-        KiyoriLogger.d(tag, message)
-    }
-
 /**
- * MainActivity 用户协议与权限级别引导的唯一 UI 状态 owner。
+ * MainActivity 首次启动与协议重新确认的唯一 UI 目的地 owner。
  *
- * AgreementPreferences 与 AndroidPermissionPreferences 继续持有唯一持久事实；该
- * coordinator 只保存是否展示权限引导的 Compose 投影，并在每次刷新时读取现有 owner。
+ * AgreementPreferences 与 KiyoriOnboardingPreferences 继续持有各自唯一持久事实；该
+ * coordinator 只保存用于 Compose 重组的内存投影，不复制权限、插件或运行时状态。
  */
 internal class KiyoriMainStartupGateCoordinator private constructor(
     private val dependencies: KiyoriMainStartupGateDependencies,
-    private val logger: (tag: String, message: String) -> Unit,
 ) {
     constructor(context: Context) :
         this(
             dependencies = createKiyoriMainStartupGateDependencies(context),
-            logger = kiyoriMainStartupGateLogger,
         )
 
     internal constructor(
         isAgreementAccepted: () -> Boolean,
         acceptCurrentAgreement: () -> Unit,
-        readPermissionLevel: () -> AndroidPermissionLevel?,
-        logger: (tag: String, message: String) -> Unit = kiyoriMainStartupGateLogger,
+        isOnboardingCompleted: () -> Boolean,
+        completeOnboarding: () -> Unit,
     ) : this(
         dependencies =
             KiyoriMainStartupGateDependencies(
                 isAgreementAccepted = isAgreementAccepted,
                 acceptCurrentAgreement = acceptCurrentAgreement,
-                readPermissionLevel = readPermissionLevel,
+                isOnboardingCompleted = isOnboardingCompleted,
+                completeOnboarding = completeOnboarding,
             ),
-        logger = logger,
     )
 
-    private companion object {
-        const val TAG = "MainActivity"
-    }
-
-    private var showPermissionGuide by mutableStateOf(false)
+    private var agreementAccepted by
+        mutableStateOf(dependencies.isAgreementAccepted())
+    private var onboardingCompleted by
+        mutableStateOf(dependencies.isOnboardingCompleted())
 
     val destination: KiyoriMainStartupDestination
         get() =
             resolveKiyoriMainStartupDestination(
-                agreementAccepted = dependencies.isAgreementAccepted(),
-                showPermissionGuide = showPermissionGuide,
+                agreementAccepted = agreementAccepted,
+                onboardingCompleted = onboardingCompleted,
             )
+
+    val isAgreementAccepted: Boolean
+        get() = agreementAccepted
 
     val isReadyForContent: Boolean
         get() = destination == KiyoriMainStartupDestination.CONTENT
 
-    fun refreshPermissionLevel() {
-        val permissionLevel = dependencies.readPermissionLevel()
-        logger(TAG, "当前权限级别: $permissionLevel")
-        showPermissionGuide = permissionLevel == null
-        logger(
-            TAG,
-            "权限级别检查: 已设置=${!showPermissionGuide}, " +
-                "将${if (showPermissionGuide) "" else "不"}显示权限引导界面",
-        )
-    }
-
     fun acceptCurrentAgreement() {
         dependencies.acceptCurrentAgreement()
+        agreementAccepted = true
     }
 
-    fun completePermissionGuide() {
-        showPermissionGuide = false
+    fun completeOnboarding() {
+        dependencies.completeOnboarding()
+        onboardingCompleted = true
     }
 }
 
 @Composable
 internal fun KiyoriMainStartupGate(
     destination: KiyoriMainStartupDestination,
+    agreementAccepted: Boolean,
     onAgreementAccepted: () -> Unit,
-    onPermissionGuideComplete: () -> Unit,
+    onAgreementDeclined: () -> Unit,
+    onOnboardingComplete: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     when (destination) {
-        KiyoriMainStartupDestination.AGREEMENT ->
-            AgreementScreen(onAgreementAccepted = onAgreementAccepted)
+        KiyoriMainStartupDestination.ONBOARDING ->
+            KiyoriOnboardingScreen(
+                agreementAccepted = agreementAccepted,
+                onAgreementAccepted = onAgreementAccepted,
+                onComplete = onOnboardingComplete,
+            )
 
-        KiyoriMainStartupDestination.PERMISSION_GUIDE ->
-            PermissionGuideScreen(onComplete = onPermissionGuideComplete)
+        KiyoriMainStartupDestination.AGREEMENT ->
+            KiyoriAgreementConfirmationScreen(
+                onAccepted = onAgreementAccepted,
+                onDeclined = onAgreementDeclined,
+            )
 
         KiyoriMainStartupDestination.CONTENT -> content()
     }

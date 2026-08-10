@@ -139,6 +139,57 @@ class KiyoriDesignThemeTest {
     }
 
     @Test
+    fun `settings home keeps all sixteen icon palettes distinct and readable`() {
+        val lightPairs =
+            KiyoriSettingsHomeIconPalette.entries.map { palette ->
+                resolveKiyoriSettingsHomeIconColors(palette, isDark = false)
+            }
+        val darkPairs =
+            KiyoriSettingsHomeIconPalette.entries.map { palette ->
+                resolveKiyoriSettingsHomeIconColors(palette, isDark = true)
+            }
+
+        assertEquals(16, KiyoriSettingsHomeIconPalette.entries.size)
+        assertEquals(16, lightPairs.map { colors -> colors.icon }.toSet().size)
+        assertEquals(16, lightPairs.map { colors -> colors.container }.toSet().size)
+        assertEquals(16, darkPairs.map { colors -> colors.icon }.toSet().size)
+        assertEquals(16, darkPairs.map { colors -> colors.container }.toSet().size)
+        assertTrue(lightPairs.zip(darkPairs).all { (light, dark) -> light != dark })
+        assertTrue(
+            (lightPairs + darkPairs).all { colors ->
+                contrastRatio(colors.icon, colors.container) >= 3.0
+            },
+        )
+    }
+
+    @Test
+    fun `settings detail icon palette stays balanced and readable in both themes`() {
+        val lightPairs =
+            KiyoriSemanticTone.entries.map { tone ->
+                resolveKiyoriSettingsIconColors(tone, isDark = false)
+            }
+        val darkPairs =
+            KiyoriSemanticTone.entries.map { tone ->
+                resolveKiyoriSettingsIconColors(tone, isDark = true)
+            }
+
+        assertEquals(KiyoriSemanticTone.entries.size, lightPairs.map { it.icon }.toSet().size)
+        assertEquals(KiyoriSemanticTone.entries.size, lightPairs.map { it.container }.toSet().size)
+        assertEquals(KiyoriSemanticTone.entries.size, darkPairs.map { it.icon }.toSet().size)
+        assertEquals(KiyoriSemanticTone.entries.size, darkPairs.map { it.container }.toSet().size)
+        assertTrue(lightPairs.zip(darkPairs).all { (light, dark) -> light != dark })
+        assertTrue(
+            (lightPairs + darkPairs).all { colors ->
+                contrastRatio(colors.icon, colors.container) >= 3.0
+            },
+        )
+        assertNotEquals(
+            resolveKiyoriSettingsThemeShortcutIconColor(isDark = false),
+            resolveKiyoriSettingsThemeShortcutIconColor(isDark = true),
+        )
+    }
+
+    @Test
     fun `bottom navigation yellow is exact while weather sun remains independent`() {
         val lightWeatherSun = resolveKiyoriWeatherSunColor(isDark = false)
         val darkWeatherSun = resolveKiyoriWeatherSunColor(isDark = true)

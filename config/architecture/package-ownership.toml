@@ -273,8 +273,8 @@ owner = "kiyori-app"
 [[exception]]
 rule = "ARCH004"
 path = "app/src/main/java/com/kiyori/app/startup/KiyoriMainStartupGateCoordinator.kt"
-reason = "M-04D8 extracts the MainActivity agreement and permission-level startup gate without moving the existing preferences or feature screens; ARCH037 locks the exact Operit preference, presentation, and permission-level bridges until Operit integration ownership migrates."
-expires_after = "M-05-design-platform-migration"
+reason = "Kiyori first-run startup projection reads the existing Operit agreement fact and mounts the Kiyori-owned Operit onboarding integration; the active ARCH036/037 first-run gate locks this bridge until agreement persistence migrates."
+expires_after = "M-07-operit-integration"
 owner = "kiyori-app"
 
 [[exception]]
@@ -506,6 +506,7 @@ phase = "m04b"
 allowed_import_roots = [
   "com.ai.assistance.operit",
   "com.kiyori.capability",
+  "com.kiyori.design",
   "com.kiyori.integration.operit",
   "com.kiyori.platform",
 ]

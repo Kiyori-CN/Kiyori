@@ -1,13 +1,13 @@
  <resources>
     <string name="app_name">Kiyori</string>
     <string name="accessibility_service_description">Used to obtain the UI hierarchy, providing faster interface analysis capabilities for AI assistants, and does not collect or store any personal information.</string>
-    
+
     <!-- Model selector related -->
     <string name="model_selector_title">Select Model Configuration</string>
     <string name="model_selector_toggle">Show Model Selector</string>
     <string name="model_selector_toggle_desc">Show model configuration selector at the top of the chat interface for easy switching between different model configurations</string>
     <string name="model">Model</string>
-    
+
     <!-- Navigation -->
     <string name="nav_ai_chat">AI Chat</string>
     <string name="nav_adb_commands">Permissions</string>
@@ -133,7 +133,7 @@
     <string name="token_config">Get API Key</string>
     <string name="package_category_plugin">Plugin</string>
     <string name="desktop_pet_start">Start Desktop Pet</string>
-    
+
     <!-- Workflow related -->
     <string name="workflow_list_title">Workflow List</string>
     <string name="workflow_create">Create Workflow</string>
@@ -337,18 +337,18 @@
     <string name="current_notifications">Current Notifications</string>
     <string name="current_location">Current Location</string>
     <string name="screen_ocr_select">Select OCR</string>
-    
+
     <!-- Model Suggestion Dialog -->
     <string name="model_suggestion_title">Model Suggestion</string>
     <string name="model_suggestion_message">The current model you are using has limited capabilities and may affect your user experience. We recommend switching to a more powerful model.</string>
     <string name="change_model">Change Model</string>
     <string name="ignore">Ignore</string>
-    
+
     <!-- Permission Request -->
     <string name="requested_operation">Requested Operation</string>
     <string name="used_tool">Used Tool</string>
     <string name="tool_category">Tool Category</string>
-    
+
     <!-- Assistant Config Screen -->
     <string name="assistant_config_title">Assistant Config</string>
     <string name="import_model">Import Model</string>
@@ -540,7 +540,7 @@
     <string name="character_card_change_prompt">The character card has changed. Do you want to go to Chat Management to handle chats bound to it?</string>
     <string name="go_to_chat_management">Go to Chat Management</string>
     <string name="maybe_later">Maybe Later</string>
-    
+
     <!-- Chat History Management Screen -->
     <string name="chat_history_manager">Chat History Manager</string>
     <string name="export_chat_history">Export Chat History</string>
@@ -556,14 +556,14 @@
     <string name="current_chats">Currently %1$d chat records</string>
     <string name="backup_location">Backup files are saved in the \"Download/Kiyori\" folder</string>
     <string name="faq_backup">FAQ</string>
-    
+
     <!-- Terminal Screen -->
     <string name="termux_not_installed">Termux Not Installed</string>
     <string name="termux_not_running">Termux Not Running</string>
     <string name="termux_command">Termux Command</string>
     <string name="execute_termux_command">Execute Command</string>
     <string name="termux_result">Command Result</string>
-    
+
     <!-- Termux Installation -->
     <string name="install_termux_title">Install Termux</string>
     <string name="install_termux_from_store">Install Termux from App Store</string>
@@ -572,7 +572,7 @@
     <string name="install_termux_failed">Termux Installation Failed</string>
     <string name="open_termux">Open Termux</string>
     <string name="termux_setup_guide">Termux Setup Guide</string>
-    
+
     <!-- About Screen -->
     <string name="about_title">About Kiyori</string>
     <string name="about_version">Version: %1$s</string>
@@ -584,7 +584,7 @@
     <string name="app_update_channel">App Updates</string>
     <string name="app_update_channel_disabled">This build does not receive remote updates or announcements. New versions are distributed separately through the Kiyori repository.</string>
     <string name="about_source_attribution">Kiyori continues development from the Operit open-source codebase. Original authorship, licenses, and project history are retained in the repository.</string>
-    
+
     <!-- AI Chat Screen -->
     <string name="configure_ai">Configure AI API</string>
     <string name="api_endpoint">API Endpoint</string>
@@ -610,13 +610,13 @@
     <string name="one_click_config_login_prompt">Please login or register</string>
     <string name="one_click_config_info_text">Please login or register first, the system will automatically get the API key after login</string>
     <string name="one_click_config_getting_key">Getting API key...</string>
-    
+
     <!-- Token Info Dialog -->
     <string name="token_info_title">Get DeepSeek API Token</string>
     <string name="token_info_content">You will be directed to the DeepSeek API website. We integrate DeepSeek access because we consider it the most cost-effective API with powerful performance, various discounts, and disk caching to reduce usage costs.\n\nAPI access and token configuration are not related to the app developers, and we do not provide any services in this regard or earn any fees.\n\nFor your first token usage, we recommend starting with a small amount as it\'s usually sufficient.</string>
     <string name="token_info_cancel">Cancel</string>
     <string name="token_info_confirm">Get Token</string>
-    
+
     <!-- Free Usage Dialog -->
     <string name="free_usage_title">Confirm Free Resource Usage</string>
     <string name="free_usage_message_1">Please use sparingly, our resources are limited</string>
@@ -635,7 +635,7 @@
     <string name="free_usage_interval_tip">To prevent developer bankruptcy, waiting time doubles after each use~</string>
     <string name="free_usage_first_tip">This is your first use, next time you\'ll need to wait 1 day~</string>
     <string name="free_usage_later_tip">Free stuff comes with limits, please wait %1$d more days (๑•̀ㅂ•́)و✧</string>
-    
+
     <!-- Plugin Loading Screen -->
     <string name="plugin_skip">Skip</string>
     <string name="plugin_app_name">Kiyori</string>
@@ -684,14 +684,6 @@
     <string name="plugin_terminal_service_unavailable">Terminal service unavailable, please start it first</string>
     <string name="plugin_pnpm_missing">pnpm not installed in terminal, please install it first</string>
 
-    <!-- Permission Guide Screen -->
-    <string name="permission_guide_intro_1_title">Voice-Driven UI Automation</string>
-    <string name="permission_guide_intro_1_desc">Converse naturally with the AI using on-device speech recognition and synthesis. Your voice is the command, enabling it to perform screen taps, app navigations, and other complex tasks, completely hands-free.</string>
-    <string name="permission_guide_intro_2_title">A Powerful Toolbox for Geeks and Developers</string>
-    <string name="permission_guide_intro_2_desc">With over 40 built-in professional tools for file management, web requests, script execution, and system control. Combined with a robust plugin system, you can automate tasks, and take deep control of your device.</string>
-    <string name="permission_guide_intro_3_title">Unleash Creativity, Always on Standby</string>
-    <string name="permission_guide_intro_3_desc">Whether designing web pages, processing media files, or accessing the AI via its floating window, Kiyori provides a powerful, flexible, and secure environment for creation and assistance. Your data, your control.</string>
-    <string name="permission_guide_intro_page_indicator">Feature Tour %1$d/%2$d</string>
 
     <!-- Context Menu -->
     <string name="copy_message">Copy Message</string>
@@ -809,7 +801,7 @@
     <string name="theme_loop_on">Disable loop</string>
     <string name="theme_loop_enabled">Loop playback enabled</string>
     <string name="theme_loop_disabled">Loop playback disabled</string>
-    
+
     <!-- Floating Window -->
     <string name="floating_chat_window">Floating Chat Window</string>
     <string name="enable_floating_mode">Enable Floating Window</string>
@@ -817,14 +809,14 @@
     <string name="overlay_permission_required">Overlay Permission Required</string>
     <string name="overlay_permission_denied">Overlay permission denied, cannot display floating window</string>
     <string name="close_floating_window">Close Floating Window</string>
-    
+
     <!-- Microphone Permission -->
     <string name="microphone_permission">Microphone Permission</string>
     <string name="microphone_permission_required">Microphone Permission Required</string>
     <string name="microphone_permission_desc">Allow the app to record audio for voice input and speech recognition</string>
     <string name="microphone_permission_denied">Microphone permission denied, cannot enable floating window feature</string>
     <string name="microphone_permission_floating_required">Floating window feature requires microphone permission for voice interaction</string>
-    
+
     <!-- AI Tools -->
     <string name="max_mode_title">Max Mode</string>
     <string name="max_mode_info">When Max Mode (extra-large context) is on, the context window is %2$sk. Turn it off to return to %1$sk. You can customize these values in Settings.</string>
@@ -843,7 +835,7 @@
     <string name="tool_calculator">Calculator</string>
     <string name="tool_web_search">Web Search</string>
     <string name="enhanced_service_not_initialized">Enhanced AI service not initialized, please check settings</string>
-    
+
     <!-- Settings Screen -->
     <string name="settings">Settings</string>
     <string name="no_settings">No settings available</string>
@@ -854,7 +846,7 @@
     <string name="show_thinking">Show Thinking Process</string>
     <string name="show_fps_counter">Show FPS Counter</string>
     <string name="fps_counter_description">Display real-time FPS in the upper right corner</string>
-    
+
     <!-- Settings Screen Sections -->
     <string name="settings_user_preferences_desc">Edit the user.md document sent to the AI as user context</string>
     <string name="settings_configure_preferences">Configure Preferences</string>
@@ -864,16 +856,16 @@
     <string name="settings_theme_appearance_desc">Personalize app appearance, including dark/light mode and custom color schemes</string>
     <string name="settings_customize_theme">Customize Theme</string>
     <string name="settings_manage_backup">Manage Backup</string>
-    
+
     <string name="reset_successful">Reset Successfully</string>
     <string name="reset_default_character">Reset Default Character</string>
     <string name="reset_default_character_confirm">Are you sure you want to reset the default character card? This will restore the default name, settings, and prompts, and reset the avatar and theme.</string>
-    
+
     <string name="settings_model_parameters_desc">Configure API settings, model names and parameters, with support for multiple configuration management</string>
     <string name="settings_configure_model">Configure Model</string>
     <string name="settings_functional_model_desc">Configure specialized models and API settings for different functions (such as chat, summarization, memory, etc.)</string>
     <string name="settings_configure_function">Configure Function</string>
-    
+
     <string name="settings_enable_summary">Enable Conversation Summary</string>
     <string name="settings_enable_summary_desc">Automatically generate conversation summaries when context is too long to save Token consumption</string>
     <string name="settings_enable_summary_by_message_count">Trigger summary by message count</string>
@@ -882,7 +874,7 @@
     <string name="settings_summary_message_count_threshold_subtitle">Number of new messages to trigger summary (1-20)</string>
     <string name="settings_summary_custom_rules">Custom Summary Rules</string>
     <string name="settings_summary_custom_rules_desc">Extra rules sent when summarizing the conversation. Leave blank for none</string>
-    
+
     <string name="settings_section_display">Display and Behavior</string>
 
     <string name="settings_keep_screen_on">Keep Screen On</string>
@@ -891,15 +883,13 @@
     <string name="settings_reply_notification_desc">Send notification when AI completes a reply</string>
     <string name="notification_ai_reply_title">AI Assistant</string>
     <string name="notification_ai_reply_content">AI has completed the reply</string>
-    <string name="notification_permission_rationale">Notification permission is needed to notify you when AI completes a reply</string>
-    <string name="notification_permission_denied">Notification permission denied, you will not receive AI reply notifications</string>
     <string name="settings_auto_accessibility">Auto-grant Accessibility Permission</string>
     <string name="settings_auto_accessibility_desc">When disabled, manual authorization is required each time the app is opened</string>
-    
+
     <string name="settings_section_permissions">Permissions and Security</string>
     <string name="settings_tool_permissions_desc">Configure permission levels for AI assistant tools, can be set to auto-allow, ask, or deny</string>
     <string name="settings_configure_permissions">Configure Permissions</string>
-    
+
     <string name="settings_section_usage">Usage Statistics</string>
     <string name="settings_token_statistics">Token Statistics</string>
     <string name="settings_total_tokens_breakdown">Input: %1$d (Cached: %2$d) / Output: %3$d</string>
@@ -912,7 +902,7 @@
     <string name="settings_preference_input_token">Preference Analysis Input Tokens</string>
     <string name="settings_preference_output_token">Preference Analysis Output Tokens</string>
     <string name="settings_total">Total</string>
-    
+
     <!-- Shizuku Command Screen -->
     <string name="shizuku_command_executor">Shizuku ADB Command Executor</string>
     <string name="device_info">Device Information</string>
@@ -947,13 +937,13 @@
     <string name="grant_permission_first">Please grant Shizuku permission</string>
     <string name="feature_unavailable">ADB command feature unavailable</string>
     <string name="thinking_process">Thinking Process</string>
-    
+
     <!-- Built-in Shizuku -->
     <string name="install_from_store">Install Shizuku from App Store</string>
     <string name="install_bundled">Install Bundled Version (v%1$s)</string>
     <string name="installing_bundled">Installing bundled Shizuku, please grant installation permission</string>
     <string name="install_failed">Built-in Shizuku installation failed, please try installing from the app store</string>
-    
+
     <!-- User Preferences -->
     <string name="user_preferences_guide">Personalization</string>
     <string name="user_preferences">User Preferences</string>
@@ -991,7 +981,7 @@
     <string name="tag_count_lock">Lock Count</string>
     <string name="tag_count_limit">Max selectable</string>
     <string name="tag_count_locked_status">Selected %1$d / Limit %2$d</string>
-    
+
     <!-- Package Manager Screen -->
     <string name="skills">Skills</string>
     <string name="show_to_ai_short">AI</string>
@@ -1038,7 +1028,7 @@
     <string name="import_failed">Import failed: %1$s</string>
     <string name="package_import_failed">Script package import failed</string>
     <string name="package_remove_failed">Script package removal failed</string>
-    
+
     <!-- OperScript Execution -->
     <string name="run_script">Run Script</string>
     <string name="edit_script">Edit Script</string>
@@ -1053,10 +1043,10 @@
     <string name="script_execution_success">Script execution successful</string>
     <string name="script_execution_error">Script execution error: %1$s</string>
     <string name="missing_parameters">Missing required parameters: %1$s</string>
-    
+
     <string name="save_changes">Save Changes</string>
     <string name="back_to_list">Back to List</string>
-    
+
     <!-- Language Settings -->
     <string name="language_settings_desc">Change the display language of the application</string>
     <string name="change_language">Change Language</string>
@@ -1064,7 +1054,7 @@
     <string name="language_info">The app will restart automatically to apply the new language setting</string>
     <string name="language_changing">Changing language...</string>
     <string name="language_changed">Language changed, restarting app</string>
-    
+
     <!-- User Agreement Screen -->
     <string name="agreement_title">User Agreement and Privacy Policy</string>
     <string name="agreement_subtitle">Please read and agree to the following terms before use.</string>
@@ -1089,18 +1079,18 @@
     <string name="market_agreement_subtitle">Please read and accept these terms before entering the plugin market. The market is for sharing and discovering plugins, and authors are encouraged to publish source code in a public GitHub repository.</string>
     <string name="market_agreement_version">Market agreement version: %1$s</string>
     <string name="market_agreement_content">The Operit plugin market indexes and distributes third-party extensions. Publishers must have the right to submit their work and grant the market permission to store, display, download, and install it. Public visibility does not itself grant an open-source license or redistribution rights. Users must follow the author’s license and review plugin permissions, file access, environment variables, network behavior, and external services before installation. Publishers and commenters must not expose credentials, personal data, advertising, payment requests, group invitations, or unrelated links. Operit does not guarantee the security, legality, compatibility, accuracy, availability, or continued hosting of third-party extensions. Violating entries, comments, or accounts may be restricted, hidden, or removed. A substantive agreement update requires acceptance again.</string>
-    
+
     <!-- File Manager -->
     <string name="files_selected">%1$d files selected</string>
     <string name="file_count">%1$d items</string>
-    
+
     <!-- Search Dialog -->
     <string name="search_files">Search Files</string>
     <string name="searching">Searching...</string>
     <string name="case_sensitive">Case sensitive</string>
     <string name="use_wildcard">Use wildcard</string>
     <string name="search">Search</string>
-    
+
     <!-- File Operations -->
     <string name="new_folder">New Folder</string>
     <string name="folder_name">Folder name</string>
@@ -1126,66 +1116,18 @@
     <string name="network_transfer_failed">Network transfer failed, please check your connection</string>
     <string name="try_again_later">Request failed, please try again later</string>
 
-    <!-- Permission Guide Screen -->
-    <string name="permission_guide_previous">Previous</string>
-    <string name="permission_guide_next">Next</string>
-    <string name="permission_guide_complete">Complete</string>
-    <string name="permission_guide_welcome">Welcome</string>
-    <string name="permission_guide_basic_permissions">Basic Permissions</string>
-    <string name="permission_guide_permission_level">Permission Level</string>
-    
-    <string name="permission_guide_welcome_title">Welcome</string>
-    <string name="permission_guide_welcome_desc">Before using the app, we need to set up some basic permissions and select your preferred permission level.</string>
-    <string name="permission_guide_welcome_hint">This process takes just a few minutes and will help the app serve you better.</string>
-    <string name="permission_guide_welcome_start">Click the button in the lower right corner to start setup</string>
-    
-    <string name="permission_guide_basic_title">Basic Permissions</string>
-    <string name="permission_guide_basic_desc">Please grant the following basic permissions to ensure the app functions properly</string>
-    <string name="permission_guide_storage_title">Storage Permission</string>
-    <string name="permission_guide_storage_desc">Allow the app to read and write files</string>
-    <string name="permission_guide_overlay_title">Overlay Permission</string>
-    <string name="permission_guide_overlay_desc">Allow the app to display floating windows</string>
-    <string name="permission_guide_battery_title">Battery Optimization Exemption</string>
-    <string name="permission_guide_battery_desc">Allow the app to run in the background</string>
-    <string name="permission_guide_location_title">Location Permission</string>
-    <string name="permission_guide_location_desc">Allow the app to access location information</string>
-    <string name="permission_guide_check_permissions">Check Permission Status</string>
-    <string name="permission_guide_all_granted">All basic permissions granted, you can continue to the next step</string>
-    
-    <string name="permission_guide_warning_title">Incomplete Permissions</string>
-    <string name="permission_guide_warning_message">You have not granted all necessary permissions, which may result in incomplete functionality or abnormal app behavior. Are you sure you want to continue?</string>
-    <string name="permission_guide_warning_continue">Continue</string>
-    <string name="permission_guide_warning_return">Return to Permissions</string>
-    
-    <string name="permission_guide_level_title">Select Permission Level</string>
-    <string name="permission_guide_level_desc">Please select your preferred permission level, which will determine the range of features the app can use</string>
-    <string name="permission_guide_standard_title">Standard Permissions</string>
-    <string name="permission_guide_standard_desc">Basic app operation permissions, no special permissions required</string>
-    <string name="permission_guide_accessibility_title">Accessibility Permissions</string>
-    <string name="permission_guide_accessibility_desc">Enables screen content analysis and operation simulation via accessibility service</string>
-    <string name="permission_guide_debugger_title">Debug Permissions</string>
-    <string name="permission_guide_debugger_desc">Provides ADB-level system access through Shizuku</string>
-    <string name="permission_guide_root_title">Root Permissions</string>
-    <string name="permission_guide_root_desc">Superuser permissions, can perform any system operations</string>
-    <string name="permission_guide_confirm">Confirm Selection</string>
-    <string name="permission_guide_change_anytime">You can change the permission level in settings at any time</string>
-    
-    <!-- Permission Guide Toast Messages -->
-    <string name="permission_guide_storage_setting_failed">Cannot open storage permission settings, please authorize manually</string>
-    <string name="permission_guide_overlay_setting_failed">Cannot open overlay settings, please authorize manually</string>
-    <string name="permission_guide_battery_hint">Please find the app in the list and set it to \"Not optimized\"</string>
-    <string name="permission_guide_battery_setting_failed">Cannot open battery optimization settings, please set manually</string>
-    
-    <!-- Permission Status Description -->
-    <string name="permission_guide_granted">Granted</string>
-    <string name="permission_guide_not_granted">Not granted</string>
-    <string name="permission_guide_selected">Selected</string>
-    
+
+
+
+
+
+
+
     <!-- Wizard Cards Common -->
     <string name="wizard_collapse">Collapse</string>
     <string name="wizard_expand">Expand</string>
     <string name="wizard_open_docs">Official Docs</string>
-    
+
     <!-- RootWizardCard -->
     <string name="root_wizard_title">Root Permission Setup Wizard</string>
     <string name="root_wizard_step1">Step 1: Root Device</string>
@@ -1201,7 +1143,7 @@
     <string name="root_wizard_device_not_rooted">Your device is not rooted. ROOT requires specific system modifications and may void your warranty. If you need to use ROOT features, please complete the device ROOT process first.</string>
     <string name="root_wizard_risk_notice">Note: Root Operation Risk Warning</string>
     <string name="root_wizard_risk_details">1. ROOT operations carry risk and may void your warranty\n2. Some apps may refuse to run on rooted devices\n3. Improper ROOT operations may cause system instability</string>
-    
+
     <!-- ShizukuWizardCard -->
     <string name="shizuku_wizard_title">Shizuku Setup Wizard</string>
     <string name="shizuku_wizard_update_title">Shizuku Update Wizard</string>
@@ -1227,7 +1169,7 @@
     <string name="shizuku_wizard_current_version">Current version: %1$s</string>
     <string name="shizuku_wizard_latest_version">Latest version: %1$s</string>
     <string name="shizuku_wizard_update">Update Shizuku</string>
-    
+
     <!-- TermuxWizardCard -->
     <string name="termux_wizard_title">Termux Setup Wizard</string>
     <string name="termux_wizard_step1">Step 1: Install Termux</string>
@@ -1271,7 +1213,7 @@
     <string name="termux_wizard_success_title">Congratulations! Termux environment is fully configured</string>
     <string name="termux_wizard_success_message">You can now use Termux for various command line operations</string>
     <string name="termux_wizard_open">Open Termux</string>
-    
+
     <!-- ShizukuDemoScreen -->
     <string name="shizuku_demo_loading">Loading application status...</string>
     <string name="shizuku_demo_permission_failed">Cannot open permission settings</string>
@@ -1321,7 +1263,7 @@
     <string name="battery_optimization">Battery Optimization Exemption</string>
     <string name="location_permission">Location Permission</string>
     <string name="operit_terminal">Kiyori Terminal</string>
-    
+
     <!-- Permission Level Descriptions -->
     <string name="permission_level_standard">Standard Permission</string>
     <string name="permission_level_accessibility">Accessibility Permission</string>
@@ -1338,12 +1280,12 @@
     <string name="permission_level_admin_full_desc">Admin Permissions: Allows the app to access more system functions, such as location services</string>
     <string name="permission_level_debugger_full_desc">Debug Permissions: Allows advanced operations through ADB debugging functions, requires Shizuku service</string>
     <string name="permission_level_root_full_desc">Root Permissions: Allows the app to run as superuser, requires a rooted device</string>
-    
+
     <!-- Root Status Information -->
     <string name="root_access_granted">App has gained Root access, can execute privileged commands</string>
     <string name="device_rooted_request_permission">Device is rooted, click to request app permissions</string>
     <string name="device_not_rooted">Device is not rooted, unable to obtain Root permissions</string>
-    
+
     <!-- Toast Messages -->
     <string name="toast_download_link_failed">Unable to open download link</string>
     <string name="toast_apk_extract_failed">Failed to extract APK, please try again later</string>
@@ -1351,7 +1293,7 @@
     <string name="toast_operation_failed">Operation failed: %1$s</string>
     <string name="toast_skip_tuna_source">Skipped Tuna mirror configuration, you can configure the mirror in Termux later</string>
     <string name="toast_skip_tuna_source_dialog">You have chosen to skip Tuna mirror configuration. For manual configuration later, run the following command in Termux:\n\ntermux-change-repo\n\nThen select Tuna or another mirror from the list.</string>
-    
+
     <!-- Chat History Selector -->
     <string name="chat_history">Chat History</string>
     <string name="search_chat_history_hint">Search</string>
@@ -1365,7 +1307,7 @@
     <string name="chat_shared_file_target_recent_section">Recent 5 conversations</string>
     <string name="chat_shared_file_target_current_badge">Current conversation</string>
     <string name="chat_shared_file_target_no_recent">No recent conversations are available yet. You can create a new one directly.</string>
-    
+
     <!-- Chat Screen Header -->
     <string name="exit_edit_mode">Exit Edit Mode</string>
     <string name="enter_edit_mode">Enter Edit Mode</string>
@@ -1380,7 +1322,7 @@
     <string name="ask">Ask</string>
     <string name="ai_planning_mode">Deep Search</string>
     <string name="disabled">Disabled</string>
-    
+
     <!-- Termux Related -->
     <string name="termux_not_installed_message">Please install Termux first</string>
     <string name="termux_manual_auth_title">Manual Authorization Required</string>
@@ -1418,7 +1360,7 @@
     <string name="crash_report_copy_success">Copied to clipboard</string>
     <string name="crash_report_export_success">Error report exported to\n%1$s</string>
     <string name="crash_report_export_failed">Export failed: %1$s</string>
-    
+
     <!-- Model Prompts Settings Screen -->
     <string name="model_prompts_title">Prompt Settings</string>
     <string name="select_persona_config">Select AI Assistant Persona Card Configuration</string>
@@ -1445,7 +1387,7 @@
     <string name="create">Create</string>
     <string name="unnamed_config">Unnamed Configuration</string>
     <string name="delete_config">Delete</string>
-    
+
     <!-- Functional Prompt Config Screen -->
     <string name="functional_prompt_title">Functional Prompt Configuration</string>
     <string name="functional_prompt_desc">Set separate prompt configurations for different functions, so each function can use the most suitable prompts.</string>
@@ -1460,11 +1402,11 @@
     <string name="voice_function_desc">Voice interaction function, customize voice assistant prompt configuration</string>
     <string name="desktop_pet_function">Desktop Pet</string>
     <string name="desktop_pet_function_desc">Desktop pet function, customize pet personality and interaction style</string>
-    
+
     <!-- Desktop Pet Service Notification -->
     <string name="pet_service_notification_title">Desktop Pet Service</string>
     <string name="pet_service_notification_text">Desktop pet is running</string>
-    
+
     <!-- Settings Screen Additional Strings -->
     <string name="settings_prompt_desc">Customize AI assistant behavior and personality prompts</string>
     <string name="settings_configure_prompt">Configure Prompts</string>
@@ -1511,7 +1453,7 @@
 
     <string name="accessibility_risk_warning_title">Accessibility Service Risk Warning</string>
     <string name="accessibility_risk_warning_message">While enabling the accessibility service can speed up UI operations, some apps may detect this service and impose restrictions, including account bans. Please enable only after understanding and accepting the associated risks.</string>
-    
+
     <string name="accessibility_risk_warning_additional">Please note: Debug mode already has UI operation capabilities. Enabling the accessibility service only accelerates UI operations but increases the risk of account bans. Unless you need maximum speed, it\'s not recommended. If enabled, please disable it immediately after use.</string>
     <string name="accessibility_risk_warning_input">Type \"I understand and acknowledge the risks of account bans and restricted account functions caused by accessibility permissions, and I bear the consequences myself\" to confirm</string>
     <string name="accessibility_risk_warning_input_error">Please type \"I understand and acknowledge the risks of account bans and restricted account functions caused by accessibility permissions, and I bear the consequences myself\" to confirm you understand the risks</string>
@@ -1823,21 +1765,21 @@
     <!-- Update History -->
     <string name="common_collapse">Collapse</string>
     <string name="nav_memory_base">Memory Base</string>
-    
+
     <!-- Manual Memory Update -->
     <string name="manual_memory_update">Manual Memory Save</string>
     <string name="manual_memory_update_desc">If you need to store valuable content from this conversation immediately, manually trigger memory saving to write it directly into the long-term memory library.</string>
     <string name="manual_conversation_summary">Manual Conversation Summary</string>
     <string name="manual_conversation_summary_desc">Immediately trigger a conversation summary to compress context and keep key points from both sides. Useful for long chats or before sending new messages.</string>
-    
+
     <!-- Context and Summary Settings Screen -->
     <string name="screen_title_context_summary_settings">Context and Summary Settings</string>
     <string name="settings_context_title">Context Settings</string>
     <string name="settings_summary_title">Summary Settings</string>
-    
+
     <!-- Details -->
     <string name="details">Details</string>
-    
+
     <!-- MCP and Plugin Related -->
     <string name="uninstall">Uninstall</string>
     <string name="install">Install</string>
@@ -1853,7 +1795,7 @@
     <string name="tool_category_file_management">File Management</string>
     <string name="tool_category_development">Development Tools</string>
     <string name="tool_category_system">System Tools</string>
-    
+
     <!-- Tool Names -->
     <string name="tool_test_center">Tool Test Center</string>
     <string name="tool_test_center_desc">Test the availability and functionality of AI tools</string>
@@ -1970,7 +1912,7 @@
     <string name="tool_process_limit_remover_desc">Manage Android 12+ phantom process count limits to allow more background child processes</string>
     <string name="tool_html_packager">HTML Packager</string>
     <string name="tool_html_packager_desc">Package HTML files and their dependencies into a single file</string>
-    
+
     <!-- Process Limit Remover Screen -->
     <string name="process_limit_title">Phantom Process Limit Remover</string>
     <string name="process_limit_subtitle">Manage Android 12+ phantom process count limits</string>
@@ -2004,7 +1946,7 @@
     <string name="process_limit_exit_code">Exit Code: %d</string>
     <string name="process_limit_command">Command</string>
     <string name="toolbox_description">Convenient and practical tool collection to improve your work efficiency</string>
-    
+
     <!-- MCP Config Screen -->
     <string name="import_or_connect_mcp_service">Import or Connect MCP Service</string>
     <string name="select_mcp_plugin_zip">Please select MCP plugin zip package</string>
@@ -2063,24 +2005,24 @@
     <string name="name">Name</string>
     <string name="description">Description</string>
     <string name="author">Author</string>
-    
+
     <!-- Speech Services Settings -->
     <string name="speech_services_settings">Speech Services Settings</string>
     <string name="speech_services_settings_desc">Configure text-to-speech and speech recognition settings</string>
     <string name="configure_speech_services">Configure Speech Services</string>
-    
-    
-    
+
+
+
     <!-- Network Related -->
     <string name="wifi">WiFi</string>
     <string name="ui_automation_in_progress">UI automation in progress...</string>
-    
+
     <!-- Missing strings -->
     <string name="sherpa_k2_ncnn_init_failed">Real-time speech recognition engine initialization failed</string>
     <string name="sherpa_k2_ncnn_init_success">Real-time speech recognition engine initialization successful</string>
     <string name="floating_chat_window_desc">Display a floating window on screen for quick access to chat functionality</string>
     <string name="rename">Rename</string>
-    
+
     <!-- Theme Settings -->
     <string name="theme_background_blur">Background Blur</string>
     <string name="theme_background_blur_desc">Add Gaussian blur effect to background images or videos</string>
@@ -2133,7 +2075,7 @@
     <string name="doc_link_failed">Failed to open documentation link</string>
     <string name="root_tutorial_failed">Failed to open Root tutorial link</string>
     <string name="file_open_failed">Failed to open file: %1$s</string>
-    
+
     <!-- Snackbar Messages -->
     <string name="automation_config_imported">Automation configuration imported successfully</string>
     <string name="tab_import_not_supported">Current tab does not support import</string>
@@ -2142,7 +2084,7 @@
     <string name="tools_load_error">Error loading tools: %1$s</string>
     <string name="plugin_deployed_success">Plugin %1$s deployed successfully</string>
     <string name="remote_service_updated">Remote service %1$s updated</string>
-    
+
     <!-- UI Text -->
     <string name="plugin_zip_file">Plugin ZIP File</string>
     <string name="mcp_plugin">MCP Plugin</string>
@@ -2172,7 +2114,7 @@
     <string name="try_different_keywords">Try different keywords</string>
     <string name="try_show_system_apps">Try checking "System apps" to see more apps</string>
     <string name="no_apps_found_anywhere">No apps found anywhere</string>
-    
+
     <!-- Permission Groups -->
     <string name="permission_group_activity">Activity Recognition</string>
     <string name="permission_group_calendar">Calendar</string>
@@ -2188,19 +2130,19 @@
     <string name="permission_group_other_granted">Other granted permissions</string>
     <string name="permission_group_other_denied">Other denied permissions</string>
     <string name="permission_group_other">Other permissions</string>
-    
+
     <string name="target_format">Target format</string>
     <string name="start_conversion">Start conversion</string>
     <string name="conversion_success">Conversion successful</string>
     <string name="unknown_file">Unknown file</string>
-    
+
     <!-- File Types -->
     <string name="file_type_document">Document</string>
     <string name="file_type_image">Image</string>
     <string name="file_type_audio">Audio</string>
     <string name="file_type_video">Video</string>
     <string name="file_type_archive">Archive</string>
-    
+
     <!-- Stream Markdown Demo -->
     <string name="stream_markdown_title">Streaming Rendering</string>
     <string name="static_rendering">Static rendering</string>
@@ -2218,13 +2160,13 @@
     <string name="dangerous_permission">Dangerous permission</string>
         <string name="granted">Granted</string>
     <string name="not_granted">Not granted</string>
-    
+
     <!-- Toolbox Screen -->
     <string name="toolbox_title">Toolbox</string>
     <string name="toolbox_subtitle">Collection of development and system management tools</string>
     <string name="toolbox_no_tools">No tools in this category</string>
     <string name="toolbox_animation_loading">Loading tools...</string>
-    
+
     <!-- File Manager -->
     <string name="file_manager_title">File Manager</string>
     <string name="file_manager_dual_pane">Dual pane mode</string>
@@ -2311,7 +2253,7 @@
     <string name="file_op_confirm_delete_message">Are you sure you want to delete the selected files? This action cannot be undone.</string>
     <string name="file_op_confirm_overwrite">File exists</string>
     <string name="file_op_confirm_overwrite_message">A file with the same name already exists at the destination. Do you want to overwrite it?</string>
-    
+
     <!-- Terminal -->
     <string name="terminal_title">Terminal Emulator</string>
     <string name="terminal_new_session">New session</string>
@@ -2339,7 +2281,7 @@
     <string name="terminal_command_not_found">Command not found</string>
     <string name="terminal_process_running">Process is running...</string>
     <string name="terminal_process_completed">Process completed</string>
-    
+
     <!-- Terminal Auto Config -->
     <string name="terminal_auto_config_title">Terminal Auto Config</string>
     <string name="terminal_auto_config_desc">Automatically detect and configure terminal environment</string>
@@ -2351,7 +2293,7 @@
     <string name="terminal_auto_config_failed">Configuration failed</string>
     <string name="terminal_auto_config_detecting">Detecting environment...</string>
         <string name="terminal_auto_config_applying">Applying configuration...</string>
-    
+
     <!-- FFmpeg Toolbox -->
     <string name="ffmpeg_toolbox_title">FFmpeg Toolbox</string>
     <string name="ffmpeg_input_file">Input file</string>
@@ -2383,7 +2325,7 @@
     <string name="ffmpeg_no_file_selected">No file selected</string>
     <string name="ffmpeg_invalid_file">Invalid file format</string>
     <string name="ffmpeg_permission_error">Permission error, cannot access file</string>
-    
+
     <!-- Log Viewer (Logcat) -->
     <string name="logcat_title">Log Viewer</string>
     <string name="logcat_start">Start logging</string>
@@ -2436,7 +2378,7 @@
     <string name="stt_timeout">Recognition timeout</string>
     <string name="stt_result_saved">Recognition result saved</string>
     <string name="stt_save_failed">Failed to save result</string>
-    
+
     <!-- Speech Services Settings -->
     <string name="speech_services_tts_title">Text-to-Speech (TTS) Settings</string>
     <string name="speech_services_tts_desc">Configure how text is converted to voice output</string>
@@ -2448,7 +2390,7 @@
     <string name="speech_services_tts_engine">TTS Engine</string>
     <string name="speech_services_stt_engine">STT Engine</string>
     <string name="speech_services_dropdown_expand">Expand dropdown</string>
-    
+
     <!-- TTS Service Types -->
     <string name="speech_services_tts_type_simple">System TTS (Simple)</string>
     <string name="speech_services_simple_tts_settings">System TTS Settings</string>
@@ -2467,13 +2409,13 @@
     <string name="speech_services_tts_type_doubao">Doubao TTS</string>
     <string name="speech_services_tts_type_openai_ws">OpenAI Realtime (WebSocket)</string>
     <string name="speech_services_tts_type_openai">OpenAI Voice (HTTP)</string>
-    
+
     <!-- STT Service Types -->
     <string name="speech_services_stt_type_sherpa">Sherpa NCNN (Local)</string>
     <string name="speech_services_stt_type_sherpa_mnn">Sherpa MNN (Local, with VAD)</string>
     <string name="speech_services_stt_type_openai">OpenAI STT (Remote)</string>
     <string name="speech_services_stt_type_deepgram">Deepgram STT (Remote)</string>
-    
+
     <!-- TTS Cleaner Regex -->
     <string name="speech_services_tts_cleaner_title">TTS Cleaner Regex List</string>
     <string name="speech_services_tts_cleaner_desc">Remove matched text using these regular expressions before speaking.</string>
@@ -2486,7 +2428,7 @@
     <string name="speech_services_tts_cleaner_template_parenthesis">Remove (xxx)</string>
     <string name="speech_services_tts_cleaner_template_chinese_parenthesis">Remove （xxxx）</string>
     <string name="speech_services_tts_cleaner_template_xml">Remove XML tags</string>
-    
+
     <!-- HTTP TTS Configuration -->
     <string name="speech_services_http_tts_config">HTTP TTS Configuration</string>
     <string name="speech_services_http_url_template">URL Template</string>
@@ -2506,7 +2448,7 @@
     <string name="speech_services_http_content_type_placeholder">application/json</string>
     <string name="speech_services_http_request_body">Request Body Template</string>
     <string name="speech_services_http_request_body_placeholder">{\"text\": \"{text}\"}</string>
-    
+
     <!-- SiliconFlow TTS Configuration -->
     <string name="speech_services_siliconflow_config">SiliconFlow TTS Configuration</string>
     <string name="speech_services_siliconflow_api_key">API Key</string>
@@ -2617,21 +2559,21 @@
 
     <!-- STT Configuration -->
     <string name="speech_services_stt_info">Supports local Sherpa engines and OpenAI / Deepgram STT (remote).</string>
-    
+
     <!-- Save Actions -->
     <string name="speech_services_save_button">Save Settings</string>
     <string name="speech_services_saving">Saving...</string>
     <string name="speech_services_save_success">Settings saved</string>
     <string name="speech_services_save_error">Save failed: %1$s</string>
     <string name="speech_services_test_tts">Test TTS Feature</string>
-    
+
     <!-- Info Card -->
     <string name="speech_services_info_title">About Speech Services</string>
     <string name="speech_services_info_tts_title">Text-to-Speech (TTS)</string>
     <string name="speech_services_info_tts_desc">TTS service converts text to speech. You can use the built-in system TTS engine or connect to remote HTTP / WebSocket speech APIs.</string>
     <string name="speech_services_info_stt_title">Speech-to-Text (STT)</string>
     <string name="speech_services_info_stt_desc">STT service converts speech to text. Supports built-in Sherpa NCNN and Sherpa MNN engines, both run on local device without network connection. Sherpa MNN integrates VAD (Voice Activity Detection) capability for improved recognition accuracy and resource efficiency.</string>
-    
+
     <!-- Permission Names -->
     <string name="perm_name_camera">Camera</string>
     <string name="perm_name_read_contacts">Read Contacts</string>
@@ -2667,7 +2609,7 @@
     <string name="perm_name_read_sms">Read SMS</string>
     <string name="perm_name_receive_wap_push">Receive WAP Push</string>
     <string name="perm_name_receive_mms">Receive MMS</string>
-    
+
     <!-- Permission Descriptions -->
     <string name="perm_desc_camera">Allow app to take pictures and record videos</string>
     <string name="perm_desc_read_contacts">Allow app to read your contacts</string>
@@ -2703,7 +2645,7 @@
     <string name="perm_desc_read_sms">Allow app to read SMS messages</string>
     <string name="perm_desc_receive_wap_push">Allow app to receive WAP push messages</string>
     <string name="perm_desc_receive_mms">Allow app to receive MMS</string>
-    
+
     <!-- Functional Config Screen -->
     <string name="functional_model_config_title">Functional Model Configuration Settings</string>
     <string name="functional_model_config_desc">Set separate model configurations for different functions, allowing each function to use the most suitable API settings.</string>
@@ -2759,12 +2701,12 @@
     <string name="requested_permissions_list">Requested permissions: %s</string>
     <string name="granted_permissions_list">Granted permissions: %s</string>
     <string name="permission_error_desc">Error getting permissions: %s</string>
-    
+
     <!-- Tool Tester Screen -->
     <string name="parameters_label">Parameters:</string>
     <string name="detailed_result">Detailed Result:</string>
     <string name="retest">Retest</string>
-    
+
     <!-- Tool Test Groups -->
     <string name="env_setup_group">Environment Setup (Sequential)</string>
     <string name="basic_http_group">Basic &amp; HTTP (Parallel)</string>
@@ -2773,7 +2715,7 @@
     <string name="system_group">System (Parallel)</string>
     <string name="ui_automation_group">UI Automation (Parallel, May Fail)</string>
     <string name="cleanup_group">Cleanup (Auto Execute)</string>
-    
+
     <!-- Tool Test Names -->
     <string name="create_test_dir">Create Test Directory</string>
     <string name="download_test_image">Download Test Image</string>
@@ -2809,7 +2751,7 @@
     <string name="simulate_tap_test">Simulate Tap</string>
     <string name="simulate_swipe_test">Simulate Swipe</string>
     <string name="cleanup_test_dir">Cleanup Test Directory</string>
-    
+
     <!-- Tool Test Descriptions -->
     <string name="create_test_dir_desc">Create root directory for all test files.</string>
     <string name="download_test_image_desc">Download an image for subsequent tests.</string>
@@ -2845,7 +2787,7 @@
     <string name="simulate_tap_test_desc">Tap at (1,1), expected to fail</string>
     <string name="simulate_swipe_test_desc">Short swipe at screen center</string>
     <string name="cleanup_test_dir_desc">Delete all test files and directories.</string>
-    
+
     <!-- Additional missing strings -->
     <string name="ai_tools_availability_test">AI Tools Availability Test</string>
     <string name="ai_tools_grouped_desc">AI tools grouped by category</string>
@@ -2873,7 +2815,7 @@
     <string name="terminal_send_custom_input">Send Custom Input</string>
     <string name="terminal_yes_y">Yes (Y)</string>
     <string name="test_input_field">Test Input Field</string>
-    
+
     <!-- ShizukuDemoScreen strings -->
     <string name="loading_app_state">Loading application state...</string>
     <string name="setup_wizard">Setup Wizard</string>
@@ -2882,7 +2824,7 @@
     <string name="cannot_open_doc_link">Cannot open documentation link</string>
     <string name="welcome_termux_config">Welcome to Termux configuration tool\nClick the corresponding button to start configuration</string>
     <string name="executing_task">Executing: %1$s...</string>
-    
+
     <!-- Permission Level Features -->
     <string name="feature_overlay_window">Overlay Window</string>
     <string name="feature_file_operations">File Operations</string>
@@ -3359,7 +3301,7 @@
     <string name="choose_delete_method">Please choose deletion method:</string>
     <string name="swipe_hint">Swipe left or right to edit or delete (tap to hide)</string>
     <string name="long_press_manage">Long press to manage</string>
-    
+
     <!-- Settings Screen Subtitles -->
     <string name="settings_custom_headers">Custom Headers</string>
     <string name="settings_custom_headers_subtitle">API request header field configuration</string>
@@ -3371,14 +3313,14 @@
     <string name="settings_max_context_length_subtitle">Maximum context length supported by the model API (k tokens)</string>
     <string name="settings_summary_threshold">Summary Token Threshold</string>
     <string name="settings_summary_threshold_subtitle">Threshold for triggering chat summary (0.1-0.95)</string>
-    
+
     <!-- History Media Retention Settings -->
     <string name="settings_history_retention_title">History Media Retention</string>
     <string name="settings_max_image_history_user_turns">Keep Image History Turns</string>
     <string name="settings_max_image_history_user_turns_subtitle">Only keep images from the last N user turns to avoid resending old images</string>
     <string name="settings_max_media_history_user_turns">Keep Media History Turns</string>
     <string name="settings_max_media_history_user_turns_subtitle">Only keep audio/video from the last N user turns to avoid resending old media</string>
-    
+
     <!-- Layout Adjustment Settings -->
     <string name="layout_adjustment_settings_title">Layout Adjustment Settings</string>
     <string name="layout_adjustment_description">Adjust the position and spacing of UI elements to customize your experience</string>
@@ -3406,7 +3348,7 @@
     <string name="reset_to_default">Reset to Default</string>
     <string name="layout_reset_settings">Reset Layout Settings</string>
     <string name="layout_reset_settings_desc">Reset all layout adjustment settings to default values</string>
-    
+
     <string name="clear_cookies_dialog_title">Clear cookies?</string>
     <string name="clear_cookies_dialog_message">This will clear cookies saved by search tools, the Browser package, and the built-in browser. Open pages may need you to sign in again.</string>
     <string name="clear_cookies_confirm">Clear</string>
@@ -3463,7 +3405,7 @@
     <string name="settings_cached_tokens_label">Cached Tokens</string>
     <string name="settings_price_format">$%.2f/1M</string>
     <string name="settings_cost">Cost</string>
-    
+
     <!-- User Preferences Guide Screen -->
     <string name="user_male">Male</string>
     <string name="user_female">Female</string>
@@ -3490,7 +3432,7 @@
     <string name="communication_style_general">Clear and organized communication style, focusing on practicality and efficiency</string>
     <string name="preferences_intro_template">I am %1$s, %2$s. I am particularly interested in %3$s. In communication, I prefer %4$s.</string>
     <string name="preferences_intro_template_no_age">I am %1$s, %2$s. I am particularly interested in %3$s. In communication, I prefer %4$s.</string>
-    
+
     <!-- Occupation Options -->
     <string name="occupation_student">Student</string>
     <string name="occupation_employee">Employee</string>
@@ -3505,7 +3447,7 @@
     <string name="occupation_freelancer">Freelancer</string>
     <string name="occupation_retired">Retired</string>
     <string name="occupation_other">Other</string>
-    
+
     <!-- Personality Traits -->
     <string name="personality_extroverted">Extroverted</string>
     <string name="personality_introverted">Introverted</string>
@@ -3523,7 +3465,7 @@
     <string name="personality_innovative">Innovative</string>
     <string name="personality_meticulous">Meticulous</string>
     <string name="personality_rough">Rough</string>
-    
+
     <!-- Identity Options -->
     <string name="identity_student">Student</string>
     <string name="identity_teacher">Teacher</string>
@@ -3537,7 +3479,7 @@
     <string name="identity_foodie">Foodie</string>
     <string name="identity_entrepreneur">Entrepreneur</string>
     <string name="identity_professional">Professional</string>
-    
+
     <!-- AI Style Options -->
     <string name="ai_style_professional">Professional &amp; Rigorous</string>
     <string name="ai_style_humorous">Lively &amp; Humorous</string>
@@ -3547,7 +3489,7 @@
     <string name="ai_style_technical">Technical Oriented</string>
     <string name="ai_style_educational">Educational Guidance</string>
     <string name="ai_style_supportive">Emotional Support</string>
-    
+
     <!-- User Preferences Settings Screen -->
     <string name="default_profile">Default Profile</string>
     <string name="date_format_chinese">yyyy/MM/dd</string>
@@ -3587,7 +3529,7 @@
     <string name="confirm_rename">Confirm Rename</string>
     <string name="confirm_delete_profile">Confirm Delete Profile</string>
     <string name="delete_profile_warning">Are you sure you want to delete this preference profile? This operation will also delete its bound memory library data and cannot be recovered.\n\nWe recommend backing up important content beforehand.</string>
-    
+
     <!-- Profile Selection for Import/Export -->
     <string name="select_profile">Select Profile</string>
     <string name="export_from_profile">Export from Profile</string>
@@ -3598,7 +3540,7 @@
     <string name="select_export_profile">Select profile to export from</string>
     <string name="select_import_profile">Select profile to import to</string>
 
-    
+
     <!-- User Preferences Guide Screen Dialog -->
     <string name="add_custom_personality">Add Custom Personality Trait</string>
     <string name="add_custom_identity">Add Custom Identity</string>
@@ -3621,7 +3563,7 @@
     <string name="info_icon">Info</string>
     <string name="add_icon">Add</string>
     <string name="delete_icon">Delete</string>
-  
+
     <!-- Theme Settings Additional Strings -->
     <string name="chat_style_title">Chat Style</string>
     <string name="chat_style_desc">Choose chat interface style</string>
@@ -3692,18 +3634,18 @@
     <string name="avatar_corner_radius">Avatar Corner Radius</string>
     <string name="avatar_corner_decrease">Decrease Corner</string>
     <string name="avatar_corner_increase">Increase Corner</string>
-    
+
     <!-- Global User Name Settings -->
     <string name="global_user_name_title">Global User Name</string>
     <string name="global_user_name_label">User Name</string>
     <string name="global_user_name_placeholder">Please enter your name</string>
     <string name="global_user_name_desc">Set a global user name that will be used by AI to address you in all conversations. This name is shared across all character cards.</string>
-    
+
     <string name="ui_text_title">UI Text</string>
     <string name="custom_chat_title_label">Custom Chat Title</string>
     <string name="custom_chat_title_placeholder">e.g.: AI Assistant</string>
     <string name="save_title_desc">Save Title</string>
-  
+
     <!-- Model Configuration Screen -->
     <string name="select_model_config">Select Model Configuration</string>
     <string name="connection_test_success">Connection Success</string>
@@ -3720,7 +3662,7 @@
     <string name="rename_model_config">Rename Model Configuration</string>
     <string name="rename_model_config_desc">Modify the name of the model configuration</string>
     <string name="config_renamed">Configuration Renamed</string>
-    
+
     <!-- ModelApiSettingsSection strings -->
     <string name="api_endpoint_placeholder">e.g.: https://api.openai.com/v1/chat/completions</string>
     <string name="actual_request_url">Actual request URL: %s</string>
@@ -3907,7 +3849,7 @@
     <string name="temperature_recommendation">Temperature Recommendation</string>
     <string name="parameter_value">Parameter Value</string>
     <string name="parameter_range_format">Range: %1$s - %2$s</string>
-  
+
     <!-- Custom Parameters Dialog -->
     <string name="add_custom_parameter">Add</string>
     <string name="custom_parameter_added">Custom parameter added</string>
@@ -3926,7 +3868,7 @@
     <string name="custom_parameters_section">Custom Parameters</string>
     <string name="parameter_name_required">Parameter name cannot be empty</string>
     <string name="api_name_required">API name cannot be empty</string>
-    
+
     <!-- Model Parameters Section new strings -->
     <string name="model_parameters_title">Model Parameters Settings</string>
     <string name="repetition_parameters">Repetition Control Parameters</string>
@@ -3949,7 +3891,7 @@
     <string name="api_settings_title">API Settings</string>
 
     <!-- Persona Card Generation and Waifu Mode Settings -->
-    
+
     <!-- Tavern Character Card Import -->
     <string name="import_tavern_card">Import Tavern Card</string>
     <string name="import_tavern_card_desc">Import character cards from JSON or PNG tavern format files</string>
@@ -3958,7 +3900,7 @@
     <string name="tavern_card_import_failed">Failed to import tavern card</string>
     <string name="invalid_tavern_card_format">Invalid tavern card format</string>
     <string name="tavern_card_parse_error">Error parsing tavern card: %1$s</string>
-    
+
     <!-- Screen Titles -->
     <string name="screen_title_memory_base">Memory Base</string>
     <string name="screen_title_tool_permissions">Tool Permissions</string>
@@ -3994,7 +3936,7 @@
     <string name="screen_title_mcp_market">MCP Market</string>
     <string name="screen_title_mcp_publish">Publish MCP Plugin</string>
     <string name="screen_title_mcp_manage">Manage My Plugins</string>
-    
+
     <!-- Model Prompts Settings Screen -->
     <string name="unknown_error">Unknown error</string>
     <string name="file_read_error">Failed to read file: %1$s</string>
@@ -4056,7 +3998,7 @@
     <string name="copy_tone_prompt">Copy Tone Prompt</string>
     <string name="old_config_usage_tip">You can copy this content for use in the new character card system.</string>
     <string name="close">Close</string>
-    
+
     <!-- Waifu Mode Settings Screen -->
     <string name="waifu_mode">Waifu Mode</string>
     <string name="waifu_mode_description">When enabled, AI responses will be split by punctuation and sent sentence by sentence for a more natural conversation experience.</string>
@@ -4102,7 +4044,7 @@
     <string name="github_account_info_following">Following</string>
     <string name="github_account_info_not_available">Login to view account info</string>
     <string name="github_account_not_logged_in_desc">Please login to GitHub first</string>
-    
+
     <!-- Character Card Dialog -->
     <string name="character_card_description">Description</string>
     <string name="character_card_character_setting">Character Setting</string>
@@ -4226,7 +4168,7 @@
     <string name="title_label">Title</string>
     <string name="url_label">URL</string>
     <string name="settings_config">Settings</string>
-    
+
     <!-- Terminal Environment Wizard -->
     <string name="configure_terminal_environment">Configure Terminal Environment</string>
     <string name="nodejs_pip_environment_ready">NodeJS and pip environment ready</string>
@@ -4237,7 +4179,7 @@
     <string name="go_to_terminal_config">Go to Terminal Configuration</string>
     <string name="nodejs_pip_environment_configured">NodeJS and pip environment are configured and ready to use MCP plugins.</string>
     <string name="open_terminal">Open Terminal</string>
-    
+
     <!-- MCP Market Screen -->
     <string name="login_github_to_manage_mcp_plugins">Login to GitHub to publish and manage your MCP plugins</string>
     <string name="browse">Browse</string>
@@ -4265,7 +4207,7 @@
     <string name="publish_mcp_plugins_to_market">• Publish your MCP plugins to the market</string>
     <string name="manage_published_plugins">• Manage your published plugins</string>
     <string name="better_installation_experience">• Get better installation experience</string>
-    
+
     <!-- MCP Publish Screen -->
     <string name="edit_description">Edit Description</string>
     <string name="publish_description">Publish Description</string>
@@ -4283,7 +4225,7 @@
     <string name="update_success">Update Successful</string>
     <string name="publish_success">Publish Successful</string>
 
-    
+
     <!-- MCP Config Screen -->
     <string name="mcp_community_resources">MCP Community Resources</string>
     <string name="mcp_official_repo">MCP Official Repository</string>
@@ -4299,7 +4241,7 @@
     <string name="mcp_market">MCP Market</string>
     <string name="more">More</string>
     <string name="copy_link">Copy Link</string>
-    
+
     <!-- MCP Manage Screen -->
     <string name="need_login_github_manage_plugins">Need to login to GitHub to manage your published plugins</string>
     <string name="no_published_plugins_yet">No published plugins yet</string>
@@ -4311,7 +4253,7 @@
     <string name="market_review_pending">Pending Review</string>
     <string name="remove">Remove</string>
     <string name="republish">Republish</string>
-    
+
     <!-- Additional strings -->
     <string name="author_colon">Author:</string>
     <string name="share_colon">Share:</string>
@@ -4336,7 +4278,7 @@
     <string name="awesome_mcp">Awesome MCP</string>
     <string name="loading_your_plugins">Loading your plugins...</string>
     <string name="confirm_remove_plugin_from_market">Are you sure you want to remove plugin "%1$s" from the market? This will close the corresponding Issue but will not delete your code repository.</string>
-    
+
     <!-- MCPPublishScreen additional strings -->
     <string name="edit_plugin_info_description">You are editing published plugin information. Modified information will be updated to the corresponding Issue in the market repository.</string>
     <string name="publish_plugin_info_description">Your plugin information will be published as a GitHub Issue to the market repository. Please ensure the information is accurate and complete. Form content will be automatically saved as a draft until successfully published.</string>
@@ -4439,7 +4381,7 @@
     <string name="mcp_publish_body_table_row_platform">| Platform | Operit MCP Market |</string>
     <string name="mcp_publish_body_table_row_parser_version">| Parser Version | 1.0 |</string>
     <string name="mcp_publish_body_table_row_publish_time">| Published at | %1$s |</string>
-    
+
     <!-- MCP Plugin Detail Screen -->
     <string name="mcp_plugin_detail_title">Plugin Details</string>
     <string name="market_detail_published_label">Published</string>
@@ -4474,7 +4416,7 @@
     <string name="mcp_plugin_cancel">Cancel</string>
     <string name="mcp_plugin_refresh_comments">Refresh Comments</string>
     <string name="mcp_plugin_unknown_author">Unknown</string>
-    
+
     <!-- Advanced Settings Section -->
     <string name="advanced_settings">Advanced Settings</string>
     <string name="use_api_key_pool">Use API Key Pool</string>
@@ -4593,7 +4535,7 @@
     <string name="message_limit_reached_title">Message Limit Reached</string>
     <string name="message_limit_reached_message">The current conversation has reached the limit of %1$d messages.\nTo maintain conversation quality and performance, please clear the history to continue.</string>
     <string name="go_clear">Clear Now</string>
-    
+
     <!-- MNN Local Inference -->
     <string name="screen_title_mnn_model_download">MNN Model Download</string>
     <string name="mnn_model_download">Download MNN Model</string>
@@ -4631,7 +4573,7 @@
     <string name="default_assistant_guide_subtitle">Make Kiyori Your Smart Assistant</string>
     <string name="default_assistant_guide_intro">After setting Kiyori as the default system assistant, you can quickly launch the Kiyori voice assistant by long-pressing the Home button or using voice wake-up, providing a more convenient AI interaction experience.</string>
     <string name="default_assistant_guide_steps_title">Setup Steps</string>
-    
+
     <!-- Step 1 -->
     <string name="default_assistant_guide_step1_title">Open System Settings</string>
     <string name="default_assistant_guide_step1_desc">First, you need to enter the Android system settings interface</string>
@@ -4639,7 +4581,7 @@
     <string name="default_assistant_guide_step1_detail2">• Find and select "Kiyori" in the assistant app list</string>
     <string name="default_assistant_guide_step1_detail_android12">Android 12+: Settings → Apps → Default apps → Digital assistant app → Default digital assistant app</string>
     <string name="default_assistant_guide_open_settings">Open Settings</string>
-    
+
     <!-- Step 2 -->
     <string name="default_assistant_guide_open_gesture_settings">Open Gesture Settings</string>
     <string name="default_assistant_guide_step2_title">Find Assistant Settings</string>
@@ -4649,20 +4591,20 @@
     <string name="default_assistant_guide_step2_detail3">• Voice wake-up: \"Hey Google\" or your device\'s designated wake word (device support required)</string>
     <string name="default_assistant_guide_step2_note">Note: Gesture settings may vary between phone brands. Please check available options in system settings</string>
     <string name="default_assistant_guide_step2_detail_android12">Android 12+: Settings → Apps → Default apps → Digital assistant app → Default digital assistant app</string>
-    
+
     <!-- Step 3 -->
     <string name="default_assistant_guide_step3_title">Select Kiyori</string>
     <string name="default_assistant_guide_step3_desc">Choose Kiyori from the assistant app list</string>
     <string name="default_assistant_guide_step3_detail1">• Find \"Kiyori\" in the available assistant apps list</string>
     <string name="default_assistant_guide_step3_detail2">• Tap to select, and the system will set Kiyori as the default assistant</string>
     <string name="default_assistant_guide_step3_detail3">• You can try speaking or typing to interact with the assistant</string>
-    
+
     <!-- Step 4 -->
     <string name="default_assistant_guide_step4_title">Test Voice Assistant</string>
     <string name="default_assistant_guide_step4_desc">After setup, test if it can be launched normally</string>
     <string name="default_assistant_guide_step4_detail1">• Long-press the Home button (home screen button) should invoke Kiyori voice assistant</string>
     <string name="default_assistant_guide_step4_detail2">• If voice wake-up is supported, saying \"Hey Google\" or your device\'s designated wake word may also trigger Kiyori</string>
-    
+
     <!-- Troubleshooting -->
     <string name="default_assistant_guide_troubleshooting_title">Having Problems?</string>
     <string name="default_assistant_guide_troubleshooting_content">If you can\'t find Kiyori in the list, please ensure:\n\n• The app is properly installed and not disabled\n• Necessary permissions have been granted (microphone, overlay, etc.)\n• Try restarting the device and setting it up again\n\nSome custom systems may restrict third-party apps from being set as default assistants. If you encounter this situation, you can still use Kiyori through the in-app floating window feature.</string>
@@ -4798,7 +4740,7 @@
     <string name="generate_image_failed">Failed to generate image: %1$s</string>
     <string name="start_export">Starting export...</string>
     <string name="file_operation_error">File operation error: %1$s</string>
-    
+
     <!-- Missing translations added -->
     <string name="bind_character_card">Bind Character Card</string>
     <string name="unbound_character_card">Unbound</string>
@@ -4817,7 +4759,7 @@
     <string name="insert_attachment">Insert Attachment</string>
     <string name="remove_attachment">Remove Attachment</string>
     <string name="token_limit_exceeded_message">Maximum token limit exceeded (%1$d / %2$d)</string>
-    
+
     <!-- Font Settings -->
     <string name="font_file_saved">Font file saved (.%1$s)</string>
     <string name="font_file_save_failed">Failed to save font file</string>
@@ -4838,7 +4780,7 @@
     <string name="clear_font">Clear Font</string>
     <string name="current_font_file_path">Current font file:\n%1$s</string>
     <string name="font_size_scale_label">Font Size Scale (%1$s)</string>
-    
+
     <!-- Chat History Batch -->
     <string name="no_available_character_cards_toast">No available character cards, please create one first</string>
     <string name="please_select_chats_first">Please select chat records first</string>
@@ -4860,7 +4802,7 @@
     <string name="filter_chat_history">Filter Chat History</string>
     <string name="no_chat_records_for_batch">No chat records available for batch operations.</string>
     <string name="no_matching_chats_adjust_filter">No matching chat records, please adjust filter conditions.</string>
-    
+
     <!-- Assign Dialog -->
     <string name="assign_to_character_card_title">Assign to Character Card</string>
     <string name="unbound_chats_select_card">There are %1$d chat records not bound to a character card. Please select the target character card:</string>
@@ -4876,11 +4818,11 @@
     <string name="chat_records_label">Chat Records</string>
     <string name="group_label">Group: %1$s</string>
     <string name="unnamed_conversation">Unnamed Conversation</string>
-    
+
     <!-- Character Selector -->
     <string name="select_character">Select Character</string>
     <string name="character_count">Character count: %1$d</string>
-    
+
     <!-- Attachment Selector -->
     <string name="attachment_photo">Photo</string>
     <string name="attachment_camera">Camera</string>
@@ -4890,7 +4832,7 @@
     <string name="attachment_notifications">Notifications</string>
     <string name="attachment_location">Location</string>
     <string name="attachments_count">Attachments (%1$d)</string>
-    
+
     <!-- Workspace -->
     <string name="select_file_to_reference">Select file to reference</string>
     <string name="workspace_directory_invalid">Workspace directory does not exist or is invalid</string>
@@ -4907,7 +4849,7 @@
     <string name="create_new_workspace_in_app">Create new workspace in app</string>
     <string name="select_existing_workspace">Select Existing</string>
     <string name="select_folder_from_device">Select a folder from device</string>
-    
+
     <!-- Global Display Settings -->
     <string name="global_display_settings_description">These settings control global display behavior, independent of character cards and theme configurations.</string>
     <string name="message_display_settings">Message Display Settings</string>
@@ -4946,7 +4888,7 @@
     <string name="start_with_new_chat">Start with New Blank Chat</string>
     <string name="start_with_new_chat_description">When enabled, each app launch opens a new blank chat instead of reopening the previous conversation.</string>
     <string name="reset_all_display_settings">Reset All Display Settings</string>
-    
+
     <!-- Chat History Management -->
     <string name="default_profile_name">Default Profile</string>
     <string name="removed_character_card_binding">Removed character card binding from %1$d chat(s)</string>
@@ -4983,7 +4925,7 @@
     <string name="delete_selected_workspaces">Delete Selected Workspaces (%1$d)</string>
     <string name="delete_workspaces_confirmation">Are you sure you want to delete the selected %1$d workspace(s)?\n\nAll files and data will be permanently lost.</string>
     <string name="not_used_by_any_chat">Not used by any chat</string>
-    
+
     <!-- Accessibility - Markdown Block Types -->
     <string name="code_block">Code Block</string>
     <string name="table_block">Table</string>
@@ -5005,14 +4947,14 @@
     <string name="mood_tag_block">Mood Tag</string>
     <string name="thinking_tools_group_title_with_count">Thinking &amp; Tool Calls (%1$d)</string>
     <string name="tools_group_title_with_count">Tool Calls (%1$d)</string>
-    
+
     <!-- Backup Settings Screen -->
     <string name="backup_data_overview">Data Overview</string>
     <string name="backup_current_profile">Current Profile: %1$s</string>
     <string name="backup_chat_count">Chat History</string>
     <string name="backup_memory_count">Memory Entries</string>
     <string name="backup_memory_link_count">Memory Links</string>
-    
+
     <string name="backup_files_statistics">Backup Files Statistics</string>
     <string name="backup_files_statistics_subtitle">Backup files in Kiyori export directory</string>
     <string name="backup_refresh">Refresh</string>
@@ -5051,7 +4993,7 @@
     <string name="backup_room_db_restart_later">Later</string>
     <string name="backup_room_db_last_success">Last successful backup: %1$s</string>
     <string name="backup_room_db_last_error">Last error: %1$s</string>
-    
+
     <string name="backup_raw_snapshot_title">File Snapshot Backup (Experimental)</string>
     <string name="backup_raw_snapshot_subtitle">Archive/restore app data by file &amp; directory</string>
     <string name="backup_raw_snapshot_desc">This archives app data that is removed by Clear data: internal files/shared_prefs/datastore/databases and Android/data/package/files (the terminal Linux environment can be very large, so it is excluded by default). Restoring overwrites current data and requires an app restart. Some encrypted data may not work after device migration or reinstall.</string>
@@ -5087,19 +5029,19 @@
     <string name="backup_chat_history">Chat History</string>
     <string name="backup_chat_history_subtitle">Cross-format backup, export and recovery</string>
     <string name="backup_chat_current_count">Currently %1$d chat record(s).</string>
-    
+
     <string name="backup_export">Export</string>
     <string name="backup_import">Import</string>
     <string name="backup_delete_all">Delete All</string>
-    
+
     <string name="backup_memory_library">Memory Library</string>
     <string name="backup_memory_library_subtitle">Cross-profile backup and recovery</string>
     <string name="backup_memory_current_count">Currently %1$d memor(y/ies) and %2$d link(s).</string>
-    
+
     <string name="backup_model_config">Model Configurations</string>
     <string name="backup_model_config_subtitle">Backup and restore all model settings, including API keys and parameters</string>
     <string name="backup_model_config_current_count">Current model configurations: %1$d.</string>
-    
+
     <string name="backup_exporting">Exporting %1$s...</string>
     <string name="backup_importing">Importing %1$s...</string>
     <string name="backup_deleting">Clearing chat history...</string>
@@ -5107,7 +5049,7 @@
     <string name="backup_import_success">Import Successful</string>
     <string name="backup_delete_success">Delete Successful</string>
     <string name="backup_operation_failed">Operation Failed</string>
-    
+
     <string name="backup_faq_title">FAQ</string>
     <string name="backup_faq_subtitle">Learn about backup and import precautions to avoid common issues.</string>
     <string name="backup_faq_why">Why backup data?</string>
@@ -5116,7 +5058,7 @@
     <string name="backup_faq_where_answer">Exported backup files are saved in the \"Download/Kiyori\" folder on your phone, with filenames containing the data type, date and time.</string>
     <string name="backup_faq_duplicate">Will importing create duplicate data?</string>
     <string name="backup_faq_duplicate_answer">The system uses record IDs to determine duplicates. Records with the same ID will be updated rather than duplicated. Records with different IDs will be added as new entries.</string>
-    
+
     <!-- Export Format Selection -->
     <string name="backup_select_export_format">Select Export Format</string>
     <string name="backup_select_format_hint">Please select the chat history format to export:</string>
@@ -5128,7 +5070,7 @@
     <string name="backup_format_html_desc">Web format, suitable for viewing in browsers</string>
     <string name="backup_format_txt">Plain Text</string>
     <string name="backup_format_txt_desc">Simple text format, easy to share</string>
-    
+
     <!-- Import Format Selection -->
     <string name="backup_select_import_format">Select Import Format</string>
     <string name="backup_import_format_hint">Please select the chat history format to import:</string>
@@ -5140,7 +5082,7 @@
     <string name="backup_format_chatbox_desc">ChatBox desktop application export format</string>
     <string name="backup_format_generic_json">Generic JSON</string>
     <string name="backup_format_generic_json_desc">Standard role-content JSON structure (supports Claude, LibreChat, etc.)</string>
-    
+
     <string name="backup_import_result_success">Successfully imported %1$s format:\n- New records: %2$d\n- Updated records: %3$d%4$s</string>
     <string name="backup_import_result_skipped">\n- Skipped invalid records: %1$d</string>
     <string name="backup_import_result_failed">Import failed: No valid chat history found</string>
@@ -5181,7 +5123,7 @@
     <string name="backup_delete_confirm_title">Confirm Delete</string>
     <string name="backup_delete_confirm_message">Deleting all chat history cannot be undone. It is recommended to export a backup before performing this operation.\n\nAre you sure you want to delete?</string>
     <string name="backup_delete_result_success">Successfully cleared %1$d chat record(s)</string>
-    
+
     <!-- Model Config Export Security Warning -->
     <string name="backup_model_config_warning_title">Security Notice</string>
     <string name="backup_model_config_warning_contains">This configuration file contains the following sensitive information:</string>
@@ -5193,7 +5135,7 @@
     <string name="backup_model_config_warning_tips">• Do not share this file with others\n• Do not upload to public cloud storage\n• Move the file to a secure location\n• Use encryption tools to protect the file</string>
     <string name="backup_model_config_warning_export_path">Export Location:</string>
     <string name="backup_model_config_warning_confirm">I Understand</string>
-    
+
     <!-- Memory Import Strategy -->
     <string name="backup_memory_import_strategy_title">Select Import Strategy</string>
     <string name="backup_memory_import_profile_title">Select Profile</string>
@@ -8160,4 +8102,142 @@
     <string name="web_session_source_line_number">Line number</string>
     <string name="web_session_source_total_lines">Total lines: %1$d</string>
     <string name="web_session_source_jump">Go</string>
+
+    <!-- Kiyori onboarding -->
+    <string name="kiyori_onboarding_back">Go back</string>
+    <string name="kiyori_onboarding_progress">Step %1$d of %2$d</string>
+    <string name="kiyori_onboarding_continue">Continue</string>
+    <string name="kiyori_onboarding_skip_intro">Skip introduction</string>
+    <string name="kiyori_onboarding_start_authorization">Start authorization</string>
+    <string name="kiyori_onboarding_enter">Enter Kiyori</string>
+
+    <string name="kiyori_onboarding_agreement_title">User Agreement and Privacy Policy</string>
+    <string name="kiyori_onboarding_agreement_subtitle">Before you begin, understand how Kiyori stores data, when it connects to external services, and what elevated device capabilities can do.</string>
+    <string name="kiyori_onboarding_agreement_version">Agreement version: %1$s</string>
+    <string name="kiyori_onboarding_agreement_local_title">Your on-device data stays under your control</string>
+    <string name="kiyori_onboarding_agreement_local_desc">Chats, characters, memories, configuration, credentials, and workspaces are normally stored on your device. You choose where exported files and backups are saved.</string>
+    <string name="kiyori_onboarding_agreement_network_title">Network access follows your actions</string>
+    <string name="kiyori_onboarding_agreement_network_desc">Models, speech, search, marketplace, GitHub, MCP, plugins, and custom services connect to the providers you choose.</string>
+    <string name="kiyori_onboarding_agreement_permission_title">Powerful capabilities require explicit authorization</string>
+    <string name="kiyori_onboarding_agreement_permission_desc">Files, notifications, screen content, location, terminal, installation, accessibility, Shizuku, and Root may process sensitive data or change device state.</string>
+    <string name="kiyori_onboarding_agreement_open_document">Read the full agreement and privacy policy</string>
+    <string name="kiyori_onboarding_agreement_checkbox">I have read and agree to the current User Agreement and Privacy Policy</string>
+    <string name="kiyori_onboarding_agreement_accept">Agree and continue</string>
+    <string name="kiyori_onboarding_agreement_decline">Disagree and exit</string>
+    <string name="kiyori_onboarding_agreement_document_title">Kiyori User Agreement and Privacy Policy</string>
+    <string name="kiyori_onboarding_agreement_document_content"><![CDATA[
+        <p><b>Kiyori User Agreement and Privacy Policy</b><br>Version: 2026-08-09; intended effective date: August 9, 2026.</p>
+        <p><b>1. Scope</b><br>This agreement applies to the Kiyori Android client and the features you choose to enable. Kiyori is an open-source client that runs on your device, centered on browsing, content handling, and an on-device workspace. Operit AI is the embedded AI subsystem. Please read and understand this agreement before installing, launching, or using Kiyori. Initial setup completes only after you explicitly accept the current version.</p>
+        <p><b>2. Product and service boundaries</b><br>Kiyori does not provide shared model credentials and does not turn third-party model, speech, search, GitHub, MCP, plugin, or custom HTTP services into a single cloud service operated by Kiyori. When you choose these services, you are responsible for reviewing the provider, endpoint, model, pricing, quota, terms, and privacy rules. Availability, content, billing, account handling, and retention by a third party are controlled by that provider.</p>
+        <p><b>3. On-device data</b><br>Chats, character cards, memories, model configuration, API Keys, environment variables, browser state, workflows, and other settings are normally stored in private app data or a local directory you explicitly select. Android normally removes private app data when Kiyori is uninstalled. Backups, downloads, logs, media, workspaces, and other public files you exported are not automatically removed. Back up important data and protect your device, accounts, and credentials.</p>
+        <p><b>4. Network and third-party processing</b><br>When you send a model request, use network speech, search the web, browse a website, sign in to GitHub, enter the plugin marketplace, install or run a networked extension, connect MCP, call a custom endpoint, upload a file, or share content, the text, files, speech, URLs, device information, or request parameters required by that feature are sent to the corresponding service or website. Check for personal information, trade secrets, credentials, and other sensitive data before sending. Website requests for camera, microphone, location, and similar capabilities remain subject to explicit Kiyori and Android authorization.</p>
+        <p><b>5. Permissions and device capabilities</b><br>Kiyori may request Android runtime permissions for notifications, media, camera, microphone, location, Bluetooth, phone calls, SMS, and legacy storage. It may also guide you to grant all-files access, overlays, system-settings modification, usage access, unknown-app installation, exact alarms, battery exemption, notification access, default assistant, accessibility, Shizuku, or Root. Each capability is explained in the app and confirmed by Android, Shizuku, a Root manager, or another factual owner. A denial is never recorded as success; the related feature remains unavailable or requires a later action you initiate.</p>
+        <p><b>6. High-impact operations</b><br>Terminal, scripts, workflows, plugins, AI tools, file management, app installation, notification access, screen automation, accessibility, Shizuku, ADB, and Root may read, change, or delete data; start services; install software; access networks; change system state; or affect other apps and accounts. Verify the target, parameters, source, and expected result, and keep recoverable backups. Do not expose elevated capabilities to untrusted prompts, webpages, files, plugins, scripts, or remote services.</p>
+        <p><b>7. AI output and automation</b><br>AI output and automation plans may contain errors, omissions, delays, hallucinations, or actions unsuitable for your device. You remain the decision-maker for actual operations and configuration. AI output is not medical, crisis, legal, financial, or other professional advice. Contact appropriate professionals or local emergency services for urgent or high-risk matters.</p>
+        <p><b>8. Extension ecosystem</b><br>Third-party plugins, script packages, Skills, ToolPkg packages, MCP servers, models, workflows, and other extensions are the responsibility of their authors or providers. Marketplace visibility, an installation entry, or a compatibility identifier is not a Kiyori guarantee of security, legality, accuracy, availability, or licensing. Review source, code, permissions, environment variables, network behavior, and licenses before installation. Never publish API Keys, Cookies, Tokens, private keys, passwords, or other people\'s data.</p>
+        <p><b>9. Data management and deletion</b><br>You can manage chats, models, website data, downloads, backups, logs, plugins, and configuration through the relevant app pages, and revoke permissions or clear app data in Android settings. Deletion, overwrite, uninstall, Root, system cleanup, or third-party file tools can cause irreversible data loss. Public directories, SAF locations, and third-party services must be managed separately.</p>
+        <p><b>10. Lawful use</b><br>You must comply with applicable law, website rules, third-party terms, software licenses, and the rights of others. Do not use Kiyori for unauthorized access, security-control circumvention, unlawful content, fraud, harassment, or other illegal or infringing conduct. If you expose bots, HTTP services, auto-replies, or workflows to others, you are the actual operator responsible for access control, notices, content safety, data protection, and other applicable obligations.</p>
+        <p><b>11. Open-source license and disclaimer</b><br>Kiyori source is provided under the GPL-3.0-or-later boundary described by the repository LICENSE and NOTICE. Third-party components retain their own licenses. Open-source licenses and this agreement apply together, and this agreement does not limit rights granted by applicable law or those licenses. To the extent permitted by law, the software is provided “as is” and “as available,” without a guarantee that third-party services, extensions, networks, device compatibility, or AI output will remain available, accurate, secure, or fit for a particular purpose.</p>
+        <p><b>12. Updates and contact</b><br>When features, data processing, legal obligations, or security boundaries change materially, Kiyori will increase the agreement version and request confirmation again. You may use the in-app feedback entry or project repository to raise questions. If you do not accept the current version, stop using and exit the app. Export anything you need before uninstalling or clearing data.</p>
+    ]]></string>
+
+    <string name="kiyori_onboarding_voice_title">Voice-driven UI automation</string>
+    <string name="kiyori_onboarding_voice_desc">Use natural language to search, process content, and organize complex operations. Kiyori can use on-device speech or services you configure, while microphone and automation access remain under your authorization.</string>
+    <string name="kiyori_onboarding_voice_feature_speech">Speech understanding and input</string>
+    <string name="kiyori_onboarding_voice_feature_screen">Screen understanding and actions</string>
+    <string name="kiyori_onboarding_voice_feature_apps">Cross-app tasks</string>
+
+    <string name="kiyori_onboarding_toolbox_title">A powerful toolbox for geeks and developers</string>
+    <string name="kiyori_onboarding_toolbox_desc">From browser source and Terminal to files, scripts, workflows, ToolPkg, MCP, and Skills, Kiyori brings development and automation into one extensible workspace.</string>
+    <string name="kiyori_onboarding_toolbox_feature_browser">Browser and source</string>
+    <string name="kiyori_onboarding_toolbox_feature_terminal">Terminal and scripts</string>
+    <string name="kiyori_onboarding_toolbox_feature_extensions">ToolPkg, MCP, and Skills</string>
+
+    <string name="kiyori_onboarding_creative_title">Unleash creativity, always ready</string>
+    <string name="kiyori_onboarding_creative_desc">Start with a search and keep context across the web, AI, media, downloads, and files. Kiyori is a complete browser and, when needed, a creative and automation environment with deep device capabilities.</string>
+    <string name="kiyori_onboarding_creative_feature_context">Continuous workspace context</string>
+    <string name="kiyori_onboarding_creative_feature_media">Media, downloads, and files</string>
+    <string name="kiyori_onboarding_creative_feature_control">Transparent permission control</string>
+
+    <string name="kiyori_onboarding_permissions_title">Permissions and device capabilities</string>
+    <string name="kiyori_onboarding_permissions_desc">Complete Kiyori\'s supported authorization here. Android runtime permissions can be requested together; special access and advanced capabilities require confirmation in the system or corresponding manager.</string>
+    <string name="kiyori_onboarding_permissions_request_runtime">Request runtime permissions</string>
+    <string name="kiyori_onboarding_permissions_next_item">Continue with: %1$s</string>
+    <string name="kiyori_onboarding_permissions_all_done">Review completion</string>
+    <string name="kiyori_onboarding_permissions_keep_and_continue">Keep ungranted items and continue</string>
+    <string name="kiyori_onboarding_permissions_overview_complete">Every capability that can be prepared now is ready</string>
+    <string name="kiyori_onboarding_permissions_overview_pending">%1$d items can still be completed</string>
+    <string name="kiyori_onboarding_permissions_overview_count">Ready %1$d / %2$d</string>
+    <string name="kiyori_onboarding_permission_action_failed">Could not open the authorization entry for “%1$s.” Check whether the device supports it.</string>
+    <string name="kiyori_onboarding_permission_screen_capture_on_demand">Android confirms screen capture only when a screenshot or recording is actually requested. It cannot be permanently pre-authorized during setup.</string>
+
+    <string name="kiyori_onboarding_automation_level_title">Default device automation method</string>
+    <string name="kiyori_onboarding_automation_level_desc">This selects the device execution channel used by AI and tools by default. Authorization and the default channel are independent and can be changed later.</string>
+    <string name="kiyori_onboarding_automation_level_standard">Standard</string>
+    <string name="kiyori_onboarding_automation_level_accessibility">Accessibility</string>
+    <string name="kiyori_onboarding_automation_level_shizuku">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_automation_level_root">Root</string>
+
+    <string name="kiyori_onboarding_permission_section_runtime">Android runtime permissions</string>
+    <string name="kiyori_onboarding_permission_section_special">Special app access</string>
+    <string name="kiyori_onboarding_permission_section_advanced">Advanced device capabilities</string>
+    <string name="kiyori_onboarding_permission_status_granted">Granted</string>
+    <string name="kiyori_onboarding_permission_status_partial">Partially granted</string>
+    <string name="kiyori_onboarding_permission_status_not_granted">Not granted</string>
+    <string name="kiyori_onboarding_permission_status_setup">Setup required</string>
+    <string name="kiyori_onboarding_permission_status_not_applicable">Not required</string>
+    <string name="kiyori_onboarding_permission_status_on_demand">Confirmed when used</string>
+
+    <string name="kiyori_onboarding_ready_title">Kiyori is ready</string>
+    <string name="kiyori_onboarding_ready_all_permissions">Every capability that can be prepared in advance is ready.</string>
+    <string name="kiyori_onboarding_ready_pending_permissions">%1$d items remain incomplete. Their capabilities stay unavailable until you authorize them.</string>
+    <string name="kiyori_onboarding_ready_execution_mode">Default device execution method</string>
+    <string name="kiyori_onboarding_ready_permission_summary">Authorization status</string>
+    <string name="kiyori_onboarding_ready_model_config">AI model service</string>
+    <string name="kiyori_onboarding_ready_model_later">Can be configured later; AI Home remains available</string>
+
+    <string name="kiyori_onboarding_permission_notifications_title">Notifications</string>
+    <string name="kiyori_onboarding_permission_notifications_desc">Show AI replies, downloads, background tasks, and service status.</string>
+    <string name="kiyori_onboarding_permission_media_title">Photos, video, and audio</string>
+    <string name="kiyori_onboarding_permission_media_desc">Read media you choose to process, play, upload, or analyze.</string>
+    <string name="kiyori_onboarding_permission_camera_title">Camera</string>
+    <string name="kiyori_onboarding_permission_camera_desc">Capture attachments, website media, and visual input.</string>
+    <string name="kiyori_onboarding_permission_microphone_title">Microphone</string>
+    <string name="kiyori_onboarding_permission_microphone_desc">Speech input, voice assistant, recording, and website audio capture.</string>
+    <string name="kiyori_onboarding_permission_location_title">Location</string>
+    <string name="kiyori_onboarding_permission_location_desc">Weather, location tools, and website geolocation requests you approve.</string>
+    <string name="kiyori_onboarding_permission_bluetooth_title">Nearby devices and Bluetooth</string>
+    <string name="kiyori_onboarding_permission_bluetooth_desc">Scan for and connect to Bluetooth devices you choose to use.</string>
+    <string name="kiyori_onboarding_permission_phone_title">Phone calls</string>
+    <string name="kiyori_onboarding_permission_phone_desc">Perform phone actions you explicitly request through tools or automation.</string>
+    <string name="kiyori_onboarding_permission_sms_title">SMS</string>
+    <string name="kiyori_onboarding_permission_sms_desc">Send, read, and receive SMS messages you explicitly authorize Kiyori to process.</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_title">Legacy external storage</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_desc">Compatibility access to read shared storage on Android 12 and earlier and write it on Android 9 and earlier.</string>
+    <string name="kiyori_onboarding_permission_all_files_title">All files access</string>
+    <string name="kiyori_onboarding_permission_all_files_desc">Full file management, Terminal, and tools that operate across directories.</string>
+    <string name="kiyori_onboarding_permission_overlay_title">Display over other apps</string>
+    <string name="kiyori_onboarding_permission_overlay_desc">Show the voice assistant, debugger, and floating capabilities above other apps.</string>
+    <string name="kiyori_onboarding_permission_write_settings_title">Modify system settings</string>
+    <string name="kiyori_onboarding_permission_write_settings_desc">Allow tools you confirm to change brightness, rotation, and similar system settings.</string>
+    <string name="kiyori_onboarding_permission_usage_title">Usage access</string>
+    <string name="kiyori_onboarding_permission_usage_desc">Identify the foreground app and usage state to provide automation context.</string>
+    <string name="kiyori_onboarding_permission_install_title">Install unknown apps</string>
+    <string name="kiyori_onboarding_permission_install_desc">Install APKs you choose, including bundled Shizuku or the accessibility provider.</string>
+    <string name="kiyori_onboarding_permission_alarm_title">Exact alarms</string>
+    <string name="kiyori_onboarding_permission_alarm_desc">Trigger scheduled workflows at the time you specify.</string>
+    <string name="kiyori_onboarding_permission_battery_title">Ignore battery optimization</string>
+    <string name="kiyori_onboarding_permission_battery_desc">Improve continuity for long tasks, downloads, speech, and background services.</string>
+    <string name="kiyori_onboarding_permission_notification_listener_title">Notification access</string>
+    <string name="kiyori_onboarding_permission_notification_listener_desc">Read device notifications for notification tools and automation you choose to use.</string>
+    <string name="kiyori_onboarding_permission_assistant_title">Default system assistant</string>
+    <string name="kiyori_onboarding_permission_assistant_desc">Open Kiyori quickly through the system assistant gesture or entry.</string>
+    <string name="kiyori_onboarding_permission_accessibility_title">Accessibility UI automation</string>
+    <string name="kiyori_onboarding_permission_accessibility_desc">Install and enable the separate provider for UI understanding, clicks, input, and gestures.</string>
+    <string name="kiyori_onboarding_permission_shizuku_title">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_permission_shizuku_desc">Use a Shizuku service you start and authorize for ADB-level system operations.</string>
+    <string name="kiyori_onboarding_permission_root_title">Root</string>
+    <string name="kiyori_onboarding_permission_root_desc">Request superuser access that can read and modify protected system and app data.</string>
+    <string name="kiyori_onboarding_permission_screen_capture_title">Screen capture</string>
+    <string name="kiyori_onboarding_permission_screen_capture_desc">Android confirms each screenshot, screen recording, or visual-analysis session when it is used.</string>
 </resources>

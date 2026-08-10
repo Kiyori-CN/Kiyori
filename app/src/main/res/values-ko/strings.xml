@@ -732,8 +732,6 @@
     <string name="settings_reply_notification_desc">AI가 답변을 완료하면 알림 보내기</string>
     <string name="notification_ai_reply_title">AI 도우미</string>
     <string name="notification_ai_reply_content">AI가 답변을 완료했습니다.</string>
-    <string name="notification_permission_rationale">AI가 답변을 완료했을 때 알려드리기 위해 알림 권한이 필요합니다.</string>
-    <string name="notification_permission_denied">알림 권한이 거부되어 AI 답변 알림을 받을 수 없습니다.</string>
     <string name="settings_auto_accessibility">접근성 권한 자동 부여</string>
     <string name="settings_auto_accessibility_desc">비활성화하면 앱을 열 때마다 수동 인증이 필요합니다.</string>
     <string name="settings_section_permissions">권한 및 보안</string>
@@ -960,51 +958,6 @@
     <string name="request_timeout">요청 시간이 초과되었습니다. 나중에 다시 시도해 주세요.</string>
     <string name="network_transfer_failed">네트워크 전송에 실패했습니다. 연결을 확인하세요.</string>
     <string name="try_again_later">요청이 실패했습니다. 나중에 다시 시도해 주세요.</string>
-    <string name="permission_guide_previous">이전</string>
-    <string name="permission_guide_next">다음</string>
-    <string name="permission_guide_complete">완료</string>
-    <string name="permission_guide_welcome">환영합니다</string>
-    <string name="permission_guide_basic_permissions">기본 권한</string>
-    <string name="permission_guide_permission_level">권한 수준</string>
-    <string name="permission_guide_welcome_title">환영합니다</string>
-    <string name="permission_guide_welcome_desc">앱을 사용하기 전에 몇 가지 기본 권한을 설정하고 원하는 권한 수준을 선택해야 합니다.</string>
-    <string name="permission_guide_welcome_hint">이 프로세스는 몇 분 밖에 걸리지 않으며 앱 서비스를 개선하는 데 도움이 됩니다.</string>
-    <string name="permission_guide_welcome_start">설정을 시작하려면 오른쪽 하단에 있는 버튼을 클릭하세요.</string>
-    <string name="permission_guide_basic_title">기본 권한</string>
-    <string name="permission_guide_basic_desc">앱의 원활한 작동을 위해 다음과 같은 기본 권한을 허용해 주시기 바랍니다.</string>
-    <string name="permission_guide_storage_title">저장소 권한</string>
-    <string name="permission_guide_storage_desc">앱이 파일을 읽고 쓸 수 있도록 허용</string>
-    <string name="permission_guide_overlay_title">오버레이 권한</string>
-    <string name="permission_guide_overlay_desc">앱이 플로팅 창을 표시하도록 허용</string>
-    <string name="permission_guide_battery_title">배터리 최적화 면제</string>
-    <string name="permission_guide_battery_desc">앱이 백그라운드에서 실행되도록 허용</string>
-    <string name="permission_guide_location_title">위치 권한</string>
-    <string name="permission_guide_location_desc">앱이 위치 정보에 접근하도록 허용</string>
-    <string name="permission_guide_check_permissions">권한 상태 확인</string>
-    <string name="permission_guide_all_granted">모든 기본 권한이 부여되었습니다. 다음 단계로 진행할 수 있습니다.</string>
-    <string name="permission_guide_warning_title">불완전한 권한</string>
-    <string name="permission_guide_warning_message">필요한 모든 권한을 부여하지 않아 기능이 불완전하거나 앱이 비정상적인 동작을 할 수 있습니다. 계속하시겠습니까?</string>
-    <string name="permission_guide_warning_continue">계속</string>
-    <string name="permission_guide_warning_return">권한으로 돌아가기</string>
-    <string name="permission_guide_level_title">권한 수준 선택</string>
-    <string name="permission_guide_level_desc">원하는 권한 수준을 선택하세요. 이에 따라 앱에서 사용할 수 있는 기능의 범위가 결정됩니다.</string>
-    <string name="permission_guide_standard_title">표준 권한</string>
-    <string name="permission_guide_standard_desc">기본 앱 작동 권한, 특별한 권한이 필요하지 않습니다.</string>
-    <string name="permission_guide_accessibility_title">접근성 권한</string>
-    <string name="permission_guide_accessibility_desc">접근성 서비스를 통해 화면 내용을 분석하고 동작을 시뮬레이션할 수 있습니다.</string>
-    <string name="permission_guide_debugger_title">디버그 권한</string>
-    <string name="permission_guide_debugger_desc">Shizuku를 통해 ADB 수준의 시스템 액세스를 제공합니다.</string>
-    <string name="permission_guide_root_title">루트 권한</string>
-    <string name="permission_guide_root_desc">수퍼유저 권한으로 모든 시스템 작업을 수행할 수 있습니다.</string>
-    <string name="permission_guide_confirm">선택 확인</string>
-    <string name="permission_guide_change_anytime">언제든지 설정에서 권한 수준을 변경할 수 있습니다.</string>
-    <string name="permission_guide_storage_setting_failed">저장 권한 설정을 열 수 없습니다. 수동으로 승인하세요.</string>
-    <string name="permission_guide_overlay_setting_failed">오버레이 설정을 열 수 없습니다. 수동으로 승인하세요.</string>
-    <string name="permission_guide_battery_hint">목록에서 앱을 찾아 "최적화되지 않음"으로 설정하세요.</string>
-    <string name="permission_guide_battery_setting_failed">배터리 최적화 설정을 열 수 없습니다. 수동으로 설정하세요.</string>
-    <string name="permission_guide_granted">승인됨</string>
-    <string name="permission_guide_not_granted">부여되지 않음</string>
-    <string name="permission_guide_selected">선택됨</string>
     <string name="wizard_collapse">접기</string>
     <string name="wizard_expand">확장</string>
     <string name="wizard_open_docs">공식 문서</string>
@@ -1356,13 +1309,6 @@
     <string name="image_preview">이미지 미리보기</string>
     <string name="load_more_history">이전 채팅 기록을 로드하려면 탭하세요.</string>
     <string name="load_newer_history">새 메시지를 로드하려면 탭하세요.</string>
-    <string name="permission_guide_intro_1_title">음성 기반 UI 자동화</string>
-    <string name="permission_guide_intro_1_desc">기기 내 음성 인식 및 합성을 통해 AI와 자연스럽게 대화해보세요. 음성은 명령이므로 화면 탭, 앱 탐색 및 기타 복잡한 작업을 완전히 핸즈프리로 수행할 수 있습니다.</string>
-    <string name="permission_guide_intro_2_title">괴짜와 개발자를 위한 강력한 도구 상자</string>
-    <string name="permission_guide_intro_2_desc">파일 관리, 웹 요청, 스크립트 실행 및 시스템 제어를 위한 40개 이상의 전문 도구가 내장되어 있습니다. 강력한 플러그인 시스템과 결합하면 작업을 자동화하고 장치를 심층적으로 제어할 수 있습니다.</string>
-    <string name="permission_guide_intro_3_title">창의력 발휘, 상시 대기</string>
-    <string name="permission_guide_intro_3_desc">웹 페이지 디자인, 미디어 파일 처리 또는 플로팅 창을 통한 AI 액세스 등 Kiyori은 생성 및 지원을 위한 강력하고 유연하며 안전한 환경을 제공합니다. 귀하의 데이터, 귀하의 통제.</string>
-    <string name="permission_guide_intro_page_indicator">기능 둘러보기 %1$d/%2$d</string>
     <string name="debugger_accessibility_fallback_title">접근성 가속화(고위험)</string>
     <string name="debugger_accessibility_fallback_description">디버거 모드는 기본적으로 Shell을 통해 UI 작업을 수행합니다. 접근성 서비스를 활성화하면 UI 자동화 속도가 크게 빨라질 수 있지만, 일부 애플리케이션에서 감지되어 금지될 위험도 크게 높아집니다. 최대 작동 속도가 필요한 경우가 아니면 권장되지 않습니다.</string>
     <string name="accessibility_risk_warning_title">접근성 서비스 위험 경고</string>
@@ -7284,4 +7230,141 @@
     <string name="test_model">테스트 모델</string>
     <string name="tested_model_name">테스트 모델: %1$s</string>
     <string name="toolpkg_hook_timeout_continue_sending_with_plugin">전송 전 플러그인 “%1$s”의 응답 시간이 초과되었습니다. 해당 플러그인을 건너뛰고 메시지를 계속 전송합니다.</string>
+    <!-- Kiyori onboarding -->
+    <string name="kiyori_onboarding_back">이전 단계로</string>
+    <string name="kiyori_onboarding_progress">%2$d단계 중 %1$d단계</string>
+    <string name="kiyori_onboarding_continue">계속</string>
+    <string name="kiyori_onboarding_skip_intro">소개 건너뛰기</string>
+    <string name="kiyori_onboarding_start_authorization">통합 권한 설정 시작</string>
+    <string name="kiyori_onboarding_enter">Kiyori 시작하기</string>
+
+    <string name="kiyori_onboarding_agreement_title">사용자 약관 및 개인정보 처리방침</string>
+    <string name="kiyori_onboarding_agreement_subtitle">시작하기 전에 Kiyori가 데이터를 저장하는 방식, 네트워크에 접근하는 시점, 고급 기능의 영향을 확인하세요.</string>
+    <string name="kiyori_onboarding_agreement_version">약관 버전: %1$s</string>
+    <string name="kiyori_onboarding_agreement_local_title">기기 내 데이터는 사용자가 관리합니다</string>
+    <string name="kiyori_onboarding_agreement_local_desc">대화, 캐릭터, 메모리, 설정, 자격 증명과 작업 공간은 보통 기기에 저장됩니다. 내보내기와 백업 파일의 저장 위치는 사용자가 선택합니다.</string>
+    <string name="kiyori_onboarding_agreement_network_title">네트워크 접근은 사용자의 선택에 따릅니다</string>
+    <string name="kiyori_onboarding_agreement_network_desc">모델, 음성, 검색, 마켓, GitHub, MCP, 플러그인과 사용자 지정 서비스는 사용자가 선택한 제공자에 연결됩니다.</string>
+    <string name="kiyori_onboarding_agreement_permission_title">강력한 기능에는 명시적인 권한이 필요합니다</string>
+    <string name="kiyori_onboarding_agreement_permission_desc">파일, 알림, 화면 내용, 위치, 터미널, 설치, 접근성, Shizuku와 Root는 민감한 데이터를 처리하거나 기기 상태를 변경할 수 있습니다.</string>
+    <string name="kiyori_onboarding_agreement_open_document">전체 약관 및 개인정보 처리방침 읽기</string>
+    <string name="kiyori_onboarding_agreement_checkbox">현재 사용자 약관 및 개인정보 처리방침을 읽고 동의했습니다</string>
+    <string name="kiyori_onboarding_agreement_accept">동의하고 계속</string>
+    <string name="kiyori_onboarding_agreement_decline">동의하지 않고 종료</string>
+    <string name="kiyori_onboarding_agreement_document_title">Kiyori 사용자 약관 및 개인정보 처리방침</string>
+    <string name="kiyori_onboarding_agreement_document_content"><![CDATA[
+        <p><b>Kiyori 사용자 약관 및 개인정보 처리방침</b><br>버전: 2026-08-09; 예정 시행일: 2026년 8월 9일.</p>
+        <p><b>1. 적용 범위</b><br>이 약관은 Kiyori Android 클라이언트와 사용자가 활성화하기로 선택한 기능에 적용됩니다. Kiyori는 사용자의 기기에서 실행되는 오픈 소스 클라이언트로서 브라우징, 콘텐츠 처리 및 기기 내 작업 공간을 중심으로 합니다. Operit AI는 내장된 AI 하위 시스템입니다. Kiyori를 설치, 실행 또는 사용하기 전에 이 약관을 읽고 이해하세요. 현재 버전에 명시적으로 동의해야 초기 설정이 완료됩니다.</p>
+        <p><b>2. 제품 및 서비스의 범위</b><br>Kiyori는 공유 모델 자격 증명을 제공하지 않으며, 타사 모델, 음성, 검색, GitHub, MCP, 플러그인 또는 사용자 지정 HTTP 서비스를 Kiyori가 운영하는 하나의 클라우드 서비스로 제공하지 않습니다. 이러한 서비스를 선택할 때 제공자, 엔드포인트, 모델, 가격, 한도, 약관 및 개인정보 보호 규칙을 직접 확인해야 합니다. 서비스의 이용 가능성, 콘텐츠, 결제, 계정 처리 및 데이터 보관은 해당 제공자가 관리합니다.</p>
+        <p><b>3. 기기 내 데이터</b><br>대화, 캐릭터 카드, 메모리, 모델 설정, API Key, 환경 변수, 브라우저 상태, 워크플로와 기타 설정은 일반적으로 앱의 비공개 데이터 또는 사용자가 명시적으로 선택한 로컬 디렉터리에 저장됩니다. Android는 Kiyori를 삭제할 때 앱의 비공개 데이터를 일반적으로 삭제합니다. 사용자가 내보낸 백업, 다운로드, 로그, 미디어, 작업 공간 및 기타 공용 파일은 자동으로 삭제되지 않습니다. 중요한 데이터의 백업과 기기, 계정, 자격 증명의 보호는 사용자 책임입니다.</p>
+        <p><b>4. 네트워크 및 타사 처리</b><br>모델 요청을 보내거나, 네트워크 음성을 사용하거나, 웹을 검색하거나, 웹사이트를 방문하거나, GitHub에 로그인하거나, 플러그인 마켓에 들어가거나, 네트워크 확장을 설치 또는 실행하거나, MCP를 연결하거나, 사용자 지정 엔드포인트를 호출하거나, 파일을 업로드하거나, 콘텐츠를 공유할 때 기능에 필요한 텍스트, 파일, 음성, URL, 기기 정보 또는 요청 매개변수가 해당 서비스나 웹사이트로 전송됩니다. 전송 전에 개인정보, 영업 비밀, 자격 증명 및 기타 민감한 정보가 포함되었는지 확인하세요. 웹사이트의 카메라, 마이크, 위치 요청도 Kiyori와 Android의 명시적인 승인을 거쳐야 합니다.</p>
+        <p><b>5. 권한 및 기기 기능</b><br>Kiyori는 알림, 미디어, 카메라, 마이크, 위치, Bluetooth, 전화, SMS 및 이전 저장소에 대한 Android 런타임 권한을 요청할 수 있습니다. 또한 모든 파일 접근, 오버레이, 시스템 설정 변경, 사용량 접근, 알 수 없는 앱 설치, 정확한 알람, 배터리 최적화 제외, 알림 접근, 기본 어시스턴트, 접근성, Shizuku 또는 Root를 허용하도록 안내할 수 있습니다. 각 기능의 용도는 앱에서 설명되며 Android, Shizuku, Root 관리자 또는 해당 사실을 보유한 주체가 확인합니다. 거부를 성공으로 기록하지 않으며, 관련 기능은 사용할 수 없거나 사용자가 나중에 직접 수행하는 작업이 필요합니다.</p>
+        <p><b>6. 영향이 큰 작업</b><br>터미널, 스크립트, 워크플로, 플러그인, AI 도구, 파일 관리, 앱 설치, 알림 접근, 화면 자동화, 접근성, Shizuku, ADB 및 Root는 데이터를 읽고 변경하거나 삭제하고, 서비스를 시작하고, 소프트웨어를 설치하고, 네트워크에 접근하고, 시스템 상태를 변경하거나 다른 앱과 계정에 영향을 줄 수 있습니다. 대상, 매개변수, 출처와 예상 결과를 확인하고 복구 가능한 백업을 보관하세요. 신뢰할 수 없는 프롬프트, 웹페이지, 파일, 플러그인, 스크립트 또는 원격 서비스에 고급 권한을 노출하지 마세요.</p>
+        <p><b>7. AI 출력 및 자동화</b><br>AI 출력과 자동화 계획에는 오류, 누락, 지연, 환각 또는 기기에 적합하지 않은 작업이 포함될 수 있습니다. 실제 작업과 설정의 결정권은 사용자에게 있습니다. AI 출력은 의료, 위기, 법률, 금융 또는 기타 전문적인 조언이 아닙니다. 긴급하거나 위험한 문제는 해당 전문가 또는 현지 긴급 서비스에 문의하세요.</p>
+        <p><b>8. 확장 기능 생태계</b><br>타사 플러그인, 스크립트 패키지, Skill, ToolPkg 패키지, MCP 서버, 모델, 워크플로 및 기타 확장 기능은 작성자 또는 제공자의 책임입니다. 마켓 노출, 설치 항목 또는 호환성 표시는 보안, 합법성, 정확성, 지속적인 이용 가능성 또는 라이선스를 Kiyori가 보증한다는 뜻이 아닙니다. 설치 전에 출처, 코드, 권한, 환경 변수, 네트워크 동작과 라이선스를 확인하세요. API Key, Cookie, Token, 개인 키, 비밀번호 또는 다른 사람의 데이터를 공개하지 마세요.</p>
+        <p><b>9. 데이터 관리 및 삭제</b><br>앱의 해당 페이지에서 대화, 모델, 웹사이트 데이터, 다운로드, 백업, 로그, 플러그인 및 설정을 관리할 수 있으며 Android 설정에서 권한을 철회하거나 앱 데이터를 삭제할 수 있습니다. 삭제, 덮어쓰기, 제거, Root, 시스템 정리 또는 타사 파일 도구는 되돌릴 수 없는 데이터 손실을 일으킬 수 있습니다. 공용 디렉터리, SAF 위치와 타사 서비스의 데이터는 각각 별도로 관리해야 합니다.</p>
+        <p><b>10. 합법적인 사용</b><br>관련 법률, 웹사이트 규칙, 타사 약관, 소프트웨어 라이선스 및 다른 사람의 권리를 준수해야 합니다. 무단 접근, 보안 제어 우회, 불법 콘텐츠, 사기, 괴롭힘 또는 기타 불법·권리 침해 행위에 Kiyori를 사용하지 마세요. 봇, HTTP 서비스, 자동 응답 또는 워크플로를 다른 사람에게 제공한다면 접근 제어, 고지, 콘텐츠 안전, 데이터 보호 및 기타 적용되는 의무를 책임지는 실제 운영자는 사용자입니다.</p>
+        <p><b>11. 오픈 소스 라이선스 및 면책</b><br>Kiyori 소스는 저장소의 LICENSE와 NOTICE에 설명된 GPL-3.0-or-later 범위에 따라 제공됩니다. 타사 구성 요소에는 각각의 라이선스가 적용됩니다. 오픈 소스 라이선스와 이 약관은 함께 적용되며 법률 또는 해당 라이선스가 부여하는 권리를 제한하지 않습니다. 법이 허용하는 범위에서 소프트웨어는 “있는 그대로”, “제공 가능한 상태로” 제공되며 타사 서비스, 확장 기능, 네트워크, 기기 호환성 또는 AI 출력의 지속적인 이용 가능성, 정확성, 보안성이나 특정 목적 적합성을 보장하지 않습니다.</p>
+        <p><b>12. 업데이트 및 문의</b><br>기능, 데이터 처리, 법적 의무 또는 보안 경계가 크게 변경되면 Kiyori는 약관 버전을 올리고 다시 확인을 요청합니다. 앱의 피드백 기능이나 프로젝트 저장소를 통해 문의할 수 있습니다. 현재 버전에 동의하지 않으면 사용을 중지하고 앱을 종료하세요. 앱을 삭제하거나 데이터를 지우기 전에 필요한 내용을 내보내세요.</p>
+    ]]></string>
+
+    <string name="kiyori_onboarding_voice_title">음성 기반 UI 자동화</string>
+    <string name="kiyori_onboarding_voice_desc">자연어로 검색하고 콘텐츠를 처리하며 복잡한 작업을 구성하세요. Kiyori는 기기 내 음성 기능 또는 사용자가 설정한 서비스를 사용할 수 있으며, 마이크와 자동화 접근 권한은 사용자가 관리합니다.</string>
+    <string name="kiyori_onboarding_voice_feature_speech">음성 이해 및 입력</string>
+    <string name="kiyori_onboarding_voice_feature_screen">화면 이해 및 동작</string>
+    <string name="kiyori_onboarding_voice_feature_apps">앱 간 작업</string>
+
+    <string name="kiyori_onboarding_toolbox_title">전문가와 개발자를 위한 강력한 도구 상자</string>
+    <string name="kiyori_onboarding_toolbox_desc">브라우저 소스와 터미널부터 파일, 스크립트, 워크플로, ToolPkg, MCP, Skill까지 Kiyori는 개발과 자동화를 하나의 확장 가능한 작업 공간에 담습니다.</string>
+    <string name="kiyori_onboarding_toolbox_feature_browser">브라우저 및 소스</string>
+    <string name="kiyori_onboarding_toolbox_feature_terminal">터미널 및 스크립트</string>
+    <string name="kiyori_onboarding_toolbox_feature_extensions">ToolPkg, MCP 및 Skill</string>
+
+    <string name="kiyori_onboarding_creative_title">창의력을 해방하고 언제든 준비하세요</string>
+    <string name="kiyori_onboarding_creative_desc">검색으로 시작해 웹, AI, 미디어, 다운로드와 파일 사이에서 맥락을 유지하세요. Kiyori는 완전한 브라우저이며 필요할 때 기기 기능을 깊이 사용하는 창작 및 자동화 환경입니다.</string>
+    <string name="kiyori_onboarding_creative_feature_context">연속적인 작업 공간 맥락</string>
+    <string name="kiyori_onboarding_creative_feature_media">미디어, 다운로드 및 파일</string>
+    <string name="kiyori_onboarding_creative_feature_control">투명한 권한 제어</string>
+
+    <string name="kiyori_onboarding_permissions_title">권한 및 기기 기능</string>
+    <string name="kiyori_onboarding_permissions_desc">여기에서 Kiyori가 지원하는 권한을 한 번에 설정하세요. Android 런타임 권한은 함께 요청할 수 있으며, 특수 접근과 고급 기능은 시스템 또는 해당 관리자의 확인이 필요합니다.</string>
+    <string name="kiyori_onboarding_permissions_request_runtime">런타임 권한 요청</string>
+    <string name="kiyori_onboarding_permissions_next_item">다음 권한: %1$s</string>
+    <string name="kiyori_onboarding_permissions_all_done">완료 상태 검토</string>
+    <string name="kiyori_onboarding_permissions_keep_and_continue">허용하지 않은 항목을 유지하고 계속</string>
+    <string name="kiyori_onboarding_permissions_overview_complete">지금 준비할 수 있는 모든 기능이 준비되었습니다</string>
+    <string name="kiyori_onboarding_permissions_overview_pending">아직 %1$d개 항목을 완료할 수 있습니다</string>
+    <string name="kiyori_onboarding_permissions_overview_count">준비됨 %1$d / %2$d</string>
+    <string name="kiyori_onboarding_permission_action_failed">“%1$s” 권한 화면을 열 수 없습니다. 기기 지원 여부를 확인하세요.</string>
+    <string name="kiyori_onboarding_permission_screen_capture_on_demand">Android는 실제 스크린샷이나 녹화를 요청할 때만 화면 캡처를 확인합니다. 설정 중 영구적으로 미리 허용할 수 없습니다.</string>
+
+    <string name="kiyori_onboarding_automation_level_title">기본 기기 자동화 방식</string>
+    <string name="kiyori_onboarding_automation_level_desc">AI와 도구가 기본으로 사용할 기기 실행 경로를 결정합니다. 권한 상태와 기본 실행 경로는 서로 독립적이며 나중에 변경할 수 있습니다.</string>
+    <string name="kiyori_onboarding_automation_level_standard">표준</string>
+    <string name="kiyori_onboarding_automation_level_accessibility">접근성</string>
+    <string name="kiyori_onboarding_automation_level_shizuku">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_automation_level_root">Root</string>
+
+    <string name="kiyori_onboarding_permission_section_runtime">Android 런타임 권한</string>
+    <string name="kiyori_onboarding_permission_section_special">특수 앱 접근</string>
+    <string name="kiyori_onboarding_permission_section_advanced">고급 기기 기능</string>
+    <string name="kiyori_onboarding_permission_status_granted">허용됨</string>
+    <string name="kiyori_onboarding_permission_status_partial">일부 허용</string>
+    <string name="kiyori_onboarding_permission_status_not_granted">허용되지 않음</string>
+    <string name="kiyori_onboarding_permission_status_setup">설정 필요</string>
+    <string name="kiyori_onboarding_permission_status_not_applicable">필요 없음</string>
+    <string name="kiyori_onboarding_permission_status_on_demand">사용할 때 확인</string>
+
+    <string name="kiyori_onboarding_ready_title">Kiyori가 준비되었습니다</string>
+    <string name="kiyori_onboarding_ready_all_permissions">미리 준비할 수 있는 모든 권한이 준비되었습니다. 이제 Kiyori를 사용할 수 있습니다.</string>
+    <string name="kiyori_onboarding_ready_pending_permissions">%1$d개 항목이 아직 완료되지 않았습니다. 허용할 때까지 해당 기능은 사용할 수 없습니다.</string>
+    <string name="kiyori_onboarding_ready_execution_mode">기본 기기 실행 방식</string>
+    <string name="kiyori_onboarding_ready_permission_summary">권한 상태</string>
+    <string name="kiyori_onboarding_ready_model_config">AI 모델 서비스</string>
+    <string name="kiyori_onboarding_ready_model_later">나중에 설정할 수 있으며 AI 홈을 차단하지 않습니다</string>
+
+    <string name="kiyori_onboarding_permission_notifications_title">알림</string>
+    <string name="kiyori_onboarding_permission_notifications_desc">AI 답변, 다운로드, 백그라운드 작업 및 서비스 상태를 표시합니다.</string>
+    <string name="kiyori_onboarding_permission_media_title">사진, 동영상 및 오디오</string>
+    <string name="kiyori_onboarding_permission_media_desc">사용자가 선택한 미디어를 읽어 처리, 재생, 업로드 또는 분석합니다.</string>
+    <string name="kiyori_onboarding_permission_camera_title">카메라</string>
+    <string name="kiyori_onboarding_permission_camera_desc">첨부 파일, 웹 미디어와 시각적 입력을 촬영합니다.</string>
+    <string name="kiyori_onboarding_permission_microphone_title">마이크</string>
+    <string name="kiyori_onboarding_permission_microphone_desc">음성 입력, 음성 어시스턴트, 녹음 및 웹 오디오 캡처에 사용합니다.</string>
+    <string name="kiyori_onboarding_permission_location_title">위치</string>
+    <string name="kiyori_onboarding_permission_location_desc">날씨, 위치 도구와 사용자가 허용한 웹사이트의 위치 요청에 사용합니다.</string>
+    <string name="kiyori_onboarding_permission_bluetooth_title">주변 기기 및 Bluetooth</string>
+    <string name="kiyori_onboarding_permission_bluetooth_desc">사용자가 선택한 Bluetooth 기기를 검색하고 연결합니다.</string>
+    <string name="kiyori_onboarding_permission_phone_title">전화 걸기</string>
+    <string name="kiyori_onboarding_permission_phone_desc">도구나 자동화에서 사용자가 명시적으로 요청한 전화 작업을 수행합니다.</string>
+    <string name="kiyori_onboarding_permission_sms_title">SMS</string>
+    <string name="kiyori_onboarding_permission_sms_desc">사용자가 명시적으로 허용한 SMS를 보내고 읽고 받습니다.</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_title">이전 외부 저장소</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_desc">Android 12 이하의 공용 저장소 읽기와 구형 버전의 쓰기에 필요한 호환 권한입니다.</string>
+    <string name="kiyori_onboarding_permission_all_files_title">모든 파일 접근</string>
+    <string name="kiyori_onboarding_permission_all_files_desc">전체 파일 관리, 터미널 및 디렉터리 간 파일 처리가 필요한 도구에 사용합니다.</string>
+    <string name="kiyori_onboarding_permission_overlay_title">다른 앱 위에 표시</string>
+    <string name="kiyori_onboarding_permission_overlay_desc">다른 앱 위에 음성 도우미, 디버거와 플로팅 기능을 표시합니다.</string>
+    <string name="kiyori_onboarding_permission_write_settings_title">시스템 설정 변경</string>
+    <string name="kiyori_onboarding_permission_write_settings_desc">확인된 도구가 밝기, 회전 등 시스템 설정을 변경하도록 허용합니다.</string>
+    <string name="kiyori_onboarding_permission_usage_title">사용량 접근</string>
+    <string name="kiyori_onboarding_permission_usage_desc">자동화에 필요한 맥락을 위해 전면 앱과 사용 상태를 확인합니다.</string>
+    <string name="kiyori_onboarding_permission_install_title">알 수 없는 앱 설치</string>
+    <string name="kiyori_onboarding_permission_install_desc">사용자가 선택한 APK, 내장 Shizuku 또는 접근성 제공자를 설치합니다.</string>
+    <string name="kiyori_onboarding_permission_alarm_title">정확한 알람</string>
+    <string name="kiyori_onboarding_permission_alarm_desc">예약한 워크플로가 설정한 시간에 정확히 실행되도록 합니다.</string>
+    <string name="kiyori_onboarding_permission_battery_title">배터리 최적화 제외</string>
+    <string name="kiyori_onboarding_permission_battery_desc">장시간 작업, 다운로드, 음성 및 백그라운드 서비스의 지속성을 높입니다.</string>
+    <string name="kiyori_onboarding_permission_notification_listener_title">알림 접근</string>
+    <string name="kiyori_onboarding_permission_notification_listener_desc">사용자가 직접 사용하는 알림 도구와 자동화를 위해 기기 알림 내용을 읽습니다.</string>
+    <string name="kiyori_onboarding_permission_assistant_title">시스템 기본 어시스턴트</string>
+    <string name="kiyori_onboarding_permission_assistant_desc">시스템 어시스턴트 제스처나 진입점으로 Kiyori를 빠르게 엽니다.</string>
+    <string name="kiyori_onboarding_permission_accessibility_title">접근성 UI 자동화</string>
+    <string name="kiyori_onboarding_permission_accessibility_desc">화면 이해, 탭, 입력과 제스처를 위해 별도의 제공자를 설치하고 활성화합니다.</string>
+    <string name="kiyori_onboarding_permission_shizuku_title">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_permission_shizuku_desc">사용자가 시작하고 허용한 Shizuku 서비스로 ADB 수준의 시스템 작업을 실행합니다.</string>
+    <string name="kiyori_onboarding_permission_root_title">Root</string>
+    <string name="kiyori_onboarding_permission_root_desc">보호된 시스템 및 앱 데이터를 읽고 변경할 수 있는 수퍼유저 접근을 요청합니다.</string>
+    <string name="kiyori_onboarding_permission_screen_capture_title">화면 캡처</string>
+    <string name="kiyori_onboarding_permission_screen_capture_desc">스크린샷, 녹화와 시각 분석을 사용할 때 Android가 매번 확인합니다.</string>
 </resources>

@@ -474,15 +474,6 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    private fun checkIfShouldCreateNewChat() {
-        viewModelScope.launch {
-            // 模型配置只影响发送能力，不能阻止 AI 首页创建并展示空白会话。
-            if (chatHistoryDelegate.checkIfShouldCreateNewChat()) {
-                chatHistoryDelegate.createNewChat()
-            }
-        }
-    }
-
     /** 设置服务相关的流收集逻辑 */
     /**
      * 设置输入处理状态监听

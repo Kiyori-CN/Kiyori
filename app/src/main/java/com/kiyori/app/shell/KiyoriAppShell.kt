@@ -85,7 +85,7 @@ internal fun KiyoriAppShell(
     onAiHomeSettled: () -> Unit,
     onWeatherSearch: (String) -> Unit,
     onOpenBrowserWindows: () -> Unit,
-    onOpenBookmark: (String) -> Unit,
+    onQueueForegroundBrowserUrl: (String) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
     onOpenAccountConnectionsFromKiyoriSettings: () -> Unit,
     onOpenAiAssistantFromKiyoriSettings: () -> Unit,
@@ -427,7 +427,7 @@ internal fun KiyoriAppShell(
                 latestOnStateChange(latestState.closeHistoryDrawer())
             },
             onOpenWebHistory = { url ->
-                onOpenBookmark(url)
+                onQueueForegroundBrowserUrl(url)
                 latestOnStateChange(
                     latestState
                         .closeHistoryDrawer()
@@ -447,11 +447,13 @@ internal fun KiyoriAppShell(
                 latestOnStateChange(latestState.closeBookmarkDrawer())
             },
             onOpenBookmark = { url ->
-                onOpenBookmark(url)
+                onQueueForegroundBrowserUrl(url)
                 latestOnStateChange(
-                    latestState.openExternalDestination(
-                        KiyoriShellExternalDestination.BROWSER_HOME,
-                    ),
+                    latestState
+                        .closeBookmarkDrawer()
+                        .openExternalDestination(
+                            KiyoriShellExternalDestination.BROWSER_HOME,
+                        ),
                 )
             },
             onOpenBookmarkInTab = { url, active ->

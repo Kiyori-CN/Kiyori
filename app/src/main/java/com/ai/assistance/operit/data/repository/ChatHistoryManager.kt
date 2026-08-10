@@ -515,6 +515,14 @@ class ChatHistoryManager private constructor(private val context: Context) {
             null
         )
 
+    /**
+     * 读取 DataStore 已持久化的当前会话 ID。
+     *
+     * 启动流程不能直接读取惰性 StateFlow 的初始 null，否则可能把尚未发出首个持久化值的
+     * 既有安装误判为没有当前会话。
+     */
+    suspend fun readPersistedCurrentChatId(): String? = _currentChatIdFlow.first()
+
     private fun validateArchivedMessageVariants(
         message: ChatMessage,
         variants: List<OperitArchivedMessageVariant>,

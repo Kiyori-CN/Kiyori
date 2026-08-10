@@ -633,19 +633,6 @@
     <string name="request_timeout">Permintaan tamat masa, sila cuba lagi nanti</string>
     <string name="network_transfer_failed">Pemindahan rangkaian gagal, sila semak sambungan rangkaian</string>
     <string name="try_again_later">Permintaan gagal, sila cuba lagi nanti</string>
-    <string name="permission_guide_previous">Sebelumnya</string>
-    <string name="permission_guide_next">Seterusnya</string>
-    <string name="permission_guide_complete">Selesai</string>
-    <string name="permission_guide_welcome">Selamat datang</string>
-    <string name="permission_guide_basic_permissions">Tetapan keizinan asas</string>
-    <string name="permission_guide_permission_level">Pemilihan tahap keizinan</string>
-    <string name="permission_guide_welcome_title">Selamat menggunakan</string>
-    <string name="permission_guide_welcome_desc">Sebelum mula menggunakan aplikasi, kami perlu menetapkan beberapa keizinan asas dan memilih tahap keizinan pilihan anda.</string>
-    <string name="permission_guide_welcome_hint">Proses ini hanya mengambil masa beberapa minit dan akan membantu aplikasi berfungsi dengan lebih baik untuk anda.</string>
-    <string name="permission_guide_welcome_start">Klik butang di sudut kanan bawah untuk mula menetapkan</string>
-    <string name="permission_guide_basic_title">Tetapan keizinan asas</string>
-    <string name="permission_guide_basic_desc">Sila berikan keizinan asas berikut untuk memastikan aplikasi berjalan dengan lancar</string>
-    <string name="permission_guide_storage_title">Keizinan storan</string>
 
     <string name="preferences_guide_title">Untuk memberikan perkhidmatan yang lebih baik, sila lengkapkan tetapan berikut</string>
     <string name="preference_lock">Kunci keutamaan pengguna</string>
@@ -693,8 +680,6 @@
     <string name="settings_reply_notification_desc">Hantar pemberitahuan apabila AI selesai membalas</string>
     <string name="notification_ai_reply_title">Pembantu AI</string>
     <string name="notification_ai_reply_content">AI telah selesai membalas</string>
-    <string name="notification_permission_rationale">Untuk memberitahu anda segera selepas AI selesai membalas, kebenaran pemberitahuan diperlukan</string>
-    <string name="notification_permission_denied">Kebenaran pemberitahuan ditolak, anda tidak akan menerima peringatan balasan AI</string>
     <string name="settings_auto_accessibility">Berikan kebenaran aksesibiliti secara automatik</string>
     <string name="settings_auto_accessibility_desc">Selepas ditutup, perlu diberi kuasa secara manual setiap kali perisian dibuka</string>
     <string name="settings_section_permissions">Kebenaran &amp; Keselamatan</string>
@@ -810,38 +795,6 @@
     <string name="plugin_pnpm_missing">pnpm tidak dipasang dalam terminal, sila pasang dahulu</string>
     <string name="theme_title_mode">Mod Tema</string>
 
-    <string name="permission_guide_storage_desc">Benarkan aplikasi membaca dan menulis fail</string>
-    <string name="permission_guide_overlay_title">Keizinan Tetingkap Terapung</string>
-    <string name="permission_guide_overlay_desc">Benarkan aplikasi memaparkan tetingkap terapung</string>
-    <string name="permission_guide_battery_title">Pengecualian Pengoptimuman Bateri</string>
-    <string name="permission_guide_battery_desc">Benarkan aplikasi berjalan di latar belakang</string>
-    <string name="permission_guide_location_title">Keizinan Lokasi</string>
-    <string name="permission_guide_location_desc">Benarkan aplikasi mendapatkan maklumat lokasi</string>
-    <string name="permission_guide_check_permissions">Semak status keizinan</string>
-    <string name="permission_guide_all_granted">Semua keizinan asas telah diberikan, boleh teruskan ke langkah seterusnya</string>
-    <string name="permission_guide_warning_title">Pemberian Keizinan Tidak Lengkap</string>
-    <string name="permission_guide_warning_message">Anda belum memberikan semua keizinan yang diperlukan, ini mungkin menyebabkan fungsi aplikasi tidak lengkap atau keluar secara tidak normal. Pastikan untuk teruskan?</string>
-    <string name="permission_guide_warning_continue">Teruskan</string>
-    <string name="permission_guide_warning_return">Kembali ke Pemberian Keizinan</string>
-    <string name="permission_guide_level_title">Pilih Tahap Keizinan</string>
-    <string name="permission_guide_level_desc">Sila pilih tahap keizinan yang anda sukai, ini akan menentukan skop fungsi yang boleh digunakan oleh aplikasi</string>
-    <string name="permission_guide_standard_title">Keizinan Standard</string>
-    <string name="permission_guide_standard_desc">Keizinan asas untuk menjalankan aplikasi, tidak memerlukan keizinan khas</string>
-    <string name="permission_guide_accessibility_title">Keizinan Aksesibiliti</string>
-    <string name="permission_guide_accessibility_desc">Mencapai analisis kandungan skrin dan simulasi operasi melalui perkhidmatan aksesibiliti</string>
-    <string name="permission_guide_debugger_title">Keizinan Penyahpepijat</string>
-    <string name="permission_guide_debugger_desc">Menyediakan akses sistem peringkat ADB melalui Shizuku</string>
-    <string name="permission_guide_root_title">Keizinan Root</string>
-    <string name="permission_guide_root_desc">Keizinan pengguna super, boleh melaksanakan sebarang operasi sistem</string>
-    <string name="permission_guide_confirm">Sahkan Pilihan</string>
-    <string name="permission_guide_change_anytime">Anda boleh menukar tahap keizinan pada bila-bila masa dalam tetapan</string>
-    <string name="permission_guide_storage_setting_failed">Tidak dapat membuka tetapan keizinan storan, sila berikan keizinan secara manual</string>
-    <string name="permission_guide_overlay_setting_failed">Tidak dapat membuka tetapan tetingkap terapung, sila berikan keizinan secara manual</string>
-    <string name="permission_guide_battery_hint">Sila cari aplikasi dalam senarai dan tetapkan sebagai "Tidak dioptimumkan"</string>
-    <string name="permission_guide_battery_setting_failed">Tidak dapat membuka tetapan pengoptimuman bateri, sila tetapkan secara manual</string>
-    <string name="permission_guide_granted">Telah Diberikan</string>
-    <string name="permission_guide_not_granted">Belum Diberikan</string>
-    <string name="permission_guide_selected">Telah Dipilih</string>
     <string name="wizard_collapse">Tutup</string>
     <string name="wizard_expand">Buka</string>
     <string name="wizard_open_docs">Dokumen Rasmi</string>
@@ -1116,13 +1069,6 @@
     <string name="image_preview">Pratonton imej</string>
     <string name="load_more_history">Klik untuk muat sejarah terdahulu</string>
     <string name="load_newer_history">Klik untuk muat mesej lebih baharu</string>
-    <string name="permission_guide_intro_1_title">Automasi UI didorong suara</string>
-    <string name="permission_guide_intro_1_desc">Berbual secara semula jadi dengan AI melalui pengecaman dan sintesis suara tempatan yang berjalan sepenuhnya pada peranti anda. Suara anda adalah arahan, mampu menyuruhnya melakukan operasi kompleks seperti klik skrin, lompat aplikasi, membebaskan tangan anda sepenuhnya.</string>
-    <string name="permission_guide_intro_2_title">Kotak alat berkuasa untuk geek dan pembangun</string>
-    <string name="permission_guide_intro_2_desc">Dilengkapi lebih 40 alat profesional merangkumi pengurusan fail, permintaan rangkaian, pelaksanaan skrip dan kawalan sistem. Digabungkan dengan sistem pemalam berkuasa, anda boleh mengautomasikan tugas, mengawal peranti anda secara mendalam.</string>
-    <string name="permission_guide_intro_3_title">Lepaskan kreativiti, sentiasa bersedia</string>
-    <string name="permission_guide_intro_3_desc">Sama ada mereka bentuk laman web, memproses fail media, atau membangunkan AI melalui tetingkap terapung bila-bila masa, Kiyori menyediakan persekitaran penciptaan dan bantuan yang berkuasa, fleksibel dan selamat. Data anda, di bawah kawalan anda.</string>
-    <string name="permission_guide_intro_page_indicator">Pengenalan fungsi %1$d/%2$d</string>
 
     <string name="no_mirrors_found">Tiada sumber cermin tersedia</string>
     <string name="main_github_login_success">Log masuk berjaya, selamat datang %1$s!</string>
@@ -7433,4 +7379,141 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="test_model">Model ujian</string>
     <string name="tested_model_name">Model ujian: %1$s</string>
     <string name="toolpkg_hook_timeout_continue_sending_with_plugin">Pemalam sebelum penghantaran “%1$s” tamat masa. Ia dilangkau dan mesej akan terus dihantar.</string>
+    <!-- Kiyori onboarding -->
+    <string name="kiyori_onboarding_back">Kembali ke langkah sebelumnya</string>
+    <string name="kiyori_onboarding_progress">Langkah %1$d daripada %2$d</string>
+    <string name="kiyori_onboarding_continue">Teruskan</string>
+    <string name="kiyori_onboarding_skip_intro">Langkau pengenalan</string>
+    <string name="kiyori_onboarding_start_authorization">Mulakan kebenaran berpusat</string>
+    <string name="kiyori_onboarding_enter">Masuk ke Kiyori</string>
+
+    <string name="kiyori_onboarding_agreement_title">Perjanjian Pengguna dan Dasar Privasi</string>
+    <string name="kiyori_onboarding_agreement_subtitle">Sebelum bermula, fahami cara Kiyori menyimpan data, masa rangkaian diakses dan kesan keupayaan lanjutan.</string>
+    <string name="kiyori_onboarding_agreement_version">Versi perjanjian: %1$s</string>
+    <string name="kiyori_onboarding_agreement_local_title">Data pada peranti kekal di bawah kawalan anda</string>
+    <string name="kiyori_onboarding_agreement_local_desc">Sembang, watak, memori, konfigurasi, kelayakan dan ruang kerja biasanya disimpan pada peranti anda. Anda memilih lokasi eksport dan sandaran.</string>
+    <string name="kiyori_onboarding_agreement_network_title">Akses rangkaian mengikut tindakan anda</string>
+    <string name="kiyori_onboarding_agreement_network_desc">Model, suara, carian, pasaran, GitHub, MCP, pemalam dan perkhidmatan tersuai bersambung kepada penyedia yang anda pilih.</string>
+    <string name="kiyori_onboarding_agreement_permission_title">Keupayaan berkuasa memerlukan kebenaran jelas</string>
+    <string name="kiyori_onboarding_agreement_permission_desc">Fail, pemberitahuan, kandungan skrin, lokasi, terminal, pemasangan, kebolehcapaian, Shizuku dan Root boleh memproses data sensitif atau mengubah keadaan peranti.</string>
+    <string name="kiyori_onboarding_agreement_open_document">Baca perjanjian dan dasar penuh</string>
+    <string name="kiyori_onboarding_agreement_checkbox">Saya telah membaca dan bersetuju dengan Perjanjian Pengguna dan Dasar Privasi semasa</string>
+    <string name="kiyori_onboarding_agreement_accept">Setuju dan teruskan</string>
+    <string name="kiyori_onboarding_agreement_decline">Tidak setuju dan keluar</string>
+    <string name="kiyori_onboarding_agreement_document_title">Perjanjian Pengguna dan Dasar Privasi Kiyori</string>
+    <string name="kiyori_onboarding_agreement_document_content"><![CDATA[
+        <p><b>Perjanjian Pengguna dan Dasar Privasi Kiyori</b><br>Versi: 2026-08-09; tarikh kuat kuasa yang dirancang: 9 Ogos 2026.</p>
+        <p><b>1. Skop</b><br>Perjanjian ini terpakai kepada klien Kiyori Android dan ciri yang anda pilih untuk diaktifkan. Kiyori ialah klien sumber terbuka yang berjalan pada peranti anda, berpusat pada pelayaran, pemprosesan kandungan dan ruang kerja setempat. Operit AI ialah subsistem AI terbina dalam. Baca dan fahami perjanjian ini sebelum memasang, melancarkan atau menggunakan Kiyori. Persediaan awal hanya selesai selepas anda menerima versi semasa secara jelas.</p>
+        <p><b>2. Batas produk dan perkhidmatan</b><br>Kiyori tidak menyediakan kelayakan model bersama dan tidak menjadikan model, suara, carian, GitHub, MCP, pemalam atau perkhidmatan HTTP tersuai pihak ketiga sebagai satu perkhidmatan awan yang dikendalikan oleh Kiyori. Apabila memilih perkhidmatan ini, anda bertanggungjawab menyemak penyedia, titik akhir, model, harga, kuota, terma dan peraturan privasi. Ketersediaan, kandungan, pengebilan, pengendalian akaun dan penyimpanan data dikawal oleh penyedia berkenaan.</p>
+        <p><b>3. Data pada peranti</b><br>Sembang, kad watak, memori, konfigurasi model, API Key, pemboleh ubah persekitaran, keadaan pelayar, aliran kerja dan tetapan lain biasanya disimpan dalam data peribadi aplikasi atau direktori tempatan yang anda pilih. Android biasanya menghapuskan data peribadi apabila Kiyori dinyahpasang. Sandaran, muat turun, log, media, ruang kerja dan fail awam lain yang dieksport tidak dihapuskan secara automatik. Sandarkan data penting dan lindungi peranti, akaun serta kelayakan anda.</p>
+        <p><b>4. Rangkaian dan pemprosesan pihak ketiga</b><br>Apabila anda menghantar permintaan model, menggunakan suara rangkaian, mencari di web, melayari laman web, log masuk GitHub, memasuki pasaran pemalam, memasang atau menjalankan sambungan rangkaian, menyambung MCP, memanggil titik akhir tersuai, memuat naik fail atau berkongsi kandungan, teks, fail, suara, URL, maklumat peranti atau parameter yang diperlukan dihantar kepada perkhidmatan atau laman web yang berkenaan. Semak maklumat peribadi, rahsia perniagaan, kelayakan dan data sensitif lain sebelum menghantar. Permintaan kamera, mikrofon, lokasi dan keupayaan serupa daripada laman web masih tertakluk kepada kebenaran jelas Kiyori dan Android.</p>
+        <p><b>5. Kebenaran dan keupayaan peranti</b><br>Kiyori mungkin meminta kebenaran masa jalan Android untuk pemberitahuan, media, kamera, mikrofon, lokasi, Bluetooth, panggilan telefon, SMS dan storan lama. Ia juga boleh membimbing anda memberikan akses semua fail, tindanan, perubahan tetapan sistem, akses penggunaan, pemasangan aplikasi tidak diketahui, penggera tepat, pengecualian pengoptimuman bateri, akses pemberitahuan, pembantu lalai, kebolehcapaian, Shizuku atau Root. Setiap keupayaan diterangkan dalam aplikasi dan disahkan oleh Android, Shizuku, pengurus Root atau pemilik fakta yang sepadan. Penolakan tidak pernah direkodkan sebagai berjaya; ciri berkaitan kekal tidak tersedia atau memerlukan tindakan kemudian yang anda mulakan.</p>
+        <p><b>6. Operasi berimpak tinggi</b><br>Terminal, skrip, aliran kerja, pemalam, alat AI, pengurusan fail, pemasangan aplikasi, akses pemberitahuan, automasi skrin, kebolehcapaian, Shizuku, ADB dan Root boleh membaca, mengubah atau memadam data; memulakan perkhidmatan; memasang perisian; mengakses rangkaian; mengubah keadaan sistem; atau menjejaskan aplikasi dan akaun lain. Sahkan sasaran, parameter, sumber dan hasil yang dijangka serta simpan sandaran yang boleh dipulihkan. Jangan dedahkan keupayaan tinggi kepada gesaan, laman web, fail, pemalam, skrip atau perkhidmatan jauh yang tidak dipercayai.</p>
+        <p><b>7. Output AI dan automasi</b><br>Output AI dan pelan automasi mungkin mengandungi kesilapan, ketinggalan, kelewatan, halusinasi atau tindakan yang tidak sesuai untuk peranti anda. Anda kekal sebagai pembuat keputusan bagi operasi dan konfigurasi sebenar. Output AI bukan nasihat perubatan, krisis, undang-undang, kewangan atau profesional lain. Hubungi profesional yang sesuai atau perkhidmatan kecemasan tempatan untuk urusan mendesak atau berisiko tinggi.</p>
+        <p><b>8. Ekosistem sambungan</b><br>Pemalam pihak ketiga, pakej skrip, Skill, pakej ToolPkg, pelayan MCP, model, aliran kerja dan sambungan lain ialah tanggungjawab penulis atau penyedia masing-masing. Paparan pasaran, entri pemasangan atau tanda keserasian bukan jaminan Kiyori terhadap keselamatan, kesahihan, ketepatan, ketersediaan atau lesen. Semak sumber, kod, kebenaran, pemboleh ubah persekitaran, tingkah laku rangkaian dan lesen sebelum memasang. Jangan menerbitkan API Key, Cookie, Token, kunci peribadi, kata laluan atau data orang lain.</p>
+        <p><b>9. Pengurusan dan pemadaman data</b><br>Anda boleh mengurus sembang, model, data laman web, muat turun, sandaran, log, pemalam dan konfigurasi melalui halaman aplikasi yang berkaitan, serta membatalkan kebenaran atau mengosongkan data aplikasi dalam tetapan Android. Pemadaman, penimpaan, penyahpasangan, Root, pembersihan sistem atau alat fail pihak ketiga boleh menyebabkan kehilangan data yang tidak boleh dipulihkan. Direktori awam, lokasi SAF dan perkhidmatan pihak ketiga perlu diurus secara berasingan.</p>
+        <p><b>10. Penggunaan yang sah</b><br>Anda mesti mematuhi undang-undang yang terpakai, peraturan laman web, terma pihak ketiga, lesen perisian dan hak orang lain. Jangan gunakan Kiyori untuk akses tanpa kebenaran, memintas kawalan keselamatan, kandungan yang menyalahi undang-undang, penipuan, gangguan atau aktiviti menyalahi undang-undang dan melanggar hak. Jika anda mendedahkan bot, perkhidmatan HTTP, balasan automatik atau aliran kerja kepada orang lain, anda ialah pengendali sebenar yang bertanggungjawab atas kawalan akses, notis, keselamatan kandungan, perlindungan data dan kewajipan lain yang terpakai.</p>
+        <p><b>11. Lesen sumber terbuka dan penafian</b><br>Sumber Kiyori disediakan di bawah batas GPL-3.0-or-later yang diterangkan oleh LICENSE dan NOTICE repositori. Komponen pihak ketiga mengekalkan lesen masing-masing. Lesen sumber terbuka dan perjanjian ini terpakai bersama dan tidak mengehadkan hak yang diberikan oleh undang-undang atau lesen tersebut. Setakat yang dibenarkan undang-undang, perisian disediakan “seadanya” dan “seperti tersedia”, tanpa jaminan bahawa perkhidmatan pihak ketiga, sambungan, rangkaian, keserasian peranti atau output AI akan kekal tersedia, tepat, selamat atau sesuai untuk tujuan tertentu.</p>
+        <p><b>12. Kemas kini dan hubungan</b><br>Apabila ciri, pemprosesan data, kewajipan undang-undang atau sempadan keselamatan berubah secara material, Kiyori akan menaikkan versi perjanjian dan meminta pengesahan semula. Anda boleh mengemukakan soalan melalui maklum balas dalam aplikasi atau repositori projek. Jika tidak menerima versi semasa, hentikan penggunaan dan keluar daripada aplikasi. Eksport perkara yang diperlukan sebelum menyahpasang atau mengosongkan data.</p>
+    ]]></string>
+
+    <string name="kiyori_onboarding_voice_title">Automasi UI dipacu suara</string>
+    <string name="kiyori_onboarding_voice_desc">Gunakan bahasa semula jadi untuk mencari, memproses kandungan dan menyusun operasi kompleks. Kiyori boleh menggunakan suara pada peranti atau perkhidmatan yang anda konfigurasikan, sementara mikrofon dan automasi kekal di bawah kebenaran anda.</string>
+    <string name="kiyori_onboarding_voice_feature_speech">Pemahaman dan input suara</string>
+    <string name="kiyori_onboarding_voice_feature_screen">Pemahaman dan tindakan skrin</string>
+    <string name="kiyori_onboarding_voice_feature_apps">Tugas merentas aplikasi</string>
+
+    <string name="kiyori_onboarding_toolbox_title">Kotak alat berkuasa untuk pengguna mahir dan pembangun</string>
+    <string name="kiyori_onboarding_toolbox_desc">Daripada sumber pelayar dan Terminal hingga fail, skrip, aliran kerja, ToolPkg, MCP dan Skill, Kiyori menghimpunkan pembangunan dan automasi dalam satu ruang kerja boleh diperluas.</string>
+    <string name="kiyori_onboarding_toolbox_feature_browser">Pelayar dan sumber</string>
+    <string name="kiyori_onboarding_toolbox_feature_terminal">Terminal dan skrip</string>
+    <string name="kiyori_onboarding_toolbox_feature_extensions">ToolPkg, MCP dan Skill</string>
+
+    <string name="kiyori_onboarding_creative_title">Lepaskan kreativiti, sentiasa bersedia</string>
+    <string name="kiyori_onboarding_creative_desc">Mulakan dengan carian dan kekalkan konteks merentas web, AI, media, muat turun dan fail. Kiyori ialah pelayar lengkap dan, apabila perlu, persekitaran kreatif serta automasi dengan keupayaan peranti yang mendalam.</string>
+    <string name="kiyori_onboarding_creative_feature_context">Konteks ruang kerja berterusan</string>
+    <string name="kiyori_onboarding_creative_feature_media">Media, muat turun dan fail</string>
+    <string name="kiyori_onboarding_creative_feature_control">Kawalan kebenaran telus</string>
+
+    <string name="kiyori_onboarding_permissions_title">Kebenaran dan keupayaan peranti</string>
+    <string name="kiyori_onboarding_permissions_desc">Lengkapkan kebenaran yang disokong Kiyori di sini. Kebenaran masa jalan Android boleh diminta bersama; akses khas dan keupayaan lanjutan memerlukan pengesahan dalam sistem atau pengurus yang berkaitan.</string>
+    <string name="kiyori_onboarding_permissions_request_runtime">Minta kebenaran masa jalan</string>
+    <string name="kiyori_onboarding_permissions_next_item">Teruskan dengan: %1$s</string>
+    <string name="kiyori_onboarding_permissions_all_done">Semak penyelesaian</string>
+    <string name="kiyori_onboarding_permissions_keep_and_continue">Kekalkan item yang belum diberi kebenaran dan teruskan</string>
+    <string name="kiyori_onboarding_permissions_overview_complete">Semua keupayaan yang boleh disediakan sekarang telah sedia</string>
+    <string name="kiyori_onboarding_permissions_overview_pending">%1$d item masih boleh diselesaikan</string>
+    <string name="kiyori_onboarding_permissions_overview_count">Sedia %1$d / %2$d</string>
+    <string name="kiyori_onboarding_permission_action_failed">Entri kebenaran untuk “%1$s” tidak dapat dibuka. Semak sokongan peranti.</string>
+    <string name="kiyori_onboarding_permission_screen_capture_on_demand">Android mengesahkan tangkapan skrin hanya apabila tangkapan atau rakaman sebenar diminta. Ia tidak boleh diberi kebenaran kekal semasa persediaan.</string>
+
+    <string name="kiyori_onboarding_automation_level_title">Kaedah automasi peranti lalai</string>
+    <string name="kiyori_onboarding_automation_level_desc">Menentukan saluran pelaksanaan peranti yang digunakan AI dan alat secara lalai. Status kebenaran dan saluran lalai adalah berasingan dan boleh diubah kemudian.</string>
+    <string name="kiyori_onboarding_automation_level_standard">Standard</string>
+    <string name="kiyori_onboarding_automation_level_accessibility">Kebolehcapaian</string>
+    <string name="kiyori_onboarding_automation_level_shizuku">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_automation_level_root">Root</string>
+
+    <string name="kiyori_onboarding_permission_section_runtime">Kebenaran masa jalan Android</string>
+    <string name="kiyori_onboarding_permission_section_special">Akses aplikasi khas</string>
+    <string name="kiyori_onboarding_permission_section_advanced">Keupayaan peranti lanjutan</string>
+    <string name="kiyori_onboarding_permission_status_granted">Diberi kebenaran</string>
+    <string name="kiyori_onboarding_permission_status_partial">Diberi sebahagian</string>
+    <string name="kiyori_onboarding_permission_status_not_granted">Belum diberi</string>
+    <string name="kiyori_onboarding_permission_status_setup">Perlu dikonfigurasi</string>
+    <string name="kiyori_onboarding_permission_status_not_applicable">Tidak diperlukan</string>
+    <string name="kiyori_onboarding_permission_status_on_demand">Sahkan semasa digunakan</string>
+
+    <string name="kiyori_onboarding_ready_title">Kiyori telah bersedia</string>
+    <string name="kiyori_onboarding_ready_all_permissions">Semua kebenaran yang boleh disediakan lebih awal telah bersedia. Anda boleh mula menggunakan Kiyori.</string>
+    <string name="kiyori_onboarding_ready_pending_permissions">%1$d item belum selesai; keupayaan berkaitannya kekal tidak tersedia sehingga anda memberi kebenaran.</string>
+    <string name="kiyori_onboarding_ready_execution_mode">Kaedah pelaksanaan peranti lalai</string>
+    <string name="kiyori_onboarding_ready_permission_summary">Status kebenaran</string>
+    <string name="kiyori_onboarding_ready_model_config">Perkhidmatan model AI</string>
+    <string name="kiyori_onboarding_ready_model_later">Boleh dikonfigurasi kemudian tanpa menyekat halaman utama AI</string>
+
+    <string name="kiyori_onboarding_permission_notifications_title">Pemberitahuan</string>
+    <string name="kiyori_onboarding_permission_notifications_desc">Memaparkan balasan AI, muat turun, tugas latar belakang dan status perkhidmatan.</string>
+    <string name="kiyori_onboarding_permission_media_title">Foto, video dan audio</string>
+    <string name="kiyori_onboarding_permission_media_desc">Membaca media yang anda pilih untuk diproses, dimainkan, dimuat naik atau dianalisis.</string>
+    <string name="kiyori_onboarding_permission_camera_title">Kamera</string>
+    <string name="kiyori_onboarding_permission_camera_desc">Mengambil lampiran, media web dan input visual.</string>
+    <string name="kiyori_onboarding_permission_microphone_title">Mikrofon</string>
+    <string name="kiyori_onboarding_permission_microphone_desc">Input suara, pembantu suara, rakaman dan tangkapan audio web.</string>
+    <string name="kiyori_onboarding_permission_location_title">Lokasi</string>
+    <string name="kiyori_onboarding_permission_location_desc">Cuaca, alat lokasi dan permintaan lokasi laman web yang anda benarkan.</string>
+    <string name="kiyori_onboarding_permission_bluetooth_title">Peranti berdekatan dan Bluetooth</string>
+    <string name="kiyori_onboarding_permission_bluetooth_desc">Mengimbas dan menyambung peranti Bluetooth yang anda pilih untuk digunakan.</string>
+    <string name="kiyori_onboarding_permission_phone_title">Panggilan telefon</string>
+    <string name="kiyori_onboarding_permission_phone_desc">Menjalankan panggilan yang anda minta dengan jelas melalui alat atau automasi.</string>
+    <string name="kiyori_onboarding_permission_sms_title">SMS</string>
+    <string name="kiyori_onboarding_permission_sms_desc">Menghantar, membaca dan menerima SMS yang anda benarkan dengan jelas.</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_title">Storan luaran lama</string>
+    <string name="kiyori_onboarding_permission_legacy_storage_desc">Kebenaran keserasian untuk membaca storan awam pada Android 12 dan ke bawah serta menulis pada versi lama.</string>
+    <string name="kiyori_onboarding_permission_all_files_title">Akses semua fail</string>
+    <string name="kiyori_onboarding_permission_all_files_desc">Pengurusan fail lengkap, Terminal dan alat yang memproses fail merentas direktori.</string>
+    <string name="kiyori_onboarding_permission_overlay_title">Tindanan</string>
+    <string name="kiyori_onboarding_permission_overlay_desc">Memaparkan pembantu suara, penyahpepijat dan fungsi terapung di atas aplikasi lain.</string>
+    <string name="kiyori_onboarding_permission_write_settings_title">Ubah tetapan sistem</string>
+    <string name="kiyori_onboarding_permission_write_settings_desc">Membenarkan alat yang anda sahkan mengubah kecerahan, putaran dan tetapan sistem lain.</string>
+    <string name="kiyori_onboarding_permission_usage_title">Akses penggunaan</string>
+    <string name="kiyori_onboarding_permission_usage_desc">Mengenal pasti aplikasi latar depan dan keadaan penggunaan untuk konteks automasi.</string>
+    <string name="kiyori_onboarding_permission_install_title">Pasang aplikasi tidak diketahui</string>
+    <string name="kiyori_onboarding_permission_install_desc">Memasang APK yang anda pilih, Shizuku terbina dalam atau pembekal kebolehcapaian.</string>
+    <string name="kiyori_onboarding_permission_alarm_title">Penggera tepat</string>
+    <string name="kiyori_onboarding_permission_alarm_desc">Mencetuskan aliran kerja berjadual tepat pada masa yang anda tetapkan.</string>
+    <string name="kiyori_onboarding_permission_battery_title">Abaikan pengoptimuman bateri</string>
+    <string name="kiyori_onboarding_permission_battery_desc">Meningkatkan kesinambungan tugas panjang, muat turun, suara dan perkhidmatan latar belakang.</string>
+    <string name="kiyori_onboarding_permission_notification_listener_title">Akses pemberitahuan</string>
+    <string name="kiyori_onboarding_permission_notification_listener_desc">Membaca pemberitahuan peranti untuk alat pemberitahuan dan automasi yang anda gunakan secara sedar.</string>
+    <string name="kiyori_onboarding_permission_assistant_title">Pembantu sistem lalai</string>
+    <string name="kiyori_onboarding_permission_assistant_desc">Membuka Kiyori dengan cepat melalui gerak isyarat atau entri pembantu sistem.</string>
+    <string name="kiyori_onboarding_permission_accessibility_title">Automasi UI kebolehcapaian</string>
+    <string name="kiyori_onboarding_permission_accessibility_desc">Memasang dan mengaktifkan pembekal berasingan untuk memahami UI, mengetik, menaip dan melakukan gerak isyarat.</string>
+    <string name="kiyori_onboarding_permission_shizuku_title">Shizuku / ADB</string>
+    <string name="kiyori_onboarding_permission_shizuku_desc">Menggunakan perkhidmatan Shizuku yang anda mulakan dan benarkan untuk operasi sistem peringkat ADB.</string>
+    <string name="kiyori_onboarding_permission_root_title">Root</string>
+    <string name="kiyori_onboarding_permission_root_desc">Meminta akses superuser yang boleh membaca dan mengubah data sistem serta aplikasi yang dilindungi.</string>
+    <string name="kiyori_onboarding_permission_screen_capture_title">Tangkapan skrin</string>
+    <string name="kiyori_onboarding_permission_screen_capture_desc">Android mengesahkan setiap penggunaan untuk tangkapan skrin, rakaman dan analisis visual.</string>
 </resources>

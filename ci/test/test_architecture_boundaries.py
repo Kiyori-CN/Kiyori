@@ -5,6 +5,7 @@ import sys
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -140,6 +141,17 @@ from check_architecture_boundaries import (  # noqa: E402
     M05D_PLATFORM_CAPABILITY_IMPORT,
     M05D_PLATFORM_PERMISSION_PATH,
     M05D_PREFERENCES_PATH,
+    KIYORI_ACCESSIBILITY_SUPPORT_APK_PATH,
+    KIYORI_ACCESSIBILITY_SUPPORT_HASH_PATH,
+    KIYORI_ACCESSIBILITY_SUPPORT_VERSION_PATH,
+    KIYORI_LAUNCHER_FOREGROUND_PATH,
+    KIYORI_FIRST_RUN_AGREEMENT_PATH,
+    KIYORI_FIRST_RUN_AGREEMENT_TEST_PATH,
+    KIYORI_FIRST_RUN_CONTRACT_PATH,
+    KIYORI_FIRST_RUN_CONTRACT_TEST_PATH,
+    KIYORI_FIRST_RUN_PERMISSIONS_PATH,
+    KIYORI_FIRST_RUN_PREFERENCES_PATH,
+    KIYORI_FIRST_RUN_SCREEN_PATH,
     M05E_ARCHITECTURE_TEST_PATH,
     M05E_DIRECT_BACKUP_CONSUMER_PATHS,
     M05E_DIRECT_BACKUP_CONSUMER_SNAPSHOT,
@@ -182,6 +194,7 @@ from check_architecture_boundaries import (  # noqa: E402
     check_m04d_main_orientation_coordinator,
     check_m04d_main_notification_permission_coordinator,
     check_m04d_main_startup_gate_coordinator,
+    check_kiyori_first_run_flow,
     check_m04d_main_content_host,
     check_m04e_finalization,
     check_m05a1_design_theme,
@@ -2494,11 +2507,11 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             navigation_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 2
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
-            # Minus-One now consumes browser-local action identities, so the global semantic
-            # fixture has one fewer two-import production consumer than the sealed M-05A2 layout.
+            # The current tree also contains PackageEnvironmentVariablesSheet as a two-import
+            # consumer, while Settings Home has moved to its dedicated sixteen-entry palette.
             if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")
-            if index < stable_id_consumer_indices[0] - 5 or index == page_source_consumer_index:
+            if index < stable_id_consumer_indices[0] - 4 or index == page_source_consumer_index:
                 symbols.append("resolveColors")
             if index in stable_id_consumer_indices:
                 symbols.append("kiyoriSemanticToneForStableId")
@@ -3385,8 +3398,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             M04D_MAIN_SHARED_CONTENT_COORDINATOR_PATH,
             M04D_MAIN_TASK_VISIBILITY_COORDINATOR_PATH,
             M04D_MAIN_ORIENTATION_COORDINATOR_PATH,
-            M04D_MAIN_NOTIFICATION_PERMISSION_COORDINATOR_PATH,
-            M04D_MAIN_STARTUP_GATE_COORDINATOR_PATH,
+            KIYORI_FIRST_RUN_SCREEN_PATH,
         )
         for relative_path in consumer_paths:
             extra_import = (
@@ -5700,6 +5712,302 @@ class KiyoriPathsTest {
             self.assertTrue(any("onConfigurationChanged" in error for error in errors))
             self.assertTrue(any("still owns orientation" in error for error in errors))
             self.assertTrue(any("contract test missing" in error for error in errors))
+
+    def write_kiyori_first_run_layout(self, root: Path) -> None:
+        files = {
+            KIYORI_FIRST_RUN_CONTRACT_PATH: (
+                "package com.kiyori.integration.operit.onboarding\n"
+                "enum class KiyoriOnboardingStep { WELCOME, BROWSER_AND_MEDIA, "
+                "AI_ASSISTANT, FILES_AND_TOOLS, AGREEMENT, PERMISSIONS }\n"
+                "fun resolveInitialKiyoriOnboardingStep() = KiyoriOnboardingStep.AGREEMENT\n"
+                "enum class KiyoriPermissionStatus { ON_DEMAND, NOT_APPLICABLE }\n"
+                "class KiyoriPermissionSnapshot\n"
+                "fun sanitizeKiyoriPermissionSelection() = emptySet<String>()\n"
+            ),
+            KIYORI_FIRST_RUN_PREFERENCES_PATH: (
+                "package com.kiyori.integration.operit.onboarding\n"
+                "class KiyoriOnboardingPreferences\n"
+            ),
+            KIYORI_FIRST_RUN_PERMISSIONS_PATH: (
+                "package com.kiyori.integration.operit.onboarding\n"
+                "Manifest.permission.POST_NOTIFICATIONS\n"
+                "Manifest.permission.READ_MEDIA_AUDIO\n"
+                "Manifest.permission.READ_MEDIA_VIDEO\n"
+                "Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED\n"
+                "Manifest.permission.CAMERA\n"
+                "Manifest.permission.RECORD_AUDIO\n"
+                "Manifest.permission.ACCESS_FINE_LOCATION\n"
+                "Manifest.permission.ACCESS_COARSE_LOCATION\n"
+                "Manifest.permission.BLUETOOTH_CONNECT\n"
+                "Manifest.permission.BLUETOOTH_SCAN\n"
+                "Manifest.permission.CALL_PHONE\n"
+                "Manifest.permission.SEND_SMS\n"
+                "Manifest.permission.READ_SMS\n"
+                "Manifest.permission.RECEIVE_SMS\n"
+                "Manifest.permission.READ_EXTERNAL_STORAGE\n"
+                "Manifest.permission.WRITE_EXTERNAL_STORAGE\n"
+                "Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION\n"
+                "Settings.ACTION_MANAGE_OVERLAY_PERMISSION\n"
+                "Settings.ACTION_MANAGE_WRITE_SETTINGS\n"
+                "Settings.ACTION_USAGE_ACCESS_SETTINGS\n"
+                "Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES\n"
+                "Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM\n"
+                "Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\n"
+                "Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS\n"
+                "Settings.ACTION_VOICE_INPUT_SETTINGS\n"
+                "Settings.ACTION_ACCESSIBILITY_SETTINGS\n"
+                "UIHierarchyManager.launchProviderInstall\n"
+                "UIHierarchyManager.isUpdateNeeded\n"
+                "ShizukuInstaller.installBundledShizuku\n"
+                "ShizukuAuthorizer.requestShizukuPermission\n"
+                "isKiyoriRuntimePermission\n"
+            ),
+            KIYORI_FIRST_RUN_SCREEN_PATH: (
+                "package com.kiyori.integration.operit.onboarding\n"
+                "ActivityResultContracts.RequestMultiplePermissions\n"
+                "kiyoriRuntimePermissionsForSdk\n"
+                "KiyoriOnboardingStep.WELCOME\n"
+                "KiyoriOnboardingStep.BROWSER_AND_MEDIA\n"
+                "KiyoriOnboardingStep.AI_ASSISTANT\n"
+                "KiyoriOnboardingStep.FILES_AND_TOOLS\n"
+                "KiyoriOnboardingStep.AGREEMENT\n"
+                "KiyoriOnboardingStep.PERMISSIONS\n"
+                "isKiyoriRuntimePermission\n"
+                "sanitizeKiyoriPermissionSelection\n"
+                "selectedPermissionIds\n"
+                "authorizationActive\n"
+                "KiyoriPermissionId.entries\n"
+                "RootAuthorizer.requestRootPermission\n"
+                "KiyoriLegalDocument.USER_AGREEMENT\n"
+                "KiyoriLegalDocument.PRIVACY_POLICY\n"
+                "HorizontalPager(\n"
+                "rememberPagerState(\n"
+                "snapshotFlow { pagerState.settledPage }\n"
+                "pagerState.animateScrollToPage\n"
+                "PagerSnapDistance.atMost(1)\n"
+                "userScrollEnabled = pagerInputEnabled\n"
+                "shouldEnableKiyoriOnboardingPagerInput\n"
+                "resolveKiyoriOnboardingSwipeTarget\n"
+                "onboardingPreviousSwipe\n"
+                "resolveKiyoriOnboardingTitleAlignment\n"
+                "OnboardingProgressBar(\n"
+                "R.string.kiyori_onboarding_progress\n"
+                "maxLines = 1\n"
+            ),
+            KIYORI_FIRST_RUN_AGREEMENT_PATH: (
+                "package com.ai.assistance.operit.ui.features.agreement.screens\n"
+                "class KiyoriAgreementConfirmationScreen\n"
+                "KiyoriLegalDocument.USER_AGREEMENT\n"
+                "KiyoriLegalDocument.PRIVACY_POLICY\n"
+                "canAcceptKiyoriAgreement\n"
+                "KiyoriLegalDocumentsScreen\n"
+            ),
+            KIYORI_FIRST_RUN_CONTRACT_TEST_PATH: (
+                "KiyoriOnboardingStep resolveInitialKiyoriOnboardingStep "
+                "KiyoriPermissionSnapshot sanitizeKiyoriPermissionSelection "
+                "KiyoriPermissionStatus.ON_DEMAND "
+                "KiyoriPermissionStatus.NOT_APPLICABLE "
+                "KiyoriOnboardingSwipeDirection "
+                "resolveKiyoriOnboardingSwipeTarget "
+                "shouldEnableKiyoriOnboardingPagerInput "
+                "resolveKiyoriOnboardingTitleAlignment\n"
+            ),
+            KIYORI_FIRST_RUN_AGREEMENT_TEST_PATH: (
+                "canAcceptKiyoriAgreement\n"
+                "checked = true\n"
+                "assertTrue\n"
+                "assertFalse\n"
+            ),
+            M04D_MAIN_STARTUP_GATE_COORDINATOR_PATH: (
+                "package com.kiyori.app.startup\n"
+                "KiyoriMainStartupDestination.ONBOARDING\n"
+                "KiyoriMainStartupDestination.AGREEMENT\n"
+                "KiyoriMainStartupDestination.CONTENT\n"
+                "KiyoriOnboardingPreferences KiyoriOnboardingScreen "
+                "KiyoriAgreementConfirmationScreen completeOnboarding\n"
+            ),
+            M04D_MAIN_STARTUP_GATE_COORDINATOR_TEST_PATH: (
+                "KiyoriMainStartupDestination.ONBOARDING "
+                "KiyoriMainStartupDestination.AGREEMENT "
+                "KiyoriMainStartupDestination.CONTENT\n"
+            ),
+            M04_MAIN_ACTIVITY_PATH: (
+                "KiyoriMainStartupGate(\n"
+                "startupGateCoordinator.acceptCurrentAgreement()\n"
+                "startupGateCoordinator.completeOnboarding()\n"
+                "startPluginLoadingIfReady()\n"
+                "!mainApplicationReady\n"
+                "!startupGateCoordinator.isReadyForContent\n"
+                "pluginLoadingStarted\n"
+            ),
+            "app/src/main/AndroidManifest.xml": (
+                '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n'
+            ),
+            "app/src/main/res/values/strings.xml": (
+                "kiyori_onboarding_user_agreement_content\n"
+                "kiyori_onboarding_privacy_policy_content\n"
+                "kiyori_onboarding_welcome_title\n"
+                "kiyori_onboarding_browser_title\n"
+                "kiyori_onboarding_ai_title\n"
+                "kiyori_onboarding_files_title\n"
+                "以网页为入口的 AI 浏览器\n"
+                "从发现到播放，内容自然流动\n"
+                "让 AI 读懂上下文，也能继续行动\n"
+                "文件、终端与扩展能力，一处展开\n"
+                "网页浏览器\n"
+                "文件下载器\n"
+                "视频播放器\n"
+                "搜索、标签、网页操作与广告拦截\n"
+                "音乐播放与沉浸式小说阅读\n"
+                "AI 助手\n"
+                "语音服务\n"
+                "账号与连接\n"
+                "工具箱\n"
+                "文件管理器\n"
+                "终端\n"
+                "小程序管理\n"
+                "日志记录器\n"
+                "Kiyori 无障碍支持\n"
+                "Kiyori UI 自动化服务\n"
+                "GPL-3.0-or-later\n"
+                "Operit AI 是内嵌的 AI 子系统\n"
+                "kiyori_onboarding_permissions_authorize_and_enter\n"
+                "Android 运行时权限\n"
+                "Shizuku\nRoot\n"
+            ),
+        }
+        for relative_path, text in files.items():
+            path = root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+
+        launcher_foreground = root / KIYORI_LAUNCHER_FOREGROUND_PATH
+        launcher_foreground.parent.mkdir(parents=True, exist_ok=True)
+        launcher_foreground.write_bytes(b"kiyori-icon")
+
+        support_apk = root / KIYORI_ACCESSIBILITY_SUPPORT_APK_PATH
+        support_apk.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(support_apk, "w") as archive:
+            archive.writestr(
+                "resources.arsc",
+                (
+                    "Kiyori 无障碍支持\n"
+                    "Kiyori UI 自动化服务\n"
+                    "Theme.KiyoriAccessibilitySupport\n"
+                ).encode("utf-8"),
+            )
+            archive.writestr(
+                "res/drawable-nodpi/ic_kiyori_brand_foreground.png",
+                b"kiyori-icon",
+            )
+            archive.writestr(
+                "res/drawable-nodpi/ic_launcher_foreground.png",
+                b"kiyori-icon",
+            )
+        support_version = root / KIYORI_ACCESSIBILITY_SUPPORT_VERSION_PATH
+        support_version.write_text("1.7\n", encoding="utf-8")
+        support_hash = root / KIYORI_ACCESSIBILITY_SUPPORT_HASH_PATH
+        support_hash.parent.mkdir(parents=True, exist_ok=True)
+        support_hash.write_text(
+            hashlib.sha256(support_apk.read_bytes()).hexdigest().upper() + "\n",
+            encoding="utf-8",
+        )
+
+    def test_kiyori_first_run_flow_accepts_centralized_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertEqual(errors, [])
+
+    def test_kiyori_first_run_flow_rejects_second_launcher_and_legacy_owner(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
+            screen.write_text(
+                screen.read_text(encoding="utf-8")
+                + "ActivityResultContracts.RequestPermission\n",
+                encoding="utf-8",
+            )
+            legacy = root / M04D_MAIN_NOTIFICATION_PERMISSION_COORDINATOR_PATH
+            legacy.parent.mkdir(parents=True, exist_ok=True)
+            legacy.write_text("class KiyoriMainNotificationPermissionCoordinator\n")
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(any("legacy startup" in error for error in errors))
+            self.assertTrue(any("second launcher" in error for error in errors))
+
+    def test_kiyori_first_run_flow_rejects_combined_legal_ui_reference(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            agreement = root / KIYORI_FIRST_RUN_AGREEMENT_PATH
+            agreement.write_text(
+                agreement.read_text(encoding="utf-8")
+                + "R.string.kiyori_onboarding_agreement_document_content\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(
+                any(
+                    "legacy combined agreement UI reference" in error
+                    for error in errors
+                )
+            )
+
+    def test_kiyori_first_run_flow_rejects_obsolete_page_transition(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            screen = root / KIYORI_FIRST_RUN_SCREEN_PATH
+            screen.write_text(
+                screen.read_text(encoding="utf-8")
+                + "LinearProgressIndicator(\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+            self.assertTrue(
+                any(
+                    "obsolete Kiyori onboarding UI contract remains" in error
+                    for error in errors
+                )
+            )
+
+    def test_kiyori_first_run_flow_rejects_legacy_accessibility_brand(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            support_apk = root / KIYORI_ACCESSIBILITY_SUPPORT_APK_PATH
+            with zipfile.ZipFile(support_apk, "a") as archive:
+                archive.writestr(
+                    "assets/legacy-brand.txt",
+                    "Accessibility Operit Support",
+                )
+            (
+                root / KIYORI_ACCESSIBILITY_SUPPORT_HASH_PATH
+            ).write_text(
+                hashlib.sha256(support_apk.read_bytes()).hexdigest().upper()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+
+            self.assertTrue(
+                any(
+                    "legacy accessibility support brand remains" in error
+                    for error in errors
+                )
+            )
 
     def test_m04d_notification_permission_gate_accepts_early_registered_owner(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
