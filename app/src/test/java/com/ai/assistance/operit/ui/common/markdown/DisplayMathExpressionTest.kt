@@ -1,8 +1,10 @@
 package com.ai.assistance.operit.ui.common.markdown
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DisplayMathExpressionTest {
@@ -114,5 +116,66 @@ class DisplayMathExpressionTest {
         assertEquals(50, layout.bodyX)
         assertEquals(280, layout.tagX)
         assertEquals(10, layout.tagY)
+    }
+
+    @Test
+    fun drawableLayout_keepsIntrinsicSizeWhenFormulaFits() {
+        val layout =
+            resolveLatexDrawableLayout(
+                viewportWidth = 320,
+                intrinsicWidth = 180,
+                intrinsicHeight = 48,
+            )
+
+        assertEquals(180, layout.width)
+        assertEquals(48, layout.height)
+        assertEquals(1f, layout.scale, 0f)
+        assertFalse(layout.requiresHorizontalScroll)
+    }
+
+    @Test
+    fun drawableLayout_scalesSlightOverflowToViewportWidth() {
+        val layout =
+            resolveLatexDrawableLayout(
+                viewportWidth = 160,
+                intrinsicWidth = 200,
+                intrinsicHeight = 50,
+            )
+
+        assertEquals(160, layout.width)
+        assertEquals(40, layout.height)
+        assertEquals(0.8f, layout.scale, 0f)
+        assertFalse(layout.requiresHorizontalScroll)
+    }
+
+    @Test
+    fun drawableLayout_preservesReadableScaleAndRequestsScrollForVeryWideFormula() {
+        val layout =
+            resolveLatexDrawableLayout(
+                viewportWidth = 200,
+                intrinsicWidth = 1000,
+                intrinsicHeight = 100,
+            )
+
+        assertEquals(800, layout.width)
+        assertEquals(80, layout.height)
+        assertEquals(MIN_LATEX_FORMULA_SCALE, layout.scale, 0f)
+        assertTrue(layout.requiresHorizontalScroll)
+    }
+
+    @Test
+    fun drawableLayout_normalizesInvalidDimensionsAndScale() {
+        val layout =
+            resolveLatexDrawableLayout(
+                viewportWidth = 0,
+                intrinsicWidth = 0,
+                intrinsicHeight = -10,
+                minimumScale = Float.NaN,
+            )
+
+        assertEquals(1, layout.width)
+        assertEquals(1, layout.height)
+        assertEquals(1f, layout.scale, 0f)
+        assertFalse(layout.requiresHorizontalScroll)
     }
 }

@@ -1349,7 +1349,9 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
 
     handler.registerTool(
             name = "browser_run_code",
-            descriptionGenerator = { "Run Playwright-like browser code" },
+            descriptionGenerator = {
+                "Run the documented Android WebView Playwright Page and locator subset; unsupported page methods return a structured Unsupported Playwright API error"
+            },
             executor = { tool -> ToolGetter.getBrowserSessionTools(context).invoke(tool) }
     )
 

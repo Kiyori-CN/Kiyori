@@ -1479,11 +1479,33 @@ internal class WebSessionUserscriptManager(
         val type = message.optString("type", "")
         val requestId = message.optString("requestId", "")
         val payload = message.optJSONObject("payload") ?: JSONObject()
-        if (!uiStore.state.value.userScriptsAllowed) {
-            if (requestId.isNotBlank()) {
-                postRpcError(replyProxy, requestId, "userscript_permission_required")
+        when (
+            UserscriptBridgeAuthorizationPolicy.permissionDecision(
+                userScriptsAllowed = uiStore.state.value.userScriptsAllowed,
+                messageType = type,
+            )
+        ) {
+            UserscriptPermissionDecision.ALLOW -> Unit
+            UserscriptPermissionDecision.RETURN_EMPTY_BOOTSTRAP -> {
+                if (requestId.isNotBlank()) {
+                    postRpcSuccess(
+                        replyProxy = replyProxy,
+                        requestId = requestId,
+                        payload =
+                            JSONObject().put(
+                                "payloadJson",
+                                UserscriptBridgeAuthorizationPolicy.EMPTY_BOOTSTRAP_PAYLOAD_JSON,
+                            ),
+                    )
+                }
+                return
             }
-            return
+            UserscriptPermissionDecision.REJECT_PERMISSION -> {
+                if (requestId.isNotBlank()) {
+                    postRpcError(replyProxy, requestId, "userscript_permission_required")
+                }
+                return
+            }
         }
         if (bridgeScope == BridgeScope.PAGE && type != "bootstrap_request") {
             return

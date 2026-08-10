@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserHistoryMediaLaunchMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryStore
@@ -79,11 +80,21 @@ internal fun KiyoriHistoryDrawerHost(
                             }
                             WebSessionHistoryCategory.VIDEO,
                             WebSessionHistoryCategory.MUSIC,
-                            -> browserTools.playHistoryMedia(entry)
+                            ->
+                                browserTools.playHistoryMedia(
+                                    entry = entry,
+                                    launchMode =
+                                        BrowserHistoryMediaLaunchMode.DIRECT_FULLSCREEN_ACTIVITY,
+                                )
                         }
-                    if (accepted) {
+                    if (
+                        shouldDismissKiyoriHistoryDrawerAfterEntryOpen(
+                            category = entry.category,
+                            accepted = accepted,
+                        )
+                    ) {
                         onDismissRequest()
-                    } else {
+                    } else if (!accepted) {
                         Toast.makeText(
                             context,
                             resources.getString(R.string.web_session_history_replay_failed),
@@ -107,3 +118,14 @@ internal fun shouldComposeKiyoriHistoryDrawer(
     isVisible: Boolean,
     keepMountedUntilHidden: Boolean,
 ): Boolean = isVisible || keepMountedUntilHidden
+
+internal fun shouldDismissKiyoriHistoryDrawerAfterEntryOpen(
+    category: WebSessionHistoryCategory,
+    accepted: Boolean,
+): Boolean {
+    if (!accepted) return false
+    // 网页条目的 App Shell 路由已经在一次状态写入中关闭抽屉并进入 Browser Home。
+    // 这里再次关闭会读取重组前的旧 Shell 状态，从而把刚完成的浏览器导航覆盖回负一屏。
+    return category == WebSessionHistoryCategory.VIDEO ||
+        category == WebSessionHistoryCategory.MUSIC
+}

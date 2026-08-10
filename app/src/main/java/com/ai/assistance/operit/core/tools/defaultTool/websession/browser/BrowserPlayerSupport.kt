@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.content.Intent
+import android.webkit.CookieManager
 import androidx.core.net.toUri
 import com.ai.assistance.operit.core.player.PlayerMediaRequest
 import com.ai.assistance.operit.core.player.PlayerMediaSource
@@ -12,6 +13,11 @@ import com.ai.assistance.operit.ui.features.player.PlayerActivity
 import com.ai.assistance.operit.util.AppLogger
 import java.util.UUID
 import kotlinx.coroutines.launch
+
+internal enum class BrowserHistoryMediaLaunchMode {
+    BROWSER_PRESENTATION_REQUEST,
+    DIRECT_FULLSCREEN_ACTIVITY,
+}
 
 internal fun StandardBrowserSessionTools.playMediaCandidate(candidateId: String): Boolean =
     openMediaCandidate(candidateId, PlayerPresentation.FULLSCREEN_PLAYER)
@@ -100,6 +106,8 @@ internal fun StandardBrowserSessionTools.launchBrowserPlayerFullscreenActivity()
 
 internal fun StandardBrowserSessionTools.playHistoryMedia(
     entry: WebSessionHistoryEntry,
+    launchMode: BrowserHistoryMediaLaunchMode =
+        BrowserHistoryMediaLaunchMode.BROWSER_PRESENTATION_REQUEST,
 ): Boolean =
     runOnMainSync {
         require(
@@ -110,18 +118,17 @@ internal fun StandardBrowserSessionTools.playHistoryMedia(
         }
         val origin =
             entry.mediaOrigin ?: resolveWebSessionHistoryMediaOrigin(entry.url)
-        val activeSession =
-            if (origin == WebSessionHistoryMediaOrigin.ONLINE) {
-                getActiveSessionOnMain() ?: return@runOnMainSync false
-            } else {
-                null
-            }
         val headers = linkedMapOf<String, String>()
-        activeSession?.let { session ->
-            session.webView.settings.userAgentString
-                ?.takeIf(String::isNotBlank)
-                ?.let { value -> headers["User-Agent"] = value }
-            profileManager.cookieManagerFor(session.webView, session.profile)
+        if (origin == WebSessionHistoryMediaOrigin.ONLINE) {
+            // 持久化历史不能依赖某个仍存活的标签。使用普通 Profile 的持久身份，才能让冷启动
+            // 和同进程重播遵守同一个请求合同；无痕候选不会写入这份共享历史。
+            headers["User-Agent"] =
+                resolveWebSessionUserAgent(
+                    settings = browserSettingsStore.current,
+                    targetUrl = entry.url,
+                    sessionUserAgent = null,
+                ).userAgent
+            CookieManager.getInstance()
                 .getCookie(entry.url)
                 ?.takeIf(String::isNotBlank)
                 ?.let { value -> headers["Cookie"] = value }
@@ -130,22 +137,7 @@ internal fun StandardBrowserSessionTools.playHistoryMedia(
                 ?.let { value -> headers["Referer"] = value }
         }
         val playerSession = PlayerSession.getInstance(context)
-        val request =
-            PlayerMediaRequest(
-                requestId = UUID.randomUUID().toString(),
-                uri = entry.url,
-                title = entry.title,
-                headers = headers,
-                source =
-                    if (origin == WebSessionHistoryMediaOrigin.ONLINE) {
-                        PlayerMediaSource.BROWSER_CANDIDATE
-                    } else {
-                        PlayerMediaSource.EXTERNAL_INTENT
-                    },
-                sourceSessionId = activeSession?.id,
-                cookieScopeUrl = entry.sourcePageUrl.takeIf(String::isNotBlank),
-                sourcePageUrl = entry.sourcePageUrl.takeIf(String::isNotBlank),
-            )
+        val request = createHistoryPlayerMediaRequest(entry = entry, headers = headers)
         playerSession.open(
             request = request,
             presentation = PlayerPresentation.FULLSCREEN_PLAYER,
@@ -166,7 +158,15 @@ internal fun StandardBrowserSessionTools.playHistoryMedia(
                 }
             }
         }
-        playerSession.requestFullscreenActivityLaunchWhenReady()
+        when (launchMode) {
+            BrowserHistoryMediaLaunchMode.BROWSER_PRESENTATION_REQUEST ->
+                playerSession.requestFullscreenActivityLaunchWhenReady()
+            BrowserHistoryMediaLaunchMode.DIRECT_FULLSCREEN_ACTIVITY -> {
+                // 负一屏属于 App Shell；此时 Browser Screen 未挂载，无法消费一次性全屏请求。
+                // 直接启动同一个 PlayerActivity，避免已建立的 PlayerSession 停留在不可见状态。
+                launchBrowserPlayerFullscreenActivity()
+            }
+        }
         true
     }
 
@@ -183,8 +183,12 @@ internal fun createBrowserPlayerMediaRequest(
     sessionId: String,
     title: String,
     candidate: BrowserMediaCandidate,
-): PlayerMediaRequest =
-    PlayerMediaRequest(
+): PlayerMediaRequest {
+    val sourceProfile =
+        requireNotNull(WebSessionProfile.fromWireName(candidate.sourceProfile)) {
+            "Browser media candidate has an unknown source profile: ${candidate.sourceProfile}"
+        }
+    return PlayerMediaRequest(
         requestId = candidate.id,
         uri = candidate.url,
         title = title,
@@ -193,4 +197,35 @@ internal fun createBrowserPlayerMediaRequest(
         sourceSessionId = sessionId,
         cookieScopeUrl = candidate.cookieScopeUrl,
         sourcePageUrl = candidate.pageUrl,
+        persistPlaybackHistory = sourceProfile.shouldPersistBrowserHistory,
     )
+}
+
+internal fun createHistoryPlayerMediaRequest(
+    entry: WebSessionHistoryEntry,
+    headers: Map<String, String>,
+    requestId: String = UUID.randomUUID().toString(),
+): PlayerMediaRequest {
+    require(
+        entry.category == WebSessionHistoryCategory.VIDEO ||
+            entry.category == WebSessionHistoryCategory.MUSIC
+    ) {
+        "Only media history entries can be sent to PlayerSession"
+    }
+    val origin =
+        entry.mediaOrigin ?: resolveWebSessionHistoryMediaOrigin(entry.url)
+    return PlayerMediaRequest(
+        requestId = requestId,
+        uri = entry.url,
+        title = entry.title,
+        headers = headers,
+        source =
+            when (origin) {
+                WebSessionHistoryMediaOrigin.ONLINE -> PlayerMediaSource.HISTORY_REPLAY
+                WebSessionHistoryMediaOrigin.LOCAL -> PlayerMediaSource.EXTERNAL_INTENT
+            },
+        cookieScopeUrl =
+            entry.url.takeIf { origin == WebSessionHistoryMediaOrigin.ONLINE },
+        sourcePageUrl = entry.sourcePageUrl.takeIf(String::isNotBlank),
+    )
+}

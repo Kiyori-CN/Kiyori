@@ -391,6 +391,9 @@ internal class WebSessionBrowserHost(
             attachedPresentationTarget = BrowserPresentationTarget.DETACHED
         }
         appWebViewHost = webViewHost
+        currentHostLayoutSize().let { size ->
+            webViewHost.setViewportSize(size?.width, size?.height)
+        }
         appPresentationActive = true
         hideIndicator()
         requestPresentationTarget(BrowserPresentationTarget.APP_SHELL)
@@ -520,12 +523,18 @@ internal class WebSessionBrowserHost(
                     return false
                 }
                 val appHost = appWebViewHost ?: return false
+                currentHostLayoutSize().let { size ->
+                    appHost.setViewportSize(size?.width, size?.height)
+                }
                 appHost.setActiveWebView(activeWebView)
                 attachedPresentationTarget = BrowserPresentationTarget.APP_SHELL
                 hideIndicator()
             }
             BrowserPresentationTarget.BACKGROUND_ANCHOR -> {
                 val position = indicatorParams?.let { it.x to it.y } ?: (dp(16) to dp(16))
+                currentHostLayoutSize().let { size ->
+                    backgroundAnchor.setViewportSize(size?.width, size?.height)
+                }
                 if (!backgroundAnchor.ensureAttached(position.first, position.second)) {
                     return false
                 }
@@ -702,24 +711,39 @@ internal class WebSessionBrowserHost(
         }
     }
 
-    fun setViewportSize(width: Int, height: Int) {
+    fun setViewportSize(width: Int?, height: Int?) {
+        require((width == null) == (height == null)) {
+            "Viewport width and height must be set together"
+        }
         updateHostState {
             it.copy(
-                viewportWidthPx = width.coerceAtLeast(dp(240)),
-                viewportHeightPx = height.coerceAtLeast(dp(320))
+                viewportWidthCssPx = width,
+                viewportHeightCssPx = height,
             )
         }
+        val hostLayoutSize = currentHostLayoutSize()
+        appWebViewHost?.setViewportSize(hostLayoutSize?.width, hostLayoutSize?.height)
+        backgroundAnchor.setViewportSize(hostLayoutSize?.width, hostLayoutSize?.height)
     }
 
     fun clearViewportSizeOverride() {
-        updateHostState { it.copy(viewportWidthPx = null, viewportHeightPx = null) }
+        setViewportSize(null, null)
     }
 
     fun currentViewportSize(): Pair<Int, Int> {
         val metrics = appContext.resources.displayMetrics
-        val width = hostState.viewportWidthPx ?: metrics.widthPixels
-        val height = hostState.viewportHeightPx ?: metrics.heightPixels
+        val width = hostState.viewportWidthCssPx ?: (metrics.widthPixels / metrics.density).toInt()
+        val height = hostState.viewportHeightCssPx ?: (metrics.heightPixels / metrics.density).toInt()
         return width to height
+    }
+
+    private fun currentHostLayoutSize(): BrowserViewportSize? {
+        val width = hostState.viewportWidthCssPx ?: return null
+        val height = hostState.viewportHeightCssPx ?: return null
+        return BrowserViewportPolicy.hostLayoutSize(
+            requested = BrowserViewportPolicy.requestedSize(width, height),
+            density = appContext.resources.displayMetrics.density,
+        )
     }
 
     fun currentBrowserAreaSize(): Pair<Int, Int> =

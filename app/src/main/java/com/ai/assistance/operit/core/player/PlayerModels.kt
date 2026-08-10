@@ -23,6 +23,7 @@ internal enum class PlayerRuntimeState {
 internal enum class PlayerMediaSource {
     EXTERNAL_INTENT,
     BROWSER_CANDIDATE,
+    HISTORY_REPLAY,
 }
 
 internal enum class PlayerDecoderPreset(
@@ -338,6 +339,7 @@ internal data class PlayerMediaRequest(
     val sourceSessionId: String? = null,
     val cookieScopeUrl: String? = null,
     val sourcePageUrl: String? = null,
+    val persistPlaybackHistory: Boolean = true,
 ) {
     init {
         require(requestId.isNotBlank()) { "Player request ID is blank" }

@@ -59,6 +59,45 @@ internal data class PendingDialog(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+internal data class BrowserClickTargetInfo(
+    val href: String,
+    val target: String,
+    val isDownload: Boolean,
+)
+
+internal object BrowserClickNavigationPolicy {
+    fun expectsNavigation(
+        target: BrowserClickTargetInfo?,
+        initialUrl: String,
+        button: String,
+        doubleClick: Boolean,
+        modifiers: Set<String>,
+    ): Boolean {
+        if (
+            target == null ||
+                target.isDownload ||
+                button != "left" ||
+                doubleClick ||
+                modifiers.isNotEmpty()
+        ) {
+            return false
+        }
+        val href = target.href.trim()
+        if (href.isBlank()) {
+            return false
+        }
+        if (target.target.equals("_blank", ignoreCase = true)) {
+            return true
+        }
+        if (href == initialUrl) {
+            return false
+        }
+        return href.startsWith("http://", ignoreCase = true) ||
+            href.startsWith("https://", ignoreCase = true) ||
+            href.startsWith("about:", ignoreCase = true)
+    }
+}
+
 internal data class PendingAsyncJsCall(
     val latch: CountDownLatch = CountDownLatch(1),
     @Volatile var result: String? = null,

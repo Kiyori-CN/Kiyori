@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.runtime
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -95,6 +96,43 @@ class UserscriptBridgeAuthorizationPolicyTest {
                 payloadUserscriptId = 41L,
                 presentedToken = "token-41",
                 authorization = authorization,
+            ),
+        )
+    }
+
+    @Test
+    fun `disabled permission returns an empty bootstrap instead of an error`() {
+        assertEquals(
+            UserscriptPermissionDecision.RETURN_EMPTY_BOOTSTRAP,
+            UserscriptBridgeAuthorizationPolicy.permissionDecision(
+                userScriptsAllowed = false,
+                messageType = "bootstrap_request",
+            ),
+        )
+        assertEquals(
+            """{"scripts":[]}""",
+            UserscriptBridgeAuthorizationPolicy.EMPTY_BOOTSTRAP_PAYLOAD_JSON,
+        )
+    }
+
+    @Test
+    fun `disabled permission still rejects privileged runtime requests`() {
+        assertEquals(
+            UserscriptPermissionDecision.REJECT_PERMISSION,
+            UserscriptBridgeAuthorizationPolicy.permissionDecision(
+                userScriptsAllowed = false,
+                messageType = "storage_set",
+            ),
+        )
+    }
+
+    @Test
+    fun `enabled permission continues into bridge authorization`() {
+        assertEquals(
+            UserscriptPermissionDecision.ALLOW,
+            UserscriptBridgeAuthorizationPolicy.permissionDecision(
+                userScriptsAllowed = true,
+                messageType = "bootstrap_request",
             ),
         )
     }

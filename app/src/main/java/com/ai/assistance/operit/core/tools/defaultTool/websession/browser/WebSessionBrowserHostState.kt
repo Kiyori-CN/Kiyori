@@ -343,8 +343,8 @@ internal data class WebSessionBrowserHostState(
     val textSelectionActions: WebSessionTextSelectionActionsState? = null,
     val downloadPrompt: BrowserDownloadPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),
-    val viewportWidthPx: Int? = null,
-    val viewportHeightPx: Int? = null,
+    val viewportWidthCssPx: Int? = null,
+    val viewportHeightCssPx: Int? = null,
     val chromeHeightPx: Int = 0,
     val browserAreaWidthPx: Int = 0,
     val browserAreaHeightPx: Int = 0

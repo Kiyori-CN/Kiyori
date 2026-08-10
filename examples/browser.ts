@@ -6,15 +6,15 @@
         "en": "Browser Automation"
     },
     "description": {
-        "zh": "严格对齐 Playwright MCP 默认 browser 工具面的浏览器自动化工具集。",
-        "en": "Browser automation tools aligned to the default Playwright MCP browser surface."
+        "zh": "对齐 Playwright MCP 默认 browser 工具面；Android WebView 的 run_code 提供文档化的 Page 子集。",
+        "en": "Aligned to the default Playwright MCP browser surface; run_code exposes a documented Android WebView Page subset."
     },
     "enabledByDefault": true,
     "category": "Automatic",
     "tools": [
         {
             "name": "click",
-            "description": { "zh": "按快照 ref 点击页面元素，包括同源 iframe 内的元素。", "en": "Click an element by snapshot ref, including refs inside same-origin iframes." },
+            "description": { "zh": "按快照 ref 真实点击页面元素，包括同源 iframe 内的元素；结果会区分点击派发、导航完成、对话框暂停和导航超时。", "en": "Perform a real click by snapshot ref, including same-origin iframe elements; the result distinguishes dispatch, completed navigation, dialog pause, and navigation timeout." },
             "parameters": [
                 { "name": "ref", "description": { "zh": "快照中的目标元素引用；和 selector 至少提供一个。", "en": "Target element ref from the snapshot; provide ref or selector." }, "type": "string", "required": false },
                 { "name": "selector", "description": { "zh": "可选，ref 不可用时的元素选择器。", "en": "Optional selector fallback when ref is not available." }, "type": "string", "required": false },
@@ -123,7 +123,7 @@
         },
         {
             "name": "run_code",
-            "description": { "zh": "运行 Playwright 风格代码片段。", "en": "Run a Playwright-style code snippet." },
+            "description": { "zh": "运行文档化的 Android WebView Page 子集：title、url、evaluate、waitForTimeout、setContent、keyboard、dialog 的 on/once/off/removeListener，以及 locator/getByRole 的 click/hover/fill/selectOption/textContent；不支持的 Page 方法返回 Unsupported Playwright API。", "en": "Run the documented Android WebView Page subset: title, url, evaluate, waitForTimeout, setContent, keyboard, dialog on/once/off/removeListener, and locator/getByRole click/hover/fill/selectOption/textContent; unsupported Page methods return Unsupported Playwright API." },
             "parameters": [
                 { "name": "code", "description": { "zh": "代码片段。", "en": "Code snippet." }, "type": "string", "required": true }
             ]

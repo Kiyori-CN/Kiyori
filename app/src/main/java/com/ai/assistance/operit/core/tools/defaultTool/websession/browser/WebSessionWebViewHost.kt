@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.webkit.WebView
@@ -7,6 +8,7 @@ import android.webkit.WebView
 internal class WebSessionWebViewHost {
     private var container: FrameLayout? = null
     private var activeWebView: WebView? = null
+    private var viewportSize: BrowserViewportSize? = null
 
     fun attachContainer(target: FrameLayout) {
         container = target
@@ -31,6 +33,19 @@ internal class WebSessionWebViewHost {
     fun currentWebView(): WebView? = activeWebView
 
     fun isAssignedTo(webView: WebView?): Boolean = activeWebView === webView
+
+    fun setViewportSize(width: Int?, height: Int?) {
+        require((width == null) == (height == null)) {
+            "Viewport width and height must be set together"
+        }
+        viewportSize =
+            if (width == null) {
+                null
+            } else {
+                BrowserViewportPolicy.requestedSize(width, requireNotNull(height))
+            }
+        reattach()
+    }
 
     fun detachActiveWebView(): WebView? {
         val detached = activeWebView
@@ -64,19 +79,25 @@ internal class WebSessionWebViewHost {
             }
         }
 
+        val layoutParams =
+            viewportSize?.let { size ->
+                FrameLayout.LayoutParams(size.width, size.height).apply {
+                    gravity = Gravity.TOP or Gravity.START
+                }
+            } ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+
         if (target.childCount == 1 && target.getChildAt(0) === webView) {
+            webView.layoutParams = layoutParams
+            webView.requestLayout()
             return
         }
 
         target.removeAllViews()
         if (webView.parent == null) {
-            target.addView(
-                webView,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
-            )
+            target.addView(webView, layoutParams)
         }
     }
 }

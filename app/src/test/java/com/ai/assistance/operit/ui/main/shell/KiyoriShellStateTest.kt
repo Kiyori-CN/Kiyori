@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.shell
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.ui.unit.LayoutDirection
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.ui.main.navigation.AppRouterState
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntryKind
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
@@ -447,6 +448,39 @@ class KiyoriShellStateTest {
             ),
             historyDrawer.handleBack(),
         )
+    }
+
+    @Test
+    fun `history web routes own their Shell transition while accepted media closes the drawer`() {
+        listOf(
+            WebSessionHistoryCategory.WEB,
+            WebSessionHistoryCategory.NOVEL,
+            WebSessionHistoryCategory.OTHER,
+        ).forEach { category ->
+            assertFalse(
+                shouldDismissKiyoriHistoryDrawerAfterEntryOpen(
+                    category = category,
+                    accepted = true,
+                ),
+            )
+        }
+        listOf(
+            WebSessionHistoryCategory.VIDEO,
+            WebSessionHistoryCategory.MUSIC,
+        ).forEach { category ->
+            assertTrue(
+                shouldDismissKiyoriHistoryDrawerAfterEntryOpen(
+                    category = category,
+                    accepted = true,
+                ),
+            )
+            assertFalse(
+                shouldDismissKiyoriHistoryDrawerAfterEntryOpen(
+                    category = category,
+                    accepted = false,
+                ),
+            )
+        }
     }
 
     @Test

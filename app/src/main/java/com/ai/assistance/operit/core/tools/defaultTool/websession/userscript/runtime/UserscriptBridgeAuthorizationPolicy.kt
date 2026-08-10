@@ -9,8 +9,26 @@ internal data class UserscriptBridgeAuthorization(
     val grants: Set<String>,
 )
 
+internal enum class UserscriptPermissionDecision {
+    ALLOW,
+    RETURN_EMPTY_BOOTSTRAP,
+    REJECT_PERMISSION,
+}
+
 internal object UserscriptBridgeAuthorizationPolicy {
+    const val EMPTY_BOOTSTRAP_PAYLOAD_JSON = """{"scripts":[]}"""
+
     private val internalMessageTypes = setOf("script_status", "runtime_log")
+
+    fun permissionDecision(
+        userScriptsAllowed: Boolean,
+        messageType: String,
+    ): UserscriptPermissionDecision =
+        when {
+            userScriptsAllowed -> UserscriptPermissionDecision.ALLOW
+            messageType == "bootstrap_request" -> UserscriptPermissionDecision.RETURN_EMPTY_BOOTSTRAP
+            else -> UserscriptPermissionDecision.REJECT_PERMISSION
+        }
 
     fun isAuthorized(
         expectedUserscriptId: Long,

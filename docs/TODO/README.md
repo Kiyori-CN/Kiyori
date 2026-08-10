@@ -2,6 +2,121 @@
 For_Agent: 对项目大规模动工前按本规范协作
 ---
 
+## 2026-08-10 负一屏历史网页与媒体点击修复
+
+状态：网页和媒体入口的根因修复、本地自动验证、Debug APK 构建和静态产物核验已完成；
+目标设备上的冷启动、同进程播放和 Back 返回仍保持 `verification_pending`。
+
+细化计划：
+
+1. [DONE] 修正网页、小说和其他 URL 条目的 Shell 状态所有权，避免历史抽屉用旧状态覆盖
+   Browser Home 导航
+2. [DONE] 负一屏视频和音乐条目直接启动唯一 `PlayerActivity`，Browser Home 内入口继续消费
+   原有一次性全屏 presentation 请求
+3. [DONE] 新增独立 `HISTORY_REPLAY` 来源，从普通 Profile 的持久 Cookie owner 和当前浏览器
+   设置重建在线请求身份，移除冷启动对活动 WebSession 的依赖
+4. [DONE] 保持 Browser candidate 的真实 session、下载和悬浮返回语义；历史来源不伪装成
+   candidate，本地历史继续使用现有队列解析
+5. [DONE] 让 Browser candidate 按来源 Profile 决定是否写共享历史，无痕媒体不持久化
+6. [DONE] 增加网页状态所有权、历史来源、source session、Profile 持久化和全屏返回策略测试
+7. [DONE] 串行执行定向 JVM、formal readiness、`git diff --check`、Debug APK 构建和产物核验
+8. [PENDING] 在目标设备复测网页直达、冷启动和同进程在线视频、本地视频及 Back 返回
+
+本轮不创建隐藏 WebView、第二 PlayerSession、第二播放器、下载旁路或持久化请求头，不安装 APK，
+不执行 ADB/MuMu/真机操作，不提交，不推送。
+
+本地验证证据：
+
+- `KiyoriShellStateTest`、`BrowserMediaCandidatePolicyTest`、`WebSessionHistoryPolicyTest`、
+  `WebSessionProfilePolicyTest`、`PlayerPolicyTest` 与 `PlayerSurfaceLeasePolicyTest` 共
+  `126/126` 通过，失败、错误和跳过均为 `0`
+- 项目 `.venv` 的 formal readiness 通过；完整 `git diff --check` 无 whitespace error，
+  仅报告其他既有脏文件的 CRLF 转换警告
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 43s`，
+  `238` 个任务中 `28` 个执行、`210` 个为最新状态；`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `475435609` 字节，
+  SHA-256 `BDDD1DFB558BE6E9BE8A5AB8B133917A15FA17C66A081C4B0A446AC7EF61ECB3`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、min/target/compile SDK `26 / 34 / 37`、仅
+  `arm64-v8a`；Android Debug v2 单 signer 签名和 `zipalign -c -P 16 -v 4` 验证通过
+
+## 2026-08-10 Markdown/LaTeX 公式兼容性与化学渲染
+
+状态：源码修复、自动化回归用例、文档、本地自动化验证和 Debug APK 构建已完成；
+目标设备上的公式视觉、横向拖动与纵向滚动协同、流式输入时序和不同屏宽验收待完成，
+交付状态保持 `verification_pending`。
+本轮继续复用唯一 Compose/JLaTeXMath 公式链路，不新增 WebView、KaTeX、MathJax 或第二套公式状态源。
+
+细化计划与验收矩阵见：
+
+- [`markdown_latex_rendering_compatibility/`](markdown_latex_rendering_compatibility/index.md)
+
+本轮并行交付边界：
+
+- 本文件下方已有的 Browser 工具视口、链接导航、控制台与 `run_code` 契约修复段落
+- 不安装 APK、不执行 ADB/MuMu/真机操作、不提交、不推送
+
+## 2026-08-10 Browser 工具视口、链接导航、控制台与 run_code 契约修复
+
+状态：根因定位、源码修复、自动化回归、本地验证和 Debug APK 构建已完成；目标设备验收
+待完成，交付状态保持 `verification_pending`。继续复用唯一
+`StandardBrowserSessionTools`、每个 `WebSession` 的真实 WebView、现有 Browser Host 和
+userscript runtime；不创建第二套浏览器、标签注册表、页面代理或 console owner。
+
+已确认根因：
+
+- `browser_resize` 只保存请求尺寸并调用 `zoomBy` 模拟宽度，没有改变活动 WebView 的真实布局；
+  Browser Home 未挂载时，同一个 WebView 又被放入永久 `1×1` 的透明 background anchor
+- `WebSessionBrowserHost.setViewportSize` 把请求宽高按 `240dp / 320dp` 强制下限处理，导致
+  `900×600` 在当前设备密度下变成状态中的 `900×1120`
+- 普通左键 ref 点击优先向 WebView 派发原生触摸；当 WebView 为 `1×1` 时，页面元素坐标被压到
+  `(1,1)`，同时 click settlement 不等待链接应触发的导航，也不报告导航超时
+- userscript 的 page 与 isolated 两套 document-start bootstrap 在总授权关闭时分别收到一次
+  `userscript_permission_required`，bootstrap 又把内部错误镜像到页面 `console.error`
+- `browser_run_code` 的 `page` 仅实现未声明清楚的局部方法；`setContent`、`once` 等缺失方法
+  直接暴露 JavaScript `TypeError`，与包级“严格对齐”描述不一致
+
+细化计划：
+
+1. [DONE] 核对 `AGENTS.md`、正式开发准备清单、Git 基线和唯一 Browser Runtime 所有权
+2. [DONE] 追踪 resize、页面状态、background anchor、WebView 布局、点击坐标、导航等待、
+   userscript bootstrap、console 采集和 `run_code` Page 代理的完整调用链
+3. [DONE] 把 viewport 改为每个 session 的真实 CSS 布局合同；移除 dp 强制放大和
+   zoom 模拟，只在 Host 边界按 density 转换物理布局尺寸，切换标签时恢复各自尺寸，页面状态读取实际 DOM viewport
+4. [DONE] 保留真实点击语义，修正 CSS 到 WebView 坐标映射；链接点击等待导航或新标签，
+   并明确区分导航完成、被对话框暂停和超时/阻止
+5. [DONE] 总授权关闭时让 userscript bootstrap 返回空脚本集合；内部 bridge/runtime
+   诊断不再写入页面 console，已授权脚本在权限被撤销后仍获得结构化权限错误
+6. [DONE] 为 `run_code` 增加 `page.setContent`、`page.on/once('dialog')` 及
+   alert/confirm/prompt dialog 对象；其他未知 Page API 返回 `Unsupported Playwright API`
+7. [DONE] 扩展 browser Android JS 回归套件，覆盖串行/并发 goto+resize、标签独立尺寸、
+   页面布局 viewport、按钮与链接点击、导航超时、console 隔离、dialog、fetch/XHR 和多标签绑定
+8. [DONE] 增加 viewport、点击导航、userscript 权限和 `run_code` 方法契约 JVM 测试，
+   同步 `README.md`、`CONTEXT.md` 和 browser 包双语描述
+9. [DONE] 串行执行定向 JVM 测试、AndroidTest 编译、formal readiness、Markdown 链接与差异检查，
+   最后构建并核验 Debug APK
+
+本地验证证据：
+
+- Browser 与 Markdown/LaTeX 联合定向 JVM 共 `8` 个测试类、`63/63` 通过，失败、错误和跳过均为 `0`
+- `:app:compileDebugAndroidTestKotlin`：`BUILD SUCCESSFUL`，`146` 个任务；Browser Android JS
+  回归套件已写入并通过编译/打包，但尚未在目标设备运行
+- 项目 `.venv` 的 formal readiness、`git diff --check` 和本轮 `9` 份 Markdown 本地链接检查通过
+- `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`，`238` 个任务；
+  Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，SHA-256
+  `FA53014E1D66469723AD99F72CC85DC39B22A9C967983B35612A4C725849ED04`
+- APK 静态核验：`com.kiyori`、`0.1.0 (45)`、仅 `arm64-v8a`、Android Debug v2 签名通过、
+  16 KB ZIP 对齐验证通过
+
+验收边界：
+
+- 不通过伪造页面状态掩盖真实 WebView 仍为 `1×1`
+- 不把链接点击改成读取 `href` 后直接调用导航
+- 不新增 fallback、第二 Browser Runtime、第二 WebView 或第二 userscript/console 状态源
+- 真实 viewport、跨域链接点击、WindowManager 大尺寸 background anchor、页面 console 隔离和
+  `run_code` dialog 时序仍需目标设备复测
+- 不安装 APK、不执行 ADB/MuMu/真机操作、不提交、不推送
+
 ## 2026-08-10 设置页主题快捷入口与负一屏网址直达
 
 状态：本地实现、自动验证和 Debug APK 构建已完成，目标设备视觉与交互验收待完成。本轮在

@@ -21,7 +21,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.TextUnit
 import com.ai.assistance.operit.ui.common.displays.LatexCache
-import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.ui.common.displays.PreparedLatexFormula
+import com.ai.assistance.operit.ui.common.displays.logLatexRenderFailure
+import com.ai.assistance.operit.ui.common.displays.prepareLatexForJLatexMath
 import com.ai.assistance.operit.util.markdown.MarkdownNodeStable
 import com.ai.assistance.operit.util.markdown.MarkdownProcessorType
 import com.ai.assistance.operit.util.streamnative.NativeMarkdownSplitter
@@ -29,7 +31,6 @@ import ru.noties.jlatexmath.JLatexMathDrawable
 import kotlin.math.ceil
 import kotlin.math.floor
 
-private const val TAG = "MarkdownInlineSpannable"
 internal const val INLINE_LATEX_PLACEHOLDER = '\uFFFC'
 private const val MAX_INLINE_RENDER_DEPTH = 24
 
@@ -43,13 +44,11 @@ private const val MAX_INLINE_RENDER_DEPTH = 24
  */
 internal class LatexDrawableSpan(
     private val drawable: Drawable,
+    targetWidth: Int? = null,
+    targetHeight: Int? = null,
 ) : ReplacementSpan() {
-    private val width = drawable.intrinsicWidth.coerceAtLeast(1)
-    private val height = drawable.intrinsicHeight.coerceAtLeast(1)
-
-    init {
-        drawable.setBounds(0, 0, width, height)
-    }
+    private val width = (targetWidth ?: drawable.intrinsicWidth).coerceAtLeast(1)
+    private val height = (targetHeight ?: drawable.intrinsicHeight).coerceAtLeast(1)
 
     override fun getSize(
         paint: Paint,
@@ -85,6 +84,9 @@ internal class LatexDrawableSpan(
     ) {
         val textCenter = (paint.ascent() + paint.descent()) / 2f
         val formulaTop = baseline + textCenter - height / 2f
+        // LatexCache 会复用同一个 Drawable；每次绘制前恢复当前 span 的尺寸，
+        // 否则另一处不同宽度的公式会改写共享 bounds，造成比例串扰。
+        drawable.setBounds(0, 0, width, height)
         canvas.save()
         canvas.translate(x, formulaTop)
         drawable.draw(canvas)
@@ -314,11 +316,11 @@ private fun extractInlineLatexContent(content: String): String {
     }
 }
 
-private fun appendInlineLatexFallback(
+private fun appendInlineLatexFailureText(
     builder: SpannableStringBuilder,
     rawContent: String
 ) {
-    builder.append(rawContent)
+    builder.append("⚠ ").append(rawContent)
 }
 
 internal fun resolveNestedInlineText(node: MarkdownNodeStable): String {
@@ -478,12 +480,15 @@ private fun appendInlineNode(
             val latexContent = extractInlineLatexContent(content.trim())
 
             if (density != null && fontSize != null) {
+                var preparedFormula: PreparedLatexFormula? = null
                 try {
+                    val prepared = prepareLatexForJLatexMath(latexContent)
+                    preparedFormula = prepared
                     val textSizePx = with(density) { fontSize.toPx() }
                     val drawable =
                         LatexCache.getDrawable(
-                            latexContent,
-                            JLatexMathDrawable.builder(latexContent)
+                            prepared.rendered,
+                            JLatexMathDrawable.builder(prepared.rendered)
                                 .textSize(textSizePx)
                                 .padding(2)
                                 .color(textColor.toArgb())
@@ -503,11 +508,16 @@ private fun appendInlineNode(
                         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                     )
                 } catch (e: Exception) {
-                    AppLogger.w(TAG, "Inline LaTeX render failed, fallback to raw text: $latexContent", e)
-                    appendInlineLatexFallback(builder, content)
+                    logLatexRenderFailure(
+                        surface = "inline",
+                        originalFormula = latexContent,
+                        preparedFormula = preparedFormula,
+                        error = e,
+                    )
+                    appendInlineLatexFailureText(builder, content)
                 }
             } else {
-                appendInlineLatexFallback(builder, content)
+                appendInlineLatexFailureText(builder, content)
             }
         }
 

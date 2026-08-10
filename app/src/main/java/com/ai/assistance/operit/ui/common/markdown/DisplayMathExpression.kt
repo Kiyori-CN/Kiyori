@@ -1,5 +1,9 @@
 package com.ai.assistance.operit.ui.common.markdown
 
+import kotlin.math.roundToInt
+
+internal const val MIN_LATEX_FORMULA_SCALE = 0.8f
+
 internal data class DisplayMathTag(
     val latex: String,
     val parenthesized: Boolean,
@@ -21,6 +25,49 @@ internal data class DisplayMathLayoutResult(
     val tagX: Int?,
     val tagY: Int?,
 )
+
+internal data class LatexDrawableLayout(
+    val width: Int,
+    val height: Int,
+    val scale: Float,
+    val requiresHorizontalScroll: Boolean,
+)
+
+/**
+ * 轻微超宽时缩小公式；超过可接受比例后保留可读尺寸，由公式区域横向滚动承载。
+ */
+internal fun resolveLatexDrawableLayout(
+    viewportWidth: Int,
+    intrinsicWidth: Int,
+    intrinsicHeight: Int,
+    minimumScale: Float = MIN_LATEX_FORMULA_SCALE,
+): LatexDrawableLayout {
+    val safeViewportWidth = viewportWidth.coerceAtLeast(1)
+    val safeIntrinsicWidth = intrinsicWidth.coerceAtLeast(1)
+    val safeIntrinsicHeight = intrinsicHeight.coerceAtLeast(1)
+    val safeMinimumScale =
+        if (minimumScale.isFinite()) {
+            minimumScale.coerceIn(0.1f, 1f)
+        } else {
+            MIN_LATEX_FORMULA_SCALE
+        }
+    val fitScale = safeViewportWidth.toFloat() / safeIntrinsicWidth.toFloat()
+    val scale =
+        if (fitScale >= 1f) {
+            1f
+        } else {
+            maxOf(fitScale, safeMinimumScale)
+        }
+
+    val width = (safeIntrinsicWidth * scale).roundToInt().coerceAtLeast(1)
+    val height = (safeIntrinsicHeight * scale).roundToInt().coerceAtLeast(1)
+    return LatexDrawableLayout(
+        width = width,
+        height = height,
+        scale = scale,
+        requiresHorizontalScroll = width > safeViewportWidth,
+    )
+}
 
 /**
  * 从显示公式中提取顶层 `\tag{...}`。

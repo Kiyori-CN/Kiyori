@@ -9,23 +9,38 @@ import android.widget.TextView
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.displays.LatexCache
-import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.ui.common.displays.logLatexRenderFailure
+import com.ai.assistance.operit.ui.common.displays.prepareLatexForJLatexMath
 import ru.noties.jlatexmath.JLatexMathDrawable
-
-private const val TAG = "DisplayMathBlock"
 
 @Composable
 internal fun DisplayMathBlock(
@@ -38,11 +53,19 @@ internal fun DisplayMathBlock(
     val scrollState = rememberScrollState()
     val expressionResult =
         remember(latexContent) {
-            runCatching { parseDisplayMathExpression(latexContent) }
-                .onFailure {
-                    AppLogger.w(TAG, "Display math tag syntax is invalid: $latexContent", it)
-                }
+            captureLatexException { parseDisplayMathExpression(latexContent) }
         }
+    val expressionError = expressionResult.exceptionOrNull()
+    if (expressionError != null) {
+        LaunchedEffect(latexContent, expressionError) {
+            logLatexRenderFailure(
+                surface = "display-tag",
+                originalFormula = latexContent,
+                preparedFormula = null,
+                error = expressionError,
+            )
+        }
+    }
     val expression =
         expressionResult.getOrElse {
             DisplayMathExpression(body = latexContent.trim(), tag = null)
@@ -63,6 +86,7 @@ internal fun DisplayMathBlock(
                     LatexFormulaTextView(
                         formula = expression.body,
                         sourceText = expression.body,
+                        maxWidthPx = viewportWidthPx,
                         textSizePx = textSizePx,
                         textColor = textColor,
                     )
@@ -70,6 +94,7 @@ internal fun DisplayMathBlock(
                         LatexFormulaTextView(
                             formula = tag.renderedLatex,
                             sourceText = tag.renderedLatex,
+                            maxWidthPx = viewportWidthPx,
                             textSizePx = textSizePx,
                             textColor = textColor,
                         )
@@ -110,9 +135,78 @@ internal fun DisplayMathBlock(
 private fun LatexFormulaTextView(
     formula: String,
     sourceText: String,
+    maxWidthPx: Int,
     textSizePx: Float,
     textColor: Color,
 ) {
+    val textColorArgb = textColor.toArgb()
+    val preparation =
+        remember(formula) {
+            captureLatexException { prepareLatexForJLatexMath(formula.trim()) }
+        }
+
+    if (preparation.isFailure) {
+        val error = requireNotNull(preparation.exceptionOrNull())
+        LaunchedEffect(formula, error) {
+            logLatexRenderFailure(
+                surface = "display",
+                originalFormula = formula,
+                preparedFormula = null,
+                error = error,
+            )
+        }
+        LatexFormulaFailureText(
+            sourceText = sourceText,
+            maxWidthPx = maxWidthPx,
+            textColor = textColor,
+        )
+        return
+    }
+
+    val prepared = requireNotNull(preparation.getOrNull())
+    val drawableResult =
+        remember(prepared.rendered, textSizePx, textColorArgb) {
+            captureLatexException {
+                LatexCache.getDrawable(
+                    prepared.rendered,
+                    JLatexMathDrawable.builder(prepared.rendered)
+                        .textSize(textSizePx)
+                        .padding(2)
+                        .background(0x00000000)
+                        .align(JLatexMathDrawable.ALIGN_LEFT)
+                        .color(textColorArgb)
+                )
+            }
+        }
+
+    if (drawableResult.isFailure) {
+        val error = requireNotNull(drawableResult.exceptionOrNull())
+        LaunchedEffect(prepared, error) {
+            logLatexRenderFailure(
+                surface = "display",
+                originalFormula = formula,
+                preparedFormula = prepared,
+                error = error,
+            )
+        }
+        LatexFormulaFailureText(
+            sourceText = sourceText,
+            maxWidthPx = maxWidthPx,
+            textColor = textColor,
+        )
+        return
+    }
+
+    val drawable = requireNotNull(drawableResult.getOrNull())
+    val drawableLayout =
+        remember(drawable, maxWidthPx) {
+            resolveLatexDrawableLayout(
+                viewportWidth = maxWidthPx,
+                intrinsicWidth = drawable.intrinsicWidth,
+                intrinsicHeight = drawable.intrinsicHeight,
+            )
+        }
+
     AndroidView(
         factory = { context ->
             TextView(context).apply {
@@ -123,42 +217,73 @@ private fun LatexFormulaTextView(
             }
         },
         update = { textView ->
-            try {
-                val drawable =
-                    LatexCache.getDrawable(
-                        formula.trim(),
-                        JLatexMathDrawable.builder(formula)
-                            .textSize(textSizePx)
-                            .padding(2)
-                            .background(0x00000000)
-                            .align(JLatexMathDrawable.ALIGN_LEFT)
-                            .color(textColor.toArgb())
-                    )
-                val formulaText = SpannableStringBuilder(INLINE_LATEX_PLACEHOLDER.toString())
-                formulaText.setSpan(
-                    LatexDrawableSpan(drawable),
-                    0,
-                    formulaText.length,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-                textView.apply {
-                    includeFontPadding = false
-                    gravity = Gravity.CENTER
-                    setPadding(0, 0, 0, 0)
-                    setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
-                    setTextColor(textColor.toArgb())
-                    typeface = Typeface.DEFAULT
-                    text = formulaText
-                }
-            } catch (error: Exception) {
-                AppLogger.w(TAG, "Display math render failed; showing source: $formula", error)
-                textView.apply {
-                    text = sourceText
-                    setTextColor(textColor.toArgb())
-                    setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
-                    typeface = Typeface.MONOSPACE
-                }
+            val formulaText = SpannableStringBuilder(INLINE_LATEX_PLACEHOLDER.toString())
+            formulaText.setSpan(
+                LatexDrawableSpan(
+                    drawable = drawable,
+                    targetWidth = drawableLayout.width,
+                    targetHeight = drawableLayout.height,
+                ),
+                0,
+                formulaText.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            textView.apply {
+                includeFontPadding = false
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 0)
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
+                setTextColor(textColorArgb)
+                typeface = Typeface.DEFAULT
+                text = formulaText
             }
         }
     )
+}
+
+@Composable
+private fun LatexFormulaFailureText(
+    sourceText: String,
+    maxWidthPx: Int,
+    textColor: Color,
+) {
+    val density = LocalDensity.current
+    val errorColor = MaterialTheme.colorScheme.error
+    Column(
+        modifier =
+            Modifier
+                .width(with(density) { maxWidthPx.coerceAtLeast(1).toDp() })
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Outlined.ErrorOutline,
+                contentDescription = stringResource(R.string.common_render_failed),
+                tint = errorColor,
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = stringResource(R.string.common_render_failed),
+                color = errorColor,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        SelectionContainer {
+            Text(
+                text = sourceText,
+                color = textColor,
+                fontFamily = FontFamily.Monospace,
+                softWrap = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+private inline fun <T> captureLatexException(block: () -> T): Result<T> {
+    return try {
+        Result.success(block())
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
 }

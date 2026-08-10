@@ -32,6 +32,15 @@ class UserscriptBootstrapScriptSecurityTest {
     }
 
     @Test
+    fun `runtime diagnostics stay out of the target page console`() {
+        val source = UserscriptBootstrapScript.documentStartScript()
+
+        assertTrue(source.contains("runtime.post(\"runtime_log\""))
+        assertFalse(source.contains("const logger = console[resolvedLevel]"))
+        assertFalse(source.contains("logger.call(console, message)"))
+    }
+
+    @Test
     fun `page relay never contains native authorization material`() {
         val source = UserscriptUnsafeWindowBridgeScript.runtimeSource(pageWorldRuntime = true)
 

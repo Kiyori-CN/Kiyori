@@ -22,6 +22,10 @@ Kiyori 不连接 Operit 的应用更新、补丁或远程公告服务。当前�
 
 正式开发前的工程门禁、分支规则、兼容性边界和真机验收队列见 [正式开发准备](docs/TODO/formal_development_readiness/index.md)。持续开发只使用 `main` 分支；`terminal` 子模块固定到 KiyoriTerminalCore 的提交。
 
+### 当前 Browser 工具契约（2026-08-10）
+
+AI `browser_*` 与 Browser Home 继续共用唯一的 WebSession、Browser Runtime 和真实 WebView。`browser_resize` 的请求尺寸是该 WebSession 的真实 CSS 布局合同：工具返回、页面状态、`window.innerWidth/innerHeight` 和 `documentElement.clientWidth/clientHeight` 必须在合理像素容差内一致；Host 只在挂载边界按设备 density 转换为 Android 物理布局尺寸，background anchor 不再使用固定 `1×1`，也不通过缩放返回值伪造合同。`browser_click` 始终派发真实点击语义，只有在目标是可导航链接时才等待 URL 或活动标签变化；结果区分点击派发、导航完成、对话框/文件选择器暂停、下载触发和导航未开始或未完成。页面 console 消息不包含 userscript bridge/runtime 诊断。`browser_run_code` 是文档化的 Android WebView Page 子集，支持 `title`、`url`、`evaluate`、`waitForTimeout`、`setContent`、`keyboard`、`dialog` 的 `on/once/off/removeListener`，以及 `locator/getByRole` 的 `click/hover/fill/selectOption/textContent`；未支持的 Page 方法返回结构化 `Unsupported Playwright API` 错误，而不是裸 `TypeError`。
+
 ## 项目简介
 
 Kiyori 是由 Operit AI 驱动的 Android 全能型浏览器，当前代码基于 Operit 演进。浏览器是产品主体，Operit AI 作为内置 AI 子模块负责对话、理解和自动化；网页浏览、视频、音乐、小说阅读、下载、文件管理与广告拦截等能力将逐步形成独立页面，并通过受控接口开放给 AI。
@@ -183,7 +187,7 @@ Kiyori 新页面的视觉语言向 Operit 原版 UI 看齐，页面结构、浏�
 
 ## 主要能力
 
-- AI 对话、角色卡、记忆、上下文与多会话管理；Markdown 公式支持引用块递归解析、代码区域定界符隔离、块级编号、流式稳定显示与正常填充的方框公式
+- AI 对话、角色卡、记忆、上下文与多会话管理；Markdown 公式支持引用块递归解析、代码区域定界符隔离、块级编号、流式稳定显示、Dirac 竖线兼容、基础 `\ce{...}` 化学表达式、超宽公式局部横向滚动、明确失败源码提示与正常填充的方框公式
 - 内置浏览器、网页访问、网页搜索与自动化工具
 - 独立 mpv 视频播放器、浏览器视频候选与下载；音乐、小说阅读、文件管理和广告拦截页面继续规划
 - MCP、Skill、ToolPkg、工作流与工具调用

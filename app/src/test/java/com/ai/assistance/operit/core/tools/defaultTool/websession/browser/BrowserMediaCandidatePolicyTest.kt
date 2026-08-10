@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
+import com.ai.assistance.operit.core.player.PlayerMediaSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -231,6 +232,72 @@ class BrowserMediaCandidatePolicyTest {
         assertEquals("web-session", request.sourceSessionId)
         assertEquals(candidate.cookieScopeUrl, request.cookieScopeUrl)
         assertEquals(candidate.pageUrl, request.sourcePageUrl)
+        assertTrue(request.persistPlaybackHistory)
+        assertFalse(
+            createBrowserPlayerMediaRequest(
+                "incognito-session",
+                "Private episode",
+                candidate.copy(sourceProfile = WebSessionProfile.INCOGNITO.wireName),
+            ).persistPlaybackHistory,
+        )
+    }
+
+    @Test
+    fun historyReplayKeepsPersistedIdentityWithoutAWebSessionOwner() {
+        val entry =
+            WebSessionHistoryEntry(
+                url = "https://media.example/movie.mp4?token=exact",
+                title = "Episode",
+                visitedAt = 100L,
+                category = WebSessionHistoryCategory.VIDEO,
+                mediaOrigin = WebSessionHistoryMediaOrigin.ONLINE,
+                sourcePageUrl = "https://page.example/watch",
+            )
+        val headers =
+            linkedMapOf(
+                "User-Agent" to "Kiyori/History",
+                "Cookie" to "session=exact",
+                "Referer" to entry.sourcePageUrl,
+            )
+
+        val request =
+            createHistoryPlayerMediaRequest(
+                entry = entry,
+                headers = headers,
+                requestId = "history-request",
+            )
+
+        assertEquals("history-request", request.requestId)
+        assertEquals(entry.url, request.uri)
+        assertEquals(headers, request.headers)
+        assertEquals(PlayerMediaSource.HISTORY_REPLAY, request.source)
+        assertNull(request.sourceSessionId)
+        assertEquals(entry.url, request.cookieScopeUrl)
+        assertEquals(entry.sourcePageUrl, request.sourcePageUrl)
+        assertTrue(request.persistPlaybackHistory)
+    }
+
+    @Test
+    fun localHistoryKeepsExternalQueueSemantics() {
+        val entry =
+            WebSessionHistoryEntry(
+                url = "content://media/external/video/1",
+                title = "Local episode",
+                visitedAt = 100L,
+                category = WebSessionHistoryCategory.VIDEO,
+                mediaOrigin = WebSessionHistoryMediaOrigin.LOCAL,
+            )
+
+        val request =
+            createHistoryPlayerMediaRequest(
+                entry = entry,
+                headers = emptyMap(),
+                requestId = "local-history",
+            )
+
+        assertEquals(PlayerMediaSource.EXTERNAL_INTENT, request.source)
+        assertNull(request.sourceSessionId)
+        assertNull(request.cookieScopeUrl)
     }
 
     @Test

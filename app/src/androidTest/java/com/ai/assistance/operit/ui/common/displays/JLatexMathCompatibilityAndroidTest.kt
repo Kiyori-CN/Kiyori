@@ -5,11 +5,14 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.scilab.forge.jlatexmath.Box
 import org.scilab.forge.jlatexmath.MacroInfo
+import org.scilab.forge.jlatexmath.TeXFormula
+import ru.noties.jlatexmath.JLatexMathDrawable
 import ru.noties.jlatexmath.awt.AndroidGraphics2D
 import ru.noties.jlatexmath.awt.Graphics2D
 
@@ -64,5 +67,62 @@ class JLatexMathCompatibilityAndroidTest {
         ).draw(graphics, 16f, 48f)
 
         assertEquals(Paint.Style.FILL, innerPaintStyle)
+    }
+
+    @Test
+    fun backendVersion_matchesTheDiagnosedRendererContract() {
+        assertEquals(JLATEXMATH_CORE_VERSION, TeXFormula.VERSION)
+    }
+
+    @Test
+    fun backendRendersOrdinaryPhysicsDiracAndSpecialSymbolFormulas() {
+        assertFormulaRenders("""x = \frac{1}{2} + \int_0^1 t^2\,dt""")
+        assertFormulaRenders("""A = \begin{pmatrix}1 & 2 \\ 3 & 4\end{pmatrix}""")
+        assertFormulaRenders(
+            """
+            i\hbar\frac{\partial}{\partial t}
+            \lvert\psi(t)\rangle
+            =
+            \hat H\lvert\psi(t)\rangle
+            """.trimIndent()
+        )
+        assertFormulaRenders(
+            """
+            \langle\phi\mid\psi\rangle,\qquad
+            \lvert\psi\rangle
+            =
+            \sum_n c_n\lvert n\rangle
+            """.trimIndent()
+        )
+        assertFormulaRenders(
+            """
+            \infty,\ \partial,\ \nabla,\ \forall,\ \exists,\ \in,\ \notin,\
+            \subseteq,\ \supseteq,\ \cup,\ \cap,\ \emptyset,\ \therefore,\ \because
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun backendRendersSupportedChemicalAndNuclearExamples() {
+        listOf(
+            """\ce{2H2 + O2 -> 2H2O}""",
+            """\ce{N2 + 3H2 <=> 2NH3}""",
+            """\ce{Ag+ + Cl- -> AgCl v}""",
+            """\ce{^{14}_{6}C -> ^{14}_{7}N + e- + \bar{\nu}_e}""",
+        ).forEach(::assertFormulaRenders)
+    }
+
+    private fun assertFormulaRenders(source: String) {
+        val prepared = prepareLatexForJLatexMath(source)
+        val drawable =
+            LatexCache.getDrawable(
+                prepared.rendered,
+                JLatexMathDrawable.builder(prepared.rendered)
+                    .textSize(24f)
+                    .padding(2)
+            )
+
+        assertTrue("Formula width must be positive: $source", drawable.intrinsicWidth > 0)
+        assertTrue("Formula height must be positive: $source", drawable.intrinsicHeight > 0)
     }
 }

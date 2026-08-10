@@ -2,6 +2,7 @@ package com.ai.assistance.operit.core.player
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -424,6 +425,19 @@ class PlayerPolicyTest {
     }
 
     @Test
+    fun historyReplayRequestDoesNotRequireAWebSessionIdentity() {
+        val request =
+            PlayerMediaRequest(
+                requestId = "history-1",
+                uri = "https://media.example/video.mp4",
+                title = "Video",
+                source = PlayerMediaSource.HISTORY_REPLAY,
+            )
+
+        assertNull(request.sourceSessionId)
+    }
+
+    @Test
     fun sameRequestChangesOnlyPresentationWithoutReload() {
         val request = externalRequest("request-1")
         val current =
@@ -608,6 +622,22 @@ class PlayerPolicyTest {
             shouldReturnFullscreenPlayerToFloating(
                 browserState.copy(request = externalRequest("external")),
                 PlayerSettings(),
+            ),
+        )
+        assertFalse(
+            shouldReturnFullscreenPlayerToFloating(
+                browserState.copy(
+                    request =
+                        PlayerMediaRequest(
+                            requestId = "history",
+                            uri = "https://media.example/video.mp4",
+                            title = "History",
+                            source = PlayerMediaSource.HISTORY_REPLAY,
+                        ),
+                ),
+                PlayerSettings(
+                    fullscreenExitBehavior = PlayerFullscreenExitBehavior.RETURN_TO_FLOATING,
+                ),
             ),
         )
     }

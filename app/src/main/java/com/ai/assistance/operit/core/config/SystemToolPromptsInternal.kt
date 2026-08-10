@@ -440,7 +440,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_run_code",
-                            description = "Run a Playwright-style code snippet against the current tab.",
+                            description = "Run the documented Android WebView Playwright Page subset against the current tab: title, url, evaluate, waitForTimeout, setContent, keyboard, dialog on/once/off/removeListener, and locator/getByRole click/hover/fill/selectOption/textContent. Unsupported page methods return a structured Unsupported Playwright API error.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "code", type = "string", description = "Playwright-style JavaScript snippet", required = true)
@@ -3442,7 +3442,7 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_run_code",
-                            description = "运行 Playwright 风格的代码片段。",
+                            description = "运行当前 tab 上文档化的 Android WebView Playwright Page 子集：title、url、evaluate、waitForTimeout、setContent、keyboard、dialog 的 on/once/off/removeListener，以及 locator/getByRole 的 click/hover/fill/selectOption/textContent；不支持的 page 方法返回结构化 Unsupported Playwright API 错误。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(name = "code", type = "string", description = "Playwright 风格 JavaScript 代码片段", required = true)

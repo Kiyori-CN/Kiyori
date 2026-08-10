@@ -2026,20 +2026,68 @@ internal fun StandardBrowserSessionTools.renderOpenTabs(
 }
 
 internal fun StandardBrowserSessionTools.renderPageState(session: BrowserToolSession): String {
-    val viewport =
-        browserHost?.currentViewportSize()
-            ?: Pair(
-                (session.viewportWidthPx ?: session.webView.width).coerceAtLeast(0),
-                (session.viewportHeightPx ?: session.webView.height).coerceAtLeast(0)
-            )
+    val viewport = readBrowserViewportMetrics(session.webView)
     return buildString {
         appendLine("- Title: ${session.pageTitle.ifBlank { "about:blank" }}")
         appendLine("- URL: ${session.currentUrl.ifBlank { "about:blank" }}")
         appendLine("- Loading: ${if (session.isLoading) "yes" else "no"}")
         appendLine("- Can go back: ${if (session.canGoBack) "yes" else "no"}")
         appendLine("- Can go forward: ${if (session.canGoForward) "yes" else "no"}")
-        append("- Viewport: ${viewport.first}x${viewport.second}")
+        if (viewport == null) {
+            append("- Viewport: unavailable")
+        } else {
+            appendLine("- Viewport: ${viewport.innerWidth}x${viewport.innerHeight}")
+            append("- Document viewport: ${viewport.clientWidth}x${viewport.clientHeight}")
+        }
     }
+}
+
+internal fun StandardBrowserSessionTools.readBrowserViewportMetrics(
+    webView: WebView,
+): BrowserViewportMetrics? {
+    val json =
+        runJsonScript(
+            webView,
+            """
+            (function() {
+                const root = document.documentElement;
+                return JSON.stringify({
+                    ok: true,
+                    innerWidth: Number(window.innerWidth || 0),
+                    innerHeight: Number(window.innerHeight || 0),
+                    clientWidth: Number(root ? root.clientWidth : 0),
+                    clientHeight: Number(root ? root.clientHeight : 0)
+                });
+            })();
+            """.trimIndent(),
+            "viewport_metrics_error",
+        ) ?: return null
+    if (!json.optBoolean("ok", false)) {
+        return null
+    }
+    return BrowserViewportMetrics(
+        innerWidth = json.optInt("innerWidth"),
+        innerHeight = json.optInt("innerHeight"),
+        clientWidth = json.optInt("clientWidth"),
+        clientHeight = json.optInt("clientHeight"),
+    )
+}
+
+internal fun StandardBrowserSessionTools.waitForBrowserViewport(
+    session: BrowserToolSession,
+    requested: BrowserViewportSize,
+    timeoutMs: Long = 3_000L,
+): BrowserViewportMetrics? {
+    val deadline = System.currentTimeMillis() + timeoutMs.coerceAtLeast(250L)
+    var latest: BrowserViewportMetrics? = null
+    while (System.currentTimeMillis() < deadline) {
+        latest = readBrowserViewportMetrics(session.webView)
+        if (latest != null && BrowserViewportPolicy.matches(latest, requested)) {
+            return latest
+        }
+        Thread.sleep(40L)
+    }
+    return latest
 }
 
 internal fun StandardBrowserSessionTools.locatorExpressionForElement(
@@ -2482,6 +2530,76 @@ internal fun StandardBrowserSessionTools.captureElementBitmap(
     return Bitmap.createBitmap(bitmap, left, top, width, height)
 }
 
+internal fun StandardBrowserSessionTools.resolveClickTargetInfoByRef(
+    webView: WebView,
+    ref: String,
+): BrowserClickTargetInfo? {
+    val json =
+        runJsonScript(
+            webView,
+            """
+            (function() {
+                ${browserRefResolverScript()}
+                const resolved = __operitResolveRef(${quoteJs(ref)});
+                const target = resolved ? resolved.element : null;
+                if (!target) {
+                    return JSON.stringify({ ok: false, error: "ref_not_found" });
+                }
+                const anchor = target.closest ? target.closest("a[href]") : null;
+                return JSON.stringify({
+                    ok: true,
+                    href: anchor ? String(anchor.href || "") : "",
+                    target: anchor ? String(anchor.target || "") : "",
+                    download: !!(anchor && anchor.hasAttribute("download"))
+                });
+            })();
+            """.trimIndent(),
+            "click_target_error",
+        ) ?: return null
+    if (!json.optBoolean("ok", false)) {
+        return null
+    }
+    return BrowserClickTargetInfo(
+        href = json.optString("href", ""),
+        target = json.optString("target", ""),
+        isDownload = json.optBoolean("download", false),
+    )
+}
+
+internal fun StandardBrowserSessionTools.resolveClickTargetInfoBySelector(
+    webView: WebView,
+    selector: String,
+): BrowserClickTargetInfo? {
+    val json =
+        runJsonScript(
+            webView,
+            """
+            (function() {
+                const target = document.querySelector(${quoteJs(selector)});
+                if (!target) {
+                    return JSON.stringify({ ok: false, error: "selector_not_found" });
+                }
+                const anchor = target.closest ? target.closest("a[href]") : null;
+                return JSON.stringify({
+                    ok: true,
+                    href: anchor ? String(anchor.href || "") : "",
+                    target: anchor ? String(anchor.target || "") : "",
+                    download: !!(anchor && anchor.hasAttribute("download"))
+                });
+            })();
+            """.trimIndent(),
+            "click_target_error",
+        ) ?: return null
+    if (!json.optBoolean("ok", false)) {
+        return null
+    }
+    return BrowserClickTargetInfo(
+        href = json.optString("href", ""),
+        target = json.optString("target", ""),
+        isDownload = json.optBoolean("download", false),
+    )
+}
+
 internal fun StandardBrowserSessionTools.resolveElementRect(
     webView: WebView,
     ref: String
@@ -2528,7 +2646,9 @@ internal fun StandardBrowserSessionTools.resolveElementRect(
                 left: Math.max(0, Math.floor(rect.left)),
                 top: Math.max(0, Math.floor(rect.top)),
                 right: Math.max(0, Math.ceil(rect.right)),
-                bottom: Math.max(0, Math.ceil(rect.bottom))
+                bottom: Math.max(0, Math.ceil(rect.bottom)),
+                viewportWidth: Number(window.innerWidth || 0),
+                viewportHeight: Number(window.innerHeight || 0)
             });
         })();
         """.trimIndent()
@@ -2536,12 +2656,66 @@ internal fun StandardBrowserSessionTools.resolveElementRect(
     if (!json.optBoolean("ok", false)) {
         return null
     }
+    val viewportWidth = json.optDouble("viewportWidth", 0.0)
+    val viewportHeight = json.optDouble("viewportHeight", 0.0)
+    if (viewportWidth <= 0.0 || viewportHeight <= 0.0 || webView.width <= 0 || webView.height <= 0) {
+        return null
+    }
     return Rect(
-        json.optInt("left"),
-        json.optInt("top"),
-        json.optInt("right"),
-        json.optInt("bottom")
+        BrowserViewportPolicy.mapCssCoordinate(
+            cssCoordinate = json.optDouble("left"),
+            cssExtent = viewportWidth,
+            viewExtent = webView.width,
+        ),
+        BrowserViewportPolicy.mapCssCoordinate(
+            cssCoordinate = json.optDouble("top"),
+            cssExtent = viewportHeight,
+            viewExtent = webView.height,
+        ),
+        BrowserViewportPolicy.mapCssCoordinate(
+            cssCoordinate = json.optDouble("right"),
+            cssExtent = viewportWidth,
+            viewExtent = webView.width,
+        ),
+        BrowserViewportPolicy.mapCssCoordinate(
+            cssCoordinate = json.optDouble("bottom"),
+            cssExtent = viewportHeight,
+            viewExtent = webView.height,
+        ),
     )
+}
+
+internal object BrowserRunCodeContract {
+    const val UNSUPPORTED_API_PREFIX = "Unsupported Playwright API: page."
+
+    val supportedPageMembers =
+        setOf(
+            "title",
+            "url",
+            "evaluate",
+            "waitForTimeout",
+            "setContent",
+            "on",
+            "once",
+            "off",
+            "removeListener",
+            "locator",
+            "getByRole",
+            "keyboard",
+        )
+
+    val supportedDialogTypes = setOf("alert", "confirm", "prompt")
+
+    val supportedLocatorMembers =
+        setOf(
+            "click",
+            "hover",
+            "fill",
+            "selectOption",
+            "textContent",
+        )
+
+    fun unsupportedApi(method: String): String = "$UNSUPPORTED_API_PREFIX$method"
 }
 
 internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
@@ -2588,13 +2762,197 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
             const findByRole = (role, name) => Array.from(document.querySelectorAll("*"))
                 .filter((el) => isVisible(el) && roleFor(el) === String(role))
                 .find((el) => name == null || nameFor(el) === String(name));
+            const unsupportedPageApiPrefix = ${quoteJs(BrowserRunCodeContract.UNSUPPORTED_API_PREFIX)};
+            const unsupportedPageApi = (method, detail) => {
+                const suffix = detail ? ". " + String(detail) : "";
+                return unsupportedPageApiPrefix + String(method) + suffix;
+            };
+            const dialogHandlers = [];
+            const pendingDialogHandlerWork = [];
+            let dialogHandlerError = null;
+            const removeDialogHandler = (handler) => {
+                for (let index = dialogHandlers.length - 1; index >= 0; index -= 1) {
+                    if (dialogHandlers[index].handler === handler) {
+                        dialogHandlers.splice(index, 1);
+                    }
+                }
+            };
+            const registerDialogHandler = (event, handler, once) => {
+                if (String(event) !== "dialog") {
+                    throw new Error(unsupportedPageApi(
+                        (once ? "once" : "on") + "(" + JSON.stringify(String(event)) + ")"
+                    ));
+                }
+                if (typeof handler !== "function") {
+                    throw new Error("page." + (once ? "once" : "on") + "('dialog') expects a function");
+                }
+                dialogHandlers.push({ handler, once: !!once });
+            };
+            const dispatchDialog = (type, message, defaultValue) => {
+                const state = {
+                    type: String(type),
+                    message: String(message == null ? "" : message),
+                    defaultValue: String(defaultValue == null ? "" : defaultValue),
+                    handled: false,
+                    accepted: false,
+                    promptText: null
+                };
+                const dialog = {
+                    type() { return state.type; },
+                    message() { return state.message; },
+                    defaultValue() { return state.defaultValue; },
+                    accept(promptText) {
+                        if (state.handled) {
+                            return Promise.reject(new Error("Dialog is already handled"));
+                        }
+                        state.handled = true;
+                        state.accepted = true;
+                        state.promptText =
+                            promptText === undefined ? state.defaultValue : String(promptText);
+                        return Promise.resolve();
+                    },
+                    dismiss() {
+                        if (state.handled) {
+                            return Promise.reject(new Error("Dialog is already handled"));
+                        }
+                        state.handled = true;
+                        state.accepted = false;
+                        return Promise.resolve();
+                    }
+                };
+                const handlers = dialogHandlers.slice();
+                handlers.forEach((entry) => {
+                    if (entry.once) {
+                        removeDialogHandler(entry.handler);
+                    }
+                    try {
+                        const work = entry.handler(dialog);
+                        pendingDialogHandlerWork.push(
+                            Promise.resolve(work).catch((error) => {
+                                dialogHandlerError = error;
+                            })
+                        );
+                    } catch (error) {
+                        dialogHandlerError = error;
+                    }
+                });
+                return state;
+            };
+            const flushDialogHandlers = async () => {
+                while (pendingDialogHandlerWork.length > 0) {
+                    const work = pendingDialogHandlerWork.splice(0, pendingDialogHandlerWork.length);
+                    await Promise.all(work);
+                }
+                if (dialogHandlerError) {
+                    const error = dialogHandlerError;
+                    dialogHandlerError = null;
+                    throw error;
+                }
+            };
+            const replaceAttributes = (target, source) => {
+                Array.from(target.attributes || []).forEach((attribute) => {
+                    target.removeAttribute(attribute.name);
+                });
+                Array.from(source.attributes || []).forEach((attribute) => {
+                    target.setAttribute(attribute.name, attribute.value);
+                });
+            };
+            const installParsedContent = async (html, options) => {
+                const normalizedOptions = options == null ? {} : options;
+                if (typeof normalizedOptions !== "object" || Array.isArray(normalizedOptions)) {
+                    throw new Error("page.setContent options must be an object");
+                }
+                const unsupportedOptions =
+                    Object.keys(normalizedOptions).filter((key) => key !== "waitUntil");
+                if (unsupportedOptions.length > 0) {
+                    throw new Error(unsupportedPageApi(
+                        "setContent",
+                        "Unsupported option(s): " + unsupportedOptions.join(", ")
+                    ));
+                }
+                const waitUntil = String(normalizedOptions.waitUntil || "load");
+                if (!["commit", "domcontentloaded", "load"].includes(waitUntil)) {
+                    throw new Error(unsupportedPageApi(
+                        "setContent",
+                        "Unsupported waitUntil value: " + waitUntil
+                    ));
+                }
+
+                const parsed = new DOMParser().parseFromString(String(html), "text/html");
+                const pendingScripts = [];
+                const cloneForCurrentDocument = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        return document.createTextNode(node.nodeValue || "");
+                    }
+                    if (node.nodeType === Node.COMMENT_NODE) {
+                        return document.createComment(node.nodeValue || "");
+                    }
+                    if (node.nodeType !== Node.ELEMENT_NODE) {
+                        return document.createTextNode("");
+                    }
+                    if (String(node.tagName || "").toLowerCase() === "script") {
+                        const marker = document.createComment("browser_run_code_script");
+                        pendingScripts.push({ marker, source: node });
+                        return marker;
+                    }
+                    const clone =
+                        node.namespaceURI && node.namespaceURI !== "http://www.w3.org/1999/xhtml"
+                            ? document.createElementNS(node.namespaceURI, node.nodeName)
+                            : document.createElement(String(node.tagName || "").toLowerCase());
+                    Array.from(node.attributes || []).forEach((attribute) => {
+                        clone.setAttribute(attribute.name, attribute.value);
+                    });
+                    Array.from(node.childNodes || []).forEach((child) => {
+                        clone.appendChild(cloneForCurrentDocument(child));
+                    });
+                    return clone;
+                };
+                const replaceChildren = (target, source) => {
+                    const fragment = document.createDocumentFragment();
+                    Array.from(source.childNodes || []).forEach((child) => {
+                        fragment.appendChild(cloneForCurrentDocument(child));
+                    });
+                    target.replaceChildren(fragment);
+                };
+
+                replaceAttributes(document.documentElement, parsed.documentElement);
+                replaceAttributes(document.head, parsed.head);
+                replaceAttributes(document.body, parsed.body);
+                replaceChildren(document.head, parsed.head);
+                replaceChildren(document.body, parsed.body);
+
+                for (const pending of pendingScripts) {
+                    const script = document.createElement("script");
+                    Array.from(pending.source.attributes || []).forEach((attribute) => {
+                        script.setAttribute(attribute.name, attribute.value);
+                    });
+                    script.textContent = pending.source.textContent || "";
+                    let scriptLoad = null;
+                    if (script.src && waitUntil !== "commit") {
+                        scriptLoad = new Promise((resolve) => {
+                            script.addEventListener("load", resolve, { once: true });
+                            script.addEventListener("error", resolve, { once: true });
+                        });
+                    }
+                    pending.marker.replaceWith(script);
+                    if (scriptLoad) {
+                        await scriptLoad;
+                    }
+                    await flushDialogHandlers();
+                }
+                if (waitUntil !== "commit") {
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                }
+                return null;
+            };
             const makeLocator = (resolver, description) => ({
                 async click() {
                     const el = resolver();
                     if (!el) throw new Error(description + " not found");
                     try { el.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
                     try { el.focus({ preventScroll: true }); } catch (_) {}
-                    setTimeout(() => { try { el.click(); } catch (_) {} }, 0);
+                    el.click();
+                    await flushDialogHandlers();
                     await new Promise((resolve) => setTimeout(resolve, 60));
                     return null;
                 },
@@ -2637,16 +2995,49 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
                     return String(el.textContent || "");
                 }
             });
-            const page = {
+            let page = null;
+            const pageTarget = {
                 async title() { return String(document.title || ""); },
                 async url() { return String(location.href || ""); },
                 async evaluate(fn) {
                     if (typeof fn !== "function") throw new Error("page.evaluate expects a function");
-                    return await fn();
+                    const value = await fn();
+                    await flushDialogHandlers();
+                    return value;
                 },
                 async waitForTimeout(ms) {
                     await new Promise((resolve) => setTimeout(resolve, Number(ms) || 0));
+                    await flushDialogHandlers();
                     return null;
+                },
+                async setContent(html, options) {
+                    return await installParsedContent(html, options);
+                },
+                on(event, handler) {
+                    registerDialogHandler(event, handler, false);
+                    return page;
+                },
+                once(event, handler) {
+                    registerDialogHandler(event, handler, true);
+                    return page;
+                },
+                off(event, handler) {
+                    if (String(event) !== "dialog") {
+                        throw new Error(unsupportedPageApi(
+                            "off(" + JSON.stringify(String(event)) + ")"
+                        ));
+                    }
+                    removeDialogHandler(handler);
+                    return page;
+                },
+                removeListener(event, handler) {
+                    if (String(event) !== "dialog") {
+                        throw new Error(unsupportedPageApi(
+                            "removeListener(" + JSON.stringify(String(event)) + ")"
+                        ));
+                    }
+                    removeDialogHandler(handler);
+                    return page;
                 },
                 locator(selector) {
                     return makeLocator(() => document.querySelector(String(selector)), "locator(" + selector + ")");
@@ -2665,34 +3056,75 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
                     }
                 },
                 async goto() {
-                    throw new Error("page.goto is not supported in Android WebView browser_run_code. Use browser.goto instead.");
+                    throw new Error(unsupportedPageApi(
+                        "goto",
+                        "Use browser_navigate instead."
+                    ));
                 },
                 async goBack() {
-                    throw new Error("page.goBack is not supported in Android WebView browser_run_code. Use browser.back instead.");
+                    throw new Error(unsupportedPageApi(
+                        "goBack",
+                        "Use browser_navigate_back instead."
+                    ));
                 },
                 async setViewportSize() {
-                    throw new Error("page.setViewportSize is not supported in browser_run_code. Use browser.resize instead.");
+                    throw new Error(unsupportedPageApi(
+                        "setViewportSize",
+                        "Use browser_resize instead."
+                    ));
                 }
+            };
+            page = new Proxy(pageTarget, {
+                get(target, property, receiver) {
+                    if (property in target) {
+                        return Reflect.get(target, property, receiver);
+                    }
+                    if (typeof property === "symbol") {
+                        return Reflect.get(target, property, receiver);
+                    }
+                    throw new Error(unsupportedPageApi(property));
+                }
+            });
+            const originalAlert = window.alert;
+            const originalConfirm = window.confirm;
+            const originalPrompt = window.prompt;
+            window.alert = function(message) {
+                dispatchDialog("alert", message, "");
+            };
+            window.confirm = function(message) {
+                const state = dispatchDialog("confirm", message, "");
+                return state.handled && state.accepted;
+            };
+            window.prompt = function(message, defaultValue) {
+                const state = dispatchDialog("prompt", message, defaultValue);
+                return state.handled && state.accepted ? state.promptText : null;
             };
             const codeSource = ${quoteJs(code)};
             const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
-            let fn = null;
             try {
-                const maybeFn = (0, eval)("(" + codeSource + ")");
-                if (typeof maybeFn === "function") {
-                    fn = maybeFn;
-                }
-            } catch (_) {}
+                let fn = null;
+                try {
+                    const maybeFn = (0, eval)("(" + codeSource + ")");
+                    if (typeof maybeFn === "function") {
+                        fn = maybeFn;
+                    }
+                } catch (_) {}
 
-            let value;
-            if (fn) {
-                value = await fn(page);
-            } else {
-                const runner = new AsyncFunction("page", "console", codeSource);
-                value = await runner(page, console);
+                let value;
+                if (fn) {
+                    value = await fn(page);
+                } else {
+                    const runner = new AsyncFunction("page", "console", codeSource);
+                    value = await runner(page, console);
+                }
+                await flushDialogHandlers();
+                return value == null ? "" : value;
+            } finally {
+                window.alert = originalAlert;
+                window.confirm = originalConfirm;
+                window.prompt = originalPrompt;
             }
-            return value == null ? "" : value;
         })()
         """.trimIndent()
     return extractAsyncJsValue(

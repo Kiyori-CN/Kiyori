@@ -167,10 +167,6 @@ internal object UserscriptBootstrapScript {
                 },
                 log(level, message, scriptId, pageUrl) {
                     const resolvedLevel = String(level || "info");
-                    try {
-                        const logger = console[resolvedLevel] || console.log;
-                        logger.call(console, message);
-                    } catch (_) {}
                     runtime.post("runtime_log", {
                         scriptId: scriptId || 0,
                         level: resolvedLevel,

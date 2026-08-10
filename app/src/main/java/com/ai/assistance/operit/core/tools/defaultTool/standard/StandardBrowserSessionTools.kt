@@ -218,11 +218,10 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var lastDownloadEvent: WebDownloadEvent? = null
         @Volatile var lastDownloadEventAt: Long = 0L
         @Volatile var pendingDialog: PendingDialog? = null
-        @Volatile var viewportWidthPx: Int? = null
-        @Volatile var viewportHeightPx: Int? = null
+        @Volatile var viewportWidthCssPx: Int? = null
+        @Volatile var viewportHeightCssPx: Int? = null
         @Volatile var usesDesktopUserAgentLayout: Boolean = false
         @Volatile var appliedUserAgent: String = ""
-        @Volatile var appliedViewportScaleFactor: Float = 1f
         @Volatile var credentialDocumentToken: String = UUID.randomUUID().toString()
         @Volatile var returnWithoutReloadOriginalCacheMode: Int? = null
         @Volatile var lastSnapshot: BrowserSnapshot? = null
@@ -376,7 +375,20 @@ class StandardBrowserSessionTools private constructor(
                 "Ref $ref was not found in the current snapshot. Capture a new snapshot and retry."
             )
         }
+        val clickTarget =
+            when {
+                ref != null -> resolveClickTargetInfoByRef(session.webView, ref)
+                else -> resolveClickTargetInfoBySelector(session.webView, selector!!)
+            }
         val markers = captureActionMarkers(session)
+        val expectsNavigation =
+            BrowserClickNavigationPolicy.expectsNavigation(
+                target = clickTarget,
+                initialUrl = markers.initialUrl,
+                button = button,
+                doubleClick = doubleClick,
+                modifiers = modifiers,
+            )
         val code =
             when {
                 ref != null -> buildClickCode(session, ref, button, doubleClick, modifiers)
@@ -436,8 +448,15 @@ class StandardBrowserSessionTools private constructor(
                 markers = markers,
                 policy =
                     BrowserActionSettlementPolicy(
+                        timeoutMs =
+                            if (expectsNavigation) {
+                                DEFAULT_TIMEOUT_MS.coerceAtLeast(8_000L)
+                            } else {
+                                DEFAULT_TIMEOUT_MS
+                            },
                         waitForDocumentReady = true,
-                        waitForTimeSeconds = 0.5
+                        waitForNavigationChange = expectsNavigation,
+                        waitForTimeSeconds = if (expectsNavigation) null else 0.5,
                     )
             )
         val downloadEvent = latestBrowserDownloadEventAfter(settlement.downloadMarker)
@@ -448,6 +467,26 @@ class StandardBrowserSessionTools private constructor(
                 "Click triggered a download, but it failed: ${downloadEvent.error ?: downloadEvent.fileName}"
             )
         }
+        val finalUrl =
+            readCurrentUrl(settlement.session.webView, settlement.session.currentUrl)
+        val activeSessionChanged = settlement.session.id != markers.initialSessionId
+        val navigationStarted = activeSessionChanged || finalUrl != markers.initialUrl
+        val dialogOpened =
+            settlement.session.pendingDialog?.timestamp?.let { it >= markers.startedAt } == true
+        val fileChooserOpened =
+            settlement.session.pendingFileChooserCallback != null &&
+                settlement.session.lastFileChooserRequestAt >= markers.startedAt
+        if (settlement.timedOut && (expectsNavigation || navigationStarted)) {
+            return pageError(
+                tool.name,
+                settlement.session,
+                if (navigationStarted) {
+                    "Click was dispatched and navigation started, but the destination document did not become ready before the timeout."
+                } else {
+                    "Click was dispatched, but the expected navigation did not start before the timeout. The page or browser policy may have prevented it."
+                },
+            )
+        }
 
         return ok(
             tool.name,
@@ -455,9 +494,26 @@ class StandardBrowserSessionTools private constructor(
                 settlement = settlement,
                 code = code,
                 result =
-                    when {
-                        ref != null -> "Clicked ref=$ref with button=$button${if (doubleClick) " (double)" else ""}"
-                        else -> "Clicked selector=${selector ?: ""} with button=$button${if (doubleClick) " (double)" else ""}"
+                    buildString {
+                        append(
+                            when {
+                                ref != null ->
+                                    "Clicked ref=$ref with button=$button${if (doubleClick) " (double)" else ""}"
+                                else ->
+                                    "Clicked selector=${selector ?: ""} with button=$button${if (doubleClick) " (double)" else ""}"
+                            },
+                        )
+                        appendLine()
+                        append(
+                            when {
+                                downloadEvent != null -> "Click dispatched; download was triggered."
+                                fileChooserOpened -> "Click dispatched; file chooser is open."
+                                dialogOpened -> "Click dispatched; navigation is paused by a page dialog."
+                                navigationStarted ->
+                                    "Navigation completed to $finalUrl."
+                                else -> "Click dispatched; no navigation was expected."
+                            },
+                        )
                     }
             )
         )
@@ -1561,13 +1617,26 @@ class StandardBrowserSessionTools private constructor(
             }
         runOnMainSync<Unit> {
             ensureSessionAttachedOnMain(session.id)
-            browserHost?.setViewportSize(width, height)
-            session.viewportWidthPx = width
-            session.viewportHeightPx = height
+            session.viewportWidthCssPx = width
+            session.viewportHeightCssPx = height
             applyViewportOverride(session)
             refreshSessionUiOnMain(session.id)
         }
-        Thread.sleep(100)
+        val requested = BrowserViewportPolicy.requestedSize(width, height)
+        val actual = waitForBrowserViewport(session, requested)
+        if (actual == null || !BrowserViewportPolicy.matches(actual, requested)) {
+            val metrics =
+                actual?.let {
+                    "${it.innerWidth}x${it.innerHeight} inner / " +
+                        "${it.clientWidth}x${it.clientHeight} client"
+                } ?: "unavailable"
+            return pageError(
+                tool.name,
+                session,
+                "Requested viewport ${requested.width}x${requested.height}, but the active page " +
+                    "reported $metrics. The WebView layout was not accepted as the requested viewport."
+            )
+        }
 
         return ok(
             tool.name,

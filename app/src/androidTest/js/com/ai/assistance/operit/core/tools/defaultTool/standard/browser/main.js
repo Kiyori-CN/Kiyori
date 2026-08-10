@@ -74,6 +74,27 @@ function extractSavedPath(output) {
   return match ? match[1].trim() : null;
 }
 
+function extractNumericField(output, field) {
+  const normalized = String(output || '').replace(/\\"/g, '"');
+  const match = normalized.match(new RegExp('"' + String(field) + '"\\s*:\\s*(\\d+)'));
+  if (!match) {
+    throw new Error('numeric field not found: ' + field + '\nOutput:\n' + output);
+  }
+  return Number(match[1]);
+}
+
+function assertViewportMetrics(output, width, height, label) {
+  const tolerance = 2;
+  const innerWidth = extractNumericField(output, 'innerWidth');
+  const innerHeight = extractNumericField(output, 'innerHeight');
+  const clientWidth = extractNumericField(output, 'clientWidth');
+  const clientHeight = extractNumericField(output, 'clientHeight');
+  assert(Math.abs(innerWidth - width) <= tolerance, label + ' innerWidth mismatch: ' + innerWidth);
+  assert(Math.abs(innerHeight - height) <= tolerance, label + ' innerHeight mismatch: ' + innerHeight);
+  assert(Math.abs(clientWidth - width) <= tolerance, label + ' clientWidth mismatch: ' + clientWidth);
+  assert(Math.abs(clientHeight - height) <= tolerance, label + ' clientHeight mismatch: ' + clientHeight);
+}
+
 async function tryBrowserTool(name, params) {
   try {
     return await callBrowserTool(name, params);
@@ -133,6 +154,9 @@ function makeSuiteHtml() {
     '  <button id="clickBtn">Click Action</button>',
     '  <button id="logBtn">Log Action</button>',
     '  <button id="alertBtn">Alert Action</button>',
+    '  <a id="hashLink" href="#details">Hash Link</a>',
+    '  <a id="blockedLink" href="https://example.com/blocked">Blocked Link</a>',
+    '  <div id="details">Hash details</div>',
     '  <button id="hoverBox">Hover Action</button>',
     '  <button id="dragSrc" draggable="true">Drag Source</button>',
     '  <button id="dragDst">Drag Target</button>',
@@ -154,6 +178,7 @@ function makeSuiteHtml() {
     '      const clickBtn = document.getElementById("clickBtn");',
     '      const logBtn = document.getElementById("logBtn");',
     '      const alertBtn = document.getElementById("alertBtn");',
+    '      const blockedLink = document.getElementById("blockedLink");',
     '      const hoverBox = document.getElementById("hoverBox");',
     '      const dragSrc = document.getElementById("dragSrc");',
     '      const dragDst = document.getElementById("dragDst");',
@@ -172,6 +197,10 @@ function makeSuiteHtml() {
     '        body.dataset.dialog = "opened";',
     '        alert("Browser dialog");',
     '        body.dataset.dialog = "handled";',
+    '      });',
+    '      blockedLink.addEventListener("click", function (event) {',
+    '        event.preventDefault();',
+    '        body.dataset.blocked = "prevented";',
     '      });',
     '      hoverBox.addEventListener("mouseover", function () {',
     '        body.dataset.hovered = "yes";',
@@ -267,9 +296,10 @@ exports.run = async function run() {
     }),
     test('browser_click triggers DOM click handlers', async () => {
       await ensureFixtureRefs(refs);
-      await callBrowserTool('browser_click', { ref: refs.clickBtn });
+      const output = await callBrowserTool('browser_click', { ref: refs.clickBtn });
       const value = await evaluateExpression('() => document.body.dataset.clicked');
       assert(String(value).indexOf('1') >= 0, 'click should increment clicked counter');
+      assert(String(output).indexOf('Click dispatched') >= 0, 'ordinary click should report dispatch without navigation');
     }),
     test('browser_hover triggers mouseover state', async () => {
       await ensureFixtureRefs(refs);
@@ -330,6 +360,92 @@ exports.run = async function run() {
       await callBrowserTool('browser_click', { ref: refs.logBtn });
       const value = await callBrowserTool('browser_console_messages', { level: 'info' });
       assert(String(value).indexOf('browser-tool-log-info') >= 0, 'console messages should include info log');
+      assert(String(value).indexOf('userscript_permission_required') < 0, 'bridge diagnostics must not pollute page console');
+    }),
+    test('browser_resize keeps tool state and DOM layout viewport aligned', async () => {
+      await ensureFixtureOpen();
+      const output = await callBrowserTool('browser_resize', { width: 900, height: 600 });
+      const metrics = await evaluateExpression(
+        '() => JSON.stringify({ innerWidth, innerHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight })'
+      );
+      assert(/900x600/.test(String(output)), 'resize should report the requested viewport');
+      assertViewportMetrics(metrics, 900, 600, 'direct resize');
+    }),
+    test('serial goto and resize settle on one viewport contract', async () => {
+      await callBrowserTool('browser_navigate', { url: PAGE_URL });
+      await callBrowserTool('browser_resize', { width: 640, height: 480 });
+      const metrics = await evaluateExpression(
+        '() => JSON.stringify({ url: location.href, innerWidth, innerHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight })'
+      );
+      assert(String(metrics).indexOf(PAGE_URL) >= 0, 'serial navigation should keep the fixture page active');
+      assertViewportMetrics(metrics, 640, 480, 'serial goto and resize');
+    }),
+    test('concurrent goto and resize settle on the requested DOM viewport', async () => {
+      await Promise.all([
+        callBrowserTool('browser_navigate', { url: PAGE_URL }),
+        callBrowserTool('browser_resize', { width: 700, height: 500 }),
+      ]);
+      const metrics = await evaluateExpression(
+        '() => JSON.stringify({ innerWidth, innerHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight })'
+      );
+      assertViewportMetrics(metrics, 700, 500, 'concurrent goto and resize');
+    }),
+    test('each tab restores its own viewport after switching', async () => {
+      await ensureFixtureOpen();
+      await callBrowserTool('browser_resize', { width: 620, height: 420 });
+      await callBrowserTool('browser_tabs', { action: 'create' });
+      await callBrowserTool('browser_resize', { width: 460, height: 360 });
+      await callBrowserTool('browser_tabs', { action: 'select', index: 0 });
+      const first = await evaluateExpression(
+        '() => JSON.stringify({ innerWidth, innerHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight })'
+      );
+      await callBrowserTool('browser_tabs', { action: 'select', index: 1 });
+      const second = await evaluateExpression(
+        '() => JSON.stringify({ innerWidth, innerHeight, clientWidth: document.documentElement.clientWidth, clientHeight: document.documentElement.clientHeight })'
+      );
+      assertViewportMetrics(first, 620, 420, 'first tab viewport');
+      assertViewportMetrics(second, 460, 360, 'second tab viewport');
+      await callBrowserTool('browser_close', {});
+      await callBrowserTool('browser_tabs', { action: 'select', index: 0 });
+    }),
+    test('same-page link click completes navigation without href substitution', async () => {
+      await ensureFixtureOpen();
+      const output = await callBrowserTool('browser_click', { selector: '#hashLink' });
+      const url = await evaluateExpression('() => location.href');
+      assert(String(url).indexOf('#details') >= 0, 'real hash-link click should update the URL');
+      assert(String(output).indexOf('Navigation completed') >= 0, 'click should report completed navigation');
+    }),
+    test('preventDefault link reports that navigation did not start', async () => {
+      await ensureFixtureOpen();
+      let output = '';
+      try {
+        output = String(await callBrowserTool('browser_click', { selector: '#blockedLink' }));
+      } catch (error) {
+        output = String(error);
+      }
+      assert(/did not start|prevented/.test(output), 'blocked navigation should return an explicit reason');
+      const state = await evaluateExpression('() => document.body.dataset.blocked');
+      assert(String(state).indexOf('prevented') >= 0, 'the real click handler should still run');
+    }),
+    test('example.com Learn more link performs cross-domain navigation', async () => {
+      await callBrowserTool('browser_navigate', { url: 'https://example.com' });
+      const snapshot = await callBrowserTool('browser_snapshot', { depth: 5 });
+      const learnMore = extractRef(snapshot, 'Learn more');
+      const output = await callBrowserTool('browser_click', { ref: learnMore });
+      const url = await evaluateExpression('() => location.href');
+      assert(/iana\.org/.test(String(url)), 'Learn more should navigate to IANA');
+      assert(String(output).indexOf('Navigation completed') >= 0, 'cross-domain click should report completion');
+    }),
+    test('new tab bootstrap does not emit permission errors to page console', async () => {
+      await ensureFixtureOpen();
+      await callBrowserTool('browser_tabs', { action: 'create' });
+      await callBrowserTool('browser_navigate', {
+        url: 'data:text/html,<title>Bridge%20Isolation</title><p>new%20tab</p>',
+      });
+      const output = await callBrowserTool('browser_console_messages', { level: 'error' });
+      assert(String(output).indexOf('userscript_permission_required') < 0, 'new tab should not expose bridge permission errors');
+      await callBrowserTool('browser_close', {});
+      await callBrowserTool('browser_tabs', { action: 'select', index: 0 });
     }),
     test('browser_wait_for resolves when delayed text appears', async () => {
       await ensureFixtureOpen();
@@ -372,12 +488,69 @@ exports.run = async function run() {
       });
       assert(String(value).indexOf('Browser Tool Test') >= 0, 'run_code should return current page title');
     }),
+    test('browser_run_code supports setContent and locator operations', async () => {
+      await ensureFixtureOpen();
+      const value = await callBrowserTool('browser_run_code', {
+        code: 'async (page) => { await page.setContent("<main id=\\"content\\">set-content-ok</main>"); return await page.locator("#content").textContent(); }',
+      });
+      assert(String(value).indexOf('set-content-ok') >= 0, 'setContent should replace the current document');
+    }),
+    test('browser_run_code supports page once dialog registration', async () => {
+      await ensureFixtureOpen();
+      const value = await callBrowserTool('browser_run_code', {
+        code: 'async (page) => { page.once("dialog", async dialog => { if (dialog.type() !== "prompt") throw new Error("wrong dialog type"); await dialog.accept("dialog-ok"); }); return await page.evaluate(() => prompt("Question", "default")); }',
+      });
+      assert(String(value).indexOf('dialog-ok') >= 0, 'page.once dialog handler should accept prompt text');
+    }),
+    test('browser_run_code supports alert confirm and prompt handlers', async () => {
+      await ensureFixtureOpen();
+      const value = await callBrowserTool('browser_run_code', {
+        code: 'async (page) => { page.on("dialog", async dialog => { if (dialog.type() === "confirm") await dialog.accept(); else if (dialog.type() === "prompt") await dialog.accept("prompt-ok"); else await dialog.dismiss(); }); return await page.evaluate(() => { alert("a"); return JSON.stringify({ alert: "handled", confirm: confirm("c"), prompt: prompt("p", "d") }); }); }',
+      });
+      assert(String(value).indexOf('"alert"') >= 0, 'alert should be handled by the registered dialog listener');
+      assert(String(value).indexOf('"confirm":true') >= 0, 'confirm should return the accepted result');
+      assert(String(value).indexOf('prompt-ok') >= 0, 'prompt should return the accepted text');
+    }),
+    test('browser_run_code reports unsupported Page APIs clearly', async () => {
+      let output = '';
+      try {
+        output = String(await callBrowserTool('browser_run_code', {
+          code: 'async (page) => await page.screenshot()',
+        }));
+      } catch (error) {
+        output = String(error);
+      }
+      assert(String(output).indexOf('Unsupported Playwright API: page.screenshot') >= 0, 'unsupported APIs should have a stable error');
+    }),
+    test('dynamic fetch and XHR remain visible in network requests', async () => {
+      await callBrowserTool('browser_navigate', { url: 'https://example.com' });
+      const marker = 'browser_dynamic_' + Date.now();
+      await evaluateExpression(
+        '() => { fetch("/?fetch=' + marker + '"); const xhr = new XMLHttpRequest(); xhr.open("GET", "/?xhr=' + marker + '"); xhr.send(); return "started"; }'
+      );
+      await callBrowserTool('browser_wait_for', { time: 0.8 });
+      const output = await callBrowserTool('browser_network_requests', {
+        requestBody: false,
+        requestHeaders: false,
+        static: false,
+      });
+      assert(String(output).indexOf(marker) >= 0, 'dynamic fetch and XHR should be captured');
+    }),
     test('browser_tabs can create and select tabs', async () => {
       await ensureFixtureOpen();
       const created = await callBrowserTool('browser_tabs', { action: 'create' });
       assert(String(created).indexOf('Created tab') >= 0, 'tabs new should create a tab');
       const selected = await callBrowserTool('browser_tabs', { action: 'select', index: 0 });
       assert(String(selected).indexOf('Selected tab 0.') >= 0, 'tabs select should switch back to first tab');
+      const firstTitle = await callBrowserTool('browser_run_code', {
+        code: 'async (page) => await page.title()',
+      });
+      assert(String(firstTitle).indexOf('Browser Tool Test') >= 0, 'selected first tab should own run_code');
+      await callBrowserTool('browser_tabs', { action: 'select', index: 1 });
+      const secondUrl = await callBrowserTool('browser_evaluate', { function: '() => location.href' });
+      assert(String(secondUrl).length > 0, 'selected second tab should own evaluate');
+      await callBrowserTool('browser_close', {});
+      await callBrowserTool('browser_tabs', { action: 'select', index: 0 });
     }),
     test('browser_close closes the current tab cleanly', async () => {
       await ensureFixtureOpen();

@@ -1579,6 +1579,10 @@ internal fun StandardBrowserSessionTools.syncProjectedBrowserStateOnMain() {
     val resolvedActiveId = registry.activeSessionId
     val activeSession = resolvedActiveId?.let(::sessionById)
     StandardBrowserSessionTools.activeSessionId = resolvedActiveId
+    browserHost?.setViewportSize(
+        activeSession?.viewportWidthCssPx,
+        activeSession?.viewportHeightCssPx,
+    )
     browserHost?.attachActiveWebView(activeSession?.webView)
     activeSession?.let(::applyViewportOverride)
     userscriptManager.updateVisibleSession(
@@ -1876,48 +1880,23 @@ internal fun StandardBrowserSessionTools.applySessionUserAgent(
     session.usesDesktopUserAgentLayout = resolvedUserAgent.usesDesktopLayout
     with(session.webView.settings) {
         userAgentString = resolvedUserAgent.userAgent
-        useWideViewPort = resolvedUserAgent.usesDesktopLayout
+        useWideViewPort =
+            resolvedUserAgent.usesDesktopLayout && session.viewportWidthCssPx == null
         loadWithOverviewMode =
-            resolvedUserAgent.usesDesktopLayout && session.viewportWidthPx == null
+            resolvedUserAgent.usesDesktopLayout && session.viewportWidthCssPx == null
     }
     session.appliedUserAgent = resolvedUserAgent.userAgent
 }
 
 internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserToolSession) {
-    val requestedWidth = session.viewportWidthPx
-    val requestedHeight = session.viewportHeightPx
-    val browserAreaWidth =
-        browserHost?.currentBrowserAreaSize()?.first
-            ?.takeIf { it > 0 }
-            ?: session.webView.width.takeIf { it > 0 }
-            ?: context.resources.displayMetrics.widthPixels
-
+    val requestedWidth = session.viewportWidthCssPx
+    val requestedHeight = session.viewportHeightCssPx
+    session.webView.settings.useWideViewPort =
+        session.usesDesktopUserAgentLayout && requestedWidth == null
     session.webView.settings.loadWithOverviewMode =
         session.usesDesktopUserAgentLayout && requestedWidth == null
-
-    val desiredScaleFactor =
-        if (requestedWidth == null || requestedHeight == null || browserAreaWidth <= 0) {
-            1f
-        } else {
-            (browserAreaWidth.toFloat() / requestedWidth.toFloat()).coerceIn(0.25f, 5f)
-        }
-
-    val currentScaleFactor = session.appliedViewportScaleFactor.takeIf { it > 0f } ?: 1f
-    val relativeScaleFactor = (desiredScaleFactor / currentScaleFactor).coerceIn(0.25f, 5f)
-
-    session.webView.post {
-        runCatching {
-            if (relativeScaleFactor != 1f) {
-                session.webView.zoomBy(relativeScaleFactor)
-            }
-            session.appliedViewportScaleFactor = desiredScaleFactor
-        }.onFailure {
-            AppLogger.w(
-                WEBVIEW_SUPPORT_TAG,
-                "Failed to apply viewport override for session=${session.id}: ${it.message}"
-            )
-        }
-    }
+    browserHost?.setViewportSize(requestedWidth, requestedHeight)
+    session.webView.requestLayout()
 }
 
 internal fun StandardBrowserSessionTools.configureCookiePolicy(session: BrowserToolSession) {

@@ -13,9 +13,10 @@ import com.ai.assistance.operit.util.AppLogger
 /**
  * Keeps the active WebView attached while Browser Home is not composed.
  *
- * This object owns no browser state. The WindowManager root is permanently 1x1, invisible,
- * non-focusable and non-touchable; its only child is the same WebView owned by the active
- * StandardBrowserSessionTools WebSession.
+ * This object owns no browser state. The WindowManager root is invisible, non-focusable and
+ * non-touchable; its only child is the same WebView owned by the active
+ * StandardBrowserSessionTools WebSession. Its layout follows the active session viewport so page
+ * JavaScript and browser tools observe the same geometry.
  */
 internal class BrowserBackgroundAnchor(context: Context) {
     private val appContext = context.applicationContext
@@ -33,6 +34,7 @@ internal class BrowserBackgroundAnchor(context: Context) {
         }
 
     private var params: WindowManager.LayoutParams? = null
+    private var viewportSize: BrowserViewportSize? = null
 
     val isAttached: Boolean
         get() = params != null
@@ -58,6 +60,29 @@ internal class BrowserBackgroundAnchor(context: Context) {
 
     fun setActiveWebView(webView: WebView?) {
         webViewHost.setActiveWebView(webView)
+    }
+
+    fun setViewportSize(width: Int?, height: Int?) {
+        require((width == null) == (height == null)) {
+            "Viewport width and height must be set together"
+        }
+        viewportSize =
+            if (width == null) {
+                null
+            } else {
+                BrowserViewportPolicy.requestedSize(width, requireNotNull(height))
+            }
+        webViewHost.setViewportSize(width, height)
+        val size = currentWindowSize()
+        val layoutParams = params ?: return
+        if (layoutParams.width == size.width && layoutParams.height == size.height) {
+            return
+        }
+        layoutParams.width = size.width
+        layoutParams.height = size.height
+        if (container.windowToken != null) {
+            windowManager.updateViewLayout(container, layoutParams)
+        }
     }
 
     fun detachActiveWebView(): WebView? = webViewHost.detachActiveWebView()
@@ -95,9 +120,10 @@ internal class BrowserBackgroundAnchor(context: Context) {
     }
 
     private fun createLayoutParams(x: Int, y: Int): WindowManager.LayoutParams {
+        val size = currentWindowSize()
         return WindowManager.LayoutParams(
-            1,
-            1,
+            size.width,
+            size.height,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             BrowserBackgroundAnchorPolicy.anchorFlags(),
             PixelFormat.TRANSLUCENT,
@@ -107,4 +133,12 @@ internal class BrowserBackgroundAnchor(context: Context) {
             this.y = y
         }
     }
+
+    private fun currentWindowSize(): BrowserViewportSize =
+        BrowserViewportPolicy.hostSize(
+            requestedWidth = viewportSize?.width,
+            requestedHeight = viewportSize?.height,
+            defaultWidth = appContext.resources.displayMetrics.widthPixels,
+            defaultHeight = appContext.resources.displayMetrics.heightPixels,
+        )
 }

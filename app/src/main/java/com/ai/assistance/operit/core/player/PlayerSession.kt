@@ -521,12 +521,14 @@ internal class PlayerSession private constructor(context: Context) {
                 "headerCount=${request.headers.size}",
         )
         _state.value = transition.state
-        mainScope.launch(Dispatchers.IO) {
-            historyStore.recordMediaPlayback(
-                uri = request.uri,
-                title = request.title,
-                sourcePageUrl = request.sourcePageUrl.orEmpty(),
-            )
+        if (request.persistPlaybackHistory) {
+            mainScope.launch(Dispatchers.IO) {
+                historyStore.recordMediaPlayback(
+                    uri = request.uri,
+                    title = request.title,
+                    sourcePageUrl = request.sourcePageUrl.orEmpty(),
+                )
+            }
         }
         prepareSurfaceLeaseForPresentation(presentation)
         pendingMediaLoad = null

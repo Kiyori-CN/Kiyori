@@ -47,3 +47,24 @@
 - 浏览器菜单与负一屏必须组合同一个 `WebSessionHistorySheet`，筛选、删除和条目数量不能各自缓存
 - 设备验收前，抽屉拖动、Pager 手势互斥、Back、在线请求身份和本地 URI 可访问性保持
   `verification_pending`
+
+## 2026-08-10 历史网页与视频点击修复
+
+- [DONE] 网页、小说和其他 URL 条目只由 App Shell 执行一次“关闭历史抽屉并进入 Browser Home”
+  状态转换，历史抽屉不再用重组前的旧状态重复关闭并覆盖导航结果
+- [DONE] 视频和音乐条目从负一屏直接启动唯一 `PlayerActivity`；浏览器页面内的历史与媒体入口继续
+  使用 Browser presentation 的一次性全屏请求，不创建第二播放器或第二播放状态
+- [DONE] 在线历史使用独立 `HISTORY_REPLAY` 来源；点击时从当前浏览器设置、普通 Profile Cookie
+  和记录的来源页重建 User-Agent、Cookie 与 Referer，不再要求应用内仍存在活动 WebSession
+- [DONE] 浏览器候选继续严格绑定真实 `sourceSessionId`；无痕候选不写入共享历史。历史重播不启用
+  候选下载，也不在全屏退出后转为悬浮播放器；本地历史继续使用 `EXTERNAL_INTENT` 恢复同目录队列
+- [DONE] 历史、Profile、播放器、Surface lease 与 Shell 的 6 个定向测试类共 `126/126` 通过，
+  失败、错误和跳过均为 `0`；正式开发准备门禁与完整 `git diff --check` 通过
+- [DONE] `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 43s`，
+  `238` 个任务中 `28` 个执行、`210` 个为最新状态；`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- [DONE] Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `475435609` 字节，
+  SHA-256 `BDDD1DFB558BE6E9BE8A5AB8B133917A15FA17C66A081C4B0A446AC7EF61ECB3`
+- [DONE] APK 为 `com.kiyori`、`45 / 0.1.0`、min/target/compile SDK `26 / 34 / 37`、仅
+  `arm64-v8a`；Android Debug v2 单 signer 签名和 `zipalign -c -P 16 -v 4` 验证通过
+- [PENDING] 在目标设备复测负一屏历史网页直达、在线视频、本地视频和 Back 返回

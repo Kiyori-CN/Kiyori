@@ -151,3 +151,36 @@ blockGroup.stream.splitBy(inlinePlugins).collect { inlineGroup ->
 
 ### 5. 数据输出
 解析结果最终构建成 `MarkdownNode` 树结构，支持实时的流式 UI 渲染，实现流畅的"打字机"效果。
+
+## 公式渲染边界
+
+AI 对话中的公式继续使用一条原生链路：
+
+```text
+StreamMarkdownRenderer
+  -> CanvasMarkdownNodeRenderer
+  -> DisplayMathBlock / MarkdownInlineSpannable
+  -> LatexCache
+  -> jlatexmath-android 0.2.0
+```
+
+KaTeX 只参与 MathML/纯文本转换，不承担聊天气泡内的公式绘制。公式边界仍由块级和内联
+Markdown 节点决定，代码区中的数学定界符保持字面文本；流式块公式在结束定界符到达前不会
+作为已完成公式节点提交。
+
+`prepareLatexForJLatexMath` 在公式节点内部执行局部兼容处理：
+
+- 将缺失的 `\lvert`、`\rvert`、`\lVert`、`\rVert` 转为后端已有的
+  `\mathopen` / `\mathclose` 与 `\vert` / `\Vert`
+- 将后端不识别的控制空格 `\ `，以及单反斜杠紧接 `LF`/`CRLF` 的输入，转为已支持的
+  `\;` 数学间距；物理行尾仍保留为换行，便于诊断位置对应源码结构
+- 将基础 `\ce{...}` 化学语法转为同一后端可解析的 `\mathrm`、上下标和箭头表达式
+
+化学兼容层覆盖元素与下标、计量系数、单符号电荷、显式上下标电荷、常见反应箭头、
+沉淀/气体标记、分组/状态和核素混合 LaTeX。它不是完整 `mhchem` 实现；复杂箭头标签、
+复杂键语法和其他未声明扩展不属于当前合同。
+
+块级公式按容器宽度计算显示尺寸：轻微超宽时等比缩小，最小保持 `0.8`；仍然超宽时只在
+公式区域横向滚动，不压缩成不可读图片。渲染失败时显示明确错误标识，并用容器宽度换行展示
+完整原始公式。开发构建日志记录原始公式、预处理公式、变换列表、后端版本、异常类型和消息、
+命令及位置来源。
