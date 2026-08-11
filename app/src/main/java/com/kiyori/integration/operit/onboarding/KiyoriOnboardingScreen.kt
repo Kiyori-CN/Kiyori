@@ -47,7 +47,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Apps
@@ -1975,14 +1974,6 @@ private fun permissionMetadata(permissionId: KiyoriPermissionId): PermissionMeta
                 KiyoriSemanticTone.ORANGE,
                 R.string.kiyori_onboarding_permission_install_title,
                 R.string.kiyori_onboarding_permission_install_desc,
-            )
-
-        KiyoriPermissionId.EXACT_ALARM ->
-            PermissionMetadata(
-                Icons.Default.Alarm,
-                KiyoriSemanticTone.BLUE,
-                R.string.kiyori_onboarding_permission_alarm_title,
-                R.string.kiyori_onboarding_permission_alarm_desc,
             )
 
         KiyoriPermissionId.BATTERY_OPTIMIZATION ->

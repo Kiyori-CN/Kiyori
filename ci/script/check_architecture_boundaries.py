@@ -5500,6 +5500,9 @@ def check_kiyori_first_run_flow(
     permissions_code = source_code_mask(
         (root / KIYORI_FIRST_RUN_PERMISSIONS_PATH).read_text(encoding="utf-8")
     )
+    contract_code = source_code_mask(
+        (root / KIYORI_FIRST_RUN_CONTRACT_PATH).read_text(encoding="utf-8")
+    )
     required_runtime_permissions = (
         "Manifest.permission.POST_NOTIFICATIONS",
         "Manifest.permission.READ_MEDIA_AUDIO",
@@ -5531,7 +5534,6 @@ def check_kiyori_first_run_flow(
         "Settings.ACTION_MANAGE_WRITE_SETTINGS",
         "Settings.ACTION_USAGE_ACCESS_SETTINGS",
         "Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES",
-        "Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM",
         "Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
         "Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS",
         "Settings.ACTION_VOICE_INPUT_SETTINGS",
@@ -5551,6 +5553,38 @@ def check_kiyori_first_run_flow(
     screen_code = source_code_mask(
         (root / KIYORI_FIRST_RUN_SCREEN_PATH).read_text(encoding="utf-8")
     )
+    first_run_code = "\n".join((contract_code, permissions_code, screen_code))
+    for token in (
+        "KiyoriPermissionId.EXACT_ALARM",
+        "Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM",
+        "canScheduleExactAlarms",
+    ):
+        if token in first_run_code:
+            errors.append(
+                "ARCH045 removed first-run exact-alarm contract remains: "
+                f"{token}"
+            )
+
+    manifest_text = (
+        root / "app/src/main/AndroidManifest.xml"
+    ).read_text(encoding="utf-8")
+    if "android.permission.SCHEDULE_EXACT_ALARM" in manifest_text:
+        errors.append(
+            "ARCH045 removed first-run exact-alarm manifest permission remains"
+        )
+
+    for strings_path in sorted(
+        (root / "app/src/main/res").glob("values*/strings.xml")
+    ):
+        if (
+            "kiyori_onboarding_permission_alarm_"
+            in strings_path.read_text(encoding="utf-8")
+        ):
+            errors.append(
+                "ARCH045 removed first-run exact-alarm resource remains: "
+                f"{strings_path.relative_to(root).as_posix()}"
+            )
+
     required_screen_tokens = (
         "ActivityResultContracts.RequestMultiplePermissions",
         "kiyoriRuntimePermissionsForSdk",

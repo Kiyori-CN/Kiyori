@@ -25,11 +25,11 @@ Current work status and implementation notes belong in `docs/TODO/`.
 
 ## Architecture ownership transition
 
-## Current first-run authority (2026-08-10)
+## Current first-run authority (2026-08-11)
 
 - Kiyori's current first-run flow is owned by `com.kiyori.app.startup.KiyoriMainStartupGateCoordinator`
   plus the `com.kiyori.integration.operit.onboarding` integration. Onboarding version
-  `2026-08-10-r8` contains six Chinese pages: an AI-browser product overview, a browser/content
+  `2026-08-11-r9` contains six Chinese pages: an AI-browser product overview, a browser/content
   workspace, AI and connected services, a local file/terminal/mini-app workspace, separate User
   Agreement and Privacy Policy entries with one explicit consent checkbox, and a flat
   permission-selection page. The first four pages use a shared visual, header, and card baseline
@@ -45,7 +45,9 @@ Current work status and implementation notes belong in `docs/TODO/`.
   remain start-aligned. The agreement content version remains `2026-08-09-r3`.
   The permission page processes only the items selected by the user and enters Kiyori directly when
   the selected queue is complete; there is no permission level selector or independent readiness
-  summary page.
+  summary page. Exact-alarm access is not part of the current first-run contract: scheduled workflows
+  use WorkManager and the normal device-alarm capability uses `ACTION_SET_ALARM`, while no current
+  Kiyori consumer requires exact `AlarmManager` scheduling.
 - Before formal content is shown, `MainActivity` asks the single `ChatHistoryManager` owner for the
   persisted current-chat ID and verifies that its database row exists. A missing or stale current
   chat creates and selects one real empty conversation without requiring a configured model or API

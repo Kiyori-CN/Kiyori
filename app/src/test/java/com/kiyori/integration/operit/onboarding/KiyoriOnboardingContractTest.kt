@@ -165,6 +165,11 @@ class KiyoriOnboardingContractTest {
     }
 
     @Test
+    fun `first-run permission contract excludes unused exact alarm access`() {
+        assertFalse(KiyoriPermissionId.entries.any { it.name == "EXACT_ALARM" })
+    }
+
+    @Test
     fun `granted not applicable and on demand statuses form a complete snapshot`() {
         val statuses =
             KiyoriPermissionId.entries.associateWith { permissionId ->

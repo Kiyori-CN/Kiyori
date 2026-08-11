@@ -1,7 +1,6 @@
 package com.kiyori.integration.operit.onboarding
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.content.ComponentName
 import android.content.Context
@@ -93,7 +92,6 @@ internal fun isKiyoriRuntimePermission(
         KiyoriPermissionId.WRITE_SETTINGS,
         KiyoriPermissionId.USAGE_ACCESS,
         KiyoriPermissionId.INSTALL_PACKAGES,
-        KiyoriPermissionId.EXACT_ALARM,
         KiyoriPermissionId.BATTERY_OPTIMIZATION,
         KiyoriPermissionId.NOTIFICATION_LISTENER,
         KiyoriPermissionId.DEFAULT_ASSISTANT,
@@ -254,16 +252,6 @@ internal fun readKiyoriPermissionSnapshot(
                 },
             )
             put(
-                KiyoriPermissionId.EXACT_ALARM,
-                if (sdkInt >= Build.VERSION_CODES.S) {
-                    val alarmManager =
-                        context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                    grantedStatus(alarmManager.canScheduleExactAlarms())
-                } else {
-                    KiyoriPermissionStatus.NOT_APPLICABLE
-                },
-            )
-            put(
                 KiyoriPermissionId.BATTERY_OPTIMIZATION,
                 if (sdkInt >= Build.VERSION_CODES.M) {
                     val powerManager =
@@ -363,12 +351,6 @@ internal fun launchKiyoriPermissionSettings(
             KiyoriPermissionId.INSTALL_PACKAGES ->
                 Intent(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    packageUri,
-                )
-
-            KiyoriPermissionId.EXACT_ALARM ->
-                Intent(
-                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                     packageUri,
                 )
 

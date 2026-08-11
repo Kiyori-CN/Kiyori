@@ -6011,7 +6011,6 @@ class KiyoriPathsTest {
                 "Settings.ACTION_MANAGE_WRITE_SETTINGS\n"
                 "Settings.ACTION_USAGE_ACCESS_SETTINGS\n"
                 "Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES\n"
-                "Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM\n"
                 "Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\n"
                 "Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS\n"
                 "Settings.ACTION_VOICE_INPUT_SETTINGS\n"
@@ -6200,6 +6199,56 @@ class KiyoriPathsTest {
             check_kiyori_first_run_flow(root, errors)
             self.assertTrue(any("legacy startup" in error for error in errors))
             self.assertTrue(any("second launcher" in error for error in errors))
+
+    def test_kiyori_first_run_flow_rejects_removed_exact_alarm_contract(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_kiyori_first_run_layout(root)
+            permissions = root / KIYORI_FIRST_RUN_PERMISSIONS_PATH
+            permissions.write_text(
+                permissions.read_text(encoding="utf-8")
+                + "KiyoriPermissionId.EXACT_ALARM\n"
+                + "Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM\n"
+                + "alarmManager.canScheduleExactAlarms()\n",
+                encoding="utf-8",
+            )
+            manifest = root / "app/src/main/AndroidManifest.xml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8")
+                + '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n',
+                encoding="utf-8",
+            )
+            strings = root / "app/src/main/res/values/strings.xml"
+            strings.write_text(
+                strings.read_text(encoding="utf-8")
+                + '<string name="kiyori_onboarding_permission_alarm_title">Exact alarm</string>\n',
+                encoding="utf-8",
+            )
+
+            errors: list[str] = []
+            check_kiyori_first_run_flow(root, errors)
+
+            self.assertTrue(
+                any(
+                    "removed first-run exact-alarm contract remains" in error
+                    for error in errors
+                )
+            )
+            self.assertTrue(
+                any(
+                    "removed first-run exact-alarm manifest permission remains"
+                    in error
+                    for error in errors
+                )
+            )
+            self.assertTrue(
+                any(
+                    "removed first-run exact-alarm resource remains" in error
+                    for error in errors
+                )
+            )
 
     def test_kiyori_first_run_flow_rejects_combined_legal_ui_reference(
         self,

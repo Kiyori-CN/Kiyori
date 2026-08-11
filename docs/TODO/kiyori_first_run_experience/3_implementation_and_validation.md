@@ -1,5 +1,38 @@
 # 实现与验证
 
+## 2026-08-11-r9 首启精确闹钟权限链收口
+
+1. [DONE] 删除首启 `EXACT_ALARM` 权限枚举、真实状态读取、系统设置 Intent 和权限元数据
+2. [DONE] 删除 Manifest 中无实际消费者的 `SCHEDULE_EXACT_ALARM` 声明
+3. [DONE] 将首启偏好命名空间升级为 `r9`，避免旧 r8 队列中的 `EXACT_ALARM` 名称进入新状态机
+4. [DONE] 更新中文、英文及现有本地化首启资源，移除精确闹钟权限文案和不再成立的法律能力描述
+5. [DONE] 更新首启架构门禁，要求剩余特殊访问覆盖并禁止精确闹钟合同重新出现
+6. [DONE] 保留 WorkManager 工作流调度和普通 `ACTION_SET_ALARM` 闹钟能力
+7. [DONE] 完成定向 JVM、首启架构门禁、正式开发准备和差异审计
+8. [DONE] 完成 Debug APK 构建并核验产物
+9. [PENDING] 在目标设备复测第六页授权流程、系统设置往返和首启状态重建
+
+本轮属于未发布 Kiyori 的开发期合同收口。`2026-08-11-r9` 使用新的首启偏好命名空间，
+不读取旧 r8 的选择集合；协议正文版本仍保持 `2026-08-09-r3`。
+
+本轮最终本地验证结果：
+
+- `KiyoriOnboardingContractTest` `12/12` 与 `KiyoriOnboardingPermissionsTest` `5/5`
+  通过，失败、错误和跳过均为 `0`
+- 首启架构正反向定向测试 `3/3` 通过，正式开发准备检查通过
+- `git diff --check` 通过，仅输出仓库已有的 AndroidManifest CRLF/LF 转换提示
+- 同步 Manifest 语义快照后，完整 architecture `phase=m03` 返回 `errors: []`
+- 七个现有本地化 `strings.xml` 中的首启精确闹钟权限资源和法律能力声明反向搜索为 `0`
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL`；`238` 个任务中 `33` 个执行、`205` 个为最新状态，唯一 Debug launcher
+  与 Player runtime packaging 检查通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `475435325` bytes，
+  SHA-256 `253A6A426A342014BD55432EB9DF3531D6CFD804487C7D6970B01598592FF291`
+- APK 为 `com.kiyori`、`0.1.0 (45)`、min/target/compile SDK `26 / 34 / 37`，仅
+  `arm64-v8a`；51 个 native `.so` basename 唯一，Android Debug V2 单 signer 与
+  `zipalign -c -P 16 -v 4` 验证通过
+- 未安装 APK、未运行 ADB 或操作设备；目标设备验收保持 `verification_pending`
+
 ## 2026-08-10-r8 首启收口与进入正式使用
 
 1. [DONE] 将第一页“欢迎使用 Kiyori”在共享标题槽内居中，后三张带眉题介绍页维持左对齐
@@ -202,7 +235,7 @@ IPC 兼容标识不变。真机启动器图标、首页视觉与无障碍设置�
 - 六页在深浅主题、横竖屏、大字体、折叠屏和 TalkBack 下的视觉与可操作性
 - 左右滑动、单页吸附、协议前进限制、已同意后返回以及授权中手势锁定的真机触控验收
 - Android 8 至 Android 16 的运行时权限组合和部分授权结果
-- OEM 所有文件、悬浮窗、系统设置、使用情况、安装、闹钟、电池和通知读取入口
+- OEM 所有文件、悬浮窗、系统设置、使用情况、安装、电池和通知读取入口
 - 无障碍提供者安装/启用、Shizuku 安装/启动/授权、Root 请求和默认助手设置
 - 拒绝、永久拒绝、系统设置返回、旋转、进程回收和再次启动后的状态恢复
 

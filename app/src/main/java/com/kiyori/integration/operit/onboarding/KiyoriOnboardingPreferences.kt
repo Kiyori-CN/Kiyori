@@ -53,11 +53,11 @@ internal class KiyoriOnboardingPreferences(
     }
 
     companion object {
-        private const val PREFERENCES_NAME = "kiyori_onboarding_preferences_r8"
-        private const val KEY_CURRENT_STEP = "current_step_r8"
+        private const val PREFERENCES_NAME = "kiyori_onboarding_preferences_r9"
+        private const val KEY_CURRENT_STEP = "current_step_r9"
         private const val KEY_COMPLETED_VERSION = "completed_version"
-        private const val KEY_SELECTED_PERMISSIONS = "selected_permissions_r1"
+        private const val KEY_SELECTED_PERMISSIONS = "selected_permissions_r2"
 
-        const val CURRENT_ONBOARDING_VERSION = "2026-08-10-r8"
+        const val CURRENT_ONBOARDING_VERSION = "2026-08-11-r9"
     }
 }
