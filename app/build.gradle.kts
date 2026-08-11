@@ -7,6 +7,7 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Files
 import java.security.MessageDigest
+import java.util.Locale
 import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -331,6 +332,41 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    private val blockedDirectoryNames =
+        setOf(
+            ".git",
+            ".backup",
+            ".history",
+            "__pycache__",
+            "node_modules",
+            ".gradle",
+            ".idea",
+        )
+    private val blockedExactFileNames = setOf(".env", ".ds_store", "thumbs.db")
+    private val blockedFileSuffixes =
+        setOf(".pem", ".key", ".p12", ".pfx", ".jks", ".keystore", ".swp", ".tmp")
+    private val activeTextSuffixes = setOf(".js", ".ts", ".json", ".hjson", ".html", ".css")
+    private val privateKeyMarkers =
+        listOf(
+            "-----BEGIN PRIVATE KEY-----",
+            "-----BEGIN RSA PRIVATE KEY-----",
+            "-----BEGIN EC PRIVATE KEY-----",
+            "-----BEGIN OPENSSH PRIVATE KEY-----",
+        )
+    private val legacyOperitPathPatterns =
+        listOf(
+            Regex("""/sdcard/Download/Operit(?:/|["'\s]|$)""", RegexOption.IGNORE_CASE),
+            Regex(
+                """/storage/emulated/\d+/Download/Operit(?:/|["'\s]|$)""",
+                RegexOption.IGNORE_CASE,
+            ),
+        )
+    private val fixedApplicationPathPatterns =
+        listOf(
+            Regex("""/data/user/\d+/[A-Za-z0-9._-]+/"""),
+            Regex("""/sdcard/Android/data/[A-Za-z0-9._-]+/"""),
+        )
+
     @TaskAction
     fun generate() {
         val examplesRoot = examplesDirectory.get().asFile.canonicalFile
@@ -350,8 +386,15 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
 
         val outputNames = mutableSetOf<String>()
         items.forEach { item ->
-            val normalized = item.replace('\\', '/').trim('/')
-            check(normalized.isNotEmpty() && !normalized.startsWith("/") && ".." !in normalized.split('/')) {
+            check('\\' !in item) {
+                "Bundled package whitelist paths must use forward slashes: $item"
+            }
+            val normalized = item.trim().trim('/')
+            check(
+                normalized.isNotEmpty() &&
+                    !item.trim().startsWith("/") &&
+                    ".." !in normalized.split('/'),
+            ) {
                 "Bundled package path escapes examples/: $item"
             }
             val stem =
@@ -372,15 +415,19 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
                 "Bundled ToolPkg path escapes examples/: $item"
             }
 
-            val manifest =
+            val manifestCandidates =
                 listOf(packageRoot.resolve("manifest.hjson"), packageRoot.resolve("manifest.json"))
-                    .firstOrNull(File::isFile)
-            if (manifest == null) {
+                    .filter(File::isFile)
+            if (manifestCandidates.isEmpty()) {
                 check(normalized.endsWith(".js", ignoreCase = true)) {
                     "Bundled ToolPkg has no manifest: $item"
                 }
                 return@forEach
             }
+            check(manifestCandidates.size == 1) {
+                "Bundled ToolPkg must contain exactly one manifest: $packageRoot"
+            }
+            val manifest = manifestCandidates.single()
 
             check(packageRoot.isDirectory) {
                 "Bundled ToolPkg source is not a regular directory: $packageRoot"
@@ -397,37 +444,192 @@ abstract class GenerateBundledToolPkgAssetsTask : DefaultTask() {
                 check(!Files.isSymbolicLink(path.toPath())) {
                     "Bundled ToolPkg cannot contain symbolic links: $path"
                 }
+                val relativePath = path.relativeTo(packageRoot).invariantSeparatorsPath
+                validateBundledToolPkgPath(relativePath)
                 if (path.isDirectory) {
                     path.listFiles().orEmpty().sortedBy(File::getName).forEach(::collect)
                 } else if (path.isFile) {
+                    validateBundledToolPkgFile(packageRoot, path)
                     files += path
                 }
             }
 
             collect(manifest)
-            listOf("dist", "resources", "modules", "assets")
+            listOf(
+                "dist",
+                "packages",
+                "ui",
+                "resources",
+                "modules",
+                "assets",
+                "i18n",
+                "workflow",
+                "workspace",
+            )
                 .map(packageRoot::resolve)
                 .filter(File::exists)
                 .forEach(::collect)
             packageRoot.resolve("main.js").takeIf(File::isFile)?.let(::collect)
+            val selectedFiles =
+                files
+                    .distinctBy { it.canonicalPath }
+                    .sortedBy { it.relativeTo(packageRoot).invariantSeparatorsPath }
+            check(selectedFiles.size <= MAX_TOOLPKG_ENTRY_COUNT) {
+                "Bundled ToolPkg contains too many files: $packageRoot"
+            }
+            var unpackedBytes = 0L
+            selectedFiles.forEach { source ->
+                unpackedBytes = safeAdd(unpackedBytes, source.length())
+                check(unpackedBytes <= MAX_TOOLPKG_UNPACKED_BYTES) {
+                    "Bundled ToolPkg exceeds the total unpacked size limit: $packageRoot"
+                }
+            }
 
             val outputFile = outputPackages.resolve("${packageRoot.name}.toolpkg")
             check(outputNames.add(outputFile.name)) {
                 "Bundled ToolPkg output name is duplicated: ${outputFile.name}"
             }
             ZipOutputStream(BufferedOutputStream(FileOutputStream(outputFile))).use { archive ->
-                files
-                    .distinctBy { it.canonicalPath }
-                    .sortedBy { it.relativeTo(packageRoot).invariantSeparatorsPath }
-                    .forEach { source ->
-                        val entry = ZipEntry(source.relativeTo(packageRoot).invariantSeparatorsPath)
-                        entry.time = 0L
-                        archive.putNextEntry(entry)
-                        source.inputStream().use { input -> input.copyTo(archive) }
-                        archive.closeEntry()
+                selectedFiles.forEach { source ->
+                    val entry = ZipEntry(source.relativeTo(packageRoot).invariantSeparatorsPath)
+                    entry.time = 0L
+                    archive.putNextEntry(entry)
+                    source.inputStream().use { input -> input.copyTo(archive) }
+                    archive.closeEntry()
+                }
+            }
+            check(outputFile.length() <= MAX_TOOLPKG_ARCHIVE_BYTES) {
+                "Bundled ToolPkg exceeds the compressed size limit: $outputFile"
+            }
+            ZipFile(outputFile).use { archive ->
+                val entries = archive.entries().asSequence().filterNot { it.isDirectory }.toList()
+                check(entries.size == selectedFiles.size) {
+                    "Bundled ToolPkg entry count changed during packaging: $outputFile"
+                }
+                entries.forEach { entry ->
+                    check(
+                        entry.size <= 0L ||
+                            entry.compressedSize <= 0L ||
+                            entry.size / entry.compressedSize <= MAX_TOOLPKG_COMPRESSION_RATIO,
+                    ) {
+                        "Bundled ToolPkg entry exceeds the compression-ratio limit: ${entry.name}"
                     }
+                }
             }
         }
+    }
+
+    private fun validateBundledToolPkgPath(relativePath: String) {
+        check(relativePath.isNotBlank() && relativePath == relativePath.trim()) {
+            "Bundled ToolPkg path is blank or has surrounding whitespace: $relativePath"
+        }
+        check('\\' !in relativePath && '\u0000' !in relativePath && !relativePath.contains("://")) {
+            "Bundled ToolPkg path is invalid: $relativePath"
+        }
+        val segments = relativePath.split('/')
+        check(
+            segments.size <= MAX_TOOLPKG_PATH_DEPTH &&
+                segments.none { segment ->
+                    segment.isBlank() ||
+                        segment == "." ||
+                        segment == ".." ||
+                        segment != segment.trimEnd() ||
+                        segment.any { character -> character.code < 32 }
+                },
+        ) {
+            "Bundled ToolPkg path contains an invalid segment: $relativePath"
+        }
+        check(relativePath.length <= MAX_TOOLPKG_NORMALIZED_PATH_LENGTH) {
+            "Bundled ToolPkg path is too long: $relativePath"
+        }
+        val lowercaseSegments = segments.map { segment -> segment.lowercase(Locale.ROOT) }
+        val fileName = lowercaseSegments.last()
+        check(lowercaseSegments.none(blockedDirectoryNames::contains)) {
+            "Bundled ToolPkg contains a blocked directory: $relativePath"
+        }
+        check(
+            fileName !in blockedExactFileNames &&
+                !fileName.startsWith(".env.") &&
+                blockedFileSuffixes.none(fileName::endsWith),
+        ) {
+            "Bundled ToolPkg contains a blocked file: $relativePath"
+        }
+    }
+
+    private fun validateBundledToolPkgFile(
+        packageRoot: File,
+        source: File,
+    ) {
+        val relativePath = source.relativeTo(packageRoot).invariantSeparatorsPath
+        val maximumBytes = maximumToolPkgEntryBytes(relativePath)
+        check(source.length() <= maximumBytes) {
+            "Bundled ToolPkg entry exceeds its size limit: $relativePath"
+        }
+        val lower = relativePath.lowercase(Locale.ROOT)
+        if (
+            activeTextSuffixes.none(lower::endsWith) &&
+                lower.substringAfterLast('/') !in setOf("readme", "readme.md", "license", "license.md")
+        ) {
+            return
+        }
+        val text = source.readText(Charsets.UTF_8)
+        privateKeyMarkers.forEach { marker ->
+            check(marker !in text) {
+                "Bundled ToolPkg contains private key material: $relativePath"
+            }
+        }
+        if (isBundledDocumentationEntry(lower)) {
+            return
+        }
+        legacyOperitPathPatterns.forEach { pattern ->
+            check(!pattern.containsMatchIn(text)) {
+                "Bundled ToolPkg executable content contains the old Operit path: $relativePath"
+            }
+        }
+        fixedApplicationPathPatterns.forEach { pattern ->
+            check(!pattern.containsMatchIn(text)) {
+                "Bundled ToolPkg executable content contains a fixed application path: $relativePath"
+            }
+        }
+    }
+
+    private fun maximumToolPkgEntryBytes(relativePath: String): Long {
+        val lower = relativePath.lowercase(Locale.ROOT)
+        val fileName = lower.substringAfterLast('/')
+        return when {
+            fileName == "manifest.json" || fileName == "manifest.hjson" ->
+                MAX_TOOLPKG_MANIFEST_BYTES
+            activeTextSuffixes.any(lower::endsWith) -> MAX_TOOLPKG_TEXT_ENTRY_BYTES
+            else -> MAX_TOOLPKG_GENERAL_ENTRY_BYTES
+        }
+    }
+
+    private fun isBundledDocumentationEntry(lowercasePath: String): Boolean {
+        val segments = lowercasePath.split('/')
+        val fileName = segments.last()
+        return "docs" in segments ||
+            fileName.startsWith("readme") ||
+            fileName.startsWith("license") ||
+            fileName.startsWith("changelog")
+    }
+
+    private fun safeAdd(
+        left: Long,
+        right: Long,
+    ): Long {
+        return if (Long.MAX_VALUE - left < right) Long.MAX_VALUE else left + right
+    }
+
+    companion object {
+        private const val MAX_TOOLPKG_ARCHIVE_BYTES = 256L * 1024L * 1024L
+        private const val MAX_TOOLPKG_ENTRY_COUNT = 4096
+        private const val MAX_TOOLPKG_UNPACKED_BYTES = 512L * 1024L * 1024L
+        private const val MAX_TOOLPKG_MANIFEST_BYTES = 1L * 1024L * 1024L
+        private const val MAX_TOOLPKG_TEXT_ENTRY_BYTES = 4L * 1024L * 1024L
+        private const val MAX_TOOLPKG_GENERAL_ENTRY_BYTES = 128L * 1024L * 1024L
+        private const val MAX_TOOLPKG_PATH_DEPTH = 32
+        private const val MAX_TOOLPKG_NORMALIZED_PATH_LENGTH = 240
+        private const val MAX_TOOLPKG_COMPRESSION_RATIO = 200L
     }
 }
 

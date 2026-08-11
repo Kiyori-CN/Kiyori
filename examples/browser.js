@@ -65,9 +65,9 @@
         },
         {
             "name": "fill_form",
-            "description": { "zh": "批量填写表单字段。", "en": "Fill multiple form fields." },
+            "description": { "zh": "按 ref 或 selector 批量填写表单字段；每项必须提供 value，name 仅用于可选诊断，控件类型由页面 DOM 判定。", "en": "Fill form fields by ref or selector; every field requires value, name is optional diagnostic text, and the page DOM determines the control type." },
             "parameters": [
-                { "name": "fields", "description": { "zh": "字段数组。", "en": "Array of form fields." }, "type": "array", "required": true }
+                { "name": "fields", "description": { "zh": "非空字段数组；每项仅使用 ref 或 selector 之一，并提供字符串、数字或布尔值 value。", "en": "Non-empty field array; each item uses exactly one of ref or selector and provides a string, number, or boolean value." }, "type": "array", "required": true }
             ]
         },
         {
@@ -123,9 +123,9 @@
         },
         {
             "name": "run_code",
-            "description": { "zh": "运行文档化的 Android WebView Page 子集：title、url、evaluate、waitForTimeout、setContent、keyboard、dialog 的 on/once/off/removeListener，以及 locator/getByRole 的 click/hover/fill/selectOption/textContent；不支持的 Page 方法返回 Unsupported Playwright API。", "en": "Run the documented Android WebView Page subset: title, url, evaluate, waitForTimeout, setContent, keyboard, dialog on/once/off/removeListener, and locator/getByRole click/hover/fill/selectOption/textContent; unsupported Page methods return Unsupported Playwright API." },
+            "description": { "zh": "运行明确函数源码形态的 Android WebView Page 子集：title、url、evaluate、waitForTimeout、setContent、keyboard.press（单字符、Enter、Backspace、Delete）、dialog 的 on/once/off/removeListener，以及 locator/getByRole 的 click/hover/fill/selectOption/textContent；page.dialog 属性和未支持 API 返回结构化 Unsupported Playwright API。", "en": "Run the Android WebView Page subset through an explicit function source: title, url, evaluate, waitForTimeout, setContent, keyboard.press (one character, Enter, Backspace, Delete), dialog on/once/off/removeListener, and locator/getByRole click/hover/fill/selectOption/textContent; page.dialog and unsupported APIs return structured Unsupported Playwright API errors." },
             "parameters": [
-                { "name": "code", "description": { "zh": "代码片段。", "en": "Code snippet." }, "type": "string", "required": true }
+                { "name": "code", "description": { "zh": "函数源码，例如 async (page) => { ... }。不接受语句块。", "en": "Function source such as async (page) => { ... }. Statement bodies are not accepted." }, "type": "string", "required": true }
             ]
         },
         {
@@ -200,9 +200,12 @@ const TOOL_NAMES = [
     "wait_for",
     "tabs"
 ];
-function normalizeOptionalString(value) {
+function normalizeOptionalString(value, label) {
     if (value === undefined) {
         return undefined;
+    }
+    if (typeof value !== "string") {
+        throw new Error(label + " must be a string");
     }
     const normalized = value.trim();
     return normalized ? normalized : undefined;
@@ -251,25 +254,29 @@ async function upload(params = {}) {
     return maybePersistLargeBrowserResponse(result, "upload");
 }
 function normalizeFormFields(fields) {
-    if (fields.length === 0) {
+    if (!Array.isArray(fields) || fields.length === 0) {
         throw new Error("fields must be a non-empty array");
     }
     return fields.map((field, index) => {
-        const normalized = {
-            name: field.name.trim(),
-            type: field.type.trim(),
-            value: field.value
-        };
-        if (!normalized.name) {
-            throw new Error("fields[" + index + "].name is required");
+        if (!field || typeof field !== "object" || Array.isArray(field)) {
+            throw new Error("fields[" + index + "] must be an object");
         }
-        if (!normalized.type) {
-            throw new Error("fields[" + index + "].type is required");
+        if (!Object.prototype.hasOwnProperty.call(field, "value")) {
+            throw new Error("fields[" + index + "].value is required");
         }
-        const ref = normalizeOptionalString(field.ref);
-        const selector = normalizeOptionalString(field.selector);
-        if (!ref && !selector) {
-            throw new Error("fields[" + index + "] requires ref or selector");
+        const valueType = typeof field.value;
+        if (valueType !== "string" && valueType !== "number" && valueType !== "boolean") {
+            throw new Error("fields[" + index + "].value must be a string, number, or boolean");
+        }
+        const ref = normalizeOptionalString(field.ref, "fields[" + index + "].ref");
+        const selector = normalizeOptionalString(field.selector, "fields[" + index + "].selector");
+        if ((!ref && !selector) || (ref && selector)) {
+            throw new Error("fields[" + index + "] requires exactly one of ref or selector");
+        }
+        const normalized = { value: field.value };
+        const name = normalizeOptionalString(field.name, "fields[" + index + "].name");
+        if (name) {
+            normalized.name = name;
         }
         if (ref) {
             normalized.ref = ref;

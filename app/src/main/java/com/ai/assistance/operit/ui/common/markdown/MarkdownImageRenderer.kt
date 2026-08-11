@@ -438,51 +438,19 @@ private suspend fun saveImageFromUrl(context: Context, imageUrl: String): Boolea
                 val fileName =
                         "markdown_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.jpg"
 
-                // 根据Android版本选择不同的保存策略
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val contentValues =
-                            ContentValues().apply {
-                                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                                put(
-                                        MediaStore.MediaColumns.RELATIVE_PATH,
-                                        "${Environment.DIRECTORY_PICTURES}/Markdown"
-                                )
-                            }
-
-                    val uri =
-                            context.contentResolver.insert(
-                                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                    contentValues
-                            )
-                    uri?.let { imageUri ->
-                        context.contentResolver.openOutputStream(imageUri)?.use { outputStream ->
-                            // 下载图片
-                            val connection = java.net.URL(imageUrl).openConnection()
-                            connection.connect()
-                            connection.getInputStream().use { input -> input.copyTo(outputStream) }
-                            return@withContext true
-                        }
-                    }
-                } else {
-                    // 较老版本的Android使用传统文件访问方式
-                    val imagesDir =
-                            Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_PICTURES
-                            )
-                    val markdownDir = File(imagesDir, "Markdown").apply { if (!exists()) mkdirs() }
-
-                    val imageFile = File(markdownDir, fileName)
-                    FileOutputStream(imageFile).use { outputStream ->
-                        // 下载图片
+                com.kiyori.platform.storage.KiyoriStorageService.getInstance(context)
+                    .publicStore
+                    .write(
+                        location =
+                            com.kiyori.platform.storage.KiyoriPublicLocation.PICTURE_MARKDOWN,
+                        requestedFileName = fileName,
+                        mimeType = "image/jpeg",
+                    ) { outputStream ->
                         val connection = java.net.URL(imageUrl).openConnection()
                         connection.connect()
                         connection.getInputStream().use { input -> input.copyTo(outputStream) }
-                        return@withContext true
                     }
-                }
-
-                return@withContext false
+                return@withContext true
             } catch (e: Exception) {
                 AppLogger.e(TAG, "保存图片失败", e)
                 return@withContext false

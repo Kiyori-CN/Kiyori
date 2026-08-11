@@ -4,6 +4,7 @@ import android.content.Context
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.core.tools.javascript.JsEngine
 import java.io.File
+import java.security.MessageDigest
 import java.util.zip.ZipFile
 
 internal object ToolPkgLoader {
@@ -13,6 +14,8 @@ internal object ToolPkgLoader {
         parseJsPackage: (String, (String, String) -> Unit) -> ToolPackage?,
         reportPackageLoadError: (key: String, error: String) -> Unit
     ): ToolPkgLoadResult {
+        val scanReport = ToolPkgArtifactScanner.scan(file)
+        scanReport.requireAccepted()
         ZipFile(file).use { archive ->
             val entryIndex = ToolPkgArchiveParser.buildZipEntryIndex(archive)
             val readEntryText =
@@ -31,6 +34,7 @@ internal object ToolPkgLoader {
                     readEntryText = readEntryText,
                     sourceType = ToolPkgSourceType.EXTERNAL,
                     sourcePath = file.absolutePath,
+                    artifactSha256 = scanReport.artifactSha256,
                     isBuiltIn = false,
                     parseJsPackage = parseJsPackage,
                     parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
@@ -50,6 +54,19 @@ internal object ToolPkgLoader {
         prepareAssetCache: (ToolPkgManifestPreview) -> File,
         reportPackageLoadError: (key: String, error: String) -> Unit
     ): ToolPkgLoadResult {
+        val artifactSha256 =
+            context.assets.open(assetPath).use { input ->
+                val digest = MessageDigest.getInstance("SHA-256")
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read <= 0) {
+                        break
+                    }
+                    digest.update(buffer, 0, read)
+                }
+                digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+            }
         val manifestPreview =
             ToolPkgArchiveParser.readToolPkgManifestPreview(
                 inputStreamFactory = { context.assets.open(assetPath) }
@@ -72,6 +89,7 @@ internal object ToolPkgLoader {
                 readEntryText = readEntryText,
                 sourceType = ToolPkgSourceType.ASSET,
                 sourcePath = assetPath,
+                artifactSha256 = artifactSha256,
                 isBuiltIn = true,
                 parseJsPackage = parseJsPackage,
                 parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->

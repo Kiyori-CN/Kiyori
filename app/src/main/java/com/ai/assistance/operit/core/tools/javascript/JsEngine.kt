@@ -42,7 +42,10 @@ import org.json.JSONTokener
 /**
  * JavaScript 引擎 - 通过 QuickJS 执行 JavaScript 脚本并提供与 Android 原生代码的交互机制
  */
-class JsEngine(private val context: Context) {
+class JsEngine(
+    private val context: Context,
+    private val boundToolPkgContainerName: String? = null,
+) {
     companion object {
         private const val TAG = "JsEngine"
         private const val TOOLPKG_TAG = "ToolPkg"
@@ -1599,6 +1602,59 @@ class JsEngine(private val context: Context) {
             return JsNativeInterfaceDelegates.getPluginConfigDir(
                 packageManager = packageManager,
                 pluginId = pluginId
+            )
+        }
+
+        @JavascriptInterface
+        fun readToolPkgStorageText(namespace: String, relativePath: String): String {
+            return JsNativeInterfaceDelegates.readToolPkgStorageText(
+                context = context,
+                boundToolPkgContainerName = boundToolPkgContainerName,
+                namespace = namespace,
+                relativePath = relativePath,
+            )
+        }
+
+        @JavascriptInterface
+        fun writeToolPkgStorageText(
+            namespace: String,
+            relativePath: String,
+            text: String,
+        ): String {
+            return JsNativeInterfaceDelegates.writeToolPkgStorageText(
+                context = context,
+                boundToolPkgContainerName = boundToolPkgContainerName,
+                namespace = namespace,
+                relativePath = relativePath,
+                text = text,
+            )
+        }
+
+        @JavascriptInterface
+        fun toolPkgStorageFileExists(namespace: String, relativePath: String): String {
+            return JsNativeInterfaceDelegates.toolPkgStorageFileExists(
+                context = context,
+                boundToolPkgContainerName = boundToolPkgContainerName,
+                namespace = namespace,
+                relativePath = relativePath,
+            )
+        }
+
+        @JavascriptInterface
+        fun deleteToolPkgStorageFile(namespace: String, relativePath: String): String {
+            return JsNativeInterfaceDelegates.deleteToolPkgStorageFile(
+                context = context,
+                boundToolPkgContainerName = boundToolPkgContainerName,
+                namespace = namespace,
+                relativePath = relativePath,
+            )
+        }
+
+        @JavascriptInterface
+        fun buildToolPkgArtifact(sourceDirectory: String): String {
+            return JsNativeInterfaceDelegates.buildToolPkgArtifact(
+                context = context,
+                sourceDirectory = sourceDirectory,
             )
         }
 

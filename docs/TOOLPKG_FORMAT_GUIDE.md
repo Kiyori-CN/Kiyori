@@ -71,11 +71,22 @@ windows_control.toolpkg (ZIP 压缩包)
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "toolpkg_id": "com.operit.windows_bundle",
   "version": "0.2.0",
   "author": ["Operit Team", "Alice"],
   "main": "main.js",
+  "distribution": {
+    "include": [
+      "manifest.json",
+      "main.js",
+      "packages/**/*.js",
+      "ui/**/*.js",
+      "resources/**",
+      "modules/**/*.wasm",
+      "i18n/**/*.js"
+    ]
+  },
   "display_name": {
     "zh": "Windows 工具包",
     "en": "Windows Bundle"
@@ -153,7 +164,7 @@ windows_control.toolpkg (ZIP 压缩包)
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
-| `schema_version` | number | 是 | 清单架构版本，当前为 `1` |
+| `schema_version` | number | 是 | 清单架构版本；`1` 为兼容格式，`2` 启用显式 `distribution.include` 分发清单 |
 | `toolpkg_id` | string | 是 | 包的唯一标识符，建议使用反向域名格式（如 `com.operit.windows_bundle`） |
 | `version` | string | 否 | 包的版本号，建议使用语义化版本（如 `0.2.0`） |
 | `author` | string \| string[] | 否 | 作者信息，支持单个作者字符串或作者字符串数组 |
@@ -165,6 +176,33 @@ windows_control.toolpkg (ZIP 压缩包)
 | `wasm_modules` | array | 否 | 企业核心算法模块列表，当前用于声明和校验 `.wasm` 产物 |
 | `workflow_templates` | array | 否 | 注册到宿主“工作流”入口的工作流模板列表 |
 | `workspace_templates` | array | 否 | 注册到宿主“工作区创建”入口的工作区模板列表 |
+| `distribution` | object | schema v2 是 | 制品分发规则；当前只包含必需的 `include` 路径模式列表 |
+
+#### Distribution include（schema v2）
+
+schema v2 的 `.toolpkg` 只能包含 `distribution.include` 命中的文件。清单本身、`main`、subpackage
+entry、资源、WASM、UI screen、工作流模板和工作区模板引用的路径也必须被 include 覆盖。
+
+```json
+{
+  "schema_version": 2,
+  "distribution": {
+    "include": [
+      "manifest.json",
+      "main.js",
+      "packages/**/*.js",
+      "resources/**"
+    ]
+  }
+}
+```
+
+模式使用 `/` 作为分隔符。`*` 只匹配当前路径段，`**` 可跨零层或多层目录，因此
+`packages/**/*.js` 同时匹配 `packages/main.js` 和 `packages/nested/main.js`。
+
+include 不是安全绕过项。即使被声明，符号链接、越界路径、敏感文件、构建缓存、私钥和超过预算的
+内容仍会被 scanner 拒绝。schema v1 继续作为现有生态兼容格式接受扫描，但 Kiyori 自有 builder
+不会把整个工作目录无条件递归装入制品。
 
 #### 压缩发布
 
@@ -603,6 +641,68 @@ await ToolPkg.ipc.call(
 - 需要共享的内存态、缓存、当前会话状态、后台任务句柄：放在 ToolPkg main 逻辑里，通过 `ToolPkg.ipc` 访问。
 - UI state 只服务当前界面展示：放在 `ctx.useState` / `ctx.useMemo`。
 
+#### ToolPkg 包级存储
+
+需要跨进程重建或跨运行上下文保留的包状态必须使用宿主绑定身份的 `ToolPkg.storage()`。调用方不传
+package ID；宿主在创建 engine 时绑定 container identity，subpackage 与所属 container 共享同一
+命名空间。
+
+```javascript
+const storage = ToolPkg.storage();
+
+await storage.privateData.writeJson(
+  "state/sidebar_analysis_state.json",
+  { enabled: true, updatedAt: Date.now() }
+);
+
+const saved = await storage.privateData.readJson(
+  "state/sidebar_analysis_state.json"
+);
+```
+
+`privateData` 与 `cache` 均提供：
+
+- `writeText(relativePath, text)`
+- `readText(relativePath)`
+- `writeJson(relativePath, value)`
+- `readJson(relativePath)`
+- `exists(relativePath)`
+- `delete(relativePath)`
+
+`privateData` 用于状态、索引和需要持久保留的结构化数据；默认总量上限为 64 MiB。`cache` 只用于
+可重建内容；默认总量上限为 128 MiB。单个文本或 JSON 文件最大 4 MiB。写入使用原子文件提交，
+配额、路径或活动 generation 记录损坏时直接报错。
+
+Storage API 只接受相对路径，并拒绝绝对路径、反斜杠、Windows 盘符、URI、NUL、控制字符、空段、
+`.`、`..`、超过 32 层或超过 240 字符的规范化路径。API 返回内容或布尔操作结果，不返回
+private/cache 的真实内部绝对路径。
+
+`ToolPkg.getConfigDir()` 与全局 `getPluginConfigDir()` 继续作为 legacy public workspace，物理位置
+属于 `Download/Kiyori/plugins/<id>`。它只适合用户可见、非敏感且需要兼容旧包的工作文件；新状态
+不得继续写入该目录。
+
+旧公共数据不会被 Kiyori 自动扫描。迁移必须由用户通过 SAF 明确选择源目录，并由宿主登记的包专属
+migrator 读取声明文件、校验摘要和 schema，再以 generation 事务切换 active 数据。没有匹配
+migrator、用户取消或校验失败时，当前 privateData 不变；源目录不会被修改或删除。
+
+#### 构建已验证制品
+
+ToolPkg 开发工具应通过 `ToolPkg.buildArtifact()` 调用宿主的确定性 builder，不要对项目根目录调用
+通用递归 ZIP：
+
+```javascript
+const artifact = await ToolPkg.buildArtifact({
+  sourceDirectory: source.folderPath
+});
+
+console.log(artifact.archivePath);
+console.log(artifact.artifactSha256);
+```
+
+builder 在压缩前后执行同一 scanner，按规范化路径排序并固定 ZIP 时间戳；返回值包含制品路径、
+SHA-256、ToolPkg ID/版本、条目数和总解压大小。`operit_editor` 已使用该入口，不再调用
+`Tools.Files.zip(source.folderPath, ...)`。
+
 #### 3.2.6 Resources（资源文件）
 
 资源文件可以是任意类型的文件，如图片、压缩包、配置文件等。
@@ -774,18 +874,19 @@ my_toolpkg/
 
 子包脚本必须包含 `METADATA` 块，参考 [SCRIPT_DEV_GUIDE.md](./SCRIPT_DEV_GUIDE.md)。
 
-**步骤 4：打包成 ZIP**
+**步骤 4：构建已验证制品**
 
-使用任意 ZIP 工具将整个目录打包，并重命名为 `.toolpkg` 扩展名：
+优先调用宿主 builder：
 
-```bash
-# Linux/macOS
-cd my_toolpkg
-zip -r ../my_toolpkg.toolpkg *
-
-# Windows (PowerShell)
-Compress-Archive -Path my_toolpkg\* -DestinationPath my_toolpkg.toolpkg
+```javascript
+const artifact = await ToolPkg.buildArtifact({
+  sourceDirectory: source.folderPath
+});
 ```
+
+不要把开发目录根整体递归 ZIP。schema v2 只打包 `distribution.include` 命中的文件；schema v1
+也由 builder 按 manifest 引用和受支持目录选择运行所需内容。确需使用外部 ZIP 工具时，必须手工
+选择同一文件集合，并在导入前通过 Kiyori scanner；仅把扩展名改成 `.toolpkg` 不代表制品可安装。
 
 ### 4.2 使用 Python 脚本自动打包
 
@@ -811,10 +912,14 @@ python tools/example_packages/sync_example_packages.py --delete-extra
 ```
 
 **工作原理**：
+
 1. 扫描 `examples/` 目录
 2. 查找包含 `manifest.json` 或 `manifest.hjson` 的文件夹
-3. 将整个文件夹打包成 `.toolpkg` ZIP 文件
+3. 生成示例 `.toolpkg` ZIP 文件
 4. 输出到 `app/src/main/assets/packages/` 目录
+
+该脚本用于维护历史示例资产，不替代当前 Android 构建中的
+`generateBundledToolPkgAssets` scanner/builder 门禁。正式预置包以 Gradle 生成结果为准。
 
 ## 5. 子包脚本开发
 
@@ -1184,10 +1289,77 @@ const iconPath = await ToolPkg.readResource('icon');
 ### 8.2 外部包
 
 用户可以通过以下方式导入外部包：
+
 1. 将 `.toolpkg` 文件复制到设备的 `Android/data/com.kiyori/files/packages/` 目录
 2. 在应用中使用"导入包"功能
 
-### 8.3 版本管理
+外部目录是导入入口，不是已安装 ToolPkg 的长期唯一副本。扫描通过后，宿主按完整 SHA-256 把制品写入
+内部内容寻址 store，并由包级 active 记录选择当前版本。
+
+### 8.3 Scanner 安全合同
+
+每个输入制品都必须满足以下初始预算：
+
+| 项目 | 上限 |
+| --- | ---: |
+| `.toolpkg` 压缩文件 | 256 MiB |
+| 文件条目 | 4096 |
+| 总解压大小 | 512 MiB |
+| manifest | 1 MiB |
+| 单个 JS/TS/JSON/HJSON/HTML/CSS | 4 MiB |
+| 单个普通资源 | 128 MiB |
+| 最大目录深度 | 32 |
+| 规范化路径长度 | 240 字符 |
+| 单条目压缩比 | 200:1 |
+
+以下内容永久拒绝，即使被 `distribution.include` 命中：
+
+```text
+.git/
+.backup/
+.history/
+__pycache__/
+node_modules/
+.gradle/
+.idea/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.swp
+*.tmp
+```
+
+Scanner 同时拒绝绝对 ZIP 路径、反斜杠、盘符、URI、NUL、空段、`.`、`..`、重复规范化路径、仅
+大小写不同的冲突条目、缺失或重复 manifest、私钥内容，以及活动代码中的旧 Operit 公共绝对路径或
+固定 app sandbox 路径。旧路径只允许出现在迁移说明、专用迁移元数据或 scanner 测试 fixture。
+
+### 8.4 安装与更新事务
+
+ToolPkg 市场安装和更新按以下顺序执行：
+
+```text
+下载到 cache staging
+→ 校验市场 SHA-256
+→ Scanner
+→ manifest ID/version 校验
+→ 写入内容寻址 artifacts
+→ 使用隔离 registration engine 验证注册
+→ 写入 audit
+→ 原子切换 active
+→ 重建当前 package snapshot
+→ 清理旧 engine、无引用制品和 staging
+```
+
+active 提交前的任何错误都不能改变当前激活版本。成功更新只切换制品，不删除 privateData。旧 external
+文件只在新 active 和 package snapshot 都验证成功后清理；事务失败时恢复原 active 与原文件位置。
+普通 JS/HJSON 包继续使用各自既有安装流程，本节事务保证只描述 ToolPkg。
+
+### 8.5 版本管理
 
 建议使用语义化版本号：
 - `MAJOR.MINOR.PATCH`（如 `1.2.3`）

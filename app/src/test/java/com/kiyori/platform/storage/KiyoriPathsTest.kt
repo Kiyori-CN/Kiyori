@@ -44,6 +44,31 @@ class KiyoriPathsTest {
     }
 
     @Test
+    fun `public projections keep one owner for downloads exports and pictures`() {
+        assertEquals(
+            KiyoriPublicPathProjection(
+                collection = KiyoriPublicCollection.DOWNLOADS,
+                relativePath = "Download/Kiyori/browser/downloads",
+            ),
+            KiyoriPaths.publicProjection(KiyoriPublicLocation.BROWSER_DOWNLOADS),
+        )
+        assertEquals(
+            KiyoriPublicPathProjection(
+                collection = KiyoriPublicCollection.DOWNLOADS,
+                relativePath = "Download/Kiyori/exports/userscripts",
+            ),
+            KiyoriPaths.publicProjection(KiyoriPublicLocation.EXPORT_USERSCRIPTS),
+        )
+        assertEquals(
+            KiyoriPublicPathProjection(
+                collection = KiyoriPublicCollection.PICTURES,
+                relativePath = "Pictures/Kiyori/Markdown",
+            ),
+            KiyoriPaths.publicProjection(KiyoriPublicLocation.PICTURE_MARKDOWN),
+        )
+    }
+
+    @Test
     fun `plugin directory names keep existing sanitization`() {
         assertEquals("demo.plugin", KiyoriPaths.pluginConfigDirectoryName("demo.plugin"))
         assertEquals(

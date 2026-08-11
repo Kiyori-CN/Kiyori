@@ -8,6 +8,7 @@ import com.ai.assistance.operit.core.tools.ToolPackage
 import java.io.File
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
+import java.util.Locale
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import kotlinx.serialization.SerialName
@@ -139,6 +140,7 @@ internal data class ToolPkgContainerRuntime(
     val mainEntry: String,
     val sourceType: ToolPkgSourceType,
     val sourcePath: String,
+    val artifactSha256: String,
     val subpackages: List<ToolPkgSubpackageRuntime>,
     val resources: List<ToolPkgResourceRuntime>,
     val wasmModules: List<ToolPkgWasmModuleRuntime>,
@@ -191,7 +193,13 @@ internal data class ToolPkgManifest(
     @SerialName("workflow_templates")
     val workflowTemplates: List<ToolPkgManifestWorkflowTemplate> = emptyList(),
     @SerialName("workspace_templates")
-    val workspaceTemplates: List<ToolPkgManifestWorkspaceTemplate> = emptyList()
+    val workspaceTemplates: List<ToolPkgManifestWorkspaceTemplate> = emptyList(),
+    val distribution: ToolPkgManifestDistribution? = null,
+)
+
+@Serializable
+internal data class ToolPkgManifestDistribution(
+    val include: List<String> = emptyList(),
 )
 
 @Serializable
@@ -355,6 +363,7 @@ internal object ToolPkgArchiveParser {
         readEntryText: (String) -> String?,
         sourceType: ToolPkgSourceType,
         sourcePath: String,
+        artifactSha256: String,
         isBuiltIn: Boolean,
         parseJsPackage: (String, (String, String) -> Unit) -> ToolPackage?,
         parseMainRegistration: (String, String, String) -> ToolPkgMainRegistrationParseResult,
@@ -1290,6 +1299,7 @@ internal object ToolPkgArchiveParser {
                 mainEntry = normalizedMainEntry,
                 sourceType = sourceType,
                 sourcePath = sourcePath,
+                artifactSha256 = artifactSha256,
                 subpackages = subpackageRuntimes,
                 resources = resources,
                 wasmModules = wasmModules,
@@ -1333,10 +1343,13 @@ internal object ToolPkgArchiveParser {
             val entry = entries.nextElement()
             val normalizedName = normalizeZipEntryPath(entry.name)
             if (!entry.isDirectory && normalizedName != null) {
-                normalizedEntryNames.add(normalizedName)
+                check(normalizedEntryNames.add(normalizedName)) {
+                    "Duplicate ToolPkg archive entry: $normalizedName"
+                }
                 val key = normalizedName.lowercase()
-                if (!entryNamesByNormalizedLowercase.containsKey(key)) {
-                    entryNamesByNormalizedLowercase[key] = entry.name
+                val previous = entryNamesByNormalizedLowercase.putIfAbsent(key, entry.name)
+                check(previous == null) {
+                    "Case-conflicting ToolPkg archive entries: $previous and ${entry.name}"
                 }
             }
         }
@@ -1362,10 +1375,13 @@ internal object ToolPkgArchiveParser {
             .forEach { file ->
                 val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
                 val normalizedName = normalizeZipEntryPath(relativePath) ?: return@forEach
-                normalizedEntryNames.add(normalizedName)
+                check(normalizedEntryNames.add(normalizedName)) {
+                    "Duplicate ToolPkg directory entry: $normalizedName"
+                }
                 val key = normalizedName.lowercase()
-                if (!entryNamesByNormalizedLowercase.containsKey(key)) {
-                    entryNamesByNormalizedLowercase[key] = relativePath
+                val previous = entryNamesByNormalizedLowercase.putIfAbsent(key, relativePath)
+                check(previous == null) {
+                    "Case-conflicting ToolPkg directory entries: $previous and $relativePath"
                 }
             }
 
@@ -1376,11 +1392,34 @@ internal object ToolPkgArchiveParser {
     }
 
     fun normalizeZipEntryPath(rawPath: String): String? {
-        val normalized = rawPath.replace('\\', '/').trim().trimStart('/')
-        if (normalized.isBlank()) {
+        if (rawPath.isBlank() || rawPath != rawPath.trim()) {
             return null
         }
-        if (normalized.contains("..")) {
+        if (
+            rawPath.startsWith('/') ||
+                rawPath.startsWith('\\') ||
+                '\\' in rawPath ||
+                '\u0000' in rawPath ||
+                WINDOWS_DRIVE_PATH.containsMatchIn(rawPath) ||
+                rawPath.contains("://")
+        ) {
+            return null
+        }
+        val normalized = rawPath.trimEnd('/')
+        if (normalized.isBlank() || normalized.length > ToolPkgArtifactPolicy.MAX_NORMALIZED_PATH_LENGTH) {
+            return null
+        }
+        val segments = normalized.split('/')
+        if (
+            segments.size > ToolPkgArtifactPolicy.MAX_PATH_DEPTH ||
+                segments.any { segment ->
+                    segment.isEmpty() ||
+                        segment == "." ||
+                        segment == ".." ||
+                        segment != segment.trimEnd() ||
+                        segment.any { character -> character.code < 32 }
+                }
+        ) {
             return null
         }
         return normalized
@@ -1428,7 +1467,13 @@ internal object ToolPkgArchiveParser {
     ): ByteArray? {
         val archiveEntryName = entryIndex.resolveEntryName(rawPath) ?: return null
         val entry = archive.getEntry(archiveEntryName) ?: return null
-        return archive.getInputStream(entry).use { input -> input.readBytes() }
+        return archive.getInputStream(entry).use { input ->
+            readBytesLimited(
+                input = input,
+                maximumBytes = ToolPkgArtifactPolicy.MAX_GENERAL_ENTRY_BYTES,
+                label = archiveEntryName,
+            )
+        }
     }
 
     fun readZipEntryPrefix(
@@ -1461,7 +1506,16 @@ internal object ToolPkgArchiveParser {
         if (!file.isFile) {
             return null
         }
-        return file.readBytes()
+        require(file.length() <= ToolPkgArtifactPolicy.MAX_GENERAL_ENTRY_BYTES) {
+            "ToolPkg entry exceeds the read limit: $relativePath"
+        }
+        return file.inputStream().use { input ->
+            readBytesLimited(
+                input = input,
+                maximumBytes = ToolPkgArtifactPolicy.MAX_GENERAL_ENTRY_BYTES,
+                label = relativePath,
+            )
+        }
     }
 
     fun readDirectoryEntryPrefix(
@@ -1492,6 +1546,28 @@ internal object ToolPkgArchiveParser {
         return if (offset == prefix.size) prefix else prefix.copyOf(offset)
     }
 
+    private fun readBytesLimited(
+        input: InputStream,
+        maximumBytes: Long,
+        label: String,
+    ): ByteArray {
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var total = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read <= 0) {
+                break
+            }
+            total += read
+            require(total <= maximumBytes) {
+                "ToolPkg entry exceeds the read limit: $label"
+            }
+            output.write(buffer, 0, read)
+        }
+        return output.toByteArray()
+    }
+
     fun readToolPkgManifestPreview(inputStreamFactory: () -> InputStream): ToolPkgManifestPreview? {
         inputStreamFactory().use { input ->
             ZipInputStream(input.buffered()).use { zipInput ->
@@ -1500,9 +1576,11 @@ internal object ToolPkgArchiveParser {
                     val normalizedName = normalizeZipEntryPath(entry.name)
                     if (!entry.isDirectory && normalizedName != null && isManifestEntryName(normalizedName)) {
                         val manifestText =
-                            zipInput.bufferedReader(StandardCharsets.UTF_8).use { reader ->
-                                reader.readText()
-                            }
+                            readBytesLimited(
+                                input = zipInput,
+                                maximumBytes = ToolPkgArtifactPolicy.MAX_MANIFEST_BYTES,
+                                label = normalizedName,
+                            ).toString(StandardCharsets.UTF_8)
                         return ToolPkgManifestPreview(
                             entryName = normalizedName,
                             manifest = parseToolPkgManifest(manifestText, normalizedName)
@@ -1520,24 +1598,51 @@ internal object ToolPkgArchiveParser {
         if (!zipFile.exists()) {
             return false
         }
+        require(zipFile.isFile) { "ToolPkg archive path is not a file" }
+        require(zipFile.length() <= ToolPkgArtifactPolicy.MAX_ARCHIVE_BYTES) {
+            "ToolPkg archive exceeds the compressed size limit"
+        }
 
         ZipFile(zipFile).use { archive ->
+            val extractionState = ToolPkgExtractionState()
             val entries = archive.entries()
             while (entries.hasMoreElements()) {
                 val entry = entries.nextElement()
+                val normalizedEntry =
+                    requireNotNull(normalizeZipEntryPath(entry.name)) {
+                        "ToolPkg archive entry path is invalid: ${entry.name}"
+                    }
                 if (entry.isDirectory) {
                     continue
                 }
-                val normalizedEntry = normalizeZipEntryPath(entry.name) ?: continue
+                extractionState.registerEntry(
+                    entryName = normalizedEntry,
+                    declaredSize = entry.size,
+                    compressedSize = entry.compressedSize,
+                )
                 val outputFile = File(destinationDir, normalizedEntry)
+                require(outputFile.canonicalFile.path.startsWith(destinationDir.canonicalFile.path + File.separator)) {
+                    "ToolPkg archive entry escapes destination: ${entry.name}"
+                }
                 val parent = outputFile.parentFile
                 if (parent != null && !parent.exists()) {
-                    parent.mkdirs()
-                }
-                archive.getInputStream(entry).use { input ->
-                    outputFile.outputStream().use { output ->
-                        input.copyTo(output)
+                    require(parent.mkdirs()) {
+                        "Unable to create ToolPkg extraction directory: ${parent.absolutePath}"
                     }
+                }
+                try {
+                    archive.getInputStream(entry).use { input ->
+                        outputFile.outputStream().use { output ->
+                            extractionState.copyEntry(
+                                input = input,
+                                output = output,
+                                entryName = normalizedEntry,
+                            )
+                        }
+                    }
+                } catch (error: Exception) {
+                    outputFile.delete()
+                    throw error
                 }
             }
         }
@@ -1551,28 +1656,120 @@ internal object ToolPkgArchiveParser {
     ): Boolean {
         context.assets.open(assetPath).use { input ->
             ZipInputStream(input.buffered()).use { zipInput ->
+                val extractionState = ToolPkgExtractionState()
                 while (true) {
                     val entry = zipInput.nextEntry ?: break
+                    val normalizedEntry =
+                        requireNotNull(normalizeZipEntryPath(entry.name)) {
+                            "ToolPkg asset entry path is invalid: ${entry.name}"
+                        }
                     if (entry.isDirectory) {
                         zipInput.closeEntry()
                         continue
                     }
-                    val normalizedEntry = normalizeZipEntryPath(entry.name)
-                    if (normalizedEntry != null) {
-                        val outputFile = File(destinationDir, normalizedEntry)
-                        val parent = outputFile.parentFile
-                        if (parent != null && !parent.exists()) {
-                            parent.mkdirs()
+                    extractionState.registerEntry(
+                        entryName = normalizedEntry,
+                        declaredSize = entry.size,
+                        compressedSize = entry.compressedSize,
+                    )
+                    val outputFile = File(destinationDir, normalizedEntry)
+                    require(
+                        outputFile.canonicalFile.path.startsWith(
+                            destinationDir.canonicalFile.path + File.separator,
+                        ),
+                    ) {
+                        "ToolPkg asset entry escapes destination: ${entry.name}"
+                    }
+                    val parent = outputFile.parentFile
+                    if (parent != null && !parent.exists()) {
+                        require(parent.mkdirs()) {
+                            "Unable to create ToolPkg asset extraction directory: ${parent.absolutePath}"
                         }
+                    }
+                    try {
                         outputFile.outputStream().use { output ->
-                            zipInput.copyTo(output)
+                            extractionState.copyEntry(
+                                input = zipInput,
+                                output = output,
+                                entryName = normalizedEntry,
+                            )
                         }
+                    } catch (error: Exception) {
+                        outputFile.delete()
+                        throw error
                     }
                     zipInput.closeEntry()
                 }
             }
         }
         return true
+    }
+
+    private class ToolPkgExtractionState {
+        private val normalizedNames = linkedSetOf<String>()
+        private val lowercaseNames = linkedMapOf<String, String>()
+        private var entryCount = 0
+        private var unpackedBytes = 0L
+
+        fun registerEntry(
+            entryName: String,
+            declaredSize: Long,
+            compressedSize: Long,
+        ) {
+            entryCount += 1
+            require(entryCount <= ToolPkgArtifactPolicy.MAX_ENTRY_COUNT) {
+                "ToolPkg archive contains too many files"
+            }
+            require(normalizedNames.add(entryName)) {
+                "Duplicate ToolPkg archive entry: $entryName"
+            }
+            val lowercaseName = entryName.lowercase(Locale.ROOT)
+            val previous = lowercaseNames.putIfAbsent(lowercaseName, entryName)
+            require(previous == null) {
+                "Case-conflicting ToolPkg archive entries: $previous and $entryName"
+            }
+            val maximumBytes = ToolPkgArtifactPolicy.maximumEntryBytes(entryName)
+            require(declaredSize < 0L || declaredSize <= maximumBytes) {
+                "ToolPkg archive entry exceeds its size limit: $entryName"
+            }
+            require(
+                declaredSize <= 0L ||
+                    compressedSize <= 0L ||
+                    declaredSize / compressedSize <= ToolPkgArtifactPolicy.MAX_COMPRESSION_RATIO
+            ) {
+                "ToolPkg archive entry exceeds the compression-ratio limit: $entryName"
+            }
+        }
+
+        fun copyEntry(
+            input: InputStream,
+            output: java.io.OutputStream,
+            entryName: String,
+        ) {
+            val maximumBytes = ToolPkgArtifactPolicy.maximumEntryBytes(entryName)
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var entryBytes = 0L
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) {
+                    break
+                }
+                entryBytes += read
+                require(entryBytes <= maximumBytes) {
+                    "ToolPkg archive entry exceeds its size limit: $entryName"
+                }
+                unpackedBytes =
+                    if (Long.MAX_VALUE - unpackedBytes < read.toLong()) {
+                        Long.MAX_VALUE
+                    } else {
+                        unpackedBytes + read
+                    }
+                require(unpackedBytes <= ToolPkgArtifactPolicy.MAX_UNPACKED_BYTES) {
+                    "ToolPkg archive exceeds the total unpacked size limit"
+                }
+                output.write(buffer, 0, read)
+            }
+        }
     }
 
     private fun findManifestEntry(entryNames: Collection<String>): String? {
@@ -1613,7 +1810,13 @@ internal object ToolPkgArchiveParser {
         return jsonConfig.decodeFromString<ToolPkgManifest>(manifestJson)
     }
 
+    fun parseManifest(content: String, manifestEntryName: String): ToolPkgManifest {
+        return parseToolPkgManifest(content, manifestEntryName)
+    }
+
     private fun hasLocalizedTextContent(text: LocalizedText?): Boolean {
         return text?.values?.values?.any { it.isNotBlank() } == true
     }
+
+    private val WINDOWS_DRIVE_PATH = Regex("""^[A-Za-z]:""", RegexOption.IGNORE_CASE)
 }

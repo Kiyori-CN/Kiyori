@@ -11,6 +11,8 @@ const UTF8 = Charset.forName('UTF-8');
 const BASE_DIR = '/sdcard/Download/Kiyori/browser_tool_suite';
 const PAGE_PATH = BASE_DIR + '/browser_tool_suite.html';
 const PAGE_URL = 'file://' + PAGE_PATH;
+const STRICT_CSP_PAGE_PATH = BASE_DIR + '/browser_tool_strict_csp.html';
+const STRICT_CSP_PAGE_URL = 'file://' + STRICT_CSP_PAGE_PATH;
 const UPLOAD_PATH = BASE_DIR + '/upload_payload.txt';
 const DELAYED_TEXT = 'READY_MARK_' + Date.now();
 
@@ -48,6 +50,10 @@ function fileState(path) {
 
 async function callBrowserTool(name, params) {
   return await toolCall('default', name, params || {});
+}
+
+async function callBrowserPackageTool(name, params) {
+  return await toolCall('browser', name, params || {});
 }
 
 function countTabs(output) {
@@ -245,6 +251,28 @@ function makeSuiteHtml() {
   ].join('\n');
 }
 
+function makeStrictCspHtml() {
+  return [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '  <meta charset="utf-8" />',
+    '  <meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; style-src \'unsafe-inline\'" />',
+    '  <title>Strict CSP Browser Tool Test</title>',
+    '  <style>body { font-family: sans-serif; padding: 16px; }</style>',
+    '</head>',
+    '<body>',
+    '  <h1>Strict CSP Fixture</h1>',
+    '  <input id="cspInput" aria-label="CSP Input" type="text" />',
+    '  <select id="cspSelect" aria-label="CSP Select">',
+    '    <option value="alpha">Alpha</option>',
+    '    <option value="beta">Beta</option>',
+    '  </select>',
+    '</body>',
+    '</html>',
+  ].join('\n');
+}
+
 async function evaluateExpression(expression, ref) {
   return await callBrowserTool('browser_evaluate', {
     function: expression,
@@ -256,6 +284,7 @@ exports.run = async function run() {
   const params = arguments.length > 0 ? (arguments[0] || {}) : {};
   ensureDir(BASE_DIR);
   writeText(PAGE_PATH, makeSuiteHtml());
+  writeText(STRICT_CSP_PAGE_PATH, makeStrictCspHtml());
   writeText(UPLOAD_PATH, 'browser upload payload');
   await resetBrowserState();
 
@@ -331,15 +360,56 @@ exports.run = async function run() {
       await ensureFixtureRefs(refs);
       await callBrowserTool('browser_fill_form', {
         fields: [
-          { name: 'Fill Input', ref: refs.fillInput, type: 'textbox', value: 'filled-text' },
-          { name: 'Check Input', ref: refs.checkInput, type: 'checkbox', value: 'true' },
-          { name: 'Select Input', ref: refs.selectInput, type: 'combobox', value: 'Beta' },
+          { name: 'Fill Input', ref: refs.fillInput, value: 'filled-text' },
+          { name: 'Check Input', ref: refs.checkInput, value: true },
+          { name: 'Select Input', ref: refs.selectInput, value: 'Beta' },
         ],
       });
       const payload = await evaluateExpression('() => JSON.stringify({ fill: document.getElementById("fillInput").value, checked: document.getElementById("checkInput").checked, selected: document.getElementById("selectInput").value })');
       assert(String(payload).indexOf('filled-text') >= 0, 'fill_form should set input value');
       assert(String(payload).indexOf('true') >= 0, 'fill_form should set checkbox');
       assert(String(payload).indexOf('beta') >= 0, 'fill_form should select beta');
+    }),
+    test('browser package fill_form uses the public ToolPkg entry', async () => {
+      await ensureFixtureRefs(refs);
+      await callBrowserPackageTool('fill_form', {
+        fields: [
+          { name: 'Public text', ref: refs.fillInput, value: 'public-filled-text' },
+          { selector: '#checkInput', value: false },
+          { selector: '#selectInput', value: 'Gamma' },
+        ],
+      });
+      const payload = await evaluateExpression('() => JSON.stringify({ fill: document.getElementById("fillInput").value, checked: document.getElementById("checkInput").checked, selected: document.getElementById("selectInput").value })');
+      assert(String(payload).indexOf('public-filled-text') >= 0, 'public fill_form should fill by ref');
+      assert(String(payload).indexOf('false') >= 0, 'public fill_form should set checkbox by selector');
+      assert(String(payload).indexOf('gamma') >= 0, 'public fill_form should select by selector');
+    }),
+    test('browser package fill_form rejects malformed public fields', async () => {
+      let missingLocatorError = '';
+      try {
+        await callBrowserPackageTool('fill_form', {
+          fields: [{ value: 'missing-locator' }],
+        });
+      } catch (error) {
+        missingLocatorError = String(error);
+      }
+      assert(
+        missingLocatorError.indexOf('requires exactly one of ref or selector') >= 0,
+        'public fill_form should reject a missing locator'
+      );
+
+      let invalidValueError = '';
+      try {
+        await callBrowserPackageTool('fill_form', {
+          fields: [{ selector: '#fillInput', value: { nested: true } }],
+        });
+      } catch (error) {
+        invalidValueError = String(error);
+      }
+      assert(
+        invalidValueError.indexOf('value must be a string, number, or boolean') >= 0,
+        'public fill_form should reject object values'
+      );
     }),
     test('browser_select_option changes selected option', async () => {
       await ensureFixtureRefs(refs);
@@ -491,9 +561,72 @@ exports.run = async function run() {
     test('browser_run_code supports setContent and locator operations', async () => {
       await ensureFixtureOpen();
       const value = await callBrowserTool('browser_run_code', {
-        code: 'async (page) => { await page.setContent("<main id=\\"content\\">set-content-ok</main>"); return await page.locator("#content").textContent(); }',
+        code: 'async (page) => { await page.setContent("<main><input id=\\"runInput\\" type=\\"text\\"><select id=\\"runSelect\\"><option value=\\"alpha\\">Alpha</option><option value=\\"beta\\">Beta</option></select><p id=\\"content\\">set-content-ok</p></main>"); await page.locator("#runInput").fill("run-code-filled"); await page.locator("#runSelect").selectOption("beta"); return await page.evaluate(() => JSON.stringify({ text: document.getElementById("content").textContent, input: document.getElementById("runInput").value, selected: document.getElementById("runSelect").value })); }',
       });
       assert(String(value).indexOf('set-content-ok') >= 0, 'setContent should replace the current document');
+      assert(String(value).indexOf('run-code-filled') >= 0, 'locator.fill should reuse the shared input runtime');
+      assert(String(value).indexOf('"selected":"beta"') >= 0, 'locator.selectOption should reuse the shared input runtime');
+    }),
+    test('browser_run_code keyboard press shares package input semantics', async () => {
+      await ensureFixtureOpen();
+      const value = await callBrowserTool('browser_run_code', {
+        code: 'async (page) => { const input = page.locator("#typeInput"); await input.fill(""); await input.click(); await page.keyboard.press("K"); await page.keyboard.press("Backspace"); await page.keyboard.press("Z"); return await page.evaluate(() => document.getElementById("typeInput").value); }',
+      });
+      assert(String(value).indexOf('Z') >= 0, 'keyboard.press should insert and delete text through the shared runtime');
+    }),
+    test('browser_run_code reports unsupported keyboard and locator APIs clearly', async () => {
+      let methodOutput = '';
+      try {
+        methodOutput = String(await callBrowserTool('browser_run_code', {
+          code: 'async (page) => page.keyboard.type("x")',
+        }));
+      } catch (error) {
+        methodOutput = String(error);
+      }
+      assert(
+        methodOutput.indexOf('Unsupported Playwright API: page.keyboard.type') >= 0,
+        'unknown keyboard APIs should have a stable error'
+      );
+
+      let keyOutput = '';
+      try {
+        keyOutput = String(await callBrowserTool('browser_run_code', {
+          code: 'async (page) => page.keyboard.press("Tab")',
+        }));
+      } catch (error) {
+        keyOutput = String(error);
+      }
+      assert(
+        keyOutput.indexOf('Unsupported Playwright API: page.keyboard.press("Tab")') >= 0,
+        'keys without implemented behavior should be rejected'
+      );
+
+      let locatorOutput = '';
+      try {
+        locatorOutput = String(await callBrowserTool('browser_run_code', {
+          code: 'async (page) => page.locator("body").focus()',
+        }));
+      } catch (error) {
+        locatorOutput = String(error);
+      }
+      assert(
+        locatorOutput.indexOf('Unsupported Playwright API: page.locator.focus') >= 0,
+        'unknown locator APIs should have a stable error'
+      );
+    }),
+    test('browser_run_code requires an explicit function source', async () => {
+      let output = '';
+      try {
+        output = String(await callBrowserTool('browser_run_code', {
+          code: 'return await page.title();',
+        }));
+      } catch (error) {
+        output = String(error);
+      }
+      assert(
+        output.indexOf('code must be a JavaScript function source') >= 0,
+        'statement bodies should be rejected before WebView execution'
+      );
     }),
     test('browser_run_code supports page once dialog registration', async () => {
       await ensureFixtureOpen();
@@ -552,6 +685,40 @@ exports.run = async function run() {
       await callBrowserTool('browser_close', {});
       await callBrowserTool('browser_tabs', { action: 'select', index: 0 });
     }),
+    test('strict CSP keeps snapshot evaluate run_code input and close coherent', async () => {
+      const navigated = await callBrowserTool('browser_navigate', { url: STRICT_CSP_PAGE_URL });
+      assert(
+        String(navigated).indexOf(STRICT_CSP_PAGE_URL) >= 0 ||
+          String(navigated).indexOf('Strict CSP Browser Tool Test') >= 0,
+        'strict CSP fixture should load'
+      );
+      const snapshot = await callBrowserTool('browser_snapshot', { depth: 5 });
+      assert(String(snapshot).indexOf('CSP Input') >= 0, 'snapshot should work under strict CSP');
+      const evaluated = await callBrowserTool('browser_evaluate', {
+        function: '() => document.title',
+      });
+      assert(
+        String(evaluated).indexOf('Strict CSP Browser Tool Test') >= 0,
+        'evaluate should work under strict CSP'
+      );
+      const runCode = await callBrowserTool('browser_run_code', {
+        code: 'async (page) => { const input = page.locator("#cspInput"); await input.fill(""); await input.click(); await page.keyboard.press("C"); await page.locator("#cspSelect").selectOption("beta"); return await page.evaluate(() => JSON.stringify({ input: document.getElementById("cspInput").value, selected: document.getElementById("cspSelect").value })); }',
+      });
+      assert(String(runCode).indexOf('"input":"C"') >= 0, 'run_code input should work under strict CSP');
+      assert(String(runCode).indexOf('"selected":"beta"') >= 0, 'run_code select should work under strict CSP');
+
+      await callBrowserTool('browser_tabs', { action: 'create' });
+      const tabsClosed = await callBrowserTool('browser_tabs', { action: 'close' });
+      assert(String(tabsClosed).indexOf('### State change') >= 0, 'tabs close should report the completed state change');
+      assert(String(tabsClosed).indexOf('### Page observation') >= 0, 'tabs close should report observation separately');
+      assert(String(tabsClosed).indexOf('EvalError') < 0, 'tabs close should not depend on unsafe-eval');
+
+      await callBrowserTool('browser_tabs', { action: 'create' });
+      const closed = await callBrowserTool('browser_close', {});
+      assert(String(closed).indexOf('### State change') >= 0, 'browser_close should report the completed state change');
+      assert(String(closed).indexOf('### Page observation') >= 0, 'browser_close should report observation separately');
+      assert(String(closed).indexOf('EvalError') < 0, 'browser_close should not depend on unsafe-eval');
+    }),
     test('browser_close closes the current tab cleanly', async () => {
       await ensureFixtureOpen();
       await callBrowserTool('browser_tabs', { action: 'create' });
@@ -595,6 +762,7 @@ exports.run = async function run() {
     selectedCount: selectedTests.length,
     artifacts: {
       page: fileState(PAGE_PATH),
+      strictCspPage: fileState(STRICT_CSP_PAGE_PATH),
       upload: fileState(UPLOAD_PATH),
     },
   };

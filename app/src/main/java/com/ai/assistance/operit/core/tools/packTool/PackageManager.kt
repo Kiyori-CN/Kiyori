@@ -34,6 +34,7 @@ import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceConf
 import com.ai.assistance.operit.widget.ToolPkgDesktopWidgetHost
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.ToolPkgWasmRuntime
+import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
@@ -41,6 +42,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -97,6 +99,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     private val activePackageStateIds = ConcurrentHashMap<String, String?>()
 
     private val toolPkgManager = ToolPkgManager(context)
+    private val toolPkgArtifactStore = ToolPkgArtifactStore(context)
     private val toolPkgContainers: MutableMap<String, ToolPkgContainerRuntime>
         get() = toolPkgManager.containersInternal
     private val toolPkgSubpackageByPackageName: MutableMap<String, ToolPkgSubpackageRuntime>
@@ -771,55 +774,14 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     }
 
     private fun buildToolPkgCacheSignature(
-        sourceType: ToolPkgSourceType,
-        sourcePath: String,
-        version: String,
-        mainEntry: String
+        artifactSha256: String,
     ): String? {
-        return when (sourceType) {
-            ToolPkgSourceType.EXTERNAL -> {
-                val sourceFile = File(sourcePath)
-                if (!sourceFile.exists()) {
-                    null
-                } else {
-                    buildString {
-                        append("external|")
-                        append(sourceFile.absolutePath)
-                        append('|')
-                        append(sourceFile.length())
-                        append('|')
-                        append(sourceFile.lastModified())
-                        append('|')
-                        append(version)
-                        append('|')
-                        append(mainEntry)
-                    }
-                }
-            }
-            ToolPkgSourceType.ASSET -> {
-                val apkFile = File(context.packageResourcePath)
-                buildString {
-                    append("asset|")
-                    append(sourcePath)
-                    append('|')
-                    append(apkFile.length())
-                    append('|')
-                    append(apkFile.lastModified())
-                    append('|')
-                    append(version)
-                    append('|')
-                    append(mainEntry)
-                }
-            }
-        }
+        return artifactSha256.trim().lowercase().takeIf(String::isNotBlank)
     }
 
     private fun buildToolPkgCacheSignature(runtime: ToolPkgContainerRuntime): String? {
         return buildToolPkgCacheSignature(
-            sourceType = runtime.sourceType,
-            sourcePath = runtime.sourcePath,
-            version = runtime.version,
-            mainEntry = runtime.mainEntry
+            artifactSha256 = runtime.artifactSha256,
         )
     }
 
@@ -1167,14 +1129,25 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
 
     private fun buildExternalPackageScanSignature(file: File): String {
         return buildString {
-            append(file.absolutePath)
-            append('|')
-            append(file.length())
-            append('|')
-            append(file.lastModified())
+            append(sha256Hex(file))
             append('|')
             append(pluginDenylistRepository.cacheSignature())
         }
+    }
+
+    private fun sha256Hex(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) {
+                    break
+                }
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private fun pluginDenylistRejection(file: File): String? {
@@ -1210,12 +1183,17 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     }
 
     private fun scanExternalPackages(baseSnapshot: PackageScanSnapshot): PackageScanSnapshot {
-        val externalFiles =
+        val inboxFiles =
             if (externalPackagesDir.exists()) {
                 (externalPackagesDir.listFiles() ?: emptyArray()).filter(File::isFile)
             } else {
                 emptyList()
             }
+        val externalFiles =
+            (toolPkgArtifactStore.activeArtifactFiles() + inboxFiles)
+                .distinctBy { file ->
+                    runCatching { file.canonicalPath }.getOrElse { file.absolutePath }
+                }
         val previousCache = externalPackageScanCache
         val nextCache = LinkedHashMap<String, ExternalPackageScanCacheEntry>()
         val candidateResults =
@@ -1814,6 +1792,9 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
     ): ToolPkgLoadResult? {
         val startMs = System.currentTimeMillis()
         return try {
+            val scanReport = ToolPkgArtifactScanner.scan(file)
+            scanReport.requireAccepted()
+            toolPkgArtifactStore.writeAudit(scanReport)
             withToolPkgRegistrationEngine { registrationEngine ->
                 ToolPkgLoader.loadToolPkgFromExternalFile(
                     file = file,
@@ -1861,12 +1842,21 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             )
                 ?: throw IllegalArgumentException("manifest.main is required")
         val signature =
-            buildToolPkgCacheSignature(
-                sourceType = ToolPkgSourceType.ASSET,
-                sourcePath = assetPath,
-                version = manifestPreview.manifest.version,
-                mainEntry = mainEntry
-            )
+            context.assets.open(assetPath).use { input ->
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read <= 0) {
+                        break
+                    }
+                    digest.update(buffer, 0, read)
+                }
+                buildToolPkgCacheSignature(
+                    artifactSha256 =
+                        digest.digest().joinToString("") { byte -> "%02x".format(byte) },
+                )
+            }
                 ?: throw IllegalStateException("Failed to build toolpkg cache signature")
         return ensureToolPkgCacheDir(
             packageName = toolPkgId,
@@ -2290,6 +2280,17 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         return OperitPaths.pluginConfigDir(resolvedPluginId).absolutePath
     }
 
+    fun getArtifactMarketMetadataDirPath(packageName: String): String {
+        val candidate = packageName.trim()
+        if (candidate.isBlank()) {
+            return ""
+        }
+        val resolvedPackageId =
+            resolveToolPkgSubpackageRuntime(candidate)?.containerPackageName
+                ?: candidate
+        return toolPkgArtifactStore.marketMetadataDir(resolvedPackageId).absolutePath
+    }
+
     /**
      * Imports a package from external storage path.
      * Supports legacy JS/TS/HJSON files and .toolpkg containers.
@@ -2318,34 +2319,7 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
             pluginDenylistRejection(file)?.let { return it }
 
             if (isToolPkg) {
-                val preview = loadToolPkgFromExternalFile(file)
-                    ?: return "Failed to parse toolpkg file"
-                val containerName = preview.containerPackage.name
-                if (availablePackages.containsKey(containerName)) {
-                    return "A package with name '$containerName' already exists in available packages"
-                }
-
-                val conflictSubpackages =
-                    preview.subpackagePackages
-                        .map { it.name }
-                        .filter { availablePackages.containsKey(it) }
-                if (conflictSubpackages.isNotEmpty()) {
-                    return "Subpackage name conflict: ${conflictSubpackages.joinToString(", ")}"
-                }
-
-                val destinationFile = File(externalPackagesDir, file.name)
-                if (file.absolutePath != destinationFile.absolutePath) {
-                    file.inputStream().use { input ->
-                        destinationFile.outputStream().use { output -> input.copyTo(output) }
-                    }
-                }
-
-                val loadedFromDestination = loadToolPkgFromExternalFile(destinationFile)
-                    ?: return "Failed to parse copied toolpkg file"
-                if (!registerToolPkg(loadedFromDestination)) {
-                    return "Failed to register toolpkg '$containerName' due to naming conflict"
-                }
-                return "Successfully imported toolpkg: $containerName\nStored at: ${destinationFile.absolutePath}"
+                return installOrUpdateToolPkgArtifact(filePath = file.absolutePath)
             }
 
             val packageMetadata =
@@ -2402,12 +2376,170 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                 candidateCanonicalPath == preferredCanonicalPath
             }
             .filter { candidate ->
-                val loadResult =
-                    loadToolPkgFromExternalFile(candidate) { _, _ -> }
-                        ?: return@filter false
-                loadResult.containerPackage.name == normalizedPackageName
+                val preview =
+                    runCatching {
+                        ToolPkgArchiveParser.readToolPkgManifestPreview {
+                            candidate.inputStream()
+                        }
+                    }.getOrNull()
+                preview
+                    ?.manifest
+                    ?.toolpkgId
+                    ?.trim()
+                    ?.equals(normalizedPackageName, ignoreCase = true) == true
             }
             .toList()
+    }
+
+    fun installOrUpdateToolPkgArtifact(
+        filePath: String,
+        expectedPackageId: String? = null,
+        expectedSha256: String? = null,
+    ): String {
+        ensureInitialized()
+        val sourceFile = File(filePath)
+        require(sourceFile.isFile) { "ToolPkg artifact does not exist: $filePath" }
+        pluginDenylistRejection(sourceFile)?.let { rejection ->
+            throw IllegalArgumentException(rejection)
+        }
+        val report = ToolPkgArtifactScanner.scan(sourceFile)
+        report.requireAccepted()
+        val packageId =
+            report.toolPkgId
+                ?.trim()
+                ?.takeIf(String::isNotBlank)
+                ?: throw IllegalArgumentException("ToolPkg manifest package ID is missing")
+        val normalizedExpectedId = expectedPackageId?.trim().orEmpty()
+        if (normalizedExpectedId.isNotBlank()) {
+            require(packageId.equals(normalizedExpectedId, ignoreCase = true)) {
+                "ToolPkg package ID does not match the requested artifact: $packageId != $normalizedExpectedId"
+            }
+        }
+        val normalizedExpectedSha = expectedSha256?.trim()?.lowercase().orEmpty()
+        if (normalizedExpectedSha.isNotBlank()) {
+            require(report.artifactSha256 == normalizedExpectedSha) {
+                "ToolPkg artifact SHA-256 does not match the requested artifact"
+            }
+        }
+
+        val existingTopLevel = availablePackages[packageId]
+        if (existingTopLevel?.isBuiltIn == true) {
+            throw IllegalStateException("A built-in ToolPkg with package ID '$packageId' is already installed")
+        }
+        if (existingTopLevel != null && !toolPkgContainers.containsKey(packageId)) {
+            throw IllegalStateException("A non-ToolPkg package with name '$packageId' already exists")
+        }
+
+        val storedArtifact = toolPkgArtifactStore.storeArtifact(sourceFile, report)
+        val parsed =
+            loadToolPkgFromExternalFile(storedArtifact)
+                ?: throw IllegalArgumentException("Failed to parse the stored ToolPkg artifact")
+        require(parsed.containerPackage.name.equals(packageId, ignoreCase = true)) {
+            "Stored ToolPkg package ID changed during validation"
+        }
+        val currentContainer = toolPkgContainers[packageId]
+        val replaceableNames =
+            buildSet {
+                add(packageId)
+                currentContainer?.subpackages
+                    ?.map(ToolPkgSubpackageRuntime::packageName)
+                    ?.forEach(::add)
+            }
+        val conflicts =
+            parsed.subpackagePackages
+                .map { subpackage -> subpackage.name }
+                .filter { subpackageName ->
+                    availablePackages.containsKey(subpackageName) &&
+                        subpackageName !in replaceableNames
+                }
+        require(conflicts.isEmpty()) {
+            "ToolPkg subpackage name conflict: ${conflicts.joinToString()}"
+        }
+
+        val previousActive = toolPkgArtifactStore.readActive(packageId)
+        val transactionDir =
+            KiyoriPaths.toolPkgBuildTransactionDir(
+                context,
+                "install-${UUID.randomUUID()}",
+            )
+        val quarantinedFiles = mutableListOf<Pair<File, File>>()
+        try {
+            findDuplicateExternalToolPkgFiles(
+                containerPackageName = packageId,
+                preferredFilePath = storedArtifact.absolutePath,
+            ).forEachIndexed { index, externalFile ->
+                val quarantineFile =
+                    File(
+                        transactionDir,
+                        "$index-${externalFile.name}",
+                    )
+                check(externalFile.renameTo(quarantineFile)) {
+                    "Unable to stage the previous external ToolPkg artifact: ${externalFile.absolutePath}"
+                }
+                quarantinedFiles += externalFile to quarantineFile
+            }
+
+            toolPkgArtifactStore.activate(
+                ToolPkgActiveArtifactRecord(
+                    packageId = packageId,
+                    artifactSha256 = report.artifactSha256,
+                    version = report.toolPkgVersion.orEmpty(),
+                    activatedAt = System.currentTimeMillis(),
+                ),
+            )
+            externalPackageScanCache = emptyMap()
+            getAvailablePackages(forceRefresh = true)
+            val activeRuntime =
+                toolPkgContainers[packageId]
+                    ?: throw IllegalStateException(
+                        "ToolPkg did not appear after active artifact switch: $packageId",
+                    )
+            require(
+                File(activeRuntime.sourcePath).canonicalFile == storedArtifact.canonicalFile,
+            ) {
+                "ToolPkg active runtime does not reference the committed artifact"
+            }
+            require(activeRuntime.artifactSha256 == report.artifactSha256) {
+                "ToolPkg active runtime SHA-256 does not match the committed artifact"
+            }
+
+            destroyToolPkgExecutionEngines(packageId)
+            quarantinedFiles.forEach { (_, stagedFile) ->
+                check(!stagedFile.exists() || stagedFile.delete()) {
+                    "Unable to remove the replaced external ToolPkg artifact"
+                }
+            }
+            transactionDir.deleteRecursively()
+            toolPkgArtifactStore.cleanupUnreferencedArtifacts()
+            return "Successfully imported toolpkg: $packageId\nArtifact SHA-256: ${report.artifactSha256}"
+        } catch (error: Exception) {
+            toolPkgArtifactStore.restoreActive(packageId, previousActive)
+            quarantinedFiles.asReversed().forEach { (originalFile, stagedFile) ->
+                if (stagedFile.exists()) {
+                    check(stagedFile.renameTo(originalFile)) {
+                        "Unable to restore the previous external ToolPkg artifact"
+                    }
+                }
+            }
+            externalPackageScanCache = emptyMap()
+            runCatching {
+                loadAvailablePackages(refreshExternalOnly = true)
+            }.onFailure { restoreError ->
+                logToolPkgError(
+                    "Failed to restore ToolPkg package snapshot after install error: ${restoreError.message}",
+                    restoreError,
+                )
+            }
+            transactionDir.deleteRecursively()
+            runCatching { toolPkgArtifactStore.cleanupUnreferencedArtifacts() }
+                .onFailure { cleanupError ->
+                    logToolPkgError(
+                        "Failed to clean unreferenced ToolPkg artifacts after install error: ${cleanupError.message}",
+                        cleanupError,
+                    )
+                }
+            throw error
+        }
     }
 
     private fun collectRelatedToolPkgLoadErrors(
@@ -3499,6 +3631,21 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
         if (toolPkgSubpackageByPackageName.containsKey(normalizedPackageName)) {
             // Subpackage is part of a toolpkg archive; only remove enable state.
             disablePackage(normalizedPackageName)
+            return true
+        }
+
+        val currentContainer = toolPkgContainers[normalizedPackageName]
+        if (
+            currentContainer != null &&
+                currentContainer.sourceType == ToolPkgSourceType.EXTERNAL &&
+                toolPkgArtifactStore.isManagedArtifact(File(currentContainer.sourcePath))
+        ) {
+            toolPkgArtifactStore.deactivate(normalizedPackageName)
+            disablePackage(normalizedPackageName)
+            destroyToolPkgExecutionEngines(normalizedPackageName)
+            externalPackageScanCache = emptyMap()
+            loadAvailablePackages(refreshExternalOnly = true)
+            toolPkgArtifactStore.cleanupUnreferencedArtifacts()
             return true
         }
 

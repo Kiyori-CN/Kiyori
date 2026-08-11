@@ -133,13 +133,13 @@ export namespace Net {
     }): Promise<string>;
 
     /**
-     * Fill multiple form fields in the browser session.
+     * Fill multiple form fields in the browser session. Each field uses exactly
+     * one of `ref` or `selector`; the page DOM determines the control type.
      */
     function browserFillForm(options: {
         fields: Array<{
-            name: string;
-            type: string;
-            value: string | number | boolean | object;
+            name?: string;
+            value: string | number | boolean;
             ref?: string;
             selector?: string;
         }>;

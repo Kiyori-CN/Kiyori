@@ -147,9 +147,14 @@ internal fun buildBrowserResponse(
     modalState: String? = null,
     downloads: String? = null,
     result: String? = null,
-    error: String? = null
+    error: String? = null,
+    stateChange: String? = null,
+    pageObservation: String? = null,
 ): String {
     val sections = mutableListOf<String>()
+    if (!stateChange.isNullOrBlank()) {
+        sections += "### State change\n${stateChange.trim()}"
+    }
     if (!code.isNullOrBlank()) {
         sections += "### Ran Playwright code\n```js\n${code.trim()}\n```"
     }
@@ -161,6 +166,9 @@ internal fun buildBrowserResponse(
     }
     if (snapshot != null) {
         sections += "### Snapshot\n${formatSnapshotSection(snapshot)}"
+    }
+    if (!pageObservation.isNullOrBlank()) {
+        sections += "### Page observation\n${pageObservation.trim()}"
     }
     if (!consoleMessages.isNullOrBlank()) {
         sections += "### New console messages\n${consoleMessages.trim()}"

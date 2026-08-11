@@ -136,7 +136,8 @@ description: 用于 Operit Sandbox Package 开发。
 2. 再查 `types/core.d.ts`、`types/java-bridge.d.ts`，确认运行时与桥接接口
 3. 查 `types/results.d.ts`，确认常见返回结构
 4. 如果涉及设置类能力，再查 `types/software_settings.d.ts`
-5. 只有方案已经确定为 `ToolPkg` 时，再查 `types/toolpkg.d.ts`
+5. 只有方案已经确定为 `ToolPkg` 时，再查 `types/toolpkg.d.ts`；涉及持久状态、缓存或制品构建时，
+   额外搜索 `storage`、`privateData`、`cache`、`buildArtifact`
 6. 需要普通脚本格式、元数据、示例写法时，再查 `references/SCRIPT_DEV_GUIDE.md`
 7. 需要 `ToolPkg` 的 `manifest`、目录结构、资源、UI 模块、注册函数与调试安装流程时，再查 `references/TOOLPKG_FORMAT_GUIDE.md`
 
@@ -157,6 +158,9 @@ description: 用于 Operit Sandbox Package 开发。
 5. 如果是普通 JS Sandbox Package，先用 `grep_code` 在 `SCRIPT_DEV_GUIDE.md` 里搜索 `METADATA`、`tool`、`execute`、`package` 等关键字
 6. 可以优先参考 `examples/` 或 `examples/packages/` 里已经存在的包，借鉴相近能力的结构、元数据、参数设计和返回格式
 7. 如果是 `ToolPkg`，用 `grep_code` 在 `TOOLPKG_FORMAT_GUIDE.md` 里搜索 `manifest`、`subpackage`、`registerToolPkg`、`resource`、`ui`、`debug_toolpkg`、`hook` 等关键字
+   - 设计分发内容时，额外搜索 `distribution`、`include`、`artifact`、`scanner`
+   - 保存包状态时，额外搜索 `storage`、`privateData`、`cache`
+   - 构建或迁移时，额外搜索 `buildArtifact`、`migration`
    - 如果目标就是模板注册，还应额外搜索 `workflow_templates`、`workspace_templates`、`project_type`
 8. 用 `read_file_part` 读取相关段落，确认脚本结构、元数据、manifest 和注册写法
 9. 用 `types/` 里的定义约束参数、返回值、可调用能力和结果结构
@@ -167,6 +171,11 @@ description: 用于 Operit Sandbox Package 开发。
 12. 如果最终产物是普通 JS 包脚本，需要根据需求撰写 `main` 函数，并在交付前自行完成测试
 
 如果写到一半发现本地类型和实际需求对不上，先不要硬猜，先重新运行安装脚本，再继续写。
+
+ToolPkg 的新状态默认写入 `ToolPkg.storage().privateData`，可重建内容写入
+`ToolPkg.storage().cache`。`ToolPkg.getConfigDir()` 只用于必须保留的公开兼容工作文件，不用于
+凭据、索引、状态数据库或需要包级隔离的数据。构建 `.toolpkg` 时使用
+`ToolPkg.buildArtifact({ sourceDirectory })`，不要递归压缩整个开发目录。
 
 ## 第三部分：发布到插件市场
 

@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.shell
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadNetworkPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettings
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.FRESH_INSTALL_BROWSER_SETTINGS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSettings
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatAutomaticFloatingMinimumDuration
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.formatWebTextZoomPercent
@@ -651,6 +652,11 @@ class KiyoriSettingsPagesTest {
                     group.entries.all { entry -> entry.description.isNotBlank() }
             },
         )
+        val initialBrowserSettings = FRESH_INSTALL_BROWSER_SETTINGS
+        assertEquals("https://go.itab.link", initialBrowserSettings.homeUrl)
+        assertTrue(initialBrowserSettings.returnWithoutReloadEnabled)
+        assertTrue(initialBrowserSettings.forcePageZoomEnabled)
+        assertTrue(initialBrowserSettings.websitePasswordSavingEnabled)
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)

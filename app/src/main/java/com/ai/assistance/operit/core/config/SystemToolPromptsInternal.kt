@@ -366,10 +366,10 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_fill_form",
-                            description = "Fill multiple form fields on the current page.",
+                            description = "Fill multiple form fields on the current page. The page DOM determines each control type.",
                             parametersStructured =
                                 listOf(
-                                    ToolParameterSchema(name = "fields", type = "array", description = "array of field objects with name/type/value plus ref or selector", required = true)
+                                    ToolParameterSchema(name = "fields", type = "array", description = "non-empty field array; each item has exactly one of ref or selector, a string/number/boolean value, and an optional diagnostic name", required = true)
                                 )
                         ),
                         ToolPrompt(
@@ -440,10 +440,10 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_run_code",
-                            description = "Run the documented Android WebView Playwright Page subset against the current tab: title, url, evaluate, waitForTimeout, setContent, keyboard, dialog on/once/off/removeListener, and locator/getByRole click/hover/fill/selectOption/textContent. Unsupported page methods return a structured Unsupported Playwright API error.",
+                            description = "Run the documented Android WebView Playwright Page subset against the current tab through an explicit function source. keyboard.press accepts one character, Enter, Backspace, or Delete; dialog is event-only; unsupported APIs return a structured Unsupported Playwright API error.",
                             parametersStructured =
                                 listOf(
-                                    ToolParameterSchema(name = "code", type = "string", description = "Playwright-style JavaScript snippet", required = true)
+                                    ToolParameterSchema(name = "code", type = "string", description = "JavaScript function source such as async (page) => { ... }; statement bodies are not accepted", required = true)
                                 )
                         ),
                         ToolPrompt(
@@ -3368,10 +3368,10 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_fill_form",
-                            description = "批量填写当前页面的多个表单字段。",
+                            description = "批量填写当前页面的多个表单字段；每项控件类型由页面 DOM 判定。",
                             parametersStructured =
                                 listOf(
-                                    ToolParameterSchema(name = "fields", type = "array", description = "字段对象数组，每项包含 name/type/value 以及 ref 或 selector", required = true)
+                                    ToolParameterSchema(name = "fields", type = "array", description = "非空字段数组；每项仅包含 ref 或 selector 之一、字符串/数字/布尔值 value，以及可选诊断 name", required = true)
                                 )
                         ),
                         ToolPrompt(
@@ -3442,10 +3442,10 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "browser_run_code",
-                            description = "运行当前 tab 上文档化的 Android WebView Playwright Page 子集：title、url、evaluate、waitForTimeout、setContent、keyboard、dialog 的 on/once/off/removeListener，以及 locator/getByRole 的 click/hover/fill/selectOption/textContent；不支持的 page 方法返回结构化 Unsupported Playwright API 错误。",
+                            description = "通过明确函数源码运行当前 tab 上文档化的 Android WebView Playwright Page 子集；keyboard.press 只接受单字符、Enter、Backspace 或 Delete，dialog 仅提供事件注册，未支持 API 返回结构化 Unsupported Playwright API 错误。",
                             parametersStructured =
                                 listOf(
-                                    ToolParameterSchema(name = "code", type = "string", description = "Playwright 风格 JavaScript 代码片段", required = true)
+                                    ToolParameterSchema(name = "code", type = "string", description = "例如 async (page) => { ... } 的 JavaScript 函数源码；不接受语句块", required = true)
                                 )
                         ),
                         ToolPrompt(

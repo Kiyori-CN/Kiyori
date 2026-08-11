@@ -459,6 +459,117 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                 throw new Error('plugin config dir is unavailable for ' + target);
             }
 
+            function parseStorageResponse(raw, operation) {
+                var parsed;
+                try {
+                    parsed = JSON.parse(String(raw || ''));
+                } catch (error) {
+                    throw new Error(
+                        'ToolPkg storage returned invalid JSON for ' +
+                            operation +
+                            ': ' +
+                            String(error && error.message ? error.message : error)
+                    );
+                }
+                if (!parsed || parsed.success !== true) {
+                    throw new Error(
+                        parsed && typeof parsed.message === 'string' && parsed.message.trim()
+                            ? parsed.message.trim()
+                            : 'ToolPkg storage operation failed: ' + operation
+                    );
+                }
+                return parsed;
+            }
+
+            function createStorageNamespace(namespace) {
+                return {
+                    writeText: function(relativePath, text) {
+                        var raw = requireNative('writeToolPkgStorageText')(
+                            namespace,
+                            String(relativePath || ''),
+                            String(text == null ? '' : text)
+                        );
+                        parseStorageResponse(raw, namespace + '.writeText');
+                        return Promise.resolve();
+                    },
+                    readText: function(relativePath) {
+                        var raw = requireNative('readToolPkgStorageText')(
+                            namespace,
+                            String(relativePath || '')
+                        );
+                        var result = parseStorageResponse(raw, namespace + '.readText');
+                        return Promise.resolve(result.exists === true ? String(result.text || '') : null);
+                    },
+                    writeJson: function(relativePath, value) {
+                        var serialized;
+                        try {
+                            serialized = JSON.stringify(value);
+                        } catch (error) {
+                            return Promise.reject(error);
+                        }
+                        if (serialized === undefined) {
+                            return Promise.reject(
+                                new Error('ToolPkg storage JSON value is not serializable')
+                            );
+                        }
+                        return this.writeText(relativePath, serialized);
+                    },
+                    readJson: function(relativePath) {
+                        return this.readText(relativePath).then(function(text) {
+                            if (text === null) {
+                                return null;
+                            }
+                            return JSON.parse(text);
+                        });
+                    },
+                    exists: function(relativePath) {
+                        var raw = requireNative('toolPkgStorageFileExists')(
+                            namespace,
+                            String(relativePath || '')
+                        );
+                        var result = parseStorageResponse(raw, namespace + '.exists');
+                        return Promise.resolve(result.exists === true);
+                    },
+                    delete: function(relativePath) {
+                        var raw = requireNative('deleteToolPkgStorageFile')(
+                            namespace,
+                            String(relativePath || '')
+                        );
+                        var result = parseStorageResponse(raw, namespace + '.delete');
+                        return Promise.resolve(result.deleted === true);
+                    }
+                };
+            }
+
+            function createToolPkgStorage() {
+                return {
+                    privateData: createStorageNamespace('privateData'),
+                    cache: createStorageNamespace('cache')
+                };
+            }
+
+            function buildToolPkgArtifact(options) {
+                var sourceDirectory =
+                    options && typeof options === 'object'
+                        ? String(options.sourceDirectory || '').trim()
+                        : '';
+                if (!sourceDirectory) {
+                    return Promise.reject(
+                        new Error('ToolPkg.buildArtifact requires sourceDirectory')
+                    );
+                }
+                var raw = requireNative('buildToolPkgArtifact')(sourceDirectory);
+                var result = parseStorageResponse(raw, 'buildArtifact');
+                return Promise.resolve({
+                    archivePath: String(result.archivePath || ''),
+                    artifactSha256: String(result.artifactSha256 || ''),
+                    toolPkgId: String(result.toolPkgId || ''),
+                    toolPkgVersion: String(result.toolPkgVersion || ''),
+                    entryCount: Number(result.entryCount || 0),
+                    unpackedBytes: Number(result.unpackedBytes || 0)
+                });
+            }
+
             var api = {
                 registerToolboxUiModule: function(definition) {
                     registerWithNative(
@@ -491,7 +602,9 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                     );
                 },
                 readResource: readToolPkgResource,
-                getConfigDir: getToolPkgConfigDir
+                getConfigDir: getToolPkgConfigDir,
+                storage: createToolPkgStorage,
+                buildArtifact: buildToolPkgArtifact
             };
 
             [

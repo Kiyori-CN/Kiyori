@@ -2129,7 +2129,6 @@ const SANDBOX_SCRIPT_EXECUTION_COMPONENT =
   "com.kiyori/com.ai.assistance.operit.core.tools.javascript.ScriptExecutionReceiver";
 const SANDBOX_SCRIPT_EXECUTION_MODE_SCRIPT = "script";
 const SANDBOX_SCRIPT_EXECUTION_MODE_CODE = "code";
-const SANDBOX_JS_TEMP_DIR = "/sdcard/Android/data/com.kiyori/js_temp";
 const DEFAULT_SANDBOX_REFRESH_TIMEOUT_MS = 1500;
 const DEFAULT_TOOLPKG_INSTALL_WAIT_MS = 1500;
 const DEFAULT_SANDBOX_SCRIPT_WAIT_MS = 15000;
@@ -2566,13 +2565,10 @@ async function resolve_toolpkg_source(rawSourcePath: string): Promise<ToolPkgRes
 }
 
 async function build_toolpkg_archive_from_folder(source: ToolPkgResolvedSource) {
-  const tempBuildDir = path_join(
-    OPERIT_CLEAN_ON_EXIT_DIR,
-    `operit_editor_toolpkg_build_${safe_debug_file_stem(source.packageId, "toolpkg")}_${Date.now()}`
-  );
-  await ensure_android_directory(tempBuildDir);
-  const archivePath = path_join(tempBuildDir, `${safe_debug_file_stem(source.packageId, "toolpkg")}.toolpkg`);
-  await Tools.Files.zip(source.folderPath, archivePath, "android", false);
+  const buildResult = await ToolPkg.buildArtifact({
+    sourceDirectory: source.folderPath
+  });
+  const archivePath = buildResult.archivePath.trim();
 
   if (!(await android_path_exists(archivePath))) {
     throw new Error(`Failed to create ToolPkg archive: ${archivePath}`);
@@ -2580,7 +2576,8 @@ async function build_toolpkg_archive_from_folder(source: ToolPkgResolvedSource) 
 
   return {
     archivePath,
-    temporaryPaths: [tempBuildDir]
+    artifactSha256: buildResult.artifactSha256,
+    temporaryPaths: [path_dirname(archivePath)]
   };
 }
 
@@ -3028,8 +3025,7 @@ async function debug_run_sandbox_script(params?: {
     }
 
     const executionMode = hasInlineCode ? SANDBOX_SCRIPT_EXECUTION_MODE_CODE : SANDBOX_SCRIPT_EXECUTION_MODE_SCRIPT;
-    const scriptIdentityPath =
-      sourcePath || path_join(SANDBOX_JS_TEMP_DIR, `${scriptLabel}_${Date.now()}.inline.js`);
+    const scriptIdentityPath = sourcePath || "<inline-code>";
     logStep(`Execution mode -> ${executionMode}`);
     logStep(`Execution target -> ${scriptIdentityPath}`);
 

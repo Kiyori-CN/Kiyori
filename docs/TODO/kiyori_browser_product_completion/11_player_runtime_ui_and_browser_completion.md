@@ -390,6 +390,8 @@ ui/features/player/
 
 `PlayerSettingsStore` 新增以下字段，全部由唯一 session 或 UI command 消费：
 
+- 新安装默认开启记忆播放倍速、长按加速和记忆超分模式，默认 Anime4K 模式为 `A_PLUS`，解码器预设为
+  `HIGH_QUALITY`，在线播放缓存为 `LARGE`；用户后续修改仍只写入同一 `PlayerSettingsStore`
 - 解码器预设：直接映射 mpv `fast/default/high-quality/gpu-hq/low-latency/sw-fast` profile
 - GPU Next 与 Vulkan：在唯一 mpv core 下次创建时分别约束 `vo=gpu-next` 与
   `gpu-context=androidvk`

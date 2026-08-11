@@ -1801,6 +1801,50 @@ private fun playwrightLikeInputRuntimeJs(): String =
             return "done";
         }
 
+        function clickElement(node) {
+            const element = retarget(node, "follow-label");
+            if (!element) {
+                return "error:notconnected";
+            }
+            ensureStatesOrThrow(element, ["visible", "enabled"]);
+            try {
+                element.scrollIntoView({ block: "center", inline: "center" });
+            } catch (_) {
+            }
+            try {
+                element.focus({ preventScroll: true });
+            } catch (_) {
+            }
+            if (typeof element.click !== "function") {
+                createError("Element is not clickable");
+            }
+            element.click();
+            return "done";
+        }
+
+        function hoverElement(node) {
+            const element = retarget(node, "none");
+            if (!element) {
+                return "error:notconnected";
+            }
+            ensureStatesOrThrow(element, ["visible"]);
+            try {
+                element.scrollIntoView({ block: "center", inline: "center" });
+            } catch (_) {
+            }
+            const rect = element.getBoundingClientRect();
+            ["pointerover", "mouseover", "mouseenter", "mousemove"].forEach((type) => {
+                element.dispatchEvent(new MouseEvent(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.top + rect.height / 2
+                }));
+            });
+            return "done";
+        }
+
         function setChecked(node, desiredState) {
             const element = retarget(node, "follow-label");
             if (!element) {
@@ -1897,6 +1941,8 @@ private fun playwrightLikeInputRuntimeJs(): String =
             typeElement: typeElement,
             pressKey: pressKey,
             pressEnter: pressEnter,
+            clickElement: clickElement,
+            hoverElement: hoverElement,
             setChecked: setChecked,
             selectOptions: selectOptions
         };
@@ -2112,38 +2158,17 @@ internal fun StandardBrowserSessionTools.evaluateJavascriptAsync(
                 pending.latch.countDown()
                 return@post
             }
-            val wrapped =
-                """
-                (function() {
-                    try {
-                        const operitExpression = ${quoteJs(expression)};
-                        const operitValue = (0, eval)(operitExpression);
-                        Promise.resolve(operitValue)
-                            .then(function(value) {
-                                let payload;
-                                try {
-                                    payload = JSON.stringify({ ok: true, value: value });
-                                } catch (_) {
-                                    payload = JSON.stringify({ ok: true, value: String(value) });
-                                }
-                                window.OperitAsyncBridge.resolve(${quoteJs(callId)}, payload);
-                            })
-                            .catch(function(error) {
-                                window.OperitAsyncBridge.reject(
-                                    ${quoteJs(callId)},
-                                    String(error && (error.stack || error.message || error) || "Async execution failed")
-                                );
-                            });
-                    } catch (error) {
-                        window.OperitAsyncBridge.reject(
-                            ${quoteJs(callId)},
-                            String(error && (error.stack || error.message || error) || "Async execution failed")
-                        );
+            // WebView.evaluateJavascript is the only page execution boundary. Embedding the
+            // generated expression directly avoids CSP unsafe-eval and a second script engine.
+            val wrapped = buildDirectAsyncJavascript(callId, expression)
+            webView.evaluateJavascript(wrapped) { rawResult ->
+                if (rawResult == null || rawResult == "null") {
+                    StandardBrowserSessionTools.pendingAsyncJsCalls.remove(callId)?.let { unresolved ->
+                        unresolved.error = "JavaScript source could not be evaluated"
+                        unresolved.latch.countDown()
                     }
-                    return true;
-                })();
-                """.trimIndent()
-            webView.evaluateJavascript(wrapped, null)
+                }
+            }
         } catch (e: Exception) {
             StandardBrowserSessionTools.pendingAsyncJsCalls.remove(callId)
             pending.error = e.message ?: "Async JavaScript wrapper error"
@@ -2156,6 +2181,48 @@ internal fun StandardBrowserSessionTools.evaluateJavascriptAsync(
     }
     pending.error?.let { throw RuntimeException(it) }
     return pending.result ?: "{\"ok\":true,\"value\":null}"
+}
+
+internal fun buildDirectAsyncJavascript(
+    callId: String,
+    expression: String,
+): String = buildDirectAsyncJavascriptSource(quoteJs(callId), expression)
+
+internal fun buildDirectAsyncJavascriptSource(
+    quotedCallId: String,
+    expression: String,
+): String {
+    val directExpression = expression.trim().trimEnd(';').trimEnd()
+    require(directExpression.isNotBlank()) { "JavaScript expression is empty" }
+    return """
+        (function() {
+            try {
+                const operitValue = ($directExpression);
+                Promise.resolve(operitValue)
+                    .then(function(value) {
+                        let payload;
+                        try {
+                            payload = JSON.stringify({ ok: true, value: value });
+                        } catch (_) {
+                            payload = JSON.stringify({ ok: true, value: String(value) });
+                        }
+                        window.OperitAsyncBridge.resolve($quotedCallId, payload);
+                    })
+                    .catch(function(error) {
+                        window.OperitAsyncBridge.reject(
+                            $quotedCallId,
+                            String(error && (error.stack || error.message || error) || "Async execution failed")
+                        );
+                    });
+            } catch (error) {
+                window.OperitAsyncBridge.reject(
+                    $quotedCallId,
+                    String(error && (error.stack || error.message || error) || "Async execution failed")
+                );
+            }
+            return true;
+        })();
+    """.trimIndent()
 }
 
 internal fun extractAsyncJsValue(payload: String): String {
@@ -2234,22 +2301,25 @@ internal fun StandardBrowserSessionTools.fillFormFields(
                 if (!target) {
                     throw new Error("field_not_found:" + (field.name || index));
                 }
-                const type = String(field.type || target.type || target.tagName || "").toLowerCase();
-                const value = String(field.value ?? "");
+                const tagName = String(target.tagName || "").toLowerCase();
+                const inputType = tagName === "input" ? String(target.type || "").toLowerCase() : "";
+                const controlType = inputType || tagName || "element";
+                const value = field.value;
                 let result = "done";
-                if (type === "textbox" || type === "slider") {
-                    result = __operitPw.completeFill(target, value);
-                } else if (type === "checkbox" || type === "radio") {
-                    result = __operitPw.setChecked(target, value.toLowerCase() === "true");
-                } else if (type === "combobox" || String(target.tagName || "").toLowerCase() === "select") {
-                    result = __operitPw.selectOptions(target, [{ valueOrLabel: value }]);
+                if (inputType === "checkbox" || inputType === "radio") {
+                    if (typeof value !== "boolean") {
+                        throw new Error("field_value_must_be_boolean:" + (field.name || index));
+                    }
+                    result = __operitPw.setChecked(target, value);
+                } else if (tagName === "select") {
+                    result = __operitPw.selectOptions(target, [{ valueOrLabel: String(value) }]);
                 } else {
-                    result = __operitPw.completeFill(target, value);
+                    result = __operitPw.completeFill(target, String(value));
                 }
                 if (result !== "done" && !Array.isArray(result)) {
                     throw new Error(String(result));
                 }
-                results.push(String(field.name || ("field_" + (index + 1))) + " => " + type);
+                results.push(String(field.name || ("field_" + (index + 1))) + " => " + controlType);
             });
             return results.join("\n");
         })()
@@ -2687,6 +2757,8 @@ internal fun StandardBrowserSessionTools.resolveElementRect(
 
 internal object BrowserRunCodeContract {
     const val UNSUPPORTED_API_PREFIX = "Unsupported Playwright API: page."
+    const val FUNCTION_SOURCE_ERROR =
+        "code must be a JavaScript function source such as async (page) => { ... }"
 
     val supportedPageMembers =
         setOf(
@@ -2715,6 +2787,20 @@ internal object BrowserRunCodeContract {
             "textContent",
         )
 
+    val supportedKeyboardMembers = setOf("press")
+    val supportedKeyboardNamedKeys = setOf("Enter", "Backspace", "Delete")
+
+    private val supportedFunctionPrefix =
+        Regex(
+            """^\s*\(?\s*(?:(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(|(?:async\s+)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)"""
+        )
+
+    fun supportsKeyboardPress(key: String): Boolean =
+        key.length == 1 || key in supportedKeyboardNamedKeys
+
+    fun supportsFunctionSource(code: String): Boolean =
+        supportedFunctionPrefix.containsMatchIn(code)
+
     fun unsupportedApi(method: String): String = "$UNSUPPORTED_API_PREFIX$method"
 }
 
@@ -2722,9 +2808,11 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
     session: BrowserToolSession,
     code: String
 ): String {
+    val functionSource = code.trim().trimEnd(';').trimEnd()
     val expression =
         """
         (async function() {
+            ${playwrightLikeInputRuntimeJs()}
             const isVisible = (el) => {
                 if (!el || el.nodeType !== 1) return false;
                 const style = window.getComputedStyle(el);
@@ -2945,13 +3033,13 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
                 }
                 return null;
             };
-            const makeLocator = (resolver, description) => ({
+            const makeLocator = (resolver, description) => {
+                const locatorTarget = {
                 async click() {
                     const el = resolver();
                     if (!el) throw new Error(description + " not found");
-                    try { el.scrollIntoView({ block: "center", inline: "center" }); } catch (_) {}
-                    try { el.focus({ preventScroll: true }); } catch (_) {}
-                    el.click();
+                    const result = __operitPw.clickElement(el);
+                    if (result !== "done") throw new Error(String(result));
                     await flushDialogHandlers();
                     await new Promise((resolve) => setTimeout(resolve, 60));
                     return null;
@@ -2959,40 +3047,89 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
                 async hover() {
                     const el = resolver();
                     if (!el) throw new Error(description + " not found");
-                    const rect = el.getBoundingClientRect();
-                    ["pointerover", "mouseover", "mouseenter", "mousemove"].forEach((type) => {
-                        el.dispatchEvent(new MouseEvent(type, {
-                            bubbles: true,
-                            cancelable: true,
-                            clientX: rect.left + rect.width / 2,
-                            clientY: rect.top + rect.height / 2
-                        }));
-                    });
+                    const result = __operitPw.hoverElement(el);
+                    if (result !== "done") throw new Error(String(result));
                     return null;
                 },
                 async fill(value) {
                     const el = resolver();
                     if (!el) throw new Error(description + " not found");
-                    el.value = String(value ?? "");
-                    el.dispatchEvent(new Event("input", { bubbles: true }));
-                    el.dispatchEvent(new Event("change", { bubbles: true }));
+                    const result = __operitPw.completeFill(el, value);
+                    if (result !== "done") throw new Error(String(result));
                     return null;
                 },
                 async selectOption(values) {
                     const el = resolver();
-                    if (!el || !el.options) throw new Error(description + " is not a select element");
-                    const wanted = Array.isArray(values) ? values.map((item) => String(item)) : [String(values)];
-                    Array.from(el.options).forEach((option) => {
-                        option.selected = wanted.includes(String(option.value)) || wanted.includes(String(option.text));
+                    if (!el) throw new Error(description + " not found");
+                    const requestedValues = Array.isArray(values) ? values : [values];
+                    const optionsToSelect = requestedValues.map((item) => {
+                        if (item && typeof item === "object" && !Array.isArray(item)) {
+                            const option = {};
+                            if (Object.prototype.hasOwnProperty.call(item, "value")) {
+                                option.value = item.value;
+                            }
+                            if (Object.prototype.hasOwnProperty.call(item, "label")) {
+                                option.label = item.label;
+                            }
+                            if (Object.prototype.hasOwnProperty.call(item, "index")) {
+                                option.index = item.index;
+                            }
+                            if (Object.keys(option).length === 0) {
+                                throw new Error("selectOption object requires value, label, or index");
+                            }
+                            return option;
+                        }
+                        return { valueOrLabel: String(item) };
                     });
-                    el.dispatchEvent(new Event("input", { bubbles: true }));
-                    el.dispatchEvent(new Event("change", { bubbles: true }));
-                    return null;
+                    const result = __operitPw.selectOptions(el, optionsToSelect);
+                    if (!Array.isArray(result)) throw new Error(String(result));
+                    return result;
                 },
                 async textContent() {
                     const el = resolver();
                     if (!el) throw new Error(description + " not found");
                     return String(el.textContent || "");
+                }
+                };
+                return new Proxy(locatorTarget, {
+                    get(target, property, receiver) {
+                        if (property in target) {
+                            return Reflect.get(target, property, receiver);
+                        }
+                        if (typeof property === "symbol") {
+                            return Reflect.get(target, property, receiver);
+                        }
+                        throw new Error(unsupportedPageApi("locator." + String(property)));
+                    }
+                });
+            };
+            const supportedKeyboardNamedKeys =
+                new Set(${JSONArray(BrowserRunCodeContract.supportedKeyboardNamedKeys.toList())});
+            const keyboardTarget = {
+                async press(key) {
+                    const keyValue = String(key);
+                    if (keyValue.length !== 1 && !supportedKeyboardNamedKeys.has(keyValue)) {
+                        throw new Error(unsupportedPageApi(
+                            "keyboard.press(" + JSON.stringify(keyValue) + ")",
+                            "Supported keys: one character, Enter, Backspace, Delete"
+                        ));
+                    }
+                    const target = document.activeElement || document.body || document.documentElement;
+                    if (!target) throw new Error("No active element");
+                    const result = __operitPw.pressKey(target, keyValue);
+                    if (result !== "done") throw new Error(String(result));
+                    return null;
+                }
+            };
+            const keyboard = new Proxy(keyboardTarget, {
+                get(target, property, receiver) {
+                    if (property in target) {
+                        return Reflect.get(target, property, receiver);
+                    }
+                    if (typeof property === "symbol") {
+                        return Reflect.get(target, property, receiver);
+                    }
+                    throw new Error(unsupportedPageApi("keyboard." + String(property)));
                 }
             });
             let page = null;
@@ -3046,15 +3183,7 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
                     const name = options && Object.prototype.hasOwnProperty.call(options, "name") ? options.name : null;
                     return makeLocator(() => findByRole(role, name), "getByRole(" + role + ")");
                 },
-                keyboard: {
-                    async press(key) {
-                        const target = document.activeElement || document.body || document.documentElement;
-                        if (!target) throw new Error("No active element");
-                        target.dispatchEvent(new KeyboardEvent("keydown", { key: String(key), bubbles: true, cancelable: true }));
-                        target.dispatchEvent(new KeyboardEvent("keyup", { key: String(key), bubbles: true, cancelable: true }));
-                        return null;
-                    }
-                },
+                keyboard: keyboard,
                 async goto() {
                     throw new Error(unsupportedPageApi(
                         "goto",
@@ -3099,25 +3228,15 @@ internal fun StandardBrowserSessionTools.runPlaywrightLikeCode(
                 const state = dispatchDialog("prompt", message, defaultValue);
                 return state.handled && state.accepted ? state.promptText : null;
             };
-            const codeSource = ${quoteJs(code)};
-            const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+            // The caller supplies a function expression, which is inserted directly into the
+            // WebView script. No eval-like constructor is involved, so strict CSP remains intact.
+            const runCodeFunction = ($functionSource);
 
             try {
-                let fn = null;
-                try {
-                    const maybeFn = (0, eval)("(" + codeSource + ")");
-                    if (typeof maybeFn === "function") {
-                        fn = maybeFn;
-                    }
-                } catch (_) {}
-
-                let value;
-                if (fn) {
-                    value = await fn(page);
-                } else {
-                    const runner = new AsyncFunction("page", "console", codeSource);
-                    value = await runner(page, console);
+                if (typeof runCodeFunction !== "function") {
+                    throw new Error(${quoteJs(BrowserRunCodeContract.FUNCTION_SOURCE_ERROR)});
                 }
+                const value = await runCodeFunction(page);
                 await flushDialogHandlers();
                 return value == null ? "" : value;
             } finally {

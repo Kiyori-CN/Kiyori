@@ -492,7 +492,7 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
 M05A2_PRODUCTION_CONSUMER_COUNT = 50
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 98
+M05A2_CONSUMER_IMPORT_COUNT = 97
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -936,12 +936,21 @@ M05E_DIRECT_PATH_CONSUMER_PATHS = (
     "websession/browser/BrowserDownloadSupport.kt",
     "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/"
     "websession/userscript/storage/UserscriptJsonStore.kt",
-    "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/"
-    "UserscriptLogExportHelper.kt",
-    "app/src/main/java/com/ai/assistance/operit/ui/features/player/"
-    "PlayerLogExportHelper.kt",
+    "app/src/main/java/com/ai/assistance/operit/core/tools/packTool/"
+    "PackageManager.kt",
+    "app/src/main/java/com/ai/assistance/operit/core/tools/packTool/"
+    "ToolPkgArtifactBuilder.kt",
+    "app/src/main/java/com/ai/assistance/operit/core/tools/packTool/"
+    "ToolPkgArtifactStore.kt",
     "app/src/main/java/com/ai/assistance/operit/data/backup/"
     "RawSnapshotBackupManager.kt",
+    "app/src/main/java/com/kiyori/platform/storage/KiyoriPublicStore.kt",
+    "app/src/main/java/com/kiyori/platform/storage/"
+    "ToolPkgLegacyImportCoordinator.kt",
+    "app/src/main/java/com/kiyori/platform/storage/"
+    "ToolPkgPrivateDataLayout.kt",
+    "app/src/main/java/com/kiyori/platform/storage/"
+    "ToolPkgStorageService.kt",
 )
 M05E_DIRECT_BACKUP_CONSUMER_PATHS = (
     M05E_OPERIT_BACKUP_DIRS_PATH,
@@ -1021,10 +1030,6 @@ M05E_LEGACY_OPERIT_CONSUMER_PATHS = (
     "WorkspaceUtils.kt",
     "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/"
     "ChatHistorySettingsScreen.kt",
-    "app/src/main/java/com/ai/assistance/operit/ui/features/settings/screens/"
-    "ModelPromptsSettingsScreen.kt",
-    "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/"
-    "logcat/LogcatExportHelper.kt",
     "app/src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/"
     "tooltester/ToolTesterScreen.kt",
     "app/src/main/java/com/ai/assistance/operit/util/ImagePoolManager.kt",
@@ -8999,6 +9004,8 @@ def check_m05b_platform_logging(
         "ConditionEvaluatorTest.kt",
         "app/src/test/java/com/ai/assistance/operit/core/tools/condition/"
         "ConditionEvaluatorParseFailureTest.kt",
+        "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+        "OpenAIResponsesSubmissionFaultInjectionTest.kt",
     }
     if mock_static_sites != expected_mock_static_sites:
         errors.append(
@@ -10178,53 +10185,80 @@ def check_m05e_storage_paths(
             f"{project_imports}"
         )
 
-    required_path_literals = (
-        "Kiyori",
-        "cleanOnExit",
-        "plugins",
-        "mcp_plugins",
-        "bridge",
-        "exports",
-        "workspace",
-        "workflow",
-        "models",
-        "mnn",
-        "llama",
-        "output images",
-        "error",
-        "test",
-        "websession",
-        "userscripts",
-        "skills",
-        "browser",
-        "downloads",
-        ".sherpa_ncnn_models",
-        ".vector_index",
-        "image_pool",
-        "media_pool",
-        "skill_repo_zip_pool",
-        "backup",
-        "raw_snapshot",
-        "room_db",
-        "chat",
-        "memory",
-        "model_config",
-        "character_cards",
-    )
-    for literal in required_path_literals:
+    required_path_literal_counts = {
+        "Kiyori": 1,
+        "Download": 1,
+        "Pictures": 1,
+        "cleanOnExit": 1,
+        "plugins": 1,
+        "mcp_plugins": 1,
+        "bridge": 1,
+        "exports": 1,
+        "browser": 2,
+        "userscripts": 2,
+        "player": 1,
+        "toolbox": 1,
+        "ai-config": 1,
+        "backups": 1,
+        "toolpkg": 3,
+        "public": 1,
+        "workspace": 1,
+        "workflow": 1,
+        "models": 1,
+        "mnn": 1,
+        "llama": 1,
+        "output images": 1,
+        "error": 1,
+        "test": 1,
+        "websession": 1,
+        "skills": 1,
+        "downloads": 1,
+        "backup": 1,
+        "raw_snapshot": 1,
+        "room_db": 1,
+        "chat": 1,
+        "memory": 1,
+        "model_config": 1,
+        "character_cards": 1,
+        "Markdown": 1,
+        "Shared": 1,
+        "AI": 1,
+        "v1": 2,
+        "data": 1,
+        "generations": 1,
+        "migration-audit": 1,
+        "active-generation.json": 1,
+        "generation.json": 1,
+        "toolpkg-runtime": 1,
+        "artifacts": 1,
+        "extracted": 1,
+        "active": 1,
+        "audit": 1,
+        "market": 1,
+        "toolpkg-build": 1,
+        "logs": 1,
+        "errors": 1,
+        "backup-staging": 1,
+        ".sherpa_ncnn_models": 1,
+        ".vector_index": 1,
+        "image_pool": 1,
+        "media_pool": 1,
+        "skill_repo_zip_pool": 1,
+    }
+    for literal, expected_count in required_path_literal_counts.items():
         count = len(
             re.findall(
                 rf'"{re.escape(literal)}"',
                 kiyori_paths_text,
             )
         )
-        if count != 1:
+        if count != expected_count:
             errors.append(
                 "ARCH046 M-05E Kiyori path literal count differs: "
-                f"{literal} expected 1, found {count}"
+                f"{literal} expected {expected_count}, found {count}"
             )
 
-    path_api_methods = (
+    compatibility_path_api_methods = (
         "downloadsDir",
         "kiyoriRootDir",
         "cleanOnExitDir",
@@ -10260,6 +10294,34 @@ def check_m05e_storage_paths(
         "workspacePathSdcard",
         "testPathSdcard",
         "webSessionUserscriptsPathSdcard",
+    )
+    extended_path_api_methods = (
+        "exportDir",
+        "browserApplicationDownloadsDir",
+        "publicProjection",
+        "toolPkgPublicWorkspaceDir",
+        "toolPkgExportDir",
+        "toolPkgPrivateRootDir",
+        "toolPkgPrivateDataDir",
+        "toolPkgGenerationsDir",
+        "toolPkgGenerationDir",
+        "toolPkgGenerationDataDir",
+        "toolPkgGenerationMetadataFile",
+        "toolPkgMigrationAuditDir",
+        "toolPkgMigrationAuditFile",
+        "toolPkgActiveGenerationFile",
+        "toolPkgCacheDir",
+        "toolPkgBuildTransactionDir",
+        "toolPkgRuntimeRootDir",
+        "toolPkgArtifactsDir",
+        "toolPkgExtractedDir",
+        "toolPkgActiveDir",
+        "toolPkgAuditDir",
+        "toolPkgMarketDir",
+        "internalLogsDir",
+        "internalErrorsDir",
+        "internalBackupStagingDir",
+        "browserDownloadsRelativePath",
         "backupRootDir",
         "rawSnapshotDir",
         "roomDbDir",
@@ -10267,6 +10329,9 @@ def check_m05e_storage_paths(
         "memoryDir",
         "modelConfigDir",
         "characterCardsDir",
+    )
+    path_api_methods = (
+        compatibility_path_api_methods + extended_path_api_methods
     )
     for method_name in path_api_methods:
         count = len(
@@ -10365,7 +10430,7 @@ def check_m05e_storage_paths(
                 "ARCH046 M-05E Kiyori backup projection owns path "
                 f"calculation or state: {forbidden_token}"
             )
-    for literal in required_path_literals:
+    for literal in required_path_literal_counts:
         if f'"{literal}"' in backup_projection_text:
             errors.append(
                 "ARCH046 M-05E Kiyori backup projection duplicates "
@@ -10409,7 +10474,7 @@ def check_m05e_storage_paths(
                 "ARCH046 M-05E Operit paths facade constant differs: "
                 f"{constant_name}"
             )
-    for method_name in path_api_methods[:35]:
+    for method_name in compatibility_path_api_methods:
         if (
             len(
                 re.findall(
@@ -10438,7 +10503,7 @@ def check_m05e_storage_paths(
                 "ARCH046 M-05E Operit paths facade owns calculation: "
                 f"{forbidden_token}"
             )
-    for literal in required_path_literals:
+    for literal in required_path_literal_counts:
         if f'"{literal}"' in operit_paths_text:
             errors.append(
                 "ARCH046 M-05E Operit paths facade duplicates path literal: "
@@ -10496,7 +10561,7 @@ def check_m05e_storage_paths(
                 "ARCH046 M-05E Operit backup facade owns calculation: "
                 f"{forbidden_token}"
             )
-    for literal in required_path_literals:
+    for literal in required_path_literal_counts:
         if f'"{literal}"' in operit_backup_text:
             errors.append(
                 "ARCH046 M-05E Operit backup facade duplicates path "

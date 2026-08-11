@@ -594,7 +594,8 @@ const activity = ActivityLifecycleManager.INSTANCE.getCurrentActivity();
 加载 `.dex`：
 
 ```js
-Java.loadDex('/data/user/<current_user_id>/com.ai.assistance.operit/files/plugins/demo.dex');
+const dexPath = await ToolPkg.readResource('demo_dex', 'demo.dex', true);
+Java.loadDex(dexPath);
 
 const DemoEntry = Java.type('com.example.demo.Entry');
 const message = DemoEntry.callStatic('hello');
@@ -603,7 +604,8 @@ const message = DemoEntry.callStatic('hello');
 加载 `.jar`：
 
 ```js
-Java.loadJar('/data/user/<current_user_id>/com.ai.assistance.operit/files/plugins/demo.jar');
+const jarPath = await ToolPkg.readResource('demo_jar', 'demo.jar', true);
+Java.loadJar(jarPath);
 
 const DemoEntry = Java.type('com.example.demo.Entry');
 const instance = new DemoEntry();
@@ -612,15 +614,28 @@ const instance = new DemoEntry();
 如果外部代码还依赖 `.so`，可以额外指定原生库目录：
 
 ```js
-Java.loadDex('/data/user/<current_user_id>/com.ai.assistance.operit/files/plugins/demo.dex', {
-  nativeLibraryDir: '/data/user/<current_user_id>/com.ai.assistance.operit/files/plugins/lib'
+const dexPath = await ToolPkg.readResource('demo_dex', 'demo.dex', true);
+const nativeLibraryPath =
+  await ToolPkg.readResource('demo_native', 'libdemo.so', true);
+const lastSeparator = nativeLibraryPath.lastIndexOf('/');
+if (lastSeparator <= 0) {
+  throw new Error('Unable to resolve the native library directory');
+}
+
+Java.loadDex(dexPath, {
+  nativeLibraryDir: nativeLibraryPath.slice(0, lastSeparator)
 });
 ```
+
+同一组原生库应分别声明为 ToolPkg 资源，并使用 `internal=true` 导出到宿主临时目录。不要硬编码
+`/data/user/<id>/<applicationId>` 或 `Android/data/<applicationId>`；Android 用户 ID、application
+ID 和沙箱根都由当前宿主决定。
 
 如果外部 jar 和宿主 APK 存在同包名依赖冲突，可以显式指定子优先加载的包前缀：
 
 ```js
-Java.loadJar('/data/user/<current_user_id>/com.ai.assistance.operit/files/plugins/demo.jar', {
+const jarPath = await ToolPkg.readResource('demo_jar', 'demo.jar', true);
+Java.loadJar(jarPath, {
   childFirstPrefixes: [
     'com.example.plugin.',
     'org.apache.commons.'

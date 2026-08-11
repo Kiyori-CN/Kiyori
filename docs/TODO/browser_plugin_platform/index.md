@@ -32,7 +32,7 @@ last_updated: 2026-07-31
 - 当前 AndroidX WebKit：`1.16.0`
 - Phase 0 状态：运行时安全、用户脚本总授权、`unsafeWindow` 页面对象桥、定向测试、readiness 和
   Debug APK 已本地验证，设备验收待执行
-- userscript 总授权：已实现，默认关闭，由现有 userscript registry 唯一持有
+- userscript 总授权：已实现，新安装默认开启，由现有 userscript registry 唯一持有
 - `unsafeWindow + privileged grants`：本地策略、静态安全和真实 Chrome 双世界行为已验证，
   2026-07-31 vivo Android 16 首轮设备报告出现 WebView 主进程 SIGSEGV；已完成单 WebView 单隔离世界、
   固定注册和匹配语义修复，修复版设备验收待执行

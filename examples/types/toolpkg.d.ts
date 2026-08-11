@@ -887,6 +887,33 @@ export namespace ToolPkg {
         ): Promise<WasmCallResult>;
     }
 
+    export interface StorageNamespaceApi {
+        writeText(relativePath: string, text: string): Promise<void>;
+        readText(relativePath: string): Promise<string | null>;
+        writeJson(relativePath: string, value: JsonValue): Promise<void>;
+        readJson(relativePath: string): Promise<JsonValue | null>;
+        exists(relativePath: string): Promise<boolean>;
+        delete(relativePath: string): Promise<boolean>;
+    }
+
+    export interface StorageApi {
+        privateData: StorageNamespaceApi;
+        cache: StorageNamespaceApi;
+    }
+
+    export interface ArtifactBuildOptions {
+        sourceDirectory: string;
+    }
+
+    export interface ArtifactBuildResult {
+        archivePath: string;
+        artifactSha256: string;
+        toolPkgId: string;
+        toolPkgVersion: string;
+        entryCount: number;
+        unpackedBytes: number;
+    }
+
     export interface Registry {
         registerToolboxUiModule(definition: ToolboxUiModuleRegistration): void;
         registerUiRoute(definition: UiRouteRegistration): void;
@@ -910,6 +937,9 @@ export namespace ToolPkg {
         registerSummaryGenerateHook(definition: SummaryGenerateHookRegistration): void;
         registerAiProvider(definition: AiProviderRegistration): void;
         readResource(key: string, outputFileName?: string, internal?: boolean): Promise<string>;
+        storage(): StorageApi;
+        buildArtifact(options: ArtifactBuildOptions): Promise<ArtifactBuildResult>;
+        /** Legacy public workspace under Download/Kiyori/plugins/<id>. */
         getConfigDir(pluginId?: string): string;
         ipc: IpcApi;
         wasm: WasmApi;

@@ -265,6 +265,12 @@ class StandardBrowserSessionTools private constructor(
         val timedOut: Boolean = false
     )
 
+    private data class PostClosePageObservation(
+        val pageState: String?,
+        val snapshot: String?,
+        val summary: String,
+    )
+
     override fun invoke(tool: AITool): ToolResult {
         return try {
             when (tool.name) {
@@ -1354,7 +1360,7 @@ class StandardBrowserSessionTools private constructor(
         if (rawFields.isNullOrBlank()) {
             return error(tool.name, "fields is required")
         }
-        val fields = parseFormFields(rawFields) ?: return error(tool.name, "fields must be a JSON array")
+        val fields = parseFormFields(rawFields) ?: return error(tool.name, "fields must be a JSON array of objects")
         if (fields.isEmpty()) {
             return error(tool.name, "fields must not be empty")
         }
@@ -1362,8 +1368,40 @@ class StandardBrowserSessionTools private constructor(
         runOnMainSync<Unit> {
             ensureSessionAttachedOnMain(session.id)
         }
-        fields.forEach { field ->
-            val ref = field.optString("ref").trim()
+        fields.forEachIndexed { index, field ->
+            if (field.has("type")) {
+                return error(
+                    tool.name,
+                    "fields[$index].type is not accepted; the page DOM determines the control type"
+                )
+            }
+            val refValue = field.opt("ref")
+            val selectorValue = field.opt("selector")
+            if (refValue != null && refValue !is String) {
+                return error(tool.name, "fields[$index].ref must be a string")
+            }
+            if (selectorValue != null && selectorValue !is String) {
+                return error(tool.name, "fields[$index].selector must be a string")
+            }
+            val ref = refValue?.trim().orEmpty()
+            val selector = selectorValue?.trim().orEmpty()
+            if ((ref.isBlank() && selector.isBlank()) || (ref.isNotBlank() && selector.isNotBlank())) {
+                return error(tool.name, "fields[$index] requires exactly one of ref or selector")
+            }
+            val nameValue = field.opt("name")
+            if (nameValue != null && nameValue !is String) {
+                return error(tool.name, "fields[$index].name must be a string")
+            }
+            if (!field.has("value") || field.isNull("value")) {
+                return error(tool.name, "fields[$index].value is required")
+            }
+            val fieldValue = field.opt("value")
+            if (fieldValue !is String && fieldValue !is Number && fieldValue !is Boolean) {
+                return error(
+                    tool.name,
+                    "fields[$index].value must be a string, number, or boolean"
+                )
+            }
             if (ref.isNotBlank() && requireSnapshotNode(session, ref) == null) {
                 return pageError(
                     tool.name,
@@ -1656,6 +1694,9 @@ class StandardBrowserSessionTools private constructor(
         if (code.isNullOrBlank()) {
             return error(tool.name, "code is required")
         }
+        if (!BrowserRunCodeContract.supportsFunctionSource(code)) {
+            return error(tool.name, BrowserRunCodeContract.FUNCTION_SOURCE_ERROR)
+        }
 
         runOnMainSync<Unit> {
             ensureSessionAttachedOnMain(session.id)
@@ -1805,23 +1846,29 @@ class StandardBrowserSessionTools private constructor(
                         requestedIndex != null -> sessionIdAtIndex(requestedIndex)
                         else -> resolvePreferredSessionId()
                     } ?: return error(tool.name, "No tab available to close")
+                val closedIndex = currentTabIndex(targetId)
                 if (!closeSession(targetId)) {
                     return error(tool.name, "Failed to close tab")
                 }
                 val registry = buildPageRegistry()
                 val active = registry.activeSessionId?.let { sessionId -> sessionById(sessionId) }
+                val observation = observePageAfterTabClose(active)
                 ok(
                     tool.name,
                     buildBrowserResponse(
                         openTabs = renderOpenTabs(registry),
-                        pageState = active?.let { activeSession -> renderPageState(activeSession) } ?: "No active page.",
-                        snapshot = active?.let { activeSession -> captureSnapshotText(activeSession) },
-                        result =
+                        pageState = observation.pageState,
+                        snapshot = observation.snapshot,
+                        stateChange =
                             if (active != null) {
-                                "Closed tab. Active tab is now ${currentTabIndex(active.id)}."
+                                "Closed tab $closedIndex ($targetId). Remaining tabs: " +
+                                    "${registry.orderedSessionIds.size}. Active session: ${active.id} " +
+                                    "at index ${currentTabIndex(active.id)}."
                             } else {
-                                "Closed the last tab."
-                            }
+                                "Closed tab $closedIndex ($targetId). Remaining tabs: 0. " +
+                                    "No active session remains."
+                            },
+                        pageObservation = observation.summary,
                     )
                 )
             }
@@ -1916,24 +1963,68 @@ class StandardBrowserSessionTools private constructor(
     private fun browserClose(tool: AITool): ToolResult {
         val activeId = resolvePreferredSessionId()
             ?: return ok(tool.name, buildBrowserResponse(openTabs = "No open tabs.", result = "No browser tab was open."))
+        val closedIndex = currentTabIndex(activeId)
         if (!closeSession(activeId)) {
             return error(tool.name, "Failed to close the current tab")
         }
         val registry = buildPageRegistry()
         val active = registry.activeSessionId?.let { sessionId -> sessionById(sessionId) }
+        val observation = observePageAfterTabClose(active)
         return ok(
             tool.name,
             buildBrowserResponse(
                 openTabs = renderOpenTabs(registry),
-                pageState = active?.let { activeSession -> renderPageState(activeSession) } ?: "No active page.",
-                snapshot = active?.let { activeSession -> captureSnapshotText(activeSession) },
-                result =
+                pageState = observation.pageState,
+                snapshot = observation.snapshot,
+                stateChange =
                     if (active != null) {
-                        "Closed the current tab."
+                        "Closed tab $closedIndex ($activeId). Remaining tabs: " +
+                            "${registry.orderedSessionIds.size}. Active session: ${active.id} " +
+                            "at index ${currentTabIndex(active.id)}."
                     } else {
-                        "Closed the last tab and detached the browser presentation."
-                    }
+                        "Closed tab $closedIndex ($activeId). Remaining tabs: 0. " +
+                            "No active session remains; the browser presentation is detached."
+                    },
+                pageObservation = observation.summary,
             )
+        )
+    }
+
+    private fun observePageAfterTabClose(active: WebSession?): PostClosePageObservation {
+        if (active == null) {
+            return PostClosePageObservation(
+                pageState = "No active page.",
+                snapshot = null,
+                summary = "No active page remains after the completed tab state change.",
+            )
+        }
+
+        val pageStateResult = runCatching { renderPageState(active) }
+        val snapshotResult = runCatching { captureSnapshotText(active) }
+        val failures =
+            buildList {
+                pageStateResult.exceptionOrNull()?.let { error ->
+                    add(
+                        "Page state unavailable: " +
+                            error.message?.trim().orEmpty().ifBlank { error.javaClass.simpleName }
+                    )
+                }
+                snapshotResult.exceptionOrNull()?.let { error ->
+                    add(
+                        "Snapshot unavailable: " +
+                            error.message?.trim().orEmpty().ifBlank { error.javaClass.simpleName }
+                    )
+                }
+            }
+        return PostClosePageObservation(
+            pageState = pageStateResult.getOrNull(),
+            snapshot = snapshotResult.getOrNull(),
+            summary =
+                if (failures.isEmpty()) {
+                    "Captured the active page after the completed tab state change."
+                } else {
+                    failures.joinToString("\n") { "- $it" }
+                },
         )
     }
 

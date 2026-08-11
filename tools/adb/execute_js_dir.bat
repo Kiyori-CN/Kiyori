@@ -102,7 +102,8 @@ setlocal EnableExtensions DisableDelayedExpansion
 REM Resolve suite name
 for %%D in ("%SUITE_DIR%") do set "SUITE_NAME=%%~nxD"
 
-set "TARGET_BASE=/sdcard/Android/data/com.kiyori/js_temp"
+REM App-readable external staging must live under Android/data/<package>/files/.
+set "TARGET_BASE=/sdcard/Android/data/com.kiyori/files/js_temp"
 set "TARGET_SUITES_DIR=%TARGET_BASE%/suites"
 set "TARGET_RESULT_FILE=%TARGET_BASE%/%SUITE_NAME%_%FUNCTION_NAME%_%RANDOM%.json"
 set "BUNDLED_FILE="

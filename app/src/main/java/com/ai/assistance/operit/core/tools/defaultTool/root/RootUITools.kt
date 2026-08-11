@@ -394,6 +394,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
     private data class UIData(val uiXml: String, val windowInfo: String)
 
     private suspend fun getUIDataFromShell(tool: AITool): UIData? {
+        val dumpPath = createUiDumpPath()
         return try {
             AppLogger.d(TAG, "Getting UI data via ADB")
 
@@ -403,17 +404,12 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                 ?.trim()
                 ?.takeIf { it.isNotEmpty() }
 
-            var dumpResult = if (displayId != null) {
-                val cmd = "uiautomator dump --display-id $displayId /sdcard/window_dump.xml"
+            val dumpResult = if (displayId != null) {
+                val cmd = "uiautomator dump --display-id $displayId $dumpPath"
                 AppLogger.d(TAG, "UI dump using explicit display-id=$displayId")
                 executeUiShellCommand(cmd)
             } else {
-                executeUiShellCommand("uiautomator dump /sdcard/window_dump.xml")
-            }
-
-            if (!dumpResult.success && displayId != null) {
-                AppLogger.w(TAG, "uiautomator dump with explicit display-id failed, falling back: ${dumpResult.stderr}")
-                dumpResult = executeUiShellCommand("uiautomator dump /sdcard/window_dump.xml")
+                executeUiShellCommand("uiautomator dump $dumpPath")
             }
 
             if (!dumpResult.success) {
@@ -421,7 +417,7 @@ open class RootUITools(context: Context) : AdminUITools(context) {
                 return null
             }
 
-            val readResult = executeUiShellCommand("cat /sdcard/window_dump.xml")
+            val readResult = executeUiShellCommand("cat $dumpPath")
             if (!readResult.success) {
                 AppLogger.e(TAG, "Reading UI dump file failed: ${readResult.stderr}")
                 return null
@@ -438,6 +434,11 @@ open class RootUITools(context: Context) : AdminUITools(context) {
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error getting UI data", e)
             null
+        } finally {
+            val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
+            if (!cleanupResult.success) {
+                AppLogger.w(TAG, "Failed to remove UI dump: ${cleanupResult.stderr}")
+            }
         }
     }
 
@@ -555,13 +556,14 @@ open class RootUITools(context: Context) : AdminUITools(context) {
         val className = tool.parameters.find { it.name == "className" }?.value
         val contentDesc = tool.parameters.find { it.name == "contentDesc" }?.value
         val index = tool.parameters.find { it.name == "index" }?.value?.toIntOrNull() ?: 0
+        val dumpPath = createUiDumpPath()
 
         try {
-            val dumpResult = executeUiShellCommand("uiautomator dump /sdcard/window_dump.xml")
+            val dumpResult = executeUiShellCommand("uiautomator dump $dumpPath")
             if (!dumpResult.success) {
                 return ToolResult(tool.name, false, StringResultData(""), "Failed to dump UI hierarchy: ${dumpResult.stderr}")
             }
-            val readResult = executeUiShellCommand("cat /sdcard/window_dump.xml")
+            val readResult = executeUiShellCommand("cat $dumpPath")
             if (!readResult.success) {
                 return ToolResult(tool.name, false, StringResultData(""), "Failed to read UI dump: ${readResult.stderr}")
             }
@@ -608,7 +610,14 @@ open class RootUITools(context: Context) : AdminUITools(context) {
             AppLogger.e(TAG, "Error clicking with uiautomator", e)
             return ToolResult(tool.name, false, StringResultData(""), "Error clicking element: ${e.message}")
         } finally {
-            executeUiShellCommand("rm /sdcard/window_dump.xml")
+            val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
+            if (!cleanupResult.success) {
+                AppLogger.w(TAG, "Failed to remove UI dump: ${cleanupResult.stderr}")
+            }
         }
+    }
+
+    private fun createUiDumpPath(): String {
+        return "/data/local/tmp/kiyori-ui-${java.util.UUID.randomUUID()}.xml"
     }
 }

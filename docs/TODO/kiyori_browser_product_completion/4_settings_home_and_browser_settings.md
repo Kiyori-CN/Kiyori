@@ -15,7 +15,7 @@
   默认 `100%`；设置子页显示实时示例、滑杆、增减和恢复默认，修改同时作用于全部现有 WebSession
   和后续创建的 WebView。
 - “网站密码管理”由唯一 `BrowserCredentialVault` 持有，设置页只投影 vault 状态。
-  自动保存默认关闭；启用后只在普通 Profile 的登录表单提交路径捕获非空账号和单一密码字段，
+  新安装自动保存默认开启；启用后只在普通 Profile 的登录表单提交路径捕获非空账号和单一密码字段，
   按精确 HTTP/HTTPS origin 保存或更新，并在同 origin 页面按保存的字段定位自动填充但不自动提交。
 - 凭据记录整体使用 Android Keystore AES-GCM 加密并原子写入 `noBackupFilesDir`；
   无痕 Profile 不捕获、不读取、不填充，当前备份与恢复流程不包含该设备密钥绑定数据。

@@ -329,6 +329,16 @@ internal data class PlayerSettings(
     val videoDownloadDirectoryName: String = "",
 )
 
+internal val FRESH_INSTALL_PLAYER_SETTINGS =
+    PlayerSettings(
+        decoderPreset = PlayerDecoderPreset.HIGH_QUALITY,
+        rememberPlaybackSpeed = true,
+        anime4KMode = Anime4KMode.A_PLUS,
+        rememberAnime4KMode = true,
+        longPressSpeedBoostEnabled = true,
+        networkCachePolicy = PlayerNetworkCachePolicy.LARGE,
+    )
+
 @Immutable
 internal data class PlayerMediaRequest(
     val requestId: String,

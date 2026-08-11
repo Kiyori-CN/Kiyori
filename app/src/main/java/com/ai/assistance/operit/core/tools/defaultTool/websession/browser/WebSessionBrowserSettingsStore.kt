@@ -24,6 +24,14 @@ internal data class WebSessionBrowserSettings(
     val siteUserAgentRules: List<WebSessionSiteUserAgentRule> = emptyList(),
 )
 
+internal val FRESH_INSTALL_BROWSER_SETTINGS =
+    WebSessionBrowserSettings(
+        homeUrl = INITIAL_BROWSER_HOME_URL,
+        returnWithoutReloadEnabled = true,
+        forcePageZoomEnabled = true,
+        websitePasswordSavingEnabled = true,
+    )
+
 internal class WebSessionBrowserSettingsStore private constructor(context: Context) {
     private val preferences =
         context.applicationContext.getSharedPreferences(
@@ -163,13 +171,21 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         }
         return WebSessionBrowserSettings(
             homeUrl =
-                requireNotNull(preferences.getString(KEY_HOME_URL, DEFAULT_BROWSER_HOME_URL)) {
+                requireNotNull(
+                    preferences.getString(KEY_HOME_URL, FRESH_INSTALL_BROWSER_SETTINGS.homeUrl),
+                ) {
                     "Browser home URL preference must not be null"
                 },
             returnWithoutReloadEnabled =
-                preferences.getBoolean(KEY_RETURN_WITHOUT_RELOAD, false),
+                preferences.getBoolean(
+                    KEY_RETURN_WITHOUT_RELOAD,
+                    FRESH_INSTALL_BROWSER_SETTINGS.returnWithoutReloadEnabled,
+                ),
             forcePageZoomEnabled =
-                preferences.getBoolean(KEY_FORCE_PAGE_ZOOM, false),
+                preferences.getBoolean(
+                    KEY_FORCE_PAGE_ZOOM,
+                    FRESH_INSTALL_BROWSER_SETTINGS.forcePageZoomEnabled,
+                ),
             webTextZoomPercent =
                 preferences
                     .getInt(KEY_WEB_TEXT_ZOOM_PERCENT, DEFAULT_WEB_TEXT_ZOOM_PERCENT)
@@ -182,7 +198,10 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
             allowWebPageGeolocation =
                 preferences.getBoolean(KEY_ALLOW_WEB_PAGE_GEOLOCATION, true),
             websitePasswordSavingEnabled =
-                preferences.getBoolean(KEY_WEBSITE_PASSWORD_SAVING, false),
+                preferences.getBoolean(
+                    KEY_WEBSITE_PASSWORD_SAVING,
+                    FRESH_INSTALL_BROWSER_SETTINGS.websitePasswordSavingEnabled,
+                ),
             showMediaCandidateBadge =
                 preferences.getBoolean(KEY_SHOW_MEDIA_CANDIDATE_BADGE, true),
             automaticFloatingPlaybackEnabled =
@@ -267,7 +286,9 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
     }
 }
 
+// Keep the blank-page sentinel separate so "恢复为空白页" remains an explicit user action.
 internal const val DEFAULT_BROWSER_HOME_URL = "about:blank"
+internal const val INITIAL_BROWSER_HOME_URL = "https://go.itab.link"
 internal const val DEFAULT_WEB_TEXT_ZOOM_PERCENT = 100
 internal const val MIN_WEB_TEXT_ZOOM_PERCENT = 50
 internal const val MAX_WEB_TEXT_ZOOM_PERCENT = 200

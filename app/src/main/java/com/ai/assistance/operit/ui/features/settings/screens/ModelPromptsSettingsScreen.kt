@@ -31,7 +31,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.outlined.MoreVert
 import com.ai.assistance.operit.ui.components.CustomScaffold
-import com.ai.assistance.operit.util.OperitPaths
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,12 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.content.ContentValues
 import android.content.Context
-import android.media.MediaScannerConnection
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import android.widget.Toast
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -89,7 +83,6 @@ import com.ai.assistance.operit.ui.common.rememberLocal
 import com.ai.assistance.operit.util.ColorQrCodeUtil
 import com.ai.assistance.operit.util.AppLogger
 import java.io.File
-import java.io.FileOutputStream
 import androidx.core.content.FileProvider
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -545,14 +538,14 @@ fun ModelPromptsSettingsScreen(
 
                 val exportJson = buildPromptTagExportJson(selectedTags)
                 val fileName = "prompt_tags_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
-                val ok = saveBytesToDownloads(
+                val savedPath = saveBytesToDownloads(
                     context = context,
                     bytes = exportJson.toByteArray(Charsets.UTF_8),
                     fileName = fileName,
                     mimeType = "application/json"
                 )
-                if (ok) {
-                    exportSavedPath = "${Environment.DIRECTORY_DOWNLOADS}/Kiyori/exports/$fileName"
+                if (savedPath != null) {
+                    exportSavedPath = savedPath
                     showExportSavedDialog = true
                 } else {
                     Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
@@ -1593,14 +1586,14 @@ fun ModelPromptsSettingsScreen(
                                             .exportCharacterCardToTavernJson(exportCharacterCardId)
                                             .getOrThrow()
                                         val fileName = "tavern_card_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
-                                        val ok = saveBytesToDownloads(
+                                        val savedPath = saveBytesToDownloads(
                                             context = context,
                                             bytes = json.toByteArray(Charsets.UTF_8),
                                             fileName = fileName,
                                             mimeType = "application/json"
                                         )
-                                        if (ok) {
-                                            exportSavedPath = "${Environment.DIRECTORY_DOWNLOADS}/Kiyori/exports/$fileName"
+                                        if (savedPath != null) {
+                                            exportSavedPath = savedPath
                                             showExportSavedDialog = true
                                         } else {
                                             Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
@@ -1665,14 +1658,14 @@ fun ModelPromptsSettingsScreen(
                                         }
                                         val pngBytes = insertTavernTextChunk(rawPng, json)
                                         val fileName = "tavern_card_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.png"
-                                        val ok = saveBytesToDownloads(
+                                        val savedPath = saveBytesToDownloads(
                                             context = context,
                                             bytes = pngBytes,
                                             fileName = fileName,
                                             mimeType = "image/png"
                                         )
-                                        if (ok) {
-                                            exportSavedPath = "${Environment.DIRECTORY_DOWNLOADS}/Kiyori/exports/$fileName"
+                                        if (savedPath != null) {
+                                            exportSavedPath = savedPath
                                             showExportSavedDialog = true
                                         } else {
                                             Toast.makeText(context, context.getString(R.string.save_failed), Toast.LENGTH_SHORT).show()
@@ -3387,91 +3380,44 @@ private suspend fun importPromptTagsFromJsonContent(
 private suspend fun saveBitmapToGallery(context: Context, bitmap: Bitmap, fileName: String): Boolean =
     withContext(Dispatchers.IO) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-                    put(
-                        MediaStore.MediaColumns.RELATIVE_PATH,
-                        "${Environment.DIRECTORY_PICTURES}/Kiyori"
-                    )
-                }
-
-                val uri = context.contentResolver.insert(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    contentValues
-                )
-
-                uri?.let { imageUri ->
-                    context.contentResolver.openOutputStream(imageUri)?.use { outputStream ->
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                        return@withContext true
+            com.kiyori.platform.storage.KiyoriStorageService.getInstance(context)
+                .publicStore
+                .write(
+                    location = com.kiyori.platform.storage.KiyoriPublicLocation.PICTURE_AI,
+                    requestedFileName = fileName,
+                    mimeType = "image/png",
+                ) { outputStream ->
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) {
+                        "Bitmap compression failed"
                     }
                 }
-                return@withContext false
-            } else {
-                val imagesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                val targetDir = File(imagesDir, "Kiyori").apply { if (!exists()) mkdirs() }
-                val imageFile = File(targetDir, fileName)
-                FileOutputStream(imageFile).use { outputStream ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                }
-                MediaScannerConnection.scanFile(
-                    context,
-                    arrayOf(imageFile.absolutePath),
-                    arrayOf("image/png"),
-                    null
-                )
-                return@withContext true
-            }
+            return@withContext true
         } catch (e: Exception) {
+            AppLogger.e("ModelPromptsSettings", "Failed to save AI image", e)
             return@withContext false
         }
     }
 
-private suspend fun saveBytesToDownloads(context: Context, bytes: ByteArray, fileName: String, mimeType: String): Boolean =
+private suspend fun saveBytesToDownloads(
+    context: Context,
+    bytes: ByteArray,
+    fileName: String,
+    mimeType: String,
+): String? =
     withContext(Dispatchers.IO) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                    put(
-                        MediaStore.MediaColumns.RELATIVE_PATH,
-                        "${Environment.DIRECTORY_DOWNLOADS}/Kiyori/exports"
-                    )
-                }
-
-                val uri = context.contentResolver.insert(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    contentValues
+            return@withContext com.kiyori.platform.storage.KiyoriStorageService.getInstance(context)
+                .publicStore
+                .writeBytes(
+                    location = com.kiyori.platform.storage.KiyoriPublicLocation.EXPORT_AI_CONFIG,
+                    requestedFileName = fileName,
+                    mimeType = mimeType,
+                    bytes = bytes,
                 )
-
-                uri?.let { downloadUri ->
-                    context.contentResolver.openOutputStream(downloadUri)?.use { outputStream ->
-                        outputStream.write(bytes)
-                        outputStream.flush()
-                        return@withContext true
-                    }
-                }
-                return@withContext false
-            } else {
-                val targetDir = OperitPaths.exportsDir()
-                val outFile = File(targetDir, fileName)
-                FileOutputStream(outFile).use { outputStream ->
-                    outputStream.write(bytes)
-                    outputStream.flush()
-                }
-                MediaScannerConnection.scanFile(
-                    context,
-                    arrayOf(outFile.absolutePath),
-                    arrayOf(mimeType),
-                    null
-                )
-                return@withContext true
-            }
+                .displayPath
         } catch (e: Exception) {
-            return@withContext false
+            AppLogger.e("ModelPromptsSettings", "Failed to export AI configuration", e)
+            return@withContext null
         }
     }
 

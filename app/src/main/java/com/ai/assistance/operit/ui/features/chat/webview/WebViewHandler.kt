@@ -29,6 +29,8 @@ import androidx.compose.runtime.produceState
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.enqueueWorkspaceWebViewDownload
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.enqueueWorkspaceWebViewInlineDownload
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -91,34 +93,14 @@ class WebViewHandler(private val context: Context) {
                 // 解码Base64数据
                 val bytes = Base64.decode(data, Base64.DEFAULT)
 
-                // 创建下载目录
-                val downloadsDir =
-                        Environment.getExternalStoragePublicDirectory(
-                                Environment.DIRECTORY_DOWNLOADS
-                        )
-
                 // 确保文件名有效
                 val cleanFileName = sanitizeFileName(fileName)
-
-                // 创建文件
-                val file = File(downloadsDir, cleanFileName)
-                FileOutputStream(file).use { it.write(bytes) }
-
-                // 在主线程显示通知
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, context.getString(R.string.download_success, cleanFileName), Toast.LENGTH_SHORT).show()
-
-                    // 通知媒体扫描器更新文件
-                    MediaScannerConnection.scanFile(
-                        context,
-                        arrayOf(file.absolutePath),
-                        arrayOf(mimeType),
-                        null
-                    )
-                }
-
-                // 可选：打开文件
-                openDownloadedFile(file, mimeType)
+                enqueueWorkspaceWebViewInlineDownload(
+                    context = context,
+                    bytes = bytes,
+                    fileName = cleanFileName,
+                    mimeType = mimeType,
+                )
             } catch (e: Exception) {
                 AppLogger.e("WebViewHandler", "Blob数据下载失败", e)
                 Handler(Looper.getMainLooper()).post {
@@ -394,134 +376,40 @@ class WebViewHandler(private val context: Context) {
             mimetype: String,
             contentLength: Long
     ) {
-        try {
-            // 解析文件名
-            var filename =
-                    contentDisposition?.let { parseFilename(it) } ?: url.substringAfterLast('/')
-
-            // 如果无法识别文件名，使用时间戳创建一个
-            if (filename.isNullOrEmpty() || filename == "/") {
-                filename = "download_${System.currentTimeMillis()}"
-                // 根据MIME类型添加合适的扩展名
+        var filename =
+            contentDisposition?.let { parseFilename(it) } ?: url.substringAfterLast('/')
+        if (filename.isNullOrEmpty() || filename == "/") {
+            filename = "download_${System.currentTimeMillis()}"
+            filename +=
                 when (mimetype) {
-                    "application/pdf" -> filename += ".pdf"
-                    "image/jpeg" -> filename += ".jpg"
-                    "image/png" -> filename += ".png"
-                    "text/html" -> filename += ".html"
-                    "application/zip" -> filename += ".zip"
-                    "application/vnd.android.package-archive" -> filename += ".apk"
-                    else -> filename += determineExtensionFromMimeType(mimetype)
+                    "application/pdf" -> ".pdf"
+                    "image/jpeg" -> ".jpg"
+                    "image/png" -> ".png"
+                    "text/html" -> ".html"
+                    "application/zip" -> ".zip"
+                    "application/vnd.android.package-archive" -> ".apk"
+                    else -> determineExtensionFromMimeType(mimetype)
                 }
-            }
-
-            // 清理文件名（移除不安全字符）
-            filename = sanitizeFileName(filename)
-
-            // 使用DownloadManager处理下载
-            val request = android.app.DownloadManager.Request(Uri.parse(url))
-
-            // 设置下载参数
-            request.setMimeType(mimetype)
-            request.addRequestHeader("User-Agent", userAgent)
-            request.setTitle(filename)
-            request.setDescription(context.getString(R.string.download_file_description))
-            request.setNotificationVisibility(
-                    android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-            )
-
-            // 添加cookie（如果需要）
-            val cookieManager = CookieManager.getInstance()
-            val cookie = cookieManager.getCookie(url)
-            if (cookie != null) {
-                request.addRequestHeader("Cookie", cookie)
-            }
-
-            // 设置下载目标
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
-
-            // 获取下载管理器服务
-            val downloadManager =
-                    context.getSystemService(Context.DOWNLOAD_SERVICE) as
-                            android.app.DownloadManager
-
-            // 将下载请求加入队列
-            val downloadId = downloadManager.enqueue(request)
-
-            // 显示下载开始消息
-            Toast.makeText(context, context.getString(R.string.download_start, filename), Toast.LENGTH_SHORT).show()
-
-            // 注册下载完成的广播接收器
-            val onDownloadComplete =
-                    object : android.content.BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            val id =
-                                    intent.getLongExtra(
-                                            android.app.DownloadManager.EXTRA_DOWNLOAD_ID,
-                                            -1
-                                    )
-                            if (id == downloadId) {
-                                // 下载完成，查询下载状态
-                                val query =
-                                        android.app.DownloadManager.Query()
-                                                .setFilterById(downloadId)
-                                val cursor = downloadManager.query(query)
-
-                                if (cursor.moveToFirst()) {
-                                    val columnIndex =
-                                            cursor.getColumnIndex(
-                                                    android.app.DownloadManager.COLUMN_STATUS
-                                            )
-                                    if (columnIndex >= 0) {
-                                        val status = cursor.getInt(columnIndex)
-                                        if (status == android.app.DownloadManager.STATUS_SUCCESSFUL
-                                        ) {
-                                            // 获取文件路径
-                                            val uriColumnIndex =
-                                                    cursor.getColumnIndex(
-                                                            android.app.DownloadManager
-                                                                    .COLUMN_LOCAL_URI
-                                                    )
-                                            if (uriColumnIndex >= 0) {
-                                                val uriString = cursor.getString(uriColumnIndex)
-                                                if (uriString != null) {
-                                                    val fileUri = Uri.parse(uriString)
-                                                    Toast.makeText(
-                                                                    context,
-                                                                    context.getString(R.string.download_complete, filename),
-                                                                    Toast.LENGTH_SHORT
-                                                            )
-                                                            .show()
-                                                }
-                                            }
-                                        } else {
-                                            Toast.makeText(
-                                                            context,
-                                                            context.getString(R.string.download_incomplete, filename),
-                                                            Toast.LENGTH_SHORT
-                                                    )
-                                                    .show()
-                                        }
-                                    }
-                                }
-                                cursor.close()
-
-                                // 注销广播接收器
-                                context.unregisterReceiver(this)
-                            }
-                        }
-                    }
-
-            // 注册广播接收器
-            ContextCompat.registerReceiver(
-                    context,
-                    onDownloadComplete,
-                    android.content.IntentFilter(
-                        android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE
-                    ),
-                    ContextCompat.RECEIVER_EXPORTED
-            )
-        } catch (e: Exception) {
-            throw e
+        }
+        val headers = linkedMapOf<String, String>()
+        if (userAgent.isNotBlank()) {
+            headers["User-Agent"] = userAgent
+        }
+        CookieManager.getInstance()
+            .getCookie(url)
+            ?.takeIf(String::isNotBlank)
+            ?.let { cookie -> headers["Cookie"] = cookie }
+        check(
+            enqueueWorkspaceWebViewDownload(
+                context = context,
+                url = url,
+                fileName = sanitizeFileName(filename),
+                mimeType = mimetype,
+                contentLength = contentLength,
+                headers = headers,
+            ),
+        ) {
+            "Workspace WebView download could not be enqueued"
         }
     }
 

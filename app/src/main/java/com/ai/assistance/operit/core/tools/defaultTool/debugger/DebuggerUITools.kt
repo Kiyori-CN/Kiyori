@@ -604,6 +604,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
 
     /** 获取UI数据，使用Shell命令，严格遵守工具参数中的 display（如有） */
     private suspend fun getUIDataFromShell(tool: AITool): UIData? {
+        val dumpPath = createUiDumpPath()
         return try {
             // 使用ADB命令获取UI dump
             AppLogger.d(TAG, "使用ADB命令获取UI数据")
@@ -615,17 +616,12 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                 ?.takeIf { it.isNotEmpty() }
 
             // 执行UI dump命令，只有在显式提供 display 参数时才使用 --display-id
-            var dumpResult = if (displayId != null) {
-                val cmd = "uiautomator dump --display-id $displayId /sdcard/window_dump.xml"
+            val dumpResult = if (displayId != null) {
+                val cmd = "uiautomator dump --display-id $displayId $dumpPath"
                 AppLogger.d(TAG, "UI dump using explicit display-id=$displayId")
                 executeUiShellCommand(cmd)
             } else {
-                executeUiShellCommand("uiautomator dump /sdcard/window_dump.xml")
-            }
-
-            if (!dumpResult.success && displayId != null) {
-                AppLogger.w(TAG, "uiautomator dump with explicit display-id failed, falling back: ${dumpResult.stderr}")
-                dumpResult = executeUiShellCommand("uiautomator dump /sdcard/window_dump.xml")
+                executeUiShellCommand("uiautomator dump $dumpPath")
             }
 
             if (!dumpResult.success) {
@@ -635,7 +631,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
             AppLogger.d(TAG, "uiautomator dump成功: ${dumpResult.stdout}")
 
             // 读取dump文件内容
-            val readResult = executeUiShellCommand("cat /sdcard/window_dump.xml")
+            val readResult = executeUiShellCommand("cat $dumpPath")
             if (!readResult.success) {
                 AppLogger.e(TAG, "读取UI dump文件失败: ${readResult.stderr}")
                 return null
@@ -655,6 +651,11 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
         } catch (e: Exception) {
             AppLogger.e(TAG, "获取UI数据时出错", e)
             null
+        } finally {
+            val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
+            if (!cleanupResult.success) {
+                AppLogger.w(TAG, "清理UI dump文件失败: ${cleanupResult.stderr}")
+            }
         }
     }
 
@@ -1097,11 +1098,12 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
         val index = tool.parameters.find { it.name == "index" }?.value?.toIntOrNull() ?: 0
         val partialMatch =
                 tool.parameters.find { it.name == "partialMatch" }?.value?.toBoolean() ?: false
+        val dumpPath = createUiDumpPath()
 
         try {
             // 先尝试获取UI dump
             AppLogger.d(TAG, "Dumping UI hierarchy to find element")
-            val dumpCommand = "uiautomator dump /sdcard/window_dump.xml"
+            val dumpCommand = "uiautomator dump $dumpPath"
             val result = executeUiShellCommand(dumpCommand)
 
             if (!result.success) {
@@ -1114,7 +1116,7 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
             }
 
             // 读取dump文件
-            val readCommand = "cat /sdcard/window_dump.xml"
+            val readCommand = "cat $dumpPath"
             val readResult = executeUiShellCommand(readCommand)
 
             if (!readResult.success) {
@@ -1314,13 +1316,15 @@ open class DebuggerUITools(context: Context) : AccessibilityUITools(context) {
                     error = "Error clicking element: ${e.message ?: "Unknown exception"}"
             )
         } finally {
-            // 清理临时文件
-            try {
-                Runtime.getRuntime().exec("rm /sdcard/window_dump.xml")
-            } catch (cleanupEx: Exception) {
-                AppLogger.e(TAG, "Error cleaning up temp file", cleanupEx)
+            val cleanupResult = executeUiShellCommand("rm -f $dumpPath")
+            if (!cleanupResult.success) {
+                AppLogger.w(TAG, "Error cleaning up UI dump: ${cleanupResult.stderr}")
             }
         }
+    }
+
+    private fun createUiDumpPath(): String {
+        return "/data/local/tmp/kiyori-ui-${java.util.UUID.randomUUID()}.xml"
     }
 
     /** 从边界字符串提取中心坐标 返回中心点坐标，或null如果格式无效 */

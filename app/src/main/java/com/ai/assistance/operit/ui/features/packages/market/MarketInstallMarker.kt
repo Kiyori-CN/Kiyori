@@ -76,7 +76,7 @@ fun findInstalledMarketMarkerRoots(
 }
 
 fun artifactMarketMarkerRoot(packageManager: PackageManager, packageName: String): File {
-    val path = packageManager.getPluginConfigDirPath(packageName)
+    val path = packageManager.getArtifactMarketMetadataDirPath(packageName)
     if (path.isBlank()) {
         throw IllegalStateException("Artifact package name is missing")
     }

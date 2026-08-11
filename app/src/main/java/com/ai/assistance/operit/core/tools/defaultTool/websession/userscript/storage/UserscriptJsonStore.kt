@@ -22,13 +22,15 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+internal const val DEFAULT_USER_SCRIPTS_ALLOWED = true
+
 internal class UserscriptJsonStore private constructor(context: Context) {
     @Serializable
     private data class StoreState(
         val schemaVersion: Int = STORE_SCHEMA_VERSION,
         val nextScriptId: Long = 1L,
         val nextResourceId: Long = 1L,
-        val userScriptsAllowed: Boolean = false,
+        val userScriptsAllowed: Boolean = DEFAULT_USER_SCRIPTS_ALLOWED,
         val scripts: List<UserscriptEntity> = emptyList(),
         val resources: List<UserscriptResourceEntity> = emptyList(),
     )

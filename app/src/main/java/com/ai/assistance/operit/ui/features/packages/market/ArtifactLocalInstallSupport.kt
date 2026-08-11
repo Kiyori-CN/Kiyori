@@ -168,25 +168,36 @@ suspend fun installArtifactProjectVersion(
     val tempFile = withContext(Dispatchers.IO) { downloadArtifactProjectVersionToTempFile(context, version, onProgress) }
     try {
         onProgress(MarketInstallStage.INSTALLING, null)
-        if (
-            installState.kind == LocalArtifactInstallStateKind.SAME_PROJECT_VARIANT_INSTALLED ||
-            installState.kind == LocalArtifactInstallStateKind.NAME_CONFLICT
-        ) {
-            val installedPackageName = installState.snapshot?.packageName ?: version.runtimePackageId
-            val deleted =
-                withContext(Dispatchers.IO) {
-                    packageManager.deletePackage(installedPackageName)
-                }
-            if (!deleted) {
-                throw IllegalStateException("替换已安装插件 `${installedPackageName}` 失败。")
-            }
-        }
-        val importResult =
+        if (tempFile.name.endsWith(".toolpkg", ignoreCase = true)) {
             withContext(Dispatchers.IO) {
-                packageManager.addPackageFileFromExternalStorage(tempFile.absolutePath)
+                packageManager.installOrUpdateToolPkgArtifact(
+                    filePath = tempFile.absolutePath,
+                    expectedPackageId = version.runtimePackageId,
+                    expectedSha256 = version.sha256,
+                )
             }
-        if (!importResult.startsWith("Successfully imported", ignoreCase = true)) {
-            throw IllegalStateException(importResult)
+        } else {
+            if (
+                installState.kind == LocalArtifactInstallStateKind.SAME_PROJECT_VARIANT_INSTALLED ||
+                installState.kind == LocalArtifactInstallStateKind.NAME_CONFLICT
+            ) {
+                val installedPackageName =
+                    installState.snapshot?.packageName ?: version.runtimePackageId
+                val deleted =
+                    withContext(Dispatchers.IO) {
+                        packageManager.deletePackage(installedPackageName)
+                    }
+                if (!deleted) {
+                    throw IllegalStateException("替换已安装插件 `${installedPackageName}` 失败。")
+                }
+            }
+            val importResult =
+                withContext(Dispatchers.IO) {
+                    packageManager.addPackageFileFromExternalStorage(tempFile.absolutePath)
+                }
+            if (!importResult.startsWith("Successfully imported", ignoreCase = true)) {
+                throw IllegalStateException(importResult)
+            }
         }
     } finally {
         if (tempFile.exists()) {

@@ -2,6 +2,147 @@
 For_Agent: 对项目大规模动工前按本规范协作
 ---
 
+## 2026-08-11 Kiyori 存储路径与 ToolPkg 数据治理
+
+状态：只读审计、正式设计、主体实现、本地自动验证、Debug APK 构建和内置 ToolPkg 静态审计
+均已完成。统一公共保存、ToolPkg private/cache、制品 scanner/builder、内容寻址 active 事务和
+显式旧数据迁移框架已经闭环。兼容标识继续保留；Kiyori 不会自动扫描、复制、合并或删除
+`Download/Operit`，第三方“记忆系统”发布包也不在本仓库内伪造修复。
+
+唯一计划、目录合同、API、预算、迁移与验收矩阵见：
+
+- [`kiyori_storage_and_toolpkg_data_governance/`](kiyori_storage_and_toolpkg_data_governance/index.md)
+
+本轮不安装 APK、不操作手机或模拟器。目标设备上的 MediaStore、市场更新、跨包隔离和旧数据导入
+仍单独保持 `verification_pending`。
+
+本地验证证据：
+
+- ToolPkg/存储定向 JVM `19/19`、ARCH046 合同 `2/2`、TypeScript、bundled ToolPkg、
+  Kotlin 编译、formal readiness、12 份相关 Markdown 链接和 `git diff --check` 均通过
+- 完整 architecture `m03` 共 `35/35` 项检查通过，JSON 输出为 `errors: []`；同时完成
+  数据库 version、市场偏好 owner、M-04、M-05A2 和 M-05B 的真实合同快照同步
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`，
+  `238` 个任务中 `33` 个执行、`205` 个为最新状态；唯一 Debug launcher 与 Player runtime
+  packaging 检查通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`485889789` 字节，SHA-256
+  `7446903F31154187668B0A3DC556EFC6BE0947987B0A03A2F76A67E47894CAC5`
+- APK 为 `com.kiyori`、`0.1.0 (45)`、min/target/compile SDK `26 / 34 / 37`、仅
+  `arm64-v8a`；Android Debug V2 单 signer 与 16 KB ZIP 对齐验证通过
+- `assets/packages` 共 `42` 个文件，其中 `11` 个 `.toolpkg` 全部具有唯一根 manifest，
+  无非法/冲突路径、敏感缓存条目、旧 Operit 物理路径或错误的 app-specific external 路径
+- 未执行 APK 安装、ADB、设备、SAF、MediaStore、市场或第三方 ToolPkg 现场验收
+
+## 2026-08-11 初次安装设置默认值
+
+状态：源码修改、默认值回归断言、文档同步、正式门禁、Markdown 链接检查、`git diff --check`、
+串行 Debug APK 构建与产物核验已完成。继续使用现有唯一浏览器/播放器设置 owner，不创建第二份
+状态源；目标设备上的首装初始值和设置页显示仍保持 `verification_pending`。
+
+本轮将初次安装且没有对应持久化键时的默认值调整为：
+
+- 网页浏览器：主页 `https://go.itab.link`；允许用户脚本、返回不重载、强制页面缩放、网站密码自动保存
+  默认开启
+- 视频播放器：记忆播放倍速、长按加速、记忆超分模式默认开启；默认超分模式为 `A+`；解码器预设为
+  `High Quality`；在线播放缓存为“大缓存”
+
+`about:blank` 仍作为设置页“恢复为空白页”和窗口清空后的空白根语义，未被初次安装主页替换。已有
+明确写入的用户设置继续按持久化值读取；本轮不做提交、推送、安装或设备操作。
+
+本地验证证据：
+
+- `PlayerPolicyTest`、`KiyoriSettingsPagesTest`、`KiyoriBrowserPluginSettingsPolicyTest`、
+  `WebSessionBrowserWindowPolicyTest` 和 `BrowserHomeNavigationPolicyTest` 共 `45/45` 通过，
+  失败、错误和跳过均为 `0`
+- 项目 `.venv` 的 formal readiness 为 `PASS`；Markdown 链接检查 `7/7` 通过；
+  `git diff --check` 无 whitespace error，仅报告工作树既有文件的 CRLF 转换提示
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL`，
+  `238` 个任务中 `29` 个执行、`209` 个为最新状态；`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `485889789` bytes，
+  SHA-256 `C553DF3494C0A0E56B850FD4822BAFCFEC210EB97241C59D041C3EB6B4B4CC20`
+- APK 为 `com.kiyori`、`0.1.0 (45)`、min/target/compile SDK `26 / 34 / 37`、arm64 目标；
+  Android Debug V2 单 signer 签名和 `zipalign -c -P 16 -v 4` 验证通过
+- 真机验收、APK 安装、提交和推送均未执行
+
+## 2026-08-11 Browser ToolPkg 表单、CSP 与关闭结果一致性
+
+状态：源码修复、公开包入口回归、定向 JVM 合同、AndroidTest 编译、formal readiness、
+最终差异审计、Debug APK 构建与产物核验已完成。目标设备上的严格 CSP、输入事件与页面观察
+仍保持 `verification_pending`。本轮只修改唯一 `StandardBrowserSessionTools`、现有
+WebSession/WebView 执行链和预置 `browser.js`，不创建第二 Browser Runtime、第二页面代理或
+第二输入状态源。
+
+已确认根因：
+
+- 公开 `browser:fill_form` 在 `browser.js` 中无条件执行 `field.name.trim()` 和
+  `field.type.trim()`，而真实使用面只提供 `ref` 或 `selector` 加 `value`，因此在进入原生工具前
+  就抛出缺失属性异常；现有 Android JS 套件只调用内部 `browser_fill_form`，没有覆盖公开包入口
+- 共享 `evaluateJavascriptAsync` 使用间接 `eval`，`browser_run_code` 再次使用 `eval` 和
+  `AsyncFunction`；严格 CSP 页面会拒绝 `unsafe-eval`，并把依赖该共享执行器的页面观察一并中断
+- `run_code` 的 locator fill/select 与 keyboard 自建了简化事件路径；`keyboard.press` 对
+  `Tab`、`End` 和字符键可能返回成功但没有实现对应行为，未知 keyboard/locator 方法暴露裸
+  `TypeError`
+- `browser_close` 与 `browser_tabs action=close` 已经完成 registry 状态变更后，仍直接读取新
+  活动页状态和快照；后续观察异常会覆盖已完成的关闭结果
+
+细化计划：
+
+1. [DONE] 公开 `fill_form` 改为每项仅使用 `ref` 或 `selector` 之一并提供
+   string/number/boolean `value`；`name` 仅作可选诊断，DOM 决定控件类型
+2. [DONE] 同步 `examples/browser.js`、`examples/browser.ts`、`network.d.ts` 和中英文系统工具提示，
+   清理旧 `name/type` 强制合同
+3. [DONE] Android JS 套件真实调用 `toolCall('browser', 'fill_form', ...)`，覆盖 ref、selector、
+   text、checkbox、select、缺 locator 和错误 value 类型
+4. [DONE] 共享 WebView 异步执行器改为直接注入表达式；`run_code` 只接受明确函数源码，不使用
+   `eval`、`AsyncFunction` 或第二执行引擎
+5. [DONE] locator 的 click/hover/fill/selectOption 与 `keyboard.press` 统一复用 `__operitPw`；
+   keyboard 能力固定为单字符、Enter、Backspace、Delete，未知成员和未实现按键返回结构化错误
+6. [DONE] 标签关闭先输出 closed session、remaining tab count 和 active session，再独立输出页面
+   状态与快照观察，观察异常不改变关闭成功
+7. [DONE] 增加严格 CSP fixture，覆盖 snapshot、evaluate、run_code、locator 输入、keyboard 和两种
+   close 入口；文件上传继续要求公开真实点击后调用 upload
+8. [DONE] 串行完成 TypeScript、定向 JVM、AndroidTest 编译、formal readiness、
+   Markdown/差异检查和 Debug APK 构建及 APK 元数据、签名、16 KB 对齐核验
+9. [PENDING] 在目标 Android 设备运行 Browser Android JS 套件，复测严格 CSP、IME/焦点、网页
+   用户激活和关闭后的活动页观察
+
+本地验证证据：
+
+- `pnpm.cmd exec tsc -p examples/tsconfig.json` 通过；预置 `browser.js`、示例
+  `examples/browser.js` 和 Browser Android JS 套件均通过 `node --check`
+- `BrowserRunCodeContractTest` 共 `8/8` 通过，覆盖 Page/locator/keyboard 合同、函数源码识别、
+  严格 CSP 所需的无动态编译脚本生成、结构化不支持错误及关闭结果分层
+- `:app:compileDebugAndroidTestKotlin` 与 `:app:compileDebugAndroidTestJavaWithJavac`
+  `BUILD SUCCESSFUL`，共 `148` 个任务；严格 CSP 和公开 `browser:fill_form` 回归已编译进入套件，
+  但未在设备执行
+- formal readiness 为 `PASS`，Markdown 链接单测 `7/7` 通过，`git diff --check` 无
+  whitespace error
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` `BUILD SUCCESSFUL`，共
+  `238` 个任务；`verifyPlayerNativeInputs`、唯一 Debug launcher 和
+  `verifyDebugPlayerRuntimePackaging` 均通过
+- 最终 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`485889789` 字节，SHA-256
+  `6F856D38F77A283F251408BA1B2CA8D36113F02E6199C7419080A45BE0D275C8`；
+  `com.kiyori`、`versionCode 45`、`versionName 0.1.0`、`minSdk 26`、`targetSdk 34`、
+  `compileSdk 37`、仅 `arm64-v8a`
+- APK 仅有 `com.ai.assistance.operit.ui.main.MainActivity` 一个 launcher；V2 Debug 单签名通过，
+  证书 SHA-256 为
+  `e72ad950d07adbedfb9c909c48d922fddb3560677012da79b686a127867ae902`；
+  `zipalign -c -P 16 4` 验证通过
+- APK 内唯一 `assets/packages/browser.js`、源码 asset 与 `examples/browser.js` 的 SHA-256
+  均为 `58AB2AD64F73B8EDF7E7883015C256A9A845459728F1CFD7AEF44FA48155F1D9`
+- APK 内 `51` 个 `.so` 和 `assets/operit_shell_exec` 共 `52` 个 ELF 已逐项使用 NDK 28.2
+  `llvm-readelf -lW` 审计；全部 `PT_LOAD` 最小 alignment 不低于 `0x4000`，其中 `51` 个为
+  `0x4000`、`libbusybox.so` 为 `0x10000`
+
+本轮边界：
+
+- Kiyori 尚未发布，直接移除旧公开 `type` 字段语义，不维护双字段协议
+- `page.dialog` 仍不是属性；对话框继续使用 `page.on/once/off/removeListener('dialog')`
+- `run_code` 不伪造文件选择器用户激活，不增加完整 Playwright、隐藏 WebView、隐式重试或另一条
+  页面执行路径
+- 不安装 APK，不执行 ADB/MuMu/真机操作，不提交，不推送
+
 ## 2026-08-10 GPT-5.6 可恢复执行与统一模型能力
 
 状态：Responses 状态机、at-most-once 提交、provider execution 持久化和消息失败所有权已完成；

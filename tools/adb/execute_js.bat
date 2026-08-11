@@ -143,7 +143,8 @@ if not "%~3"=="" (
 
 REM File operations
 echo Creating directory structure...
-set "TARGET_DIR=/sdcard/Android/data/com.kiyori/js_temp"
+REM App-readable external staging must live under Android/data/<package>/files/.
+set "TARGET_DIR=/sdcard/Android/data/com.kiyori/files/js_temp"
 adb -s "%DEVICE_SERIAL%" shell mkdir -p "%TARGET_DIR%"
 
 for %%F in ("%FILE_PATH%") do set "TARGET_FILE=%TARGET_DIR%/%%~nxF"

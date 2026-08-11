@@ -78,7 +78,8 @@ else
 fi
 
 SUITE_NAME="$(basename "$SUITE_DIR")"
-TARGET_BASE="/sdcard/Android/data/com.kiyori/js_temp"
+# App-readable external staging must live under Android/data/<package>/files/.
+TARGET_BASE="/sdcard/Android/data/com.kiyori/files/js_temp"
 TARGET_SUITES_DIR="$TARGET_BASE/suites"
 TARGET_RESULT_FILE="$TARGET_BASE/${SUITE_NAME}_${FUNCTION_NAME}_$RANDOM.json"
 BUNDLED_FILE="$(mktemp "${TMPDIR:-/tmp}/operit_js_bundle.XXXXXX.js")"

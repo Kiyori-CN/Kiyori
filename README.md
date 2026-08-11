@@ -22,9 +22,11 @@ Kiyori 不连接 Operit 的应用更新、补丁或远程公告服务。当前�
 
 正式开发前的工程门禁、分支规则、兼容性边界和真机验收队列见 [正式开发准备](docs/TODO/formal_development_readiness/index.md)。持续开发只使用 `main` 分支；`terminal` 子模块固定到 KiyoriTerminalCore 的提交。
 
-### 当前 Browser 工具契约（2026-08-10）
+### 当前 Browser 工具契约（2026-08-11）
 
-AI `browser_*` 与 Browser Home 继续共用唯一的 WebSession、Browser Runtime 和真实 WebView。`browser_resize` 的请求尺寸是该 WebSession 的真实 CSS 布局合同：工具返回、页面状态、`window.innerWidth/innerHeight` 和 `documentElement.clientWidth/clientHeight` 必须在合理像素容差内一致；Host 只在挂载边界按设备 density 转换为 Android 物理布局尺寸，background anchor 不再使用固定 `1×1`，也不通过缩放返回值伪造合同。`browser_click` 始终派发真实点击语义，只有在目标是可导航链接时才等待 URL 或活动标签变化；结果区分点击派发、导航完成、对话框/文件选择器暂停、下载触发和导航未开始或未完成。页面 console 消息不包含 userscript bridge/runtime 诊断。`browser_run_code` 是文档化的 Android WebView Page 子集，支持 `title`、`url`、`evaluate`、`waitForTimeout`、`setContent`、`keyboard`、`dialog` 的 `on/once/off/removeListener`，以及 `locator/getByRole` 的 `click/hover/fill/selectOption/textContent`；未支持的 Page 方法返回结构化 `Unsupported Playwright API` 错误，而不是裸 `TypeError`。
+AI `browser_*` 与 Browser Home 继续共用唯一的 WebSession、Browser Runtime 和真实 WebView。`browser_resize` 的请求尺寸是该 WebSession 的真实 CSS 布局合同：工具返回、页面状态、`window.innerWidth/innerHeight` 和 `documentElement.clientWidth/clientHeight` 必须在合理像素容差内一致；Host 只在挂载边界按设备 density 转换为 Android 物理布局尺寸，background anchor 不再使用固定 `1×1`，也不通过缩放返回值伪造合同。`browser_click` 始终派发真实点击语义，只有在目标是可导航链接时才等待 URL 或活动标签变化；结果区分点击派发、导航完成、对话框/文件选择器暂停、下载触发和导航未开始或未完成。页面 console 消息不包含 userscript bridge/runtime 诊断。
+
+公开 `browser:fill_form` 的每个字段必须提供字符串、数字或布尔值 `value`，并且只使用 `ref` 或 `selector` 之一；`name` 仅是可选诊断文字，控件类型由真实 DOM 判定。文本、数字及其他可编辑控件走共享 fill 运行时，checkbox/radio 要求布尔值，`select` 按 value 或可见 label 选择。旧的调用方 `type` 字段不再属于合同。`browser_run_code` 只接受 `async (page) => { ... }` 或 `function(page) { ... }` 形式的函数源码，并直接注入当前 WebView，不使用 `eval` 或动态函数构造器，因此严格 CSP 页面不会再因 `unsafe-eval` 阻断共享执行器。Page 子集支持 `title`、`url`、`evaluate`、`waitForTimeout`、`setContent`、dialog 的 `on/once/off/removeListener`，以及 `locator/getByRole` 的 `click/hover/fill/selectOption/textContent`；locator 输入和 `keyboard.press` 复用包级工具的同一输入运行时。`keyboard.press` 支持单字符、`Enter`、`Backspace` 和 `Delete`；`page.dialog` 属性、`keyboard.type`、`locator.focus`、其他未支持 API 及没有实现行为的按键均返回结构化 `Unsupported Playwright API`。文件输入仍需先用公开 `browser:click` 建立真实用户激活，再调用 `browser:upload`。`browser:close` 和 `browser:tabs action=close` 先报告已完成的标签状态变更，再独立报告活动页观察；后续页面状态或快照读取失败不会把已经完成的关闭改报为失败。
 
 ## 项目简介
 
@@ -66,7 +68,7 @@ Kiyori App Shell
 
 自 2026-07-28 的方案 A 起，完整浏览器界面只在现有 `MainActivity` / Kiyori App Shell 的 Browser Home 中显示。返回目标与离开后的 presentation 方式分开记录：从负一屏、软件首页、AI 对话、微应用、文件管理或设置首页进入 Browser Home 时，Shell 记录真实入口页；2026-08-08 起，浏览器顶栏左侧返回会直接释放当前 Browser Home presentation 并回到该入口页，不消费 WebView 历史。普通入口关闭展示后不显示 indicator；浏览器菜单点击“AI 对话”会进入 AI 首页、请求真实输入框焦点并把当前页缩为 indicator，AI 首页右上角浏览器按钮进入 Browser Home 后顶栏返回或系统 Back 最终退出时仍恢复 indicator。AI `browser_*` 在 Browser Home 未挂载时主动使用浏览器，同样可通过唯一 WebSession 建立 1×1 background anchor 并显示 indicator。单击已有 indicator 通过专用恢复入口回到 Browser Home，再次退出仍恢复同一个 indicator。长按 indicator 会消费本次进入动作，并在球体右上角外围创建一个透明的 `28dp` 临时触控层，其中只绘制较小的 `16dp` 红色叉号。按住期间叉号不可触摸，不会抢走当前手势；松手后才允许点击并保留 3 秒。叉号随球体拖动并约束在屏幕内，点击后与浏览器下拉抽屉第 4 行第 1 个“退出浏览器”按钮复用同一 `onExitBrowser` 展示层关闭流程。临时叉号不持有 WebView、session 或第二套 Browser Runtime。人工界面与 Operit AI `browser_*` 始终共用同一组 WebSession、稳定 `session_id`、`activeSessionId` 和实际 WebView，宿主转换不执行 `loadUrl`、`reload` 或 WebView 重建。下一段中关于“悬浮浏览器展开”、overlay Back、状态栏和挖孔的旧说明仅作为历史记录，已由本段当前行为取代。
 
-浏览器首页、background anchor 和 Operit AI 浏览器工具使用同一进程内 WebSession。三者共用标签、活动 WebView、历史、书签、下载和用户脚本；展示位置切换只转挂同一个 WebView。每个窗口持有不可变的 `normal` 或 `incognito` Profile：普通窗口继续使用默认 WebView Profile，同一段无痕会话的窗口共享唯一命名的 Kiyori 私有 AndroidX Profile 代际；最后一个无痕 WebView 销毁后清理 Cookie、WebStorage 和定位授权并立即退休该代际，后续无痕窗口使用全新代际。AndroidX 不允许在同一进程删除已加载 Profile，因此退休代际在下次冷启动、尚未重新加载时物理删除。网页 Cookie、缓存、WebStorage、userscript Cookie/XHR 和下载请求均跟随窗口 Profile，普通与无痕之间不复制网站数据；无痕搜索、访问和标题更新不写入共享历史，书签与下载仍保留用户明确发起的持久化语义。浏览器左上角返回直接回到打开 Browser Home 之前的应用入口页；系统 Back 与浏览器底栏左下角返回继续共用逐级状态机：先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再按 WebView 历史逐页后退，历史耗尽后才根据本次入口正常关闭或恢复 indicator。AI 可通过 `browser_tabs list` 看到人工打开的全部窗口及其稳定 `session_id`、`profile`、标题、网址和活动状态，也可用 `browser_tabs create profile=normal|incognito` 显式新建，再继续读取快照、点击和输入。无痕只隔离网站数据，不隔离用户已授权的 Kiyori AI 操作。浏览器窗口页顶部只保留同一行的“普通窗口”和“无痕窗口”文字标签与数量，不绘制两个按钮容器；普通标签下方使用蓝色横线，无痕标签下方使用紫色横线，选中项只通过文字色、线条透明度和粗细增强。当前 Profile 的空态、新建按钮、活动卡片边框、缩略图占位和窗口身份标记继续共享同一蓝/紫色彩语言。窗口网格按手机和平板宽度使用 2、3、4 列，并显示 `postVisualStateCallback` 驱动、仅驻留内存的 `5:8` 纵向网页缩略图；捕获完整保留当前可见 WebView 视口，不裁切网页。新建与清空只作用于当前 Profile；配置自定义首页时，清空后立即创建同 Profile 的主页窗口并关闭窗口总览，默认 `about:blank` 时继续显示剩余 Profile 或空总览。设备 WebView 不支持 Multi-Profile 或冷启动无法安全清理旧无痕 Profile 时，入口会明确禁用，不会创建普通窗口代替。从 AI 首页顶栏打开 Browser Home 后，浏览器顶栏返回会回到 AI 首页并恢复悬浮球。App Shell 与浏览器底栏沿用 Kiyori 自有图标：五等分槽位使用 `16dp` 横向、`0dp` 顶部和 `6dp` 底部边距，点击区 `44dp`，普通图标 `26dp`，首页中间图标 `25dp`；浏览器窗口计数为 `20dp` 方框和 `1.75dp` 描边，软件首页第五个设置入口使用旧版 `icons/设置-齿轮` 的完整六边形齿轮图形。浏览器底栏第五按钮打开内容自适应的四行菜单，前三行使用五列 `21dp` 描边图标和紧凑固定间距，第四行直接排列退出、收起、设置三个 `46×36dp` 按钮与 `22dp` 图标；18 个按钮分别使用两两不同、随浅深主题切换的入口身份色，书签、历史、下载、插件、悬浮嗅探、UA、网络日志、工具箱、阅读模式、查看源码、广告标记和网站配置的子页面标题、主筛选及弹窗继续复用各自入口色。搜索框右侧发现资源数量球与“悬浮嗅探”使用完全相同的青色身份映射。菜单不再使用固定高度。菜单“无痕模式”只切换新窗口默认 Profile，并显示短时提示，菜单保持显示；“AI 对话”最小化浏览器并进入已聚焦输入框的 AI 首页；“浏览器设置”打开与设置首页相同的页面；“退出浏览器”只移除展示层，清空全部窗口才清理 session。自定义主页同时约束主页按钮及人工/AI 新窗口；关闭“允许网页打开应用”会阻止网页外部 scheme，关闭“允许网页获取位置”会拒绝 WebView 定位请求。首期继续使用设备的 Android System WebView provider。
+浏览器首页、background anchor 和 Operit AI 浏览器工具使用同一进程内 WebSession。三者共用标签、活动 WebView、历史、书签、下载和用户脚本；展示位置切换只转挂同一个 WebView。每个窗口持有不可变的 `normal` 或 `incognito` Profile：普通窗口继续使用默认 WebView Profile，同一段无痕会话的窗口共享唯一命名的 Kiyori 私有 AndroidX Profile 代际；最后一个无痕 WebView 销毁后清理 Cookie、WebStorage 和定位授权并立即退休该代际，后续无痕窗口使用全新代际。AndroidX 不允许在同一进程删除已加载 Profile，因此退休代际在下次冷启动、尚未重新加载时物理删除。网页 Cookie、缓存、WebStorage、userscript Cookie/XHR 和下载请求均跟随窗口 Profile，普通与无痕之间不复制网站数据；无痕搜索、访问和标题更新不写入共享历史，书签与下载仍保留用户明确发起的持久化语义。浏览器左上角返回直接回到打开 Browser Home 之前的应用入口页；系统 Back 与浏览器底栏左下角返回继续共用逐级状态机：先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再按 WebView 历史逐页后退，历史耗尽后才根据本次入口正常关闭或恢复 indicator。AI 可通过 `browser_tabs list` 看到人工打开的全部窗口及其稳定 `session_id`、`profile`、标题、网址和活动状态，也可用 `browser_tabs create profile=normal|incognito` 显式新建，再继续读取快照、点击和输入。无痕只隔离网站数据，不隔离用户已授权的 Kiyori AI 操作。浏览器窗口页顶部只保留同一行的“普通窗口”和“无痕窗口”文字标签与数量，不绘制两个按钮容器；普通标签下方使用蓝色横线，无痕标签下方使用紫色横线，选中项只通过文字色、线条透明度和粗细增强。当前 Profile 的空态、新建按钮、活动卡片边框、缩略图占位和窗口身份标记继续共享同一蓝/紫色彩语言。窗口网格按手机和平板宽度使用 2、3、4 列，并显示 `postVisualStateCallback` 驱动、仅驻留内存的 `5:8` 纵向网页缩略图；捕获完整保留当前可见 WebView 视口，不裁切网页。新建与清空只作用于当前 Profile；配置自定义首页时，清空后立即创建同 Profile 的主页窗口并关闭窗口总览，主页配置为 `about:blank` 时继续显示剩余 Profile 或空总览。设备 WebView 不支持 Multi-Profile 或冷启动无法安全清理旧无痕 Profile 时，入口会明确禁用，不会创建普通窗口代替。从 AI 首页顶栏打开 Browser Home 后，浏览器顶栏返回会回到 AI 首页并恢复悬浮球。App Shell 与浏览器底栏沿用 Kiyori 自有图标：五等分槽位使用 `16dp` 横向、`0dp` 顶部和 `6dp` 底部边距，点击区 `44dp`，普通图标 `26dp`，首页中间图标 `25dp`；浏览器窗口计数为 `20dp` 方框和 `1.75dp` 描边，软件首页第五个设置入口使用旧版 `icons/设置-齿轮` 的完整六边形齿轮图形。浏览器底栏第五按钮打开内容自适应的四行菜单，前三行使用五列 `21dp` 描边图标和紧凑固定间距，第四行直接排列退出、收起、设置三个 `46×36dp` 按钮与 `22dp` 图标；18 个按钮分别使用两两不同、随浅深主题切换的入口身份色，书签、历史、下载、插件、悬浮嗅探、UA、网络日志、工具箱、阅读模式、查看源码、广告标记和网站配置的子页面标题、主筛选及弹窗继续复用各自入口色。搜索框右侧发现资源数量球与“悬浮嗅探”使用完全相同的青色身份映射。菜单不再使用固定高度。菜单“无痕模式”只切换新窗口默认 Profile，并显示短时提示，菜单保持显示；“AI 对话”最小化浏览器并进入已聚焦输入框的 AI 首页；“浏览器设置”打开与设置首页相同的页面；“退出浏览器”只移除展示层，清空全部窗口才清理 session。自定义主页同时约束主页按钮及人工/AI 新窗口；关闭“允许网页打开应用”会阻止网页外部 scheme，关闭“允许网页获取位置”会拒绝 WebView 定位请求。首期继续使用设备的 Android System WebView provider。
 
 自 2026-08-03 起，每个窗口拥有自己的主页根。2026-08-08 后，该逐级网页返回合同只由系统 Back、浏览器底栏左下角返回和 AI `browser_navigate_back` 使用：先处理临时界面，再后退该窗口主页根之后的历史；直接从搜索、书签、用户脚本、AI 或网页弹窗创建且没有主页历史的窗口会先进入当前自定义主页并建立新根，只有已经位于主页根时才关闭或最小化 Browser Home。浏览器顶栏左侧返回不进入此状态机，而是直接回到记录的应用入口页。切换窗口后立即改用新活动 WebSession 自己的主页根，不跨窗口复用返回状态。网页主页自定义中的“恢复为空白页”会先显示确认弹窗，取消不改设置，确认后才写入 `about:blank`。
 
@@ -92,7 +94,7 @@ Kiyori App Shell
 严格分离，批量应用只处理不新增权限、不扩大网站范围且来源未变化的安全更新，其余更新必须先查看
 权限和统一源码差异。脚本详情集中展示匹配规则、权限、`@connect`、依赖、源码、日志和不可变版本历史。
 日志单击打开详情并可复制，长按直接复制当前日志而不弹出重复菜单；日志工作区提供复制全部和导出全部，
-导出写入 `Download/Kiyori/exports`，并包含当前保留的完整日志而不受筛选条件影响。
+导出写入 `Download/Kiyori/exports/userscripts`，并包含当前保留的完整日志而不受筛选条件影响。
 新建或编辑脚本进入浏览器内全屏原生代码编辑器，支持查找替换、撤销重做、格式化、结构化 metadata、
 语法/权限检查、差异预览和显式应用；编辑内容先写入应用私有草稿，离开未应用内容时必须选择保留草稿、
 丢弃或继续编辑，未安装草稿可从油猴管理页恢复。编辑器内容避开系统状态栏，使用 44dp 紧凑顶栏；
@@ -101,7 +103,7 @@ Kiyori App Shell
 userscript topics，并在同一 Browser Runtime 中创建前台新标签；未核实运营者和最新地址的镜像不写死。Android System
 WebView 不能直接运行 Chrome/Edge 扩展包，后续扩展兼容必须经过 manifest、API、权限和真实功能审核。
 AI 可以生成脚本或未来插件草稿，但安装必须经过本地检查、权限预览、用户确认和对应 provider 的正式事务。
-内置油猴插件提供持久化“允许用户脚本”总开关，默认关闭；关闭时脚本仍可安装、更新和保留启用意图，
+内置油猴插件提供持久化“允许用户脚本”总开关，新安装默认开启；关闭时脚本仍可安装、更新和保留启用意图，
 WebView 生命周期内已经建立的页面与共享隔离运行时保持惰性，不返回脚本 payload，也不会执行新页面脚本。
 网页浏览器设置的“网页插件与脚本”组当前收敛为 4 行：总授权、插件中心、权限与网站范围、脚本诊断与日志。
 插件中心继续进入 provider 概览；权限页只展示运行环境、总授权和逐脚本声明范围；诊断与日志进入同一个
@@ -121,7 +123,7 @@ host 权限的脚本信息对象，对所有 userscript 提供；对象包含名
 权限子页逐脚本展示执行世界、声明权限、联网范围、页面规则、未知权限和阻塞原因，并继续把安装、更新、编辑、
 启停和删除交给同一个 Browser Plugin Center。运行时不受支持时，所有开启总授权的入口均不可操作并显示明确
 原因。脚本详情的“源码”页可把当前 active revision 导出为 `.user.js` 到
-`Download/Kiyori/exports`；删除继续明确清理源码、修订、草稿、值和日志，批量删除会隔离单项失败并继续处理
+`Download/Kiyori/exports/userscripts`；删除继续明确清理源码、修订、草稿、值和日志，批量删除会隔离单项失败并继续处理
 其余脚本。
 
 浏览器菜单和负一屏“历史”卡打开同一个共享历史下拉抽屉。普通 Profile 的主框架访问只写入网页记录；无痕访问不写入。唯一 `PlayerSession` 接受在线视频或本地视频请求后写入同一 `WebSessionHistoryStore`，并删除同一媒体 URL 的网页重复项。抽屉提供标题、链接和来源网页搜索，以及“全部 / 网页 / 视频 / 音乐 / 小说 / 其他”横向筛选；视频条目明确显示“在线视频”或“本地视频”。删除按钮打开“过去一小时 / 过去24小时 / 过去一周 / 所有时间”选择面板，并只删除当前分类和时间范围匹配的记录。历史不落盘 Cookie、Authorization 或请求 headers；在线重播时从当前活动 WebSession 读取 User-Agent、对应 Profile Cookie 和来源页 Referer，本地重播继续恢复现有同目录播放队列。
@@ -134,9 +136,9 @@ host 权限的脚本信息对象，对所有 userscript 提供；对象包含名
 
 设置首页按 `kiyori-android@24a2dfa9` 保留 `4/4/4/4` 共 16 个入口的信息密度，顶栏含四个旧版图标；页面、卡片、文字、分隔线和禁用态改由统一的 `KiyoriSettingsTheme` 适配浅色与深色，入口图标使用蓝、绿、紫、橙、红、青和粉色语义容器。第一组固定为“账号与连接 / AI 助手 / 语音服务 / 小程序管理”；前三项连接真实设置根，小程序管理保持空动作且不连接 AI 包管理。网页浏览器、视频播放器、文件下载器、界面定制和数据备份与同步也连接各自唯一 owner，其余入口与顶栏按钮暂时为空动作。账号、AI 助手、语音服务、界面定制、数据、网页浏览器、文件下载器和视频播放器设置共用文件下载器设置页确立的同一套组件：折叠标题在列表前 `72dp` 滚动中从 `32dp / 60dp / 26sp` 连续移动到 `56dp / 16dp / 20sp` 的固定顶栏；每组使用标题、说明、`16dp` 圆角卡片、双行设置项、`0.6dp` 分隔线、Material Switch、`42%` 依赖禁用态和显示当前值及选项说明的 `26dp` 圆角底部选择面板。主题页只管理应用浅深模式、隐藏状态栏和全局字体；AI 背景、气泡、头像、聊天头部、输入区与局部字体继续绑定现有 AI 外观 owner，不能改写设置页、应用壳或浏览器色域。
 
-浏览器设置按 `4/2/2/4/3` 分为“网页插件与脚本 / 主页与导航 / 网页显示 / 网站权限与数据 / 音视频嗅探”，共 15 行真实能力。“返回不重载”只改变系统 Back、浏览器底栏 Back 与 AI 网页后退进入 WebView 历史时的缓存模式，不改变顶栏返回 App Shell、每窗口主页根或 Browser Runtime 生命周期；“强制页面缩放”在当前文档内可撤销地解除 viewport 禁止缩放声明；“网页文字大小”提供实时示例和 `50%..200%`、`5%` 步进控制，并通过 `WebSettings.textZoom` 同步全部 WebSession。自定义主页、两个显示设置、网页外部应用、网页定位、搜索栏嗅探入口、自动悬浮播放和最小时长继续由唯一 `WebSessionBrowserSettingsStore` 持有，“清除网站 Cookie”调用既有 `CookiePrivacyManager`。
+浏览器设置按 `4/2/2/4/3` 分为“网页插件与脚本 / 主页与导航 / 网页显示 / 网站权限与数据 / 音视频嗅探”，共 15 行真实能力。新安装默认主页为 `https://go.itab.link`，默认开启允许用户脚本、返回不重载、强制页面缩放和网站密码自动保存；`about:blank` 仍是设置页中的“恢复为空白页”明确目标。“返回不重载”只改变系统 Back、浏览器底栏 Back 与 AI 网页后退进入 WebView 历史时的缓存模式，不改变顶栏返回 App Shell、每窗口主页根或 Browser Runtime 生命周期；“强制页面缩放”在当前文档内可撤销地解除 viewport 禁止缩放声明；“网页文字大小”提供实时示例和 `50%..200%`、`5%` 步进控制，并通过 `WebSettings.textZoom` 同步全部 WebSession。自定义主页、两个显示设置、网页外部应用、网页定位、搜索栏嗅探入口、自动悬浮播放和最小时长继续由唯一 `WebSessionBrowserSettingsStore` 持有，“清除网站 Cookie”调用既有 `CookiePrivacyManager`。
 
-“网站密码管理”使用唯一 `BrowserCredentialVault`：自动保存默认关闭，只在普通 Profile 提交具有单一密码字段的登录表单时按精确 HTTP/HTTPS origin 保存或更新，并按已保存字段位置自动填充但不自动提交；无痕 Profile 不捕获、不读取、不填充。账号与密码整体使用 Android Keystore AES-GCM 加密并原子写入 `noBackupFilesDir`，不进入当前原始快照或 Android 自动备份；管理页支持网站/账号搜索、遮蔽查看、显式显示、敏感剪贴板复制、编辑和删除。自动悬浮最小时长默认 `1 分钟`，可选 `30 秒 / 1 / 3 / 5 / 10 / 30 / 60 分钟`，也可按秒自定义 `1..86400`；未知时长的非直播候选在获得被动元数据前不会自动弹出小窗。浏览器菜单“悬浮嗅探”只投影当前 WebSession 被动发现的可执行视频候选，面板中不再保留设置开关。候选结果先保持推荐资格优先，再根据 DOM 尺寸或原始 URL 中的明确分辨率线索按画质从高到低排序，并展示画质、原始链接及被动获得的视频时长或直播/未知状态；点击或长按结果可播放、下载、复制或查看链接。人工播放固定进入既有横向全屏 `PlayerActivity`，自动播放只在达到时长门槛后以 `100..300ms` 被动稳定确认选择最高画质候选，并进入同一 `PlayerSession` 的悬浮 presentation；下载继续进入唯一 `BrowserDownloadManager`，候选 headers 与 Cookie 不显示在界面。
+“网站密码管理”使用唯一 `BrowserCredentialVault`：新安装自动保存默认开启，只在普通 Profile 提交具有单一密码字段的登录表单时按精确 HTTP/HTTPS origin 保存或更新，并按已保存字段位置自动填充但不自动提交；无痕 Profile 不捕获、不读取、不填充。账号与密码整体使用 Android Keystore AES-GCM 加密并原子写入 `noBackupFilesDir`，不进入当前原始快照或 Android 自动备份；管理页支持网站/账号搜索、遮蔽查看、显式显示、敏感剪贴板复制、编辑和删除。自动悬浮最小时长默认 `1 分钟`，可选 `30 秒 / 1 / 3 / 5 / 10 / 30 / 60 分钟`，也可按秒自定义 `1..86400`；未知时长的非直播候选在获得被动元数据前不会自动弹出小窗。浏览器菜单“悬浮嗅探”只投影当前 WebSession 被动发现的可执行视频候选，面板中不再保留设置开关。候选结果先保持推荐资格优先，再根据 DOM 尺寸或原始 URL 中的明确分辨率线索按画质从高到低排序，并展示画质、原始链接及被动获得的视频时长或直播/未知状态；点击或长按结果可播放、下载、复制或查看链接。人工播放固定进入既有横向全屏 `PlayerActivity`，自动播放只在达到时长门槛后以 `100..300ms` 被动稳定确认选择最高画质候选，并进入同一 `PlayerSession` 的悬浮 presentation；下载继续进入唯一 `BrowserDownloadManager`，候选 headers 与 Cookie 不显示在界面。
 
 浏览器菜单“下载”和负一屏“下载”卡进入同一个共享下载下拉抽屉；抽屉统一使用“已下载 / 下载中”双页签显示 Kiyori 内置下载任务。文件下载器设置按 `5/4/2/2/1` 分为“下载器与性能 / 网络与后台 / M3U8 与存储 / 安装与确认 / 网络协议”，共 14 行；“默认保存位置”在同一选择面板中提供应用目录、公开目录和 SAF 自定义目录，公开转存与 SAF 保持互斥。网络条件、漫游和系统通知设置同时适用于 Android 系统下载器，结果通知只约束内置任务。默认普通/M3U8 线程为 `6/16` 时并行任务完整显示 `1..8`；提高任一线程设置会同步收窄之后可选的并行任务数，已经运行的任务不会被取消。选择 Android 系统下载器时，保存位置、并发、线程、M3U8 离线包、分块、APK 清理、结果通知和 HTTP 协议等内置能力禁用；默认下载器、网络条件、漫游、系统通知设置和跳过确认仍可操作。完成任务的更多操作可执行重命名、修改后缀、移动、复制下载链接或保存位置、分享和转存公开目录。文件管理首页展示 8 个分类、7 个快捷访问和 4 个存储位置，分类计数固定为 0，手机存储在页面进入及恢复前台时刷新实际可用与总容量。搜索引擎、搜索记录、新窗口默认普通/无痕 Profile、桌面/手机 UA、历史与 WebSession 状态仍由浏览器现有 owner 持有。普通网站数据继续保留；无痕网站数据在最后一个无痕窗口关闭后立即停止复用，并在下次冷启动物理删除退休 Profile。
 
@@ -177,9 +179,9 @@ HTTPS MP4 进入 `ACTIVE`、显示首帧并持续播放；HLS、更多带请求�
 
 Kiyori 新页面的视觉语言向 Operit 原版 UI 看齐，页面结构、浏览器行为和其他 Kiyori 功能参考 [kiyori-android@24a2dfa9](https://github.com/Kiyori-CN/kiyori-android/tree/24a2dfa91f0a4166dc58e5c4732d11861173f766)。手机、平板与折叠屏共享同一导航状态；AI 抽屉按窗口宽度使用 `75%`、`320dp` 或 `360dp`，并限制在折叠屏分隔铰链左侧。详细设计见 [Kiyori 产品壳与导航架构](docs/doc-src/architecture/kiyori_product_shell_and_navigation.md)。
 
-“视频播放器”入口进入与浏览器/下载器一致的折叠标题和分组卡片页面。Kiyori 尚未发布，旧页面中没有真实 owner 的静态伪设置已经删除；当前按“播放与连播、手势与进度、画面与超分、音频与字幕、保存与下载、窗口与在线”排列 `4/7/5/2/2/4` 六组 24 项，全部由唯一 `PlayerSettingsStore` 持有并被 `PlayerSession`、`:player` runtime、播放器 UI 或既有 `BrowserDownloadManager` 消费。设置覆盖默认/记忆倍速、自动下一集、队列播完行为、两种双击手势及独立跳转时长、长按分段加速、按钮跳转、精确 seek、章节节点、拖动缩略图、记忆与默认 Anime4K、解码器、GPU Next、Vulkan、音量增强、字幕缩放、截图保存位置、视频下载位置、重力自动旋转、在线播放缓存、全屏退出和后台行为。未持久化过的双击手势默认是暂停/播放。长按加速只在按住期间按当前速度区间临时切到 `1.0x / 2.0x / 3.0x`：低于 `1.0x` 到 `1.0x`，从 `1.0x` 到低于 `2.0x` 到 `2.0x`，从 `2.0x` 到低于 `3.0x` 到 `3.0x`；松手或手势取消后恢复按下前速度，不写入倍速记忆。截图和视频下载默认实时跟随文件下载器主设置，也可分别保存到独立 SAF 目录；播放器视频仍进入唯一下载任务 owner，独立目录使用现有内置下载器，M3U8 离线包继续遵循下载器的应用目录契约。GPU Next 与 Vulkan 明确标注在下一次唯一 mpv core 创建时生效，其余适用设置会通过现有 runtime 命令更新当前会话。播放器接收系统 `ACTION_VIEW` 的本地 `content://`、`file://` 与网络视频，也接收浏览器候选；浏览器悬浮与全屏只转挂同一个 mpv core 的 Surface。
+“视频播放器”入口进入与浏览器/下载器一致的折叠标题和分组卡片页面。Kiyori 尚未发布，旧页面中没有真实 owner 的静态伪设置已经删除；当前按“播放与连播、手势与进度、画面与超分、音频与字幕、保存与下载、窗口与在线”排列 `4/7/5/2/2/4` 六组 24 项，全部由唯一 `PlayerSettingsStore` 持有并被 `PlayerSession`、`:player` runtime、播放器 UI 或既有 `BrowserDownloadManager` 消费。新安装默认开启记忆播放倍速、长按加速和记忆超分模式，默认超分模式为 `A+`，解码器预设为 `High Quality`，在线播放缓存为“大缓存”；用户后续修改仍按现有持久化值执行。设置覆盖默认/记忆倍速、自动下一集、队列播完行为、两种双击手势及独立跳转时长、长按分段加速、按钮跳转、精确 seek、章节节点、拖动缩略图、记忆与默认 Anime4K、解码器、GPU Next、Vulkan、音量增强、字幕缩放、截图保存位置、视频下载位置、重力自动旋转、在线播放缓存、全屏退出和后台行为。未持久化过的双击手势默认是暂停/播放。长按加速只在按住期间按当前速度区间临时切到 `1.0x / 2.0x / 3.0x`：低于 `1.0x` 到 `1.0x`，从 `1.0x` 到低于 `2.0x` 到 `2.0x`，从 `2.0x` 到低于 `3.0x` 到 `3.0x`；松手或手势取消后恢复按下前速度，不写入倍速记忆。截图和视频下载默认实时跟随文件下载器主设置，也可分别保存到独立 SAF 目录；播放器视频仍进入唯一下载任务 owner，独立目录使用现有内置下载器，M3U8 离线包继续遵循下载器的应用目录契约。GPU Next 与 Vulkan 明确标注在下一次唯一 mpv core 创建时生效，其余适用设置会通过现有 runtime 命令更新当前会话。播放器接收系统 `ACTION_VIEW` 的本地 `content://`、`file://` 与网络视频，也接收浏览器候选；浏览器悬浮与全屏只转挂同一个 mpv core 的 Surface。
 
-全屏与悬浮画面都使用 `SurfaceView`，悬浮 Surface 位于实时 WebView 上方。新媒体先创建并初始化唯一 mpv core；有效 Surface 到达后才绑定 Android `wid`，完成当前 Surface lease 的 native attach 后才执行 `loadfile`。浏览器悬浮播放器保持内容区全宽、固定 `16:9`、零左右边距且只能上下平移，并与全屏播放器读取同一按钮跳转设置。悬浮控制层按比例沿用横屏播放器的顶部、侧边与底部布局，共用蓝紫进度渐变、白色轨道、蓝色滑块、上下渐变遮罩和同一倍速弹窗；显示网速直接读取唯一 `PlayerSession` 的实时值，不再另建全局流量轮询。全屏控制层继续使用现有播放器专用图标和横竖屏结构；所有播放器按钮直接显示图标或紧凑文字，不绘制静态圆形/胶囊底色和描边，完整点击热区保持不变。锚定菜单由单一深色圆角表面绘制，四角不再露出第二层白色容器，并保留清晰选中态和现代加载/错误/手势卡片。顶部网速/单位和电量/时间为完整两行；字幕、弹幕、音轨和画面模式四个按钮保持原位置。右上角更多菜单提供自动旋转开关和播放日志，开关直接写入同一设置 owner；开启后 Activity 使用 `FULL_SENSOR`，底部旋转按钮显示“自动”并禁用，关闭后恢复默认横屏与手动横竖屏切换。单一稳定手势 detector 不再随播放位置更新重启；单击切换控制层，双击按设置执行暂停/播放或左右半屏快退/快进，左右滑动 seek。左侧上下滑动仍控制亮度但提示显示在右侧，右侧上下滑动仍控制音量但提示显示在左侧。倍速菜单从上到下按 `0.25x` 步进显示 `3.0x..0.25x`，选项垂直间距压缩，并提供 `0.00x..3.00x`、最多两位小数的自定义输入；`0.00x` 暂停播放但保留原非零倍速。Anime4K 按钮从上到下显示“关 - 原始画质 / A - 强力重建 / B - 柔和重建 / C - 降噪处理 / A+ - 双重强化 / B+ - 双重柔和 / C+ - 降噪强化”，使用 `mpv-android-anime4k@32f5f169` 的 Balanced/M shader 链并立即应用；打包资产、私有缓存和 MPV `glsl-shaders` 属性都经过校验。MPV 章节节点和当前章节按设置显示；拖动进度条时由同一 `:player` runtime 的单线程提取器返回最大 `320px` 预览帧。系统打开的本地视频按同目录、同系列名和自然序建立真实队列，上一项/下一项据此启用；网络视频维持单项，除非调用方明确提供有序队列。自然 EOF 可自动进入下一项，最后一项按设置停留、关闭或从头播放当前视频。播放中空闲三秒自动隐藏，暂停、加载、弹窗、日志、进度拖动或全屏手势期间不隐藏；锁定后解锁按钮也会自动隐藏，单击视频区域可重新显示。没有真实 owner 的弹幕入口显示为禁用。日志弹窗固定标题、单行横滑分类、最新在前正文和底部清空/复制/导出区域；复制与导出生成当前分类的时间正序脱敏报告，文件写入 `Download/Kiyori/exports`。
+全屏与悬浮画面都使用 `SurfaceView`，悬浮 Surface 位于实时 WebView 上方。新媒体先创建并初始化唯一 mpv core；有效 Surface 到达后才绑定 Android `wid`，完成当前 Surface lease 的 native attach 后才执行 `loadfile`。浏览器悬浮播放器保持内容区全宽、固定 `16:9`、零左右边距且只能上下平移，并与全屏播放器读取同一按钮跳转设置。悬浮控制层按比例沿用横屏播放器的顶部、侧边与底部布局，共用蓝紫进度渐变、白色轨道、蓝色滑块、上下渐变遮罩和同一倍速弹窗；显示网速直接读取唯一 `PlayerSession` 的实时值，不再另建全局流量轮询。全屏控制层继续使用现有播放器专用图标和横竖屏结构；所有播放器按钮直接显示图标或紧凑文字，不绘制静态圆形/胶囊底色和描边，完整点击热区保持不变。锚定菜单由单一深色圆角表面绘制，四角不再露出第二层白色容器，并保留清晰选中态和现代加载/错误/手势卡片。顶部网速/单位和电量/时间为完整两行；字幕、弹幕、音轨和画面模式四个按钮保持原位置。右上角更多菜单提供自动旋转开关和播放日志，开关直接写入同一设置 owner；开启后 Activity 使用 `FULL_SENSOR`，底部旋转按钮显示“自动”并禁用，关闭后恢复默认横屏与手动横竖屏切换。单一稳定手势 detector 不再随播放位置更新重启；单击切换控制层，双击按设置执行暂停/播放或左右半屏快退/快进，左右滑动 seek。左侧上下滑动仍控制亮度但提示显示在右侧，右侧上下滑动仍控制音量但提示显示在左侧。倍速菜单从上到下按 `0.25x` 步进显示 `3.0x..0.25x`，选项垂直间距压缩，并提供 `0.00x..3.00x`、最多两位小数的自定义输入；`0.00x` 暂停播放但保留原非零倍速。Anime4K 按钮从上到下显示“关 - 原始画质 / A - 强力重建 / B - 柔和重建 / C - 降噪处理 / A+ - 双重强化 / B+ - 双重柔和 / C+ - 降噪强化”，使用 `mpv-android-anime4k@32f5f169` 的 Balanced/M shader 链并立即应用；打包资产、私有缓存和 MPV `glsl-shaders` 属性都经过校验。MPV 章节节点和当前章节按设置显示；拖动进度条时由同一 `:player` runtime 的单线程提取器返回最大 `320px` 预览帧。系统打开的本地视频按同目录、同系列名和自然序建立真实队列，上一项/下一项据此启用；网络视频维持单项，除非调用方明确提供有序队列。自然 EOF 可自动进入下一项，最后一项按设置停留、关闭或从头播放当前视频。播放中空闲三秒自动隐藏，暂停、加载、弹窗、日志、进度拖动或全屏手势期间不隐藏；锁定后解锁按钮也会自动隐藏，单击视频区域可重新显示。没有真实 owner 的弹幕入口显示为禁用。日志弹窗固定标题、单行横滑分类、最新在前正文和底部清空/复制/导出区域；复制与导出生成当前分类的时间正序脱敏报告，文件写入 `Download/Kiyori/exports/player`。
 
 已有开发安装中的旧 `off / fast / balanced / quality` Anime4K 设置会在严格读取前一次性迁移为 `OFF / B / A / A_PLUS`，避免七档方案升级后因旧持久化 ID 无法识别而阻断应用启动；其他非法值仍保持严格报错。
 
@@ -194,6 +196,23 @@ Kiyori 新页面的视觉语言向 Operit 原版 UI 看齐，页面结构、浏�
 - Ubuntu 终端、文件管理、SSH 与开发工具
 - MNN、llama.cpp 本地推理以及可配置的第三方模型服务
 - 语音、图片、附件、悬浮窗和 Android 权限集成
+
+## 存储与 ToolPkg 数据
+
+Kiyori 自有公开保存由统一存储 owner 执行。浏览器普通下载进入
+`Download/Kiyori/browser/downloads`；userscript、Browser、Player、工具箱和 AI 配置导出分别进入
+`Download/Kiyori/exports/userscripts`、`exports/browser`、`exports/player`、`exports/toolbox`
+和 `exports/ai-config`。Markdown、分享和 AI 图片分别进入 `Pictures/Kiyori/Markdown`、
+`Pictures/Kiyori/Shared` 与 `Pictures/Kiyori/AI`。同名文件不会覆盖已有内容，界面显示实际保存
+路径和最终文件名。
+
+ToolPkg 新状态使用宿主绑定身份的 `ToolPkg.storage().privateData`，可重建内容使用
+`ToolPkg.storage().cache`；API 不接受调用方指定的 package ID，也不返回真实内部绝对路径。
+`ToolPkg.getConfigDir()` 只保留为公开兼容工作目录。ToolPkg 制品在构建、导入和市场安装前经过同一
+scanner，验证后写入内部内容寻址 store，并通过原子 active 记录切换版本；更新不删除 privateData。
+
+Kiyori 不会自动枚举或读取 `Download/Operit`。旧数据导入必须由用户通过 SAF 明确选择源目录，并由
+与当前 ToolPkg 匹配的专属迁移器执行；没有迁移器或校验失败时，当前数据和用户选择的源目录都保持不变。
 
 部分市场、模型提供方、GitHub 登录、搜索、语音、绘图和用户主动配置的远程能力会访问各自的第三方服务；它们不属于 Kiyori 的更新或公告通道。
 

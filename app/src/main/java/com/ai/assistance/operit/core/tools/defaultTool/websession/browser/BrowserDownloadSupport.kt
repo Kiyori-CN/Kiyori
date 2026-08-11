@@ -18,6 +18,7 @@ import com.arthenica.ffmpegkit.ReturnCode
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
+import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
@@ -3218,6 +3219,64 @@ internal fun StandardBrowserSessionTools.startInlineManagedDownload(
     showToast(context.getString(com.ai.assistance.operit.R.string.download_started, resolvedFileName))
 }
 
+/**
+ * Workspace WebView 不是第二下载系统。它只把用户动作投递给现有 Browser 下载 owner。
+ */
+internal fun enqueueWorkspaceWebViewDownload(
+    context: Context,
+    url: String,
+    fileName: String,
+    mimeType: String?,
+    contentLength: Long,
+    headers: Map<String, String>,
+): Boolean {
+    require(isBrowserDownloadNetworkUrl(url)) {
+        "Workspace WebView downloads require an http or https URL"
+    }
+    val tools = ToolGetter.getBrowserSessionTools(context)
+    val settings = BrowserDownloadSettingsStore.getInstance(context).current
+    return tools.dispatchBrowserDownloadRequest(
+        PendingBrowserDownloadRequest(
+            requestId = UUID.randomUUID().toString(),
+            sessionId = BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID,
+            url = url,
+            fileName = tools.sanitizeFileName(fileName),
+            mimeType = mimeType,
+            contentLength = contentLength,
+            headers = headers.filterKeys(String::isNotBlank),
+            engine = settings.defaultEngine,
+        ),
+    )
+}
+
+internal fun enqueueWorkspaceWebViewInlineDownload(
+    context: Context,
+    bytes: ByteArray,
+    fileName: String,
+    mimeType: String,
+) {
+    require(bytes.isNotEmpty()) { "Workspace WebView inline download is empty" }
+    val tools = ToolGetter.getBrowserSessionTools(context)
+    val resolvedFileName = tools.resolveInlineDownloadFileName(fileName, mimeType)
+    tools.browserDownloadManager().startInlineDownload(
+        sessionId = BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID,
+        type = "workspace_blob",
+        suggestedFileName = resolvedFileName,
+        mimeType = mimeType,
+        bytes = bytes,
+        sourceUrl = null,
+    )
+    tools.showToast(
+        context.getString(
+            com.ai.assistance.operit.R.string.download_started,
+            resolvedFileName,
+        ),
+    )
+}
+
+private const val BROWSER_WORKSPACE_WEBVIEW_DOWNLOAD_SESSION_ID =
+    "kiyori-workspace-webview-download"
+
 internal fun StandardBrowserSessionTools.buildBrowserDownloadSummary(): BrowserDownloadSummary {
     val tasks = browserDownloadManager().snapshotTasks()
     val active = tasks.filter { it.activeOrPending() }
@@ -3385,11 +3444,7 @@ private fun reserveUniquePublicDestinationFile(suggestedFileName: String): File 
 }
 
 internal fun browserDownloadApplicationDirectory(context: Context): File {
-    val externalDownloads =
-        requireNotNull(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)) {
-            "Application download directory is unavailable"
-        }
-    val directory = File(externalDownloads, "Kiyori/browser/downloads")
+    val directory = KiyoriPaths.browserApplicationDownloadsDir(context)
     require(directory.isDirectory || directory.mkdirs()) {
         "Unable to create application download directory: ${directory.absolutePath}"
     }

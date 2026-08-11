@@ -214,7 +214,10 @@ internal class PlayerSettingsStore private constructor(context: Context) {
     private fun readAnime4KMode(): Anime4KMode {
         val storedId =
             requireNotNull(
-                preferences.getString(KEY_ANIME4K_MODE, Anime4KMode.OFF.persistedId),
+                preferences.getString(
+                    KEY_ANIME4K_MODE,
+                    FRESH_INSTALL_PLAYER_SETTINGS.anime4KMode.persistedId,
+                ),
             ) {
                 "Anime4K preference is null"
             }
@@ -240,7 +243,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                     requireNotNull(
                         preferences.getString(
                             KEY_DECODER_PRESET,
-                            PlayerDecoderPreset.FAST.persistedId,
+                            FRESH_INSTALL_PLAYER_SETTINGS.decoderPreset.persistedId,
                         ),
                     ) { "Player decoder preset preference is null" },
                 ),
@@ -248,7 +251,11 @@ internal class PlayerSettingsStore private constructor(context: Context) {
             vulkanEnabled = preferences.getBoolean(KEY_VULKAN_ENABLED, false),
             defaultSpeed = speed,
             lastPlaybackSpeed = lastPlaybackSpeed,
-            rememberPlaybackSpeed = preferences.getBoolean(KEY_REMEMBER_PLAYBACK_SPEED, false),
+            rememberPlaybackSpeed =
+                preferences.getBoolean(
+                    KEY_REMEMBER_PLAYBACK_SPEED,
+                    FRESH_INSTALL_PLAYER_SETTINGS.rememberPlaybackSpeed,
+                ),
             backgroundBehavior =
                 PlayerBackgroundBehavior.fromPersistedId(
                     requireNotNull(
@@ -269,7 +276,11 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                 ),
             followGravityRotation = preferences.getBoolean(KEY_FOLLOW_GRAVITY_ROTATION, false),
             anime4KMode = readAnime4KMode(),
-            rememberAnime4KMode = preferences.getBoolean(KEY_REMEMBER_ANIME4K_MODE, false),
+            rememberAnime4KMode =
+                preferences.getBoolean(
+                    KEY_REMEMBER_ANIME4K_MODE,
+                    FRESH_INSTALL_PLAYER_SETTINGS.rememberAnime4KMode,
+                ),
             volumeBoostEnabled = preferences.getBoolean(KEY_VOLUME_BOOST_ENABLED, false),
             preciseSeeking = preferences.getBoolean(KEY_PRECISE_SEEKING, true),
             seekStepSeconds =
@@ -294,7 +305,10 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                     }
                 },
             longPressSpeedBoostEnabled =
-                preferences.getBoolean(KEY_LONG_PRESS_SPEED_BOOST_ENABLED, false),
+                preferences.getBoolean(
+                    KEY_LONG_PRESS_SPEED_BOOST_ENABLED,
+                    FRESH_INSTALL_PLAYER_SETTINGS.longPressSpeedBoostEnabled,
+                ),
             chapterBarEnabled = preferences.getBoolean(KEY_CHAPTER_BAR_ENABLED, true),
             seekbarThumbnailEnabled =
                 preferences.getBoolean(KEY_SEEKBAR_THUMBNAIL_ENABLED, true),
@@ -313,7 +327,7 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                     requireNotNull(
                         preferences.getString(
                             KEY_NETWORK_CACHE_POLICY,
-                            PlayerNetworkCachePolicy.BALANCED.persistedId,
+                            FRESH_INSTALL_PLAYER_SETTINGS.networkCachePolicy.persistedId,
                         ),
                     ) { "Player network cache preference is null" },
                 ),

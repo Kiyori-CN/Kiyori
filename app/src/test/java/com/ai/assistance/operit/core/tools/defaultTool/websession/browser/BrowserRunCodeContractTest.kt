@@ -31,6 +31,60 @@ class BrowserRunCodeContractTest {
     }
 
     @Test
+    fun `keyboard subset exposes press with effectful keys only`() {
+        assertEquals(setOf("press"), BrowserRunCodeContract.supportedKeyboardMembers)
+        assertEquals(
+            setOf("Enter", "Backspace", "Delete"),
+            BrowserRunCodeContract.supportedKeyboardNamedKeys,
+        )
+        assertTrue(BrowserRunCodeContract.supportsKeyboardPress("a"))
+        assertTrue(BrowserRunCodeContract.supportsKeyboardPress("Enter"))
+        assertTrue(!BrowserRunCodeContract.supportsKeyboardPress("Tab"))
+        assertTrue(!BrowserRunCodeContract.supportsKeyboardPress("End"))
+    }
+
+    @Test
+    fun `run code accepts function sources and rejects statement bodies`() {
+        assertTrue(
+            BrowserRunCodeContract.supportsFunctionSource(
+                "async (page) => { return await page.title(); }"
+            )
+        )
+        assertTrue(
+            BrowserRunCodeContract.supportsFunctionSource(
+                "function(page) { return page.url(); }"
+            )
+        )
+        assertTrue(!BrowserRunCodeContract.supportsFunctionSource("return await page.title();"))
+    }
+
+    @Test
+    fun `shared async wrapper injects the expression without dynamic compilation`() {
+        val script =
+            buildDirectAsyncJavascriptSource(
+                quotedCallId = "\"call-1\"",
+                expression = "(async function() { return 7; })();",
+            )
+
+        assertTrue(script.contains("const operitValue = ((async function() { return 7; })())"))
+        assertTrue(!script.contains("eval("))
+        assertTrue(!script.contains("AsyncFunction"))
+        assertTrue(!script.contains("new Function"))
+    }
+
+    @Test
+    fun `tab state change and page observation use separate response sections`() {
+        val response =
+            buildBrowserResponse(
+                stateChange = "Closed tab 1. Remaining tabs: 1.",
+                pageObservation = "Captured the active page.",
+            )
+
+        assertTrue(response.contains("### State change\nClosed tab 1. Remaining tabs: 1."))
+        assertTrue(response.contains("### Page observation\nCaptured the active page."))
+    }
+
+    @Test
     fun `unsupported Page APIs use a stable structured error prefix`() {
         assertEquals(
             "Unsupported Playwright API: page.screenshot",

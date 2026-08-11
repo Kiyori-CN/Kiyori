@@ -19,6 +19,7 @@ import com.ai.assistance.operit.core.tools.SandboxScriptExecutionResultData
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.ToolResultData
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
+import com.ai.assistance.operit.core.tools.packTool.ToolPkgArtifactBuilder
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
@@ -26,6 +27,8 @@ import com.ai.assistance.operit.data.preferences.EnvPreferences
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.ToolPkgWasmRuntime
+import com.kiyori.platform.storage.KiyoriStorageService
+import com.kiyori.platform.storage.ToolPkgStorageNamespace
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.MessageDigest
@@ -559,6 +562,137 @@ internal object JsNativeInterfaceDelegates {
         ) {
             val target = normalizeNonBlank(pluginId) ?: return@guard ""
             packageManager.getPluginConfigDirPath(target)
+        }
+    }
+
+    fun readToolPkgStorageText(
+        context: Context,
+        boundToolPkgContainerName: String?,
+        namespace: String,
+        relativePath: String,
+    ): String {
+        return toolPkgStorageCall(boundToolPkgContainerName) { containerPackageName ->
+            val storage =
+                KiyoriStorageService.getInstance(context)
+                    .toolPkgStorage(containerPackageName)
+            val result =
+                storage.readText(
+                    namespace = ToolPkgStorageNamespace.fromWireName(namespace),
+                    relativePath = relativePath,
+                )
+            JSONObject()
+                .put("success", true)
+                .put("exists", result.exists)
+                .put("text", result.text ?: JSONObject.NULL)
+                .toString()
+        }
+    }
+
+    fun writeToolPkgStorageText(
+        context: Context,
+        boundToolPkgContainerName: String?,
+        namespace: String,
+        relativePath: String,
+        text: String,
+    ): String {
+        return toolPkgStorageCall(boundToolPkgContainerName) { containerPackageName ->
+            KiyoriStorageService.getInstance(context)
+                .toolPkgStorage(containerPackageName)
+                .writeText(
+                    namespace = ToolPkgStorageNamespace.fromWireName(namespace),
+                    relativePath = relativePath,
+                    text = text,
+                )
+            JSONObject().put("success", true).toString()
+        }
+    }
+
+    fun toolPkgStorageFileExists(
+        context: Context,
+        boundToolPkgContainerName: String?,
+        namespace: String,
+        relativePath: String,
+    ): String {
+        return toolPkgStorageCall(boundToolPkgContainerName) { containerPackageName ->
+            val exists =
+                KiyoriStorageService.getInstance(context)
+                    .toolPkgStorage(containerPackageName)
+                    .exists(
+                        namespace = ToolPkgStorageNamespace.fromWireName(namespace),
+                        relativePath = relativePath,
+                    )
+            JSONObject()
+                .put("success", true)
+                .put("exists", exists)
+                .toString()
+        }
+    }
+
+    fun deleteToolPkgStorageFile(
+        context: Context,
+        boundToolPkgContainerName: String?,
+        namespace: String,
+        relativePath: String,
+    ): String {
+        return toolPkgStorageCall(boundToolPkgContainerName) { containerPackageName ->
+            val deleted =
+                KiyoriStorageService.getInstance(context)
+                    .toolPkgStorage(containerPackageName)
+                    .delete(
+                        namespace = ToolPkgStorageNamespace.fromWireName(namespace),
+                        relativePath = relativePath,
+                    )
+            JSONObject()
+                .put("success", true)
+                .put("deleted", deleted)
+                .toString()
+        }
+    }
+
+    private fun toolPkgStorageCall(
+        boundToolPkgContainerName: String?,
+        block: (String) -> String,
+    ): String {
+        return try {
+            val containerPackageName =
+                boundToolPkgContainerName
+                    ?.trim()
+                    ?.takeIf(String::isNotBlank)
+                    ?: throw IllegalStateException(
+                        "ToolPkg storage is unavailable outside a bound container runtime",
+                    )
+            block(containerPackageName)
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "ToolPkg storage operation failed: ${error.message}", error)
+            JSONObject()
+                .put("success", false)
+                .put("message", error.message ?: error.javaClass.simpleName)
+                .toString()
+        }
+    }
+
+    fun buildToolPkgArtifact(
+        context: Context,
+        sourceDirectory: String,
+    ): String {
+        return try {
+            val source = File(sourceDirectory.trim())
+            val result = ToolPkgArtifactBuilder(context).build(source)
+            JSONObject()
+                .put("success", true)
+                .put("archivePath", result.archiveFile.absolutePath)
+                .put("artifactSha256", result.report.artifactSha256)
+                .put("toolPkgId", result.report.toolPkgId ?: JSONObject.NULL)
+                .put("toolPkgVersion", result.report.toolPkgVersion ?: JSONObject.NULL)
+                .put("entryCount", result.report.entryCount)
+                .put("unpackedBytes", result.report.unpackedBytes)
+                .toString()
+        } catch (error: Exception) {
+            AppLogger.e(TAG, "ToolPkg artifact build failed: ${error.message}", error)
+            JSONObject()
+                .put("success", false)
+                .put("message", error.message ?: error.javaClass.simpleName)
+                .toString()
         }
     }
 

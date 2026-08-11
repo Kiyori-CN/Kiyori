@@ -9,7 +9,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal class ToolPkgManager(
     private val context: Context,
-    private val createExecutionEngine: () -> JsEngine = { JsEngine(context) }
+    private val createExecutionEngine: (String) -> JsEngine = { containerPackageName ->
+        JsEngine(context, containerPackageName)
+    },
 ) {
     internal val containersInternal = ConcurrentHashMap<String, ToolPkgContainerRuntime>()
     internal val subpackageByPackageNameInternal =
@@ -129,7 +131,7 @@ internal class ToolPkgManager(
                 executionEngines.computeIfAbsent(normalizedKey) {
                     ExecutionEngineEntry(
                         containerPackageName = normalizedContainer,
-                        engine = createExecutionEngine()
+                        engine = createExecutionEngine(normalizedContainer),
                     )
                 }
             check(entry.containerPackageName == normalizedContainer) {

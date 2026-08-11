@@ -115,7 +115,8 @@ cleanup_local_params() {
 
 # File operations
 echo "Creating directory structure..."
-TARGET_DIR="/sdcard/Android/data/com.kiyori/js_temp"
+# App-readable external staging must live under Android/data/<package>/files/.
+TARGET_DIR="/sdcard/Android/data/com.kiyori/files/js_temp"
 adb -s "$DEVICE_SERIAL" shell mkdir -p "$TARGET_DIR"
 TARGET_FILE="$TARGET_DIR/$(basename "$FILE_PATH")"
 RESULT_STEM="$(printf "%s_%s_%s" "$(basename "$FILE_PATH")" "$FUNCTION_NAME" "$(date +%s)" | tr -c 'A-Za-z0-9._-' '_')"

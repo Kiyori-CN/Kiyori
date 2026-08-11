@@ -520,12 +520,16 @@ exports.myFunction = myFunction;
 
 ## 技术路径
 
-1. 脚本把 JS 文件推到设备临时目录
+1. 脚本把 JS 文件推到应用可读的
+   `/sdcard/Android/data/com.kiyori/files/js_temp`
 2. `execute_js_dir.*` 会先把目录入口 bundle 成单文件
 3. JSON 参数会先落成临时文件，再推到设备，避免命令行引号问题
 4. 通过 ADB broadcast 发送执行请求
 5. 应用内的 `ScriptExecutionReceiver` 接收请求
 6. `JsEngine` 在应用运行时里执行函数或脚本
+
+`files/` 是 Android app-specific external storage 的必需层级。不要把调试文件写到
+`/sdcard/Android/data/com.kiyori/js_temp`；该路径不属于应用的标准外部文件目录。
 7. 执行结果写入设备侧 JSON 文件
 8. 执行器等待这个结果文件并输出
 

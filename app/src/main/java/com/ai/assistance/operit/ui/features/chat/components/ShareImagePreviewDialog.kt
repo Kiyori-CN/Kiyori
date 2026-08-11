@@ -207,29 +207,18 @@ suspend fun saveShareImageToGallery(context: android.content.Context, uri: Uri):
     withContext(Dispatchers.IO) {
         try {
             val fileName = "kiyori_share_${System.currentTimeMillis()}.png"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Kiyori")
+            com.kiyori.platform.storage.KiyoriStorageService.getInstance(context)
+                .publicStore
+                .write(
+                    location = com.kiyori.platform.storage.KiyoriPublicLocation.PICTURE_SHARED,
+                    requestedFileName = fileName,
+                    mimeType = "image/png",
+                ) { output ->
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    input.copyTo(output)
+                } ?: throw IllegalStateException("Unable to open share image input")
                 }
-                val targetUri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-                    ?: return@withContext false
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    context.contentResolver.openOutputStream(targetUri)?.use { output ->
-                        input.copyTo(output)
-                    } ?: return@withContext false
-                } ?: return@withContext false
-                true
-            } else {
-                val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                val outputDir = File(picturesDir, "Kiyori").apply { mkdirs() }
-                val outputFile = File(outputDir, fileName)
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    outputFile.outputStream().use { output -> input.copyTo(output) }
-                } ?: return@withContext false
-                true
-            }
+            true
         } catch (e: Exception) {
             AppLogger.e("ChatScreenContent", "Failed to save share image", e)
             false

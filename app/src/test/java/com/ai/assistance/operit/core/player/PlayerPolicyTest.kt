@@ -9,17 +9,18 @@ import org.junit.Test
 
 class PlayerPolicyTest {
     @Test
-    fun unpublishedPlayerBaselineUsesRecommendedFastPreset() {
+    fun initialPlayerDefaultsUseRequestedPlaybackProfile() {
+        val settings = FRESH_INSTALL_PLAYER_SETTINGS
         assertEquals(
-            PlayerDecoderPreset.FAST,
-            PlayerSettings().decoderPreset,
+            PlayerDecoderPreset.HIGH_QUALITY,
+            settings.decoderPreset,
         )
-        assertEquals(
-            PlayerDecoderPreset.FAST,
-            PlayerSessionState().decoderPreset,
-        )
+        assertTrue(settings.rememberPlaybackSpeed)
+        assertTrue(settings.longPressSpeedBoostEnabled)
+        assertTrue(settings.rememberAnime4KMode)
+        assertEquals(Anime4KMode.A_PLUS, settings.anime4KMode)
+        assertEquals(PlayerNetworkCachePolicy.LARGE, settings.networkCachePolicy)
         assertFalse(PlayerSettings().followGravityRotation)
-        assertFalse(PlayerSettings().longPressSpeedBoostEnabled)
         assertEquals(PlayerDoubleTapAction.PLAY_PAUSE, PlayerSettings().doubleTapAction)
         assertTrue(PlayerSettings().screenshotDirectoryUri.isBlank())
         assertTrue(PlayerSettings().videoDownloadDirectoryUri.isBlank())

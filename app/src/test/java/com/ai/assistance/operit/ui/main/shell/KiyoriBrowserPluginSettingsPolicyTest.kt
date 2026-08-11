@@ -9,6 +9,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptRunAt
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptSupportState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptUnsafeWindowMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.storage.DEFAULT_USER_SCRIPTS_ALLOWED
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,6 +17,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriBrowserPluginSettingsPolicyTest {
+    @Test
+    fun `fresh install enables the sole userscript runtime permission`() {
+        assertTrue(DEFAULT_USER_SCRIPTS_ALLOWED)
+    }
+
     @Test
     fun `plugin settings summarize the real userscript owner`() {
         val script =
