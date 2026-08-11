@@ -26,7 +26,7 @@ fun interface ShellRunner {
 }
 ```
 
-在 App 模块中实现它，并在应用启动时注入：
+在 App 模块中实现它，并在应用启动时同时注入 shell 执行器与宿主统一管理的暂存目录：
 
 ```kotlin
 class OperitShowerShellRunner : ShellRunner {
@@ -41,6 +41,7 @@ class YourApplication : Application() {
         super.onCreate()
 
         ShowerEnvironment.shellRunner = OperitShowerShellRunner()
+        ShowerEnvironment.stagingDirectoryProvider = AppPaths::publicStagingDirectory
     }
 }
 ```
@@ -54,7 +55,9 @@ class YourApplication : Application() {
 本库已经在自身模块内置了 `shower-server.jar`：
 
 - 宿主 App **不需要** 再手动打包或拷贝任何 JAR 文件；
-- 运行时库会自动从自身 `assets` 中读取，并复制到 `/sdcard/Download/Kiyori/shower-server.jar`，再拷贝到 `/data/local/tmp/shower-server.jar`。
+- 运行时库会自动从自身 `assets` 中读取，并复制到宿主通过
+  `ShowerEnvironment.stagingDirectoryProvider` 指定的目录，再拷贝到
+  `/data/local/tmp/shower-server.jar`
 
 ---
 
@@ -180,6 +183,6 @@ ShowerController.setBinaryHandler { frame: ByteArray ->
 
 ## 7. 最小心智模型
 
-- 你提供：`ShellRunner`、广播接收器；
+- 你提供：`ShellRunner`、`stagingDirectoryProvider`、广播接收器；
 - 本库提供：`ShowerServerManager` + `ShowerController` + 可选的 `ShowerVideoRenderer` / `ui.ShowerSurfaceView`；
 - 常见调用顺序：**注入 ShellRunner → 启动 server → 收 Binder → ensureDisplay → 发送输入 / 渲染视频**。

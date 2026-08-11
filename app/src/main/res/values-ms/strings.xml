@@ -1313,8 +1313,6 @@
     <string name="downloaded_file">Telah Dimuat Turun: %1$s</string>
     <string name="download_failed">Muat Turun Gagal: %1$s</string>
     <string name="download_started">Mula Muat Turun: %1$s</string>
-    <string name="download_success">Muat Turun Berjaya: %1$s</string>
-    <string name="download_start">Mula Muat Turun: %1$s</string>
     <string name="deploy_date">Masa Penempatan: %1$s</string>
     <string name="termux_start_command_sent">Perintah Mulakan Termux Dihantar</string>
     <string name="termux_start_failed">Gagal Memulakan Termux</string>
@@ -1597,23 +1595,6 @@
     <string name="language_info">Selepas menukar bahasa, aplikasi akan mulakan semula secara automatik untuk menggunakan tetapan bahasa baharu</string>
     <string name="language_changing">Sedang menukar bahasa...</string>
     <string name="language_changed">Bahasa telah ditukar, sedang memulakan semula aplikasi</string>
-    <string name="agreement_title">Perjanjian Pengguna dan Dasar Privasi</string>
-    <string name="agreement_subtitle">Sila baca dan setujui terma-terma berikut sebelum menggunakan.</string>
-    <string name="agreement_version">Versi perjanjian: %1$s</string>
-    <string name="agreement_human_readable_title">Versi Perjanjian Mudah Faham (Bukan versi undang-undang)</string>
-    <string name="agreement_human_readable_content">Sempadan perkhidmatan: Kiyori tidak menyediakan perkhidmatan interaksi emosi antropomorfik kepada orang awam. Kiyori ialah klien sumber terbuka yang berjalan secara setempat pada peranti pengguna. Kiyori tidak mengendalikan perkhidmatan inferens model, tidak mengehos sesi sembang atau data interaksi, dan tidak mengedarkan kelayakan model berkongsi. Permintaan model awan dihantar terus daripada peranti anda kepada penyedia model yang anda konfigurasikan dengan kelayakan anda sendiri; data berkaitan tertakluk kepada peraturan penyedia tersebut. Model tempatan menjalankan inferens pada peranti anda.\n\nAplikasi ini boleh memanggil fail, terminal, automasi, Root, ADB, sambungan dan keupayaan serupa. Semak operasi sebelum menjalankannya, sandarkan data penting, dan berikan kebenaran dengan berhati-hati. Kerugian pada peranti, data, akaun atau kepentingan lain yang disebabkan oleh tindakan pengguna, konfigurasi pengguna, perkhidmatan pihak ketiga atau sambungan pihak ketiga hendaklah dikendalikan oleh operator sebenar menurut undang-undang yang terpakai.\n\nPlugin, skrip, Skill, kit alat dan kandungan pihak ketiga lain dalam marketplace adalah milik pengarang atau pemegang hak yang dilabelkan, bersama tanggungjawab berkaitan. Paparan atau pemasangan melalui marketplace tidak bermaksud Kiyori menjamin, menyokong atau memperoleh hak terhadap kandungan tersebut. Sahkan lesen dan status hak sebelum menggunakan, mengubah suai, menerbitkan atau mengedarkannya semula.</string>
-    <string name="agreement_serious_title">Perjanjian Undang-Undang Versi Ketat</string>
-    <string name="agreement_serious_content"><![CDATA[
-        <p><b>Perjanjian Pengguna dan Dasar Privasi Kiyori</b><br>Versi: 2026-07-15; tarikh kuat kuasa yang dirancang: 15 Julai 2026.</p>
-        <p><b>1. Skop dan Versi Perjanjian</b><br>Perjanjian ini terpakai kepada klien Android Kiyori yang dikeluarkan secara rasmi dan fungsi dalam talian pilihannya. Dengan menggunakan aplikasi ini, anda mengesahkan bahawa anda telah membaca dan menerima versi semasa. Aplikasi merekodkan versi perjanjian yang anda sahkan semasa permulaan; apabila perjanjian dikemas kini secara material, aplikasi akan meminta anda mengesahkan versi baharu sebelum meneruskan. Kod sumber terbuka dalam repositori dilesenkan di bawah GNU Lesser General Public License version 3 (LGPLv3) dalam fail <code>LICENSE</code> di root. Perjanjian ini tidak mengecualikan atau mengurangkan hak yang diberikan oleh undang-undang terpakai atau lesen sumber terbuka.</p>
-        <p><b>2. Kedudukan Produk dan Perkhidmatan Pihak Ketiga</b><br>Kiyori ialah perisian klien sumber terbuka. Kiyori tidak menyediakan inferens model bahasa besar, API Key berkongsi, perantaraan permintaan sembang, atau pengehosan awan rekod sembang. Model awan, suara awan, carian, penjanaan imej, MCP, dan fungsi rangkaian lain dipilih, dikonfigurasikan, dan diaktifkan oleh anda. Apabila anda menggunakan perkhidmatan tersebut, data dihantar terus kepada penyedia perkhidmatan yang berkaitan dan tertakluk kepada terma perkhidmatan serta dasar privasi penyedia tersebut. Anda hendaklah menilai keselamatan, kesahan dan kesesuaian penyedia, model, endpoint dan sambungan, serta menjaga kelayakan dengan baik.</p>
-        <p><b>3. Pemprosesan Data dan Privasi</b><br>Rekod sembang, kad watak, memori, konfigurasi model dan API Key biasanya disimpan dalam data aplikasi pada peranti anda. Apabila anda secara aktif mengeksport, menyandarkan, memuat naik fail, menggunakan fungsi rangkaian pihak ketiga atau menghantar permintaan kepada perkhidmatan HTTP luaran, data berkaitan akan disalin, dihantar atau didedahkan menurut tindakan anda. Kiyori tidak menerima kemas kini aplikasi jauh atau pengumuman. Log masuk GitHub, penerbitan, marketplace dan fungsi rangkaian pihak ketiga yang anda dayakan boleh mengakses GitHub atau penyedia yang berkaitan. Urus data dan kelayakan anda bersama tetapan keselamatan peranti, terma perkhidmatan pihak ketiga dan perjanjian ini.</p>
-        <p><b>4. Deployment Luaran dan Tanggungjawab Operator</b><br>Perkhidmatan HTTP luaran, QQ Bot, balasan automatik dan keupayaan serupa diaktifkan atas pilihan anda. Jika anda menyediakannya kepada orang lain atau orang awam, anda bertindak sebagai pihak deployment atau operator sebenar dan bertanggungjawab terhadap kawalan akses, kebenaran pengguna, keselamatan kandungan, perlindungan data, perlindungan kanak-kanak, notis yang diperlukan dan kewajipan lain yang terpakai. Jika anda secara berterusan menyediakan kepada orang awam di Tanah Besar China perkhidmatan interaksi emosi yang mensimulasikan ciri personaliti, corak pemikiran atau gaya komunikasi manusia semula jadi, anda hendaklah menilai dan mematuhi Interim Measures for the Administration of Artificial Intelligence Anthropomorphic Interaction Services (《人工智能拟人化互动服务管理暂行办法》) serta peraturan lain yang terpakai. Anda tidak boleh menggunakan aplikasi ini untuk menyediakan saudara maya, teman maya atau perkhidmatan hubungan intim maya lain kepada kanak-kanak, mendorong kebergantungan emosi atau ketagihan, melakukan manipulasi emosi, atau melanggar hak dan kepentingan sah pihak lain.</p>
-        <p><b>5. Penggunaan Sah dan Tanggungjawab Kandungan</b><br>Anda mesti mematuhi undang-undang dan peraturan yang terpakai, peraturan perkhidmatan pihak ketiga dan peraturan platform. Anda tidak boleh menggunakan aplikasi, sambungan atau konfigurasi ini untuk menjalankan aktiviti melanggar undang-undang, melanggar hak pihak lain, mengakses sistem atau data tanpa kebenaran, atau menyebarkan kandungan haram atau berbahaya. Anda bertanggungjawab terhadap kandungan dan tindakan yang anda masukkan, konfigurasikan, jana, terbitkan, majukan atau operasikan. Output AI mungkin mengandungi ralat, peninggalan atau bias dan bukan nasihat perubatan, krisis kesihatan mental, undang-undang, kewangan atau profesional lain. Dalam keadaan bahaya mendesak, segera hubungi perkhidmatan kecemasan setempat, institusi perubatan atau orang yang dipercayai.</p>
-        <p><b>6. Perisian Disediakan Seadanya</b><br>Setakat yang dibenarkan oleh undang-undang terpakai, perisian ini disediakan dalam keadaan "seadanya" dan "seperti tersedia". Penyumbang tidak memberi jaminan tersurat atau tersirat mengenai ketersediaan berterusan, ketepatan, keselamatan, kebolehdagangan, kesesuaian untuk tujuan tertentu atau tidak melanggar hak bagi perisian atau perkhidmatan pihak ketiga. Kerugian yang disebabkan oleh penggunaan perisian ini, perkhidmatan pihak ketiga, sambungan, konfigurasi pengguna atau pengubahsuaian sendiri hendaklah dikendalikan menurut undang-undang terpakai dan perjanjian perkhidmatan berkaitan.</p>
-        <p><b>7. Kemas Kini Perjanjian dan Hubungan</b><br>Kami mungkin mengemas kini perjanjian ini kerana keperluan fungsi, undang-undang atau keselamatan, dan menyediakan versi semasa dalam aplikasi. Kemas kini yang memberi kesan material kepada hak pengguna akan berkuat kuasa dengan menaikkan versi perjanjian dan meminta pengesahan semula. Anda boleh mengemukakan soalan dan maklum balas melalui repositori projek, pintu masuk maklum balas dalam aplikasi atau saluran hubungan awam.</p>
-    ]]></string>
-    <string name="agreement_disclaimer">Versi mudah faham hanya untuk memudahkan pemahaman. Jika berbeza daripada versi formal bahasa Cina, versi formal bahasa Cina akan digunakan.</string>
     <string name="agreement_accept">Saya telah membaca dan bersetuju</string>
     <string name="agreement_wait">Sila tunggu sebentar... (%1$d)</string>
     <string name="sherpa_k2_ncnn_init_failed">Enjin pengecaman suara masa nyata gagal dimulakan</string>
@@ -3667,9 +3648,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="author_colon">Pengarang:</string>
     <string name="share_colon">Kongsi:</string>
     <string name="downloading_progress">Memuat turun %1$s</string>
-    <string name="download_file_description">Memuat turun fail...</string>
-    <string name="download_complete">Muat turun selesai: %1$s</string>
-    <string name="download_incomplete">Muat turun tidak lengkap: %1$s</string>
 
     <string name="supported_app_versions_colon">Versi minimum: %1$s, versi maksimum: %2$s</string>
     <string name="min_supported_app_version">Versi perisian minimum yang disokong</string>
@@ -4698,12 +4676,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="logcat_save_failed">Gagal menyimpan: %1$s</string>
     <string name="logcat_unknown_error">Ralat tidak diketahui</string>
     <string name="logcat_saved_to">Log telah disimpan ke: %1$s</string>
-    <string name="logcat_cannot_create_file">Gagal menyimpan: Tidak dapat mencipta fail, mungkin masalah kebenaran storan</string>
-    <string name="logcat_cannot_open_output_stream">Tidak dapat membuka aliran output</string>
-    <string name="logcat_mediestore_save_failed">MediaStore gagal menyimpan: %1$s</string>
-    <string name="logcat_cannot_create_operit_dir">Tidak dapat mencipta direktori Kiyori</string>
-    <string name="logcat_file_create_failed">Penciptaan fail gagal atau kosong</string>
-    <string name="logcat_filesystem_save_failed">Sistem fail gagal menyimpan: %1$s</string>
     <string name="backup_export_failed_create_file">Eksport gagal: Tidak dapat mencipta fail</string>
     <string name="backup_export_failed_with_reason">Eksport gagal: %1$s</string>
     <string name="backup_import_failed_unreadable_file">Import gagal: Tidak dapat membaca fail</string>
@@ -5755,6 +5727,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="openai_error_response_failed">Gagal mendapatkan respons AI: %1$s</string>
     <string name="openai_error_connection_timeout">Sambungan tamat masa atau terputus, telah mencuba semula %1$d kali: %2$s</string>
     <string name="openai_error_response_empty">Respons API kosong</string>
+    <string name="openai_error_stream_output_empty">Permintaan model tamat sebelum sebarang output yang boleh dilihat diterima.\nKod diagnostik: %1$s\nEksport log diagnostik.</string>
     <string name="openai_error_parse_response_failed">Gagal menghuraikan respons: %1$s</string>
     <string name="openai_connection_success">Sambungan berjaya!</string>
     <string name="openai_connection_test_failed">Ujian sambungan gagal: %1$s</string>
@@ -6361,6 +6334,8 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="message_workspace_sync_failed">Penyegerakan status ruang kerja gagal: %1$s</string>
     <string name="message_summarizing">Meringkaskan ingatan...</string>
     <string name="message_send_failed">Gagal menghantar mesej: %1$s</string>
+    <string name="message_send_interrupted_unexpected">Penghantaran mesej terhenti secara tidak dijangka. Semak log diagnostik sebelum mencuba lagi.</string>
+    <string name="message_send_terminal_missing">Pusingan mesej tamat tanpa keadaan terminal.\nKod diagnostik: %1$s\nEksport log diagnostik.</string>
     <string name="deepgram_stt_url_not_set">URL Deepgram STT belum ditetapkan, sila isi alamat antara muka lengkap (contohnya https://api.deepgram.com/v1/listen).</string>
     <string name="deepgram_stt_url_invalid_scheme">URL Deepgram STT mesti bermula dengan http:// atau https://.</string>
     <string name="deepgram_stt_api_key_not_set">Kunci API Deepgram STT belum ditetapkan, sila isi dalam tetapan.</string>
@@ -7382,95 +7357,25 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <!-- Kiyori onboarding -->
     <string name="kiyori_onboarding_back">Kembali ke langkah sebelumnya</string>
     <string name="kiyori_onboarding_progress">Langkah %1$d daripada %2$d</string>
-    <string name="kiyori_onboarding_continue">Teruskan</string>
-    <string name="kiyori_onboarding_skip_intro">Langkau pengenalan</string>
-    <string name="kiyori_onboarding_start_authorization">Mulakan kebenaran berpusat</string>
-    <string name="kiyori_onboarding_enter">Masuk ke Kiyori</string>
 
     <string name="kiyori_onboarding_agreement_title">Perjanjian Pengguna dan Dasar Privasi</string>
     <string name="kiyori_onboarding_agreement_subtitle">Sebelum bermula, fahami cara Kiyori menyimpan data, masa rangkaian diakses dan kesan keupayaan lanjutan.</string>
     <string name="kiyori_onboarding_agreement_version">Versi perjanjian: %1$s</string>
-    <string name="kiyori_onboarding_agreement_local_title">Data pada peranti kekal di bawah kawalan anda</string>
-    <string name="kiyori_onboarding_agreement_local_desc">Sembang, watak, memori, konfigurasi, kelayakan dan ruang kerja biasanya disimpan pada peranti anda. Anda memilih lokasi eksport dan sandaran.</string>
-    <string name="kiyori_onboarding_agreement_network_title">Akses rangkaian mengikut tindakan anda</string>
-    <string name="kiyori_onboarding_agreement_network_desc">Model, suara, carian, pasaran, GitHub, MCP, pemalam dan perkhidmatan tersuai bersambung kepada penyedia yang anda pilih.</string>
-    <string name="kiyori_onboarding_agreement_permission_title">Keupayaan berkuasa memerlukan kebenaran jelas</string>
-    <string name="kiyori_onboarding_agreement_permission_desc">Fail, pemberitahuan, kandungan skrin, lokasi, terminal, pemasangan, kebolehcapaian, Shizuku dan Root boleh memproses data sensitif atau mengubah keadaan peranti.</string>
-    <string name="kiyori_onboarding_agreement_open_document">Baca perjanjian dan dasar penuh</string>
     <string name="kiyori_onboarding_agreement_checkbox">Saya telah membaca dan bersetuju dengan Perjanjian Pengguna dan Dasar Privasi semasa</string>
     <string name="kiyori_onboarding_agreement_accept">Setuju dan teruskan</string>
     <string name="kiyori_onboarding_agreement_decline">Tidak setuju dan keluar</string>
-    <string name="kiyori_onboarding_agreement_document_title">Perjanjian Pengguna dan Dasar Privasi Kiyori</string>
-    <string name="kiyori_onboarding_agreement_document_content"><![CDATA[
-        <p><b>Perjanjian Pengguna dan Dasar Privasi Kiyori</b><br>Versi: 2026-08-09; tarikh kuat kuasa yang dirancang: 9 Ogos 2026.</p>
-        <p><b>1. Skop</b><br>Perjanjian ini terpakai kepada klien Kiyori Android dan ciri yang anda pilih untuk diaktifkan. Kiyori ialah klien sumber terbuka yang berjalan pada peranti anda, berpusat pada pelayaran, pemprosesan kandungan dan ruang kerja setempat. Operit AI ialah subsistem AI terbina dalam. Baca dan fahami perjanjian ini sebelum memasang, melancarkan atau menggunakan Kiyori. Persediaan awal hanya selesai selepas anda menerima versi semasa secara jelas.</p>
-        <p><b>2. Batas produk dan perkhidmatan</b><br>Kiyori tidak menyediakan kelayakan model bersama dan tidak menjadikan model, suara, carian, GitHub, MCP, pemalam atau perkhidmatan HTTP tersuai pihak ketiga sebagai satu perkhidmatan awan yang dikendalikan oleh Kiyori. Apabila memilih perkhidmatan ini, anda bertanggungjawab menyemak penyedia, titik akhir, model, harga, kuota, terma dan peraturan privasi. Ketersediaan, kandungan, pengebilan, pengendalian akaun dan penyimpanan data dikawal oleh penyedia berkenaan.</p>
-        <p><b>3. Data pada peranti</b><br>Sembang, kad watak, memori, konfigurasi model, API Key, pemboleh ubah persekitaran, keadaan pelayar, aliran kerja dan tetapan lain biasanya disimpan dalam data peribadi aplikasi atau direktori tempatan yang anda pilih. Android biasanya menghapuskan data peribadi apabila Kiyori dinyahpasang. Sandaran, muat turun, log, media, ruang kerja dan fail awam lain yang dieksport tidak dihapuskan secara automatik. Sandarkan data penting dan lindungi peranti, akaun serta kelayakan anda.</p>
-        <p><b>4. Rangkaian dan pemprosesan pihak ketiga</b><br>Apabila anda menghantar permintaan model, menggunakan suara rangkaian, mencari di web, melayari laman web, log masuk GitHub, memasuki pasaran pemalam, memasang atau menjalankan sambungan rangkaian, menyambung MCP, memanggil titik akhir tersuai, memuat naik fail atau berkongsi kandungan, teks, fail, suara, URL, maklumat peranti atau parameter yang diperlukan dihantar kepada perkhidmatan atau laman web yang berkenaan. Semak maklumat peribadi, rahsia perniagaan, kelayakan dan data sensitif lain sebelum menghantar. Permintaan kamera, mikrofon, lokasi dan keupayaan serupa daripada laman web masih tertakluk kepada kebenaran jelas Kiyori dan Android.</p>
-        <p><b>5. Kebenaran dan keupayaan peranti</b><br>Kiyori mungkin meminta kebenaran masa jalan Android untuk pemberitahuan, media, kamera, mikrofon, lokasi, Bluetooth, panggilan telefon, SMS dan storan lama. Ia juga boleh membimbing anda memberikan akses semua fail, tindanan, perubahan tetapan sistem, akses penggunaan, pemasangan aplikasi tidak diketahui, pengecualian pengoptimuman bateri, akses pemberitahuan, pembantu lalai, kebolehcapaian, Shizuku atau Root. Setiap keupayaan diterangkan dalam aplikasi dan disahkan oleh Android, Shizuku, pengurus Root atau pemilik fakta yang sepadan. Penolakan tidak pernah direkodkan sebagai berjaya; ciri berkaitan kekal tidak tersedia atau memerlukan tindakan kemudian yang anda mulakan.</p>
-        <p><b>6. Operasi berimpak tinggi</b><br>Terminal, skrip, aliran kerja, pemalam, alat AI, pengurusan fail, pemasangan aplikasi, akses pemberitahuan, automasi skrin, kebolehcapaian, Shizuku, ADB dan Root boleh membaca, mengubah atau memadam data; memulakan perkhidmatan; memasang perisian; mengakses rangkaian; mengubah keadaan sistem; atau menjejaskan aplikasi dan akaun lain. Sahkan sasaran, parameter, sumber dan hasil yang dijangka serta simpan sandaran yang boleh dipulihkan. Jangan dedahkan keupayaan tinggi kepada gesaan, laman web, fail, pemalam, skrip atau perkhidmatan jauh yang tidak dipercayai.</p>
-        <p><b>7. Output AI dan automasi</b><br>Output AI dan pelan automasi mungkin mengandungi kesilapan, ketinggalan, kelewatan, halusinasi atau tindakan yang tidak sesuai untuk peranti anda. Anda kekal sebagai pembuat keputusan bagi operasi dan konfigurasi sebenar. Output AI bukan nasihat perubatan, krisis, undang-undang, kewangan atau profesional lain. Hubungi profesional yang sesuai atau perkhidmatan kecemasan tempatan untuk urusan mendesak atau berisiko tinggi.</p>
-        <p><b>8. Ekosistem sambungan</b><br>Pemalam pihak ketiga, pakej skrip, Skill, pakej ToolPkg, pelayan MCP, model, aliran kerja dan sambungan lain ialah tanggungjawab penulis atau penyedia masing-masing. Paparan pasaran, entri pemasangan atau tanda keserasian bukan jaminan Kiyori terhadap keselamatan, kesahihan, ketepatan, ketersediaan atau lesen. Semak sumber, kod, kebenaran, pemboleh ubah persekitaran, tingkah laku rangkaian dan lesen sebelum memasang. Jangan menerbitkan API Key, Cookie, Token, kunci peribadi, kata laluan atau data orang lain.</p>
-        <p><b>9. Pengurusan dan pemadaman data</b><br>Anda boleh mengurus sembang, model, data laman web, muat turun, sandaran, log, pemalam dan konfigurasi melalui halaman aplikasi yang berkaitan, serta membatalkan kebenaran atau mengosongkan data aplikasi dalam tetapan Android. Pemadaman, penimpaan, penyahpasangan, Root, pembersihan sistem atau alat fail pihak ketiga boleh menyebabkan kehilangan data yang tidak boleh dipulihkan. Direktori awam, lokasi SAF dan perkhidmatan pihak ketiga perlu diurus secara berasingan.</p>
-        <p><b>10. Penggunaan yang sah</b><br>Anda mesti mematuhi undang-undang yang terpakai, peraturan laman web, terma pihak ketiga, lesen perisian dan hak orang lain. Jangan gunakan Kiyori untuk akses tanpa kebenaran, memintas kawalan keselamatan, kandungan yang menyalahi undang-undang, penipuan, gangguan atau aktiviti menyalahi undang-undang dan melanggar hak. Jika anda mendedahkan bot, perkhidmatan HTTP, balasan automatik atau aliran kerja kepada orang lain, anda ialah pengendali sebenar yang bertanggungjawab atas kawalan akses, notis, keselamatan kandungan, perlindungan data dan kewajipan lain yang terpakai.</p>
-        <p><b>11. Lesen sumber terbuka dan penafian</b><br>Sumber Kiyori disediakan di bawah batas GPL-3.0-or-later yang diterangkan oleh LICENSE dan NOTICE repositori. Komponen pihak ketiga mengekalkan lesen masing-masing. Lesen sumber terbuka dan perjanjian ini terpakai bersama dan tidak mengehadkan hak yang diberikan oleh undang-undang atau lesen tersebut. Setakat yang dibenarkan undang-undang, perisian disediakan “seadanya” dan “seperti tersedia”, tanpa jaminan bahawa perkhidmatan pihak ketiga, sambungan, rangkaian, keserasian peranti atau output AI akan kekal tersedia, tepat, selamat atau sesuai untuk tujuan tertentu.</p>
-        <p><b>12. Kemas kini dan hubungan</b><br>Apabila ciri, pemprosesan data, kewajipan undang-undang atau sempadan keselamatan berubah secara material, Kiyori akan menaikkan versi perjanjian dan meminta pengesahan semula. Anda boleh mengemukakan soalan melalui maklum balas dalam aplikasi atau repositori projek. Jika tidak menerima versi semasa, hentikan penggunaan dan keluar daripada aplikasi. Eksport perkara yang diperlukan sebelum menyahpasang atau mengosongkan data.</p>
-    ]]></string>
-
-    <string name="kiyori_onboarding_voice_title">Automasi UI dipacu suara</string>
-    <string name="kiyori_onboarding_voice_desc">Gunakan bahasa semula jadi untuk mencari, memproses kandungan dan menyusun operasi kompleks. Kiyori boleh menggunakan suara pada peranti atau perkhidmatan yang anda konfigurasikan, sementara mikrofon dan automasi kekal di bawah kebenaran anda.</string>
-    <string name="kiyori_onboarding_voice_feature_speech">Pemahaman dan input suara</string>
-    <string name="kiyori_onboarding_voice_feature_screen">Pemahaman dan tindakan skrin</string>
-    <string name="kiyori_onboarding_voice_feature_apps">Tugas merentas aplikasi</string>
-
-    <string name="kiyori_onboarding_toolbox_title">Kotak alat berkuasa untuk pengguna mahir dan pembangun</string>
-    <string name="kiyori_onboarding_toolbox_desc">Daripada sumber pelayar dan Terminal hingga fail, skrip, aliran kerja, ToolPkg, MCP dan Skill, Kiyori menghimpunkan pembangunan dan automasi dalam satu ruang kerja boleh diperluas.</string>
-    <string name="kiyori_onboarding_toolbox_feature_browser">Pelayar dan sumber</string>
-    <string name="kiyori_onboarding_toolbox_feature_terminal">Terminal dan skrip</string>
-    <string name="kiyori_onboarding_toolbox_feature_extensions">ToolPkg, MCP dan Skill</string>
-
-    <string name="kiyori_onboarding_creative_title">Lepaskan kreativiti, sentiasa bersedia</string>
-    <string name="kiyori_onboarding_creative_desc">Mulakan dengan carian dan kekalkan konteks merentas web, AI, media, muat turun dan fail. Kiyori ialah pelayar lengkap dan, apabila perlu, persekitaran kreatif serta automasi dengan keupayaan peranti yang mendalam.</string>
-    <string name="kiyori_onboarding_creative_feature_context">Konteks ruang kerja berterusan</string>
-    <string name="kiyori_onboarding_creative_feature_media">Media, muat turun dan fail</string>
-    <string name="kiyori_onboarding_creative_feature_control">Kawalan kebenaran telus</string>
 
     <string name="kiyori_onboarding_permissions_title">Kebenaran dan keupayaan peranti</string>
     <string name="kiyori_onboarding_permissions_desc">Lengkapkan kebenaran yang disokong Kiyori di sini. Kebenaran masa jalan Android boleh diminta bersama; akses khas dan keupayaan lanjutan memerlukan pengesahan dalam sistem atau pengurus yang berkaitan.</string>
-    <string name="kiyori_onboarding_permissions_request_runtime">Minta kebenaran masa jalan</string>
-    <string name="kiyori_onboarding_permissions_next_item">Teruskan dengan: %1$s</string>
-    <string name="kiyori_onboarding_permissions_all_done">Semak penyelesaian</string>
-    <string name="kiyori_onboarding_permissions_keep_and_continue">Kekalkan item yang belum diberi kebenaran dan teruskan</string>
-    <string name="kiyori_onboarding_permissions_overview_complete">Semua keupayaan yang boleh disediakan sekarang telah sedia</string>
-    <string name="kiyori_onboarding_permissions_overview_pending">%1$d item masih boleh diselesaikan</string>
     <string name="kiyori_onboarding_permissions_overview_count">Sedia %1$d / %2$d</string>
     <string name="kiyori_onboarding_permission_action_failed">Entri kebenaran untuk “%1$s” tidak dapat dibuka. Semak sokongan peranti.</string>
-    <string name="kiyori_onboarding_permission_screen_capture_on_demand">Android mengesahkan tangkapan skrin hanya apabila tangkapan atau rakaman sebenar diminta. Ia tidak boleh diberi kebenaran kekal semasa persediaan.</string>
 
-    <string name="kiyori_onboarding_automation_level_title">Kaedah automasi peranti lalai</string>
-    <string name="kiyori_onboarding_automation_level_desc">Menentukan saluran pelaksanaan peranti yang digunakan AI dan alat secara lalai. Status kebenaran dan saluran lalai adalah berasingan dan boleh diubah kemudian.</string>
-    <string name="kiyori_onboarding_automation_level_standard">Standard</string>
-    <string name="kiyori_onboarding_automation_level_accessibility">Kebolehcapaian</string>
-    <string name="kiyori_onboarding_automation_level_shizuku">Shizuku / ADB</string>
-    <string name="kiyori_onboarding_automation_level_root">Root</string>
-
-    <string name="kiyori_onboarding_permission_section_runtime">Kebenaran masa jalan Android</string>
-    <string name="kiyori_onboarding_permission_section_special">Akses aplikasi khas</string>
-    <string name="kiyori_onboarding_permission_section_advanced">Keupayaan peranti lanjutan</string>
     <string name="kiyori_onboarding_permission_status_granted">Diberi kebenaran</string>
     <string name="kiyori_onboarding_permission_status_partial">Diberi sebahagian</string>
     <string name="kiyori_onboarding_permission_status_not_granted">Belum diberi</string>
     <string name="kiyori_onboarding_permission_status_setup">Perlu dikonfigurasi</string>
     <string name="kiyori_onboarding_permission_status_not_applicable">Tidak diperlukan</string>
     <string name="kiyori_onboarding_permission_status_on_demand">Sahkan semasa digunakan</string>
-
-    <string name="kiyori_onboarding_ready_title">Kiyori telah bersedia</string>
-    <string name="kiyori_onboarding_ready_all_permissions">Semua kebenaran yang boleh disediakan lebih awal telah bersedia. Anda boleh mula menggunakan Kiyori.</string>
-    <string name="kiyori_onboarding_ready_pending_permissions">%1$d item belum selesai; keupayaan berkaitannya kekal tidak tersedia sehingga anda memberi kebenaran.</string>
-    <string name="kiyori_onboarding_ready_execution_mode">Kaedah pelaksanaan peranti lalai</string>
-    <string name="kiyori_onboarding_ready_permission_summary">Status kebenaran</string>
-    <string name="kiyori_onboarding_ready_model_config">Perkhidmatan model AI</string>
-    <string name="kiyori_onboarding_ready_model_later">Boleh dikonfigurasi kemudian tanpa menyekat halaman utama AI</string>
 
     <string name="kiyori_onboarding_permission_notifications_title">Pemberitahuan</string>
     <string name="kiyori_onboarding_permission_notifications_desc">Memaparkan balasan AI, muat turun, tugas latar belakang dan status perkhidmatan.</string>

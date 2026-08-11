@@ -248,6 +248,7 @@ class KiyoriApplication :
 
     private fun configureShowerEnvironment() {
         ShowerEnvironment.shellRunner = OperitShowerShellRunner
+        ShowerEnvironment.stagingDirectoryProvider = KiyoriPaths::kiyoriRootDir
         ShowerEnvironment.logSink =
             ShowerLogSink { priority, tag, message, throwable ->
                 when (priority) {

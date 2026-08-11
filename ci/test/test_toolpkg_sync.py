@@ -16,6 +16,8 @@ from sync_example_packages import (  # noqa: E402
     _manifest_runtime_files,
     _pack_toolpkg_folder,
     _pnpm_executable,
+    _read_whitelist_file,
+    _resolve_plan_item_from_roots,
 )
 
 
@@ -25,6 +27,31 @@ class ToolPkgRuntimeFilesTest(unittest.TestCase):
 
     def test_pnpm_executable_uses_posix_command(self) -> None:
         self.assertEqual(_pnpm_executable("linux"), "pnpm")
+
+    def test_production_copy_assets_match_their_whitelisted_sources(self) -> None:
+        whitelist = _read_whitelist_file(
+            REPO_ROOT / "tools" / "example_packages" / "packages_whitelist.txt"
+        )
+        source_roots = [REPO_ROOT / "examples", REPO_ROOT]
+        packages_dir = REPO_ROOT / "app" / "src" / "main" / "assets" / "packages"
+
+        for item in whitelist:
+            with self.subTest(item=item):
+                plan = _resolve_plan_item_from_roots(source_roots, item)
+                self.assertIsNotNone(plan, f"Production ToolPkg whitelist item is missing: {item}")
+                if plan is None or plan.mode != "copy":
+                    continue
+
+                destination = packages_dir / plan.destination_name
+                self.assertTrue(
+                    destination.is_file(),
+                    f"Production ToolPkg asset is missing: {destination}",
+                )
+                self.assertEqual(
+                    plan.source.read_bytes(),
+                    destination.read_bytes(),
+                    f"Production ToolPkg asset drifted from its source: {plan.destination_name}",
+                )
 
     def test_ignored_runtime_files_are_included_in_archive(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

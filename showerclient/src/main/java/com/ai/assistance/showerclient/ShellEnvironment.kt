@@ -1,6 +1,7 @@
 package com.ai.assistance.showerclient
 
 import android.util.Log
+import java.io.File
 
 /**
  * Identity for executing shell commands.
@@ -48,6 +49,15 @@ object ShowerEnvironment {
 
     @Volatile
     var shellRunner: ShellRunner? = null
+
+    /**
+     * Required host-owned directory used to stage shower-server.jar before shell copies it.
+     *
+     * The library deliberately does not invent a public-storage path because the host owns
+     * storage naming, permissions, migration, and compatibility contracts.
+     */
+    @Volatile
+    var stagingDirectoryProvider: (() -> File)? = null
 
     /**
      * Optional sink used to mirror Shower client logs into host logging systems.

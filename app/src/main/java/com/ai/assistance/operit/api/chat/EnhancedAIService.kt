@@ -1745,7 +1745,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                 content = content,
                 emptyResponseMessage =
                     this@EnhancedAIService.context.getString(
-                        R.string.openai_error_response_empty,
+                        R.string.openai_error_stream_output_empty,
                         AssistantTurnDiagnostics.STREAM_EMPTY_TERMINATION,
                     ),
             )

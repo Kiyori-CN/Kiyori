@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
 import android.graphics.Color as AndroidColor
-import android.graphics.drawable.ColorDrawable
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
@@ -69,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.graphics.drawable.toDrawable
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.ui.components.KiyoriDraggableBottomDrawer
@@ -160,7 +160,7 @@ internal fun PackageEnvironmentVariablesSheet(
         SideEffect {
             // 遮罩和动画由共享抽屉唯一持有；关闭 Dialog 默认 dim，避免两层暗化导致视觉漂移。
             dialogWindow.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            dialogWindow.setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+            dialogWindow.setBackgroundDrawable(AndroidColor.TRANSPARENT.toDrawable())
         }
         BackHandler(onBack = requestClose)
 

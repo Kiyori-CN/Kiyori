@@ -3,6 +3,7 @@ package com.dragonbones
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,13 +39,13 @@ class DragonBonesController(val coroutineScope: CoroutineScope) {
     internal val animationCommandQueue = mutableStateListOf<AnimationCommand>()
 
     /** The overall scale of the armature. Default is 0.5f. */
-    var scale by mutableStateOf(0.5f)
+    var scale by mutableFloatStateOf(0.5f)
 
     /** The horizontal translation of the armature from the center. */
-    var translationX by mutableStateOf(0.0f)
+    var translationX by mutableFloatStateOf(0.0f)
 
     /** The vertical translation of the armature from the center. */
-    var translationY by mutableStateOf(0.0f)
+    var translationY by mutableFloatStateOf(0.0f)
 
     /**
      * A callback that is invoked when a slot is tapped. The string parameter is the name of the

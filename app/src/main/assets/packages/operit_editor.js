@@ -2129,6 +2129,8 @@ description: one-line summary of what this skill does
     const TOOLPKG_ID_PATTERN = /^\s*["']?toolpkg_id["']?\s*:\s*["']([^"']+)["']/m;
     const TOOLPKG_MAIN_PATTERN = /^\s*["']?main["']?\s*:\s*["']([^"']+)["']/m;
     const TOOLPKG_SUBPACKAGE_ID_PATTERN = /^\s*["']?id["']?\s*:\s*["']([^"']+)["']/gm;
+    const TOOLPKG_SKIP_DIR_NAMES = new Set([".git", "__pycache__"]);
+    const TOOLPKG_SKIP_FILE_NAMES = new Set([".DS_Store", "Thumbs.db"]);
     function collect_related_package_load_errors(payload, packageName, ...relatedPaths) {
         const normalizedPackageName = normalize_package_key(packageName);
         const normalizedPaths = relatedPaths.map((path) => String(path ?? "").trim()).filter(Boolean);

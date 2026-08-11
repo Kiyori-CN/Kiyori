@@ -5534,7 +5534,7 @@ def check_kiyori_first_run_flow(
         "Settings.ACTION_MANAGE_WRITE_SETTINGS",
         "Settings.ACTION_USAGE_ACCESS_SETTINGS",
         "Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES",
-        "Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS",
         "Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS",
         "Settings.ACTION_VOICE_INPUT_SETTINGS",
         "Settings.ACTION_ACCESSIBILITY_SETTINGS",
@@ -10600,6 +10600,22 @@ def check_m05e_storage_paths(
             errors.append(
                 "ARCH046 M-05E Operit backup facade duplicates path "
                 f"literal: {literal}"
+            )
+
+    application_path = root / M03_APPLICATION_PATH
+    if application_path.is_file():
+        application_code = source_code_mask(
+            application_path.read_text(encoding="utf-8")
+        )
+        staging_owner_token = (
+            "ShowerEnvironment.stagingDirectoryProvider = "
+            "KiyoriPaths::kiyoriRootDir"
+        )
+        staging_owner_count = application_code.count(staging_owner_token)
+        if staging_owner_count != 1:
+            errors.append(
+                "ARCH046 M-05E Shower staging path owner differs: "
+                f"expected 1, found {staging_owner_count}"
             )
 
     main_source_root = root / "app/src/main/java"

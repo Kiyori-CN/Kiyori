@@ -1,6 +1,7 @@
 package com.kiyori.integration.operit.onboarding
 
 import android.content.Context
+import androidx.core.content.edit
 
 internal class KiyoriOnboardingPreferences(
     context: Context,
@@ -16,17 +17,17 @@ internal class KiyoriOnboardingPreferences(
             ?: KiyoriOnboardingStep.WELCOME
 
     fun saveCurrentStep(step: KiyoriOnboardingStep) {
-        preferences.edit()
-            .putString(KEY_CURRENT_STEP, step.name)
-            .apply()
+        preferences.edit {
+            putString(KEY_CURRENT_STEP, step.name)
+        }
     }
 
     fun complete() {
-        preferences.edit()
-            .putString(KEY_COMPLETED_VERSION, CURRENT_ONBOARDING_VERSION)
-            .putString(KEY_CURRENT_STEP, KiyoriOnboardingStep.PERMISSIONS.name)
-            .remove(KEY_SELECTED_PERMISSIONS)
-            .apply()
+        preferences.edit {
+            putString(KEY_COMPLETED_VERSION, CURRENT_ONBOARDING_VERSION)
+            putString(KEY_CURRENT_STEP, KiyoriOnboardingStep.PERMISSIONS.name)
+            remove(KEY_SELECTED_PERMISSIONS)
+        }
     }
 
     fun readSelectedPermissions(): Set<KiyoriPermissionId> =
@@ -38,18 +39,18 @@ internal class KiyoriOnboardingPreferences(
             ?: emptySet()
 
     fun saveSelectedPermissions(permissionIds: Set<KiyoriPermissionId>) {
-        preferences.edit()
-            .putString(
+        preferences.edit {
+            putString(
                 KEY_SELECTED_PERMISSIONS,
                 permissionIds.joinToString(",") { it.name },
             )
-            .apply()
+        }
     }
 
     fun clearSelectedPermissions() {
-        preferences.edit()
-            .remove(KEY_SELECTED_PERMISSIONS)
-            .apply()
+        preferences.edit {
+            remove(KEY_SELECTED_PERMISSIONS)
+        }
     }
 
     companion object {

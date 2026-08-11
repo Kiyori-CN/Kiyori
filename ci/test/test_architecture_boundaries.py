@@ -4583,6 +4583,21 @@ object OperitBackupDirs {{
             )
 
         write(
+            M03_APPLICATION_PATH,
+            """package com.kiyori.app
+
+import com.ai.assistance.showerclient.ShowerEnvironment
+import com.kiyori.platform.storage.KiyoriPaths
+
+class KiyoriApplication {
+    fun configureShowerEnvironment() {
+        ShowerEnvironment.stagingDirectoryProvider = KiyoriPaths::kiyoriRootDir
+    }
+}
+""",
+        )
+
+        write(
             M05E_PATHS_TEST_PATH,
             """package com.kiyori.platform.storage
 
@@ -6011,7 +6026,7 @@ class KiyoriPathsTest {
                 "Settings.ACTION_MANAGE_WRITE_SETTINGS\n"
                 "Settings.ACTION_USAGE_ACCESS_SETTINGS\n"
                 "Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES\n"
-                "Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS\n"
+                "Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS\n"
                 "Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS\n"
                 "Settings.ACTION_VOICE_INPUT_SETTINGS\n"
                 "Settings.ACTION_ACCESSIBILITY_SETTINGS\n"
@@ -7432,8 +7447,9 @@ class KiyoriPathsTest {
             direct_consumer = root / M03_APPLICATION_PATH
             direct_consumer.write_text(
                 direct_consumer.read_text(encoding="utf-8").replace(
-                    "KiyoriPaths.kiyoriRootPathSdcard()",
-                    '"/sdcard/Download/Kiyori"',
+                    "ShowerEnvironment.stagingDirectoryProvider = "
+                    "KiyoriPaths::kiyoriRootDir",
+                    "ShowerEnvironment.stagingDirectoryProvider = null",
                 ),
                 encoding="utf-8",
             )
@@ -7501,6 +7517,12 @@ class KiyoriPathsTest {
             self.assertTrue(
                 any(
                     "direct Kiyori path consumers differ" in error
+                    for error in errors
+                )
+            )
+            self.assertTrue(
+                any(
+                    "Shower staging path owner differs" in error
                     for error in errors
                 )
             )

@@ -378,8 +378,6 @@
     <string name="downloaded_file">Descargado: %1$s</string>
     <string name="download_failed">Error en la descarga: %1$s</string>
     <string name="download_started">Descarga iniciada: %1$s</string>
-    <string name="download_success">Descarga exitosa: %1$s</string>
-    <string name="download_start">Descarga iniciada: %1$s</string>
     <string name="deploy_date">Implementación: %1$s</string>
     <string name="plugin_loading_skipped">Carga de plugins omitida</string>
     <string name="press_back_again_to_exit">Presione atrás nuevamente para salir</string>
@@ -480,22 +478,6 @@
     <string name="plugin_other_error">Ocurrió un error al iniciar plugins, puede hacer clic en \"Omitir\" en la esquina superior derecha para continuar</string>
     
     <!-- Agreement Screen -->
-    <string name="agreement_subtitle">Por favor lea cuidadosamente y acepte los siguientes términos antes de usar.</string>
-    <string name="agreement_version">Versión del acuerdo: %1$s</string>
-    <string name="agreement_human_readable_title">Acuerdo en lenguaje simple (versión no legal)</string>
-    <string name="agreement_human_readable_content">Límite del servicio: Kiyori no proporciona servicios públicos de interacción emocional antropomórfica. Kiyori es un cliente de código abierto que se ejecuta localmente en el dispositivo del usuario. No opera servicios de inferencia de modelos, no aloja sesiones de chat ni datos de interacción, y no distribuye credenciales de modelo compartidas. Las solicitudes a modelos en la nube se envían directamente desde su dispositivo al proveedor de modelos que configure con sus propias credenciales; los datos relacionados se rigen por las reglas de ese proveedor. Los modelos locales infieren en su dispositivo.\n\nEsta aplicación puede llamar archivos, terminales, automatización, Root, ADB, extensiones y capacidades similares. Revise las operaciones antes de ejecutarlas, haga copias de seguridad de los datos importantes y otorgue permisos con cuidado. Las pérdidas relacionadas con dispositivos, datos, cuentas u otros intereses causadas por acciones del usuario, configuración del usuario, servicios de terceros o extensiones de terceros deben ser gestionadas por el operador real según la ley aplicable.\n\nLos plugins, scripts, Skills, kits de herramientas y otros contenidos de terceros del mercado pertenecen a sus autores o titulares de derechos indicados, junto con la responsabilidad correspondiente. La publicación o instalación desde el mercado no significa que Kiyori garantice, respalde u obtenga derechos sobre ese contenido. Confirme la licencia y el estado de los derechos antes de usarlo, modificarlo, publicarlo o redistribuirlo.</string>
-    <string name="agreement_serious_title">Acuerdo legal riguroso</string>
-    <string name="agreement_serious_content"><![CDATA[
-        <p><b>Acuerdo de usuario y política de privacidad de Kiyori</b><br>Versión: 2026-07-15; fecha efectiva prevista: 15 de julio de 2026.</p>
-        <p><b>1. Alcance y versión del acuerdo</b><br>Este acuerdo se aplica al cliente Android publicado oficialmente por Kiyori y a sus funciones en línea opcionales. Al usar esta aplicación, confirma que ha leído y aceptado la versión actual. La aplicación registra al iniciar la versión del acuerdo que usted ha aceptado; cuando el acuerdo tenga una actualización sustancial, la aplicación le pedirá confirmar la nueva versión antes de continuar. El código abierto del repositorio se licencia bajo la Licencia Pública General Menor de GNU versión 3 (LGPLv3) indicada en el archivo raíz <code>LICENSE</code>. Este acuerdo no excluye ni reduce los derechos otorgados por la ley aplicable o por licencias de código abierto.</p>
-        <p><b>2. Posición del producto y servicios de terceros</b><br>Kiyori es software cliente de código abierto. No proporciona inferencia de modelos de lenguaje grandes, API Keys compartidas, retransmisión de solicitudes de chat ni alojamiento en la nube de historiales de chat. Los modelos en la nube, voz en la nube, búsqueda, generación de imágenes, MCP y otras funciones de red son elegidos, configurados y habilitados por usted. Cuando usa esos servicios, los datos se envían directamente al proveedor correspondiente y se rigen por sus términos de servicio y política de privacidad. Usted debe evaluar la seguridad, legalidad e idoneidad de proveedores, modelos, endpoints y extensiones, y proteger sus credenciales.</p>
-        <p><b>3. Tratamiento de datos y privacidad</b><br>Los historiales de chat, tarjetas de personaje, memorias, configuración de modelos y API Keys normalmente se almacenan en los datos de la aplicación en su dispositivo. Cuando exporta, hace copias de seguridad, carga archivos, usa funciones de red de terceros o envía solicitudes a un servicio HTTP externo, los datos relacionados se copiarán, transmitirán o divulgarán según sus acciones. Kiyori no recibe actualizaciones remotas de la aplicación ni anuncios. El inicio de sesión de GitHub, la publicación, el mercado y las funciones de red de terceros que habilite pueden acceder a GitHub o al proveedor correspondiente. Gestione sus datos y credenciales junto con la configuración de seguridad del dispositivo, los términos de terceros y este acuerdo.</p>
-        <p><b>4. Despliegue externo y responsabilidad del operador</b><br>Los servicios HTTP externos, QQ Bot, respuestas automáticas y capacidades similares se habilitan a su elección. Si los pone a disposición de otras personas o del público, actúa como desplegador u operador real y es responsable del control de acceso, autorización de usuarios, seguridad del contenido, protección de datos, protección de menores, avisos necesarios y otras obligaciones aplicables. Si proporciona de forma continua al público en China continental servicios de interacción emocional que simulan rasgos de personalidad, patrones de pensamiento o estilos de comunicación de personas naturales, debe evaluar y cumplir las Medidas provisionales para la administración de servicios de interacción antropomórfica de inteligencia artificial (《人工智能拟人化互动服务管理暂行办法》) y otras normas aplicables. No debe usar esta aplicación para ofrecer a menores familiares virtuales, compañeros virtuales u otros servicios de relación íntima virtual, inducir dependencia emocional o adicción, realizar manipulación emocional ni infringir de otro modo derechos e intereses legítimos de terceros.</p>
-        <p><b>5. Uso legal y responsabilidad por el contenido</b><br>Debe cumplir las leyes y regulaciones aplicables, las reglas de servicios de terceros y las reglas de plataforma. No debe usar esta aplicación, extensiones o configuración para realizar actividades ilegales, infringir derechos de terceros, acceder sin autorización a sistemas o datos, o difundir contenido ilegal o dañino. Usted es responsable del contenido y la conducta que introduzca, configure, genere, publique, reenvíe u opere. Las salidas de IA pueden contener errores, omisiones o sesgos y no constituyen asesoramiento médico, de crisis de salud mental, legal, financiero ni otro asesoramiento profesional. En situaciones urgentes de peligro, contacte de inmediato con los servicios de emergencia locales, instituciones médicas o personas de confianza.</p>
-        <p><b>6. Software proporcionado tal como está</b><br>En la medida permitida por la ley aplicable, este software se proporciona "tal como está" y "según disponibilidad". Los contribuyentes no ofrecen garantías expresas o implícitas sobre la disponibilidad continua, exactitud, seguridad, comerciabilidad, idoneidad para un propósito particular o no infracción del software o de servicios de terceros. Las pérdidas causadas por el uso de este software, servicios de terceros, extensiones, configuración del usuario o modificaciones propias deben gestionarse conforme a la ley aplicable y los acuerdos de servicio correspondientes.</p>
-        <p><b>7. Actualizaciones del acuerdo y contacto</b><br>Podemos actualizar este acuerdo por requisitos funcionales, legales o de seguridad, y proporcionar la versión actual dentro de la aplicación. Las actualizaciones que afecten sustancialmente los derechos de los usuarios entrarán en vigor aumentando la versión del acuerdo y solicitando confirmación nuevamente. Puede enviar preguntas y comentarios mediante el repositorio del proyecto, la entrada de comentarios de la aplicación o canales públicos de contacto.</p>
-    ]]></string>
-    <string name="agreement_disclaimer">La versión en lenguaje simple solo facilita la comprensión. Si difiere de la versión formal china, prevalece la versión formal china.</string>
     <string name="agreement_accept">He leído y acepto</string>
     <string name="agreement_wait">Por favor espere... (%1$d)</string>
     
@@ -2014,7 +1996,6 @@
     <string name="package_remove_failed">Error al eliminar el paquete de scripts</string>
     <string name="script_params_config">Configuración de parámetros</string>
     <string name="script_code_placeholder">Escriba código JavaScript...</string>
-    <string name="agreement_title">Acuerdo de usuario y política de privacidad</string>
     <string name="wizard_collapse">Contraer</string>
     <string name="wizard_expand">Expandir</string>
     <string name="wizard_open_docs">Documentación oficial</string>
@@ -3825,9 +3806,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="author_colon">Autor:</string>
     <string name="share_colon">Compartir:</string>
     <string name="downloading_progress">Descargando %1$s</string>
-    <string name="download_file_description">Descargando archivo...</string>
-    <string name="download_complete">Descarga completada: %1$s</string>
-    <string name="download_incomplete">Descarga incompleta: %1$s</string>
     <string name="extracting_progress">Extrayendo...</string>
     <string name="installing_progress">Instalando...</string>
     <string name="after_logging_in_you_can">Después de iniciar sesión en GitHub, puede:</string>
@@ -4846,12 +4824,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="logcat_save_failed">error al guardar: %1$s</string>
     <string name="logcat_unknown_error">error desconocido</string>
     <string name="logcat_saved_to">registros guardados en: %1$s</string>
-    <string name="logcat_cannot_create_file">error al guardar: no se pudo crear el archivo, posible problema de permisos de almacenamiento</string>
-    <string name="logcat_cannot_open_output_stream">no se pudo abrir el flujo de salida</string>
-    <string name="logcat_mediestore_save_failed">error al guardar en MediaStore: %1$s</string>
-    <string name="logcat_cannot_create_operit_dir">No se pudo crear el directorio Kiyori</string>
-    <string name="logcat_file_create_failed">no se pudo crear el archivo o está vacío</string>
-    <string name="logcat_filesystem_save_failed">error al guardar en el sistema de archivos: %1$s</string>
     <string name="backup_export_failed_create_file">error al exportar: no se pudo crear el archivo</string>
     <string name="backup_export_failed_with_reason">error al exportar: %1$s</string>
     <string name="backup_import_failed_unreadable_file">error al importar: no se pudo leer el archivo</string>
@@ -6268,6 +6240,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="openai_error_response_failed">Error al obtener la respuesta de la IA: %1$s</string>
     <string name="openai_error_connection_timeout">Tiempo de espera agotado o conexión interrumpida. Reintentos: %1$d. Detalles: %2$s</string>
     <string name="openai_error_response_empty">La respuesta de la API está vacía.</string>
+    <string name="openai_error_stream_output_empty">La solicitud del modelo terminó antes de recibir una salida visible.\nCódigo de diagnóstico: %1$s\nExporta el registro de diagnóstico.</string>
     <string name="openai_error_parse_response_failed">Error al analizar la respuesta: %1$s</string>
     <string name="openai_connection_success">¡Conexión exitosa!</string>
     <string name="openai_connection_test_failed">Prueba de conexión fallida: %1$s</string>
@@ -6581,6 +6554,8 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="message_workspace_sync_failed">Error al sincronizar el estado del espacio de trabajo: %1$s</string>
     <string name="message_summarizing">Resumiendo memoria...</string>
     <string name="message_send_failed">Error al enviar mensaje: %1$s</string>
+    <string name="message_send_interrupted_unexpected">El envío del mensaje se interrumpió inesperadamente. Revisa el registro de diagnóstico antes de volver a intentarlo.</string>
+    <string name="message_send_terminal_missing">El turno del mensaje terminó sin un estado terminal.\nCódigo de diagnóstico: %1$s\nExporta el registro de diagnóstico.</string>
     <string name="deepgram_stt_url_not_set">La URL de Deepgram STT no está configurada. Complete la dirección completa de la interfaz (por ejemplo, https://api.deepgram.com/v1/listen).</string>
     <string name="deepgram_stt_url_invalid_scheme">La URL de Deepgram STT debe comenzar con http:// o https://.</string>
     <string name="deepgram_stt_api_key_not_set">La clave API de Deepgram STT no está configurada. Configúrela en los ajustes.</string>
@@ -7486,95 +7461,25 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <!-- Kiyori onboarding -->
     <string name="kiyori_onboarding_back">Volver al paso anterior</string>
     <string name="kiyori_onboarding_progress">Paso %1$d de %2$d</string>
-    <string name="kiyori_onboarding_continue">Continuar</string>
-    <string name="kiyori_onboarding_skip_intro">Omitir introducción</string>
-    <string name="kiyori_onboarding_start_authorization">Comenzar autorización centralizada</string>
-    <string name="kiyori_onboarding_enter">Entrar en Kiyori</string>
 
     <string name="kiyori_onboarding_agreement_title">Acuerdo de usuario y Política de privacidad</string>
     <string name="kiyori_onboarding_agreement_subtitle">Antes de comenzar, conoce cómo Kiyori guarda los datos, cuándo accede a la red y qué implican sus capacidades avanzadas.</string>
     <string name="kiyori_onboarding_agreement_version">Versión del acuerdo: %1$s</string>
-    <string name="kiyori_onboarding_agreement_local_title">Tus datos del dispositivo permanecen bajo tu control</string>
-    <string name="kiyori_onboarding_agreement_local_desc">Los chats, personajes, recuerdos, configuraciones, credenciales y espacios de trabajo se guardan normalmente en tu dispositivo. Tú eliges dónde guardar exportaciones y copias de seguridad.</string>
-    <string name="kiyori_onboarding_agreement_network_title">El acceso a la red sigue tus acciones</string>
-    <string name="kiyori_onboarding_agreement_network_desc">Los modelos, la voz, la búsqueda, el mercado, GitHub, MCP, los complementos y los servicios personalizados se conectan a los proveedores que elijas.</string>
-    <string name="kiyori_onboarding_agreement_permission_title">Las capacidades avanzadas requieren autorización expresa</string>
-    <string name="kiyori_onboarding_agreement_permission_desc">Los archivos, notificaciones, contenido de pantalla, ubicación, terminal, instalación, accesibilidad, Shizuku y Root pueden tratar datos sensibles o cambiar el estado del dispositivo.</string>
-    <string name="kiyori_onboarding_agreement_open_document">Leer el acuerdo y la política completos</string>
     <string name="kiyori_onboarding_agreement_checkbox">He leído y acepto el Acuerdo de usuario y la Política de privacidad vigentes</string>
     <string name="kiyori_onboarding_agreement_accept">Aceptar y continuar</string>
     <string name="kiyori_onboarding_agreement_decline">No aceptar y salir</string>
-    <string name="kiyori_onboarding_agreement_document_title">Acuerdo de usuario y Política de privacidad de Kiyori</string>
-    <string name="kiyori_onboarding_agreement_document_content"><![CDATA[
-        <p><b>Acuerdo de usuario y Política de privacidad de Kiyori</b><br>Versión: 2026-08-09; fecha prevista de entrada en vigor: 9 de agosto de 2026.</p>
-        <p><b>1. Ámbito de aplicación</b><br>Este acuerdo se aplica al cliente Kiyori para Android y a las funciones que decidas activar. Kiyori es un cliente de código abierto que se ejecuta en tu dispositivo y se centra en la navegación, el tratamiento de contenido y un espacio de trabajo local. Operit AI es el subsistema de IA integrado. Lee y comprende este acuerdo antes de instalar, iniciar o utilizar Kiyori. La configuración inicial solo finaliza cuando aceptas expresamente la versión vigente.</p>
-        <p><b>2. Límites del producto y de los servicios</b><br>Kiyori no proporciona credenciales de modelos compartidas ni convierte modelos, voz, búsqueda, GitHub, MCP, complementos o servicios HTTP personalizados de terceros en un único servicio en la nube operado por Kiyori. Cuando eliges estos servicios, debes revisar el proveedor, el punto de conexión, el modelo, el precio, la cuota, las condiciones y las reglas de privacidad. La disponibilidad, el contenido, la facturación, la gestión de cuentas y la conservación de datos dependen del proveedor correspondiente.</p>
-        <p><b>3. Datos en el dispositivo</b><br>Los chats, tarjetas de personaje, recuerdos, configuraciones de modelos, claves API, variables de entorno, estado del navegador, flujos de trabajo y otros ajustes se guardan normalmente en los datos privados de la aplicación o en un directorio local que elijas expresamente. Android suele eliminar los datos privados al desinstalar Kiyori. Las copias de seguridad, descargas, registros, archivos multimedia, espacios de trabajo y demás archivos públicos exportados no se eliminan automáticamente. Protege tu dispositivo, tus cuentas y tus credenciales, y conserva copias de los datos importantes.</p>
-        <p><b>4. Red y tratamiento por terceros</b><br>Cuando envías una solicitud a un modelo, utilizas voz en red, buscas en la web, visitas un sitio, inicias sesión en GitHub, accedes al mercado de complementos, instalas o ejecutas una extensión conectada, conectas MCP, llamas a un punto de conexión personalizado, subes un archivo o compartes contenido, el texto, los archivos, la voz, las URL, la información del dispositivo o los parámetros necesarios se envían al servicio o sitio correspondiente. Revisa si contienen datos personales, secretos comerciales, credenciales u otra información sensible. Las solicitudes de cámara, micrófono, ubicación y capacidades similares realizadas por sitios web siguen sujetas a la autorización expresa de Kiyori y Android.</p>
-        <p><b>5. Permisos y capacidades del dispositivo</b><br>Kiyori puede solicitar permisos de ejecución de Android para notificaciones, contenido multimedia, cámara, micrófono, ubicación, Bluetooth, llamadas, SMS y almacenamiento heredado. También puede guiarte para conceder acceso a todos los archivos, superposición, modificación de ajustes, acceso de uso, instalación de aplicaciones desconocidas, exclusión de optimización de batería, acceso a notificaciones, asistente predeterminado, accesibilidad, Shizuku o Root. Cada capacidad se explica en la aplicación y es confirmada por Android, Shizuku, el gestor Root u otro propietario real del estado. Una denegación nunca se registra como éxito; la función correspondiente permanece no disponible o requiere una acción posterior iniciada por ti.</p>
-        <p><b>6. Operaciones de alto impacto</b><br>El terminal, los scripts, los flujos de trabajo, los complementos, las herramientas de IA, la gestión de archivos, la instalación de aplicaciones, el acceso a notificaciones, la automatización de pantalla, la accesibilidad, Shizuku, ADB y Root pueden leer, cambiar o eliminar datos; iniciar servicios; instalar software; acceder a redes; cambiar el sistema; o afectar a otras aplicaciones y cuentas. Verifica el objetivo, los parámetros, el origen y el resultado esperado, y conserva copias recuperables. No expongas capacidades elevadas a instrucciones, páginas, archivos, complementos, scripts o servicios remotos que no sean de confianza.</p>
-        <p><b>7. Resultados de IA y automatización</b><br>Los resultados de IA y los planes de automatización pueden contener errores, omisiones, retrasos, alucinaciones o acciones inadecuadas para tu dispositivo. Tú sigues siendo quien decide las operaciones y configuraciones reales. Los resultados de IA no constituyen asesoramiento médico, de crisis, jurídico, financiero ni profesional. En asuntos urgentes o de alto riesgo, contacta con profesionales o servicios de emergencia locales.</p>
-        <p><b>8. Ecosistema de extensiones</b><br>Los complementos, paquetes de scripts, Skills, paquetes ToolPkg, servidores MCP, modelos, flujos de trabajo y otras extensiones de terceros son responsabilidad de sus autores o proveedores. La aparición en un mercado, una opción de instalación o un identificador de compatibilidad no garantizan su seguridad, legalidad, exactitud, disponibilidad ni licencia. Revisa el origen, el código, los permisos, las variables de entorno, la actividad de red y las licencias antes de instalar. No publiques claves API, cookies, tokens, claves privadas, contraseñas ni datos de otras personas.</p>
-        <p><b>9. Gestión y eliminación de datos</b><br>Puedes gestionar chats, modelos, datos de sitios web, descargas, copias, registros, complementos y configuraciones desde las páginas correspondientes de la aplicación, y revocar permisos o borrar datos desde los ajustes de Android. La eliminación, sobrescritura, desinstalación, Root, limpieza del sistema o herramientas de archivos de terceros pueden causar una pérdida irreversible. Los directorios públicos, ubicaciones SAF y servicios de terceros deben gestionarse por separado.</p>
-        <p><b>10. Uso lícito</b><br>Debes cumplir la legislación aplicable, las reglas de los sitios, las condiciones de terceros, las licencias de software y los derechos de otras personas. No utilices Kiyori para acceder sin autorización, eludir controles de seguridad, difundir contenido ilícito, cometer fraude, acosar ni realizar otras actividades ilegales o infractoras. Si expones bots, servicios HTTP, respuestas automáticas o flujos de trabajo a otras personas, eres el operador real responsable del control de acceso, los avisos, la seguridad del contenido, la protección de datos y las demás obligaciones aplicables.</p>
-        <p><b>11. Licencia de código abierto y exención</b><br>El código fuente de Kiyori se proporciona bajo los límites GPL-3.0-or-later descritos en LICENSE y NOTICE del repositorio. Los componentes de terceros conservan sus propias licencias. Las licencias de código abierto y este acuerdo se aplican conjuntamente, sin limitar los derechos concedidos por la ley o dichas licencias. En la medida permitida por la ley, el software se proporciona “tal cual” y “según disponibilidad”, sin garantizar que los servicios, extensiones, redes, compatibilidad de dispositivos o resultados de IA permanezcan disponibles, exactos, seguros o adecuados para un fin concreto.</p>
-        <p><b>12. Actualizaciones y contacto</b><br>Cuando cambien sustancialmente las funciones, el tratamiento de datos, las obligaciones legales o los límites de seguridad, Kiyori aumentará la versión del acuerdo y solicitará una nueva confirmación. Puedes plantear preguntas mediante la opción de comentarios de la aplicación o el repositorio del proyecto. Si no aceptas la versión vigente, deja de utilizar la aplicación y sal de ella. Exporta lo que necesites antes de desinstalarla o borrar sus datos.</p>
-    ]]></string>
-
-    <string name="kiyori_onboarding_voice_title">Automatización de interfaz impulsada por voz</string>
-    <string name="kiyori_onboarding_voice_desc">Usa lenguaje natural para buscar, tratar contenido y organizar operaciones complejas. Kiyori puede utilizar voz local o servicios que configures, mientras el micrófono y la automatización permanecen bajo tu autorización.</string>
-    <string name="kiyori_onboarding_voice_feature_speech">Comprensión e introducción por voz</string>
-    <string name="kiyori_onboarding_voice_feature_screen">Comprensión y acciones en pantalla</string>
-    <string name="kiyori_onboarding_voice_feature_apps">Tareas entre aplicaciones</string>
-
-    <string name="kiyori_onboarding_toolbox_title">Una potente caja de herramientas para entusiastas y desarrolladores</string>
-    <string name="kiyori_onboarding_toolbox_desc">Desde el código fuente del navegador y el terminal hasta archivos, scripts, flujos de trabajo, ToolPkg, MCP y Skills, Kiyori reúne desarrollo y automatización en un espacio extensible.</string>
-    <string name="kiyori_onboarding_toolbox_feature_browser">Navegador y código fuente</string>
-    <string name="kiyori_onboarding_toolbox_feature_terminal">Terminal y scripts</string>
-    <string name="kiyori_onboarding_toolbox_feature_extensions">ToolPkg, MCP y Skills</string>
-
-    <string name="kiyori_onboarding_creative_title">Libera tu creatividad, siempre disponible</string>
-    <string name="kiyori_onboarding_creative_desc">Empieza con una búsqueda y conserva el contexto entre la web, la IA, el contenido multimedia, las descargas y los archivos. Kiyori es un navegador completo y, cuando lo necesites, un entorno creativo y de automatización con capacidades avanzadas del dispositivo.</string>
-    <string name="kiyori_onboarding_creative_feature_context">Contexto de trabajo continuo</string>
-    <string name="kiyori_onboarding_creative_feature_media">Contenido multimedia, descargas y archivos</string>
-    <string name="kiyori_onboarding_creative_feature_control">Control transparente de permisos</string>
 
     <string name="kiyori_onboarding_permissions_title">Permisos y capacidades del dispositivo</string>
     <string name="kiyori_onboarding_permissions_desc">Completa aquí las autorizaciones compatibles con Kiyori. Los permisos de ejecución de Android pueden solicitarse juntos; los accesos especiales y capacidades avanzadas requieren confirmación en el sistema o gestor correspondiente.</string>
-    <string name="kiyori_onboarding_permissions_request_runtime">Solicitar permisos de ejecución</string>
-    <string name="kiyori_onboarding_permissions_next_item">Continuar con: %1$s</string>
-    <string name="kiyori_onboarding_permissions_all_done">Revisar finalización</string>
-    <string name="kiyori_onboarding_permissions_keep_and_continue">Conservar elementos no autorizados y continuar</string>
-    <string name="kiyori_onboarding_permissions_overview_complete">Todas las capacidades que pueden prepararse ahora están listas</string>
-    <string name="kiyori_onboarding_permissions_overview_pending">Aún se pueden completar %1$d elementos</string>
     <string name="kiyori_onboarding_permissions_overview_count">Listos %1$d de %2$d</string>
     <string name="kiyori_onboarding_permission_action_failed">No se pudo abrir la autorización de “%1$s”. Comprueba si el dispositivo la admite.</string>
-    <string name="kiyori_onboarding_permission_screen_capture_on_demand">Android confirma la captura de pantalla únicamente cuando se solicita una captura o grabación real. No puede autorizarse de forma permanente durante la configuración.</string>
 
-    <string name="kiyori_onboarding_automation_level_title">Método de automatización predeterminado</string>
-    <string name="kiyori_onboarding_automation_level_desc">Determina qué canal del dispositivo utilizan de forma predeterminada la IA y las herramientas. El estado de autorización y el canal predeterminado son independientes y pueden cambiarse después.</string>
-    <string name="kiyori_onboarding_automation_level_standard">Estándar</string>
-    <string name="kiyori_onboarding_automation_level_accessibility">Accesibilidad</string>
-    <string name="kiyori_onboarding_automation_level_shizuku">Shizuku / ADB</string>
-    <string name="kiyori_onboarding_automation_level_root">Root</string>
-
-    <string name="kiyori_onboarding_permission_section_runtime">Permisos de ejecución de Android</string>
-    <string name="kiyori_onboarding_permission_section_special">Acceso especial de aplicaciones</string>
-    <string name="kiyori_onboarding_permission_section_advanced">Capacidades avanzadas del dispositivo</string>
     <string name="kiyori_onboarding_permission_status_granted">Autorizado</string>
     <string name="kiyori_onboarding_permission_status_partial">Autorización parcial</string>
     <string name="kiyori_onboarding_permission_status_not_granted">No autorizado</string>
     <string name="kiyori_onboarding_permission_status_setup">Requiere configuración</string>
     <string name="kiyori_onboarding_permission_status_not_applicable">No necesario</string>
     <string name="kiyori_onboarding_permission_status_on_demand">Confirmar al usar</string>
-
-    <string name="kiyori_onboarding_ready_title">Kiyori está listo</string>
-    <string name="kiyori_onboarding_ready_all_permissions">Todas las autorizaciones que pueden prepararse de antemano están listas. Ya puedes empezar.</string>
-    <string name="kiyori_onboarding_ready_pending_permissions">Quedan %1$d elementos sin completar; sus capacidades permanecerán no disponibles hasta que las autorices.</string>
-    <string name="kiyori_onboarding_ready_execution_mode">Método de ejecución predeterminado</string>
-    <string name="kiyori_onboarding_ready_permission_summary">Estado de autorización</string>
-    <string name="kiyori_onboarding_ready_model_config">Servicio de modelo de IA</string>
-    <string name="kiyori_onboarding_ready_model_later">Puede configurarse más tarde sin bloquear el inicio</string>
 
     <string name="kiyori_onboarding_permission_notifications_title">Notificaciones</string>
     <string name="kiyori_onboarding_permission_notifications_desc">Muestra respuestas de IA, descargas, tareas en segundo plano y estados de servicio.</string>

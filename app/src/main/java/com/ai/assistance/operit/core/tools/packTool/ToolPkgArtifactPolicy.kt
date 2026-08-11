@@ -56,7 +56,10 @@ internal object ToolPkgArtifactPolicy {
 
     val LEGACY_OPERIT_PATH_PATTERNS =
         listOf(
-            Regex("""/sdcard/Download/Operit(?:/|["'\s]|$)""", RegexOption.IGNORE_CASE),
+            Regex(
+                """${Regex.escape(androidAbsolutePath("sdcard", "Download", "Operit"))}(?:/|["'\s]|$)""",
+                RegexOption.IGNORE_CASE,
+            ),
             Regex(
                 """/storage/emulated/\d+/Download/Operit(?:/|["'\s]|$)""",
                 RegexOption.IGNORE_CASE,
@@ -65,8 +68,12 @@ internal object ToolPkgArtifactPolicy {
 
     val FIXED_APPLICATION_PATH_PATTERNS =
         listOf(
-            Regex("""/data/user/\d+/[A-Za-z0-9._-]+/"""),
-            Regex("""/sdcard/Android/data/[A-Za-z0-9._-]+/"""),
+            Regex(
+                """${Regex.escape(androidAbsolutePath("data", "user"))}/\d+/[A-Za-z0-9._-]+/""",
+            ),
+            Regex(
+                """${Regex.escape(androidAbsolutePath("sdcard", "Android", "data"))}/[A-Za-z0-9._-]+/""",
+            ),
         )
 
     val PRIVATE_KEY_MARKERS =
@@ -90,4 +97,7 @@ internal object ToolPkgArtifactPolicy {
         val fileName = entryName.substringAfterLast('/').lowercase(Locale.ROOT)
         return fileName == "manifest.json" || fileName == "manifest.hjson"
     }
+
+    private fun androidAbsolutePath(vararg segments: String): String =
+        "/" + segments.joinToString("/")
 }

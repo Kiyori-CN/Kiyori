@@ -109,17 +109,6 @@
 
     <issue
         id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="        Paths.get(&quot;/sdcard&quot;),"
-        errorLine2="                   ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/CacheManager.kt"
-            line="39"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
         message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
         errorLine1="            return normalizedPath.startsWith(&quot;/data/data/$appPackage&quot;) ||"
         errorLine2="                                              ~~~~~~~~~~~">
@@ -175,39 +164,6 @@
 
     <issue
         id="SdCardPath"
-        message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
-        errorLine1="    fun currentUserDataRootPath(): String = &quot;/data/user/${currentUserId()}&quot;"
-        errorLine2="                                             ~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/provider/filesystem/FileSystemProvider.kt"
-            line="26"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="            PRootBindMount(emulatedStoragePath, &quot;/sdcard&quot;),"
-        errorLine2="                                                 ~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/provider/filesystem/FileSystemProvider.kt"
-            line="39"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
-        errorLine1="                PRootBindMount(appDataDir, &quot;/data/data/$packageName&quot;)"
-        errorLine2="                                            ~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/provider/filesystem/FileSystemProvider.kt"
-            line="62"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
         message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
         errorLine1="                pluginPath.replace(Regex(&quot;^/storage/emulated/\\d+&quot;), &quot;/sdcard&quot;)"
         errorLine2="                                                                      ~~~~~~~">
@@ -241,17 +197,6 @@
 
     <issue
         id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="        val baseDir = File(&quot;/sdcard/Download/Operit&quot;)"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/showerclient/ShowerServerManager.kt"
-            line="137"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
         message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
         errorLine1="        return normalizedPath.startsWith(&quot;/data/data/$appPackage&quot;) ||"
         errorLine2="                                          ~~~~~~~~~~~">
@@ -281,17 +226,6 @@
             file="src/main/java/com/ai/assistance/operit/core/config/SystemToolPrompts.kt"
             line="247"
             column="92"/>
-    </issue>
-
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
-        errorLine1="        val operitLegacyDataMountPath = &quot;/data/data/$operitPackage&quot;"
-        errorLine2="                                         ~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/TerminalManager.kt"
-            line="776"
-            column="42"/>
     </issue>
 
     <issue
@@ -385,17 +319,6 @@
     <issue
         id="BatteryLife"
         message="Use of `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html"
-        errorLine1="                                                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="325"
-            column="74"/>
-    </issue>
-
-    <issue
-        id="BatteryLife"
-        message="Use of `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html"
         errorLine1="                                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {"
         errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -446,39 +369,6 @@
             file="src/main/AndroidManifest.xml"
             line="216"
             column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
-        errorLine1="    implementation(&quot;androidx.core:core-ktx:1.12.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="59"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.appcompat:appcompat than 1.6.1 is available: 1.7.1"
-        errorLine1="    implementation(&quot;androidx.appcompat:appcompat:1.6.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="60"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="    implementation(&quot;androidx.lifecycle:lifecycle-runtime-compose:2.7.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="69"
-            column="20"/>
     </issue>
 
     <issue
@@ -710,17 +600,6 @@
             file="../gradle/libs.versions.toml"
             line="79"
             column="15"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.apache.ftpserver:ftplet-api than 1.2.0 is available: 1.2.1"
-        errorLine1="    implementation(&quot;org.apache.ftpserver:ftplet-api:1.2.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="108"
-            column="20"/>
     </issue>
 
     <issue
@@ -10439,67 +10318,12 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(R.string.quick_plugin_creator_requirement_empty)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="1122"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                    context.getString("
         errorLine2="                                    ^">
         <location
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageTabContent.kt"
             line="116"
             column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                                context.getString("
-        errorLine2="                                                                ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="280"
-            column="65"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                        context.getString("
-        errorLine2="                                                        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="311"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                            context.getString("
-        errorLine2="                                                            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="345"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                            context.getString("
-        errorLine2="                                                            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="355"
-            column="61"/>
     </issue>
 
     <issue
@@ -10874,1524 +10698,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/dialogs/ScriptExecutionDialog.kt"
             line="301"
             column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                title = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.settings_title), color = SettingsTheme.onSurfaceColor) },"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="130"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Icon(Icons.Default.ArrowBack, contentDescription = context.getString(com.ai.assistance.operit.terminal.R.string.back), tint = SettingsTheme.onSurfaceColor)"
-        errorLine2="                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="133"
-            column="76"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_title),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="161"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Text(if (isManagingFtpServer) context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_stopping) else context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_stop))"
-        errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="194"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Text(if (isManagingFtpServer) context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_stopping) else context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_stop))"
-        errorLine2="                                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="194"
-            column="150"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Text(if (isManagingFtpServer) context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_starting) else context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_start))"
-        errorLine2="                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="213"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Text(if (isManagingFtpServer) context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_starting) else context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_start))"
-        errorLine2="                                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="213"
-            column="150"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            text = context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_tip),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="221"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            text = context.getString(com.ai.assistance.operit.terminal.R.string.ftp_server_suggestion),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="227"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.storage_management_title),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="246"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.ubuntu_environment_size, cacheSize),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="253"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(if (isCalculatingCache) context.getString(com.ai.assistance.operit.terminal.R.string.refresh_size_calculating) else context.getString(com.ai.assistance.operit.terminal.R.string.refresh_size))"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="281"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(if (isCalculatingCache) context.getString(com.ai.assistance.operit.terminal.R.string.refresh_size_calculating) else context.getString(com.ai.assistance.operit.terminal.R.string.refresh_size))"
-        errorLine2="                                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="281"
-            column="150"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(context.getString(com.ai.assistance.operit.terminal.R.string.reset_environment))"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="291"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.project_address_title),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="308"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.project_name),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="315"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(context.getString(com.ai.assistance.operit.terminal.R.string.visit_project))"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="341"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(if (hasUpdateAvailable) context.getString(com.ai.assistance.operit.terminal.R.string.update_now) else context.getString(com.ai.assistance.operit.terminal.R.string.check_updates))"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="364"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Text(if (hasUpdateAvailable) context.getString(com.ai.assistance.operit.terminal.R.string.update_now) else context.getString(com.ai.assistance.operit.terminal.R.string.check_updates))"
-        errorLine2="                                                                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="364"
-            column="136"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                text = context.getString(com.ai.assistance.operit.terminal.R.string.ssh_enable_title),"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="388"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                text = if (sshEnabled) context.getString(com.ai.assistance.operit.terminal.R.string.ssh_use_remote_desc) else context.getString(com.ai.assistance.operit.terminal.R.string.ssh_use_local_desc),"
-        errorLine2="                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="394"
-            column="56"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                text = if (sshEnabled) context.getString(com.ai.assistance.operit.terminal.R.string.ssh_use_remote_desc) else context.getString(com.ai.assistance.operit.terminal.R.string.ssh_use_local_desc),"
-        errorLine2="                                                                                                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="394"
-            column="143"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                        text = context.getString(com.ai.assistance.operit.terminal.R.string.ssh_reverse_mount_enabled),"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="403"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                        text = context.getString(com.ai.assistance.operit.terminal.R.string.ssh_reverse_mount_desc),"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="409"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            text = context.getString(com.ai.assistance.operit.terminal.R.string.ssh_config_required),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="433"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                text = context.getString(com.ai.assistance.operit.terminal.R.string.shared_tmp_title),"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="473"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(com.ai.assistance.operit.terminal.R.string.shared_tmp_enabled_desc)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="481"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(com.ai.assistance.operit.terminal.R.string.shared_tmp_disabled_desc)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="483"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.shared_tmp_note),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="503"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                text = context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mode_title),"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="525"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mode_enabled_desc)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="533"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mode_disabled_desc)"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="535"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mode_note),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="555"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Text(context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mount_check))"
-        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="592"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Text(context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mount_unmount))"
-        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="611"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                text = context.getString(com.ai.assistance.operit.terminal.R.string.chroot_mount_details_title),"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="618"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.virtual_keyboard_settings_title),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="645"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        title = context.getString(com.ai.assistance.operit.terminal.R.string.virtual_keyboard_custom_title),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="652"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.font_settings_title),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="669"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        title = context.getString(com.ai.assistance.operit.terminal.R.string.font_size_title),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="678"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        title = context.getString(com.ai.assistance.operit.terminal.R.string.target_fps_title),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="687"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        title = context.getString(com.ai.assistance.operit.terminal.R.string.font_path_title),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="696"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        subtitle = fontPath.ifEmpty { context.getString(com.ai.assistance.operit.terminal.R.string.font_not_set) },"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="697"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        title = context.getString(com.ai.assistance.operit.terminal.R.string.font_name_title),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="705"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        subtitle = fontName.ifEmpty { context.getString(com.ai.assistance.operit.terminal.R.string.font_not_set) },"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="706"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_reset_default))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="728"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.source_management_title),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="742"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            subtitle = context.getString(com.ai.assistance.operit.terminal.R.string.source_current, config.sources.find { it.id == config.selectedSourceId }?.name ?: &quot;N/A&quot;),"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="752"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(com.ai.assistance.operit.terminal.R.string.ssh_tools_missing_title), "
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="769"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(com.ai.assistance.operit.terminal.R.string.ssh_tools_missing_message), "
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="776"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.go_to_setup))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="788"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.dialog_cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="795"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_missing_title), "
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="807"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_missing_desc), "
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="815"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_local_component),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="821"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_go_to_install),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="826"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_remote_component),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="832"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_remote_install),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="837"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_install_ubuntu_cmd),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="842"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.openssh_install_centos_cmd),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="848"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.openssh_install_button))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="863"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="870"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_size_dialog_title), color = SettingsTheme.onSurfaceColor, fontWeight = FontWeight.Bold) "
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="883"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    label = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_size_label), color = SettingsTheme.onSurfaceVariant) },"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="889"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.confirm))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="913"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="920"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    context.getString(com.ai.assistance.operit.terminal.R.string.target_fps_dialog_title),"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="934"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                context.getString(com.ai.assistance.operit.terminal.R.string.target_fps_label),"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="946"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.target_fps_hint),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="960"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.confirm))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="980"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="987"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_path_dialog_title), color = SettingsTheme.onSurfaceColor, fontWeight = FontWeight.Bold) "
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1000"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        label = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_path_label), color = SettingsTheme.onSurfaceVariant) },"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1007"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.font_path_hint),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1018"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.confirm))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1033"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1040"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_name_dialog_title), color = SettingsTheme.onSurfaceColor, fontWeight = FontWeight.Bold) "
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1053"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        label = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_name_label), color = SettingsTheme.onSurfaceVariant) },"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1060"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        placeholder = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.font_name_placeholder), color = SettingsTheme.onSurfaceVariant.copy(alpha = 0.5f)) },"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1062"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.font_name_hint),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1072"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.confirm))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1087"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.cancel))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1094"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_title), color = SettingsTheme.errorColor, fontWeight = FontWeight.Bold) "
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1105"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_description),"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1110"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_item1), color = SettingsTheme.onSurfaceColor)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1115"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_item2), color = SettingsTheme.onSurfaceColor) "
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1116"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_item3), color = SettingsTheme.onSurfaceColor)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1117"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_warning),"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1120"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(com.ai.assistance.operit.terminal.R.string.reset_dialog_ftp_warning),"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="1125"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_nodejs_name),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="82"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(com.ai.assistance.operit.terminal.R.string.category_nodejs_desc),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="83"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;nodejs&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_nodejs_name), &quot;curl -fsSL https://deb.nodesource.com/setup_24.x | bash - &amp;&amp; apt install -y nodejs&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_nodejs_desc)),"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="85"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;nodejs&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_nodejs_name), &quot;curl -fsSL https://deb.nodesource.com/setup_24.x | bash - &amp;&amp; apt install -y nodejs&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_nodejs_desc)),"
-        errorLine2="                                                                                                                                                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="85"
-            column="216"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;pnpm&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_pnpm_name), &quot;typescript&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_pnpm_desc))"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="86"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;pnpm&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_pnpm_name), &quot;typescript&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_pnpm_desc))"
-        errorLine2="                                                                                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="86"
-            column="140"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_python_name),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="91"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(com.ai.assistance.operit.terminal.R.string.category_python_desc),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="92"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;python-is-python3&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_link_name), &quot;python-is-python3&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_link_desc)),"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="94"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;python-is-python3&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_link_name), &quot;python-is-python3&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_link_desc)),"
-        errorLine2="                                                                                                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="94"
-            column="167"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;python3-venv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_venv_name), &quot;python3-venv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_venv_desc)),"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="95"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;python3-venv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_venv_name), &quot;python3-venv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_venv_desc)),"
-        errorLine2="                                                                                                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="95"
-            column="157"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;python3-pip&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_pip_name), &quot;python3-pip&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_pip_desc)),"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="96"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;python3-pip&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_pip_name), &quot;python3-pip&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_python_pip_desc)),"
-        errorLine2="                                                                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="96"
-            column="154"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;uv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_uv_name), &quot;pipx install uv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_uv_desc))"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="97"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;uv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_uv_name), &quot;pipx install uv&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_uv_desc))"
-        errorLine2="                                                                                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="97"
-            column="141"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_ssh_name),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="102"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(com.ai.assistance.operit.terminal.R.string.category_ssh_desc),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="103"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;ssh&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_ssh_client_name), &quot;ssh&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_ssh_client_desc)),"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="105"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;ssh&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_ssh_client_name), &quot;ssh&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_ssh_client_desc)),"
-        errorLine2="                                                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="105"
-            column="138"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;sshpass&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_sshpass_name), &quot;sshpass&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_sshpass_desc)),"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="106"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;sshpass&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_sshpass_name), &quot;sshpass&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_sshpass_desc)),"
-        errorLine2="                                                                                                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="106"
-            column="143"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_java_name),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="112"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(com.ai.assistance.operit.terminal.R.string.category_java_desc),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="113"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;openjdk-17&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_openjdk_name), &quot;openjdk-17-jdk&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_openjdk_desc)),"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="115"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;openjdk-17&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_openjdk_name), &quot;openjdk-17-jdk&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_openjdk_desc)),"
-        errorLine2="                                                                                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="115"
-            column="153"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;gradle&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_gradle_name), &quot;gradle&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_gradle_desc))"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="116"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;gradle&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_gradle_name), &quot;gradle&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_gradle_desc))"
-        errorLine2="                                                                                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="116"
-            column="140"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_rust_name),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="121"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(com.ai.assistance.operit.terminal.R.string.category_rust_desc),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="122"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;rust&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_rust_name), &quot;RUST_INSTALL_COMMAND&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_rust_desc))"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="124"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;rust&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_rust_name), &quot;RUST_INSTALL_COMMAND&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_rust_desc))"
-        errorLine2="                                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="124"
-            column="150"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    name = context.getString(com.ai.assistance.operit.terminal.R.string.category_go_name),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="129"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    description = context.getString(com.ai.assistance.operit.terminal.R.string.category_go_desc),"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="130"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;go&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_go_name), &quot;golang-go&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_go_desc))"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="132"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        PackageItem(&quot;go&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_go_name), &quot;golang-go&quot;, context.getString(com.ai.assistance.operit.terminal.R.string.package_go_desc))"
-        errorLine2="                                                                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="132"
-            column="135"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            title = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.setup_dialog_title)) },"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="215"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            text = { Text(context.getString(com.ai.assistance.operit.terminal.R.string.setup_dialog_message)) },"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="216"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.dialog_confirm), color = Color.White)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="231"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(com.ai.assistance.operit.terminal.R.string.dialog_cancel), color = Color.White)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="239"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            text = context.getString(com.ai.assistance.operit.terminal.R.string.setup_title),"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="256"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            text = context.getString(com.ai.assistance.operit.terminal.R.string.setup_subtitle),"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="264"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(com.ai.assistance.operit.terminal.R.string.skip), color = Color.White)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="340"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(com.ai.assistance.operit.terminal.R.string.start_setup), color = Color.White)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="448"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            text = &quot;(${context.getString(com.ai.assistance.operit.terminal.R.string.operit_required)})&quot;,"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="491"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.select_all),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="528"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    contentDescription = if (isExpanded) context.getString(com.ai.assistance.operit.terminal.R.string.collapse) else context.getString(com.ai.assistance.operit.terminal.R.string.expand),"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="538"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    contentDescription = if (isExpanded) context.getString(com.ai.assistance.operit.terminal.R.string.collapse) else context.getString(com.ai.assistance.operit.terminal.R.string.expand),"
-        errorLine2="                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="538"
-            column="134"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = &quot; (${context.getString(com.ai.assistance.operit.terminal.R.string.installed)})&quot;,"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="616"
-            column="37"/>
     </issue>
 
     <issue
@@ -12881,94 +11187,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="        val sessionTitle = env.sessions.find { it.id == sessionToDelete }?.title ?: context.getString(com.ai.assistance.operit.terminal.R.string.unknown_session)"
-        errorLine2="                                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="508"
-            column="85"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(com.ai.assistance.operit.terminal.R.string.confirm_delete_session),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="517"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(com.ai.assistance.operit.terminal.R.string.delete_session_message, sessionTitle),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="523"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.delete),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="538"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.cancel),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="551"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            text = context.getString(com.ai.assistance.operit.terminal.R.string.interrupt),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="640"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        text = context.getString(com.ai.assistance.operit.terminal.R.string.environment_setup),"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="670"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                contentDescription = context.getString(com.ai.assistance.operit.terminal.R.string.settings),"
-        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="711"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                error = context.getString(R.string.tts_init_failed)"
         errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -13382,105 +11600,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/settings/screens/UserPreferencesSettingsScreen.kt"
             line="428"
             column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(R.string.virtual_keyboard_dialog_title),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="60"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    Text(context.getString(R.string.virtual_keyboard_reset_default), color = SettingsTheme.primaryColor)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="69"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    text = context.getString(R.string.virtual_keyboard_value_hint),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="81"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(R.string.virtual_keyboard_row_one)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="89"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(R.string.virtual_keyboard_row_two)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="91"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(R.string.confirm))"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="139"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                Text(context.getString(R.string.cancel))"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="144"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                label = { Text(context.getString(R.string.virtual_keyboard_key_label)) },"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="177"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="            label = { Text(context.getString(R.string.virtual_keyboard_key_value)) },"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/VirtualKeyboardCustomizationDialog.kt"
-            line="202"
-            column="28"/>
     </issue>
 
     <issue
@@ -16477,28 +14596,6 @@
 
     <issue
         id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;active&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;chroot_mount_status_detected&quot;>Detected %1$d active chroot hard mounts&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="162"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;chroot&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;chroot_mount_status_unmounted&quot;>Unmounted %1$d chroot hard mounts&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="163"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
         message="Formatting %d followed by words (&quot;workflows&quot;): This should probably be a plural rather than a string"
         errorLine1="    &lt;string name=&quot;workflow_confirm_delete_selected_workflows_message&quot;>Are you sure you want to delete the selected %1$d workflows? This action cannot be undone.&lt;/string>"
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -18205,17 +16302,6 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="        actionMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="2494"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -18513,28 +16599,6 @@
     <issue
         id="ObsoleteSdkInt"
         message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="        val hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/viewmodel/PermissionGuideViewModel.kt"
-            line="58"
-            column="40"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="        val hasBatteryOptimizationExemption = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/viewmodel/PermissionGuideViewModel.kt"
-            line="65"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
         errorLine1="                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -18552,39 +16616,6 @@
             file="src/main/java/com/ai/assistance/operit/core/tools/system/ScreenCaptureService.kt"
             line="111"
             column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="@RequiresApi(Build.VERSION_CODES.O)"
-        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="59"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="@RequiresApi(Build.VERSION_CODES.O)"
-        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="635"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="@RequiresApi(Build.VERSION_CODES.O)"
-        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SetupScreen.kt"
-            line="672"
-            column="1"/>
     </issue>
 
     <issue
@@ -18651,17 +16682,6 @@
             file="src/main/java/com/ai/assistance/operit/core/tools/system/ShizukuInstaller.kt"
             line="107"
             column="25"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is never &lt; 26"
-        errorLine1="        if (Build.VERSION.SDK_INT &lt; 26) return null"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/showerclient/ShowerVideoRenderer.kt"
-            line="217"
-            column="13"/>
     </issue>
 
     <issue
@@ -18782,28 +16802,6 @@
         <location
             file="src/main/java/com/ai/assistance/operit/core/tools/system/Terminal.kt"
             line="30"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="@RequiresApi(Build.VERSION_CODES.O)"
-        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="71"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 26"
-        errorLine1="@RequiresApi(Build.VERSION_CODES.O)"
-        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/main/TerminalScreen.kt"
-            line="53"
             column="1"/>
     </issue>
 
@@ -19234,17 +17232,6 @@
 
     <issue
         id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `FtpServerManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/FtpServerManager.kt"
-            line="29"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
         message="Do not place Android context classes in static fields (static reference to `GitHubAuthPreferences` which has field `context` pointing to `Context`); this is a memory leak"
         errorLine1="        @Volatile"
         errorLine2="        ^">
@@ -19421,28 +17408,6 @@
 
     <issue
         id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `SSHDServerManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/SSHDServerManager.kt"
-            line="30"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `SSHFileConnectionManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/SSHFileConnectionManager.kt"
-            line="35"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
         message="Do not place Android context classes in static fields (static reference to `SkillManager` which has field `context` pointing to `Context`); this is a memory leak"
         errorLine1="        @Volatile private var INSTANCE: SkillManager? = null"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -19493,17 +17458,6 @@
         <location
             file="src/main/java/com/ai/assistance/operit/core/tools/system/Terminal.kt"
             line="34"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `TerminalManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/TerminalManager.kt"
-            line="111"
             column="9"/>
     </issue>
 
@@ -19625,17 +17579,6 @@
         <location
             file="src/main/java/com/ai/assistance/operit/core/tools/agent/VirtualDisplayManager.kt"
             line="22"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `VirtualKeyboardConfigManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/VirtualKeyboardConfigManager.kt"
-            line="111"
             column="9"/>
     </issue>
 
@@ -19807,17 +17750,6 @@
     <issue
         id="AutoboxingStateCreation"
         message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="        var remainingSeconds by remember { mutableStateOf(5) }"
-        errorLine2="                                           ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/agreement/screens/AgreementScreen.kt"
-            line="27"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
         errorLine1="    var selectedConfigTab by rememberSaveable { mutableStateOf(0) }"
         errorLine2="                                                ~~~~~~~~~~~~~~">
         <location
@@ -19879,17 +17811,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/common/markdown/CanvasMonospaceCodeBlockBody.kt"
             line="153"
             column="59"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var currentScale by remember { mutableStateOf(1f) }"
-        errorLine2="                                   ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalCompose.kt"
-            line="106"
-            column="36"/>
     </issue>
 
     <issue
@@ -20088,39 +18009,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/input/classic/ClassicChatSettingsBar.kt"
             line="902"
             column="35"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var scale by mutableStateOf(0.5f)"
-        errorLine2="                 ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/dragonbones/DragonBonesController.kt"
-            line="41"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var translationX by mutableStateOf(0.0f)"
-        errorLine2="                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/dragonbones/DragonBonesController.kt"
-            line="44"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var translationY by mutableStateOf(0.0f)"
-        errorLine2="                        ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/dragonbones/DragonBonesController.kt"
-            line="47"
-            column="25"/>
     </issue>
 
     <issue
@@ -20514,42 +18402,9 @@
         errorLine1="    var refreshRotation by remember { mutableStateOf(0f) }"
         errorLine2="                                      ~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="604"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var refreshRotation by remember { mutableStateOf(0f) }"
-        errorLine2="                                      ~~~~~~~~~~~~~~">
-        <location
             file="src/main/java/com/ai/assistance/operit/ui/features/demo/components/PermissionLevelCard.kt"
             line="120"
             column="39"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var fontSize by remember { mutableStateOf(fontConfigManager.getFontSize()) }"
-        errorLine2="                               ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="84"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var targetFps by remember { mutableStateOf(fontConfigManager.getTargetFps()) }"
-        errorLine2="                                ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsScreen.kt"
-            line="87"
-            column="33"/>
     </issue>
 
     <issue
@@ -20693,39 +18548,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/StreamMarkdownDemo.kt"
             line="75"
             column="33"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
-        errorLine1="    var scaleFactor by remember { mutableStateOf(1f) }"
-        errorLine2="                                  ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="152"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var settledBottomPx by remember { mutableStateOf(targetBottomPx) }"
-        errorLine2="                                      ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="574"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    var previousTargetBottomPx by remember { mutableStateOf(targetBottomPx) }"
-        errorLine2="                                             ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/TerminalHome.kt"
-            line="575"
-            column="46"/>
     </issue>
 
     <issue
@@ -37120,17 +34942,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.common_render_failed` appears to be unused"
-        errorLine1="    &lt;string name=&quot;common_render_failed&quot;>渲染失败&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="6171"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.mcp_server_not_installed_cannot_configure` appears to be unused"
         errorLine1="    &lt;string name=&quot;mcp_server_not_installed_cannot_configure&quot;>此插件尚未安装，无法配置&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -41306,28 +39117,6 @@
         <location
             file="src/main/res/values-id/strings.xml"
             line="4931"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="TypographyDashes"
-        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
-        errorLine1="    &lt;string name=&quot;backup_room_db_max_backup_count_desc&quot;>When exceeded, older backups will be deleted automatically (range 1-100)&lt;/string>"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="5140"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="TypographyDashes"
-        message="Replace &quot;-&quot; with an &quot;en dash&quot; character (–, &amp;#8211;) ?"
-        errorLine1="    &lt;string name=&quot;backup_room_db_max_backup_count_desc&quot;>超过此数量时，会自动删除更旧的备份文件（范围 1-100）&lt;/string>"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="5564"
             column="57"/>
     </issue>
 
@@ -57405,17 +55194,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_processing_input&quot;>입력 처리 중...&lt;/string>"
-        errorLine2="                                             ~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ko/strings.xml"
-            line="6483"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;phone_agent_executing_action&quot;>Executing %1$s...&lt;/string>"
         errorLine2="                                                ~~~~~~~~~~~~~~~~~">
         <location
@@ -57543,17 +55321,6 @@
             file="src/main/res/values-pt-rBR/strings.xml"
             line="6618"
             column="53"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;package_market_search_placeholder&quot;>Pesquisar por nome, descrição, autor do pacote...&lt;/string>"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-pt-rBR/strings.xml"
-            line="6619"
-            column="54"/>
     </issue>
 
     <issue
@@ -57900,28 +55667,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;chat_regenerating_single&quot;>Sedang menjana semula jawapan ini...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-ms/strings.xml"
-            line="6822"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;chat_regenerating_single&quot;>Sedang menghasilkan ulang jawaban ini...&lt;/string>"
-        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-id/strings.xml"
-            line="6824"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;mcp_deployment_using_market_config&quot;>使用市场配置部署插件...&lt;/string>"
         errorLine2="                                                      ~~~~~~~~~~~~~">
         <location
@@ -58098,17 +55843,6 @@
     <issue
         id="TypographyEllipsis"
         message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;openai_retry_with_count&quot;>%1$s, realizando reintento %2$d...&lt;/string>"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-es/strings.xml"
-            line="6880"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
         errorLine1="    &lt;string name=&quot;enhanced_processing_input&quot;>Processing input...&lt;/string>"
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~">
         <location
@@ -58126,39 +55860,6 @@
             file="src/main/res/values-en/strings.xml"
             line="6893"
             column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_connecting_service&quot;>Connecting to AI service...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6894"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_response&quot;>Receiving AI response...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6895"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_receiving_tool_result&quot;>Receiving AI response after tool execution...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="6901"
-            column="51"/>
     </issue>
 
     <issue
@@ -58360,39 +56061,6 @@
     </issue>
 
     <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_processing_input&quot;>正在处理输入...&lt;/string>"
-        errorLine2="                                             ~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7363"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_processing_message&quot;>正在处理消息...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7364"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;enhanced_connecting_service&quot;>正在连接AI服务...&lt;/string>"
-        errorLine2="                                               ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="7365"
-            column="48"/>
-    </issue>
-
-    <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                val uri = Uri.parse(uriString)"
@@ -58434,182 +56102,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/components/style/cursor/AiMessageComposable.kt"
             line="108"
             column="61"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        0 -> Color.parseColor(&quot;#000000&quot;) // Black"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="14"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        1 -> Color.parseColor(&quot;#CD0000&quot;) // Red"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        2 -> Color.parseColor(&quot;#00CD00&quot;) // Green"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="16"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        3 -> Color.parseColor(&quot;#CDCD00&quot;) // Yellow"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="17"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        4 -> Color.parseColor(&quot;#0000EE&quot;) // Blue"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="18"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        5 -> Color.parseColor(&quot;#CD00CD&quot;) // Magenta"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="19"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        6 -> Color.parseColor(&quot;#00CDCD&quot;) // Cyan"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="20"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        7 -> Color.parseColor(&quot;#E5E5E5&quot;) // White"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="21"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        0 -> Color.parseColor(&quot;#7F7F7F&quot;) // Bright Black (Gray)"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="29"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        1 -> Color.parseColor(&quot;#FF0000&quot;) // Bright Red"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="30"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        2 -> Color.parseColor(&quot;#00FF00&quot;) // Bright Green"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="31"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        3 -> Color.parseColor(&quot;#FFFF00&quot;) // Bright Yellow"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="32"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        4 -> Color.parseColor(&quot;#5C5CFF&quot;) // Bright Blue"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="33"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        5 -> Color.parseColor(&quot;#FF00FF&quot;) // Bright Magenta"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="34"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        6 -> Color.parseColor(&quot;#00FFFF&quot;) // Bright Cyan"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="35"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        7 -> Color.parseColor(&quot;#FFFFFF&quot;) // Bright White"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/domain/ansi/AnsiColorUtils.kt"
-            line="36"
-            column="14"/>
     </issue>
 
     <issue
@@ -58852,61 +56344,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/editor/CanvasCodeEditorView.kt"
             line="1076"
             column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        color = Color.parseColor(&quot;#3B82F6&quot;)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="78"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        color = Color.parseColor(&quot;#3B82F6&quot;)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="78"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Canvas.withSave` instead?"
-        errorLine1="        canvas.save()"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="257"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Canvas.withClip` instead?"
-        errorLine1="        canvas.save()"
-        errorLine2="        ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="1487"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Canvas.withTranslation` instead?"
-        errorLine1="                canvas.save()"
-        errorLine2="                ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/view/canvas/CanvasTerminalView.kt"
-            line="1862"
-            column="17"/>
     </issue>
 
     <issue
@@ -59880,61 +57317,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                                        Uri.parse("
-        errorLine2="                                                                        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="263"
-            column="73"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                                        Uri.parse("
-        errorLine2="                                                                        ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="263"
-            column="73"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                        Uri.parse(&quot;package:&quot; + context.packageName)"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="305"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                                    Uri.parse("
-        errorLine2="                                                                    ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="329"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                                    Uri.parse("
-        errorLine2="                                                                    ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/permission/screens/PermissionGuideScreen.kt"
-            line="329"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                    Uri.parse(&quot;package:${context.packageName}&quot;)"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -60100,28 +57482,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putBoolean(&quot;shared_tmp_enabled&quot;, enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsViewModel.kt"
-            line="416"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putBoolean(&quot;chroot_enabled&quot;, enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/ui/SettingsViewModel.kt"
-            line="497"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="        prefs.edit().remove(KEY_COMMAND_HISTORY).apply()"
         errorLine2="        ~~~~~~~~~~~~">
         <location
@@ -60231,17 +57591,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/showerclient/ShowerVideoRenderer.kt"
-            line="220"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="            prefs.edit().remove(legacyKey).putBoolean(newKey, legacyValue).apply()"
         errorLine2="            ~~~~~~~~~~~~">
@@ -60259,39 +57608,6 @@
         <location
             file="src/main/java/com/ai/assistance/operit/data/preferences/SkillVisibilityPreferences.kt"
             line="62"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(key, json.encodeToString(customSources)).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/SourceManager.kt"
-            line="80"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(key, json.encodeToString(customSources)).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/SourceManager.kt"
-            line="94"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString("
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/SourceManager.kt"
-            line="133"
             column="9"/>
     </issue>
 
@@ -60458,83 +57774,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/toolbox/screens/StreamMarkdownDemo.kt"
             line="254"
             column="57"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putFloat(KEY_FONT_SIZE, size).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/TerminalFontConfigManager.kt"
-            line="106"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(KEY_FONT_PATH, path).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/TerminalFontConfigManager.kt"
-            line="121"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(KEY_FONT_NAME, name).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/TerminalFontConfigManager.kt"
-            line="136"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/TerminalFontConfigManager.kt"
-            line="151"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/TerminalFontConfigManager.kt"
-            line="160"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                    sharedPreferences.edit().putBoolean(&quot;is_first_launch&quot;, false).apply()"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/main/TerminalScreen.kt"
-            line="127"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                    sharedPreferences.edit().putBoolean(&quot;is_first_launch&quot;, false).apply()"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/main/TerminalScreen.kt"
-            line="134"
-            column="21"/>
     </issue>
 
     <issue
@@ -60804,17 +58043,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                val uri = android.net.Uri.parse(id)"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/provider/UbuntuDocumentsProvider.kt"
-            line="305"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))"
         errorLine2="                                                         ~~~~~~~~~~~~~~">
         <location
@@ -60865,28 +58093,6 @@
             file="src/main/java/com/ai/assistance/operit/core/tools/agent/VirtualDisplayManager.kt"
             line="81"
             column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(PREF_KEY_VIRTUAL_KEYBOARD_LAYOUT, serializeLayout(layout)).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/VirtualKeyboardConfigManager.kt"
-            line="48"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().remove(PREF_KEY_VIRTUAL_KEYBOARD_LAYOUT).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/terminal/utils/VirtualKeyboardConfigManager.kt"
-            line="52"
-            column="9"/>
     </issue>
 
     <issue
@@ -60958,28 +58164,6 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val request = android.app.DownloadManager.Request(Uri.parse(url))"
-        errorLine2="                                                              ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/WebViewHandler.kt"
-            line="420"
-            column="63"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                    val fileUri = Uri.parse(uriString)"
-        errorLine2="                                                                  ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/WebViewHandler.kt"
-            line="486"
-            column="67"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        val uri = Uri.parse(url)"
         errorLine2="                  ~~~~~~~~~~~~~~">
         <location
@@ -60997,28 +58181,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/chat/webview/workspace/WorkspaceReadOnlyDocumentPreview.kt"
             line="481"
             column="25"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use the existing version catalog reference (`libs.androidx.core.ktx`) instead"
-        errorLine1="    implementation(&quot;androidx.core:core-ktx:1.12.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="59"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use the existing version catalog reference (`libs.androidx.appcompat`) instead"
-        errorLine1="    implementation(&quot;androidx.appcompat:appcompat:1.6.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="60"
-            column="20"/>
     </issue>
 
     <issue
@@ -61194,39 +58356,6 @@
         <location
             file="build.gradle.kts"
             line="448"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.squareup.retrofit2:retrofit:2.9.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="451"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.squareup.retrofit2:converter-moshi:2.9.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="452"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;com.squareup.moshi:moshi-kotlin:1.15.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="453"
             column="20"/>
     </issue>
 

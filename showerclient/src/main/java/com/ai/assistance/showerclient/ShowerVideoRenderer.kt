@@ -4,11 +4,11 @@ import android.graphics.Bitmap
 import android.media.MediaCodec
 import android.media.MediaCodec.BufferInfo
 import android.media.MediaFormat
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
 import android.view.Surface
+import androidx.core.graphics.createBitmap
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import kotlinx.coroutines.Dispatchers
@@ -214,10 +214,8 @@ class ShowerVideoRenderer {
             h = height
         }
 
-        if (Build.VERSION.SDK_INT < 26) return null
-
         return withContext(Dispatchers.Main) {
-            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val bitmap = createBitmap(w, h)
             suspendCancellableCoroutine { cont ->
                 val handler = Handler(Looper.getMainLooper())
                 PixelCopy.request(s, bitmap, { result ->

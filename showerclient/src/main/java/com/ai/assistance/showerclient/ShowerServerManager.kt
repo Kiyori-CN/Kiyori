@@ -13,6 +13,7 @@ import java.io.FileOutputStream
  * This implementation is host-agnostic: it relies only on [ShellRunner] and Binder
  * registration via [ShowerBinderRegistry]. The host app is responsible for:
  * - Providing a [ShellRunner] via [ShowerEnvironment.shellRunner]
+ * - Providing a staging directory via [ShowerEnvironment.stagingDirectoryProvider]
  * - Packaging `shower-server.jar` into its assets
  */
 object ShowerServerManager {
@@ -68,7 +69,7 @@ object ShowerServerManager {
             )
         }
 
-        // 3) Copy the jar from /sdcard/Download/Kiyori to /data/local/tmp using shell identity,
+        // 3) Copy the jar from the host-owned public staging directory to /data/local/tmp using shell identity,
         // so that the resulting file is owned by the shell user.
         val copyCmd = "cp ${jarFile.absolutePath} $remoteJarPath"
         ShowerLog.d(TAG, "Copying Shower jar with shell identity using command: $copyCmd")
@@ -129,14 +130,15 @@ object ShowerServerManager {
 
     /**
      * Copy shower-server.jar from assets to an external directory.
-     * Host apps can override this behaviour by providing a different wrapper
-     * around [ShellRunner] if needed.
+     * The host must provide the directory owner through [ShowerEnvironment.stagingDirectoryProvider].
      */
     private suspend fun copyJarToExternalDir(context: Context): File = withContext(Dispatchers.IO) {
-        // Reuse the same base directory as screenshots: /sdcard/Download/Kiyori
-        val baseDir = File("/sdcard/Download/Kiyori")
-        if (!baseDir.exists()) {
-            baseDir.mkdirs()
+        val stagingDirectoryProvider = checkNotNull(ShowerEnvironment.stagingDirectoryProvider) {
+            "No stagingDirectoryProvider configured in ShowerEnvironment"
+        }
+        val baseDir = stagingDirectoryProvider()
+        check(baseDir.isDirectory || baseDir.mkdirs()) {
+            "Unable to create Shower staging directory: ${baseDir.absolutePath}"
         }
         val outFile = File(baseDir, LOCAL_JAR_NAME)
         context.assets.open(ASSET_JAR_NAME).use { input ->

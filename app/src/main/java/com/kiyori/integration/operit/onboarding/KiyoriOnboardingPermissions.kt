@@ -12,7 +12,9 @@ import android.os.Environment
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.ai.assistance.operit.core.tools.system.RootAuthorizer
 import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.core.tools.system.ShizukuInstaller
@@ -25,11 +27,11 @@ internal fun kiyoriRuntimePermissionsForSdk(
     buildList {
         if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
             if (KiyoriPermissionId.NOTIFICATIONS in selectedPermissionIds) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
+                add(POST_NOTIFICATIONS_PERMISSION)
             }
             if (KiyoriPermissionId.MEDIA in selectedPermissionIds) {
-                add(Manifest.permission.READ_MEDIA_AUDIO)
-                add(Manifest.permission.READ_MEDIA_VIDEO)
+                add(READ_MEDIA_AUDIO_PERMISSION)
+                add(READ_MEDIA_VIDEO_PERMISSION)
             }
         } else {
             if (KiyoriPermissionId.LEGACY_STORAGE in selectedPermissionIds) {
@@ -44,7 +46,7 @@ internal fun kiyoriRuntimePermissionsForSdk(
         if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
             KiyoriPermissionId.MEDIA in selectedPermissionIds
         ) {
-            add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+            add(READ_MEDIA_VISUAL_USER_SELECTED_PERMISSION)
         }
         if (KiyoriPermissionId.CAMERA in selectedPermissionIds) {
             add(Manifest.permission.CAMERA)
@@ -58,8 +60,8 @@ internal fun kiyoriRuntimePermissionsForSdk(
         }
         if (sdkInt >= Build.VERSION_CODES.S) {
             if (KiyoriPermissionId.BLUETOOTH in selectedPermissionIds) {
-                add(Manifest.permission.BLUETOOTH_CONNECT)
-                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(BLUETOOTH_CONNECT_PERMISSION)
+                add(BLUETOOTH_SCAN_PERMISSION)
             }
         }
         if (KiyoriPermissionId.PHONE in selectedPermissionIds) {
@@ -110,10 +112,10 @@ internal fun readKiyoriPermissionSnapshot(
         buildMap {
             put(
                 KiyoriPermissionId.NOTIFICATIONS,
-                if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     permissionGroupStatus(
                         context = context,
-                        permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
+                        permissions = notificationPermissionsApi33(),
                     )
                 } else {
                     KiyoriPermissionStatus.NOT_APPLICABLE
@@ -121,17 +123,10 @@ internal fun readKiyoriPermissionSnapshot(
             )
             put(
                 KiyoriPermissionId.MEDIA,
-                if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     permissionGroupStatus(
                         context = context,
-                        permissions =
-                            buildList {
-                                add(Manifest.permission.READ_MEDIA_AUDIO)
-                                add(Manifest.permission.READ_MEDIA_VIDEO)
-                                if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                    add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-                                }
-                            },
+                        permissions = mediaPermissionsApi33(),
                     )
                 } else {
                     KiyoriPermissionStatus.NOT_APPLICABLE
@@ -164,14 +159,10 @@ internal fun readKiyoriPermissionSnapshot(
             )
             put(
                 KiyoriPermissionId.BLUETOOTH,
-                if (sdkInt >= Build.VERSION_CODES.S) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     permissionGroupStatus(
                         context = context,
-                        permissions =
-                            listOf(
-                                Manifest.permission.BLUETOOTH_CONNECT,
-                                Manifest.permission.BLUETOOTH_SCAN,
-                            ),
+                        permissions = bluetoothPermissionsApi31(),
                     )
                 } else {
                     KiyoriPermissionStatus.NOT_APPLICABLE
@@ -217,8 +208,8 @@ internal fun readKiyoriPermissionSnapshot(
             )
             put(
                 KiyoriPermissionId.ALL_FILES,
-                if (sdkInt >= Build.VERSION_CODES.R) {
-                    grantedStatus(Environment.isExternalStorageManager())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    allFilesAccessStatusApi30()
                 } else {
                     KiyoriPermissionStatus.NOT_APPLICABLE
                 },
@@ -321,14 +312,15 @@ internal fun launchKiyoriPermissionSettings(
     context: Context,
     permissionId: KiyoriPermissionId,
 ) {
-    val packageUri = Uri.parse("package:${context.packageName}")
+    val packageUri = "package:${context.packageName}".toUri()
     val intent =
         when (permissionId) {
             KiyoriPermissionId.ALL_FILES ->
-                Intent(
-                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                    packageUri,
-                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    allFilesAccessSettingsIntentApi30(packageUri)
+                } else {
+                    error("All-files access settings require Android 11 or newer")
+                }
 
             KiyoriPermissionId.OVERLAY ->
                 Intent(
@@ -355,10 +347,7 @@ internal fun launchKiyoriPermissionSettings(
                 )
 
             KiyoriPermissionId.BATTERY_OPTIMIZATION ->
-                Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    packageUri,
-                )
+                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
 
             KiyoriPermissionId.NOTIFICATION_LISTENER ->
                 Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
@@ -385,6 +374,42 @@ internal fun launchKiyoriPermissionSettings(
         }
     context.startActivity(intent)
 }
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun notificationPermissionsApi33(): List<String> =
+    listOf(Manifest.permission.POST_NOTIFICATIONS)
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun mediaPermissionsApi33(): List<String> =
+    buildList {
+        add(Manifest.permission.READ_MEDIA_AUDIO)
+        add(Manifest.permission.READ_MEDIA_VIDEO)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            add(mediaVisualUserSelectedPermissionApi34())
+        }
+    }
+
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+private fun mediaVisualUserSelectedPermissionApi34(): String =
+    Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+
+@RequiresApi(Build.VERSION_CODES.S)
+private fun bluetoothPermissionsApi31(): List<String> =
+    listOf(
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.BLUETOOTH_SCAN,
+    )
+
+@RequiresApi(Build.VERSION_CODES.R)
+private fun allFilesAccessStatusApi30(): KiyoriPermissionStatus =
+    grantedStatus(Environment.isExternalStorageManager())
+
+@RequiresApi(Build.VERSION_CODES.R)
+private fun allFilesAccessSettingsIntentApi30(packageUri: Uri): Intent =
+    Intent(
+        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+        packageUri,
+    )
 
 internal fun performKiyoriAccessibilityAction(
     context: Context,
@@ -518,3 +543,12 @@ private fun isKiyoriAccessibilityProviderEnabled(context: Context): Boolean {
 private const val SHIZUKU_PACKAGE_NAME = "moe.shizuku.privileged.api"
 private const val ACCESSIBILITY_PROVIDER_PACKAGE_NAME =
     "com.ai.assistance.operit.provider"
+
+// 该策略函数接收显式 sdkInt 以覆盖多版本单测；稳定权限值避免把宿主 SDK 状态误当成传入版本。
+private const val POST_NOTIFICATIONS_PERMISSION = "android.permission.POST_NOTIFICATIONS"
+private const val READ_MEDIA_AUDIO_PERMISSION = "android.permission.READ_MEDIA_AUDIO"
+private const val READ_MEDIA_VIDEO_PERMISSION = "android.permission.READ_MEDIA_VIDEO"
+private const val READ_MEDIA_VISUAL_USER_SELECTED_PERMISSION =
+    "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+private const val BLUETOOTH_CONNECT_PERMISSION = "android.permission.BLUETOOTH_CONNECT"
+private const val BLUETOOTH_SCAN_PERMISSION = "android.permission.BLUETOOTH_SCAN"

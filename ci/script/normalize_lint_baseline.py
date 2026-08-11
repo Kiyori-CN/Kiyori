@@ -20,7 +20,7 @@ ISSUE_BLOCK = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 NORMALIZED_VERSION_CATALOG_PATH = 'file="../gradle/libs.versions.toml"'
-EXPECTED_SHA256 = "dda9a10b3c899698271aeca2b3be9812674d3041adf20af4ea6d15d80c552405"
+EXPECTED_SHA256 = "9ecd07d023005a6732f2f56f110675ec6ac64bfec8c64107e8780b7c42396fe5"
 
 
 def normalize(text: str) -> str:

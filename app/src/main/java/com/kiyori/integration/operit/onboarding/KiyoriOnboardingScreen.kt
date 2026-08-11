@@ -284,14 +284,7 @@ internal fun KiyoriOnboardingScreen(
                 "无法打开或请求首次启动权限: $permissionId",
                 error,
             )
-            Toast.makeText(
-                context,
-                context.getString(
-                    R.string.kiyori_onboarding_permission_action_failed,
-                    permissionMetadata(permissionId).title(context),
-                ),
-                Toast.LENGTH_LONG,
-            ).show()
+            showKiyoriPermissionActionFailure(context, permissionId)
             false
         }
     }
@@ -2039,3 +2032,15 @@ private tailrec fun Context.findActivity(): Activity =
         is ContextWrapper -> baseContext.findActivity()
         else -> error("Kiyori onboarding requires an Activity context")
     }
+
+private fun showKiyoriPermissionActionFailure(
+    context: Context,
+    permissionId: KiyoriPermissionId,
+) {
+    val message =
+        context.getString(
+            R.string.kiyori_onboarding_permission_action_failed,
+            permissionMetadata(permissionId).title(context),
+        )
+    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+}
