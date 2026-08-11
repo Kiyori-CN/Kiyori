@@ -79,6 +79,8 @@ import com.ai.assistance.operit.data.model.AiReference
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ChatMessageDisplayMode
 import com.ai.assistance.operit.data.model.ChatMessageLocatorPreview
+import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.stream.observeSecondaryStream
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 
 import androidx.compose.ui.window.PopupProperties
@@ -306,9 +308,19 @@ fun ChatArea(
         val stream = lastMessage?.contentStream
 
         if (!lastAiMessageHasStaticContent && shouldAwaitFirstChunk && stream != null) {
-            stream.collect { chunk ->
-                if (!hasLastAiMessageStartedStreaming && chunk.isNotEmpty()) {
-                    hasLastAiMessageStartedStreaming = true
+            observeSecondaryStream(
+                onFailure = { failure ->
+                    AppLogger.w(
+                        "ChatArea",
+                        "首包观察流终止，消息层负责展示发送错误",
+                        failure,
+                    )
+                }
+            ) {
+                stream.collect { chunk ->
+                    if (!hasLastAiMessageStartedStreaming && chunk.isNotEmpty()) {
+                        hasLastAiMessageStartedStreaming = true
+                    }
                 }
             }
         }

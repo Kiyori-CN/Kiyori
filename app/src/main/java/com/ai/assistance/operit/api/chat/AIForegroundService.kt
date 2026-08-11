@@ -36,6 +36,7 @@ import com.ai.assistance.operit.api.speech.SpeechPrerollStore
 import com.ai.assistance.operit.api.speech.SpeechService
 import com.ai.assistance.operit.api.speech.SpeechServiceFactory
 import com.ai.assistance.operit.core.chat.AIMessageManager
+import com.ai.assistance.operit.core.chat.AssistantTurnCancellationSource
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.application.ForegroundServiceCompat
 import com.ai.assistance.operit.data.preferences.ExternalHttpApiConfig
@@ -1097,7 +1098,9 @@ class AIForegroundService : Service() {
             updateAiBusyState(false)
 
             try {
-                AIMessageManager.cancelCurrentOperation()
+                AIMessageManager.cancelCurrentOperation(
+                    source = AssistantTurnCancellationSource.APPLICATION_EXIT
+                )
             } catch (e: Exception) {
                 AppLogger.e(TAG, "退出时取消当前AI任务失败: ${e.message}", e)
             }

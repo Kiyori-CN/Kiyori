@@ -1,8 +1,11 @@
 package com.ai.assistance.operit.services.core
 
+import com.ai.assistance.operit.api.chat.AssistantTurnFailureKind
 import com.ai.assistance.operit.data.model.ChatMessage
+import com.ai.assistance.operit.data.model.InputProcessingState
 import com.ai.assistance.operit.util.stream.emptyStream
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -44,5 +47,48 @@ class MessageProcessingDelegateTest {
         assertEquals(4_000L, result.outputDurationMs)
         assertEquals(500L, result.waitDurationMs)
         assertEquals(5_000L, result.completedAt)
+    }
+
+    @Test
+    fun providerFailureIsRetainedAsFinalErrorAfterRuntimeCleanup() {
+        val terminal =
+            MessageProcessingDelegate.createTurnFailureTerminal(
+                message = "Failed to send message: upstream failed",
+                failureKind = AssistantTurnFailureKind.PROVIDER_FAILURE,
+            )
+
+        assertEquals("provider_failure", terminal.terminalOutcome)
+        assertEquals(
+            InputProcessingState.Error("Failed to send message: upstream failed"),
+            terminal.finalInputState,
+        )
+        assertFalse(terminal.shouldNotifyTurnComplete)
+    }
+
+    @Test
+    fun emptyOutputAndMissingTerminalHaveDistinctStableOutcomes() {
+        val emptyOutput =
+            MessageProcessingDelegate.createTurnFailureTerminal(
+                message = "AI_STREAM_EMPTY_TERMINATION",
+                failureKind = AssistantTurnFailureKind.EMPTY_OUTPUT,
+            )
+        val missingTerminal =
+            MessageProcessingDelegate.createTurnFailureTerminal(
+                message = "AI_TURN_TERMINAL_MISSING",
+                failureKind = AssistantTurnFailureKind.TERMINAL_MISSING,
+            )
+
+        assertEquals("empty_output", emptyOutput.terminalOutcome)
+        assertEquals("terminal_missing", missingTerminal.terminalOutcome)
+        assertEquals(
+            InputProcessingState.Error("AI_STREAM_EMPTY_TERMINATION"),
+            emptyOutput.finalInputState,
+        )
+        assertEquals(
+            InputProcessingState.Error("AI_TURN_TERMINAL_MISSING"),
+            missingTerminal.finalInputState,
+        )
+        assertFalse(emptyOutput.shouldNotifyTurnComplete)
+        assertFalse(missingTerminal.shouldNotifyTurnComplete)
     }
 }

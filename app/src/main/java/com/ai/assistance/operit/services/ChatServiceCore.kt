@@ -177,7 +177,9 @@ class ChatServiceCore(
             },
             showErrorMessage = { error ->
                 AppLogger.e(TAG, "错误: $error")
-                // 错误消息可以通过回调传递给 UI
+                // InputProcessingState.Error 驱动发送状态，主界面的 ErrorDialog 则观察这个共享
+                // UiStateDelegate。这里只写日志会让 Provider 失败结束加载，却永远没有可见诊断。
+                uiStateDelegate.showErrorMessage(error)
             },
             updateChatTitle = { chatId, title ->
                 chatHistoryDelegate.updateChatTitle(chatId, title)

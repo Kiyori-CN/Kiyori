@@ -44,6 +44,7 @@ interface AIService {
      * @param enableThinking 是否启用思考模式
      * @param stream 是否使用流式输出，true为流式，false为非流式（但返回值仍为Stream）
      * @param availableTools 可用工具列表(用于Tool Call API)，如果为null则使用系统提示词中的工具描述
+     * @param providerRequestContext 消息层分配的 provider exchange 身份；非持久化后台任务为 null
      * @param onTokensUpdated Token更新回调
      * @param onNonFatalError 非致命错误回调
      * @return 流式响应内容的Stream（无论stream参数如何，都返回Stream）
@@ -56,6 +57,7 @@ interface AIService {
             stream: Boolean = true,
             availableTools: List<ToolPrompt>? = null,
             preserveThinkInHistory: Boolean = false, // 新增参数，控制是否保留历史中的思考过程
+            providerRequestContext: ProviderRequestContext? = null,
             onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit = { _, _, _ -> },
             onNonFatalError: suspend (error: String) -> Unit = {},
             enableRetry: Boolean = true

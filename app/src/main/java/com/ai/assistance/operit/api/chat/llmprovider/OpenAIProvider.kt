@@ -9,8 +9,13 @@ import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelOption
 import com.ai.assistance.operit.data.model.ModelParameter
+import com.ai.assistance.operit.data.model.ProviderExecutionEntity
+import com.ai.assistance.operit.data.model.ProviderExecutionStatus
+import com.ai.assistance.operit.data.model.ProviderTransportKind
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.data.preferences.ApiPreferences
+import com.ai.assistance.operit.data.dao.ProviderEventAppendOutcome
+import com.ai.assistance.operit.data.repository.ProviderExecutionRepository
 import com.ai.assistance.operit.api.chat.llmprovider.EndpointCompleter
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatMarkupRegex
@@ -35,16 +40,20 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.Buffer
 import org.json.JSONArray
 import org.json.JSONObject
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser
@@ -122,10 +131,41 @@ open class OpenAIProvider(
         cause: Throwable? = null
     ) : IOException(message, cause), HttpStatusCodeException
 
+    private class OpenAiHttpResponseException(
+        message: String,
+        override val statusCode: Int,
+    ) : IOException(message), HttpStatusCodeException
+
     // Token缓存管理器
     val tokenCacheManager = TokenCacheManager()
 
     protected open val useResponsesApi: Boolean = false
+    protected open val supportsResponsesStreamResumption: Boolean = false
+    protected val modelCapabilityProfile: ModelCapabilityProfile by lazy {
+        ModelCapabilityResolver.resolve(
+            providerType = providerType,
+            modelName = modelName,
+            apiEndpoint = apiEndpoint,
+        )
+    }
+    private val usesAtMostOnceResponsesSubmission: Boolean
+        get() =
+            useResponsesApi &&
+                modelCapabilityProfile.executionPersistence ==
+                    ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE
+
+    /**
+     * 生产环境始终使用唯一的 ProviderExecutionRepository。
+     *
+     * 保持这个创建边界可覆写，是为了让 JVM 故障注入直接执行真实 Responses 协调器，同时
+     * 精确观察它发出的持久化状态变更；测试实现不能进入应用运行时。
+     */
+    internal open fun createResponsesExecutionPersistence(
+        context: Context,
+    ): OpenAIResponsesExecutionPersistence =
+        RepositoryOpenAIResponsesExecutionPersistence(
+            ProviderExecutionRepository.from(context)
+        )
 
     // 公开token计数
     override val inputTokenCount: Int
@@ -566,51 +606,36 @@ open class OpenAIProvider(
             return
         }
 
-        val existingEffort = requestJson.optString("reasoning_effort", "").trim()
-        if (existingEffort.isNotEmpty()) {
-            AppLogger.d(
-                "OpenAIProvider",
-                "Preserving caller-supplied Chat Completions reasoning_effort=$existingEffort"
-            )
-            return
-        }
-
-        val effort = if (enableThinking) {
-            resolveOpenAiChatReasoningEffort(context)
-        } else {
-            "none"
-        } ?: return
-        requestJson.put("reasoning_effort", effort)
+        val compiledRequest = compileModelRequest(context, enableThinking)
+        val effort = compiledRequest.reasoningEffort ?: return
+        requestJson.put("reasoning_effort", effort.wireValue)
         AppLogger.d(
             "OpenAIProvider",
-            "OpenAI Chat Completions reasoning_effort=$effort"
+            "OpenAI Chat Completions reasoning_effort=${effort.wireValue}, " +
+                "profile=${compiledRequest.profile.profileId}"
         )
     }
 
-    private fun resolveOpenAiChatReasoningEffort(context: Context): String? {
-        val qualityLevel = runCatching {
+    private fun supportsOpenAiChatReasoningEffort(): Boolean =
+        modelCapabilityProfile.reasoningWireFormat == ReasoningWireFormat.CHAT_COMPLETIONS
+
+    protected fun compileModelRequest(
+        context: Context,
+        enableThinking: Boolean,
+    ): CompiledModelRequest {
+        val qualityLevel =
             runBlocking {
                 ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
             }
-        }.getOrElse {
-            AppLogger.w(
-                "OpenAIProvider",
-                "Failed to read thinking quality level; reasoning_effort not applied",
-                it
-            )
-            return null
-        }
-
-        val effortLevels = listOf("low", "medium", "high", "xhigh", "max")
-        val qualityIndex = qualityLevel.coerceIn(
-            ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
-            ApiPreferences.MAX_THINKING_QUALITY_LEVEL
-        ) - 1
-        return effortLevels[qualityIndex]
+        return ModelRequestCompiler.compile(
+            profile = modelCapabilityProfile,
+            intent =
+                UserExecutionIntent(
+                    enableThinking = enableThinking,
+                    thinkingQualityLevel = qualityLevel,
+                ),
+        )
     }
-
-    private fun supportsOpenAiChatReasoningEffort(): Boolean =
-        providerType == ApiProviderType.OPENAI || providerType == ApiProviderType.OPENAI_GENERIC
 
     protected fun createJsonRequestBody(jsonString: String): RequestBody {
         return jsonString.toByteArray(Charsets.UTF_8).toRequestBody(JSON)
@@ -936,7 +961,6 @@ open class OpenAIProvider(
         var queuedToolCalls = JSONArray()
         val queuedToolCallIds = mutableListOf<String>()
         val openToolCallIds = mutableListOf<String>()
-        var nextToolCallOrdinal = 0
 
         fun appendQueuedAssistantToolText(text: String) {
             if (text.isBlank()) return
@@ -953,8 +977,10 @@ open class OpenAIProvider(
             for (i in 0 until toolCalls.length()) {
                 val sourceToolCall = toolCalls.optJSONObject(i) ?: continue
                 val toolCall = JSONObject(sourceToolCall.toString())
-                val callId = generatedToolCallId(nextToolCallOrdinal++)
-                toolCall.put("id", callId)
+                val callId = toolCall.optString("id", "").trim()
+                require(callId.isNotEmpty()) {
+                    "Compiled tool call must have a stable call ID"
+                }
                 queuedToolCalls.put(toolCall)
                 queuedToolCallIds.add(callId)
             }
@@ -1195,7 +1221,7 @@ open class OpenAIProvider(
     fun buildToolDefinitions(toolPrompts: List<ToolPrompt>): JSONArray {
         val tools = JSONArray()
 
-        for (tool in toolPrompts) {
+        for (tool in toolPrompts.sortedBy { tool -> tool.name }) {
             tools.put(JSONObject().apply {
                 put("type", "function")
                 put("function", JSONObject().apply {
@@ -1209,8 +1235,17 @@ open class OpenAIProvider(
                     put("description", fullDescription)
 
                     // 只使用结构化参数
+                    val structuredParameters = tool.parametersStructured ?: emptyList()
                     val parametersSchema =
-                        buildSchemaFromStructured(tool.parametersStructured ?: emptyList())
+                        buildSchemaFromStructured(structuredParameters)
+                    val strictCompatible =
+                        modelCapabilityProfile.toolSchema ==
+                            ToolSchemaCapability.STRICT_WHEN_SCHEMA_COMPATIBLE &&
+                            structuredParameters.all { parameter -> parameter.required }
+                    if (strictCompatible) {
+                        parametersSchema.put("additionalProperties", false)
+                        put("strict", true)
+                    }
                     put("parameters", parametersSchema)
                 })
             })
@@ -1230,7 +1265,7 @@ open class OpenAIProvider(
         val properties = JSONObject()
         val required = JSONArray()
 
-        for (param in params) {
+        for (param in params.sortedBy { parameter -> parameter.name }) {
             properties.put(param.name, JSONObject().apply {
                 put("type", param.type)
                 put("description", param.description)
@@ -1257,7 +1292,10 @@ open class OpenAIProvider(
      * @param toolCalls tool_calls JSON数组
      * @param isStreaming 是否为流式响应（流式响应中tool_calls是增量的）
      */
-    private fun convertToolCallsToXml(toolCalls: JSONArray, _isStreaming: Boolean = false): String {
+    private fun convertToolCallsToXml(
+        toolCalls: JSONArray,
+        _isStreaming: Boolean = false,
+    ): String {
         val xml = StringBuilder()
 
         for (i in 0 until toolCalls.length()) {
@@ -1287,7 +1325,12 @@ open class OpenAIProvider(
 
             // 构建XML格式
             val toolTagName = ChatMarkupRegex.generateRandomToolTagName()
-            xml.append("\n<$toolTagName name=\"$name\">")
+            xml.append("\n<$toolTagName name=\"${escapeXml(name)}\"")
+            xml.append(" provider_name=\"${escapeXml(providerType.name)}\"")
+            toolCall.optString("id", "").takeIf { it.isNotBlank() }?.let { callId ->
+                xml.append(" provider_call_id=\"${escapeXml(callId)}\"")
+            }
+            xml.append(">")
 
             // 添加所有参数
             val keys = params.keys()
@@ -1371,12 +1414,49 @@ open class OpenAIProvider(
         val parser: MutableMap<Int, StreamingJsonXmlConverter> = mutableMapOf(),
         val closed: MutableMap<Int, Boolean> = mutableMapOf(),
         val fedLength: MutableMap<Int, Int> = mutableMapOf(),
-        val tagNames: MutableMap<Int, String> = mutableMapOf()
+        val tagNames: MutableMap<Int, String> = mutableMapOf(),
+        val providerCallIdByIndex: MutableMap<Int, String> = mutableMapOf(),
+        val indexByProviderCallId: MutableMap<String, Int> = mutableMapOf(),
     ) {
         fun getParser(index: Int) = parser.getOrPut(index) { StreamingJsonXmlConverter() }
 
         fun getTagName(index: Int) =
             tagNames.getOrPut(index) { ChatMarkupRegex.generateRandomToolTagName() }
+
+        fun bindProviderCallId(
+            index: Int,
+            callId: String,
+        ) {
+            if (callId.isBlank()) return
+
+            val existingCallId = providerCallIdByIndex[index]
+            if (existingCallId != null && existingCallId != callId) {
+                throw OpenAIResponsesProtocolException(
+                    "Responses output index $index changed tool call identity " +
+                        "from $existingCallId to $callId"
+                )
+            }
+            val existingIndex = indexByProviderCallId[callId]
+            if (existingIndex != null && existingIndex != index) {
+                throw OpenAIResponsesProtocolException(
+                    "Responses tool call $callId appeared at output indices " +
+                        "$existingIndex and $index"
+                )
+            }
+            providerCallIdByIndex[index] = callId
+            indexByProviderCallId[callId] = index
+        }
+
+        fun resolveTerminalIndex(
+            terminalOutputIndex: Int,
+            callId: String,
+        ): Int =
+            OpenAIResponsesTerminalSnapshot.resolveToolCallIndex(
+                terminalOutputIndex = terminalOutputIndex,
+                callId = callId,
+                indexByCallId = indexByProviderCallId,
+                callIdByIndex = providerCallIdByIndex,
+            )
 
         fun clear() {
             emitted.clear()
@@ -1385,6 +1465,8 @@ open class OpenAIProvider(
             closed.clear()
             fedLength.clear()
             tagNames.clear()
+            providerCallIdByIndex.clear()
+            indexByProviderCallId.clear()
         }
     }
 
@@ -1536,6 +1618,65 @@ open class OpenAIProvider(
         return newRetryCount
     }
 
+    /**
+     * Responses POST 在收到明确拒绝前都不能证明服务端没有接受请求。
+     *
+     * 兼容端点没有声明官方 Background/sequence resume，因此 408、409、5xx 和传输异常必须
+     * 结束当前回合并保留已确认内容，不能进入普通 OpenAI 流的整轮回滚与重新 POST。
+     */
+    private suspend fun handleAtMostOnceResponsesFailure(
+        context: Context,
+        exception: Exception,
+        retryCount: Int,
+        maxRetries: Int,
+        enableRetry: Boolean,
+        onNonFatalError: suspend (String) -> Unit,
+        providerRequestContext: ProviderRequestContext?,
+    ): Int {
+        if (exception is UserCancellationException || exception is CancellationException) {
+            throw exception
+        }
+        checkCancellation(context, exception)
+
+        val action =
+            if (exception is HttpStatusCodeException) {
+                OpenAIResponsesHttpFailurePolicy.classifySubmission(exception.statusCode)
+            } else {
+                OpenAIResponsesHttpFailurePolicy.SubmissionAction.SUBMISSION_UNKNOWN
+            }
+        return when (action) {
+            OpenAIResponsesHttpFailurePolicy.SubmissionAction.RETRY_EXPLICIT_REJECTION ->
+                handleRetryableError(
+                    context = context,
+                    exception = exception,
+                    retryCount = retryCount,
+                    maxRetries = maxRetries,
+                    enableRetry = enableRetry,
+                    onNonFatalError = onNonFatalError,
+                ) { errorText, retryNumber ->
+                    "【Responses提交被明确拒绝，正在进行第${retryNumber}次重试：$errorText】"
+                }
+
+            OpenAIResponsesHttpFailurePolicy.SubmissionAction.FAIL ->
+                throw if (exception is IOException) {
+                    exception
+                } else {
+                    IOException(exception.message, exception)
+                }
+
+            OpenAIResponsesHttpFailurePolicy.SubmissionAction.SUBMISSION_UNKNOWN ->
+                throw OpenAIResponsesSubmissionUnknownException(
+                    localExecutionId = providerRequestContext?.localExecutionId,
+                    cause =
+                        if (exception is IOException) {
+                            exception
+                        } else {
+                            IOException(exception.message, exception)
+                        },
+                )
+        }
+    }
+
     protected fun wrapPackageToolCallsWithProxy(toolCalls: JSONArray): JSONArray {
         val wrappedToolCalls = JSONArray()
         var wrappedCount = 0
@@ -1593,10 +1734,13 @@ open class OpenAIProvider(
         val toolCalls = JSONArray()
         var textContent = content
         var callIndex = 0
+        val providerCallSignatures =
+            linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
 
         matches.forEach { match ->
             val toolName = match.groupValues[2]
             val toolBody = match.groupValues[3]
+            val openingTag = match.value.substringBefore('>', "")
 
             // 解析参数
             val params = JSONObject()
@@ -1607,17 +1751,47 @@ open class OpenAIProvider(
                 params.put(paramName, paramValue)
             }
 
-            // 构建tool_call对象
-            // 使用工具名和参数的哈希生成确定性ID
-            val toolNamePart = sanitizeToolCallId(toolName)
-            val hashPart = stableIdHashPart("${toolName}:${params}")
-            val callId = sanitizeToolCallId("call_${toolNamePart}_${hashPart}_$callIndex")
+            val providerCallId =
+                extractXmlAttribute(openingTag, "provider_call_id")
+            val providerName =
+                extractXmlAttribute(openingTag, "provider_name")
+                    ?: providerType.name
+            val argumentsJson = params.toString()
+            val providerIdentity =
+                ProviderToolCallIdentityContract.key(providerName, providerCallId)
+            if (providerIdentity != null) {
+                val signature =
+                    ProviderToolCallIdentityContract.signature(
+                        toolName = toolName,
+                        argumentsJson = argumentsJson,
+                    )
+                val existing = providerCallSignatures[providerIdentity]
+                if (existing != null) {
+                    ProviderToolCallIdentityContract.requireSame(
+                        providerIdentity,
+                        existing,
+                        signature,
+                    )
+                    callIndex++
+                    textContent = textContent.replace(match.value, "")
+                    return@forEach
+                }
+                providerCallSignatures[providerIdentity] = signature
+            }
+            val callId =
+                if (providerCallId != null) {
+                    providerCallId
+                } else {
+                    val toolNamePart = sanitizeToolCallId(toolName)
+                    val hashPart = stableIdHashPart("${toolName}:${params}")
+                    sanitizeToolCallId("call_${toolNamePart}_${hashPart}_$callIndex")
+                }
             toolCalls.put(JSONObject().apply {
                 put("id", callId)
                 put("type", "function")
                 put("function", JSONObject().apply {
                     put("name", toolName)
-                    put("arguments", params.toString())
+                    put("arguments", argumentsJson)
                 })
             })
 
@@ -1628,6 +1802,20 @@ open class OpenAIProvider(
         }
 
         return Pair(textContent.trim(), toolCalls)
+    }
+
+    private fun extractXmlAttribute(
+        openingTag: String,
+        attributeName: String,
+    ): String? {
+        if (openingTag.isEmpty()) {
+            return null
+        }
+        val match =
+            Regex("""\b${Regex.escape(attributeName)}="([^"]*)"""")
+                .find(openingTag)
+                ?: return null
+        return XmlEscaper.unescape(match.groupValues[1]).takeIf { it.isNotBlank() }
     }
 
     /**
@@ -1708,6 +1896,104 @@ open class OpenAIProvider(
         return request
     }
 
+    private suspend fun createResponsesResumeRequest(
+        responseId: String,
+        startingAfter: Long,
+        requestTraceId: String,
+        attemptNumber: Int,
+    ): Request {
+        require(responseId.isNotBlank()) { "responseId must not be blank" }
+        require(startingAfter >= 0L) { "startingAfter must not be negative" }
+        val currentApiKey = apiKeyProvider.getApiKey().trim()
+        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val resumeUrl =
+            OpenAIResponsesResumeUrl.build(
+                responsesEndpoint = endpointUrl,
+                responseId = responseId,
+                startingAfter = startingAfter,
+            )
+        val traceContext =
+            LlmRequestTraceContext(
+                requestId = requestTraceId,
+                provider = providerType.name,
+                model = modelName,
+                stream = true,
+                attempt = attemptNumber,
+                endpointLabel = resumeUrl.newBuilder().query(null).build().toString(),
+            )
+        val builder =
+            Request.Builder()
+                .url(resumeUrl)
+                .get()
+                .tag(LlmRequestTraceContext::class.java, traceContext)
+                .addHeader("Accept", "text/event-stream")
+
+        applyAuthenticationHeaders(builder, currentApiKey)
+        customHeaders.forEach { (key, value) ->
+            builder.addHeader(key, value)
+        }
+        val request = builder.build()
+        AppLogger.d(
+            "AIService",
+            "[req=$requestTraceId] Resume response=${responseId.takeLast(12)}, " +
+                "startingAfter=$startingAfter, attempt=$attemptNumber",
+        )
+        return request
+    }
+
+    private suspend fun cancelResponsesExecution(responseId: String) {
+        require(responseId.isNotBlank()) { "responseId must not be blank" }
+        val currentApiKey = apiKeyProvider.getApiKey().trim()
+        val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val cancelUrl =
+            endpointUrl
+                .toHttpUrl()
+                .newBuilder()
+                .addPathSegment(responseId)
+                .addPathSegment("cancel")
+                .build()
+        val builder =
+            Request.Builder()
+                .url(cancelUrl)
+                .post("{}".toRequestBody(JSON))
+                .addHeader("Content-Type", "application/json")
+
+        applyAuthenticationHeaders(builder, currentApiKey)
+        customHeaders.forEach { (key, value) ->
+            builder.addHeader(key, value)
+        }
+
+        val cancelCall = client.newCall(builder.build())
+        activeCall = cancelCall
+        withContext(Dispatchers.IO) {
+            cancelCall.execute().use { response ->
+                if (!response.isSuccessful) {
+                    val errorBody = response.body?.string().orEmpty()
+                    throw OpenAiHttpResponseException(
+                        message =
+                            "Responses cancel failed with HTTP ${response.code}: $errorBody",
+                        statusCode = response.code,
+                    )
+                }
+            }
+        }
+        activeCall = null
+    }
+
+    private fun requestBodySha256(requestBody: RequestBody): String {
+        val buffer = Buffer()
+        requestBody.writeTo(buffer)
+        return MessageDigest
+            .getInstance("SHA-256")
+            .digest(buffer.readByteArray())
+            .joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private data class ResponsesPersistenceSession(
+        val repository: OpenAIResponsesExecutionPersistence,
+        val executionState: OpenAIResponsesExecutionState,
+    )
+
     /**
      * 流式响应处理状态
      */
@@ -1717,13 +2003,15 @@ open class OpenAIProvider(
         var isInReasoningMode: Boolean = false,
         var hasEmittedThinkStart: Boolean = false,
         var hasEmittedRegularContent: Boolean = false,
+        val streamedRegularContent: StringBuilder = StringBuilder(),
         var streamedReasoningContentLength: Int = 0,
         var reasoningObserved: Boolean = false,
         var isFirstResponse: Boolean = true,
         val accumulatedToolCalls: MutableMap<Int, JSONObject> = mutableMapOf(),
         val toolCallState: ToolCallState = ToolCallState(),
         var lastProcessedToolIndex: Int? = null,
-        val imageBuffers: MutableMap<Int, ImageBufferState> = mutableMapOf()
+        val imageBuffers: MutableMap<Int, ImageBufferState> = mutableMapOf(),
+        var providerResponseId: String? = null,
     )
 
     /**
@@ -1756,8 +2044,11 @@ open class OpenAIProvider(
         }
 
         // 更新id和type
-        deltaCall.optString("id", "").let {
-            if (it.isNotEmpty()) accumulated.put("id", it)
+        deltaCall.optString("id", "").trim().let {
+            if (it.isNotEmpty()) {
+                state.toolCallState.bindProviderCallId(index, it)
+                accumulated.put("id", it)
+            }
         }
         deltaCall.optString("type", "").let {
             if (it.isNotEmpty()) accumulated.put("type", it)
@@ -1776,7 +2067,27 @@ open class OpenAIProvider(
                 val toolTagName = state.toolCallState.getTagName(index)
                 val toolStartTag = if (state.toolCallState.emitted[index] != true) {
                     state.toolCallState.emitted[index] = true
-                    "\n<$toolTagName name=\"$name\">"
+                    buildString {
+                        append("\n<")
+                        append(toolTagName)
+                        append(" name=\"")
+                        append(escapeXml(name))
+                        append("\"")
+                        append(" provider_name=\"")
+                        append(escapeXml(providerType.name))
+                        append("\"")
+                        accumulated.optString("id", "").takeIf { it.isNotBlank() }?.let { callId ->
+                            append(" provider_call_id=\"")
+                            append(escapeXml(callId))
+                            append("\"")
+                        }
+                        state.providerResponseId?.takeIf { it.isNotBlank() }?.let { responseId ->
+                            append(" provider_response_id=\"")
+                            append(escapeXml(responseId))
+                            append("\"")
+                        }
+                        append(">")
+                    }
                 } else {
                     ""
                 }
@@ -2001,6 +2312,92 @@ open class OpenAIProvider(
         return chunks.joinToString("\n\n")
     }
 
+    private suspend fun reconcileCompletedResponsesOutput(
+        responseObj: JSONObject?,
+        state: StreamingState,
+        emitter: StreamEmitter,
+    ) {
+        responseObj ?: return
+        val parsed = OpenAIResponsesPayloadAdapter.parseNonStreamingResponse(responseObj)
+        val terminalText = parsed.textChunks.joinToString("")
+        val missingText =
+            OpenAIResponsesTerminalSnapshot.missingTextSuffix(
+                streamedText = state.streamedRegularContent.toString(),
+                terminalText = terminalText,
+            )
+        if (missingText.isNotEmpty()) {
+            processContentDelta("", missingText, state, emitter)
+        }
+
+        if (!enableToolCall) {
+            return
+        }
+        val terminalOutput = responseObj.optJSONArray("output") ?: return
+        for (terminalOutputIndex in 0 until terminalOutput.length()) {
+            val item = terminalOutput.optJSONObject(terminalOutputIndex) ?: continue
+            if (item.optString("type", "") != "function_call") {
+                continue
+            }
+
+            val callId = item.optString("call_id", item.optString("id", "")).trim()
+            val index =
+                state.toolCallState.resolveTerminalIndex(
+                    terminalOutputIndex = terminalOutputIndex,
+                    callId = callId,
+                )
+            val accumulated = state.accumulatedToolCalls[index]
+            val existingFunction = accumulated?.optJSONObject("function")
+            val existingName = existingFunction?.optString("name", "").orEmpty()
+            val terminalName = item.optString("name", "")
+            val diagnosticCallId = callId.ifBlank { "output_index_$index" }
+            OpenAIResponsesTerminalSnapshot.requireCompatibleToolName(
+                callId = diagnosticCallId,
+                streamedName = existingName,
+                terminalName = terminalName,
+            )
+
+            val existingArguments = existingFunction?.optString("arguments", "").orEmpty()
+            val terminalArguments = item.optString("arguments", "")
+            val argumentsUpdate =
+                OpenAIResponsesTerminalSnapshot.toolArgumentsUpdate(
+                    callId = diagnosticCallId,
+                    streamedArguments = existingArguments,
+                    terminalArguments = terminalArguments,
+                )
+            if (state.toolCallState.closed[index] == true) {
+                if (argumentsUpdate.isNotEmpty()) {
+                    throw OpenAIResponsesProtocolException(
+                        "Responses tool call $diagnosticCallId received terminal arguments " +
+                            "after its XML projection was closed"
+                    )
+                }
+                continue
+            }
+
+            val completedCall =
+                JSONObject().apply {
+                    put("index", index)
+                    if (callId.isNotEmpty()) {
+                        put("id", callId)
+                    }
+                    put("type", "function")
+                    put(
+                        "function",
+                        JSONObject().apply {
+                            if (terminalName.isNotEmpty()) {
+                                put("name", terminalName)
+                            }
+                            if (argumentsUpdate.isNotEmpty()) {
+                                put("arguments", argumentsUpdate)
+                            }
+                        }
+                    )
+                }
+            processToolCallChunk(index, completedCall, state, emitter)
+            state.lastProcessedToolIndex = index
+        }
+    }
+
     private suspend fun processResponsesStreamingEvent(
         context: Context,
         jsonResponse: JSONObject,
@@ -2022,6 +2419,11 @@ open class OpenAIProvider(
         }
 
         when (eventType) {
+            "response.created",
+            "response.queued",
+            "response.in_progress",
+            -> Unit
+
             "response.output_text.delta" -> {
                 val delta = jsonResponse.optString("delta", "")
                 if (delta.isNotEmpty()) {
@@ -2146,6 +2548,58 @@ open class OpenAIProvider(
                 if (!enableToolCall) return
                 val outputIndex = jsonResponse.optInt("output_index", -1)
                 if (outputIndex >= 0) {
+                    val accumulated = state.accumulatedToolCalls[outputIndex]
+                    val existingFunction = accumulated?.optJSONObject("function")
+                    val existingName = existingFunction?.optString("name", "").orEmpty()
+                    val completedName = jsonResponse.optString("name", "")
+                    val callId =
+                        jsonResponse.optString("call_id", "").trim().ifBlank {
+                            state.toolCallState.providerCallIdByIndex[outputIndex].orEmpty()
+                        }
+                    val diagnosticCallId = callId.ifBlank { "output_index_$outputIndex" }
+                    OpenAIResponsesTerminalSnapshot.requireCompatibleToolName(
+                        callId = diagnosticCallId,
+                        streamedName = existingName,
+                        terminalName = completedName,
+                    )
+
+                    val existingArguments =
+                        existingFunction?.optString("arguments", "").orEmpty()
+                    val completedArguments = jsonResponse.optString("arguments", "")
+                    val argumentsUpdate =
+                        OpenAIResponsesTerminalSnapshot.toolArgumentsUpdate(
+                            callId = diagnosticCallId,
+                            streamedArguments = existingArguments,
+                            terminalArguments = completedArguments,
+                        )
+                    if (
+                        callId.isNotEmpty() ||
+                            completedName.isNotEmpty() ||
+                            argumentsUpdate.isNotEmpty()
+                    ) {
+                        // arguments.done 是该工具参数的最终快照。若兼容 endpoint 没有发送
+                        // delta，必须先把完整参数交给同一个增量解析器，再关闭 XML 标签。
+                        val completedCall =
+                            JSONObject().apply {
+                                put("index", outputIndex)
+                                if (callId.isNotEmpty()) {
+                                    put("id", callId)
+                                }
+                                put("type", "function")
+                                put(
+                                    "function",
+                                    JSONObject().apply {
+                                        if (completedName.isNotEmpty()) {
+                                            put("name", completedName)
+                                        }
+                                        if (argumentsUpdate.isNotEmpty()) {
+                                            put("arguments", argumentsUpdate)
+                                        }
+                                    }
+                                )
+                            }
+                        processToolCallChunk(outputIndex, completedCall, state, emitter)
+                    }
                     closeToolCallIfOpen(outputIndex, state, emitter)
                     state.lastProcessedToolIndex = outputIndex
                 }
@@ -2174,6 +2628,9 @@ open class OpenAIProvider(
                     }
                 }
 
+                // completed 携带完整 response 快照。部分兼容网关会省略中间文本或 function_call
+                // 事件，因此这里只补齐尚未发出的尾部，不撤回或重复已经确认的内容。
+                reconcileCompletedResponsesOutput(responseObj, state, emitter)
                 closeAllOpenToolCalls(state, emitter)
                 applyUsageToCounters(usage, onTokensUpdated)
             }
@@ -2195,7 +2652,59 @@ open class OpenAIProvider(
                 AppLogger.w("AIService", "Responses流式事件错误: $errorMessage")
                 throw IOException(context.getString(R.string.openai_error_response_failed, errorMessage))
             }
+
+            "response.incomplete", "response.cancelled" -> {
+                val responseObj = jsonResponse.optJSONObject("response")
+                val details =
+                    responseObj
+                        ?.optJSONObject("incomplete_details")
+                        ?.optString("reason", "")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: responseObj
+                            ?.optJSONObject("error")
+                            ?.optString("message", "")
+                            ?.takeIf { it.isNotBlank() }
+                        ?: responseObj?.optString("status", "")
+                            ?.takeIf { it.isNotBlank() }
+                        ?: eventType
+                closeAllOpenToolCalls(state, emitter)
+                throw IOException(
+                    context.getString(R.string.openai_error_response_failed, details)
+                )
+            }
         }
+    }
+
+    private suspend fun persistResponsesEventBeforeEmission(
+        payload: JSONObject,
+        session: ResponsesPersistenceSession,
+        streamingState: StreamingState,
+    ): Boolean {
+        val executionState = session.executionState
+        val event = executionState.parseEvent(payload)
+        if (event.sequenceNumber > executionState.lastAppliedSequence) {
+            executionState.applyNewEvent(event, payload)
+        }
+        val now = System.currentTimeMillis()
+        val outcome =
+            session.repository.appendEvent(
+                localExecutionId = executionState.localExecutionId,
+                remoteResponseId = event.remoteResponseId,
+                sequenceNumber = event.sequenceNumber,
+                eventType = event.type,
+                payloadJson = event.payloadJson,
+                nextMessageState = executionState.toMessageProviderState(now),
+                terminalEventType = executionState.terminalEventType,
+                lastErrorCode = executionState.lastErrorCode,
+                lastErrorMessage = executionState.lastErrorMessage,
+                completedAt = now.takeIf { executionState.isTerminal },
+                receivedAt = now,
+            )
+        if (outcome is ProviderEventAppendOutcome.Duplicate) {
+            return false
+        }
+        streamingState.providerResponseId = event.remoteResponseId
+        return true
     }
 
     /**
@@ -2266,6 +2775,7 @@ open class OpenAIProvider(
 
             // 硬切策略：正文一旦开始输出，后续到达的推理内容全部忽略
             state.hasEmittedRegularContent = true
+            state.streamedRegularContent.append(regularContent)
 
             // 当收到第一个有效内容时，标记不再是首次响应
             if (state.isFirstResponse) {
@@ -2367,10 +2877,10 @@ open class OpenAIProvider(
         reader: java.io.BufferedReader,
         emitter: StreamEmitter,
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
-        context: Context
+        context: Context,
+        state: StreamingState = StreamingState(),
+        responsesPersistenceSession: ResponsesPersistenceSession? = null,
     ) {
-        val state = StreamingState()
-
         try {
             // 使用 while 循环读取流式响应
             while (true) {
@@ -2405,7 +2915,20 @@ open class OpenAIProvider(
                     throwIfOpenAiErrorPayload(context, jsonResponse)
 
                     if (useResponsesApi) {
+                        if (
+                            responsesPersistenceSession != null &&
+                                !persistResponsesEventBeforeEmission(
+                                    payload = jsonResponse,
+                                    session = responsesPersistenceSession,
+                                    streamingState = state,
+                                )
+                        ) {
+                            continue
+                        }
                         processResponsesStreamingEvent(context, jsonResponse, state, emitter, onTokensUpdated)
+                        if (responsesPersistenceSession?.executionState?.isTerminal == true) {
+                            break
+                        }
                         continue
                     }
 
@@ -2419,9 +2942,29 @@ open class OpenAIProvider(
                 } catch (e: IOException) {
                     throw e
                 } catch (e: Exception) {
+                    if (responsesPersistenceSession != null) {
+                        throw OpenAIResponsesEventProcessingException(
+                            message = "Responses event processing failed",
+                            cause = e,
+                        )
+                    }
                     AppLogger.w("AIService", "【发送消息】JSON解析错误: ${e.message}")
                     logLargeString("AIService", data, "[Send message] Original data when JSON parsing failed: ")
                 }
+            }
+
+            val persistedResponsesState = responsesPersistenceSession?.executionState
+            if (persistedResponsesState != null && !persistedResponsesState.isTerminal) {
+                val responseId =
+                    persistedResponsesState.remoteResponseId
+                        ?: throw OpenAIResponsesProtocolException(
+                            "Responses stream ended before response.created"
+                        )
+                throw OpenAIResponsesTransportInterruptedException(
+                    responseId = responseId,
+                    lastAppliedSequence = persistedResponsesState.lastAppliedSequence,
+                    cause = IOException("Responses stream ended without a terminal event"),
+                )
             }
             
             closeAllOpenToolCalls(state, emitter)
@@ -2454,6 +2997,407 @@ open class OpenAIProvider(
         }
     }
 
+    private suspend fun executeResumableResponsesStream(
+        context: Context,
+        chatHistory: List<PromptTurn>,
+        modelParameters: List<ModelParameter<*>>,
+        enableThinking: Boolean,
+        availableTools: List<ToolPrompt>?,
+        preserveThinkInHistory: Boolean,
+        providerRequestContext: ProviderRequestContext,
+        emitChunk: suspend (String) -> Unit,
+        eventChannel: MutableSharedStream<TextStreamEvent>,
+        onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
+        onNonFatalError: suspend (error: String) -> Unit,
+        enableRetry: Boolean,
+    ) {
+        AppLogger.d(
+            "AIService",
+            "【Responses可恢复执行】准备编译请求，localExecution=${providerRequestContext.localExecutionId.takeLast(12)}, " +
+                "hop=${providerRequestContext.hopOrdinal}",
+        )
+        val requestBody =
+            createRequestBody(
+                context = context,
+                chatHistory = chatHistory,
+                modelParameters = modelParameters,
+                enableThinking = enableThinking,
+                stream = true,
+                availableTools = availableTools,
+                preserveThinkInHistory = preserveThinkInHistory,
+            )
+        onTokensUpdated(
+            tokenCacheManager.totalInputTokenCount,
+            tokenCacheManager.cachedInputTokenCount,
+            tokenCacheManager.outputTokenCount,
+        )
+
+        val repository = createResponsesExecutionPersistence(context)
+        val createdAt = System.currentTimeMillis()
+        val executionState =
+            OpenAIResponsesExecutionState.create(
+                requestContext = providerRequestContext,
+                provider = providerType.name,
+                modelName = modelName,
+                createdAt = createdAt,
+            )
+        repository.createExecution(
+            execution =
+                ProviderExecutionEntity(
+                    localExecutionId = providerRequestContext.localExecutionId,
+                    chatId = providerRequestContext.chatId,
+                    messageTimestamp = providerRequestContext.messageTimestamp,
+                    variantIndex = providerRequestContext.variantIndex,
+                    hopOrdinal = providerRequestContext.hopOrdinal,
+                    provider = providerType.name,
+                    modelName = modelName,
+                    transportKind = ProviderTransportKind.RESPONSES.name,
+                    requestFingerprint = requestBodySha256(requestBody),
+                    status = ProviderExecutionStatus.SUBMITTING.name,
+                    createdAt = createdAt,
+                    updatedAt = createdAt,
+                ),
+            initialMessageState = executionState.toMessageProviderState(createdAt),
+        )
+
+        val receivedContent = StringBuilder()
+        val emitter =
+            StreamEmitter(
+                receivedContent = receivedContent,
+                emit = emitChunk,
+                eventChannel = eventChannel,
+                onTokensUpdated = onTokensUpdated,
+            )
+        val streamingState = StreamingState()
+        val persistenceSession =
+            ResponsesPersistenceSession(
+                repository = repository,
+                executionState = executionState,
+            )
+        val maxRetries = LlmRetryPolicy.MAX_RETRY_ATTEMPTS
+        var retryCount = 0
+
+        while (true) {
+            checkCancellation(context)
+            val responseId = executionState.remoteResponseId
+            val attemptNumber = retryCount + 1
+            val requestTraceId =
+                if (responseId == null) {
+                    "resp_submit_${attemptNumber}_${UUID.randomUUID().toString().take(8)}"
+                } else {
+                    "resp_resume_${attemptNumber}_${UUID.randomUUID().toString().take(8)}"
+                }
+            val request =
+                if (responseId == null) {
+                    createRequest(
+                        requestBody = requestBody,
+                        requestTraceId = requestTraceId,
+                        stream = true,
+                        attemptNumber = attemptNumber,
+                    )
+                } else {
+                    createResponsesResumeRequest(
+                        responseId = responseId,
+                        startingAfter = executionState.lastAppliedSequence,
+                        requestTraceId = requestTraceId,
+                        attemptNumber = attemptNumber,
+                    )
+                }
+            val call = client.newCall(request)
+            activeCall = call
+
+            try {
+                withContext(Dispatchers.IO) {
+                    val response = call.execute()
+                    activeResponse = response
+                    response.use {
+                        if (!response.isSuccessful) {
+                            val errorBody =
+                                response.body?.string()
+                                    ?: context.getString(R.string.openai_error_no_error_details)
+                            throw OpenAiHttpResponseException(
+                                message =
+                                    context.getString(
+                                        R.string.openai_error_api_request_failed_with_status,
+                                        response.code,
+                                        errorBody,
+                                    ),
+                                statusCode = response.code,
+                            )
+                        }
+
+                        val responseBody =
+                            response.body
+                                ?: throw IOException(
+                                    context.getString(R.string.openai_error_response_empty)
+                                )
+                        processStreamingResponse(
+                            reader = responseBody.charStream().buffered(),
+                            emitter = emitter,
+                            onTokensUpdated = onTokensUpdated,
+                            context = context,
+                            state = streamingState,
+                            responsesPersistenceSession = persistenceSession,
+                        )
+                    }
+                }
+
+                when (executionState.status) {
+                    ProviderExecutionStatus.COMPLETED -> {
+                        logFinalOutput(
+                            "AIService",
+                            receivedContent,
+                            "Resumable Responses final output summary: ",
+                        )
+                        return
+                    }
+
+                    ProviderExecutionStatus.FAILED,
+                    ProviderExecutionStatus.INCOMPLETE,
+                    ProviderExecutionStatus.CANCELLED,
+                    ProviderExecutionStatus.EXPIRED,
+                    -> throw IOException(
+                        executionState.lastErrorMessage
+                            ?: "Responses execution ended with ${executionState.status}"
+                    )
+
+                    else -> throw OpenAIResponsesProtocolException(
+                        "Responses stream returned without a terminal state"
+                    )
+                }
+            } catch (error: UserCancellationException) {
+                withContext(NonCancellable) {
+                    finalizeResponsesCancellation(
+                        context = context,
+                        repository = repository,
+                        executionState = executionState,
+                    )
+                }
+                throw error
+            } catch (error: CancellationException) {
+                if (isManuallyCancelled) {
+                    withContext(NonCancellable) {
+                        finalizeResponsesCancellation(
+                            context = context,
+                            repository = repository,
+                            executionState = executionState,
+                        )
+                    }
+                }
+                throw error
+            } catch (error: Exception) {
+                if (executionState.isTerminal) {
+                    throw error
+                }
+
+                when {
+                    error is OpenAIResponsesEventProcessingException -> {
+                        repository.updateStatus(
+                            localExecutionId = providerRequestContext.localExecutionId,
+                            status = ProviderExecutionStatus.FAILED,
+                            lastErrorCode = "RESPONSES_PROTOCOL_ERROR",
+                            lastErrorMessage = error.cause?.message ?: error.message,
+                            completedAt = System.currentTimeMillis(),
+                        )
+                        throw error
+                    }
+
+                    executionState.remoteResponseId != null -> {
+                        if (error is HttpStatusCodeException) {
+                            when (
+                                OpenAIResponsesHttpFailurePolicy.classifyResume(
+                                    error.statusCode
+                                )
+                            ) {
+                                OpenAIResponsesHttpFailurePolicy.ResumeAction.FAIL -> {
+                                    repository.updateStatus(
+                                        localExecutionId =
+                                            providerRequestContext.localExecutionId,
+                                        status = ProviderExecutionStatus.FAILED,
+                                        lastErrorCode = "HTTP_${error.statusCode}",
+                                        lastErrorMessage = error.message,
+                                        completedAt = System.currentTimeMillis(),
+                                    )
+                                    throw error
+                                }
+
+                                OpenAIResponsesHttpFailurePolicy.ResumeAction.EXPIRE -> {
+                                    repository.updateStatus(
+                                        localExecutionId =
+                                            providerRequestContext.localExecutionId,
+                                        status = ProviderExecutionStatus.EXPIRED,
+                                        lastErrorCode = "HTTP_${error.statusCode}",
+                                        lastErrorMessage = error.message,
+                                        completedAt = System.currentTimeMillis(),
+                                    )
+                                    throw error
+                                }
+
+                                OpenAIResponsesHttpFailurePolicy.ResumeAction.RETRY_SAME_RESPONSE ->
+                                    Unit
+                            }
+                        }
+                        val interrupted =
+                            if (error is OpenAIResponsesTransportInterruptedException) {
+                                error
+                            } else {
+                                OpenAIResponsesTransportInterruptedException(
+                                    responseId = requireNotNull(executionState.remoteResponseId),
+                                    lastAppliedSequence = executionState.lastAppliedSequence,
+                                    cause =
+                                        if (error is IOException) {
+                                            error
+                                        } else {
+                                            IOException(error.message, error)
+                                        },
+                                )
+                            }
+                        repository.updateStatus(
+                            localExecutionId = providerRequestContext.localExecutionId,
+                            status = ProviderExecutionStatus.DISCONNECTED,
+                            lastErrorCode = "STREAM_INTERRUPTED",
+                            lastErrorMessage = interrupted.cause?.message ?: interrupted.message,
+                        )
+                        retryCount =
+                            handleRetryableError(
+                                context = context,
+                                exception = interrupted,
+                                retryCount = retryCount,
+                                maxRetries = maxRetries,
+                                enableRetry = enableRetry,
+                                onNonFatalError = onNonFatalError,
+                            ) { errorText, retryNumber ->
+                                "【Responses连接中断，正在续接同一响应（第${retryNumber}次）：$errorText】"
+                            }
+                        repository.beginResume(providerRequestContext.localExecutionId)
+                    }
+
+                    error is HttpStatusCodeException -> {
+                        when (
+                            OpenAIResponsesHttpFailurePolicy.classifySubmission(
+                                error.statusCode
+                            )
+                        ) {
+                            OpenAIResponsesHttpFailurePolicy.SubmissionAction.RETRY_EXPLICIT_REJECTION -> {
+                                retryCount =
+                                    handleRetryableError(
+                                        context = context,
+                                        exception = error,
+                                        retryCount = retryCount,
+                                        maxRetries = maxRetries,
+                                        enableRetry = enableRetry,
+                                        onNonFatalError = onNonFatalError,
+                                    ) { errorText, retryNumber ->
+                                        "【Responses提交被明确拒绝，正在进行第${retryNumber}次重试：$errorText】"
+                                    }
+                            }
+
+                            OpenAIResponsesHttpFailurePolicy.SubmissionAction.FAIL -> {
+                                repository.updateStatus(
+                                    localExecutionId =
+                                        providerRequestContext.localExecutionId,
+                                    status = ProviderExecutionStatus.FAILED,
+                                    lastErrorCode = "HTTP_${error.statusCode}",
+                                    lastErrorMessage = error.message,
+                                    completedAt = System.currentTimeMillis(),
+                                )
+                                throw error
+                            }
+
+                            OpenAIResponsesHttpFailurePolicy.SubmissionAction.SUBMISSION_UNKNOWN -> {
+                                repository.updateStatus(
+                                    localExecutionId =
+                                        providerRequestContext.localExecutionId,
+                                    status = ProviderExecutionStatus.SUBMISSION_UNKNOWN,
+                                    lastErrorCode = "HTTP_${error.statusCode}_SUBMISSION_UNKNOWN",
+                                    lastErrorMessage = error.message,
+                                )
+                                throw OpenAIResponsesSubmissionUnknownException(
+                                    localExecutionId =
+                                        providerRequestContext.localExecutionId,
+                                    cause =
+                                        if (error is IOException) {
+                                            error
+                                        } else {
+                                            IOException(error.message, error)
+                                        },
+                                )
+                            }
+                        }
+                    }
+
+                    else -> {
+                        val ioError =
+                            if (error is IOException) {
+                                error
+                            } else {
+                                IOException(error.message, error)
+                            }
+                        repository.updateStatus(
+                            localExecutionId = providerRequestContext.localExecutionId,
+                            status = ProviderExecutionStatus.SUBMISSION_UNKNOWN,
+                            lastErrorCode = "SUBMISSION_UNKNOWN",
+                            lastErrorMessage = ioError.message,
+                        )
+                        throw OpenAIResponsesSubmissionUnknownException(
+                            localExecutionId = providerRequestContext.localExecutionId,
+                            cause = ioError,
+                        )
+                    }
+                }
+            } finally {
+                activeResponse = null
+                activeCall = null
+            }
+        }
+    }
+
+    private suspend fun finalizeResponsesCancellation(
+        context: Context,
+        repository: OpenAIResponsesExecutionPersistence,
+        executionState: OpenAIResponsesExecutionState,
+    ) {
+        val now = System.currentTimeMillis()
+        repository.updateStatus(
+            localExecutionId = executionState.localExecutionId,
+            status = ProviderExecutionStatus.CANCELLING,
+            updatedAt = now,
+        )
+        val responseId = executionState.remoteResponseId
+        if (responseId == null) {
+            repository.updateStatus(
+                localExecutionId = executionState.localExecutionId,
+                status = ProviderExecutionStatus.CANCELLING,
+                lastErrorCode = "REMOTE_RESPONSE_ID_UNKNOWN",
+                lastErrorMessage =
+                    "Local cancellation occurred before response.created; remote cancellation is pending",
+            )
+            return
+        }
+
+        try {
+            cancelResponsesExecution(responseId)
+            repository.updateStatus(
+                localExecutionId = executionState.localExecutionId,
+                status = ProviderExecutionStatus.CANCELLED,
+                completedAt = System.currentTimeMillis(),
+            )
+        } catch (cancelError: Exception) {
+            repository.updateStatus(
+                localExecutionId = executionState.localExecutionId,
+                status = ProviderExecutionStatus.CANCELLING,
+                lastErrorCode = "REMOTE_CANCEL_FAILED",
+                lastErrorMessage = cancelError.message,
+            )
+            AppLogger.e(
+                "AIService",
+                context.getString(R.string.openai_error_request_cancelled),
+                cancelError,
+            )
+            throw cancelError
+        }
+    }
+
     override suspend fun sendMessage(
         context: Context,
         chatHistory: List<PromptTurn>,
@@ -2462,6 +3406,7 @@ open class OpenAIProvider(
         stream: Boolean,
         availableTools: List<ToolPrompt>?,
         preserveThinkInHistory: Boolean,
+        providerRequestContext: ProviderRequestContext?,
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
         onNonFatalError: suspend (error: String) -> Unit,
         enableRetry: Boolean
@@ -2482,6 +3427,41 @@ open class OpenAIProvider(
                 "【发送消息】开始处理sendMessage请求，历史记录数量: ${chatHistory.size}，最后一条长度: ${chatHistory.lastOrNull()?.content?.length ?: 0}"
             )
 
+            val useResumableResponses =
+                stream &&
+                    useResponsesApi &&
+                    supportsResponsesStreamResumption &&
+                    providerRequestContext != null
+            AppLogger.d(
+                "AIService",
+                "request routing: provider=${providerType.name}, model=$modelName, " +
+                    "stream=$stream, useResponsesApi=$useResponsesApi, " +
+                    "contractAuthority=${modelCapabilityProfile.providerContractAuthority}, " +
+                    "executionPersistence=${modelCapabilityProfile.executionPersistence}, " +
+                    "supportsResponsesStreamResumption=$supportsResponsesStreamResumption, " +
+                    "providerRequestContextPresent=${providerRequestContext != null}, " +
+                    "localExecutionSuffix=${providerRequestContext?.localExecutionId?.takeLast(12)}, " +
+                    "resumableResponses=$useResumableResponses"
+            )
+
+            if (useResumableResponses) {
+                executeResumableResponsesStream(
+                    context = context,
+                    chatHistory = chatHistory,
+                    modelParameters = modelParameters,
+                    enableThinking = enableThinking,
+                    availableTools = availableTools,
+                    preserveThinkInHistory = preserveThinkInHistory,
+                    providerRequestContext = providerRequestContext,
+                    emitChunk = ::emit,
+                    eventChannel = eventChannel,
+                    onTokensUpdated = onTokensUpdated,
+                    onNonFatalError = onNonFatalError,
+                    enableRetry = enableRetry,
+                )
+                return@stream
+            }
+
             val maxRetries = LlmRetryPolicy.MAX_RETRY_ATTEMPTS
             var retryCount = 0
             var lastException: Exception? = null
@@ -2495,6 +3475,7 @@ open class OpenAIProvider(
             while (retryCount <= maxRetries) {
                 // 在循环开始时检查是否已被取消
                 checkCancellation(context)
+                var responsesSubmissionStarted = false
 
                 try {
                     if (retryCount > 0) {
@@ -2546,6 +3527,7 @@ open class OpenAIProvider(
                 withContext(Dispatchers.IO) {
                     val executeStartNs = System.nanoTime()
                     AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】进入 call.execute()，开始等待响应头")
+                    responsesSubmissionStarted = true
                     val response = call.execute()
                     val executeElapsedMs = (System.nanoTime() - executeStartNs) / 1_000_000
                     AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】call.execute() 返回，耗时=${executeElapsedMs}ms")
@@ -2562,6 +3544,16 @@ open class OpenAIProvider(
                                 "AIService",
                                 "【发送消息】API请求失败，状态码: ${response.code}，错误信息: $errorBody"
                             )
+                            if (useResponsesApi) {
+                                throw OpenAiHttpResponseException(
+                                    context.getString(
+                                        R.string.openai_error_api_request_failed_with_status,
+                                        response.code,
+                                        errorBody,
+                                    ),
+                                    statusCode = response.code,
+                                )
+                            }
                             // 4xx错误仍保留单独的异常类型，具体是否重试由统一策略决定
                             if (response.code in 400..499) {
                                 throw NonRetriableException(
@@ -2623,7 +3615,10 @@ open class OpenAIProvider(
                                     }
 
                                     if (parsed.toolCalls.length() > 0 && enableToolCall) {
-                                        val xmlToolCalls = convertToolCallsToXml(parsed.toolCalls)
+                                        val xmlToolCalls =
+                                            convertToolCallsToXml(
+                                                toolCalls = parsed.toolCalls,
+                                            )
                                         if (xmlToolCalls.isNotEmpty()) {
                                             emitter.emitContent(xmlToolCalls)
                                             AppLogger.d(
@@ -2701,16 +3696,35 @@ open class OpenAIProvider(
                 return@stream
             } catch (e: Exception) {
                 lastException = e
-                emitter.emitRollback(requestSavepointId)
-                retryCount = handleRetryableError(
-                    context,
-                    e,
-                    retryCount,
-                    maxRetries,
-                    enableRetry,
-                    onNonFatalError
-                ) { errorText, retryNumber ->
-                    "【${context.getString(R.string.openai_retry_with_count, errorText, retryNumber)}】"
+                // 请求已经失败并离开当前传输边界；保留旧引用会让后续取消误指向已结束的 Call。
+                activeCall = null
+                activeResponse = null
+                if (usesAtMostOnceResponsesSubmission) {
+                    if (!responsesSubmissionStarted) {
+                        throw e
+                    }
+                    retryCount =
+                        handleAtMostOnceResponsesFailure(
+                            context = context,
+                            exception = e,
+                            retryCount = retryCount,
+                            maxRetries = maxRetries,
+                            enableRetry = enableRetry,
+                            onNonFatalError = onNonFatalError,
+                            providerRequestContext = providerRequestContext,
+                        )
+                } else {
+                    emitter.emitRollback(requestSavepointId)
+                    retryCount = handleRetryableError(
+                        context,
+                        e,
+                        retryCount,
+                        maxRetries,
+                        enableRetry,
+                        onNonFatalError
+                    ) { errorText, retryNumber ->
+                        "【${context.getString(R.string.openai_retry_with_count, errorText, retryNumber)}】"
+                    }
                 }
             }
             }

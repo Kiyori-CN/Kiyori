@@ -132,6 +132,16 @@ class ChatMarkupRegexTest {
         assertEquals("pwd", match.groupValues[3])
     }
 
+    @Test fun toolCallPattern_doesNotTreatProviderNameAsToolName() {
+        val match =
+            ChatMarkupRegex.toolCallPattern.find(
+                "<tool_A1 name=\"read_file\" provider_name=\"DEEPSEEK\" " +
+                    "provider_call_id=\"call_123\"><param name=\"path\">notes.txt</param></tool_A1>"
+            )
+        assertNotNull(match)
+        assertEquals("read_file", match!!.groupValues[2])
+    }
+
     @Test fun toolTag_matchesSuffixVariant() {
         assertTrue(ChatMarkupRegex.toolTag.containsMatchIn("<tool_exec name=\"run\">pwd</tool_exec>"))
     }

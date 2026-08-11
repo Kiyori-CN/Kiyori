@@ -1031,6 +1031,7 @@ class GeminiProvider(
             stream: Boolean,
             availableTools: List<ToolPrompt>?,
             preserveThinkInHistory: Boolean,
+            providerRequestContext: ProviderRequestContext?,
             onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
             onNonFatalError: suspend (error: String) -> Unit,
             enableRetry: Boolean

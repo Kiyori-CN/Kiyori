@@ -8,16 +8,31 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ai.assistance.operit.data.dao.ChatContentDao
 import com.ai.assistance.operit.data.dao.ChatDao
+import com.ai.assistance.operit.data.dao.MessageProviderStateDao
 import com.ai.assistance.operit.data.dao.MessageDao
 import com.ai.assistance.operit.data.dao.MessageVariantDao
+import com.ai.assistance.operit.data.dao.ProviderExecutionDao
+import com.ai.assistance.operit.data.dao.ToolInvocationLedgerDao
 import com.ai.assistance.operit.data.model.ChatEntity
+import com.ai.assistance.operit.data.model.MessageProviderStateEntity
 import com.ai.assistance.operit.data.model.MessageEntity
 import com.ai.assistance.operit.data.model.MessageVariantEntity
+import com.ai.assistance.operit.data.model.ProviderExecutionEntity
+import com.ai.assistance.operit.data.model.ProviderExecutionEventEntity
+import com.ai.assistance.operit.data.model.ToolInvocationLedgerEntity
 
 /** 应用数据库，包含聊天表和消息表 */
 @Database(
-    entities = [ChatEntity::class, MessageEntity::class, MessageVariantEntity::class],
-    version = 20,
+    entities = [
+        ChatEntity::class,
+        MessageEntity::class,
+        MessageVariantEntity::class,
+        ProviderExecutionEntity::class,
+        ProviderExecutionEventEntity::class,
+        MessageProviderStateEntity::class,
+        ToolInvocationLedgerEntity::class,
+    ],
+    version = 21,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +46,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageVariantDao(): MessageVariantDao
 
     abstract fun chatContentDao(): ChatContentDao
+
+    abstract fun providerExecutionDao(): ProviderExecutionDao
+
+    abstract fun messageProviderStateDao(): MessageProviderStateDao
+
+    abstract fun toolInvocationLedgerDao(): ToolInvocationLedgerDao
 
     companion object {
         @Volatile
@@ -221,6 +242,139 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        internal val MIGRATION_20_21 =
+            object : Migration(20, 21) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `provider_executions` (
+                                `localExecutionId` TEXT NOT NULL,
+                                `chatId` TEXT NOT NULL,
+                                `messageTimestamp` INTEGER NOT NULL,
+                                `variantIndex` INTEGER NOT NULL,
+                                `hopOrdinal` INTEGER NOT NULL,
+                                `provider` TEXT NOT NULL,
+                                `modelName` TEXT NOT NULL,
+                                `transportKind` TEXT NOT NULL,
+                                `requestFingerprint` TEXT NOT NULL,
+                                `status` TEXT NOT NULL,
+                                `remoteResponseId` TEXT,
+                                `lastAppliedSequence` INTEGER NOT NULL,
+                                `terminalEventType` TEXT,
+                                `resumeCount` INTEGER NOT NULL,
+                                `lastErrorCode` TEXT,
+                                `lastErrorMessage` TEXT,
+                                `createdAt` INTEGER NOT NULL,
+                                `updatedAt` INTEGER NOT NULL,
+                                `completedAt` INTEGER,
+                                PRIMARY KEY(`localExecutionId`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_provider_executions_chatId` ON `provider_executions` (`chatId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_provider_executions_chatId_messageTimestamp_variantIndex` ON `provider_executions` (`chatId`, `messageTimestamp`, `variantIndex`)"
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_provider_executions_provider_remoteResponseId` ON `provider_executions` (`provider`, `remoteResponseId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_provider_executions_status_updatedAt` ON `provider_executions` (`status`, `updatedAt`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `provider_execution_events` (
+                                `eventId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                `localExecutionId` TEXT NOT NULL,
+                                `remoteResponseId` TEXT NOT NULL,
+                                `sequenceNumber` INTEGER NOT NULL,
+                                `eventType` TEXT NOT NULL,
+                                `payloadJson` TEXT NOT NULL,
+                                `payloadSha256` TEXT NOT NULL,
+                                `receivedAt` INTEGER NOT NULL,
+                                FOREIGN KEY(`localExecutionId`) REFERENCES `provider_executions`(`localExecutionId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_provider_execution_events_localExecutionId` ON `provider_execution_events` (`localExecutionId`)"
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_provider_execution_events_localExecutionId_sequenceNumber` ON `provider_execution_events` (`localExecutionId`, `sequenceNumber`)"
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_provider_execution_events_remoteResponseId_sequenceNumber` ON `provider_execution_events` (`remoteResponseId`, `sequenceNumber`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `message_provider_states` (
+                                `chatId` TEXT NOT NULL,
+                                `messageTimestamp` INTEGER NOT NULL,
+                                `variantIndex` INTEGER NOT NULL,
+                                `latestExecutionId` TEXT NOT NULL,
+                                `provider` TEXT NOT NULL,
+                                `modelName` TEXT NOT NULL,
+                                `remoteResponseId` TEXT,
+                                `status` TEXT NOT NULL,
+                                `lastAppliedSequence` INTEGER NOT NULL,
+                                `terminalEventType` TEXT,
+                                `outputItemsJson` TEXT NOT NULL,
+                                `functionCallOutputsJson` TEXT NOT NULL,
+                                `usageJson` TEXT,
+                                `createdAt` INTEGER NOT NULL,
+                                `updatedAt` INTEGER NOT NULL,
+                                PRIMARY KEY(`chatId`, `messageTimestamp`, `variantIndex`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                                FOREIGN KEY(`latestExecutionId`) REFERENCES `provider_executions`(`localExecutionId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_message_provider_states_chatId` ON `message_provider_states` (`chatId`)"
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_message_provider_states_latestExecutionId` ON `message_provider_states` (`latestExecutionId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_message_provider_states_provider_remoteResponseId` ON `message_provider_states` (`provider`, `remoteResponseId`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `tool_invocation_ledger` (
+                                `provider` TEXT NOT NULL,
+                                `remoteResponseId` TEXT NOT NULL,
+                                `callId` TEXT NOT NULL,
+                                `localExecutionId` TEXT NOT NULL,
+                                `toolName` TEXT NOT NULL,
+                                `argumentsJson` TEXT NOT NULL,
+                                `argumentsSha256` TEXT NOT NULL,
+                                `status` TEXT NOT NULL,
+                                `resultJson` TEXT,
+                                `errorMessage` TEXT,
+                                `createdAt` INTEGER NOT NULL,
+                                `updatedAt` INTEGER NOT NULL,
+                                `startedAt` INTEGER,
+                                `completedAt` INTEGER,
+                                PRIMARY KEY(`provider`, `remoteResponseId`, `callId`),
+                                FOREIGN KEY(`localExecutionId`) REFERENCES `provider_executions`(`localExecutionId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_tool_invocation_ledger_localExecutionId` ON `tool_invocation_ledger` (`localExecutionId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_tool_invocation_ledger_status_updatedAt` ON `tool_invocation_ledger` (`status`, `updatedAt`)"
+                    )
+                }
+            }
+
         // 定义从版本2到3的迁移
         private val MIGRATION_2_3 =
             object : Migration(2, 3) {
@@ -337,7 +491,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 MIGRATION_16_17,
                                 MIGRATION_17_18,
                                 MIGRATION_18_19,
-                                MIGRATION_19_20
+                                MIGRATION_19_20,
+                                MIGRATION_20_21
                             ) // 添加新的迁移
                             .build()
                     INSTANCE = instance

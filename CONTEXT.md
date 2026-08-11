@@ -187,6 +187,94 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - Kiyori system settings own application language, product-wide appearance, storage, downloads, notifications, privacy, shared permissions, browser, player, reader, file management, and other cross-product behavior.
 - AI Assistant Settings own model providers, model routing, prompts, personas, user preference, AI context, AI tool authorization, conversation policy, AI usage information, and external HTTP chat configuration. Packages, MCP, Skill, ToolPkg, and workflows remain separate AI subsystem destinations and are not copied into Mini App Management.
 - A setting has one owner and one persisted source of truth. Other pages may deep-link to that owner but do not duplicate its state.
+
+## AI model execution contract
+
+- “思考模式”与现有 `thinking_quality_level: 1..5` 是唯一用户 reasoning 接口。GPT-5.6
+  family 固定编译为 `low / medium / high / xhigh / max`；关闭思考固定编译为 `none`。
+  Pro、Fast、Ultra、传输和执行持久性不是第六档，也不能改写用户选择的五档。
+- `ModelCapabilityResolver` 与 `ModelRequestCompiler` 是模型能力和 wire 参数的语义所有者。
+  `gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna` 有独立 profile。官方能力同时要求
+  provider 类型为官方 OpenAI，并且补全后的请求地址精确属于
+  `https://api.openai.com/v1/responses`；仅保存为 `OPENAI_RESPONSES` 不能把 Pipio、Pixel、
+  Sekiro 或其他自定义地址提升为官方合同。兼容 Responses 保留五档 `reasoning.effort`，但不
+  自动添加 Background、sequence resume、Prompt Cache、Tool Search、`summary=auto`、
+  `reasoning.encrypted_content` 或 strict schema。未登记的 OpenAI/兼容模型保留调用方已有
+  wire 参数，不猜测其支持 GPT-5.6 的 `xhigh/max` 合同。
+- 官方 GPT-5.6 Responses 使用 `background=true`、`store=false`。`ProviderRequestContext`
+  在模型请求前固定 chat、message timestamp、variant 与 hop；`ProviderExecutionRepository`
+  持久化 response ID、事件和单调 sequence cursor。未应用事件使用 `-1` 哨兵，官方
+  Responses 首事件固定从 `sequence_number=1` 开始，后续事件必须严格连续。已知 response ID
+  后的传输中断只能用 `starting_after` 续接同一 response，不能创建新 response 或撤回已确认
+  UI 内容。
+- `response.created` 前只有明确的 HTTP 429 拒绝允许重新提交；408、409、5xx 和传输异常进入
+  `SUBMISSION_UNKNOWN`。已知 response ID 后瞬时 HTTP/传输错误只重试同一 GET，404/410
+  标记远端状态已 `EXPIRED`。没有声明官方 sequence resume 的兼容 Responses 仍使用同一
+  at-most-once 提交边界：未知提交状态不执行普通流式整轮回滚或重新 POST，已经确认的部分内容
+  保持原样，当前回合以可见错误结束。
+- `OpenAIResponsesExecutionPersistence` 是可恢复 Responses 协调器的持久化依赖边界；生产
+  唯一实现直接委托 `ProviderExecutionRepository`，不持有第二份执行状态。本地 JVM 故障注入
+  从公开 `sendMessage` 流进入同一生产协调器，通过 loopback HTTP 返回首个
+  `response.created` 前的 502，并精确验证只发送一个 POST、repository 收到
+  `SUBMISSION_UNKNOWN / HTTP_502_SUBMISSION_UNKNOWN`，且异常到达流收集者。
+- 冷 Provider 流转为共享流时，`SharedStream` 是唯一的上游终止传播所有者：正常完成无原因
+  关闭，上游失败携带原异常关闭，当前和晚到收集器都从共享流接收失败。完成转发的 owner
+  协程不得再次把同一 Provider 异常抛入 `GlobalExceptionHandler`，否则一次可见发送失败会被
+  重复升级为 `APP_FATAL`。首包前的请求编译、持久化、HTTP 或协议错误必须继续传播到
+  `EnhancedAIService` 和消息层；禁止把失败按零内容正常完成关闭。
+- 普通发送由主 `sendJob` 唯一持有消息失败状态。`streamCollectionJob` 在结构化子作用域中
+  收集正文，并通过 `CompletableDeferred` 把原始终止原因交给主任务；非取消失败交付后该
+  收集 Job 必须正常结束，`CancellationException` 继续保持取消语义。自动朗读、Waifu 分段、
+  修订事件、首包探测和可修订文本渲染属于次级观察器：它们记录并结束自己的非取消失败，但
+  不得第二次升级同一个 Provider 终止原因。主任务收到原异常后进入现有
+  `InputProcessingState.Error`、错误提示和运行态清理链。
+- `InputProcessingState.Error` 与错误弹窗是同一次失败的两个投影：前者驱动发送状态，后者由
+  `ChatServiceCore` 持有的唯一 `UiStateDelegate.errorMessage` 驱动。消息处理委托的
+  `showErrorMessage` 回调必须把安全用户消息写入该共享 delegate；`ChatViewModel` 取得同一
+  实例，`AIChatScreen` 再从中显示 `ErrorDialog`。只记录日志会让 Provider 失败正确结束加载，
+  却在主界面表现为无提示静默结束。提交状态未知异常的外层安全文本必须包含底层 HTTP 或传输
+  摘要，使 502 和上游错误能直接显示，而不是只显示本地 execution ID。
+- 模型服务实例按请求持有 `ServiceLease`。单功能刷新和全量配置刷新只清除新请求可见的缓存
+  并将旧实例标记为 retired；活跃租约归零前不得调用 `cancelStreaming` 或 `release`，新请求
+  必须创建并使用刷新后的实例。最后一个租约归还后，retired 实例只释放一次。
+- 助手取消请求以 chat 和 turn ID 为身份记录。只有明确的用户停止和破坏性历史修改可以静默
+  进入 `Idle`；配置刷新、生命周期失效、应用退出和来源未知的 `CancellationException` 必须
+  投影为可见 `Error`。已取消的发送 Job 只允许在受限 `NonCancellable` 区域提交终态和错误
+  提示，不得重新执行请求、工具或其他业务逻辑。
+- 工具执行和工具结果 follow-up 属于同一消息主失败链。长期工具 scope 使用
+  `SupervisorJob` 隔离不同任务；当前 `Deferred.await()` 仍把原始失败交回调用者。一次
+  follow-up 失败不得取消长期父 scope、并行污染其他独立回合或使后续发送继承旧异常；
+  `launch + join()` 不得作为失败传播合同。`processStreamCompletion` 不得把异常改写为
+  `Idle`，当前响应轮零输出不得投影为 `Completed`。
+- `MessageProcessingDelegate.completeAssistantResponse` 是普通发送进入成功终态前的最终
+  内容 owner。它必须从共享流重放和消息状态重建最终正文，记录 chunk 数、可见字符数、
+  provider、model、provider request context 和最后输入状态；空白正文以
+  `AI_STREAM_EMPTY_TERMINATION` 进入可见 `Error`。普通非取消异常必须同时写入
+  `finalInputStateAfterSend`，保证服务随后重放 `Idle` 时，cleanup 后仍由消息 owner 恢复
+  Error；缺失任何终态的回合以 `AI_TURN_TERMINAL_MISSING` 失败。
+- Provider 原生工具标签中的 `name`、`provider_name`、`provider_call_id` 和
+  `provider_response_id` 是四个独立属性。工具解析只读取独立 `name` 属性，不能把
+  `provider_name` 的值当作工具名。
+- `response.completed` 的完整 `response.output` 是终态一致性快照。工具项必须保留原始
+  `response.output` 位置，并通过稳定 `call_id` 与流事件绑定；过滤后的工具数组位置和随机
+  XML 标签只属于本地投影，不能成为工具身份。`response.function_call_arguments.done` 携带
+  的完整参数在关闭 XML 前进入同一解析器。中间文本或 `function_call` 事件缺失时，只补齐
+  尚未交付的正文尾部和工具调用；快照与已确认正文、工具名、调用身份或参数分叉时按协议错误
+  失败，不撤回或拼接已确认内容。
+- 普通发送实现按单回合状态载体、用户消息准备、助手请求准备、Responses 提交、共享流收集
+  和完成收尾分开编译。该结构是针对 vivo Android 16 `SIGABRT / Unexpected instruction:
+  unused-e6` 的 ART DEX 兼容性修复；它不增加请求重试、不改变提交次数、不引入模型降级，也
+  不改变已知 `response_id` 的 `starting_after` 续接。
+- `message_provider_states` 保存 provider-private output items 与 usage；聊天正文不是远端执行
+  状态的唯一来源。相同 provider 与 `call_id` 只能对应同一工具名和语义一致的参数；相同身份
+  在 XML 投影、当前回合执行和 Responses 历史重放中都只保留一次，冲突必须在副作用前失败。
+  compatible endpoint 没有真实远端 response ID 时只做当前回合身份规范化，不伪造 response
+  ID。`tool_invocation_ledger` 仅以真实 provider、response ID 和原始 `call_id` 为键，已运行
+  或完成的 provider-native 工具调用不能再次执行；每个 `call_id` 的历史输入最多包含一个
+  `function_call` 和一个语义一致的 `function_call_output`。
+- Prompt Cache key 使用 profile revision、精确模型、稳定系统/首用户锚点和 canonical 排序的
+  tool schema，不包含当前用户消息、effort、trace ID 或时间戳。官方 GPT-5.6 Responses 仅在
+  大工具集存在足够长尾函数时启用 Tool Search；常用文件、搜索和计算工具保持 eager。
 - `WebSessionBrowserSettingsStore` owns the browser home URL, return-without-reload switch, force-page-zoom switch, webpage text zoom, webpage external-app policy, webpage geolocation policy, website-password auto-save switch, search-bar media-candidate badge, automatic floating playback, and automatic-floating minimum duration. Return without reload changes only the WebView history navigation selected by system Back, the browser bottom Back action, or AI browser Back; the Browser Home top-left App Shell action and each session's configured-home root are unchanged. Force page zoom installs a reversible viewport override in the current document. Text zoom is `50%..200%` in `5%` steps, defaults to `100%`, and is applied to every current and future WebSession. The automatic-floating minimum duration defaults to 60 seconds, accepts the fixed `30 seconds / 1 / 3 / 5 / 10 / 30 / 60 minutes` options or a whole-second custom value from `1..86400`, and is consumed only by automatic floating playback; manual candidate playback is unaffected.
 - `BrowserCredentialVault` is the sole website-credential owner. Auto-save defaults off. Only ordinary-profile HTTP/HTTPS pages may capture a non-empty account plus exactly one non-empty password field during login submission; records are keyed by normalized exact origin and account, and autofill uses the captured field selectors without submitting the form. Incognito profiles never capture, read, or fill credentials. Every complete credential record is AES-GCM encrypted with a non-exportable Android Keystore key and atomically stored under `noBackupFilesDir`, so current raw-snapshot and Android automatic backup flows do not copy this device-bound data. The native manager exposes search, masked reveal, explicit reveal, sensitive clipboard copy, edit, and delete without logging credential values.
 - `PlayerSettingsStore` owns decoder profile, GPU Next, Vulkan context, default and remembered speed, speed-memory policy, precise seeking, button seek step, double-tap action and seek step, long-press speed boost, chapter markers, seekbar thumbnails, automatic queue advance, final-queue behavior, network cache, subtitle scale, background behavior, fullscreen-to-floating behavior, gravity rotation, Anime4K default and memory policy, volume enhancement, and the optional screenshot/video SAF directories. Blank player directory values mean that the live browser-download settings are resolved at use time. Main-process `PlayerSession` sends immutable snapshots to the only non-exported `:player` runtime; settings UI never writes mpv properties directly.

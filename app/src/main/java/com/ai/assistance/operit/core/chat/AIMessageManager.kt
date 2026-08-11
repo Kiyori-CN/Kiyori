@@ -9,6 +9,7 @@ import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.api.chat.enhance.InputProcessor
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkBuilder
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext
 import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.core.chat.hooks.PromptTurnKind
 import com.ai.assistance.operit.core.chat.plugins.MessageProcessingController
@@ -79,8 +80,15 @@ object AIMessageManager {
 
     private const val DEFAULT_CHAT_KEY = "__DEFAULT_CHAT__"
 
-    private val activeEnhancedAiServiceByChatId = ConcurrentHashMap<String, EnhancedAIService>()
+    private data class ActiveAIMessageOperation(
+        val service: EnhancedAIService,
+        val operationId: Long?,
+    )
+
+    private val activeEnhancedAiServiceByChatId =
+        ConcurrentHashMap<String, ActiveAIMessageOperation>()
     private val activeMessageProcessingControllerByChatId = ConcurrentHashMap<String, MessageProcessingController>()
+    private val turnCancellationRegistry = AssistantTurnCancellationRegistry()
 
     @Volatile private var lastActiveChatKey: String = DEFAULT_CHAT_KEY
 
@@ -351,12 +359,20 @@ object AIMessageManager {
         chatModelConfigIdOverride: String? = null,
         chatModelIndexOverride: Int? = null,
         memorySpaceIdOverride: String? = null,
-        disableWarning: Boolean = false
+        disableWarning: Boolean = false,
+        providerRequestContext: ProviderRequestContext? = null,
+        operationId: Long? = null,
     ): SharedStream<String> {
         val totalStartTime = messageTimingNow()
         val chatKey = chatId ?: DEFAULT_CHAT_KEY
         lastActiveChatKey = chatKey
-        activeEnhancedAiServiceByChatId[chatKey] = enhancedAiService
+        turnCancellationRegistry.startOperation(chatKey, operationId)
+        val activeOperation =
+            ActiveAIMessageOperation(
+                service = enhancedAiService,
+                operationId = operationId,
+            )
+        activeEnhancedAiServiceByChatId[chatKey] = activeOperation
 
         val buildMemoryStartTime = messageTimingNow()
         val memory = getMemoryFromMessages(
@@ -436,7 +452,7 @@ object AIMessageManager {
                     replay = Int.MAX_VALUE,
                     onComplete = {
                         activeMessageProcessingControllerByChatId.remove(chatKey)
-                        activeEnhancedAiServiceByChatId.remove(chatKey)
+                        activeEnhancedAiServiceByChatId.remove(chatKey, activeOperation)
                     }
                 )
                 logMessageTiming(
@@ -487,14 +503,15 @@ object AIMessageManager {
                     chatModelIndexOverride = chatModelIndexOverride,
                     memorySpaceIdOverride = memorySpaceIdOverride,
                     stream = enableStream,
-                    disableWarning = disableWarning
+                    disableWarning = disableWarning,
+                    providerRequestContext = providerRequestContext,
                 )
             ).shareRevisable(
                 scope = scope,
                 replay = Int.MAX_VALUE,
                 onComplete = {
                     activeMessageProcessingControllerByChatId.remove(chatKey)
-                    activeEnhancedAiServiceByChatId.remove(chatKey)
+                    activeEnhancedAiServiceByChatId.remove(chatKey, activeOperation)
                 }
             )
             logMessageTiming(
@@ -615,20 +632,36 @@ object AIMessageManager {
      * 取消当前正在进行的AI操作。
      * 这会同时尝试取消插件接管执行（如果正在进行）和底层的AI流。
      */
-    fun cancelCurrentOperation() {
-        cancelOperation(lastActiveChatKey)
+    fun cancelCurrentOperation(
+        source: AssistantTurnCancellationSource = AssistantTurnCancellationSource.USER_STOP,
+    ) {
+        cancelOperation(lastActiveChatKey, source = source)
     }
 
-    fun cancelOperation(chatId: String) {
+    fun cancelOperation(
+        chatId: String,
+        source: AssistantTurnCancellationSource = AssistantTurnCancellationSource.USER_STOP,
+        operationId: Long? = null,
+    ) {
         val chatKey = chatId.ifBlank { DEFAULT_CHAT_KEY }
-        AppLogger.d(TAG, "请求取消AI操作: chatId=$chatKey")
+        val activeOperation = activeEnhancedAiServiceByChatId.remove(chatKey)
+        val targetOperationId = operationId ?: activeOperation?.operationId
+        turnCancellationRegistry.request(
+            chatKey = chatKey,
+            operationId = targetOperationId,
+            source = source,
+        )
+        AppLogger.d(
+            TAG,
+            "请求取消AI操作: source=$source, operationBound=${targetOperationId != null}"
+        )
 
         activeMessageProcessingControllerByChatId.remove(chatKey)?.let {
             AppLogger.d(TAG, "正在取消消息处理插件执行: chatId=$chatKey")
             it.cancel()
         }
 
-        activeEnhancedAiServiceByChatId.remove(chatKey)?.let {
+        activeOperation?.service?.let {
             AppLogger.d(TAG, "正在取消 EnhancedAIService 对话: chatId=$chatKey")
             it.cancelConversation()
         }
@@ -644,10 +677,21 @@ object AIMessageManager {
         AppLogger.d(TAG, "AI操作取消请求已发送: chatId=$chatKey")
     }
 
-    fun cancelAllOperations() {
+    internal fun consumeCancellationSource(
+        chatId: String,
+        operationId: Long,
+    ): AssistantTurnCancellationSource? {
+        val chatKey = chatId.ifBlank { DEFAULT_CHAT_KEY }
+        return turnCancellationRegistry.consume(chatKey, operationId)
+    }
+
+    fun cancelAllOperations(
+        source: AssistantTurnCancellationSource =
+            AssistantTurnCancellationSource.LIFECYCLE_INVALIDATION,
+    ) {
         AppLogger.d(TAG, "请求取消所有AI操作...")
         val keys = (activeEnhancedAiServiceByChatId.keys + activeMessageProcessingControllerByChatId.keys).toSet()
-        keys.forEach { cancelOperation(it) }
+        keys.forEach { cancelOperation(it, source = source) }
         AppLogger.d(TAG, "所有AI操作取消请求已发送。")
     }
 

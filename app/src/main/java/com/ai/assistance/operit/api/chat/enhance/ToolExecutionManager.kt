@@ -2,6 +2,9 @@ package com.ai.assistance.operit.api.chat.enhance
 
 import android.content.Context
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderToolCallIdentityContract
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderToolCallKey
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderToolCallSignature
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.AIToolHookDecision
@@ -10,11 +13,16 @@ import com.ai.assistance.operit.core.tools.ToolExecutor
 import com.ai.assistance.operit.core.tools.climode.CliToolModeSupport
 import com.ai.assistance.operit.core.tools.climode.ToolExposureMode
 import com.ai.assistance.operit.data.model.ToolInvocation
+import com.ai.assistance.operit.data.model.ToolInvocationLedgerEntity
+import com.ai.assistance.operit.data.model.ToolInvocationStatus
 import com.ai.assistance.operit.data.model.ToolResult
+import com.ai.assistance.operit.data.repository.ProviderExecutionRepository
+import com.ai.assistance.operit.data.repository.ToolInvocationClaim
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.util.stream.StreamCollector
 import com.ai.assistance.operit.data.preferences.CharacterCardToolAccessResolver
 import java.util.concurrent.ConcurrentHashMap
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.async
@@ -318,6 +326,7 @@ object ToolExecutionManager {
                 ChatMarkupRegex.toolCallPattern.findAll(chunkString).forEach { toolMatch ->
                     val toolName = toolMatch.groupValues.getOrNull(2) ?: return@forEach
                     val toolBody = toolMatch.groupValues.getOrNull(3).orEmpty()
+                    val openingTag = toolMatch.value.substringBefore('>', "")
 
                     val parameters = mutableListOf<ToolParameter>()
                     MessageContentParser.toolParamPattern.findAll(toolBody)
@@ -332,7 +341,13 @@ object ToolExecutionManager {
                         ToolInvocation(
                             tool = tool,
                             rawText = toolMatch.value,
-                            responseLocation = toolMatch.range
+                            responseLocation = toolMatch.range,
+                            providerName =
+                                extractXmlAttribute(openingTag, "provider_name"),
+                            providerCallId =
+                                extractXmlAttribute(openingTag, "provider_call_id"),
+                            providerResponseId =
+                                extractXmlAttribute(openingTag, "provider_response_id"),
                         )
                     )
                 }
@@ -344,6 +359,63 @@ object ToolExecutionManager {
             "Found ${invocations.size} tool invocations: ${invocations.map { resolveDisplayToolName(it.tool) }}"
         )
         return invocations
+    }
+
+    /**
+     * 在一次工具回合内按 Provider 原始 call_id 建立唯一执行列表。
+     *
+     * compatible Responses endpoint 没有可持久化的 remote response ID 时，数据库账本不能
+     * 伪造远端身份；当前回合仍必须阻止同一 call_id 被重复执行。相同身份的同名同参调用只保留
+     * 第一份，身份冲突则在任何权限检查或副作用前失败。
+     */
+    internal fun normalizeProviderInvocations(
+        invocations: List<ToolInvocation>,
+    ): List<ToolInvocation> {
+        if (invocations.size < 2) {
+            return invocations
+        }
+
+        val signatures = linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
+        val normalized = ArrayList<ToolInvocation>(invocations.size)
+        for (invocation in invocations) {
+            val key =
+                ProviderToolCallIdentityContract.key(
+                    providerName = invocation.providerName,
+                    callId = invocation.providerCallId,
+                )
+            if (key == null) {
+                normalized.add(invocation)
+                continue
+            }
+
+            val signature =
+                ProviderToolCallIdentityContract.signature(
+                    toolName = invocation.tool.name,
+                    argumentsJson = canonicalToolArguments(invocation),
+                )
+            val existing = signatures[key]
+            if (existing == null) {
+                signatures[key] = signature
+                normalized.add(invocation)
+            } else {
+                ProviderToolCallIdentityContract.requireSame(key, existing, signature)
+            }
+        }
+        return normalized
+    }
+
+    private fun extractXmlAttribute(
+        openingTag: String,
+        attributeName: String,
+    ): String? {
+        if (openingTag.isEmpty()) {
+            return null
+        }
+        val match =
+            Regex("""\b${Regex.escape(attributeName)}="([^"]*)"""")
+                .find(openingTag)
+                ?: return null
+        return unescapeXml(match.groupValues[1]).takeIf { it.isNotBlank() }
     }
 
     /**
@@ -506,6 +578,15 @@ object ToolExecutionManager {
         callerChatId: String? = null,
         callerCardId: String? = null
     ): List<ToolResult> = coroutineScope {
+        val normalizedInvocations = normalizeProviderInvocations(invocations)
+        if (normalizedInvocations.size != invocations.size) {
+            AppLogger.w(
+                TAG,
+                "Provider-native duplicate tool calls removed before execution: " +
+                    "${invocations.size} -> ${normalizedInvocations.size}"
+            )
+        }
+
         // 默认工具注册现在可能在启动阶段被延后；这里确保在真正执行工具前已完成注册
         // registerDefaultTools() 是幂等且线程安全的，可安全重复调用
         withContext(Dispatchers.Default) {
@@ -528,11 +609,21 @@ object ToolExecutionManager {
                 callerCardId = callerCardId,
                 toolExposureMode = toolExposureMode
             )
+        val providerExecutionRepository =
+            if (
+                normalizedInvocations.any { invocation ->
+                    !invocation.providerResponseId.isNullOrBlank()
+                }
+            ) {
+                ProviderExecutionRepository.from(context)
+            } else {
+                null
+            }
 
         // 1. 顶层工具暴露模式拦截
         val toolExposurePermittedInvocations = mutableListOf<ToolInvocation>()
         val toolExposureDeniedResults = mutableListOf<ToolResult>()
-        for (invocation in invocations) {
+        for (invocation in normalizedInvocations) {
             val deniedResult = buildToolExposureDeniedResult(context, invocation, toolExposureMode)
             if (deniedResult == null) {
                 toolExposurePermittedInvocations.add(invocation)
@@ -647,7 +738,8 @@ object ToolExecutionManager {
                         toolHandler = toolHandler,
                         packageManager = packageManager,
                         collector = collector,
-                        runtimeContext = toolRuntimeContext
+                        runtimeContext = toolRuntimeContext,
+                        providerExecutionRepository = providerExecutionRepository,
                     )
                 executionResults[invocation] = result
             }
@@ -661,7 +753,8 @@ object ToolExecutionManager {
                     toolHandler = toolHandler,
                     packageManager = packageManager,
                     collector = collector,
-                    runtimeContext = toolRuntimeContext
+                    runtimeContext = toolRuntimeContext,
+                    providerExecutionRepository = providerExecutionRepository,
                 )
             executionResults[invocation] = result
         }
@@ -688,16 +781,39 @@ object ToolExecutionManager {
         toolHandler: AIToolHandler,
         packageManager: PackageManager,
         collector: StreamCollector<String>,
-        runtimeContext: ToolRuntimeContext
+        runtimeContext: ToolRuntimeContext,
+        providerExecutionRepository: ProviderExecutionRepository?,
     ): ToolResult {
         val toolName = invocation.tool.name
         val displayToolName = resolveDisplayToolName(invocation.tool)
 
         return withContext(toolRuntimeContextThreadLocal.asContextElement(runtimeContext)) {
+            var ledgerIdentity: ToolLedgerIdentity? = null
+            var ledgerSettled = false
             try {
+                val ledgerClaim =
+                    prepareToolLedgerClaim(
+                        invocation = invocation,
+                        repository = providerExecutionRepository,
+                    )
+                when (ledgerClaim) {
+                    null -> Unit
+                    is ToolLedgerClaim.Execute -> ledgerIdentity = ledgerClaim.identity
+                    is ToolLedgerClaim.Reuse -> {
+                        emitToolResult(ledgerClaim.result, collector)
+                        toolHandler.notifyToolExecutionResult(invocation.tool, ledgerClaim.result)
+                        return@withContext ledgerClaim.result
+                    }
+
+                    is ToolLedgerClaim.DoNotExecute -> {
+                        emitToolResult(ledgerClaim.result, collector)
+                        toolHandler.notifyToolExecutionResult(invocation.tool, ledgerClaim.result)
+                        return@withContext ledgerClaim.result
+                    }
+                }
+
                 val executor = toolHandler.getToolExecutorOrActivate(toolName)
                 if (executor == null) {
-                    // 如果仍然为 null，则构建错误消息
                     val errorMessage =
                         buildToolNotAvailableErrorMessage(toolName, packageManager, toolHandler)
                     val notAvailableContent =
@@ -711,6 +827,12 @@ object ToolExecutionManager {
                             error = errorMessage
                         )
                     toolHandler.notifyToolExecutionResult(invocation.tool, notAvailableResult)
+                    completeToolLedger(
+                        repository = providerExecutionRepository,
+                        identity = ledgerIdentity,
+                        result = notAvailableResult,
+                    )
+                    ledgerSettled = ledgerIdentity != null
                     return@withContext notAvailableResult
                 }
 
@@ -735,6 +857,12 @@ object ToolExecutionManager {
                             error = "The tool execution returned no results."
                         )
                     toolHandler.notifyToolExecutionResult(invocation.tool, emptyResult)
+                    completeToolLedger(
+                        repository = providerExecutionRepository,
+                        identity = ledgerIdentity,
+                        result = emptyResult,
+                    )
+                    ledgerSettled = ledgerIdentity != null
                     return@withContext emptyResult
                 }
 
@@ -751,12 +879,215 @@ object ToolExecutionManager {
                         error = lastResult.error
                     )
                 toolHandler.notifyToolExecutionResult(invocation.tool, finalResult)
+                completeToolLedger(
+                    repository = providerExecutionRepository,
+                    identity = ledgerIdentity,
+                    result = finalResult,
+                )
+                ledgerSettled = ledgerIdentity != null
                 return@withContext finalResult
+            } catch (error: Exception) {
+                if (!ledgerSettled) {
+                    failToolLedger(
+                        repository = providerExecutionRepository,
+                        identity = ledgerIdentity,
+                        error = error,
+                    )
+                }
+                throw error
             } finally {
                 toolHandler.notifyToolExecutionFinished(invocation.tool)
             }
         }
     }
+
+    private data class ToolLedgerIdentity(
+        val provider: String,
+        val remoteResponseId: String,
+        val callId: String,
+    )
+
+    private sealed interface ToolLedgerClaim {
+        data class Execute(val identity: ToolLedgerIdentity) : ToolLedgerClaim
+
+        data class Reuse(val result: ToolResult) : ToolLedgerClaim
+
+        data class DoNotExecute(val result: ToolResult) : ToolLedgerClaim
+    }
+
+    private suspend fun prepareToolLedgerClaim(
+        invocation: ToolInvocation,
+        repository: ProviderExecutionRepository?,
+    ): ToolLedgerClaim? {
+        val provider = invocation.providerName
+        val remoteResponseId = invocation.providerResponseId
+        val callId = invocation.providerCallId
+        if (remoteResponseId.isNullOrBlank()) {
+            // Chat Completions 仍需保留原始 call_id 供下一 hop 重放，但没有 response_id 时不存在
+            // 可持久化执行身份，不能把它误接入 Responses exactly-once 账本。
+            return null
+        }
+        requireNotNull(repository) {
+            "Provider execution repository is required for provider-native tool calls"
+        }
+        require(!provider.isNullOrBlank()) { "Provider-native tool call has no provider name" }
+        require(!remoteResponseId.isNullOrBlank()) {
+            "Provider-native tool call has no response ID"
+        }
+        require(!callId.isNullOrBlank()) { "Provider-native tool call has no call ID" }
+
+        val execution =
+            repository.getExecutionByRemoteResponse(provider, remoteResponseId)
+                ?: error(
+                    "Provider execution not found for $provider/$remoteResponseId"
+                )
+        val argumentsJson = canonicalToolArguments(invocation)
+        val now = System.currentTimeMillis()
+        repository.registerToolInvocation(
+            ToolInvocationLedgerEntity(
+                provider = provider,
+                remoteResponseId = remoteResponseId,
+                callId = callId,
+                localExecutionId = execution.localExecutionId,
+                toolName = invocation.tool.name,
+                argumentsJson = argumentsJson,
+                argumentsSha256 = sha256(argumentsJson),
+                status = ToolInvocationStatus.PENDING.name,
+                createdAt = now,
+                updatedAt = now,
+            )
+        )
+
+        return when (
+            val claim =
+                repository.claimToolInvocation(
+                    provider = provider,
+                    remoteResponseId = remoteResponseId,
+                    callId = callId,
+                )
+        ) {
+            is ToolInvocationClaim.Claimed ->
+                ToolLedgerClaim.Execute(
+                    ToolLedgerIdentity(provider, remoteResponseId, callId)
+                )
+
+            is ToolInvocationClaim.Completed -> {
+                val resultJson =
+                    claim.invocation.resultJson
+                        ?: error(
+                            "Completed tool ledger row has no result for " +
+                                "$provider/$remoteResponseId/$callId"
+                        )
+                ToolLedgerClaim.Reuse(decodeToolResult(resultJson))
+            }
+
+            is ToolInvocationClaim.AlreadyRunning ->
+                ToolLedgerClaim.DoNotExecute(
+                    ToolResult(
+                        toolName = invocation.tool.name,
+                        success = false,
+                        result = StringResultData(""),
+                        error =
+                            "The provider tool call is already running; Kiyori will not execute it twice.",
+                    )
+                )
+
+            is ToolInvocationClaim.Failed ->
+                ToolLedgerClaim.DoNotExecute(
+                    ToolResult(
+                        toolName = invocation.tool.name,
+                        success = false,
+                        result = StringResultData(""),
+                        error =
+                            claim.invocation.errorMessage
+                                ?: "The provider tool call previously failed and will not be executed again.",
+                    )
+                )
+        }
+    }
+
+    private suspend fun completeToolLedger(
+        repository: ProviderExecutionRepository?,
+        identity: ToolLedgerIdentity?,
+        result: ToolResult,
+    ) {
+        if (repository == null || identity == null) {
+            return
+        }
+        repository.completeToolInvocation(
+            provider = identity.provider,
+            remoteResponseId = identity.remoteResponseId,
+            callId = identity.callId,
+            resultJson = encodeToolResult(result),
+        )
+    }
+
+    private suspend fun failToolLedger(
+        repository: ProviderExecutionRepository?,
+        identity: ToolLedgerIdentity?,
+        error: Exception,
+    ) {
+        if (repository == null || identity == null) {
+            return
+        }
+        repository.failToolInvocation(
+            provider = identity.provider,
+            remoteResponseId = identity.remoteResponseId,
+            callId = identity.callId,
+            errorMessage = error.message ?: error::class.java.simpleName,
+        )
+    }
+
+    private suspend fun emitToolResult(
+        result: ToolResult,
+        collector: StreamCollector<String>,
+    ) {
+        val content = ConversationMarkupManager.formatToolResultForMessage(result)
+        collector.emit(ensureEndsWithNewline(content))
+    }
+
+    private fun canonicalToolArguments(invocation: ToolInvocation): String {
+        val arguments = JSONObject()
+        invocation.tool.parameters.sortedBy { parameter -> parameter.name }.forEach { parameter ->
+            arguments.put(parameter.name, parameter.value)
+        }
+        return arguments.toString()
+    }
+
+    private fun encodeToolResult(result: ToolResult): String =
+        JSONObject()
+            .apply {
+                put("toolName", result.toolName)
+                put("success", result.success)
+                put("result", result.result.toString())
+                if (result.error == null) {
+                    put("error", JSONObject.NULL)
+                } else {
+                    put("error", result.error)
+                }
+            }
+            .toString()
+
+    private fun decodeToolResult(json: String): ToolResult {
+        val value = JSONObject(json)
+        return ToolResult(
+            toolName = value.getString("toolName"),
+            success = value.getBoolean("success"),
+            result = StringResultData(value.optString("result", "")),
+            error =
+                if (value.isNull("error")) {
+                    null
+                } else {
+                    value.getString("error")
+                },
+        )
+    }
+
+    private fun sha256(value: String): String =
+        MessageDigest
+            .getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
 
     /**
      * 构建工具不可用的错误信息，统一逻辑避免重复

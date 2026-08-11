@@ -21,7 +21,10 @@ data class ToolInvocation(
         val tool: AITool,
         val rawText: String,
         @Contextual
-        val responseLocation: IntRange // Where in the response this tool invocation was found
+        val responseLocation: IntRange, // Where in the response this tool invocation was found
+        val providerName: String? = null,
+        val providerCallId: String? = null,
+        val providerResponseId: String? = null,
 )
 
 /** Represents the result of a tool execution */

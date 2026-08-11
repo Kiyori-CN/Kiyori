@@ -6,13 +6,10 @@ import com.ai.assistance.operit.core.chat.hooks.PromptTurn
 import com.ai.assistance.operit.data.model.ApiProviderType
 import com.ai.assistance.operit.data.model.ModelParameter
 import com.ai.assistance.operit.data.model.ToolPrompt
-import com.ai.assistance.operit.data.preferences.ApiPreferences
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.util.ChatUtils
 import java.security.MessageDigest
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import org.json.JSONArray
@@ -42,6 +39,9 @@ class OpenAIResponsesProvider(
     enableToolCall = enableToolCall
 ) {
     override val useResponsesApi: Boolean = true
+    override val supportsResponsesStreamResumption: Boolean =
+        modelCapabilityProfile.executionPersistence ==
+            ExecutionPersistenceCapability.OPENAI_BACKGROUND_SEQUENCE_RESUME
 
     override fun createRequestBody(
         context: Context,
@@ -68,10 +68,24 @@ class OpenAIResponsesProvider(
         )
         val jsonObject = JSONObject(baseRequestBodyJson)
 
-        applyResponsesReasoningEffort(
-            context = context,
+        val compiledRequest = compileModelRequest(context, enableThinking)
+        AppLogger.d(
+            "OpenAIResponsesProvider",
+            "Responses capability profile=${compiledRequest.profile.profileId}, " +
+                "contractAuthority=${compiledRequest.profile.providerContractAuthority}, " +
+                "executionPersistence=${compiledRequest.profile.executionPersistence}",
+        )
+        compiledRequest.reasoningEffort?.let { effort ->
+            AppLogger.d(
+                "OpenAIResponsesProvider",
+                "Responses reasoning.effort=${effort.wireValue}, " +
+                    "profile=${compiledRequest.profile.profileId}",
+            )
+        }
+        OpenAIResponsesRequestFeatureCompiler.apply(
             requestJson = jsonObject,
-            enableThinking = enableThinking
+            compiledRequest = compiledRequest,
+            stream = stream,
         )
 
         val logJson = JSONObject(jsonObject.toString())
@@ -94,7 +108,26 @@ class OpenAIResponsesProvider(
         messagesArray: JSONArray,
         toolsJson: String?
     ) {
-        if (!shouldAttachPromptCacheKey()) {
+        val sourceTools = requestObject.optJSONArray("tools")
+        if (sourceTools != null) {
+            val toolCompilation =
+                OpenAIResponsesToolSearchCompiler.compile(
+                    sourceTools = sourceTools,
+                    enabled =
+                        modelCapabilityProfile.toolDiscovery ==
+                            ToolDiscoveryCapability.OPENAI_TOOL_SEARCH,
+                )
+            requestObject.put("tools", toolCompilation.tools)
+            if (toolCompilation.toolSearchAdded) {
+                AppLogger.d(
+                    "OpenAIResponsesProvider",
+                    "Responses tool_search enabled; deferredFunctions=" +
+                        toolCompilation.deferredFunctionCount,
+                )
+            }
+        }
+
+        if (modelCapabilityProfile.promptCache != PromptCacheCapability.OPENAI_PROMPT_CACHE_KEY) {
             return
         }
 
@@ -102,108 +135,22 @@ class OpenAIResponsesProvider(
             return
         }
 
-        val promptCacheKey = buildPromptCacheKey(messagesArray, toolsJson) ?: return
+        val promptCacheKey =
+            buildPromptCacheKey(
+                messagesArray = messagesArray,
+                toolsJson =
+                    requestObject.optJSONArray("tools")?.toString()
+                        ?: toolsJson,
+                namespace = requireNotNull(modelCapabilityProfile.promptCacheNamespace),
+            ) ?: return
         requestObject.put("prompt_cache_key", promptCacheKey)
         AppLogger.d("AIService", "Responses API自动附加prompt_cache_key: $promptCacheKey")
     }
 
-    private fun applyResponsesReasoningEffort(
-        context: Context,
-        requestJson: JSONObject,
-        enableThinking: Boolean
-    ) {
-        val reasoningObject = requestJson.optJSONObject("reasoning")
-        if (!enableThinking && reasoningObject == null) {
-            return
-        }
-
-        if (reasoningObject == null && requestJson.has("reasoning") && !requestJson.isNull("reasoning")) {
-            AppLogger.w(
-                "OpenAIResponsesProvider",
-                "Skipping Responses reasoning adaptation because reasoning is not an object"
-            )
-            return
-        }
-
-        val finalReasoningObject = reasoningObject ?: JSONObject()
-        val existingEffort =
-            finalReasoningObject.optString("effort", "").trim().takeIf { it.isNotEmpty() }
-        if (existingEffort == null) {
-            val effort = when {
-                enableThinking -> resolveResponsesReasoningEffort(context)
-                else -> "none"
-            }
-            if (effort != null) {
-                finalReasoningObject.put("effort", effort)
-                AppLogger.d(
-                    "OpenAIResponsesProvider",
-                    "Responses reasoning.effort=$effort"
-                )
-            }
-        } else {
-            AppLogger.d(
-                "OpenAIResponsesProvider",
-                "Preserving caller-supplied Responses reasoning.effort=$existingEffort"
-            )
-        }
-
-        val existingSummary =
-            finalReasoningObject.optString("summary", "").trim().takeIf { it.isNotEmpty() }
-        if (enableThinking && existingSummary == null) {
-            finalReasoningObject.put("summary", "auto")
-            AppLogger.d(
-                "OpenAIResponsesProvider",
-                "Responses reasoning summary enabled via reasoning.summary=auto"
-            )
-        }
-
-        requestJson.put("reasoning", finalReasoningObject)
-        if (finalReasoningObject.optString("effort", "").trim() != "none") {
-            ensureResponsesReasoningEncryptedContentIncluded(requestJson)
-        }
-    }
-
-    private fun ensureResponsesReasoningEncryptedContentIncluded(requestJson: JSONObject) {
-        val includeArray = requestJson.optJSONArray("include") ?: JSONArray().also {
-            requestJson.put("include", it)
-        }
-        for (i in 0 until includeArray.length()) {
-            if (includeArray.optString(i, "") == "reasoning.encrypted_content") {
-                return
-            }
-        }
-        includeArray.put("reasoning.encrypted_content")
-    }
-
-    private fun resolveResponsesReasoningEffort(context: Context): String? {
-        val qualityLevel = runCatching {
-            runBlocking {
-                ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
-            }
-        }.getOrElse {
-            AppLogger.w(
-                "OpenAIResponsesProvider",
-                "Failed to read thinking quality level; reasoning.effort not applied",
-                it
-            )
-            return null
-        }
-
-        val effortLevels = listOf("low", "medium", "high", "xhigh", "max")
-        val qualityIndex = qualityLevel.coerceIn(
-            ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
-            ApiPreferences.MAX_THINKING_QUALITY_LEVEL
-        ) - 1
-        return effortLevels[qualityIndex]
-    }
-
-    private fun shouldAttachPromptCacheKey(): Boolean {
-        return responsesProviderType == ApiProviderType.OPENAI_RESPONSES
-    }
-
     private fun buildPromptCacheKey(
         messagesArray: JSONArray,
-        toolsJson: String?
+        toolsJson: String?,
+        namespace: String,
     ): String? {
         if (messagesArray.length() == 0 && toolsJson.isNullOrBlank()) {
             return null
@@ -211,6 +158,7 @@ class OpenAIResponsesProvider(
 
         val anchorParts = mutableListOf<String>()
         var assistantOrToolSeen = false
+        val lastMessageIndex = messagesArray.length() - 1
 
         for (i in 0 until messagesArray.length()) {
             val message = messagesArray.optJSONObject(i) ?: continue
@@ -225,12 +173,16 @@ class OpenAIResponsesProvider(
             }
 
             if (role == "system" || role == "developer") {
-                anchorParts.add("$role:${message.opt("content")}")
+                anchorParts.add("$role:${canonicalJsonValue(message.opt("content"))}")
                 continue
             }
 
             if (role == "user") {
-                anchorParts.add("$role:${message.opt("content")}")
+                // 首轮对话中的唯一 user 消息就是当前动态输入，不能把它写进稳定缓存命名空间。
+                // 有更早历史时，第一个 user anchor 仍可稳定区分不同长期会话前缀。
+                if (i < lastMessageIndex) {
+                    anchorParts.add("$role:${canonicalJsonValue(message.opt("content"))}")
+                }
                 break
             }
         }
@@ -239,18 +191,19 @@ class OpenAIResponsesProvider(
             val firstMessage = messagesArray.optJSONObject(0)
             if (firstMessage != null) {
                 anchorParts.add(
-                    "${firstMessage.optString("role", "unknown")}:${firstMessage.opt("content")}"
+                    "${firstMessage.optString("role", "unknown")}:" +
+                        canonicalJsonValue(firstMessage.opt("content"))
                 )
             }
         }
 
         val digestInput =
             buildString {
-                append("operit:responses_prompt_cache:v1")
+                append(namespace)
                 append("|model=").append(modelName)
                 append("|toolCall=").append(enableToolCall)
                 if (!toolsJson.isNullOrBlank()) {
-                    append("|tools=").append(toolsJson)
+                    append("|tools=").append(canonicalJsonText(toolsJson))
                 }
                 anchorParts.forEach { part ->
                     append("|anchor=").append(part)
@@ -263,6 +216,101 @@ class OpenAIResponsesProvider(
                 .joinToString("") { "%02x".format(it) }
 
         return "operit_resp_${digest.take(48)}"
+    }
+
+    private fun canonicalJsonText(json: String): String {
+        val trimmed = json.trim()
+        return when {
+            trimmed.startsWith("[") -> canonicalJsonValue(JSONArray(trimmed))
+            trimmed.startsWith("{") -> canonicalJsonValue(JSONObject(trimmed))
+            else -> JSONObject.quote(trimmed)
+        }
+    }
+
+    private fun canonicalJsonValue(value: Any?): String =
+        when (value) {
+            null,
+            JSONObject.NULL,
+            -> "null"
+
+            is JSONObject -> {
+                val keys = value.keys().asSequence().toList().sorted()
+                keys.joinToString(prefix = "{", postfix = "}") { key ->
+                    "${JSONObject.quote(key)}:${canonicalJsonValue(value.opt(key))}"
+                }
+            }
+
+            is JSONArray ->
+                (0 until value.length()).joinToString(prefix = "[", postfix = "]") { index ->
+                    canonicalJsonValue(value.opt(index))
+                }
+
+            is String -> JSONObject.quote(value)
+            is Number,
+            is Boolean,
+            -> value.toString()
+
+            else -> JSONObject.quote(value.toString())
+    }
+}
+
+internal object OpenAIResponsesRequestFeatureCompiler {
+    fun apply(
+        requestJson: JSONObject,
+        compiledRequest: CompiledModelRequest,
+        stream: Boolean,
+    ) {
+        applyReasoning(
+            requestJson = requestJson,
+            compiledRequest = compiledRequest,
+        )
+        if (stream && compiledRequest.background) {
+            // Background 执行使服务端推理与单条 HTTP/2 流解耦；store=false 保持请求语义，
+            // OpenAI 仍会在可续接窗口内临时保存该 response 的传输状态。
+            requestJson.put("background", true)
+            requestJson.put("store", requireNotNull(compiledRequest.store))
+        }
+    }
+
+    private fun applyReasoning(
+        requestJson: JSONObject,
+        compiledRequest: CompiledModelRequest,
+    ) {
+        val effort = compiledRequest.reasoningEffort ?: return
+        val reasoningObject = requestJson.optJSONObject("reasoning")
+        if (
+            reasoningObject == null &&
+                requestJson.has("reasoning") &&
+                !requestJson.isNull("reasoning")
+        ) {
+            error("Responses reasoning must be a JSON object")
+        }
+
+        val finalReasoningObject = reasoningObject ?: JSONObject()
+        finalReasoningObject.put("effort", effort.wireValue)
+        if (
+            compiledRequest.reasoningSummaryEnabled &&
+                !finalReasoningObject.has("summary")
+        ) {
+            finalReasoningObject.put("summary", "auto")
+        }
+
+        requestJson.put("reasoning", finalReasoningObject)
+        if (compiledRequest.encryptedReasoningContentEnabled) {
+            ensureEncryptedReasoningContentIncluded(requestJson)
+        }
+    }
+
+    private fun ensureEncryptedReasoningContentIncluded(requestJson: JSONObject) {
+        val includeArray = requestJson.optJSONArray("include") ?: JSONArray().also {
+            requestJson.put("include", it)
+        }
+        for (i in 0 until includeArray.length()) {
+            if (includeArray.optString(i, "") == "reasoning.encrypted_content") {
+                return
+            }
+        }
+        includeArray.put("reasoning.encrypted_content")
     }
 }
 
@@ -476,6 +524,9 @@ object OpenAIResponsesPayloadAdapter {
 
     private fun convertMessagesToResponsesInput(messages: JSONArray): JSONArray {
         val input = JSONArray()
+        val functionCallsByIdentity =
+            linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
+        val functionOutputsByCallId = linkedMapOf<String, String>()
 
         for (i in 0 until messages.length()) {
             val message = messages.optJSONObject(i) ?: continue
@@ -486,6 +537,16 @@ object OpenAIResponsesPayloadAdapter {
                 val callId = message.optString("tool_call_id", "")
                 if (callId.isNotEmpty()) {
                     val outputText = extractToolOutputText(message.opt("content"))
+                    val previousOutput = functionOutputsByCallId[callId]
+                    if (previousOutput != null) {
+                        if (previousOutput != outputText) {
+                            throw OpenAIResponsesProtocolException(
+                                "Responses history contains conflicting outputs for tool call $callId"
+                            )
+                        }
+                        continue
+                    }
+                    functionOutputsByCallId[callId] = outputText
                     input.put(
                         JSONObject().apply {
                             put("type", "function_call_output")
@@ -515,6 +576,28 @@ object OpenAIResponsesPayloadAdapter {
 
                         val callId = call.optString("id", "")
                         if (callId.isNotEmpty()) {
+                            val key =
+                                requireNotNull(
+                                    ProviderToolCallIdentityContract.key(
+                                        providerName = ApiProviderType.OPENAI_RESPONSES.name,
+                                        callId = callId,
+                                    )
+                                )
+                            val signature =
+                                ProviderToolCallIdentityContract.signature(
+                                    toolName = name,
+                                    argumentsJson = function.optString("arguments", "{}"),
+                                )
+                            val existing = functionCallsByIdentity[key]
+                            if (existing != null) {
+                                ProviderToolCallIdentityContract.requireSame(
+                                    key,
+                                    existing,
+                                    signature,
+                                )
+                                continue
+                            }
+                            functionCallsByIdentity[key] = signature
                             callItem.put("call_id", callId)
                         }
 

@@ -314,52 +314,24 @@ fun <T> Stream<T>.share(
             // 这个Job现在是scope的直接子Job
             upstreamJob =
                     scope.launch {
-                        try {
-                            this@share.collect { value -> sharedStream.emit(value) }
-                        } finally {
-                            // 当上游流完成或被取消时，我们不再需要这个共享流。
-                            // 但由于SharedFlow本身不会"关闭"，依赖协程的结构化并发来清理是最好的方式。
-                            // 此处的finally确保了协程在任何情况下（完成、取消、异常）都能结束。
-                            sharedStream.close() // 关闭流以允许收集器完成
-                            onComplete()
-                        }
+                        this@share.collectIntoSharedStream(sharedStream, onComplete)
                     }
         }
         StreamStart.LAZILY -> {
             scope.launch {
-                val subscriptionCountFlow = sharedStream.getInternalSubscriptionCountFlow()
-                if (subscriptionCountFlow != null) {
-                    subscriptionCountFlow.collect { count ->
-                        if (count > 0 && upstreamJob?.isActive != true) {
-                            upstreamJob =
-                                    scope.launch {
-                                        try {
-                                            this@share.collect { emittedValue ->
-                                                sharedStream.emit(emittedValue)
-                                            }
-                                        } finally {
-                                            sharedStream.close() // 关闭流以允许收集器完成
-                                            onComplete()
-                                        }
-                                    }
-                        } else if (count == 0) {
-                            // 当没有订阅者时，取消上游流的收集
-                            upstreamJob?.cancel()
-                            upstreamJob = null
-                        }
-                    }
-                } else {
-                    println(
-                            "Warning: Stream.share LAZILY mode could not observe subscriptions, may behave like EAGERLY."
-                    )
-                    // Fallback to EAGERLY behavior
-                    scope.launch {
-                        try {
-                            this@share.collect { value -> sharedStream.emit(value) }
-                        } finally {
-                            sharedStream.close() // 关闭流以允许收集器完成
-                            onComplete()
-                        }
+                sharedStream.internalSubscriptionCountFlow.collect { count ->
+                    if (count > 0 && upstreamJob?.isActive != true) {
+                        upstreamJob =
+                            scope.launch {
+                                this@share.collectIntoSharedStream(
+                                    sharedStream,
+                                    onComplete,
+                                )
+                            }
+                    } else if (count == 0) {
+                        // 当没有订阅者时，取消上游流的收集
+                        upstreamJob?.cancel()
+                        upstreamJob = null
                     }
                 }
             }
@@ -367,6 +339,29 @@ fun <T> Stream<T>.share(
     }
 
     return sharedStream
+}
+
+/**
+ * 把冷流转发到共享流，并把上游终止原因作为共享流的终止原因保存。
+ *
+ * 首包前失败通常早于 UI 订阅发生；如果这里只执行无原因 close()，晚到的收集器会把异常误认为
+ * 零内容正常完成，导致请求看起来像是被静默中断。
+ */
+private suspend fun <T> Stream<T>.collectIntoSharedStream(
+    sharedStream: MutableSharedStreamImpl<T>,
+    onComplete: suspend () -> Unit,
+) {
+    var completionCause: Throwable? = null
+    try {
+        collect { value -> sharedStream.emit(value) }
+    } catch (error: Throwable) {
+        completionCause = error
+        // SharedStream 已保存并向所有当前/后续收集器传播这个失败。这里不能再次抛给 owner
+        // scope，否则同一个可恢复的 Provider 错误会同时进入消息错误链和全局未捕获异常处理器。
+    } finally {
+        sharedStream.close(completionCause)
+        onComplete()
+    }
 }
 
 /** 将Stream转变为StateStream，类似于Flow的stateIn */

@@ -450,6 +450,7 @@ class MessageCoordinationDelegate(
             messageProcessingDelegate.regenerateAiMessageVariant(
                 chatId = chatId,
                 targetMessageTimestamp = targetMessage.timestamp,
+                targetVariantIndex = targetMessage.variantCount,
                 requestMessageContent = requestMessageContent,
                 requestHistory = requestHistory,
                 workspacePath = workspacePath,

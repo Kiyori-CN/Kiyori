@@ -86,6 +86,10 @@
 - assistant 历史中的 XML `<tool ...>` 会被转成 `tool_calls` 数组。
 - user/tool 历史中的 XML `<tool_result ...>` 会被转成 `role="tool"` 消息。
 - 内部仍保留 tool_call_id 追踪与匹配逻辑。
+- 相同 provider 与 `provider_call_id` 的同名同参 XML 只生成一个 `tool_calls` 项；冲突工具名
+  或参数直接失败。
+- Responses 输入中每个 `call_id` 最多写入一个 `function_call` 和一个内容一致的
+  `function_call_output`；同一调用出现不同输出时直接失败。
 
 这一步是“对外兼容”，不是改内部存储结构。
 
@@ -98,6 +102,15 @@
 - 增量参数通过 `StreamingJsonXmlConverter` 逐步转为 XML 参数片段。
 - 输出形态依然是 `<tool ...><param ...>...</param></tool>`。
 - 工具切换/收尾时自动补齐关闭标签。
+- Responses 流使用原始 `response.output` 位置作为投影坐标，并以 `provider_call_id` 绑定
+  流事件和 `response.completed` 终态快照。过滤后的工具数组位置和随机 XML 标签不是身份。
+- `response.function_call_arguments.done.arguments` 是最终参数快照，在关闭 XML 前进入同一
+  解析器；终态快照只补齐尚未交付的参数。
+- 调用在开始标签保留原始 `provider_call_id` 与 `provider_name`，供当前回合规范化和下一 hop
+  重放。只有取得真实远端 response ID 时才写入 `provider_response_id`；这些属性不显示为
+  工具参数。
+- 相同身份同名同参只投影一次；同一位置改变 call ID，或同一 call ID 改变工具名或参数时，
+  按协议错误失败。
 
 ### B. 非流式
 
@@ -114,8 +127,14 @@
 
 1. 模型输出（或转换后输出）XML 工具调用。
 2. `ToolExecutionManager.extractToolInvocations` 解析 XML。
-3. 工具执行结果被格式化为 `<tool_result ...>` 写回对话历史。
-4. 下一轮再按配置决定是否做协议转换。
+3. 当前回合先按 provider 与原始 call ID 规范化调用。相同身份同名同参只保留第一份，冲突在
+   权限检查、Hook 和副作用前失败；没有 `provider_call_id` 的普通 XML 工具保持原行为。
+4. 具备完整 provider、真实 response ID 与原始 call ID 的可恢复 Responses 调用再进入
+   `tool_invocation_ledger`，同一 `call_id` 只有取得 `PENDING -> RUNNING` 所有权后才能
+   执行；`COMPLETED/RUNNING/FAILED` 不会再次执行副作用。没有真实 response ID 的调用只
+   保留 call ID，不构造 execution ledger 身份。
+5. 工具执行结果被格式化为 `<tool_result ...>` 写回对话历史。
+6. 下一轮再按配置决定是否做协议转换，并复用原始 provider `call_id`。
 
 所以“启用 Tool Call”只是 I/O 协议层变化，执行层不变。
 

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.ai.assistance.operit.data.model.ChatMessageLocatorPreview
 import com.ai.assistance.operit.data.model.MessageEntity
@@ -206,16 +207,47 @@ interface MessageDao {
     @Query("SELECT MAX(orderIndex) FROM messages WHERE chatId = :chatId")
     suspend fun getMaxOrderIndex(chatId: String): Int?
 
-    /** 删除指定聊天的所有消息 */
-    @Query("DELETE FROM messages WHERE chatId = :chatId")
-    suspend fun deleteAllMessagesForChat(chatId: String)
+    @Query("DELETE FROM provider_executions WHERE chatId = :chatId")
+    suspend fun deleteProviderExecutionsForChat(chatId: String)
 
-    /** 删除指定聊天中从某个时间戳开始的所有消息 */
+    @Query("DELETE FROM messages WHERE chatId = :chatId")
+    suspend fun deleteAllMessageRowsForChat(chatId: String)
+
+    /** 删除消息前先删除对应 provider execution；其事件、message state 与工具账本由外键级联清理。 */
+    @Transaction
+    suspend fun deleteAllMessagesForChat(chatId: String) {
+        deleteProviderExecutionsForChat(chatId)
+        deleteAllMessageRowsForChat(chatId)
+    }
+
+    @Query(
+        "DELETE FROM provider_executions WHERE chatId = :chatId AND messageTimestamp >= :timestamp"
+    )
+    suspend fun deleteProviderExecutionsFrom(chatId: String, timestamp: Long)
+
     @Query("DELETE FROM messages WHERE chatId = :chatId AND timestamp >= :timestamp")
-    suspend fun deleteMessagesFrom(chatId: String, timestamp: Long)
+    suspend fun deleteMessageRowsFrom(chatId: String, timestamp: Long)
+
+    /** 删除指定聊天中从某个时间戳开始的消息及其 provider-private 状态。 */
+    @Transaction
+    suspend fun deleteMessagesFrom(chatId: String, timestamp: Long) {
+        deleteProviderExecutionsFrom(chatId, timestamp)
+        deleteMessageRowsFrom(chatId, timestamp)
+    }
+
+    @Query(
+        "DELETE FROM provider_executions WHERE chatId = :chatId AND messageTimestamp = :timestamp"
+    )
+    suspend fun deleteProviderExecutionsByTimestamp(chatId: String, timestamp: Long)
 
     @Query("DELETE FROM messages WHERE chatId = :chatId AND timestamp = :timestamp")
-    suspend fun deleteMessageByTimestamp(chatId: String, timestamp: Long)
+    suspend fun deleteMessageRowByTimestamp(chatId: String, timestamp: Long)
+
+    @Transaction
+    suspend fun deleteMessageByTimestamp(chatId: String, timestamp: Long) {
+        deleteProviderExecutionsByTimestamp(chatId, timestamp)
+        deleteMessageRowByTimestamp(chatId, timestamp)
+    }
 
     @Query(
         "UPDATE messages SET selectedVariantIndex = :selectedVariantIndex WHERE chatId = :chatId AND timestamp = :timestamp"

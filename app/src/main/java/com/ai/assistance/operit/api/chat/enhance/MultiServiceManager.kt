@@ -43,9 +43,7 @@ class MultiServiceManager(private val context: Context) {
     private class ManagedService(
         val service: AIService,
         val modelConfig: ModelConfigData,
-        var activeLeases: Int = 0,
-        var retired: Boolean = false,
-        var released: Boolean = false
+        val leaseState: ManagedServiceLeaseState = ManagedServiceLeaseState(),
     )
 
     // 配置管理器
@@ -98,7 +96,9 @@ class MultiServiceManager(private val context: Context) {
         ensureInitialized()
         val managedService =
             serviceMutex.withLock {
-                getOrCreateServiceForFunctionLocked(functionType).also { it.activeLeases += 1 }
+                getOrCreateServiceForFunctionLocked(functionType).also {
+                    it.leaseState.acquire()
+                }
             }
         val modelParameters =
             modelConfigManager.getModelParametersForConfig(managedService.modelConfig.id)
@@ -114,7 +114,9 @@ class MultiServiceManager(private val context: Context) {
         ensureInitialized()
         val managedService =
             serviceMutex.withLock {
-                getOrCreateServiceForConfigLocked(configId, modelIndex).also { it.activeLeases += 1 }
+                getOrCreateServiceForConfigLocked(configId, modelIndex).also {
+                    it.leaseState.acquire()
+                }
             }
         val modelParameters =
             modelConfigManager.getModelParametersForConfig(managedService.modelConfig.id)
@@ -250,49 +252,52 @@ class MultiServiceManager(private val context: Context) {
 
             serviceInstances.clear()
             customServiceInstances.clear()
-            retiredServices.clear()
             defaultService = null
+
+            val activeLeaseCount = services.sumOf { service -> service.leaseState.activeLeases }
+            var immediatelyReleased = 0
             services.forEach { service ->
-                closeManagedServiceLocked(service, cancelStreaming = true)
+                if (retireManagedServiceLocked(service)) {
+                    immediatelyReleased += 1
+                }
             }
-            AppLogger.d(TAG, "已清除所有服务实例缓存并释放资源")
+            AppLogger.d(
+                TAG,
+                "全量刷新服务缓存: services=${services.size}, activeLeases=$activeLeaseCount, " +
+                    "retired=${services.size - immediatelyReleased}, immediatelyReleased=$immediatelyReleased"
+            )
         }
     }
 
     private suspend fun releaseLease(managedService: ManagedService) {
         serviceMutex.withLock {
-            managedService.activeLeases = (managedService.activeLeases - 1).coerceAtLeast(0)
-            closeRetiredServiceLocked(managedService)
+            if (managedService.leaseState.releaseLease()) {
+                closeManagedServiceLocked(managedService)
+            }
         }
     }
 
-    private fun retireManagedServiceLocked(managedService: ManagedService) {
-        managedService.retired = true
+    private fun retireManagedServiceLocked(managedService: ManagedService): Boolean {
         retiredServices.add(managedService)
-        closeRetiredServiceLocked(managedService)
-    }
-
-    private fun closeRetiredServiceLocked(managedService: ManagedService) {
-        if (managedService.retired && managedService.activeLeases == 0) {
-            closeManagedServiceLocked(managedService, cancelStreaming = false)
+        return if (managedService.leaseState.retire()) {
+            closeManagedServiceLocked(managedService)
+        } else {
+            false
         }
     }
 
-    private fun closeManagedServiceLocked(managedService: ManagedService, cancelStreaming: Boolean) {
-        if (managedService.released) {
-            return
+    private fun closeManagedServiceLocked(managedService: ManagedService): Boolean {
+        if (!managedService.leaseState.markReleased()) {
+            return false
         }
-        managedService.released = true
         retiredServices.remove(managedService)
         try {
-            if (cancelStreaming) {
-                managedService.service.cancelStreaming()
-            }
             managedService.service.release()
             AppLogger.d(TAG, "已释放服务资源: providerModel=${managedService.service.providerModel}")
         } catch (e: Exception) {
             AppLogger.e(TAG, "释放服务资源时出错", e)
         }
+        return true
     }
 
     /** 根据配置创建AIService实例 */

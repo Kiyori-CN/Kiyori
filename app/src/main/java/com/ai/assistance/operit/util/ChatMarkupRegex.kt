@@ -9,6 +9,7 @@ object ChatMarkupRegex {
     const val TOOL_TAG_NAME_REGEX_SOURCE =
         "tool(?:_(?!result(?:_|\\b))$TOOL_TAG_SUFFIX_REGEX_SOURCE)?"
     const val TOOL_RESULT_TAG_NAME_REGEX_SOURCE = "tool_result(?:_${TOOL_TAG_SUFFIX_REGEX_SOURCE})?"
+    private const val EXACT_NAME_ATTRIBUTE_REGEX_SOURCE = "\\sname\\s*=\\s*\"([^\"]+)\""
 
     private val toolTagNameRegex = Regex("^$TOOL_TAG_NAME_REGEX_SOURCE$", RegexOption.IGNORE_CASE)
     private val toolResultTagNameRegex = Regex("^$TOOL_RESULT_TAG_NAME_REGEX_SOURCE$", RegexOption.IGNORE_CASE)
@@ -24,7 +25,7 @@ object ChatMarkupRegex {
     private val randomTagCodeSource = SecureRandom()
 
     val toolCallPattern = Regex(
-        """<($TOOL_TAG_NAME_REGEX_SOURCE)\b[^>]*name="([^"]+)"[^>]*>([\s\S]*?)</\1>""",
+        """<($TOOL_TAG_NAME_REGEX_SOURCE)\b[^>]*?$EXACT_NAME_ATTRIBUTE_REGEX_SOURCE[^>]*>([\s\S]*?)</\1>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
 
@@ -59,7 +60,7 @@ object ChatMarkupRegex {
     )
 
     val toolResultWithNameAnyPattern = Regex(
-        """<($TOOL_RESULT_TAG_NAME_REGEX_SOURCE)\b[^>]*name="([^"]+)"[^>]*>([\s\S]*?)</\1>""",
+        """<($TOOL_RESULT_TAG_NAME_REGEX_SOURCE)\b[^>]*?$EXACT_NAME_ATTRIBUTE_REGEX_SOURCE[^>]*>([\s\S]*?)</\1>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
 
@@ -73,17 +74,17 @@ object ChatMarkupRegex {
     )
 
     val xmlToolResultPattern = Regex(
-        """<($TOOL_RESULT_TAG_NAME_REGEX_SOURCE)\b[^>]*name="([^"]+)"[^>]*status="([^"]+)"[^>]*>\s*<content>([\s\S]*?)</content>\s*</\1>""",
+        """<($TOOL_RESULT_TAG_NAME_REGEX_SOURCE)\b[^>]*?$EXACT_NAME_ATTRIBUTE_REGEX_SOURCE[^>]*?\sstatus\s*=\s*"([^"]+)"[^>]*>\s*<content>([\s\S]*?)</content>\s*</\1>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
 
     val xmlToolRequestPattern = Regex(
-        """<($TOOL_TAG_NAME_REGEX_SOURCE)\b[^>]*name="([^"]+)"(?:\s+description="([^"]+)")?[^>]*>([\s\S]*?)</\1>""",
+        """<($TOOL_TAG_NAME_REGEX_SOURCE)\b[^>]*?$EXACT_NAME_ATTRIBUTE_REGEX_SOURCE(?:\s+description="([^"]+)")?[^>]*>([\s\S]*?)</\1>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     )
 
     val namePattern = Regex(
-        "<(?:$TOOL_TAG_NAME_REGEX_SOURCE)\\b[^>]*name=\"([^\"]+)\"",
+        "<(?:$TOOL_TAG_NAME_REGEX_SOURCE)\\b[^>]*?$EXACT_NAME_ATTRIBUTE_REGEX_SOURCE",
         RegexOption.IGNORE_CASE
     )
 

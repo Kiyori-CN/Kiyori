@@ -468,11 +468,12 @@ class DeepseekProvider(
         stream: Boolean,
         availableTools: List<ToolPrompt>?,
         preserveThinkInHistory: Boolean,
+        providerRequestContext: ProviderRequestContext?,
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
         onNonFatalError: suspend (error: String) -> Unit,
         enableRetry: Boolean
     ): Stream<String> {
         // 直接调用父类的sendMessage实现
-        return super.sendMessage(context, chatHistory, modelParameters, enableThinking, stream, availableTools, preserveThinkInHistory, onTokensUpdated, onNonFatalError, enableRetry)
+        return super.sendMessage(context, chatHistory, modelParameters, enableThinking, stream, availableTools, preserveThinkInHistory, providerRequestContext, onTokensUpdated, onNonFatalError, enableRetry)
     }
 }

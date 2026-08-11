@@ -3660,8 +3660,8 @@
     <string name="auto_save_failed">自动保存失败</string>
     <!-- API Provider names -->
     <string name="provider_openai">OpenAI (GPT系列)</string>
-    <string name="provider_openai_responses">OpenAI (Responses API)</string>
-    <string name="provider_openai_responses_generic">OpenAI Responses通用</string>
+    <string name="provider_openai_responses">OpenAI 官方（Responses API）</string>
+    <string name="provider_openai_responses_generic">Responses 兼容端点</string>
     <string name="provider_anthropic">Anthropic (Claude系列)</string>
     <string name="provider_anthropic_generic">Anthropic通用</string>
     <string name="provider_google">Google (Gemini系列)</string>
@@ -6755,7 +6755,7 @@
     <string name="openai_error_max_retries">AI响应获取失败，已达最大重试次数: %1$s</string>
     <string name="openai_error_response_failed">AI响应获取失败: %1$s</string>
     <string name="openai_error_connection_timeout">连接超时或中断，已重试 %1$d 次: %2$s</string>
-    <string name="openai_error_response_empty">API响应为空</string>
+    <string name="openai_error_response_empty">模型请求在收到任何可见输出前结束。\n诊断码：%1$s\n请导出诊断日志。</string>
     <string name="openai_error_parse_response_failed">解析响应失败: %1$s</string>
     <string name="openai_connection_success">连接成功！</string>
     <string name="openai_connection_test_failed">连接测试失败: %1$s</string>
@@ -7557,6 +7557,8 @@
     <string name="message_workspace_sync_failed">工作区状态同步失败: %1$s</string>
     <string name="message_summarizing">正在总结记忆...</string>
     <string name="message_send_failed">发送消息失败: %1$s</string>
+    <string name="message_send_interrupted_unexpected">消息发送被意外中断，请查看诊断日志后重试。</string>
+    <string name="message_send_terminal_missing">消息回合结束时没有产生终止状态。\n诊断码：%1$s\n请导出诊断日志。</string>
 
     <!-- DeepgramSttProvider -->
     <string name="deepgram_stt_url_not_set">Deepgram STT URL 未设置，请填写完整接口地址（例如 https://api.deepgram.com/v1/listen）。</string>

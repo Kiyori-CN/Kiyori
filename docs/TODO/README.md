@@ -2,6 +2,117 @@
 For_Agent: 对项目大规模动工前按本规范协作
 ---
 
+## 2026-08-10 GPT-5.6 可恢复执行与统一模型能力
+
+状态：Responses 状态机、at-most-once 提交、provider execution 持久化和消息失败所有权已完成；
+vivo Android 16 的 native ART 兼容性修复已完成代码拆分与本地 APK 静态验证，目标设备复测仍为
+`verification_pending`。用户提供的 tombstone `SIGABRT / Unexpected instruction: unused-e6`
+把当前无日志闪退定位到 ART 解释器执行 `MessageProcessingDelegate$sendUserMessage$sendJob$1`
+生成的协程状态机，而不是 Kotlin HTTP 异常或应用内 Crash Report 链。第一阶段将启动 lambda
+独立出来后，进一步把整轮发送拆成状态载体、准备、请求创建、流收集和收尾边界；Responses
+请求语义、单次 POST、同一 `response_id` 续接、`starting_after`、SharedStream 主失败 owner、
+次级观察器和取消传播均保持不变。
+
+2026-08-11 真机复测确认 native 闪退已消失，但发送仍可能无正文、无错误即结束，并出现
+`Tool 'DEEPSEEK' is unavailable or does not exist`。已确认旧工具正则会把
+`provider_name="DEEPSEEK"` 当成工具 `name`；工具处理使用 `launch + join()` 丢失子任务异常，
+`processStreamCompletion` 又把异常清成 `Idle`，零内容路径直接标记 `Completed`。本轮按根因
+修正独立工具名属性、工具 follow-up 失败所有权、完成阶段错误传播和 Responses 完成快照补齐，
+不增加请求重提、模型切换、传输降级或工具禁用。
+
+当前实现已通过本地编译和 Debug APK DEX 审计。原 `executeSendUserMessageTurn` 约
+`971 registers / 584520` 方法体，现为 `33 registers / 20755` 方法体；
+主流收集 continuation 为 `30 registers`，发送启动 continuation 为 `35 registers`。最新本地
+Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `485889789` bytes，SHA-256
+为 `E43FB70208FD9F59B87D009D537C46A6524437A3480834A9B5508ED98BFDBE3F`。真实 endpoint、
+网络切换、退后台、进程重建后的自动 UI 恢复、instrumentation 和 vivo PD2507 Android 16
+现场复测仍保持 `verification_pending`。Kiyori 尚未发布，本轮不提交、不推送、不安装 APK。
+
+后续真机复测确认其他模型的工具调用已恢复，但 GPT-5.6 仍在首包前静默结束。当前开发增量已
+修正全量配置刷新越过活跃 `ServiceLease` 关闭 Provider 的生命周期错误，并以 chat/turn ID
+区分用户停止、破坏性历史修改和非预期取消。配置刷新不再取消活跃 GPT-5.6 请求，未知或
+生命周期类取消会显示错误，不再静默写成 `Idle`。定向与完整 JVM、AndroidTest Kotlin 编译、
+formal readiness、Debug APK 构建、签名、16 KB 对齐和 DEX continuation 审计均已通过；
+目标设备复测仍待执行。
+
+最新目标设备复测证明上述取消链修复仍未覆盖最终现场路径：GPT-5.6 依旧可能在数秒后无正文、
+无错误结束。当前续作把成功不变量放到 `MessageProcessingDelegate.completeAssistantResponse`：
+共享流即使正常关闭，也只有在重建后的最终正文非空白时才能进入 `Completed`。零输出显示
+`AI_STREAM_EMPTY_TERMINATION`；普通异常写入回合最终 Error 并在 cleanup 后再次提交；没有
+命中任何终态时显示 `AI_TURN_TERMINAL_MISSING`。相关 12 个定向 JVM suite、完整 JVM、
+AndroidTest Kotlin 编译、formal readiness、差异检查、Debug APK、签名、16 KB 对齐和 DEX
+continuation 审计均已通过；vivo Android 16 现场复测仍保持 `verification_pending`。
+
+用户于 2026-08-11 13:02 获取的目标设备日志进一步证明：本次 GPT-5.6 请求在首个
+`response.created` 前收到 `/v1/responses` HTTP 502 `Upstream request failed`，随后同一个
+`OpenAIResponsesSubmissionUnknownException` 已经经过 SharedStream、`EnhancedAIService` 和
+`MessageProcessingDelegate`，最终记录为 `provider_failure`、`chunks=0`、`visibleChars=0`。
+剩余无提示表现来自 `ChatServiceCore` 的消息错误回调只写日志，没有把安全用户消息写入主界面
+正在观察的唯一 `UiStateDelegate.errorMessage`。当前修复已接通该回调到现有 `ErrorDialog`，
+并新增状态写入、清除和生产链合同测试；502 仍保持 `SUBMISSION_UNKNOWN`，不会创建第二个
+POST。目标设备能否看到错误弹窗仍需安装新 APK 后复测。
+
+用户于 2026-08-11 13:28 获取的新日志确认错误弹窗已经生效，同时暴露最终 502 请求合同：
+Pipio 的 `https://pipio.io/v1/responses` 被历史 `OPENAI_RESPONSES` 配置编译为官方 profile，
+请求同时携带 `background=true`、`store=false`、Prompt Cache、Tool Search、
+`reasoning.summary=auto`、`reasoning.encrypted_content` 和 strict schema，随后网关返回
+`openai_error / bad_response_status_code`。当前增量改为同时核对 provider 类型和实际 endpoint：
+只有精确官方 OpenAI Responses 地址声明官方能力；自定义域名保留 GPT-5.6 五档 effort 与
+Responses 工具调用，但不自动加入上述官方字段。兼容 endpoint 的 408、409、5xx 与传输未知状态
+不再进入普通流式整轮回滚和重新 POST；异常外层文本直接携带安全的 HTTP/传输摘要，因此用户可
+看到 502，而不是只有 execution ID。目标设备复测仍为 `verification_pending`。
+
+用户于 2026-08-11 15:14 获取的日志确认 GPT-5.6 已能返回正文，但同一个 Responses
+`call_id` 被 `response.completed` 再次投影成第二段工具 XML，随后一次工具 follow-up 502
+取消长期共享工具 scope，使当前并行工具和后续新回合持续继承旧异常。当前增量将终态工具项
+改为遍历完整 `response.output` 并保留原始位置，以 `call_id` 作为流事件、终态快照、XML、
+当前回合执行和历史重放的稳定身份；`function_call_arguments.done.arguments` 在关闭 XML 前
+进入同一解析器。相同身份同名同参只保留一次，冲突在副作用前失败。长期工具 scope 使用
+`SupervisorJob` 隔离任务，当前 `Deferred.await()` 继续把原始 502 交回消息 owner；兼容
+endpoint 没有真实 response ID 时不构造持久化账本身份。目标设备复测仍为
+`verification_pending`。
+
+细化计划与验收矩阵见：
+
+- [`unified_model_capability_and_resumable_execution/`](unified_model_capability_and_resumable_execution/index.md)
+
+本轮边界：
+
+- 保留现有“思考模式 + 五档思考深度”用户接口
+- 首个里程碑解决 GPT-5.6 Responses 长推理 `stream was reset: CANCEL` 后从头生成
+- 后续里程碑依次实现强类型模型能力、请求编译、Prompt Cache、工具发现、usage 与遥测
+- 首个官方 Responses 事件固定按 sequence `1` 提交；首包前异常必须穿过共享流和服务层进入
+  消息错误链，不能表现为空回复正常结束
+- `response.created` 前收到 502 等提交状态未知错误时继续保持 `SUBMISSION_UNKNOWN` 且不发起
+  第二次 POST；SharedStream、消息收集 Job 和 Compose 次级观察器都不得把同一异常再次升级
+  为 `APP_FATAL`
+- 不调用真实付费模型 API，不安装 APK，不操作设备，不提交，不推送
+
+本地验证证据：
+
+- 空响应完成策略、消息最终 Error、UI 错误投影、工具名属性边界、工具 follow-up 失败所有权、
+  Responses 终态正文一致性、生产链 loopback 502、服务租约和取消终态共 `12` 个定向 JVM
+  suite、`72/72` 项通过；
+  502 回归
+  仍精确验证请求序列只有
+  `POST /v1/responses`、持久化状态为
+  `SUBMISSION_UNKNOWN / HTTP_502_SUBMISSION_UNKNOWN`，没有 provider event 或 resume
+- 完整 Debug JVM 回归为 `175` 个 suite、`1033/1033` 通过，失败、错误和跳过均为 `0`
+- Android migration、DAO、stream state、Tool Search 和 provider tool identity 测试源码
+  编译通过；新增原始 output 位置、done-only 完整参数、历史 call ID 一一对应和当前回合身份
+  冲突回归，仍不在设备上运行
+- `:app:compileDebugAndroidTestKotlin` 通过，`146` 个任务中 `2` 个执行、`144` 个为最新状态
+- formal readiness 与 `git diff --check` 通过；确认没有其他 Gradle 进程后，最终串行
+  `:app:assembleDebug` 在 `32s` 内完成，`238` 个任务中 `25` 个执行、`213` 个为最新状态
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`485889789` bytes，SHA-256
+  `E43FB70208FD9F59B87D009D537C46A6524437A3480834A9B5508ED98BFDBE3F`
+- APK 为 `com.kiyori`、`0.1.0 (45)`、min/target/compile SDK `26/34/37`；仅包含
+  `arm64-v8a`，共 `51` 个 `.so`，basename 无重复，包含 native ripgrep 和 shell launcher，
+  不包含 `libsudo.so`
+- Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 验证通过
+- DEX 审计为发送启动 `35 registers`、主发送 `33 registers / 20755` 方法体、主流收集
+  `30 registers`，violations 为空
+
 ## 2026-08-10 负一屏历史网页与媒体点击修复
 
 状态：网页和媒体入口的根因修复、本地自动验证、Debug APK 构建和静态产物核验已完成；

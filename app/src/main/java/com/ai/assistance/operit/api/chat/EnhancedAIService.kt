@@ -12,6 +12,7 @@ import com.ai.assistance.operit.api.chat.enhance.FileBindingService
 import com.ai.assistance.operit.api.chat.enhance.MultiServiceManager
 import com.ai.assistance.operit.api.chat.enhance.ToolExecutionManager
 import com.ai.assistance.operit.api.chat.llmprovider.AIService
+import com.ai.assistance.operit.api.chat.llmprovider.ProviderRequestContext
 import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.core.chat.hooks.PromptHookContext
@@ -48,6 +49,8 @@ import com.ai.assistance.operit.util.stream.TextStreamEvent
 import com.ai.assistance.operit.util.stream.TextStreamEventCarrier
 import com.ai.assistance.operit.util.stream.TextStreamEventType
 import com.ai.assistance.operit.util.stream.TextStreamRevisionTracker
+import com.ai.assistance.operit.util.stream.awaitFailureOwnedTask
+import com.ai.assistance.operit.util.stream.newFailureOwnedTaskScope
 import com.ai.assistance.operit.util.stream.withEventChannel
 import com.ai.assistance.operit.util.stream.plugins.StreamXmlPlugin
 import com.ai.assistance.operit.util.stream.splitBy
@@ -351,7 +354,8 @@ class EnhancedAIService private constructor(private val context: Context) {
         var chatModelIndexOverride: Int? = null,
         var memorySpaceIdOverride: String? = null,
         var stream: Boolean = true,
-        var disableWarning: Boolean = false
+        var disableWarning: Boolean = false,
+        var providerRequestContext: ProviderRequestContext? = null,
     )
 
     // MultiServiceManager 管理不同功能的 AIService 实例
@@ -430,8 +434,16 @@ class EnhancedAIService private constructor(private val context: Context) {
         val isConversationActive: AtomicBoolean = AtomicBoolean(true),
         val conversationHistory: MutableList<PromptTurn>,
         val eventChannel: MutableSharedStream<TextStreamEvent>,
-        var modelExecutionSnapshot: ModelExecutionSnapshot? = null
-    )
+        val providerRequestContext: ProviderRequestContext?,
+        var modelExecutionSnapshot: ModelExecutionSnapshot? = null,
+    ) {
+        private val nextProviderHopOrdinal = AtomicInteger(0)
+
+        fun nextProviderRequestContext(): ProviderRequestContext? {
+            val baseContext = providerRequestContext ?: return null
+            return baseContext.forHop(nextProviderHopOrdinal.getAndIncrement())
+        }
+    }
 
     private val activeExecutionContexts = ConcurrentHashMap<Int, MessageExecutionContext>()
     private val nextExecutionContextId = AtomicInteger(0)
@@ -496,7 +508,7 @@ class EnhancedAIService private constructor(private val context: Context) {
     }
 
     // Coroutine management
-    private val toolProcessingScope = CoroutineScope(Dispatchers.IO)
+    private val toolProcessingScope = newFailureOwnedTaskScope(Dispatchers.IO)
     private val toolExecutionJobs = ConcurrentHashMap<String, Job>()
     // private val conversationHistory = mutableListOf<Pair<String, String>>() // Moved to MessageExecutionContext
     // private val conversationMutex = Mutex() // Moved to MessageExecutionContext
@@ -946,7 +958,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                 MessageExecutionContext(
                     executionId = nextExecutionContextId.incrementAndGet(),
                     conversationHistory = chatHistory.toMutableList(),
-                    eventChannel = eventChannel
+                    eventChannel = eventChannel,
+                    providerRequestContext = options.providerRequestContext,
                 )
             registerExecutionContext(execContext)
             var hadFatalError = false
@@ -1109,6 +1122,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                                     enableThinking = enableThinking,
                                     stream = stream,
                                     availableTools = availableTools,
+                                    providerRequestContext = execContext.nextProviderRequestContext(),
                                     onTokensUpdated = { input, cachedInput, output ->
                                         currentRequestInputTokenCount = input.coerceAtLeast(0)
                                         currentRequestOutputTokenCount = output.coerceAtLeast(0)
@@ -1256,6 +1270,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                 // 发生无法处理的错误时，也应停止服务，但用户取消除外
                 if (e.message?.contains("Socket closed", ignoreCase = true) != true) {
                     if (!isSubTask) stopAiService()
+                    // 这里只更新内部状态而不继续抛出，会让外层共享流把首包前失败观察成
+                    // 零内容正常完成。消息层必须接收同一个异常，才能显示错误并阻止空回复收尾。
+                    throw e
                 }
             } finally {
                 try {
@@ -1723,27 +1740,15 @@ class EnhancedAIService private constructor(private val context: Context) {
             // Get response content
             val content = context.streamBuffer.toString().trim()
 
-            // If content is empty, it means an error likely occurred or the model returned nothing.
-            // We must still finalize the conversation to reset the state correctly.
-            if (content.isEmpty()) {
-                AppLogger.d(TAG, "Stream content is empty. Finalizing conversation state.")
-                finalizeAssistantResponse(
-                    context = context,
-                    content = content,
-                    enableMemoryAutoUpdate = enableMemoryAutoUpdate,
-                    onNonFatalError = onNonFatalError,
-                    isSubTask = isSubTask,
-                    chatId = chatId,
-                    notifyReplyOverride = notifyReplyOverride,
-                    memorySpaceIdOverride = memorySpaceIdOverride
-                )
-                return
-            }
-
-            // If content is empty, finish immediately
-            if (content.isEmpty()) {
-                return
-            }
+            // 零输出不能标记为 Completed，否则消息层只看到加载结束，既没有正文也没有错误。
+            AssistantResponseCompletionPolicy.requireContent(
+                content = content,
+                emptyResponseMessage =
+                    this@EnhancedAIService.context.getString(
+                        R.string.openai_error_response_empty,
+                        AssistantTurnDiagnostics.STREAM_EMPTY_TERMINATION,
+                    ),
+            )
 
             // 禁止“纯思考输出”：移除 thinking 后正文为空时，发出专用告警并回传给 AI 继续生成
             val contentWithoutThinking = ChatUtils.removeThinkingContent(content)
@@ -1976,12 +1981,25 @@ class EnhancedAIService private constructor(private val context: Context) {
                 stage = "enhanced.processStreamCompletion.complete",
                 startTimeMs = startTime
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            // Catch any exceptions in the processing flow
             AppLogger.e(TAG, "处理流完成时发生错误", e)
-            withContext(Dispatchers.Main) {
-                _inputProcessingState.value = InputProcessingState.Idle
+            if (!isSubTask) {
+                withContext(Dispatchers.Main) {
+                    _inputProcessingState.value =
+                        InputProcessingState.Error(
+                            this@EnhancedAIService.context.getString(
+                                R.string.enhanced_error_with_message,
+                                e.message ?: "",
+                            )
+                        )
+                }
+                stopAiService(characterName, avatarUri)
             }
+            // processStreamCompletion 属于主响应流；这里吞错或改写为 Idle 会让消息层把失败回合
+            // 收成空白 Completed。
+            throw e
         }
     }
 
@@ -2075,19 +2093,22 @@ class EnhancedAIService private constructor(private val context: Context) {
         disableWarning: Boolean = false
     ) {
         val startTime = messageTimingNow()
+        val uniqueToolInvocations =
+            ToolExecutionManager.normalizeProviderInvocations(toolInvocations)
 
-        toolInvocations.forEach { invocation ->
+        uniqueToolInvocations.forEach { invocation ->
             onToolInvocation?.invoke(invocation.tool.name)
         }
 
-        if (!isSubTask && toolInvocations.isNotEmpty()) {
+        if (!isSubTask && uniqueToolInvocations.isNotEmpty()) {
             withContext(Dispatchers.Main) {
-                val toolNames = toolInvocations.joinToString(", ") { resolveToolDisplayName(it.tool) }
+                val toolNames =
+                    uniqueToolInvocations.joinToString(", ") { resolveToolDisplayName(it.tool) }
                 _inputProcessingState.value = InputProcessingState.ExecutingTool(toolNames)
             }
         }
 
-        val processToolJob = toolProcessingScope.launch {
+        val processToolJob = toolProcessingScope.async {
             val modelSnapshot = getModelExecutionSnapshot(
                 context,
                 functionType,
@@ -2096,7 +2117,7 @@ class EnhancedAIService private constructor(private val context: Context) {
             )
             val config = modelSnapshot.config
             val allToolResults = ToolExecutionManager.executeInvocations(
-                invocations = toolInvocations,
+                invocations = uniqueToolInvocations,
                 context = this@EnhancedAIService.context,
                 toolHandler = toolHandler,
                 packageManager = packageManager,
@@ -2150,7 +2171,7 @@ class EnhancedAIService private constructor(private val context: Context) {
             logMessageTiming(
                 stage = "enhanced.handleToolInvocation.complete",
                 startTimeMs = startTime,
-                details = "toolCount=${toolInvocations.size}"
+                details = "toolCount=${uniqueToolInvocations.size}"
             )
         }
 
@@ -2158,7 +2179,7 @@ class EnhancedAIService private constructor(private val context: Context) {
         toolExecutionJobs[invocationId] = processToolJob
 
         try {
-            processToolJob.join()
+            awaitFailureOwnedTask(processToolJob)
         } finally {
             toolExecutionJobs.remove(invocationId)
         }
@@ -2329,6 +2350,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                                 enableThinking = enableThinking,
                                 stream = stream,
                                 availableTools = availableTools,
+                                providerRequestContext = context.nextProviderRequestContext(),
                                 onTokensUpdated = { input, cachedInput, output ->
                                     currentRequestInputTokenCount = input.coerceAtLeast(0)
                                     currentRequestOutputTokenCount = output.coerceAtLeast(0)
@@ -2481,6 +2503,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                     _inputProcessingState.value =
                             InputProcessingState.Error(this@EnhancedAIService.context.getString(R.string.enhanced_process_tool_result_failed, e.message ?: ""))
                 }
+                // 工具 hop 与首轮请求使用同一条错误传播合同；吞掉这里的异常会把失败的
+                // follow-up response 伪装成正常回合结束。
+                throw e
             } finally {
                 logMessageTiming(
                     stage = "enhanced.processToolResults.complete",

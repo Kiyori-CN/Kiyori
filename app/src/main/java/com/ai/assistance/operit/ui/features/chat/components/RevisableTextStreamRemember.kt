@@ -6,11 +6,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.stream.MutableSharedStream
 import com.ai.assistance.operit.util.stream.Stream
 import com.ai.assistance.operit.util.stream.TextStreamEventCarrier
 import com.ai.assistance.operit.util.stream.TextStreamEventType
 import com.ai.assistance.operit.util.stream.TextStreamRevisionTracker
+import com.ai.assistance.operit.util.stream.observeSecondaryStream
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -31,48 +33,58 @@ fun rememberRevisableTextStream(sourceStream: Stream<String>?): Stream<String>? 
         var currentDisplayStream = MutableSharedStream<String>(replay = Int.MAX_VALUE)
         displayStream = currentDisplayStream
 
-        coroutineScope {
-            val eventJob = launch {
-                carrier.eventChannel.collect { event ->
-                    when (event.eventType) {
-                        TextStreamEventType.SAVEPOINT -> {
-                            stateMutex.withLock {
-                                tracker.savepoint(event.id)
-                            }
-                        }
-
-                        TextStreamEventType.ROLLBACK -> {
-                            val snapshot =
+        observeSecondaryStream(
+            onFailure = { failure ->
+                AppLogger.w(
+                    "RevisableTextStream",
+                    "可修订文本观察流终止，消息层负责展示发送错误",
+                    failure,
+                )
+            }
+        ) {
+            coroutineScope {
+                val eventJob = launch {
+                    carrier.eventChannel.collect { event ->
+                        when (event.eventType) {
+                            TextStreamEventType.SAVEPOINT -> {
                                 stateMutex.withLock {
-                                    tracker.rollback(event.id)?.toString()
-                                } ?: return@collect
-                            val previousDisplayStream = currentDisplayStream
-                            val replacementStream =
-                                MutableSharedStream<String>(replay = Int.MAX_VALUE)
-                            if (snapshot.isNotEmpty()) {
-                                replacementStream.emit(snapshot)
+                                    tracker.savepoint(event.id)
+                                }
                             }
-                            currentDisplayStream = replacementStream
-                            displayStream = replacementStream
-                            previousDisplayStream.resetReplayCache()
+
+                            TextStreamEventType.ROLLBACK -> {
+                                val snapshot =
+                                    stateMutex.withLock {
+                                        tracker.rollback(event.id)?.toString()
+                                    } ?: return@collect
+                                val previousDisplayStream = currentDisplayStream
+                                val replacementStream =
+                                    MutableSharedStream<String>(replay = Int.MAX_VALUE)
+                                if (snapshot.isNotEmpty()) {
+                                    replacementStream.emit(snapshot)
+                                }
+                                currentDisplayStream = replacementStream
+                                displayStream = replacementStream
+                                previousDisplayStream.resetReplayCache()
+                            }
                         }
                     }
                 }
-            }
 
-            try {
-                sourceStream.collect { chunk ->
-                    val activeDisplayStream =
-                        stateMutex.withLock {
-                            tracker.append(chunk)
-                            currentDisplayStream
-                        }
-                    activeDisplayStream.emit(chunk)
+                try {
+                    sourceStream.collect { chunk ->
+                        val activeDisplayStream =
+                            stateMutex.withLock {
+                                tracker.append(chunk)
+                                currentDisplayStream
+                            }
+                        activeDisplayStream.emit(chunk)
+                    }
+                } finally {
+                    eventJob.cancelAndJoin()
+                    currentDisplayStream.resetReplayCache()
+                    displayStream = null
                 }
-            } finally {
-                eventJob.cancelAndJoin()
-                currentDisplayStream.resetReplayCache()
-                displayStream = null
             }
         }
     }
