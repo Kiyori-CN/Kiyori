@@ -69,6 +69,103 @@ class ToolPkgArtifactScannerTest {
         }
     }
 
+    @Test
+    fun `scanner accepts package-scoped host-only environment declarations`() {
+        withArchive(
+            linkedMapOf(
+                "manifest.json" to
+                    """
+                    {
+                      "schema_version": 1,
+                      "toolpkg_id": "com.example.host-environment",
+                      "version": "1.0.0",
+                      "main": "main.js",
+                      "environment": [
+                        {
+                          "name": "SERVICE_MODE",
+                          "required": true,
+                          "scope": "package",
+                          "consumer": "host_service",
+                          "input_type": "enum",
+                          "allowed_values": ["PACKAGE_ENV", "MODEL_CONFIG"],
+                          "default_value": "PACKAGE_ENV"
+                        },
+                        {
+                          "name": "SERVICE_API_KEY",
+                          "required": false,
+                          "scope": "package",
+                          "sensitive": true,
+                          "consumer": "host_service",
+                          "input_type": "password"
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                "main.js" to "exports.main = true;",
+            ),
+        ) { archive ->
+            val report = ToolPkgArtifactScanner.scan(archive)
+            assertTrue(report.findings.toString(), report.accepted)
+        }
+    }
+
+    @Test
+    fun `scanner rejects ToolPkg environment visible to JavaScript`() {
+        withArchive(
+            linkedMapOf(
+                "manifest.json" to
+                    """
+                    {
+                      "schema_version": 1,
+                      "toolpkg_id": "com.example.invalid-environment",
+                      "version": "1.0.0",
+                      "main": "main.js",
+                      "environment": [
+                        {
+                          "name": "SERVICE_API_KEY",
+                          "scope": "global",
+                          "consumer": "javascript"
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                "main.js" to "exports.main = true;",
+            ),
+        ) { archive ->
+            val codes = ToolPkgArtifactScanner.scan(archive).findings.mapTo(mutableSetOf()) { it.code }
+            assertTrue("TPKG-MANIFEST-PARSE" in codes)
+        }
+    }
+
+    @Test
+    fun `scanner rejects unknown ToolPkg environment input type`() {
+        withArchive(
+            linkedMapOf(
+                "manifest.json" to
+                    """
+                    {
+                      "schema_version": 1,
+                      "toolpkg_id": "com.example.invalid-input",
+                      "version": "1.0.0",
+                      "main": "main.js",
+                      "environment": [
+                        {
+                          "name": "SERVICE_VALUE",
+                          "scope": "package",
+                          "consumer": "host_service",
+                          "input_type": "mystery"
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                "main.js" to "exports.main = true;",
+            ),
+        ) { archive ->
+            val codes = ToolPkgArtifactScanner.scan(archive).findings.mapTo(mutableSetOf()) { it.code }
+            assertTrue("TPKG-MANIFEST-PARSE" in codes)
+        }
+    }
+
     private fun withArchive(
         entries: LinkedHashMap<String, String>,
         block: (File) -> Unit,

@@ -35,12 +35,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.core.tools.AIToolHandler
+import com.ai.assistance.operit.core.tools.EnvVarScope
 import com.ai.assistance.operit.core.tools.PackageTool
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
 import com.ai.assistance.operit.data.mcp.MCPRepository
 import com.ai.assistance.operit.data.preferences.EnvPreferences
 import com.ai.assistance.operit.data.preferences.ApiPreferences
+import com.ai.assistance.operit.data.preferences.ToolPkgHostEnvironmentRepository
 import com.ai.assistance.operit.data.skill.SkillRepository
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.ui.components.ErrorDialog
@@ -147,6 +149,8 @@ fun PackageManagerScreen(
     val skillRepository = remember { SkillRepository.getInstance(context.applicationContext) }
 
     val envPreferences = remember { EnvPreferences.getInstance(context) }
+    val toolPkgHostEnvironmentRepository =
+        remember { ToolPkgHostEnvironmentRepository.getInstance(context) }
     val apiPreferences = remember { ApiPreferences.getInstance(context) }
 
     // State for available and imported packages
@@ -191,7 +195,10 @@ fun PackageManagerScreen(
 
     // Environment variables drawer state
     var showEnvSheet by remember { mutableStateOf(false) }
-    var envVariables by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var envVariables by
+        remember {
+            mutableStateOf<Map<PackageEnvironmentVariableKey, String>>(emptyMap())
+        }
 
     val packageLoadErrors = remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val packageLoadErrorInfos =
@@ -268,14 +275,30 @@ fun PackageManagerScreen(
         }
     }
 
-    val requiredEnvKeys by remember {
+    val environmentVariableKeys by remember {
         derivedStateOf {
             environmentPackages
-                .flatMap { toolPackage -> toolPackage.env }
-                .map { it.name }
-                .toSet()
-                .toList()
-                .sorted()
+                .flatMap { toolPackage ->
+                    toolPackage.env.map { envVar ->
+                        when (envVar.scope) {
+                            EnvVarScope.GLOBAL ->
+                                PackageEnvironmentVariableKey.global(envVar.name)
+                            EnvVarScope.PACKAGE ->
+                                PackageEnvironmentVariableKey.packageScoped(
+                                    packageName = toolPackage.name,
+                                    variableName = envVar.name,
+                                )
+                        }
+                    }
+                }
+                .distinct()
+                .sortedWith(
+                    compareBy<PackageEnvironmentVariableKey>(
+                        { key -> key.scope.ordinal },
+                        { key -> key.packageName },
+                        { key -> key.variableName },
+                    ),
+                )
         }
     }
 
@@ -566,8 +589,19 @@ fun PackageManagerScreen(
         isRefreshing = isLoading,
         onEnvironmentClick = {
             envVariables =
-                requiredEnvKeys.associateWith { key ->
-                    envPreferences.getEnv(key) ?: ""
+                environmentVariableKeys.associateWith { key ->
+                    when (key.scope) {
+                        EnvVarScope.GLOBAL ->
+                            envPreferences.getEnv(key.variableName).orEmpty()
+                        EnvVarScope.PACKAGE ->
+                            toolPkgHostEnvironmentRepository
+                                .getValue(
+                                    containerPackageName =
+                                        requireNotNull(key.ownerPackageName),
+                                    variableName = key.variableName,
+                                )
+                                .orEmpty()
+                    }
                 }
             showEnvSheet = true
         },
@@ -928,16 +962,30 @@ fun PackageManagerScreen(
                     currentValues = envVariables,
                     onDismiss = { showEnvSheet = false },
                     onConfirm = { updated ->
-                        val merged = envPreferences.getAllEnv().toMutableMap().apply {
-                            updated.forEach { (key, value) ->
-                                if (value.isBlank()) {
-                                    remove(key)
-                                } else {
-                                    this[key] = value
+                        val mergedGlobalValues =
+                            envPreferences.getAllEnv().toMutableMap().apply {
+                                updated.forEach { (key, value) ->
+                                    if (key.scope != EnvVarScope.GLOBAL) {
+                                        return@forEach
+                                    }
+                                    if (value.isBlank()) {
+                                        remove(key.variableName)
+                                    } else {
+                                        this[key.variableName] = value
+                                    }
                                 }
                             }
+                        envPreferences.setAllEnv(mergedGlobalValues)
+                        updated.forEach { (key, value) ->
+                            if (key.scope == EnvVarScope.PACKAGE) {
+                                toolPkgHostEnvironmentRepository.setValue(
+                                    containerPackageName =
+                                        requireNotNull(key.ownerPackageName),
+                                    variableName = key.variableName,
+                                    value = value,
+                                )
+                            }
                         }
-                        envPreferences.setAllEnv(merged)
                         envVariables = updated
                     }
                 )

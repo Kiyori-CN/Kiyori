@@ -914,6 +914,164 @@ export namespace ToolPkg {
         unpackedBytes: number;
     }
 
+    export type OpenAIWebSearchContextSize = "low" | "medium" | "high";
+
+    export interface OpenAIWebSearchRequest {
+        query: string;
+        context_size?: OpenAIWebSearchContextSize;
+        allowed_domains?: string[];
+        blocked_domains?: string[];
+        use_configured_location?: boolean;
+    }
+
+    export interface OpenAIWebSearchAction extends JsonObject {
+        type: string;
+        query: string | null;
+        url: string | null;
+        pattern: string | null;
+    }
+
+    export interface OpenAIWebSearchSource extends JsonObject {
+        source_id: string;
+        type: "url" | "oai-sports" | "oai-weather" | "oai-finance" | "api";
+        title: string;
+        url: string | null;
+    }
+
+    export type OpenAIWebSearchEvidenceMode =
+        | "url_citations_and_action_sources"
+        | "url_citations"
+        | "action_sources"
+        | "structured_feeds";
+
+    export interface OpenAIWebSearchCitation extends JsonObject {
+        source_id: string;
+        title: string;
+        url: string;
+        start_index: number;
+        end_index: number;
+    }
+
+    export interface OpenAIWebSearchUsage extends JsonObject {
+        input_tokens: number;
+        cached_input_tokens: number;
+        output_tokens: number;
+        web_search_calls: number;
+    }
+
+    export type OpenAIWebSearchActionSourceCoverage =
+        | "not_applicable"
+        | "missing"
+        | "partial"
+        | "complete";
+
+    export interface OpenAIWebSearchSourceDiagnostics extends JsonObject {
+        response_id: string;
+        action_source_coverage: OpenAIWebSearchActionSourceCoverage;
+        action_source_urls: string[];
+        citation_urls: string[];
+        citations_missing_from_action_sources: string[];
+        open_page_urls: string[];
+        missing_source_action_indexes: number[];
+        invalid_action_source_count: number;
+        allowed_domains: string[];
+        url_normalization: "http_https_uri";
+    }
+
+    export interface OpenAIWebSearchResult extends JsonObject {
+        success: true;
+        schema_version: number;
+        request_id: string;
+        response_id: string;
+        provider: "openai";
+        backend: "responses_web_search";
+        query: string;
+        mode: "live" | "indexed";
+        model: string;
+        evidence_mode: OpenAIWebSearchEvidenceMode;
+        answer: string;
+        answer_with_source_markers: string;
+        search_actions: OpenAIWebSearchAction[];
+        citations: OpenAIWebSearchCitation[];
+        sources: OpenAIWebSearchSource[];
+        usage: OpenAIWebSearchUsage;
+        warnings: string[];
+        source_diagnostics: OpenAIWebSearchSourceDiagnostics;
+    }
+
+    export interface OpenAIWebSearchCompatibilityStatus extends JsonObject {
+        required: boolean;
+        state: "not_required" | "missing" | "stale" | "valid" | "failed";
+        tested_at_epoch_millis: number | null;
+        response_id: string | null;
+        evidence_mode: OpenAIWebSearchEvidenceMode | null;
+        schema_revision: number | null;
+        error_code: string | null;
+        http_status: number | null;
+        message: string | null;
+        provider_error_type: string | null;
+        provider_error_code: string | null;
+        provider_request_id: string | null;
+    }
+
+    export interface OpenAIWebSearchStatus extends JsonObject {
+        toolpkg_id: string;
+        tool_name: string;
+        config_source: "PACKAGE_ENV" | "MODEL_CONFIG";
+        provider_contract: "RESPONSES_HOSTED_OFFICIAL" | "RESPONSES_RELAY_STRICT";
+        model_config_id: string | null;
+        endpoint: string;
+        model: string;
+        mode: "live" | "indexed";
+        reasoning_effort: string;
+        context_size: OpenAIWebSearchContextSize;
+        return_token_budget: "default" | "unlimited";
+        max_output_tokens: number | null;
+        timeout_seconds: number;
+        max_concurrent_requests: number;
+        requests_per_minute: number;
+        header_names: string[];
+        api_key_configured: boolean;
+        api_key_revision: string;
+        auth_scheme_present: boolean;
+        auth_scheme_kind: "bearer" | "direct" | "custom";
+        chat_provider_independent: true;
+        compatibility: OpenAIWebSearchCompatibilityStatus;
+    }
+
+    export interface OpenAIWebSearchStatusResult extends JsonObject {
+        success: true;
+        status: OpenAIWebSearchStatus;
+    }
+
+    export interface OpenAIWebSearchValidationResult extends JsonObject {
+        success: true;
+        valid: true;
+        status: OpenAIWebSearchStatus;
+    }
+
+    export interface OpenAIWebSearchCancelResult extends JsonObject {
+        success: true;
+        request_id: string;
+        cancelled: boolean;
+    }
+
+    export interface OpenAIWebSearchPendingRequest<T> extends Promise<T> {
+        readonly requestId: string;
+    }
+
+    export interface OpenAIWebSearchService {
+        getStatus(): Promise<OpenAIWebSearchStatusResult>;
+        validateLocalConfiguration(): Promise<OpenAIWebSearchValidationResult>;
+        search(request: OpenAIWebSearchRequest): OpenAIWebSearchPendingRequest<OpenAIWebSearchResult>;
+        cancel(requestId: string): Promise<OpenAIWebSearchCancelResult>;
+        runCompatibilityProbe(): OpenAIWebSearchPendingRequest<OpenAIWebSearchResult>;
+    }
+
+    export interface HostServices {
+        openAIWebSearch: OpenAIWebSearchService;
+    }
+
     export interface Registry {
         registerToolboxUiModule(definition: ToolboxUiModuleRegistration): void;
         registerUiRoute(definition: UiRouteRegistration): void;
@@ -943,6 +1101,7 @@ export namespace ToolPkg {
         getConfigDir(pluginId?: string): string;
         ipc: IpcApi;
         wasm: WasmApi;
+        services: HostServices;
     }
 }
 

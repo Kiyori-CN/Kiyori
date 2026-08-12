@@ -1653,6 +1653,8 @@ dependencies {
 
     // Test dependencies
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(enforcedPlatform(libs.compose.bom))

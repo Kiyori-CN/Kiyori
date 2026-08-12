@@ -44,6 +44,8 @@ app/src/main/java/com/ai/assistance/operit/data/preferences/PersonaCardChatHisto
 app/src/main/java/com/ai/assistance/operit/data/preferences/PromptTagManager.kt	preferencesDataStore	"prompt_tags"
 app/src/main/java/com/ai/assistance/operit/data/preferences/SkillVisibilityPreferences.kt	getSharedPreferences	PREFS_NAME
 app/src/main/java/com/ai/assistance/operit/data/preferences/SpeechServicesPreferences.kt	preferencesDataStore	"speech_services_preferences"
+app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/OpenAIHostedWebSearchCompatibilityRepository.kt	getSharedPreferences	PREFERENCES_NAME
+app/src/main/java/com/ai/assistance/operit/data/preferences/ToolPkgHostEnvironmentRepository.kt	getSharedPreferences	PREFERENCES_NAME
 app/src/main/java/com/ai/assistance/operit/data/preferences/UserPreferencesManager.kt	preferencesDataStore	"user_preferences"
 app/src/main/java/com/ai/assistance/operit/data/preferences/UserProfileDocumentRepository.kt	getSharedPreferences	MIGRATION_PREFERENCES
 app/src/main/java/com/ai/assistance/operit/data/preferences/WaifuPreferences.kt	preferencesDataStore	"waifu_settings"

@@ -194,7 +194,7 @@ private class LlmNetworkEventListener(
     }
 }
 
-private object SharedHttpClient {
+internal object SharedHttpClient {
     val instance: OkHttpClient by lazy {
         OkHttpClient.Builder()
                 // Increase the connection timeout to handle slow networks better.

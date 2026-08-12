@@ -5697,6 +5697,8 @@
     <string name="pkg_env_empty_filter">No matching environment variables</string>
     <string name="pkg_env_required">Required</string>
     <string name="pkg_env_optional">Optional</string>
+    <string name="pkg_env_show_sensitive">Show sensitive value</string>
+    <string name="pkg_env_hide_sensitive">Hide sensitive value</string>
 
     <!-- Package Details Dialog -->
     <string name="pkg_confirm_delete">Confirm Delete</string>
@@ -8143,4 +8145,16 @@
     <string name="kiyori_onboarding_permission_root_desc">Request superuser access that can read and modify protected system and app data.</string>
     <string name="kiyori_onboarding_permission_screen_capture_title">Screen capture</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">Android confirms each screenshot, screen recording, or visual-analysis session when it is used.</string>
+    <string name="openai_web_search_evidence_title">OpenAI Web Search</string>
+    <string name="openai_web_search_mode_live">Live</string>
+    <string name="openai_web_search_mode_indexed">Indexed</string>
+    <string name="openai_web_search_sources_count">Sources (%1$d)</string>
+    <string name="openai_web_search_details">Search evidence details</string>
+    <string name="openai_web_search_model">Model</string>
+    <string name="openai_web_search_evidence_mode">Evidence mode</string>
+    <string name="openai_web_search_usage">Usage</string>
+    <string name="openai_web_search_usage_value">Input %1$d, cached %2$d, output %3$d, search calls %4$d</string>
+    <string name="openai_web_search_actions_count">Search actions (%1$d)</string>
+    <string name="openai_web_search_warnings_value">Warnings: %1$s</string>
+    <string name="openai_web_search_citations_count">Original-answer citation spans: %1$d</string>
 </resources>

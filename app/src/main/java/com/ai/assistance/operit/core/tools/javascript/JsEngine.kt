@@ -6,6 +6,11 @@ import android.os.Looper
 import android.webkit.JavascriptInterface
 import androidx.annotation.Keep
 import androidx.core.content.ContextCompat
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchBridgePolicy
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchErrorCode
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchException
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchToolResultMarkupCodec
+import com.ai.assistance.operit.api.chat.llmprovider.ToolPkgOpenAIWebSearchBridge
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
@@ -62,6 +67,19 @@ class JsEngine(
     private val toolHandler = AIToolHandler.getInstance(context)
     private val packageManager by lazy { PackageManager.getInstance(context, toolHandler) }
     private val toolCallInterface = JsToolCallInterface()
+    private val ownsOpenAIWebSearchBridge =
+        OpenAIHostedWebSearchBridgePolicy.ownsBridge(boundToolPkgContainerName)
+    private val openAIWebSearchBridgeDelegate = lazy {
+        ToolPkgOpenAIWebSearchBridge(
+            context = context.applicationContext,
+            boundToolPkgContainerName = boundToolPkgContainerName,
+            isExecutionCallActive = { callId -> resolveExecutionSession(callId) != null },
+            resolveExecutionRuntimeKind = { callId ->
+                resolveExecutionSession(callId)?.toolPkgRuntimeKind
+            },
+        )
+    }
+    private val openAIWebSearchBridge by openAIWebSearchBridgeDelegate
 
     @Volatile
     private var quickJsThread: Thread? = null
@@ -87,6 +105,7 @@ class JsEngine(
         val dispatchIntermediateOnMain: Boolean,
         val envOverrides: Map<String, String>,
         val packageChatId: String?,
+        val toolPkgRuntimeKind: String?,
         val toolPkgLogSnapshot: JsToolPkgExecutionContext.LogSnapshot,
         val executionListener: JsExecutionListener?
     )
@@ -316,6 +335,12 @@ class JsEngine(
                     ?.toString()
                     ?.trim()
                     ?.ifBlank { null },
+            toolPkgRuntimeKind =
+                params["__operit_toolpkg_runtime_kind"]
+                    ?.toString()
+                    ?.trim()
+                    ?.lowercase()
+                    ?.ifBlank { null },
             toolPkgLogSnapshot = toolPkgExecutionContext.capture(script, functionName, params),
             executionListener = executionListener
         )
@@ -325,8 +350,39 @@ class JsEngine(
         return activeExecutionSessions[callId.trim()]
     }
 
+    private fun openAIWebSearchBridgeForHostCall(): ToolPkgOpenAIWebSearchBridge? =
+        if (ownsOpenAIWebSearchBridge) {
+            openAIWebSearchBridge
+        } else {
+            null
+        }
+
+    private fun initializedOpenAIWebSearchBridge(): ToolPkgOpenAIWebSearchBridge? =
+        if (openAIWebSearchBridgeDelegate.isInitialized()) {
+            openAIWebSearchBridge
+        } else {
+            null
+        }
+
+    private fun openAIWebSearchCallerNotAuthorizedEnvelope(): String =
+        OpenAIHostedWebSearchException(
+            code = OpenAIHostedWebSearchErrorCode.CALLER_NOT_AUTHORIZED,
+            message = "OpenAI Web Search is only available to its bound ToolPkg container.",
+        ).toJson(requestId = null).toString()
+
     private fun removeExecutionSession(callId: String): ExecutionSession? {
-        return activeExecutionSessions.remove(callId.trim())
+        val normalizedCallId = callId.trim()
+        val removed = activeExecutionSessions.remove(normalizedCallId)
+        if (removed != null) {
+            // A hosted search must never outlive the ToolPkg execution that created it. An
+            // un-awaited Promise would otherwise leave its network Call detached from chat stop,
+            // timeout, and normal tool completion.
+            initializedOpenAIWebSearchBridge()?.cancelForCall(
+                callId = normalizedCallId,
+                reason = "OpenAI Web Search execution owner completed.",
+            )
+        }
+        return removed
     }
 
     private fun clearPendingJsBridgeCallbacks(reason: String) {
@@ -436,6 +492,7 @@ class JsEngine(
     }
 
     private fun cancelExecutionSessionInJs(callId: String, reason: String) {
+        initializedOpenAIWebSearchBridge()?.cancelForCall(callId = callId, reason = reason)
         ensureQuickJs()
         val safeCallId = JSONObject.quote(callId)
         val safeReason = JSONObject.quote(reason)
@@ -1696,6 +1753,103 @@ class JsEngine(
         }
 
         @JavascriptInterface
+        fun openAIWebSearchGetStatus(callId: String, callbackId: String) {
+            val normalizedCallback = callbackId.trim()
+            if (normalizedCallback.isEmpty()) {
+                return
+            }
+            val bridge = openAIWebSearchBridgeForHostCall()
+            if (bridge == null) {
+                sendToolPkgIpcResult(
+                    normalizedCallback,
+                    openAIWebSearchCallerNotAuthorizedEnvelope(),
+                    false,
+                )
+                return
+            }
+            bridge.getStatus(callId) { resultJson ->
+                sendToolPkgIpcResult(normalizedCallback, resultJson, false)
+            }
+        }
+
+        @JavascriptInterface
+        fun openAIWebSearchValidateLocalConfiguration(callId: String, callbackId: String) {
+            val normalizedCallback = callbackId.trim()
+            if (normalizedCallback.isEmpty()) {
+                return
+            }
+            val bridge = openAIWebSearchBridgeForHostCall()
+            if (bridge == null) {
+                sendToolPkgIpcResult(
+                    normalizedCallback,
+                    openAIWebSearchCallerNotAuthorizedEnvelope(),
+                    false,
+                )
+                return
+            }
+            bridge.validateLocalConfiguration(callId) { resultJson ->
+                sendToolPkgIpcResult(normalizedCallback, resultJson, false)
+            }
+        }
+
+        @JavascriptInterface
+        fun openAIWebSearchSearch(
+            callId: String,
+            callbackId: String,
+            requestJson: String,
+        ): String {
+            val normalizedCallback = callbackId.trim()
+            if (normalizedCallback.isEmpty()) {
+                return JSONObject()
+                    .put("success", false)
+                    .put("message", "OpenAI Web Search callback ID is required.")
+                    .toString()
+            }
+            val bridge =
+                openAIWebSearchBridgeForHostCall()
+                    ?: return openAIWebSearchCallerNotAuthorizedEnvelope()
+            return bridge.search(
+                callId = callId,
+                requestJson = requestJson,
+                deliverResult = { resultJson ->
+                    sendToolPkgIpcResult(normalizedCallback, resultJson, false)
+                },
+            )
+        }
+
+        @JavascriptInterface
+        fun openAIWebSearchCancel(callId: String, requestId: String): String =
+            openAIWebSearchBridgeForHostCall()
+                ?.cancel(
+                    callId = callId,
+                    requestId = requestId,
+                )
+                ?: openAIWebSearchCallerNotAuthorizedEnvelope()
+
+        @JavascriptInterface
+        fun openAIWebSearchRunCompatibilityProbe(
+            callId: String,
+            callbackId: String,
+        ): String {
+            val normalizedCallback = callbackId.trim()
+            if (normalizedCallback.isEmpty()) {
+                return JSONObject()
+                    .put("success", false)
+                    .put("message", "OpenAI Web Search callback ID is required.")
+                    .toString()
+            }
+            val bridge =
+                openAIWebSearchBridgeForHostCall()
+                    ?: return openAIWebSearchCallerNotAuthorizedEnvelope()
+            return bridge.runCompatibilityProbe(
+                callId = callId,
+                deliverResult = { resultJson ->
+                    sendToolPkgIpcResult(normalizedCallback, resultJson, false)
+                },
+            )
+        }
+
+        @JavascriptInterface
         fun measureComposeText(payloadJson: String): String {
             return JsNativeInterfaceDelegates.measureComposeText(
                 context = context,
@@ -2434,10 +2588,16 @@ class JsEngine(
                     AppLogger.w(TAG, "Result callback is already completed when trying to set result: callId=$callId")
                     return
                 }
-                session.executionListener?.onCompleted(callId, result)
+                val completedResult =
+                    if (ownsOpenAIWebSearchBridge) {
+                        OpenAIHostedWebSearchToolResultMarkupCodec.encodeSerializedJson(result)
+                    } else {
+                        result
+                    }
+                session.executionListener?.onCompleted(callId, completedResult)
                 completeCallFuture(
                     session = session,
-                    value = result,
+                    value = completedResult,
                     failureMessage = "Error completing result callback"
                 )
             } catch (e: Exception) {
@@ -2605,6 +2765,8 @@ class JsEngine(
             // 确保任何挂起的回调被完成
             drainExecutionSessions("Engine destroyed")
             clearPendingJsBridgeCallbacks("java bridge callback canceled: Engine destroyed")
+            initializedOpenAIWebSearchBridge()
+                ?.close("OpenAI Web Search bridge closed: Engine destroyed")
             toolCallInterface.detachJavaBridgeLifecycle()
 
             // 清理Bitmap注册表

@@ -6,6 +6,7 @@ import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.core.tools.AIToolHandler
+import com.ai.assistance.operit.core.tools.EnvVarScope
 import com.ai.assistance.operit.core.tools.StringResultData
 import com.ai.assistance.operit.core.tools.PackageToolExecutor
 import com.ai.assistance.operit.core.tools.PackageTool
@@ -26,6 +27,7 @@ import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
 import com.ai.assistance.operit.data.preferences.DisplayPreferencesManager
 import com.ai.assistance.operit.data.model.Workflow
 import com.ai.assistance.operit.data.preferences.EnvPreferences
+import com.ai.assistance.operit.data.preferences.ToolPkgHostEnvironmentRepository
 import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.model.PackageToolPromptCategory
 import com.ai.assistance.operit.data.model.ToolPrompt
@@ -305,6 +307,9 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
 
     // Environment preferences for package-level env variables
     private val envPreferences by lazy { EnvPreferences.getInstance(context) }
+    private val toolPkgHostEnvironmentRepository by lazy {
+        ToolPkgHostEnvironmentRepository.getInstance(context)
+    }
 
     // MCP Manager instance (lazy loading)
     private val mcpManager by lazy { MCPManager.getInstance(context) }
@@ -2955,11 +2960,18 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                     if (envName.isEmpty()) return@forEach
 
                     val value = try {
-                        envPreferences.getEnv(envName)
+                        when (envVar.scope) {
+                            EnvVarScope.GLOBAL -> envPreferences.getEnv(envName)
+                            EnvVarScope.PACKAGE ->
+                                toolPkgHostEnvironmentRepository.getValue(
+                                    containerPackageName = normalizedPackageName,
+                                    variableName = envName,
+                                )
+                        }
                     } catch (e: Exception) {
                         AppLogger.e(
                             TAG,
-                            "Error reading environment variable '$envName' for package '$normalizedPackageName'",
+                            "Error reading declared environment variable for package '$normalizedPackageName'",
                             e
                         )
                         null

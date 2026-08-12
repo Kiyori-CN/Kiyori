@@ -170,6 +170,7 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                 ? globalThis
                 : (typeof window !== 'undefined' ? window : this);
             var moduleRefFunctionCounter = 0;
+            var openAIWebSearchCallbackCounter = 0;
 
             function installGlobal(name, value) {
                 var key = String(name || '').trim();
@@ -189,6 +190,215 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                     throw new Error('NativeInterface.' + name + ' is unavailable');
                 }
                 return NativeInterface[name].bind(NativeInterface);
+            }
+
+            function currentExecutionCallId() {
+                var callId = String(root.__operitCurrentCallId || '').trim();
+                if (!callId) {
+                    throw new Error('ToolPkg host service requires an active execution call');
+                }
+                return callId;
+            }
+
+            function nextOpenAIWebSearchCallbackId() {
+                openAIWebSearchCallbackCounter += 1;
+                return '__operit_openai_web_search_callback_' +
+                    Date.now() + '_' + openAIWebSearchCallbackCounter;
+            }
+
+            function parseOpenAIWebSearchEnvelope(raw) {
+                var parsed;
+                try {
+                    parsed = JSON.parse(String(raw || ''));
+                } catch (error) {
+                    throw new Error(
+                        'OpenAI Web Search host returned invalid JSON: ' +
+                            String(error && error.message ? error.message : error)
+                    );
+                }
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    throw new Error('OpenAI Web Search host returned an invalid envelope');
+                }
+                return parsed;
+            }
+
+            function openAIWebSearchError(envelope) {
+                var errorPayload =
+                    envelope && envelope.error && typeof envelope.error === 'object'
+                        ? envelope.error
+                        : null;
+                var message =
+                    errorPayload && typeof errorPayload.message === 'string'
+                        ? errorPayload.message
+                        : (envelope && typeof envelope.message === 'string'
+                            ? envelope.message
+                            : 'OpenAI Web Search host operation failed');
+                var code =
+                    errorPayload && typeof errorPayload.code === 'string'
+                        ? errorPayload.code.trim()
+                        : '';
+                if (code && message.indexOf('[' + code + ']') !== 0) {
+                    message = '[' + code + '] ' + message;
+                }
+                var error = new Error(message);
+                if (code) {
+                    error.code = code;
+                }
+                if (
+                    errorPayload &&
+                    errorPayload.source_diagnostics &&
+                    typeof errorPayload.source_diagnostics === 'object'
+                ) {
+                    error.sourceDiagnostics = errorPayload.source_diagnostics;
+                }
+                error.details = envelope;
+                return error;
+            }
+
+            function invokeOpenAIWebSearchAsync(nativeMethodName, args) {
+                return new Promise(function(resolve, reject) {
+                    var callbackId = nextOpenAIWebSearchCallbackId();
+                    root[callbackId] = function(resultJson, isError) {
+                        try {
+                            delete root[callbackId];
+                        } catch (_deleteError) {
+                            root[callbackId] = undefined;
+                        }
+                        if (isError === true) {
+                            reject(new Error(String(resultJson || 'OpenAI Web Search host call failed')));
+                            return;
+                        }
+                        try {
+                            var envelope = parseOpenAIWebSearchEnvelope(resultJson);
+                            if (envelope.success !== true) {
+                                reject(openAIWebSearchError(envelope));
+                                return;
+                            }
+                            resolve(envelope);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    try {
+                        requireNative(nativeMethodName).apply(
+                            null,
+                            [currentExecutionCallId(), callbackId].concat(args || [])
+                        );
+                    } catch (error) {
+                        try {
+                            delete root[callbackId];
+                        } catch (_deleteError2) {
+                            root[callbackId] = undefined;
+                        }
+                        reject(error);
+                    }
+                });
+            }
+
+            function startOpenAIWebSearchRequest(nativeMethodName, args) {
+                var resolveResult;
+                var rejectResult;
+                var resultPromise = new Promise(function(resolve, reject) {
+                    resolveResult = resolve;
+                    rejectResult = reject;
+                });
+                var callbackId = nextOpenAIWebSearchCallbackId();
+                root[callbackId] = function(resultJson, isError) {
+                    try {
+                        delete root[callbackId];
+                    } catch (_deleteError) {
+                        root[callbackId] = undefined;
+                    }
+                    if (isError === true) {
+                        rejectResult(new Error(String(resultJson || 'OpenAI Web Search host call failed')));
+                        return;
+                    }
+                    try {
+                        var envelope = parseOpenAIWebSearchEnvelope(resultJson);
+                        if (envelope.success !== true) {
+                            rejectResult(openAIWebSearchError(envelope));
+                            return;
+                        }
+                        resolveResult(envelope);
+                    } catch (error) {
+                        rejectResult(error);
+                    }
+                };
+                try {
+                    var started = parseOpenAIWebSearchEnvelope(
+                        requireNative(nativeMethodName).apply(
+                            null,
+                            [currentExecutionCallId(), callbackId].concat(args || [])
+                        )
+                    );
+                    if (started.success !== true) {
+                        try {
+                            delete root[callbackId];
+                        } catch (_deleteError2) {
+                            root[callbackId] = undefined;
+                        }
+                        rejectResult(openAIWebSearchError(started));
+                        return resultPromise;
+                    }
+                    Object.defineProperty(resultPromise, 'requestId', {
+                        value: String(started.request_id || ''),
+                        enumerable: true,
+                        configurable: false,
+                        writable: false
+                    });
+                } catch (error) {
+                    try {
+                        delete root[callbackId];
+                    } catch (_deleteError3) {
+                        root[callbackId] = undefined;
+                    }
+                    rejectResult(error);
+                }
+                return resultPromise;
+            }
+
+            function createOpenAIWebSearchService() {
+                return {
+                    getStatus: function() {
+                        return invokeOpenAIWebSearchAsync('openAIWebSearchGetStatus', []);
+                    },
+                    validateLocalConfiguration: function() {
+                        return invokeOpenAIWebSearchAsync(
+                            'openAIWebSearchValidateLocalConfiguration',
+                            []
+                        );
+                    },
+                    search: function(request) {
+                        var requestJson;
+                        try {
+                            requestJson = JSON.stringify(request || {});
+                        } catch (error) {
+                            return Promise.reject(error);
+                        }
+                        return startOpenAIWebSearchRequest(
+                            'openAIWebSearchSearch',
+                            [requestJson]
+                        );
+                    },
+                    cancel: function(requestId) {
+                        var envelope = parseOpenAIWebSearchEnvelope(
+                            requireNative('openAIWebSearchCancel')(
+                                currentExecutionCallId(),
+                                String(requestId || '').trim()
+                            )
+                        );
+                        if (envelope.success !== true) {
+                            return Promise.reject(openAIWebSearchError(envelope));
+                        }
+                        return Promise.resolve(envelope);
+                    },
+                    runCompatibilityProbe: function() {
+                        return startOpenAIWebSearchRequest(
+                            'openAIWebSearchRunCompatibilityProbe',
+                            []
+                        );
+                    }
+                };
             }
 
             function copyObject(source, excludedKey) {
@@ -604,7 +814,10 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                 readResource: readToolPkgResource,
                 getConfigDir: getToolPkgConfigDir,
                 storage: createToolPkgStorage,
-                buildArtifact: buildToolPkgArtifact
+                buildArtifact: buildToolPkgArtifact,
+                services: {
+                    openAIWebSearch: createOpenAIWebSearchService()
+                }
             };
 
             [

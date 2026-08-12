@@ -1,10 +1,56 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
+import com.ai.assistance.operit.core.tools.EnvVarConsumer
+import com.ai.assistance.operit.core.tools.EnvVarInputType
+import com.ai.assistance.operit.core.tools.EnvVarScope
+
+internal data class PackageEnvironmentVariableKey(
+    val packageName: String,
+    val variableName: String,
+    val scope: EnvVarScope,
+) {
+    init {
+        require(variableName.isNotBlank()) { "Environment variable name must not be blank" }
+        if (scope == EnvVarScope.PACKAGE) {
+            require(packageName.isNotBlank()) {
+                "Package-scoped environment variables require a package name"
+            }
+        }
+    }
+
+    val ownerPackageName: String?
+        get() = packageName.takeIf { scope == EnvVarScope.PACKAGE }
+
+    companion object {
+        fun global(variableName: String): PackageEnvironmentVariableKey =
+            PackageEnvironmentVariableKey(
+                packageName = "",
+                variableName = variableName,
+                scope = EnvVarScope.GLOBAL,
+            )
+
+        fun packageScoped(
+            packageName: String,
+            variableName: String,
+        ): PackageEnvironmentVariableKey =
+            PackageEnvironmentVariableKey(
+                packageName = packageName,
+                variableName = variableName,
+                scope = EnvVarScope.PACKAGE,
+            )
+    }
+}
+
 internal data class PackageEnvironmentVariableItem(
+    val key: PackageEnvironmentVariableKey,
     val name: String,
     val description: String,
     val required: Boolean,
     val defaultValue: String?,
+    val sensitive: Boolean,
+    val consumer: EnvVarConsumer,
+    val inputType: EnvVarInputType,
+    val allowedValues: List<String>,
 )
 
 internal data class PackageEnvironmentVariableGroup(
@@ -97,25 +143,31 @@ internal fun filterPackageEnvironmentVariableGroups(
 
 internal fun initialExpandedPackageNames(
     groups: List<PackageEnvironmentVariableGroup>,
-    values: Map<String, String>,
+    values: Map<PackageEnvironmentVariableKey, String>,
 ): Set<String> =
     groups
         .filter { group ->
             group.variables.any { variable ->
-                variable.required && values[variable.name].isNullOrBlank()
+                variable.required && values[variable.key].isNullOrBlank()
             }
         }
         .mapTo(linkedSetOf()) { group -> group.packageName }
 
-internal fun distinctPackageEnvironmentVariableNames(
+internal fun distinctPackageEnvironmentVariableKeys(
     groups: List<PackageEnvironmentVariableGroup>,
-): List<String> =
+): List<PackageEnvironmentVariableKey> =
     groups
         .asSequence()
         .flatMap { group -> group.variables.asSequence() }
-        .map { variable -> variable.name }
+        .map { variable -> variable.key }
         .distinct()
-        .sorted()
+        .sortedWith(
+            compareBy<PackageEnvironmentVariableKey>(
+                { key -> key.scope.ordinal },
+                { key -> key.packageName },
+                { key -> key.variableName },
+            ),
+        )
         .toList()
 
 internal fun resolvePackageEnvironmentDrawerPartialVisibleFraction(

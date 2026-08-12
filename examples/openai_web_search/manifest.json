@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "toolpkg_id": "com.kiyori.openai_web_search",
+  "version": "1.0.4",
+  "main": "dist/main.js",
+  "display_name": {
+    "zh": "OpenAI Web Search",
+    "en": "OpenAI Web Search"
+  },
+  "description": {
+    "zh": "由 Kiyori 宿主安全调用 OpenAI Responses hosted web_search 的独立搜索插件，可供任意主聊天模型使用。",
+    "en": "A standalone search plugin that securely invokes OpenAI Responses hosted web_search through the Kiyori host for use with any primary chat model."
+  },
+  "author": [
+    "Kiyori"
+  ],
+  "enabled_by_default": false,
+  "environment": [
+    {
+      "name": "OPENAI_WEB_SEARCH_CONFIG_SOURCE",
+      "description": {
+        "zh": "配置来源。PACKAGE_ENV 使用本插件环境；MODEL_CONFIG 绑定固定模型配置 ID。",
+        "en": "Configuration source. PACKAGE_ENV uses this plugin environment; MODEL_CONFIG binds a fixed model config ID."
+      },
+      "required": false,
+      "default_value": "PACKAGE_ENV",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "enum",
+      "allowed_values": [
+        "PACKAGE_ENV",
+        "MODEL_CONFIG"
+      ]
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_PROVIDER_CONTRACT",
+      "description": {
+        "zh": "官方 Responses 合同或经过显式兼容探测的严格中转合同。",
+        "en": "Official Responses contract or strict relay contract verified by an explicit compatibility probe."
+      },
+      "required": false,
+      "default_value": "RESPONSES_HOSTED_OFFICIAL",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "enum",
+      "allowed_values": [
+        "RESPONSES_HOSTED_OFFICIAL",
+        "RESPONSES_RELAY_STRICT"
+      ]
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_MODEL_CONFIG_ID",
+      "description": {
+        "zh": "MODEL_CONFIG 模式绑定的固定模型配置 ID，不跟随当前聊天配置。",
+        "en": "Fixed model config ID used by MODEL_CONFIG mode. It never follows the active chat configuration."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "text"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_RESPONSES_ENDPOINT",
+      "description": {
+        "zh": "完整 Responses HTTPS 地址，例如官方 https://api.openai.com/v1/responses。PACKAGE_ENV 模式必填。",
+        "en": "Complete HTTPS Responses endpoint, such as the official https://api.openai.com/v1/responses. Required for PACKAGE_ENV."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "text"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_MODEL",
+      "description": {
+        "zh": "专用于联网搜索的精确模型名。官方合同默认 gpt-5.6-luna。",
+        "en": "Exact model name dedicated to web search. The official contract defaults to gpt-5.6-luna."
+      },
+      "required": false,
+      "default_value": "gpt-5.6-luna",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "text"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_API_KEY",
+      "description": {
+        "zh": "仅由 Kiyori 宿主读取的搜索 API Key。PACKAGE_ENV 模式必填，插件 JavaScript 无法读取。",
+        "en": "Search API key read only by the Kiyori host. Required for PACKAGE_ENV and inaccessible to plugin JavaScript."
+      },
+      "required": false,
+      "scope": "package",
+      "sensitive": true,
+      "consumer": "host_service",
+      "input_type": "password"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_AUTH_HEADER_NAME",
+      "description": {
+        "zh": "PACKAGE_ENV 模式认证 Header 名。",
+        "en": "Authentication header name for PACKAGE_ENV mode."
+      },
+      "required": false,
+      "default_value": "Authorization",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "text"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_AUTH_SCHEME",
+      "description": {
+        "zh": "PACKAGE_ENV 模式认证前缀，默认 Bearer；留空表示直接发送 Key。",
+        "en": "Authentication scheme for PACKAGE_ENV mode. Defaults to Bearer; leave empty to send the key directly."
+      },
+      "required": false,
+      "default_value": "Bearer",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "text"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_EXTRA_HEADERS_JSON",
+      "description": {
+        "zh": "PACKAGE_ENV 模式附加 Header JSON 对象。认证和 hop-by-hop Header 会被拒绝；Codex-compatible 中转可按服务商要求显式配置 x-openai-actor-authorization。",
+        "en": "Additional header JSON object for PACKAGE_ENV mode. Authentication and hop-by-hop headers are rejected; Codex-compatible relays may explicitly configure x-openai-actor-authorization when required by the provider."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "json"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_REASONING_EFFORT",
+      "description": {
+        "zh": "搜索模型思考强度：omit、none、low、medium、high、xhigh 或 max。",
+        "en": "Search model reasoning effort: omit, none, low, medium, high, xhigh, or max."
+      },
+      "required": false,
+      "default_value": "medium",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "enum",
+      "allowed_values": [
+        "omit",
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_MAX_OUTPUT_TOKENS",
+      "description": {
+        "zh": "可选最大输出 token 数，留空表示不显式发送。",
+        "en": "Optional maximum output token count. Leave empty to omit the field."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "number"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_RETURN_TOKEN_BUDGET",
+      "description": {
+        "zh": "Web Search 返回 token 预算。",
+        "en": "Web Search return token budget."
+      },
+      "required": false,
+      "default_value": "default",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "enum",
+      "allowed_values": [
+        "default",
+        "unlimited"
+      ]
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_ADDITIONAL_INSTRUCTIONS",
+      "description": {
+        "zh": "追加到宿主固定安全指令后的搜索说明，最多 4000 字符。",
+        "en": "Search instructions appended after the host's fixed safety instruction, up to 4000 characters."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "text"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_EXTERNAL_WEB_ACCESS",
+      "description": {
+        "zh": "true 使用实时 live 搜索；false 使用 indexed 搜索。",
+        "en": "true uses live web access; false uses indexed search."
+      },
+      "required": false,
+      "default_value": "true",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "boolean"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_CONTEXT_SIZE",
+      "description": {
+        "zh": "默认搜索上下文大小。",
+        "en": "Default search context size."
+      },
+      "required": false,
+      "default_value": "medium",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "enum",
+      "allowed_values": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_ALLOWED_DOMAINS_JSON",
+      "description": {
+        "zh": "默认允许域名 JSON 字符串数组。工具调用只能进一步收窄。",
+        "en": "Default allowed-domain JSON string array. Tool calls may only narrow it."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "json"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_BLOCKED_DOMAINS_JSON",
+      "description": {
+        "zh": "默认屏蔽域名 JSON 字符串数组。",
+        "en": "Default blocked-domain JSON string array."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "json"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_LOCATION_JSON",
+      "description": {
+        "zh": "可选 approximate location JSON，仅在工具调用明确启用时使用。",
+        "en": "Optional approximate-location JSON, used only when the tool call explicitly enables it."
+      },
+      "required": false,
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "json"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_TIMEOUT_SECONDS",
+      "description": {
+        "zh": "单次请求超时秒数，范围 1 到 300。",
+        "en": "Per-request timeout in seconds, from 1 to 300."
+      },
+      "required": false,
+      "default_value": "60",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "number"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_MAX_CONCURRENT_REQUESTS",
+      "description": {
+        "zh": "插件最大并发请求数，范围 1 到 8。",
+        "en": "Maximum concurrent plugin requests, from 1 to 8."
+      },
+      "required": false,
+      "default_value": "1",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "number"
+    },
+    {
+      "name": "OPENAI_WEB_SEARCH_REQUESTS_PER_MINUTE",
+      "description": {
+        "zh": "插件每分钟请求上限。0 表示不设置插件级 RPM 上限。",
+        "en": "Plugin request limit per minute. 0 means no plugin-level RPM limit."
+      },
+      "required": false,
+      "default_value": "0",
+      "scope": "package",
+      "consumer": "host_service",
+      "input_type": "number"
+    }
+  ],
+  "subpackages": [
+    {
+      "id": "openai_web_search",
+      "entry": "dist/packages/openai_web_search.js"
+    }
+  ]
+}

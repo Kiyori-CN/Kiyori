@@ -5999,6 +5999,8 @@
     <string name="pkg_env_empty_filter">没有匹配的环境变量</string>
     <string name="pkg_env_required">必填</string>
     <string name="pkg_env_optional">可选</string>
+    <string name="pkg_env_show_sensitive">显示敏感值</string>
+    <string name="pkg_env_hide_sensitive">隐藏敏感值</string>
 
     <!-- Package Details Dialog -->
     <string name="pkg_confirm_delete">确认删除</string>
@@ -8227,4 +8229,16 @@
     <string name="kiyori_onboarding_permission_root_desc">请求超级用户访问，可读取和修改受保护的系统与应用数据。</string>
     <string name="kiyori_onboarding_permission_screen_capture_title">屏幕捕获</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">截屏、录屏和视觉分析时，由 Android 针对本次操作确认。</string>
+    <string name="openai_web_search_evidence_title">OpenAI 联网搜索</string>
+    <string name="openai_web_search_mode_live">实时</string>
+    <string name="openai_web_search_mode_indexed">索引</string>
+    <string name="openai_web_search_sources_count">来源（%1$d）</string>
+    <string name="openai_web_search_details">搜索证据详情</string>
+    <string name="openai_web_search_model">模型</string>
+    <string name="openai_web_search_evidence_mode">证据模式</string>
+    <string name="openai_web_search_usage">用量</string>
+    <string name="openai_web_search_usage_value">输入 %1$d，缓存 %2$d，输出 %3$d，搜索调用 %4$d</string>
+    <string name="openai_web_search_actions_count">搜索动作（%1$d）</string>
+    <string name="openai_web_search_warnings_value">警告：%1$s</string>
+    <string name="openai_web_search_citations_count">原始答案引用跨度：%1$d</string>
 </resources>

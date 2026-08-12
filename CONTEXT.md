@@ -23,6 +23,47 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - Public `browser:fill_form` fields contain a string, number, or boolean `value` plus exactly one of `ref` or `selector`; `name` is optional diagnostic text, and caller-supplied control `type` is not part of the contract. The real DOM selects the shared fill, checked-state, or option-selection operation. Checkbox and radio values are boolean. `browser_run_code` accepts a JavaScript function source and injects it directly into the current WebView without `eval` or a dynamic function constructor. Its Page subset is `title`, `url`, `evaluate`, `waitForTimeout`, `setContent`, dialog `on/once/off/removeListener`, and locator/getByRole `click/hover/fill/selectOption/textContent`. Locator input and `keyboard.press` use the same `__operitPw` runtime as package-level input operations. Keyboard supports one character, `Enter`, `Backspace`, and `Delete`; `page.dialog`, unknown keyboard/locator members, and keys without an implemented behavior return a structured `Unsupported Playwright API`. Trusted file-chooser activation remains owned by the public real-click path followed by `browser:upload`.
 - `browser:close` and `browser:tabs action=close` commit and report the in-memory tab/session state change before observing the newly active page. Open-tab count, closed session, and active session are state evidence; page state and snapshot are separate observations whose failure cannot reverse a completed close.
 
+- **OpenAI Hosted Web Search ToolPkg** is the independent hosted-search capability exposed as
+  `openai_web_search:search`. `com.kiyori.openai_web_search` is a disabled-by-default ToolPkg
+  container with an enabled-by-default subpackage and settings UI. It uses exactly one selected
+  configuration source, `PACKAGE_ENV` or a fixed `MODEL_CONFIG`; it never follows the active chat
+  provider, config, model, or custom parameters. Package environment values are
+  `PACKAGE + HOST_SERVICE`; the API key is sensitive/password and inaccessible to JavaScript.
+  The host owns endpoint, authentication, request compilation, one non-streaming Responses POST,
+  cancellation, limits, relay compatibility evidence, response parsing, XML-safe JSON transport,
+  and the structured clickable source card. Relay probing is a potentially billable action that
+  only the plugin settings UI runtime may start. Search execution has no automatic retry,
+  redirect, backend switch, endpoint switch, model switch, key-source switch, or second request.
+  Response schema revision `5` keeps four explicit evidence modes:
+  `url_citations_and_action_sources`, `url_citations`, `action_sources`, and `structured_feeds`.
+  HTTP(S) annotation URLs and action-source URLs are never guessed from answer text. Native
+  `url_citation` annotations are the authority for inline citation spans; action sources are an
+  independent search-audit channel that can be complete, missing, partial, or contain invalid
+  entries. A citation URL is not required to appear in `action.sources`: relays and official
+  Responses can cite a page discovered after `open_page`, or return only one URL channel.
+  Cross-channel differences are reported through `source_diagnostics`,
+  `CITATION_NOT_IN_ACTION_SOURCES`, `ACTION_SOURCES_MISSING`, and
+  `ACTION_SOURCES_PARTIAL`; they do not invalidate an otherwise valid citation. Source markers are
+  inserted only from real citation spans. The official non-URL feed types
+  `oai-sports`, `oai-weather`, and `oai-finance`, plus relay-only named `api` feeds, remain visible
+  without a clickable URL. Unknown or malformed entries stay as diagnostics.
+  Relay compatibility probing uses a fixed public-page target on `developers.openai.com` and
+  requires a real `url_citation`; a time or weather query is not a URL-evidence probe because it may
+  legitimately use structured live data. Successful and failed probes are stored as a bounded
+  record set against the exact binding fingerprint and schema revision, with the successful
+  evidence mode. The set retains up to 16 recent fingerprints, so one `MODEL_CONFIG` Key failure
+  does not erase another Key's valid probe. The fingerprint includes an irreversible digest of the
+  selected credential, so changing only the Key also invalidates prior evidence. Key selection and
+  cursor advancement are serialized across search and probe bridge instances. Domain filters
+  serialize only non-empty `allowed_domains` or
+  `blocked_domains`; an empty peer array is not sent because real Responses relays may reject that
+  otherwise redundant field combination. Non-success HTTP responses read at most 64 KiB and expose
+  only redacted provider type, code, message and request/trace ID. The settings page shows a short
+  credential revision and `bearer` / `direct` / `custom` authentication classification, never the
+  Key or custom scheme text. A fixed
+  `MODEL_CONFIG` in relay-strict mode may use either `OPENAI_RESPONSES` or
+  `OPENAI_RESPONSES_GENERIC`; official mode still requires the exact official Responses endpoint.
+
 ## Architecture ownership transition
 
 ## Current first-run authority (2026-08-11)

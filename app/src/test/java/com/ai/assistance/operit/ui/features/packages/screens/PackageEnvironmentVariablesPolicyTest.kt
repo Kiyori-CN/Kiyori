@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
+import com.ai.assistance.operit.core.tools.EnvVarConsumer
+import com.ai.assistance.operit.core.tools.EnvVarInputType
+import com.ai.assistance.operit.core.tools.EnvVarScope
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -150,20 +153,27 @@ class PackageEnvironmentVariablesPolicyTest {
             setOf("search"),
             initialExpandedPackageNames(
                 groups,
-                values = mapOf("DRAW_KEY" to "configured"),
+                values =
+                    mapOf(
+                        PackageEnvironmentVariableKey.global("DRAW_KEY") to "configured",
+                    ),
             ),
         )
         assertEquals(
             emptySet<String>(),
             initialExpandedPackageNames(
                 groups,
-                values = mapOf("DRAW_KEY" to "configured", "SEARCH_KEY" to "configured"),
+                values =
+                    mapOf(
+                        PackageEnvironmentVariableKey.global("DRAW_KEY") to "configured",
+                        PackageEnvironmentVariableKey.global("SEARCH_KEY") to "configured",
+                    ),
             ),
         )
     }
 
     @Test
-    fun `duplicate declarations share one sorted variable name`() {
+    fun `duplicate global declarations share one sorted variable key`() {
         val groups =
             listOf(
                 group(
@@ -185,8 +195,89 @@ class PackageEnvironmentVariablesPolicyTest {
             )
 
         assertEquals(
-            listOf("SEARCH_KEY", "SHARED_KEY"),
-            distinctPackageEnvironmentVariableNames(groups),
+            listOf(
+                PackageEnvironmentVariableKey.global("SEARCH_KEY"),
+                PackageEnvironmentVariableKey.global("SHARED_KEY"),
+            ),
+            distinctPackageEnvironmentVariableKeys(groups),
+        )
+    }
+
+    @Test
+    fun `package-scoped declarations keep separate owners`() {
+        val groups =
+            listOf(
+                group(
+                    packageName = "draw",
+                    displayName = "Draw",
+                    category = "Draw",
+                    variables =
+                        listOf(
+                            variable(
+                                name = "API_KEY",
+                                description = "Draw key",
+                                packageName = "draw",
+                                scope = EnvVarScope.PACKAGE,
+                            ),
+                        ),
+                ),
+                group(
+                    packageName = "search",
+                    displayName = "Search",
+                    category = "Search",
+                    variables =
+                        listOf(
+                            variable(
+                                name = "API_KEY",
+                                description = "Search key",
+                                packageName = "search",
+                                scope = EnvVarScope.PACKAGE,
+                            ),
+                        ),
+                ),
+            )
+
+        assertEquals(
+            listOf(
+                PackageEnvironmentVariableKey.packageScoped("draw", "API_KEY"),
+                PackageEnvironmentVariableKey.packageScoped("search", "API_KEY"),
+            ),
+            distinctPackageEnvironmentVariableKeys(groups),
+        )
+    }
+
+    @Test
+    fun `global and package-scoped declarations do not share values`() {
+        val groups =
+            listOf(
+                group(
+                    packageName = "legacy",
+                    displayName = "Legacy",
+                    category = "Other",
+                    variables = listOf(variable("API_KEY", "Global key")),
+                ),
+                group(
+                    packageName = "host",
+                    displayName = "Host",
+                    category = "ToolPkg",
+                    variables =
+                        listOf(
+                            variable(
+                                name = "API_KEY",
+                                description = "Host key",
+                                packageName = "host",
+                                scope = EnvVarScope.PACKAGE,
+                            ),
+                        ),
+                ),
+            )
+
+        assertEquals(
+            listOf(
+                PackageEnvironmentVariableKey.global("API_KEY"),
+                PackageEnvironmentVariableKey.packageScoped("host", "API_KEY"),
+            ),
+            distinctPackageEnvironmentVariableKeys(groups),
         )
     }
 
@@ -235,11 +326,33 @@ class PackageEnvironmentVariablesPolicyTest {
         name: String,
         description: String,
         required: Boolean = true,
+        packageName: String = "",
+        scope: EnvVarScope = EnvVarScope.GLOBAL,
     ): PackageEnvironmentVariableItem =
         PackageEnvironmentVariableItem(
+            key =
+                if (scope == EnvVarScope.PACKAGE) {
+                    PackageEnvironmentVariableKey.packageScoped(packageName, name)
+                } else {
+                    PackageEnvironmentVariableKey.global(name)
+                },
             name = name,
             description = description,
             required = required,
             defaultValue = null,
+            sensitive = scope == EnvVarScope.PACKAGE,
+            consumer =
+                if (scope == EnvVarScope.PACKAGE) {
+                    EnvVarConsumer.HOST_SERVICE
+                } else {
+                    EnvVarConsumer.JAVASCRIPT
+                },
+            inputType =
+                if (scope == EnvVarScope.PACKAGE) {
+                    EnvVarInputType.PASSWORD
+                } else {
+                    EnvVarInputType.TEXT
+                },
+            allowedValues = emptyList(),
         )
 }

@@ -197,21 +197,127 @@ object StringOrStringListSerializer : KSerializer<List<String>> {
     }
 }
  
- /**
-  * Represents an environment variable declaration for a package
-  */
- @Serializable(with = EnvVarSerializer::class)
- data class EnvVar(
-     val name: String,
-     val description: LocalizedText,
-     val required: Boolean = true,
-     val defaultValue: String? = null
- )
+enum class EnvVarScope(val wireValue: String) {
+    GLOBAL("global"),
+    PACKAGE("package");
+
+    companion object {
+        fun fromWireValue(value: String): EnvVarScope =
+            entries.firstOrNull { scope -> scope.wireValue == value.trim().lowercase(Locale.ROOT) }
+                ?: throw IllegalArgumentException("Unsupported environment variable scope: $value")
+    }
+}
+
+enum class EnvVarConsumer(val wireValue: String) {
+    JAVASCRIPT("javascript"),
+    HOST_SERVICE("host_service");
+
+    companion object {
+        fun fromWireValue(value: String): EnvVarConsumer =
+            entries.firstOrNull { consumer ->
+                consumer.wireValue == value.trim().lowercase(Locale.ROOT)
+            } ?: throw IllegalArgumentException(
+                "Unsupported environment variable consumer: $value"
+            )
+    }
+}
+
+enum class EnvVarInputType(val wireValue: String) {
+    TEXT("text"),
+    PASSWORD("password"),
+    ENUM("enum"),
+    BOOLEAN("boolean"),
+    NUMBER("number"),
+    JSON("json");
+
+    companion object {
+        fun fromWireValue(value: String): EnvVarInputType =
+            entries.firstOrNull { inputType ->
+                inputType.wireValue == value.trim().lowercase(Locale.ROOT)
+            } ?: throw IllegalArgumentException(
+                "Unsupported environment variable input type: $value"
+            )
+    }
+}
+
+/**
+ * Represents an environment variable declaration for a package.
+ *
+ * Legacy script packages keep the default GLOBAL/JAVASCRIPT/TEXT contract. ToolPkg host
+ * services use the PACKAGE/HOST_SERVICE contract so their values are namespaced by container
+ * identity and never become visible through the JavaScript getEnv() bridge.
+ */
+@Serializable(with = EnvVarSerializer::class)
+data class EnvVar(
+    val name: String,
+    val description: LocalizedText,
+    val required: Boolean = true,
+    val defaultValue: String? = null,
+    val scope: EnvVarScope = EnvVarScope.GLOBAL,
+    val sensitive: Boolean = false,
+    val consumer: EnvVarConsumer = EnvVarConsumer.JAVASCRIPT,
+    val inputType: EnvVarInputType = EnvVarInputType.TEXT,
+    val allowedValues: List<String> = emptyList(),
+) {
+    init {
+        require(name.trim().isNotEmpty()) { "Environment variable name must not be blank" }
+        require(
+            (scope == EnvVarScope.GLOBAL && consumer == EnvVarConsumer.JAVASCRIPT) ||
+                (scope == EnvVarScope.PACKAGE && consumer == EnvVarConsumer.HOST_SERVICE)
+        ) {
+            "Only global/javascript and package/host_service environment variables are supported"
+        }
+        if (sensitive) {
+            require(scope == EnvVarScope.PACKAGE) {
+                "Sensitive environment variables must use package scope"
+            }
+            require(consumer == EnvVarConsumer.HOST_SERVICE) {
+                "Sensitive environment variables must be consumed by host_service"
+            }
+            require(inputType == EnvVarInputType.PASSWORD) {
+                "Sensitive environment variables must use password input type"
+            }
+        }
+        if (inputType == EnvVarInputType.PASSWORD) {
+            require(sensitive) { "Password environment variables must be marked sensitive" }
+        }
+        if (inputType == EnvVarInputType.ENUM) {
+            require(allowedValues.isNotEmpty()) {
+                "Enum environment variables must declare allowed_values"
+            }
+            require(allowedValues.none(String::isBlank)) {
+                "Enum environment variable allowed_values must not contain blank values"
+            }
+            require(allowedValues.distinct().size == allowedValues.size) {
+                "Enum environment variable allowed_values must be unique"
+            }
+            if (defaultValue != null) {
+                require(defaultValue in allowedValues) {
+                    "Enum environment variable defaultValue must be declared in allowed_values"
+                }
+            }
+        } else {
+            require(allowedValues.isEmpty()) {
+                "allowed_values is only valid for enum environment variables"
+            }
+        }
+    }
+}
  
  /**
   * Custom serializer for EnvVar that handles both old format (string) and new format (object)
   * Old format: "GITHUB_TOKEN"
-  * New format: { "name": "GITHUB_TOKEN", "description": "...", "required": true, "defaultValue": "..." }
+ * New format:
+ * {
+ *   "name": "GITHUB_TOKEN",
+ *   "description": "...",
+ *   "required": true,
+ *   "defaultValue": "...",
+ *   "scope": "package",
+ *   "sensitive": true,
+ *   "consumer": "host_service",
+ *   "input_type": "password"
+ * }
   */
  object EnvVarSerializer : KSerializer<EnvVar> {
      private val delegateSerializer = JsonObject.serializer()
@@ -247,35 +353,35 @@ object StringOrStringListSerializer : KSerializer<List<String>> {
                  LocalizedText.of("")
              }
              
-             val requiredElement = element["required"]
-             val required = if (requiredElement != null) {
-                 when (requiredElement) {
-                     is JsonPrimitive -> {
-                         if (requiredElement.isString) {
-                             // Handle string boolean values
-                             requiredElement.content.toBooleanStrictOrNull() ?: true
-                         } else {
-                             // Handle boolean values directly
-                             try {
-                                 requiredElement.content.toBooleanStrictOrNull() ?: true
-                             } catch (e: Exception) {
-                                 true
-                             }
-                         }
-                     }
-                     else -> true
-                 }
-             } else {
-                 true
-             }
-             
-             val defaultValue = element["defaultValue"]?.jsonPrimitive?.content
+             val required = element.strictBooleanOrDefault("required", defaultValue = true)
+             val sensitive = element.strictBooleanOrDefault("sensitive", defaultValue = false)
+             val defaultValue =
+                 element.readOptionalAliasedString("defaultValue", "default_value")
+             val scope =
+                 element.readOptionalString("scope")
+                     ?.let(EnvVarScope::fromWireValue)
+                     ?: EnvVarScope.GLOBAL
+             val consumer =
+                 element.readOptionalString("consumer")
+                     ?.let(EnvVarConsumer::fromWireValue)
+                     ?: EnvVarConsumer.JAVASCRIPT
+             val inputType =
+                 element.readOptionalAliasedString("inputType", "input_type")
+                     ?.let(EnvVarInputType::fromWireValue)
+                     ?: EnvVarInputType.TEXT
+             val allowedValues =
+                 element.readOptionalAliasedStringList("allowedValues", "allowed_values")
              
              return EnvVar(
                  name = name,
                  description = description,
                  required = required,
-                 defaultValue = defaultValue
+                 defaultValue = defaultValue,
+                 scope = scope,
+                 sensitive = sensitive,
+                 consumer = consumer,
+                 inputType = inputType,
+                 allowedValues = allowedValues,
              )
          }
          
@@ -293,8 +399,87 @@ object StringOrStringListSerializer : KSerializer<List<String>> {
              if (value.defaultValue != null) {
                  put("defaultValue", value.defaultValue)
              }
+             if (value.scope != EnvVarScope.GLOBAL) {
+                 put("scope", value.scope.wireValue)
+             }
+             if (value.sensitive) {
+                 put("sensitive", true)
+             }
+             if (value.consumer != EnvVarConsumer.JAVASCRIPT) {
+                 put("consumer", value.consumer.wireValue)
+             }
+             if (value.inputType != EnvVarInputType.TEXT) {
+                 put("input_type", value.inputType.wireValue)
+             }
+             if (value.allowedValues.isNotEmpty()) {
+                 put(
+                     "allowed_values",
+                     JsonArray(value.allowedValues.map(::JsonPrimitive)),
+                 )
+             }
          }
          encoder.encodeSerializableValue(JsonObject.serializer(), jsonObject)
+     }
+
+     private fun JsonObject.strictBooleanOrDefault(
+         key: String,
+         defaultValue: Boolean,
+     ): Boolean {
+         val element = this[key] ?: return defaultValue
+         val primitive =
+             element as? JsonPrimitive
+                 ?: throw IllegalArgumentException("EnvVar '$key' must be a boolean")
+         return primitive.content.toBooleanStrictOrNull()
+             ?: throw IllegalArgumentException("EnvVar '$key' must be true or false")
+     }
+
+     private fun JsonObject.readOptionalString(key: String): String? {
+         val element = this[key] ?: return null
+         val primitive =
+             element as? JsonPrimitive
+                 ?: throw IllegalArgumentException("EnvVar '$key' must be a string")
+         require(primitive.isString) { "EnvVar '$key' must be a string" }
+         return primitive.content
+     }
+
+     private fun JsonObject.readOptionalAliasedString(
+         camelCaseKey: String,
+         snakeCaseKey: String,
+     ): String? {
+         val camelCaseValue = readOptionalString(camelCaseKey)
+         val snakeCaseValue = readOptionalString(snakeCaseKey)
+         require(camelCaseValue == null || snakeCaseValue == null || camelCaseValue == snakeCaseValue) {
+             "EnvVar '$camelCaseKey' and '$snakeCaseKey' must not conflict"
+         }
+         return camelCaseValue ?: snakeCaseValue
+     }
+
+     private fun JsonObject.readOptionalAliasedStringList(
+         camelCaseKey: String,
+         snakeCaseKey: String,
+     ): List<String> {
+         val camelCaseValue = readOptionalStringList(camelCaseKey)
+         val snakeCaseValue = readOptionalStringList(snakeCaseKey)
+         require(camelCaseValue == null || snakeCaseValue == null || camelCaseValue == snakeCaseValue) {
+             "EnvVar '$camelCaseKey' and '$snakeCaseKey' must not conflict"
+         }
+         return camelCaseValue ?: snakeCaseValue ?: emptyList()
+     }
+
+     private fun JsonObject.readOptionalStringList(key: String): List<String>? {
+         val element = this[key] ?: return null
+         val values =
+             element as? JsonArray
+                 ?: throw IllegalArgumentException("EnvVar '$key' must be a string array")
+         return values.mapIndexed { index, item ->
+             val primitive =
+                 item as? JsonPrimitive
+                     ?: throw IllegalArgumentException(
+                         "EnvVar '$key[$index]' must be a string"
+                     )
+             require(primitive.isString) { "EnvVar '$key[$index]' must be a string" }
+             primitive.content
+         }
      }
  }
  

@@ -2,6 +2,9 @@ package com.ai.assistance.operit.core.tools.packTool
 
 import android.content.Context
 import android.provider.DocumentsContract
+import com.ai.assistance.operit.core.tools.EnvVar
+import com.ai.assistance.operit.core.tools.EnvVarConsumer
+import com.ai.assistance.operit.core.tools.EnvVarScope
 import com.ai.assistance.operit.core.tools.LocalizedText
 import com.ai.assistance.operit.core.tools.StringOrStringListSerializer
 import com.ai.assistance.operit.core.tools.ToolPackage
@@ -141,6 +144,7 @@ internal data class ToolPkgContainerRuntime(
     val sourceType: ToolPkgSourceType,
     val sourcePath: String,
     val artifactSha256: String,
+    val environment: List<EnvVar>,
     val subpackages: List<ToolPkgSubpackageRuntime>,
     val resources: List<ToolPkgResourceRuntime>,
     val wasmModules: List<ToolPkgWasmModuleRuntime>,
@@ -186,6 +190,7 @@ internal data class ToolPkgManifest(
     @Serializable(with = StringOrStringListSerializer::class)
     val author: List<String> = emptyList(),
     @SerialName("enabled_by_default") val enabledByDefault: Boolean = true,
+    val environment: List<EnvVar> = emptyList(),
     val subpackages: List<ToolPkgManifestSubpackage> = emptyList(),
     val resources: List<ToolPkgManifestResource> = emptyList(),
     @SerialName("wasm_modules")
@@ -1276,12 +1281,14 @@ internal object ToolPkgArchiveParser {
                 hasLocalizedTextContent(manifest.displayName) -> manifest.displayName
                 else -> LocalizedText.of(manifest.toolpkgId)
             }
+        validateContainerEnvironment(manifest.environment)
 
         val containerPackage =
             ToolPackage(
                 name = manifest.toolpkgId,
                 description = containerDescription,
                 tools = emptyList(),
+                env = manifest.environment,
                 isBuiltIn = isBuiltIn,
                 enabledByDefault = manifest.enabledByDefault,
                 displayName = containerDisplayName,
@@ -1300,6 +1307,7 @@ internal object ToolPkgArchiveParser {
                 sourceType = sourceType,
                 sourcePath = sourcePath,
                 artifactSha256 = artifactSha256,
+                environment = manifest.environment,
                 subpackages = subpackageRuntimes,
                 resources = resources,
                 wasmModules = wasmModules,
@@ -1333,6 +1341,26 @@ internal object ToolPkgArchiveParser {
             subpackagePackages = subpackagePackages,
             containerRuntime = runtime
         )
+    }
+
+    private fun validateContainerEnvironment(environment: List<EnvVar>) {
+        val duplicateNames =
+            environment
+                .groupingBy { envVar -> envVar.name.trim() }
+                .eachCount()
+                .filterValues { count -> count > 1 }
+                .keys
+        require(duplicateNames.isEmpty()) {
+            "ToolPkg environment contains duplicate names: ${duplicateNames.sorted().joinToString(", ")}"
+        }
+        environment.forEach { envVar ->
+            require(envVar.scope == EnvVarScope.PACKAGE) {
+                "ToolPkg container environment '${envVar.name}' must use package scope"
+            }
+            require(envVar.consumer == EnvVarConsumer.HOST_SERVICE) {
+                "ToolPkg container environment '${envVar.name}' must use host_service consumer"
+            }
+        }
     }
 
     fun buildZipEntryIndex(archive: ZipFile): ToolPkgEntryIndex {
@@ -1811,7 +1839,9 @@ internal object ToolPkgArchiveParser {
     }
 
     fun parseManifest(content: String, manifestEntryName: String): ToolPkgManifest {
-        return parseToolPkgManifest(content, manifestEntryName)
+        return parseToolPkgManifest(content, manifestEntryName).also { manifest ->
+            validateContainerEnvironment(manifest.environment)
+        }
     }
 
     private fun hasLocalizedTextContent(text: LocalizedText?): Boolean {

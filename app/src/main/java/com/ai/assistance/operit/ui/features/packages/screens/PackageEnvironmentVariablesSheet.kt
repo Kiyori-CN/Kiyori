@@ -29,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
@@ -36,6 +37,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -61,6 +64,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,6 +76,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.graphics.drawable.toDrawable
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.EnvVarInputType
+import com.ai.assistance.operit.core.tools.EnvVarScope
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.ui.components.KiyoriDraggableBottomDrawer
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
@@ -79,9 +87,9 @@ import com.kiyori.design.theme.resolveColors
 @Composable
 internal fun PackageEnvironmentVariablesSheet(
     packages: List<ToolPackage>,
-    currentValues: Map<String, String>,
+    currentValues: Map<PackageEnvironmentVariableKey, String>,
     onDismiss: () -> Unit,
-    onConfirm: (Map<String, String>) -> Unit,
+    onConfirm: (Map<PackageEnvironmentVariableKey, String>) -> Unit,
 ) {
     val context = LocalContext.current
     val groups =
@@ -96,23 +104,38 @@ internal fun PackageEnvironmentVariablesSheet(
                     categoryLabel = categoryLabel,
                     variables =
                         toolPackage.env.map { envVar ->
+                            val key =
+                                when (envVar.scope) {
+                                    EnvVarScope.GLOBAL ->
+                                        PackageEnvironmentVariableKey.global(envVar.name)
+                                    EnvVarScope.PACKAGE ->
+                                        PackageEnvironmentVariableKey.packageScoped(
+                                            packageName = toolPackage.name,
+                                            variableName = envVar.name,
+                                        )
+                                }
                             PackageEnvironmentVariableItem(
+                                key = key,
                                 name = envVar.name,
                                 description = envVar.description.resolve(context),
                                 required = envVar.required,
                                 defaultValue = envVar.defaultValue,
+                                sensitive = envVar.sensitive,
+                                consumer = envVar.consumer,
+                                inputType = envVar.inputType,
+                                allowedValues = envVar.allowedValues,
                             )
                         },
                 )
             },
         )
 
-    val variableNames = remember(groups) { distinctPackageEnvironmentVariableNames(groups) }
+    val variableKeys = remember(groups) { distinctPackageEnvironmentVariableKeys(groups) }
     var editableValues by
-        remember(variableNames, currentValues) {
+        remember(variableKeys, currentValues) {
             mutableStateOf(
-                variableNames.associateWith { variableName ->
-                    currentValues[variableName].orEmpty()
+                variableKeys.associateWith { variableKey ->
+                    currentValues[variableKey].orEmpty()
                 },
             )
         }
@@ -194,10 +217,10 @@ internal fun PackageEnvironmentVariablesSheet(
                                 }
                             }
                     },
-                    onValueChange = { variableName, value ->
+                    onValueChange = { variableKey, value ->
                         editableValues =
                             editableValues.toMutableMap().apply {
-                                this[variableName] = value
+                                this[variableKey] = value
                             }
                     },
                     onCancel = requestClose,
@@ -218,36 +241,36 @@ private fun PackageEnvironmentVariablesSheetContent(
     categories: List<PackageEnvironmentVariableCategory>,
     selectedCategoryKey: String?,
     query: String,
-    editableValues: Map<String, String>,
+    editableValues: Map<PackageEnvironmentVariableKey, String>,
     expandedPackageNames: Set<String>,
     onCategorySelected: (String?) -> Unit,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
     onTogglePackage: (String) -> Unit,
-    onValueChange: (String, String) -> Unit,
+    onValueChange: (PackageEnvironmentVariableKey, String) -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
-    val variableNames = remember(groups) { distinctPackageEnvironmentVariableNames(groups) }
-    val requiredVariableNames =
+    val variableKeys = remember(groups) { distinctPackageEnvironmentVariableKeys(groups) }
+    val requiredVariableKeys =
         remember(groups) {
             groups
                 .asSequence()
                 .flatMap { group -> group.variables.asSequence() }
                 .filter { variable -> variable.required }
-                .map { variable -> variable.name }
+                .map { variable -> variable.key }
                 .distinct()
                 .toList()
         }
     val missingRequiredVariableCount =
-        requiredVariableNames.count { variableName ->
-            editableValues[variableName].isNullOrBlank()
+        requiredVariableKeys.count { variableKey ->
+            editableValues[variableKey].isNullOrBlank()
         }
 
     Column(modifier = Modifier.fillMaxSize()) {
         PackageEnvironmentVariablesHeader(
             packageCount = groups.size,
-            variableCount = variableNames.size,
+            variableCount = variableKeys.size,
             missingRequiredVariableCount = missingRequiredVariableCount,
             onClose = onCancel,
         )
@@ -538,19 +561,19 @@ private fun PackageEnvironmentCategoryChip(
 @Composable
 private fun PackageEnvironmentVariableGroupCard(
     group: PackageEnvironmentVariableGroup,
-    values: Map<String, String>,
+    values: Map<PackageEnvironmentVariableKey, String>,
     expanded: Boolean,
     toggleEnabled: Boolean,
     onToggle: () -> Unit,
-    onValueChange: (String, String) -> Unit,
+    onValueChange: (PackageEnvironmentVariableKey, String) -> Unit,
 ) {
     val visual = resolvePackageCategoryVisual(group.categoryLabel)
     val colors = visual.resolveColors()
     val configuredCount =
-        group.variables.count { variable -> values[variable.name].isNullOrBlank().not() }
+        group.variables.count { variable -> values[variable.key].isNullOrBlank().not() }
     val missingRequiredCount =
         group.variables.count { variable ->
-            variable.required && values[variable.name].isNullOrBlank()
+            variable.required && values[variable.key].isNullOrBlank()
         }
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -678,9 +701,9 @@ private fun PackageEnvironmentVariableGroupCard(
                 group.variables.forEachIndexed { index, variable ->
                     PackageEnvironmentVariableEditor(
                         variable = variable,
-                        value = values[variable.name].orEmpty(),
+                        value = values[variable.key].orEmpty(),
                         visual = visual,
-                        onValueChange = { value -> onValueChange(variable.name, value) },
+                        onValueChange = { value -> onValueChange(variable.key, value) },
                     )
                     if (index < group.variables.lastIndex) {
                         HorizontalDivider(
@@ -780,8 +803,10 @@ private fun PackageEnvironmentVariableEditor(
                     } else {
                         R.string.pkg_input_optional
                     },
-                ),
+            ),
             accentColor = categoryColors.icon,
+            inputType = variable.inputType,
+            allowedValues = variable.allowedValues,
         )
     }
 }
@@ -792,9 +817,29 @@ private fun PackageEnvironmentValueField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     accentColor: androidx.compose.ui.graphics.Color,
+    inputType: EnvVarInputType,
+    allowedValues: List<String>,
 ) {
+    val choices =
+        when (inputType) {
+            EnvVarInputType.ENUM -> allowedValues
+            EnvVarInputType.BOOLEAN -> listOf("true", "false")
+            else -> emptyList()
+        }
+    if (choices.isNotEmpty()) {
+        PackageEnvironmentChoiceField(
+            value = value,
+            choices = choices,
+            onValueChange = onValueChange,
+            accentColor = accentColor,
+        )
+        return
+    }
+
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    val isPassword = inputType == EnvVarInputType.PASSWORD
     Surface(
         modifier = Modifier.fillMaxWidth().height(42.dp),
         shape = RoundedCornerShape(9.dp),
@@ -817,8 +862,23 @@ private fun PackageEnvironmentValueField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 singleLine = true,
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType =
+                            when (inputType) {
+                                EnvVarInputType.NUMBER -> KeyboardType.Decimal
+                                EnvVarInputType.PASSWORD -> KeyboardType.Password
+                                else -> KeyboardType.Text
+                            },
+                    ),
+                visualTransformation =
+                    if (isPassword && !passwordVisible) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
                 textStyle =
                     TextStyle(
                         color = MaterialTheme.colorScheme.onSurface,
@@ -843,6 +903,87 @@ private fun PackageEnvironmentValueField(
                     }
                 },
             )
+            if (isPassword) {
+                IconButton(
+                    onClick = { passwordVisible = !passwordVisible },
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        imageVector =
+                            if (passwordVisible) {
+                                Icons.Filled.VisibilityOff
+                            } else {
+                                Icons.Filled.Visibility
+                            },
+                        contentDescription =
+                            stringResource(
+                                if (passwordVisible) {
+                                    R.string.pkg_env_hide_sensitive
+                                } else {
+                                    R.string.pkg_env_show_sensitive
+                                },
+                            ),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PackageEnvironmentChoiceField(
+    value: String,
+    choices: List<String>,
+    onValueChange: (String) -> Unit,
+    accentColor: androidx.compose.ui.graphics.Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        choices.forEach { choice ->
+            val selected = value == choice
+            Surface(
+                modifier =
+                    Modifier.clickable(
+                        role = Role.RadioButton,
+                        onClick = { onValueChange(choice) },
+                    ),
+                shape = RoundedCornerShape(9.dp),
+                color =
+                    if (selected) {
+                        accentColor.copy(alpha = 0.14f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+                border =
+                    BorderStroke(
+                        width = if (selected) 1.5.dp else 1.dp,
+                        color =
+                            if (selected) {
+                                accentColor
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                    ),
+            ) {
+                Text(
+                    text = choice,
+                    color =
+                        if (selected) {
+                            accentColor
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    fontSize = 11.5.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

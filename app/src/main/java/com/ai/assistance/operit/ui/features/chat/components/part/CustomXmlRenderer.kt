@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchEvidenceParser
 import com.ai.assistance.operit.ui.common.animations.SimpleAnimatedVisibility
 import com.ai.assistance.operit.ui.common.markdown.DefaultXmlRenderer
 import com.ai.assistance.operit.ui.common.markdown.StreamMarkdownRenderer
@@ -879,9 +880,25 @@ class CustomXmlRenderer(
                 )
             }
         val toolName = renderState.toolName.ifBlank { stringResource(R.string.unknown_tool) }
+        val webSearchEvidence =
+            remember(renderState.toolName, renderState.isSuccess, renderState.resultContent) {
+                if (renderState.isSuccess) {
+                    OpenAIHostedWebSearchEvidenceParser.parseOrNull(
+                        toolName = renderState.toolName,
+                        resultJson = renderState.resultContent,
+                    )
+                } else {
+                    null
+                }
+            }
 
         // 检查结果是否为 file-diff
-        if ((toolName == "apply_file" || toolName == "create_file" || toolName == "edit_file") &&
+        if (webSearchEvidence != null) {
+            OpenAIWebSearchToolResultDisplay(
+                evidence = webSearchEvidence,
+                modifier = modifier,
+            )
+        } else if ((toolName == "apply_file" || toolName == "create_file" || toolName == "edit_file") &&
             renderState.isSuccess &&
             renderState.resultContent.contains("<file-diff")
         ) {
