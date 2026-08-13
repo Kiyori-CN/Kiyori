@@ -51,6 +51,7 @@ import com.ai.assistance.operit.util.stream.TextStreamEventType
 import com.ai.assistance.operit.util.stream.TextStreamRevisionTracker
 import com.ai.assistance.operit.util.stream.awaitFailureOwnedTask
 import com.ai.assistance.operit.util.stream.newFailureOwnedTaskScope
+import com.ai.assistance.operit.util.stream.recordPropagatedMessageFailure
 import com.ai.assistance.operit.util.stream.withEventChannel
 import com.ai.assistance.operit.util.stream.plugins.StreamXmlPlugin
 import com.ai.assistance.operit.util.stream.splitBy
@@ -443,6 +444,34 @@ class EnhancedAIService private constructor(private val context: Context) {
             val baseContext = providerRequestContext ?: return null
             return baseContext.forHop(nextProviderHopOrdinal.getAndIncrement())
         }
+    }
+
+    /**
+     * 持久化聊天回合的完整 cause chain 由 MessageProcessingDelegate 最终 owner 记录。
+     *
+     * 非持久化独立任务没有该 owner，因此继续保留本层完整异常，避免为了聊天降噪而丢失其他任务的
+     * 唯一诊断入口。
+     */
+    private fun logPropagatedMessageFailure(
+        boundaryName: String,
+        phase: String,
+        failure: Throwable,
+        providerRequestContext: ProviderRequestContext?,
+    ) {
+        if (providerRequestContext == null) {
+            AppLogger.e(TAG, "独立 AI 任务失败: boundary=$boundaryName, phase=$phase", failure)
+            return
+        }
+        val diagnostics =
+            recordPropagatedMessageFailure(
+                boundaryName = boundaryName,
+                phase = phase,
+                failure = failure,
+            )
+        AppLogger.e(
+            TAG,
+            "消息失败已投影并继续传播: boundary=$boundaryName, ${diagnostics.format()}"
+        )
     }
 
     private val activeExecutionContexts = ConcurrentHashMap<Int, MessageExecutionContext>()
@@ -1259,8 +1288,12 @@ class EnhancedAIService private constructor(private val context: Context) {
                     }
                 } else {
                     hadFatalError = true
-                    // Handle any exceptions
-                    AppLogger.e(TAG, "发送消息时发生错误: ${e.message}", e)
+                    logPropagatedMessageFailure(
+                        boundaryName = "enhanced_send_message",
+                        phase = "provider_stream",
+                        failure = e,
+                        providerRequestContext = execContext.providerRequestContext,
+                    )
                     withContext(Dispatchers.Main) {
                         _inputProcessingState.value =
                                 InputProcessingState.Error(message = context.getString(R.string.enhanced_error_with_message, e.message ?: ""))
@@ -1984,7 +2017,12 @@ class EnhancedAIService private constructor(private val context: Context) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            AppLogger.e(TAG, "处理流完成时发生错误", e)
+            logPropagatedMessageFailure(
+                boundaryName = "enhanced_stream_completion",
+                phase = "stream_completion",
+                failure = e,
+                providerRequestContext = context.providerRequestContext,
+            )
             if (!isSubTask) {
                 withContext(Dispatchers.Main) {
                     _inputProcessingState.value =
@@ -2498,7 +2536,12 @@ class EnhancedAIService private constructor(private val context: Context) {
                 AppLogger.d(TAG, "处理工具执行结果被取消")
                 throw e
             } catch (e: Exception) {
-                AppLogger.e(TAG, "处理工具执行结果时出错", e)
+                logPropagatedMessageFailure(
+                    boundaryName = "enhanced_tool_follow_up",
+                    phase = "tool_follow_up",
+                    failure = e,
+                    providerRequestContext = context.providerRequestContext,
+                )
                 withContext(Dispatchers.Main) {
                     _inputProcessingState.value =
                             InputProcessingState.Error(this@EnhancedAIService.context.getString(R.string.enhanced_process_tool_result_failed, e.message ?: ""))

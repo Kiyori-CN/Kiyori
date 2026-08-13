@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.chat.llmprovider
 import com.ai.assistance.operit.data.model.MessageProviderStateEntity
 import com.ai.assistance.operit.data.model.ProviderExecutionEntity
 import com.ai.assistance.operit.data.model.ProviderExecutionStatus
+import com.ai.assistance.operit.util.stream.MessageFailureDiagnosticSource
 import java.io.IOException
 import org.json.JSONArray
 import org.json.JSONObject
@@ -333,24 +334,44 @@ internal class OpenAIResponsesTransportInterruptedException(
 internal class OpenAIResponsesSubmissionUnknownException(
     val localExecutionId: String?,
     cause: IOException,
+    val transportDiagnostics: LlmTransportDiagnostics? = null,
 ) : IOException(
     buildSubmissionUnknownMessage(
         localExecutionId = localExecutionId,
         cause = cause,
+        transportDiagnostics = transportDiagnostics,
     ),
     cause,
-)
+), MessageFailureDiagnosticSource {
+    override val messageFailureExecutionId: String?
+        get() = localExecutionId
+
+    override val messageFailureDiagnosticCode: String
+        get() =
+            transportDiagnostics?.diagnosticCode
+                ?: "OPENAI_RESPONSES_SUBMISSION_UNKNOWN"
+
+    override val messageFailurePhase: String
+        get() =
+            transportDiagnostics?.stage?.name
+                ?: "SUBMISSION_UNKNOWN"
+}
 
 private fun buildSubmissionUnknownMessage(
     localExecutionId: String?,
     cause: IOException,
+    transportDiagnostics: LlmTransportDiagnostics?,
 ): String {
     val executionText =
         localExecutionId
             ?.takeIf { it.isNotBlank() }
             ?.let { " for local execution $it" }
             .orEmpty()
-    return "Responses submission state is unknown$executionText: " +
+    val diagnosticText =
+        transportDiagnostics
+            ?.let { " [${it.diagnosticCode}, stage=${it.stage.name}]" }
+            .orEmpty()
+    return "Responses submission state is unknown$executionText$diagnosticText: " +
         (cause.message?.take(512) ?: "transport failure")
 }
 

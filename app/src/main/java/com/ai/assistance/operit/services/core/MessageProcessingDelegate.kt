@@ -26,8 +26,11 @@ import com.ai.assistance.operit.util.stream.SharedStream
 import com.ai.assistance.operit.util.stream.TextStreamEventCarrier
 import com.ai.assistance.operit.util.stream.TextStreamEventType
 import com.ai.assistance.operit.util.stream.TextStreamRevisionTracker
+import com.ai.assistance.operit.util.stream.SecondaryStreamObservation
+import com.ai.assistance.operit.util.stream.claimPrimaryMessageFailureOwner
 import com.ai.assistance.operit.util.stream.collectForMessageFailureOwner
 import com.ai.assistance.operit.util.stream.observeSecondaryStream
+import com.ai.assistance.operit.util.stream.snapshotMessageFailure
 import com.ai.assistance.operit.util.TtsSegmenter
 import com.ai.assistance.operit.util.WaifuMessageProcessor
 import com.ai.assistance.operit.data.preferences.ApiPreferences
@@ -324,6 +327,7 @@ class MessageProcessingDelegate(
         var terminalOutcome: String = "unknown"
         var terminalCancellationSource: AssistantTurnCancellationSource? = null
         var providerRequestContextPresent: Boolean = false
+        var terminalFailure: Throwable? = null
 
         fun visibleContentLength(): Int {
             return if (this::aiMessage.isInitialized) aiMessage.content.length else 0
@@ -1059,11 +1063,32 @@ class MessageProcessingDelegate(
                 )
                 AppLogger.d(
                     TAG,
-                    "turn terminal: outcome=${state.terminalOutcome}, " +
-                        "cancellationSource=${state.terminalCancellationSource}, " +
-                        "chunks=${state.receivedChunkCount}, visibleChars=${state.visibleContentLength()}, " +
-                        "provider=${state.provider}, model=${state.modelName}, " +
-                        "providerRequestContextPresent=${state.providerRequestContextPresent}"
+                    buildString {
+                        append("turn terminal: outcome=${state.terminalOutcome}, ")
+                        append("cancellationSource=${state.terminalCancellationSource}, ")
+                        append("chunks=${state.receivedChunkCount}, ")
+                        append("visibleChars=${state.visibleContentLength()}, ")
+                        state.terminalFailure?.let { failure ->
+                            val diagnostics =
+                                snapshotMessageFailure(
+                                    failure = failure,
+                                    phase = "message_owner",
+                                )
+                            append("diagnosticCode=${diagnostics.diagnosticCode}, ")
+                            append("failurePhase=${diagnostics.phase}, ")
+                            append("executionRef=${diagnostics.executionRef}, ")
+                            append("observerCount=${diagnostics.secondaryObserverCount}, ")
+                            append(
+                                "propagationBoundaryCount=" +
+                                    "${diagnostics.propagationBoundaryCount}, "
+                            )
+                        }
+                        append("provider=${state.provider}, model=${state.modelName}, ")
+                        append(
+                            "providerRequestContextPresent=" +
+                                state.providerRequestContextPresent
+                        )
+                    }
                 )
                 val currentJob = coroutineContext[Job]
                 if (currentJob != null && state.chatRuntime.sendJob === currentJob) {
@@ -1620,16 +1645,26 @@ class MessageProcessingDelegate(
             val autoReadJob =
                 autoReadStream?.let { stream ->
                     launch {
+                        var observedChars = 0
                         observeSecondaryStream(
-                            onFailure = { failure ->
+                            observation = {
+                                SecondaryStreamObservation(
+                                    observerName = "auto_read",
+                                    phase = "secondary_auto_read",
+                                    terminalOutcome = "main_stream_failure",
+                                    chunks = observedChars,
+                                    visibleChars = observedChars,
+                                )
+                            },
+                            onFailure = { secondaryFailure ->
                                 AppLogger.w(
                                     TAG,
-                                    "自动朗读流观察结束，主消息流负责处理终止原因",
-                                    failure,
+                                    secondaryFailure.format(),
                                 )
                             }
                         ) {
                             stream.collect { char ->
+                                observedChars += 1
                                 autoReadBuffer.append(char)
                                 tryFlushAutoRead()
                             }
@@ -1639,12 +1674,22 @@ class MessageProcessingDelegate(
             val waifuSegmentsJob =
                 if (state.isWaifuModeEnabled) {
                     launch {
+                        var observedSegments = 0
+                        var observedChars = 0
                         observeSecondaryStream(
-                            onFailure = { failure ->
+                            observation = {
+                                SecondaryStreamObservation(
+                                    observerName = "waifu_segments",
+                                    phase = "secondary_waifu_segments",
+                                    terminalOutcome = "main_stream_failure",
+                                    chunks = observedSegments,
+                                    visibleChars = observedChars,
+                                )
+                            },
+                            onFailure = { secondaryFailure ->
                                 AppLogger.w(
                                     TAG,
-                                    "Waifu 分段流观察结束，主消息流负责处理终止原因",
-                                    failure,
+                                    secondaryFailure.format(),
                                 )
                             }
                         ) {
@@ -1653,6 +1698,8 @@ class MessageProcessingDelegate(
                                 removePunctuation = state.waifuRemovePunctuation,
                                 charDelayMs = state.waifuCharDelay
                             ).collect { segment ->
+                                observedSegments += 1
+                                observedChars += segment.length
                                 emitWaifuSegment(state, segment)
                             }
                         }
@@ -1664,20 +1711,33 @@ class MessageProcessingDelegate(
             val revisionJob =
                 revisableStream?.let { carrier ->
                     launch {
+                        var observedEvents = 0
+                        var observedVisibleChars = 0
                         observeSecondaryStream(
-                            onFailure = { failure ->
+                            observation = {
+                                SecondaryStreamObservation(
+                                    observerName = "revision_events",
+                                    phase = "secondary_revision_events",
+                                    terminalOutcome = "main_stream_failure",
+                                    chunks = observedEvents,
+                                    visibleChars = observedVisibleChars,
+                                )
+                            },
+                            onFailure = { secondaryFailure ->
                                 AppLogger.w(
                                     TAG,
-                                    "消息修订事件观察结束，主消息流继续持有发送结果",
-                                    failure,
+                                    secondaryFailure.format(),
                                 )
                             }
                         ) {
                             carrier.eventChannel.collect { event ->
+                                observedEvents += 1
                                 when (event.eventType) {
                                     TextStreamEventType.SAVEPOINT -> {
                                         revisionMutex.withLock {
                                             revisionTracker.savepoint(event.id)
+                                            observedVisibleChars =
+                                                revisionTracker.currentContent().length
                                         }
                                     }
 
@@ -1689,6 +1749,7 @@ class MessageProcessingDelegate(
                                                 }
                                             } ?: return@collect
                                         val (snapshot, shouldPersist) = rollbackResult
+                                        observedVisibleChars = snapshot.length
 
                                         state.aiMessage.content = snapshot
 
@@ -1884,12 +1945,20 @@ class MessageProcessingDelegate(
         state.terminalOutcome = terminal.terminalOutcome
         state.finalInputStateAfterSend = terminal.finalInputState
         state.shouldNotifyTurnComplete = terminal.shouldNotifyTurnComplete
-        AppLogger.e(
-            TAG,
+        state.terminalFailure = error
+        val ownerClaim =
+            claimPrimaryMessageFailureOwner(
+                failure = error,
+                phase = "message_owner",
+            )
+        val ownerMessage =
             "发送消息时出错: outcome=${terminal.terminalOutcome}, " +
-                "diagnosticCode=${failureKind.diagnosticCode ?: "provider_exception"}",
-            error,
-        )
+                ownerClaim.diagnostics.format()
+        if (ownerClaim.shouldLogCause) {
+            AppLogger.e(TAG, ownerMessage, error)
+        } else {
+            AppLogger.e(TAG, ownerMessage)
+        }
         // 清理前后都由消息最终 owner 持有 Error。原 Job 若已被上游取消，普通挂起提交可能不会
         // 执行，最终 UI 就会再次只看到 Idle，因此这里只提交终态和用户提示。
         withContext(NonCancellable) {

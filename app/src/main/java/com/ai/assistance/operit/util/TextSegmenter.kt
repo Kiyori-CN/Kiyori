@@ -14,6 +14,8 @@ object TextSegmenter {
     private const val TAG = "TextSegmenter"
     private const val PREWARM_TEXT = "搜索记忆 分词预热"
 
+    internal val diagnostics = TextSegmenterDiagnostics()
+
     // 使用延迟初始化，避免不必要的资源消耗
     private val segmenter by lazy { JiebaSegmenter() }
 
@@ -37,12 +39,23 @@ object TextSegmenter {
      */
     @Suppress("UNUSED_PARAMETER")
     fun initialize(context: Context, customDictPath: String? = null) {
-        if (baseInitialized && customDictPath.isNullOrBlank()) return
+        val initializationStartNanos = diagnostics.recordInitializeInvocation()
+        if (baseInitialized && customDictPath.isNullOrBlank()) {
+            diagnostics.recordInitializationCompleted(
+                invocationStartNanos = initializationStartNanos,
+                threadName = Thread.currentThread().name,
+            )
+            return
+        }
 
-        val startTime = System.currentTimeMillis()
         try {
             synchronized(initLock) {
+                diagnostics.recordInitializationLockAcquired(initializationStartNanos)
+                val dictionaryStartNanos = System.nanoTime()
                 val dictionary = WordDictionary.getInstance()
+                diagnostics.recordDictionaryLookup(
+                    System.nanoTime() - dictionaryStartNanos
+                )
 
                 // 如果提供了自定义词典，加载它
                 customDictPath
@@ -51,11 +64,24 @@ object TextSegmenter {
 
                 if (!baseInitialized) {
                     // 通过一次真实分词触发 Jieba 词典加载，避免首个搜索请求卡顿。
+                    val prewarmStartNanos = System.nanoTime()
                     segmenter.process(PREWARM_TEXT, JiebaSegmenter.SegMode.SEARCH)
+                    diagnostics.recordPrewarmCompleted(
+                        System.nanoTime() - prewarmStartNanos
+                    )
                     baseInitialized = true
+                    diagnostics.recordInitializationCompleted(
+                        invocationStartNanos = initializationStartNanos,
+                        threadName = Thread.currentThread().name,
+                    )
                     AppLogger.d(
                         TAG,
-                        "分词器预热完成 - ${System.currentTimeMillis() - startTime}ms"
+                        "分词器预热完成 - ${diagnostics.snapshot().summary()}"
+                    )
+                } else {
+                    diagnostics.recordInitializationCompleted(
+                        invocationStartNanos = initializationStartNanos,
+                        threadName = Thread.currentThread().name,
                     )
                 }
             }
@@ -91,10 +117,19 @@ object TextSegmenter {
         }
         
         try {
+            val searchStartNanos = diagnostics.recordSearchStarted()
             // 使用结巴分词器进行分词
-            val result = segmenter.process(text, JiebaSegmenter.SegMode.SEARCH)
-                .map { it.word }
-                .filter { it.length > 1 } // 过滤掉单字（通常噪音较多）
+            val result =
+                try {
+                    segmenter.process(text, JiebaSegmenter.SegMode.SEARCH)
+                        .map { it.word }
+                        .filter { it.length > 1 } // 过滤掉单字（通常噪音较多）
+                } finally {
+                    diagnostics.recordSearchCompleted(
+                        searchStartNanos = searchStartNanos,
+                        threadName = Thread.currentThread().name,
+                    )
+                }
             
             // 缓存结果（控制缓存大小）
             if (useCached) {

@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.stream.MutableSharedStream
+import com.ai.assistance.operit.util.stream.SecondaryStreamObservation
 import com.ai.assistance.operit.util.stream.Stream
 import com.ai.assistance.operit.util.stream.TextStreamEventCarrier
 import com.ai.assistance.operit.util.stream.TextStreamEventType
@@ -32,13 +33,23 @@ fun rememberRevisableTextStream(sourceStream: Stream<String>?): Stream<String>? 
         val stateMutex = Mutex()
         var currentDisplayStream = MutableSharedStream<String>(replay = Int.MAX_VALUE)
         displayStream = currentDisplayStream
+        var observedChunks = 0
+        var observedVisibleChars = 0
 
         observeSecondaryStream(
-            onFailure = { failure ->
+            observation = {
+                SecondaryStreamObservation(
+                    observerName = "revisable_text_ui",
+                    phase = "secondary_ui_revision",
+                    terminalOutcome = "main_stream_failure",
+                    chunks = observedChunks,
+                    visibleChars = observedVisibleChars,
+                )
+            },
+            onFailure = { secondaryFailure ->
                 AppLogger.w(
                     "RevisableTextStream",
-                    "可修订文本观察流终止，消息层负责展示发送错误",
-                    failure,
+                    secondaryFailure.format(),
                 )
             }
         ) {
@@ -73,6 +84,8 @@ fun rememberRevisableTextStream(sourceStream: Stream<String>?): Stream<String>? 
 
                 try {
                     sourceStream.collect { chunk ->
+                        observedChunks += 1
+                        observedVisibleChars += chunk.length
                         val activeDisplayStream =
                             stateMutex.withLock {
                                 tracker.append(chunk)

@@ -107,27 +107,14 @@ class ClaudeProvider(
     }
 
     private fun logLargeString(tag: String, message: String, prefix: String = "") {
-        val maxLogSize = 3000
-        if (message.length > maxLogSize) {
-            val chunkCount = message.length / maxLogSize + 1
-            for (i in 0 until chunkCount) {
-                val start = i * maxLogSize
-                val end = minOf((i + 1) * maxLogSize, message.length)
-                val chunkMessage = message.substring(start, end)
-                AppLogger.d(tag, "$prefix Part ${i + 1}/$chunkCount: $chunkMessage")
-            }
-        } else {
-            AppLogger.d(tag, "$prefix$message")
-        }
+        AppLogger.d(
+            tag,
+            "${prefix.trimEnd()} ${LlmLogPrivacy.summarizeText(message).format()}",
+        )
     }
 
     private fun logFinalOutput(content: CharSequence, prefix: String = "Claude final output: ") {
-        val finalOutput = content.toString()
-        if (finalOutput.isBlank()) {
-            AppLogger.d("AIService", "${prefix.trimEnd()}[empty]")
-            return
-        }
-        logLargeString("AIService", finalOutput, prefix)
+        logLargeString("AIService", content.toString(), prefix)
     }
 
     // 取消当前流式传输
@@ -506,49 +493,6 @@ class ClaudeProvider(
         for (index in 0 until blocks.length()) {
             target.put(blocks.get(index))
         }
-    }
-
-    private fun sanitizeImageDataForLogging(json: JSONObject): JSONObject {
-        fun sanitizeObject(obj: JSONObject) {
-            fun sanitizeArray(arr: JSONArray) {
-                for (index in 0 until arr.length()) {
-                    when (val value = arr.get(index)) {
-                        is JSONObject -> sanitizeObject(value)
-                        is JSONArray -> sanitizeArray(value)
-                        is String -> {
-                            if (value.startsWith("data:") && value.contains(";base64,")) {
-                                arr.put(index, "[image base64 omitted, length=${value.length}]")
-                            }
-                        }
-                    }
-                }
-            }
-
-            val mediaType = obj.optString("media_type", obj.optString("mime_type", ""))
-            if (mediaType.startsWith("image/", ignoreCase = true) && obj.has("data")) {
-                val dataValue = obj.opt("data")
-                if (dataValue is String) {
-                    obj.put("data", "[image base64 omitted, length=${dataValue.length}]")
-                }
-            }
-
-            val keys = obj.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                when (val value = obj.get(key)) {
-                    is JSONObject -> sanitizeObject(value)
-                    is JSONArray -> sanitizeArray(value)
-                    is String -> {
-                        if (value.startsWith("data:") && value.contains(";base64,")) {
-                            obj.put(key, "[image base64 omitted, length=${value.length}]")
-                        }
-                    }
-                }
-            }
-        }
-
-        sanitizeObject(json)
-        return json
     }
 
     private data class ClaudeSerializedHistory(
@@ -1087,14 +1031,6 @@ class ClaudeProvider(
             }
         }
 
-        // 日志输出时省略过长的tools字段
-        val logJson = JSONObject(jsonObject.toString())
-        if (logJson.has("tools")) {
-            val toolsArray = logJson.getJSONArray("tools")
-            logJson.put("tools", "[${toolsArray.length()} tools omitted for brevity]")
-        }
-        sanitizeImageDataForLogging(logJson)
-        AppLogger.d("AIService", "Claude请求体: ${logJson.toString(4)}")
         return jsonObject.toString().toByteArray(Charsets.UTF_8).toRequestBody(JSON)
     }
 
@@ -1331,6 +1267,10 @@ class ClaudeProvider(
         val request = builder.build()
         AppLogger.d("AIService", "Claude请求URL: ${HttpLogSanitizer.urlForLog(request.url)}")
         AppLogger.d("AIService", "Claude请求头: \n${HttpLogSanitizer.headersForLog(request.headers)}")
+        AppLogger.d(
+            "AIService",
+            "Claude request summary: ${LlmLogPrivacy.summarizeRequestBody(requestBody).format()}",
+        )
         return request
     }
 
@@ -1528,14 +1468,25 @@ class ClaudeProvider(
                     try {
                         if (!response.isSuccessful) {
                             val errorBody = response.body?.string() ?: context.getString(R.string.openai_error_no_error_details)
+                            val errorSummary = LlmLogPrivacy.summarizeProviderError(errorBody)
                             // 4xx错误仍保留单独的异常类型，具体是否重试由统一策略决定
                             if (response.code in 400..499) {
                                 throw NonRetriableException(
-                                    context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody),
-                                    statusCode = response.code
+                                    context.getString(
+                                        R.string.openai_error_api_request_failed_with_status,
+                                        response.code,
+                                        errorSummary.exceptionDetail(),
+                                    ),
+                                    statusCode = response.code,
                                 )
                             }
-                            throw IOException(context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody))
+                            throw IOException(
+                                context.getString(
+                                    R.string.openai_error_api_request_failed_with_status,
+                                    response.code,
+                                    errorSummary.exceptionDetail(),
+                                ),
+                            )
                         }
 
                         AppLogger.d("AIService", "连接成功，等待响应...")
@@ -1861,7 +1812,8 @@ class ClaudeProvider(
                             val buffered = nonSseJsonLinesBuffer.toString().trim()
                             AppLogger.w(
                                 "AIService",
-                                "Claude流式返回疑似JSON/JSONL(无data:前缀)，尝试回退解析。preview=${buffered.take(200)}"
+                                "Claude流式返回疑似JSON/JSONL(无data:前缀)，尝试回退解析。"
+                                    + " ${LlmLogPrivacy.summarizeText(buffered).format()}",
                             )
 
                             // 先尝试整体当成一个JSON对象解析
@@ -1914,7 +1866,11 @@ class ClaudeProvider(
                         }
 
                         if (!emittedAny && previewTrim.isNotEmpty() && looksLikeJson) {
-                            AppLogger.w("AIService", "Claude流式响应未解析到任何内容，可能不是SSE，preview=${previewTrim.take(200)}")
+                            AppLogger.w(
+                                "AIService",
+                                "Claude流式响应未解析到任何内容，可能不是SSE。"
+                                    + " ${LlmLogPrivacy.summarizeText(previewTrim).format()}",
+                            )
                         }
                     } finally {
                         response.close()

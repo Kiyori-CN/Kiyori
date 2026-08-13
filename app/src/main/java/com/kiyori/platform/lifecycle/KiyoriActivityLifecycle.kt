@@ -35,9 +35,12 @@ internal class KiyoriActivityLifecycleFacts {
     private var currentActivity: WeakReference<Activity>? = null
     private var activityCount = 0
     private var startedActivityCount = 0
+    @Volatile
     private var isAppInForeground = false
 
     fun getCurrentActivity(): Activity? = currentActivity?.get()
+
+    fun isAppInForeground(): Boolean = isAppInForeground
 
     fun onActivityCreated(): Int {
         activityCount += 1
@@ -99,6 +102,8 @@ object KiyoriActivityLifecycle : Application.ActivityLifecycleCallbacks {
     }
 
     fun getCurrentActivity(): Activity? = facts.getCurrentActivity()
+
+    fun isAppInForeground(): Boolean = facts.isAppInForeground()
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
         observer.onActivityCreated(activity, facts.onActivityCreated())

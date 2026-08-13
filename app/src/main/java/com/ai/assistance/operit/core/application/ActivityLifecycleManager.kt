@@ -30,6 +30,8 @@ object ActivityLifecycleManager : Application.ActivityLifecycleCallbacks {
      */
     fun getCurrentActivity(): Activity? = KiyoriActivityLifecycle.getCurrentActivity()
 
+    fun isAppInForeground(): Boolean = KiyoriActivityLifecycle.isAppInForeground()
+
     fun checkAndApplyKeepScreenOn(enable: Boolean) {
         OperitActivityLifecycleIntegration.checkAndApplyKeepScreenOn(enable)
     }

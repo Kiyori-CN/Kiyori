@@ -175,6 +175,53 @@ NO_COMMIT
 NO_PUSH
 ```
 
+W1–W6 本地实现已经在当前 dirty worktree 中完成，专项状态更新为：
+
+```text
+LOCAL_IMPLEMENTATION_COMPLETE
+REMOTE_RELAY_PENDING
+DEVICE_PENDING
+USER_ACCEPTANCE_PENDING
+NO_COMMIT
+NO_PUSH
+```
+
+本轮新增的本地证据包括：
+
+- W1/W2 传输与隐私定向矩阵 `14/14`
+- W3 错误所有权与传播定向测试 `10/10`
+- W4 取消语义与关联流测试已通过
+- W5 绑定状态机测试 `10/10`，并通过 `compileDebugKotlin`
+- W6 ANR/TextSegmenter 观测、Activity 生命周期事实、W3/W5 综合定向矩阵通过
+- `git diff --check` 无 whitespace error
+
+W6 只增加观测字段，没有根据单条 `510ms` 或 `4715ms` 日志改变阈值、调度器、预热时机或
+引入第二套分词器。
+
+日志专项 W1–W6 的最终本地收尾证据如下：
+
+- 定向 JVM 矩阵共 `51/51`，失败、错误和跳过均为 `0`
+- `check_formal_readiness.py --require-main`：`Formal development readiness: PASS`
+- `git diff --check`：无 whitespace error，仅有既有 CRLF 转换警告
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`，
+  `238` 个任务中 `25` 个执行、`213` 个为最新状态；`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- 最终 Debug APK：
+  `app/build/outputs/apk/debug/app-debug.apk`，观察时间 `2026-08-13 03:56:14 +08:00`，
+  `472480557` bytes，SHA-256
+  `D57921CB207114643FBBC6428E8ED3457930514FF264CB571A9A67239DD7192D`
+- APK 为 `com.kiyori / 0.1.0 (45)`，min/target/compile SDK `26 / 34 / 37`，唯一
+  `MainActivity` launcher，仅 `arm64-v8a`；51 个 `.so` 无重复 basename，另有
+  `assets/operit_shell_exec`，共 52 个 AArch64 ELF，所有 `PT_LOAD >= 0x4000`
+- Android Debug V2 单 signer 和 16 KB ZIP 对齐通过
+- 内置 `openai_web_search.toolpkg` 为 `9864` bytes，SHA-256
+  `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`，与 APK 内条目逐字节一致
+- APK 与 ToolPkg 敏感形状扫描为 `0`：Bearer credential、`sk-*`、长 API key assignment、私钥块、
+  cookie credential
+
+这组证据只关闭本地 W7 门禁。relay 连接中止根因、Pixel/OEM provider、启动性能时间线、
+TextSegmenter 真实资源竞争和用户可见行为仍保持待验证，不能由本地构建结果替代。
+
 ## 6. 当前实施状态
 
 revision `5` 已在 revision `4` 本地实现基础上完成：

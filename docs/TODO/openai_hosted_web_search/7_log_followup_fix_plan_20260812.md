@@ -1,9 +1,14 @@
 ---
-status: ready_for_followup_implementation
-implementation: not_started
-source_changes: none
+status: local_implementation_complete
+implementation: W1_complete_W2_complete_W3_complete_W4_complete_W5_complete_W6_observation_complete
+source_changes: W1_transport_diagnostics_W2_log_privacy_W3_failure_ownership_W4_cancellation_W5_binding_contract_W6_startup_observation
 based_on: 6_log_deep_analysis_20260812.md
 plan_date: 2026-08-12
+local_verification_date: 2026-08-13
+final_local_verification_observed_at: 2026-08-13T03:56:14+08:00
+remote_relay_verification: pending
+device_verification: pending
+user_acceptance: pending
 ---
 # 2026-08-12 日志驱动后续修复计划
 
@@ -51,6 +56,122 @@ plan_date: 2026-08-12
 
 每个工作包都必须满足“代码差异、测试、日志证据和未验证边界”四项闭环；任何一项缺失都只能
 报告为部分完成或待验证。
+
+## 2.1 当前实施快照
+
+本计划已经从“待实施”进入“本地实现完成、现场验证待执行”状态。W1–W6 的实现和定向验证均
+已写入当前 dirty worktree，基线仍为 `main` / `3528f7d9`，本轮不提交、不推送。
+
+已完成的本地工作包：
+
+- `[DONE] W1`：Responses 传输阶段诊断、请求体字节数、协议/TLS/连接复用和未知提交状态快照；
+  保持 at-most-once，不新增第二个 POST
+- `[DONE] W2`：API Key 前后缀、完整 prompt、完整 request/response 原文和 provider 敏感日志收口；
+  统一使用结构化摘要与受控错误摘要
+- `[DONE] W3`：消息失败主 owner、次级 observer 摘要和显式
+  `localExecutionId + diagnosticCode + phase` 归并合同；不同阶段隔离
+- `[DONE] W4`：`CancellationException` 保持取消语义，服务销毁取消不再进入业务 ERROR 回调
+- `[DONE] W5`：`UIHierarchyManager` 单一 applicationContext owner、绑定状态机、精确登记清理
+  和失败分类
+- `[DONE] W6`：ANR 启动/首帧/用户操作阶段与连续延迟观测；TextSegmenter 预热、队列等待、
+  线程和首次真实搜索观测；未改变阈值、调度器或预热时机
+
+当前仍未完成的工作：
+
+- relay 具体连接中止根因仍未知
+- Pixel/其他设备上的现场矩阵仍未执行
+- 用户可见 UIHierarchy provider 状态、启动性能和 TextSegmenter 时间线仍待设备验收
+
+本地 Debug APK 最终构建与静态产物审计已经完成，以下 W7 证据只覆盖本地实现和静态制品，
+不替代 relay、设备或用户验收。
+
+## 2.2 W7：最终本地验证与制品审计证据
+
+本节中的构建宿主观察时间为 `2026-08-13 03:56:14 +08:00`。它是跨越创建日后的事件时钟证据，
+不改变本任务以 `2026-08-12` 为相对日期依据的日记归档约束。
+
+### 定向测试矩阵
+
+最终 `:app:testDebugUnitTest` 定向矩阵共 `51` 个测试，失败、错误和跳过均为 `0`：
+
+| 测试类 | 通过数 |
+| --- | ---: |
+| `AIForegroundServiceCancellationTest` | 2/2 |
+| `ApiKeyProviderLogPrivacyTest` | 2/2 |
+| `LlmLogPrivacyTest` | 5/5 |
+| `LlmTransportDiagnosticsTest` | 4/4 |
+| `OpenAIResponsesSubmissionFaultInjectionTest` | 3/3 |
+| `UIHierarchyBindingSessionTest` | 10/10 |
+| `MessageProcessingDelegateTest` | 3/3 |
+| `AnrMonitorObservationTest` | 3/3 |
+| `TextSegmenterDiagnosticsTest` | 2/2 |
+| `HotStreamFailurePropagationTest` | 10/10 |
+| `NativeMarkdownSplitterTest` | 3/3 |
+| `KiyoriActivityLifecycleFactsTest` | 4/4 |
+| **合计** | **51/51** |
+
+验证覆盖了 Responses 传输阶段和未知提交状态、请求日志隐私、错误 owner 归并、服务取消、
+UIHierarchy 绑定状态、ANR/TextSegmenter 观测及生命周期事实。故障注入用例确认 response-header
+前失败不会产生第二个 POST。
+
+### 工程门禁与 Debug 构建
+
+已执行并通过：
+
+```text
+.\.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main
+Formal development readiness: PASS
+
+git diff --check
+无 whitespace error；仅有既有 CRLF 转换警告
+
+	.\gradlew.bat :app:assembleDebug --no-daemon --console=plain
+BUILD SUCCESSFUL
+238 actionable tasks；25 executed；213 up-to-date
+verifySingleDebugLauncher: passed
+verifyDebugPlayerRuntimePackaging: passed
+```
+
+最终 Debug APK：
+
+```text
+path:
+D:\10_Project\Kiyori\app\build\outputs\apk\debug\app-debug.apk
+
+generated:
+2026-08-13 03:56:14 +08:00
+
+size:
+472480557 bytes
+
+SHA-256:
+D57921CB207114643FBBC6428E8ED3457930514FF264CB571A9A67239DD7192D
+```
+
+APK 元数据与静态审计：
+
+- `applicationId=com.kiyori`
+- `versionCode=45`，`versionName=0.1.0`
+- `minSdk=26`，`targetSdk=34`，`compileSdk=37`
+- 唯一 launcher：`com.ai.assistance.operit.ui.main.MainActivity`
+- native ABI：仅 `arm64-v8a`
+- `.so` 数量 `51`，重复 basename `0`
+- Android Debug 签名：V2 `true`、V1 `false`、V3 `false`，单 signer，证书为 Android Debug
+- `zipalign -c -P 16 -v 4`：`Verification successful`
+- ELF 审计：`51` 个 `.so` 加 `assets/operit_shell_exec` 共 `52` 个 AArch64 ELF；
+  `PT_LOAD` 共 `160` 个，最小对齐 `0x4000`，低于 `0x4000` 的 segment 为 `0`
+
+内置 ToolPkg 与敏感制品扫描：
+
+- `assets/packages/openai_web_search.toolpkg`：`9864` bytes
+- ToolPkg SHA-256：
+  `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`
+- APK 内 ToolPkg 与生成制品逐字节一致
+- `Authorization Bearer`、`sk-* credential shape`、长 API key assignment、private key block、
+  cookie credential shape：全部为 `0`
+
+因此 W7 的本地验收状态为 `PASS`。该状态只证明当前 dirty worktree 的本地实现、测试、准备
+检查和 Debug 静态制品满足本轮门禁，不证明 relay 已修复、设备行为正确或用户已经验收。
 
 ## 3. W0：准备与保护边界
 
@@ -321,12 +442,8 @@ UNBOUND
 - process lifecycle state
 - 是否在首帧前后
 
-审计 `reportSlowResponse()` 的全仓生产和测试调用。如果确认没有有效调用方：
-
-- 评估删除该过时接口及其独立统计路径
-- 或把它接入与 watchdog 相同的唯一事件 owner
-
-不能同时保留两个互不一致的警告统计来源。
+`reportSlowResponse()` 的全仓生产和测试引用审计结果为 0 个有效调用方。该接口及其独立统计
+路径已删除，所有延迟样本统一由 watchdog 采样路径记录，避免保留两个互不一致的警告统计来源。
 
 ### 9.2 TextSegmenter
 
@@ -447,4 +564,14 @@ UNBOUND
 - `REMOTE_DEVICE_PENDING`：relay/设备现场未完成
 - `COMPLETE`：本地实现、必要现场矩阵和用户验收全部完成
 
-本计划当前状态为 `LOCAL_ANALYSIS_COMPLETE`，下一步入口是 W1，不是已完成修复。
+本计划当前状态为：
+
+```text
+LOCAL_IMPLEMENTATION_COMPLETE
+REMOTE_RELAY_PENDING
+DEVICE_PENDING
+USER_ACCEPTANCE_PENDING
+```
+
+本地实现完成不等于 relay 根因已修复，也不等于设备或用户验收完成。下一步入口是最终本地
+门禁与 APK 审计；现场矩阵必须在用户明确授权可能产生费用的真实请求和设备操作后执行。

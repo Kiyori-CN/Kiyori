@@ -68,28 +68,11 @@ class LlamaProvider(
     }
 
     private fun logLargeString(prefix: String, message: String) {
-        val maxLogSize = 3000
-        if (message.length <= maxLogSize) {
-            AppLogger.d(TAG, "$prefix$message")
-            return
-        }
-
-        val chunkCount = (message.length + maxLogSize - 1) / maxLogSize
-        for (index in 0 until chunkCount) {
-            val start = index * maxLogSize
-            val end = minOf((index + 1) * maxLogSize, message.length)
-            val chunk = message.substring(start, end)
-            AppLogger.d(TAG, "$prefix Part ${index + 1}/$chunkCount: $chunk")
-        }
+        AppLogger.d(TAG, "$prefix${LlmLogPrivacy.summarizeText(message).format()}")
     }
 
     private fun logFinalOutput(content: CharSequence, prefix: String = "Final llama.cpp output: ") {
-        val finalOutput = content.toString()
-        if (finalOutput.isBlank()) {
-            AppLogger.d(TAG, "${prefix.trimEnd()}[empty]")
-            return
-        }
-        logLargeString(prefix, finalOutput)
+        logLargeString(prefix, content.toString())
     }
 
     override fun cancelStreaming() {
@@ -219,7 +202,10 @@ class LlamaProvider(
             return@stream
         }
 
-        logLargeString("Final prompt before llama generation: ", prompt)
+        AppLogger.d(
+            TAG,
+            "Final prompt summary: ${LlmLogPrivacy.summarizeText(prompt).format()}"
+        )
 
         val temperature = modelParameters
             .firstOrNull { it.id == "temperature" && it.isEnabled }

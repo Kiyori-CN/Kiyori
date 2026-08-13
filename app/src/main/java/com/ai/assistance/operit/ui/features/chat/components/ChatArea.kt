@@ -80,6 +80,7 @@ import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ChatMessageDisplayMode
 import com.ai.assistance.operit.data.model.ChatMessageLocatorPreview
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.stream.SecondaryStreamObservation
 import com.ai.assistance.operit.util.stream.observeSecondaryStream
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 
@@ -308,16 +309,28 @@ fun ChatArea(
         val stream = lastMessage?.contentStream
 
         if (!lastAiMessageHasStaticContent && shouldAwaitFirstChunk && stream != null) {
+            var observedChunks = 0
+            var observedVisibleChars = 0
             observeSecondaryStream(
-                onFailure = { failure ->
+                observation = {
+                    SecondaryStreamObservation(
+                        observerName = "chat_area_first_chunk",
+                        phase = "secondary_ui_first_chunk",
+                        terminalOutcome = "main_stream_failure",
+                        chunks = observedChunks,
+                        visibleChars = observedVisibleChars,
+                    )
+                },
+                onFailure = { secondaryFailure ->
                     AppLogger.w(
                         "ChatArea",
-                        "首包观察流终止，消息层负责展示发送错误",
-                        failure,
+                        secondaryFailure.format(),
                     )
                 }
             ) {
                 stream.collect { chunk ->
+                    observedChunks += 1
+                    observedVisibleChars += chunk.length
                     if (!hasLastAiMessageStartedStreaming && chunk.isNotEmpty()) {
                         hasLastAiMessageStartedStreaming = true
                     }

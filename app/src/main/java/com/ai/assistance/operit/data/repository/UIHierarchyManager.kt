@@ -21,18 +21,28 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
 import java.io.FileOutputStream
 import java.io.StringReader
-import kotlin.coroutines.resume
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+
+enum class UIHierarchyBindingState {
+    NOT_INSTALLED,
+    SERVICE_UNRESOLVED,
+    DISABLED,
+    NOT_EXPORTED_OR_PERMISSION_MISMATCH,
+    BIND_RETURNED_FALSE,
+    WAITING_FOR_CONNECTION,
+    CONNECTED,
+    TIMEOUT,
+    CONNECTION_FAILED,
+    UNBOUND,
+}
+
+internal fun uiHierarchyBindingOwner(context: Context): Context = context.applicationContext
 
 /**
  * UI层次结构管理器
@@ -57,29 +67,14 @@ object UIHierarchyManager {
     private val _isBound = MutableStateFlow(false)
     val isBound = _isBound.asStateFlow()
 
-    private val bindingMutex = Mutex()
+    private val _bindingState = MutableStateFlow(UIHierarchyBindingState.UNBOUND)
+    val bindingState = _bindingState.asStateFlow()
+
     private val installScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val bindingSessionLock = Any()
 
     @Volatile
-    private var connectionContinuation: ((Boolean) -> Unit)? = null
-
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            AppLogger.d(TAG, "无障碍服务提供者已连接")
-            accessibilityProvider = IAccessibilityProvider.Stub.asInterface(service)
-            _isBound.value = true
-            connectionContinuation?.invoke(true)
-            connectionContinuation = null
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            AppLogger.d(TAG, "无障碍服务提供者已断开")
-            accessibilityProvider = null
-            _isBound.value = false
-            connectionContinuation?.invoke(false)
-            connectionContinuation = null
-        }
-    }
+    private var bindingSession: UIHierarchyBindingSession<IAccessibilityProvider>? = null
 
     /**
      * 从应用内assets目录中提取无障碍服务提供者APK文件。
@@ -186,8 +181,10 @@ object UIHierarchyManager {
     fun isProviderAppInstalled(context: Context): Boolean {
         return try {
             context.packageManager.getPackageInfo(PROVIDER_PACKAGE_NAME, 0)
+                .also { AppLogger.d(TAG, "提供者应用已安装") }
             true
         } catch (e: PackageManager.NameNotFoundException) {
+            AppLogger.d(TAG, "提供者应用未安装")
             false
         }
     }
@@ -198,109 +195,155 @@ object UIHierarchyManager {
      * @return a boolean indicating if the binding was successful.
      */
     suspend fun bindToService(context: Context): Boolean {
-        return bindingMutex.withLock {
-            AppLogger.d(TAG, "bindToService invoked. Thread: ${Thread.currentThread().name}, Context: ${context.javaClass.name}")
-
-            // 只有在已完全绑定（bound且provider不为空）或者应用未安装的情况下才直接返回
-            // 如果 _isBound 为 true 但 provider 为 null，则认为是状态不一致，需要重新绑定
-            if ((_isBound.value && accessibilityProvider != null) || !isProviderAppInstalled(context)) {
-                if (!_isBound.value) AppLogger.w(TAG, "无法绑定：服务已绑定或提供者应用未安装")
-                return@withLock _isBound.value
-            }
-
-            val implicitIntent = Intent(PROVIDER_ACTION).setPackage(PROVIDER_PACKAGE_NAME)
-            val resolveInfo: ResolveInfo? = context.packageManager.resolveService(implicitIntent, PackageManager.MATCH_ALL)
-
-            if (resolveInfo == null) {
-                AppLogger.e(TAG, "无法解析服务: $PROVIDER_ACTION. 请确认提供者应用已正确安装。")
-                return@withLock false
-            }
-
-            AppLogger.d(TAG, "服务解析成功: ${resolveInfo.serviceInfo.packageName}/${resolveInfo.serviceInfo.name}")
-
-            val explicitIntent = Intent(PROVIDER_ACTION).apply {
-                component = ComponentName(resolveInfo.serviceInfo.packageName, resolveInfo.serviceInfo.name)
-                addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
-            }
-
-            val result = withTimeoutOrNull(BIND_SERVICE_TIMEOUT_MS) {
-                suspendCancellableCoroutine { continuation ->
-                    connectionContinuation = { success ->
-                        AppLogger.d(TAG, "connectionContinuation called with success=$success")
-                        if (continuation.isActive) {
-                            continuation.resume(success)
-                        }
-                    }
-                    try {
-                        AppLogger.d(TAG, "尝试使用 ApplicationContext 绑定...")
-                        var bound = context.applicationContext.bindService(explicitIntent, serviceConnection, Context.BIND_AUTO_CREATE)
-                        AppLogger.d(TAG, "ApplicationContext 绑定结果: $bound")
-
-                        if (!bound) {
-                            AppLogger.w(TAG, "ApplicationContext绑定失败，尝试使用原始Context (${context.javaClass.simpleName}) ...")
-                            bound = context.bindService(explicitIntent, serviceConnection, Context.BIND_AUTO_CREATE)
-                            AppLogger.d(TAG, "原始 Context 绑定结果: $bound")
-                        }
-
-                        if (!bound) {
-                            AppLogger.e(TAG, "bindService返回false，绑定失败。可能是权限问题或后台启动限制。")
-                            if (continuation.isActive) {
-                                continuation.resume(false)
-                            }
-                            connectionContinuation = null
-                        }
-                    } catch (e: SecurityException) {
-                        AppLogger.e(TAG, "绑定服务时出现安全异常", e)
-                        if (continuation.isActive) {
-                            continuation.resume(false)
-                        }
-                        connectionContinuation = null
-                    } catch (e: Exception) {
-                        AppLogger.e(TAG, "绑定服务时出现未知异常", e)
-                        if (continuation.isActive) {
-                            continuation.resume(false)
-                        }
-                        connectionContinuation = null
-                    }
-                }
-            }
-
-            if (result == null) {
-                AppLogger.e(TAG, "绑定服务超时 (${BIND_SERVICE_TIMEOUT_MS}ms). 无障碍服务提供者可能未响应或崩溃.")
-                connectionContinuation = null
-                _isBound.value = false
-                try {
-                    context.applicationContext.unbindService(serviceConnection)
-                } catch (e: Exception) {
-                    // Ignore
-                }
-                // 尝试解绑原始 context 以防万一
-                try {
-                    if (context != context.applicationContext) {
-                        context.unbindService(serviceConnection)
-                    }
-                } catch (e: Exception) {}
-                return@withLock false
-            }
-
-            AppLogger.d(TAG, "bindToService 成功完成")
-            result
-        }
+        return bindingSession(context).bind()
     }
 
     /**
      * 解绑服务
      */
     fun unbindFromService(context: Context) {
-        if (_isBound.value) {
-            try {
-                context.applicationContext.unbindService(serviceConnection)
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "解绑服务失败", e)
+        synchronized(bindingSessionLock) {
+            bindingSession
+        }?.unbind()
+    }
+
+    private fun bindingSession(context: Context): UIHierarchyBindingSession<IAccessibilityProvider> {
+        synchronized(bindingSessionLock) {
+            bindingSession?.let { return it }
+            val bindingContext = uiHierarchyBindingOwner(context)
+            return UIHierarchyBindingSession(
+                runtime = AndroidUIHierarchyBindingRuntime(bindingContext),
+                timeoutMs = BIND_SERVICE_TIMEOUT_MS,
+                logSink =
+                    UIHierarchyBindingLogSink { level, message, error ->
+                        when (level) {
+                            UIHierarchyBindingLogLevel.DEBUG ->
+                                if (error == null) {
+                                    AppLogger.d(TAG, message)
+                                } else {
+                                    AppLogger.d(TAG, message, error)
+                                }
+                            UIHierarchyBindingLogLevel.WARNING ->
+                                if (error == null) {
+                                    AppLogger.w(TAG, message)
+                                } else {
+                                    AppLogger.w(TAG, message, error)
+                                }
+                            UIHierarchyBindingLogLevel.ERROR ->
+                                if (error == null) {
+                                    AppLogger.e(TAG, message)
+                                } else {
+                                    AppLogger.e(TAG, message, error)
+                                }
+                        }
+                    },
+                onSnapshotChanged = { snapshot ->
+                    accessibilityProvider = snapshot.provider
+                    _isBound.value = snapshot.isBound
+                    _bindingState.value = snapshot.state
+                },
+            ).also { created ->
+                bindingSession = created
             }
-            _isBound.value = false
-            accessibilityProvider = null
-            AppLogger.d(TAG, "服务已解绑")
+        }
+    }
+
+    private class AndroidUIHierarchyBindingRuntime(
+        private val ownerContext: Context,
+    ) : UIHierarchyBindingRuntime<IAccessibilityProvider> {
+        override val ownerDescription: String
+            get() = ownerContext.javaClass.name
+
+        private var explicitIntent: Intent? = null
+        private var androidConnection: ServiceConnection? = null
+
+        override fun isProviderInstalled(): Boolean =
+            try {
+                ownerContext.packageManager.getPackageInfo(PROVIDER_PACKAGE_NAME, 0)
+                true
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            }
+
+        override fun resolveService(): UIHierarchyResolvedService? {
+            val resolveInfo: ResolveInfo =
+                ownerContext.packageManager.resolveService(
+                    Intent(PROVIDER_ACTION).setPackage(PROVIDER_PACKAGE_NAME),
+                    PackageManager.MATCH_ALL,
+                ) ?: return null
+            val serviceInfo = resolveInfo.serviceInfo
+            explicitIntent =
+                Intent(PROVIDER_ACTION).apply {
+                    component = ComponentName(serviceInfo.packageName, serviceInfo.name)
+                    addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+                }
+            return UIHierarchyResolvedService(
+                packageName = serviceInfo.packageName,
+                serviceName = serviceInfo.name,
+                enabled = serviceInfo.enabled,
+                exported = serviceInfo.exported,
+                permissionDeclared = serviceInfo.permission != null,
+            )
+        }
+
+        override fun bind(
+            connection: UIHierarchyServiceConnection<IAccessibilityProvider>,
+        ): Boolean {
+            val intent =
+                checkNotNull(explicitIntent) {
+                    "resolveService must complete before bind"
+                }
+            val platformConnection =
+                object : ServiceConnection {
+                    override fun onServiceConnected(
+                        name: ComponentName?,
+                        service: IBinder?,
+                    ) {
+                        connection.onConnected(
+                            service?.let { binder ->
+                                IAccessibilityProvider.Stub.asInterface(binder)
+                            }
+                        )
+                    }
+
+                    override fun onServiceDisconnected(name: ComponentName?) {
+                        connection.onDisconnected()
+                    }
+
+                    override fun onNullBinding(name: ComponentName?) {
+                        connection.onConnected(null)
+                    }
+
+                    override fun onBindingDied(name: ComponentName?) {
+                        connection.onDisconnected()
+                    }
+                }
+            androidConnection = platformConnection
+            return try {
+                ownerContext.bindService(
+                    intent,
+                    platformConnection,
+                    Context.BIND_AUTO_CREATE,
+                ).also { bound ->
+                    if (!bound) {
+                        androidConnection = null
+                    }
+                }
+            } catch (error: Exception) {
+                androidConnection = null
+                throw error
+            }
+        }
+
+        override fun unbind(
+            connection: UIHierarchyServiceConnection<IAccessibilityProvider>,
+        ) {
+            val platformConnection =
+                checkNotNull(androidConnection) {
+                    "bind must register a ServiceConnection before unbind"
+                }
+            androidConnection = null
+            ownerContext.unbindService(platformConnection)
         }
     }
 

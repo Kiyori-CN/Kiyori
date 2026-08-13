@@ -176,7 +176,10 @@ class ChatServiceCore(
                 chatHistoryDelegate.saveCurrentChat(inputTokens, outputTokens, windowSize)
             },
             showErrorMessage = { error ->
-                AppLogger.e(TAG, "错误: $error")
+                AppLogger.e(
+                    TAG,
+                    "消息错误已投影到 UI: messageChars=${error.length}"
+                )
                 // InputProcessingState.Error 驱动发送状态，主界面的 ErrorDialog 则观察这个共享
                 // UiStateDelegate。这里只写日志会让 Provider 失败结束加载，却永远没有可见诊断。
                 uiStateDelegate.showErrorMessage(error)

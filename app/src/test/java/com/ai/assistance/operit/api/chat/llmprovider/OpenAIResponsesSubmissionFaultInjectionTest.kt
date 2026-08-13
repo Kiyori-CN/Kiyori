@@ -28,6 +28,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -119,7 +122,16 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                         (failure as OpenAIResponsesSubmissionUnknownException).localExecutionId,
                     )
                     assertTrue(failure.message?.contains("502") == true)
-                    assertTrue(failure.cause?.message?.contains("502") == true)
+                    assertTrue(
+                        "Expected HTTP status in cause=${failure.cause?.message}",
+                        failure.cause?.message?.contains("502") == true,
+                    )
+                    assertEquals(
+                        "LLM_TRANSPORT_HTTP_STATUS_502",
+                        (failure as OpenAIResponsesSubmissionUnknownException)
+                            .transportDiagnostics
+                            ?.diagnosticCode,
+                    )
                     assertEquals(listOf("POST /v1/responses"), server.requests.toList())
 
                     val executionCaptor = argumentCaptor<ProviderExecutionEntity>()
@@ -160,6 +172,104 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         }
     }
 
+    @Test
+    fun responseHeaderAbort_postsOnceAndPersistsTransportDiagnostic() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(
+                    MockResponse()
+                        .setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST)
+                )
+                val repository = mock<ProviderExecutionRepository>()
+                val persistence =
+                    RepositoryOpenAIResponsesExecutionPersistence(repository)
+                val provider =
+                    FaultInjectionResponsesProvider(
+                        endpoint = server.url("/v1/responses").toString(),
+                        persistence = persistence,
+                    )
+                val requestContext =
+                    ProviderRequestContext(
+                        localExecutionId = "local-abort",
+                        chatId = "chat-abort",
+                        messageTimestamp = 2L,
+                        variantIndex = 0,
+                        hopOrdinal = 0,
+                    )
+
+                val failure =
+                    runCatching {
+                        provider.sendMessage(
+                            context = createContext(),
+                            chatHistory =
+                                listOf(
+                                    PromptTurn(
+                                        kind = PromptTurnKind.USER,
+                                        content = "trigger response header abort",
+                                    )
+                                ),
+                            modelParameters = emptyList(),
+                            enableThinking = true,
+                            stream = true,
+                            availableTools = null,
+                            preserveThinkInHistory = false,
+                            providerRequestContext = requestContext,
+                            onTokensUpdated = { _, _, _ -> },
+                            onNonFatalError = {},
+                            enableRetry = true,
+                        ).collect { error("response-header abort must not emit a visible chunk") }
+                    }.exceptionOrNull()
+
+                assertTrue(failure is OpenAIResponsesSubmissionUnknownException)
+                val unknown = failure as OpenAIResponsesSubmissionUnknownException
+                assertEquals(
+                    "Unexpected transport snapshot=${unknown.transportDiagnostics}",
+                    "LLM_TRANSPORT_RESPONSE_HEADERS_NOT_RECEIVED",
+                    unknown.transportDiagnostics?.diagnosticCode,
+                )
+                assertEquals(1, server.requestCount)
+
+                val executionCaptor = argumentCaptor<ProviderExecutionEntity>()
+                val messageStateCaptor = argumentCaptor<MessageProviderStateEntity>()
+                verify(repository).createExecution(
+                    executionCaptor.capture(),
+                    messageStateCaptor.capture(),
+                )
+                assertEquals(
+                    ProviderExecutionStatus.SUBMITTING.name,
+                    executionCaptor.firstValue.status,
+                )
+                assertEquals(
+                    "local-abort",
+                    executionCaptor.firstValue.localExecutionId,
+                )
+                assertEquals(
+                    ProviderExecutionStatus.SUBMITTING.name,
+                    messageStateCaptor.firstValue.status,
+                )
+
+                val errorCodeCaptor = argumentCaptor<String>()
+                val errorMessageCaptor = argumentCaptor<String>()
+                verify(repository).updateStatus(
+                    localExecutionId = eq("local-abort"),
+                    status = eq(ProviderExecutionStatus.SUBMISSION_UNKNOWN),
+                    lastErrorCode = errorCodeCaptor.capture(),
+                    lastErrorMessage = errorMessageCaptor.capture(),
+                    completedAt = isNull(),
+                    updatedAt = any(),
+                )
+                assertEquals("SUBMISSION_UNKNOWN", errorCodeCaptor.firstValue)
+                assertTrue(
+                    errorMessageCaptor.firstValue.contains(
+                        "LLM_TRANSPORT_RESPONSE_HEADERS_NOT_RECEIVED"
+                    )
+                )
+                verifyNoMoreInteractions(repository)
+            }
+        }
+    }
+
     private fun createContext(): Context {
         val context = mock<Context>()
         whenever(context.getString(any())).thenReturn("request cancelled")
@@ -187,6 +297,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                 .readTimeout(5, TimeUnit.SECONDS)
                 .writeTimeout(5, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(false)
+                .eventListenerFactory(LlmNetworkEventListenerFactory.silent())
                 .build(),
         providerType = ApiProviderType.OPENAI_RESPONSES,
     ) {

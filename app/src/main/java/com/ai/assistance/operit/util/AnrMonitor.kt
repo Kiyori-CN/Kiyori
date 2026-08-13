@@ -1,13 +1,10 @@
 package com.ai.assistance.operit.util
 
 import android.content.Context
-import android.os.Debug
 import android.os.Handler
 import android.os.Looper
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.R
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,9 +13,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
-import java.io.StringWriter
-import java.io.PrintWriter
-import java.lang.reflect.Field
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -27,7 +21,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -61,10 +54,7 @@ class AnrMonitor(
     // 后备方案：如果协程有问题，使用ScheduledExecutorService
     private var scheduledExecutor: ScheduledExecutorService? = null
     
-    // 记录ANR次数和严重程度
-    private val anrCount = AtomicInteger(0)
-    private val warningCount = AtomicInteger(0)
-    private val maxBlockDuration = AtomicLong(0)
+    private val observationState = AnrMonitorObservationState()
     
     // 堆栈跟踪历史
     private val stackTraces = mutableListOf<Pair<Long, String>>()
@@ -144,13 +134,24 @@ class AnrMonitor(
         if (!running.getAndSet(false)) {
             return
         }
-        
-        AppLogger.d(tag, "停止ANR监控器，监控结果：ANR次数=${anrCount.get()}, 警告次数=${warningCount.get()}, 最长阻塞时间=${maxBlockDuration.get()}ms")
+
+        val observation = observationState.snapshot()
+        AppLogger.d(
+            tag,
+            "停止ANR监控器，监控结果：" +
+                "phase=${observation.phase}, " +
+                "processLifecycleState=${observation.processLifecycleState}, " +
+                "firstFrameRendered=${observation.firstFrameRendered}, " +
+                "consecutiveDelayedSamples=${observation.consecutiveDelayedSamples}, " +
+                "totalWarningCount=${observation.totalWarningCount}, " +
+                "totalAnrCount=${observation.totalAnrCount}, " +
+                "maxBlockDuration=${observation.maxBlockDurationMs}ms",
+        )
         monitoringJob?.cancel()
         scheduledExecutor?.shutdown()
         
         // 如果有记录到ANR，保存报告
-        if (anrCount.get() > 0 || warningCount.get() > 0) {
+        if (observation.totalAnrCount > 0 || observation.totalWarningCount > 0) {
             saveAnrReport()
         }
     }
@@ -160,26 +161,23 @@ class AnrMonitor(
      */
     fun reportThreadHealthy() {
         lastResponseTime.set(System.currentTimeMillis())
+        observationState.markHealthy()
     }
-    
-    /**
-     * 报告主线程响应缓慢
-     */
-    fun reportSlowResponse(responseTime: Long) {
-        if (responseTime > WARNING_THRESHOLD_MS) {
-            warningCount.incrementAndGet()
-            if (responseTime > maxBlockDuration.get()) {
-                maxBlockDuration.set(responseTime)
-            }
-            
-            if (responseTime > ANR_THRESHOLD_MS) {
-                val anrCount = anrCount.incrementAndGet()
-                AppLogger.e(tag, "检测到可能的ANR! 响应时间: ${responseTime}ms, 这是第${anrCount}次ANR")
-                captureFullThreadDump()
-            } else {
-                AppLogger.w(tag, "主线程响应缓慢: ${responseTime}ms")
-            }
-        }
+
+    fun markFirstFrameRendered() {
+        observationState.markFirstFrameRendered()
+    }
+
+    fun markApplicationReady() {
+        observationState.markApplicationReady()
+    }
+
+    fun markProcessLifecycleState(state: String) {
+        observationState.markProcessLifecycleState(state)
+    }
+
+    fun markDestroyed() {
+        observationState.markDestroyed()
     }
     
     /**
@@ -204,22 +202,28 @@ class AnrMonitor(
         if (timeSinceLastResponse > WARNING_THRESHOLD_MS) {
             // 主线程可能被阻塞
             val message = context.getString(R.string.anr_main_thread_not_responding, timeSinceLastResponse)
+            val observation =
+                observationState.recordDelayedSample(
+                    responseTimeMs = timeSinceLastResponse,
+                    isPotentialAnr = timeSinceLastResponse > ANR_THRESHOLD_MS,
+                )
+            val contextText =
+                "phase=${observation.phase}, " +
+                    "processLifecycleState=${observation.processLifecycleState}, " +
+                    "firstFrameRendered=${observation.firstFrameRendered}, " +
+                    "consecutiveDelayedSamples=${observation.consecutiveDelayedSamples}, " +
+                    "totalWarningCount=${observation.totalWarningCount}, " +
+                    "maxBlockDuration=${observation.maxBlockDurationMs}ms"
             
             if (timeSinceLastResponse > ANR_THRESHOLD_MS) {
                 // 已超过ANR阈值
-                AppLogger.e(tag, "$message - 可能发生ANR!")
-                anrCount.incrementAndGet()
+                AppLogger.e(tag, "$message - 可能发生ANR! $contextText")
                 
                 // 记录堆栈跟踪 - 使用增强的堆栈捕获
                 captureFullThreadDump()
-                
-                if (timeSinceLastResponse > maxBlockDuration.get()) {
-                    maxBlockDuration.set(timeSinceLastResponse)
-                }
             } else {
                 // 超过警告阈值但未到ANR阈值
-                AppLogger.w(tag, "$message - 警告")
-                warningCount.incrementAndGet()
+                AppLogger.w(tag, "$message - 警告 $contextText")
             }
         }
     }
@@ -392,9 +396,16 @@ class AnrMonitor(
                 OutputStreamWriter(fos).use { writer ->
                     writer.write(context.getString(R.string.anr_report_header))
                     writer.write(context.getString(R.string.anr_report_time, SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())))
-                    writer.write(context.getString(R.string.anr_report_anr_count, anrCount.get()))
-                    writer.write(context.getString(R.string.anr_report_warning_count, warningCount.get()))
-                    writer.write(context.getString(R.string.anr_report_max_block, maxBlockDuration.get()))
+                    val observation = observationState.snapshot()
+                    writer.write(context.getString(R.string.anr_report_anr_count, observation.totalAnrCount))
+                    writer.write(context.getString(R.string.anr_report_warning_count, observation.totalWarningCount))
+                    writer.write(context.getString(R.string.anr_report_max_block, observation.maxBlockDurationMs))
+                    writer.write(
+                        "phase=${observation.phase}\n" +
+                            "processLifecycleState=${observation.processLifecycleState}\n" +
+                            "firstFrameRendered=${observation.firstFrameRendered}\n" +
+                            "consecutiveDelayedSamples=${observation.consecutiveDelayedSamples}\n",
+                    )
 
                     writer.write(context.getString(R.string.anr_system_info_header))
                     writer.write(context.getString(R.string.anr_android_version, android.os.Build.VERSION.SDK_INT))

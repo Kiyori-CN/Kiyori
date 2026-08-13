@@ -76,18 +76,6 @@ open class OpenRouterProvider(
             enableThinking = enableThinking
         )
 
-        val logJson = JSONObject(jsonObject.toString())
-        if (logJson.has("tools")) {
-            val toolsArray = logJson.getJSONArray("tools")
-            logJson.put("tools", "[${toolsArray.length()} tools omitted for brevity]")
-        }
-        val sanitizedLogJson = sanitizeImageDataForLogging(logJson)
-        logLargeString(
-            "OpenRouterProvider",
-            sanitizedLogJson.toString(4),
-            "Final OpenRouter request body: "
-        )
-
         return createJsonRequestBody(jsonObject.toString())
     }
 

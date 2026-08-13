@@ -23,7 +23,10 @@ interface ApiKeyProvider {
  */
 class SingleApiKeyProvider(private val apiKey: String) : ApiKeyProvider {
     override suspend fun getApiKey(): String {
-        AppLogger.d("ApiKeyProvider", "Using single API key: ${apiKey.take(4)}...${apiKey.takeLast(4)}")
+        AppLogger.d(
+            "ApiKeyProvider",
+            "Using single API key configuration: keyPresent=${apiKey.isNotBlank()}"
+        )
         return apiKey
     }
 
@@ -70,7 +73,10 @@ class MultiApiKeyProvider(
                 }
                 // 如果池为空，尝试回退到单key
                 if (config.apiKey.isNotBlank()) {
-                    AppLogger.d("ApiKeyProvider", "Config ${config.name}: No enabled keys in pool, falling back to single API key: sk-...${config.apiKey.takeLast(4)}")
+                    AppLogger.d(
+                        "ApiKeyProvider",
+                        "Config ${config.name}: no eligible pool key; using configured single API key"
+                    )
                     return@withLock config.apiKey
                 }
                 AppLogger.e("ApiKeyProvider", "Config ${config.name}: API key pool is empty or all keys are disabled, and no fallback API key is available")
@@ -81,7 +87,10 @@ class MultiApiKeyProvider(
             val startIndex = config.currentKeyIndex % candidateKeys.size
             val selectedKey = candidateKeys[startIndex]
             
-            AppLogger.d("ApiKeyProvider", "Config ${config.name}: Using key ${startIndex + 1}/${candidateKeys.size} - '${selectedKey.name}' (sk-...${selectedKey.key.takeLast(4)})")
+            AppLogger.d(
+                "ApiKeyProvider",
+                "Config ${config.name}: selectedKeyIndex=${startIndex + 1}/${candidateKeys.size}"
+            )
 
             // 更新并保存下一个索引
             val nextIndex = (startIndex + 1) % candidateKeys.size

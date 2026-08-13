@@ -40,12 +40,17 @@ class KiyoriActivityLifecycleFactsTest {
     fun foregroundTransitionsOnlyAtZeroOneBoundaries() {
         val facts = KiyoriActivityLifecycleFacts()
 
+        assertFalse(facts.isAppInForeground())
         assertTrue(facts.onActivityStarted())
+        assertTrue(facts.isAppInForeground())
         assertFalse(facts.onActivityStarted())
         assertFalse(facts.onActivityStopped())
+        assertTrue(facts.isAppInForeground())
         assertTrue(facts.onActivityStopped())
+        assertFalse(facts.isAppInForeground())
         assertFalse(facts.onActivityStopped())
         assertTrue(facts.onActivityStarted())
+        assertTrue(facts.isAppInForeground())
     }
 
     @Test

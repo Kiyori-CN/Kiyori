@@ -33,17 +33,37 @@ internal data class LlmRequestTraceContext(
     val model: String,
     val stream: Boolean,
     val attempt: Int,
-    val endpointLabel: String
+    val endpointLabel: String,
+    val localExecutionId: String? = null,
+    val requestSummary: LlmRequestLogSummary? = null,
+    val state: LlmRequestTraceState = LlmRequestTraceState(),
 )
 
-private object LlmNetworkEventListenerFactory : EventListener.Factory {
+internal object LlmNetworkEventListenerFactory : EventListener.Factory {
     override fun create(call: Call): EventListener {
-        return LlmNetworkEventListener(call.request().tag(LlmRequestTraceContext::class.java))
+        return LlmNetworkEventListener(
+            traceContext = call.request().tag(LlmRequestTraceContext::class.java),
+            emitLogs = true,
+        )
     }
+
+    /**
+     * JVM fault-injection tests still need the real OkHttp callback sequence, but Android Log is
+     * not available on the worker thread used by Dispatchers.IO. Keeping the silent mode here
+     * prevents the test logger from changing the transport state it is meant to observe.
+     */
+    internal fun silent(): EventListener.Factory =
+        EventListener.Factory { call ->
+            LlmNetworkEventListener(
+                traceContext = call.request().tag(LlmRequestTraceContext::class.java),
+                emitLogs = false,
+            )
+        }
 }
 
 private class LlmNetworkEventListener(
-    private val traceContext: LlmRequestTraceContext?
+    private val traceContext: LlmRequestTraceContext?,
+    private val emitLogs: Boolean,
 ) : EventListener() {
     private val startedAtNs = System.nanoTime()
 
@@ -55,15 +75,27 @@ private class LlmNetworkEventListener(
         val model = traceContext?.model ?: "unknown"
         val attempt = traceContext?.attempt ?: -1
         val stream = traceContext?.stream ?: false
-        return "[req=$requestId provider=$provider model=$model attempt=$attempt stream=$stream]"
+        val requestDigest = traceContext?.requestSummary?.requestDigest ?: "unavailable"
+        val execution =
+            traceContext?.localExecutionId
+                ?.takeLast(12)
+                ?.takeIf { it.isNotBlank() }
+                ?: "none"
+        return "[req=$requestId execution=$execution provider=$provider model=$model attempt=$attempt stream=$stream requestDigest=$requestDigest]"
     }
 
     private fun log(stage: String, details: String = "") {
+        if (!emitLogs) {
+            return
+        }
         val suffix = if (details.isBlank()) "" else " | $details"
         AppLogger.d("AIHttpTrace", "${prefix()} +${elapsedMs()}ms $stage$suffix")
     }
 
     private fun logFailure(stage: String, error: IOException, details: String = "") {
+        if (!emitLogs) {
+            return
+        }
         val message = buildString {
             append("${prefix()} +${elapsedMs()}ms $stage")
             if (details.isNotBlank()) {
@@ -71,11 +103,12 @@ private class LlmNetworkEventListener(
                 append(details)
             }
             append(" | ")
+            append("failureType=")
             append(error.javaClass.simpleName)
-            append(": ")
-            append(error.message ?: "no message")
         }
-        AppLogger.e("AIHttpTrace", message, error)
+        // EventListener 只观察传输失败，最终消息 owner 才记录完整 cause chain；在这里附带
+        // Throwable 会让同一个 SocketException 随后在 Stream/UI 边界被重复展开。
+        AppLogger.e("AIHttpTrace", message)
     }
 
     private fun formatSocketAddress(socketAddress: InetSocketAddress): String {
@@ -96,6 +129,7 @@ private class LlmNetworkEventListener(
     }
 
     override fun dnsStart(call: Call, domainName: String) {
+        traceContext?.state?.markDnsLookup()
         log("dnsStart", "host=$domainName")
     }
 
@@ -104,16 +138,19 @@ private class LlmNetworkEventListener(
     }
 
     override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) {
+        traceContext?.state?.markConnecting()
         log("connectStart", "target=${formatSocketAddress(inetSocketAddress)}, proxy=${proxy.type()}")
     }
 
     override fun secureConnectStart(call: Call) {
+        traceContext?.state?.markTlsHandshake()
         log("secureConnectStart")
     }
 
     override fun secureConnectEnd(call: Call, handshake: Handshake?) {
         val tlsVersion = handshake?.tlsVersion?.javaName ?: "unknown"
         val cipherSuite = handshake?.cipherSuite?.javaName ?: "unknown"
+        traceContext?.state?.markTlsEstablished(tlsVersion, cipherSuite)
         log("secureConnectEnd", "tls=$tlsVersion, cipher=$cipherSuite")
     }
 
@@ -123,6 +160,7 @@ private class LlmNetworkEventListener(
         proxy: Proxy,
         protocol: Protocol?
     ) {
+        traceContext?.state?.markProtocol(protocol?.toString())
         log(
             "connectEnd",
             "target=${formatSocketAddress(inetSocketAddress)}, protocol=${protocol ?: "unknown"}"
@@ -136,6 +174,7 @@ private class LlmNetworkEventListener(
         protocol: Protocol?,
         ioe: IOException
     ) {
+        traceContext?.state?.markConnectionFailed()
         logFailure(
             "connectFailed",
             ioe,
@@ -145,6 +184,7 @@ private class LlmNetworkEventListener(
 
     override fun connectionAcquired(call: Call, connection: Connection) {
         val route = runCatching { formatSocketAddress(connection.route().socketAddress) }.getOrDefault("unknown")
+        traceContext?.state?.markConnectionAcquired(connection.protocol().toString())
         log("connectionAcquired", "route=$route, protocol=${connection.protocol()}")
     }
 
@@ -154,6 +194,7 @@ private class LlmNetworkEventListener(
     }
 
     override fun requestHeadersStart(call: Call) {
+        traceContext?.state?.markRequestHeaders()
         log("requestHeadersStart")
     }
 
@@ -162,35 +203,51 @@ private class LlmNetworkEventListener(
     }
 
     override fun requestBodyStart(call: Call) {
+        traceContext?.state?.markRequestBody()
         log("requestBodyStart")
     }
 
     override fun requestBodyEnd(call: Call, byteCount: Long) {
+        traceContext?.state?.markRequestBodyCompleted(byteCount)
         log("requestBodyEnd", "bytes=$byteCount")
     }
 
     override fun responseHeadersStart(call: Call) {
+        traceContext?.state?.markResponseHeadersStarted()
         log("responseHeadersStart")
     }
 
     override fun responseHeadersEnd(call: Call, response: Response) {
+        val correlationId =
+            listOf("x-request-id", "request-id", "trace-id")
+                .firstNotNullOfOrNull { name -> response.header(name) }
+                ?.let(LlmTransportDiagnostics::redactCorrelationId)
+        traceContext?.state?.markResponseHeadersCompleted(response.code, correlationId)
         log("responseHeadersEnd", "code=${response.code}, message=${response.message}")
     }
 
     override fun responseBodyStart(call: Call) {
+        traceContext?.state?.markResponseBodyStarted()
         log("responseBodyStart")
     }
 
     override fun responseBodyEnd(call: Call, byteCount: Long) {
+        traceContext?.state?.markResponseBodyCompleted()
         log("responseBodyEnd", "bytes=$byteCount")
     }
 
     override fun callEnd(call: Call) {
+        traceContext?.state?.markCallCompleted()
         log("callEnd")
     }
 
     override fun callFailed(call: Call, ioe: IOException) {
-        logFailure("callFailed", ioe)
+        val diagnostics = traceContext?.state?.snapshot(ioe)
+        logFailure(
+            "callFailed",
+            ioe,
+            diagnostics?.summary() ?: "diagnosticCode=LLM_TRANSPORT_TRACE_UNAVAILABLE",
+        )
     }
 }
 

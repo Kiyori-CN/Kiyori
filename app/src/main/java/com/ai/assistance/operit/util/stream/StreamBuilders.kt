@@ -128,7 +128,13 @@ fun <T> stream(block: suspend StreamCollector<T>.() -> Unit): Stream<T> = object
             if (e is kotlinx.coroutines.CancellationException) {
                 throw e
             }
-            StreamLogger.e("stream", "构建器Stream收集出错", e)
+            // 构建器是传播边界，不是消息失败 owner。这里只累计边界数，完整堆栈和可读摘要
+            // 分别由最终消息层与显式状态投影层记录。
+            recordPropagatedMessageFailure(
+                boundaryName = "stream_builder",
+                phase = "stream_collect",
+                failure = e,
+            )
             // 其他异常也应该抛出，以便上层可以处理
             throw e
         } finally {
@@ -183,6 +189,10 @@ fun rangeStream(start: Int, count: Int): Stream<Int> = stream {
  * 从异常创建Stream
  */
 fun <T> streamError(exception: Throwable): Stream<T> = stream {
-    StreamLogger.e("streamError", "创建错误Stream, 异常: ${exception.message}", exception)
+    recordPropagatedMessageFailure(
+        boundaryName = "stream_error",
+        phase = "stream_creation",
+        failure = exception,
+    )
     throw exception
 } 

@@ -20,7 +20,6 @@ import com.ai.assistance.operit.api.chat.llmprovider.EndpointCompleter
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.util.ChatUtils
-import com.ai.assistance.operit.util.HttpLogSanitizer
 import com.ai.assistance.operit.util.LocaleUtils
 import com.ai.assistance.operit.util.OperitPaths
 import com.ai.assistance.operit.util.StreamingJsonXmlConverter
@@ -220,13 +219,17 @@ open class OpenAIProvider(
 
     private fun throwIfOpenAiErrorPayload(context: Context, jsonResponse: JSONObject) {
         val error = jsonResponse.optJSONObject("error") ?: return
-        val detail = buildOpenAiErrorDetail(
-            error,
-            context.getString(R.string.openai_error_no_error_details)
-        )
+        val errorSummary =
+            LlmLogPrivacy.summarizeProviderError(
+                JSONObject().put("error", error).toString()
+            )
+        val detail = errorSummary.exceptionDetail()
         val exceptionMessage = context.getString(R.string.openai_error_response_failed, detail)
 
-        AppLogger.e("AIService", "【发送消息】响应中包含错误对象: $detail")
+        AppLogger.e(
+            "AIService",
+            "【发送消息】响应中包含错误对象: ${errorSummary.format()}"
+        )
         throw IOException(exceptionMessage)
     }
 
@@ -298,82 +301,12 @@ open class OpenAIProvider(
          }
      }
 
-    // 工具函数：分块打印大型文本日志
-    protected fun logLargeString(tag: String, message: String, prefix: String = "") {
-        // 设置单次日志输出的最大长度（Android日志上限约为4000字符）
-        val maxLogSize = 3000
-
-        // 如果消息长度超过限制，分块打印
-        if (message.length > maxLogSize) {
-            // 计算需要分多少块打印
-            val chunkCount = message.length / maxLogSize + 1
-
-            for (i in 0 until chunkCount) {
-                val start = i * maxLogSize
-                val end = minOf((i + 1) * maxLogSize, message.length)
-                val chunkMessage = message.substring(start, end)
-
-                // 打印带有编号的日志
-                AppLogger.d(tag, "$prefix Part ${i + 1}/$chunkCount: $chunkMessage")
-            }
-
-        } else {
-            // 消息长度在限制之内，直接打印
-            AppLogger.d(tag, "$prefix$message")
-        }
-    }
-
     protected fun logFinalOutput(tag: String, content: CharSequence, prefix: String = "Final output: ") {
-        val finalOutput = content.toString()
-        if (finalOutput.isBlank()) {
-            AppLogger.d(tag, "${prefix.trimEnd()}[empty]")
-            return
-        }
-        logLargeString(tag, finalOutput, prefix)
+        AppLogger.d(
+            tag,
+            "${prefix.trimEnd()} ${LlmLogPrivacy.summarizeText(content).format()}"
+        )
     }
-
-     protected fun sanitizeImageDataForLogging(json: JSONObject): JSONObject {
-         fun sanitizeObject(obj: JSONObject) {
-             fun sanitizeArray(arr: JSONArray) {
-                 for (i in 0 until arr.length()) {
-                     val value = arr.get(i)
-                     when (value) {
-                         is JSONObject -> sanitizeObject(value)
-                         is JSONArray -> sanitizeArray(value)
-                         is String -> {
-                             if (value.startsWith("data:") && value.contains(";base64,")) {
-                                 arr.put(i, "[image base64 omitted, length=${value.length}]")
-                             }
-                         }
-                     }
-                 }
-             }
-
-             val keys = obj.keys()
-             while (keys.hasNext()) {
-                 val key = keys.next()
-                 val value = obj.get(key)
-                 when (value) {
-                     is JSONObject -> sanitizeObject(value)
-                     is JSONArray -> sanitizeArray(value)
-                     is String -> {
-                         if (value.startsWith("data:") && value.contains(";base64,")) {
-                             obj.put(key, "[image base64 omitted, length=${value.length}]")
-                         } else if (
-                             key == "data" &&
-                                 value.length > 256 &&
-                                 value.all { it.isLetterOrDigit() || it == '+' || it == '/' || it == '=' || it == '\n' || it == '\r' }
-                         ) {
-                             obj.put(key, "[base64 omitted, length=${value.length}]")
-                         }
-                     }
-                 }
-             }
-         }
-
-         sanitizeObject(json)
-         return json
-     }
 
     private fun getOutputImagesDir(): File {
         return OperitPaths.outputImagesDir()
@@ -737,14 +670,6 @@ open class OpenAIProvider(
 
         customizeFinalRequestObject(finalRequestObject, messagesArray, toolsJson)
 
-        // 使用分块日志函数记录请求体（省略过长的tools字段）
-        val logJson = JSONObject(finalRequestObject.toString())
-        if (logJson.has("tools")) {
-            val toolsArray = logJson.getJSONArray("tools")
-            logJson.put("tools", "[${toolsArray.length()} tools omitted for brevity]")
-        }
-        val sanitizedLogJson = sanitizeImageDataForLogging(logJson)
-        logLargeString("AIService", sanitizedLogJson.toString(4), "Request body: ")
         return finalRequestObject.toString()
     }
 
@@ -1632,6 +1557,7 @@ open class OpenAIProvider(
         enableRetry: Boolean,
         onNonFatalError: suspend (String) -> Unit,
         providerRequestContext: ProviderRequestContext?,
+        transportDiagnostics: LlmTransportDiagnostics?,
     ): Int {
         if (exception is UserCancellationException || exception is CancellationException) {
             throw exception
@@ -1673,7 +1599,21 @@ open class OpenAIProvider(
                         } else {
                             IOException(exception.message, exception)
                         },
+                    transportDiagnostics = transportDiagnostics,
                 )
+        }
+    }
+
+    private fun appendTransportDiagnostics(
+        message: String?,
+        diagnostics: LlmTransportDiagnostics?,
+    ): String? {
+        val diagnosticSummary = diagnostics?.summary() ?: return message
+        val messageText = message?.take(1024)?.trim().orEmpty()
+        return if (messageText.isEmpty()) {
+            diagnosticSummary
+        } else {
+            "$messageText | $diagnosticSummary"
         }
     }
 
@@ -1861,10 +1801,12 @@ open class OpenAIProvider(
         requestBody: RequestBody,
         requestTraceId: String,
         stream: Boolean,
-        attemptNumber: Int
+        attemptNumber: Int,
+        localExecutionId: String? = null,
     ): Request {
         val currentApiKey = apiKeyProvider.getApiKey().trim()
         val endpointUrl = EndpointCompleter.completeEndpoint(apiEndpoint, providerType)
+        val requestSummary = LlmLogPrivacy.summarizeRequestBody(requestBody)
         val traceContext =
             LlmRequestTraceContext(
                 requestId = requestTraceId,
@@ -1872,7 +1814,9 @@ open class OpenAIProvider(
                 model = modelName,
                 stream = stream,
                 attempt = attemptNumber,
-                endpointLabel = endpointUrl.substringBefore('?')
+                endpointLabel = endpointUrl.substringBefore('?'),
+                localExecutionId = localExecutionId,
+                requestSummary = requestSummary,
             )
         val builder = Request.Builder()
             .url(endpointUrl)
@@ -1887,12 +1831,12 @@ open class OpenAIProvider(
         }
 
         val request = builder.post(requestBody).build()
-        val bodyBytes = runCatching { requestBody.contentLength() }.getOrDefault(-1L)
         AppLogger.d(
             "AIService",
-            "[req=$requestTraceId] Request trace summary: provider=${traceContext.provider}, model=${traceContext.model}, stream=$stream, attempt=$attemptNumber, bodyBytes=$bodyBytes, endpoint=${traceContext.endpointLabel}"
+            "[req=$requestTraceId] Request trace summary: provider=${traceContext.provider}, " +
+                "model=${traceContext.model}, stream=$stream, attempt=$attemptNumber, " +
+                "endpoint=${traceContext.endpointLabel}, ${requestSummary.format()}"
         )
-        logLargeString("AIService", "Request headers: \n${HttpLogSanitizer.headersForLog(request.headers)}")
         return request
     }
 
@@ -1901,6 +1845,7 @@ open class OpenAIProvider(
         startingAfter: Long,
         requestTraceId: String,
         attemptNumber: Int,
+        localExecutionId: String? = null,
     ): Request {
         require(responseId.isNotBlank()) { "responseId must not be blank" }
         require(startingAfter >= 0L) { "startingAfter must not be negative" }
@@ -1920,6 +1865,7 @@ open class OpenAIProvider(
                 stream = true,
                 attempt = attemptNumber,
                 endpointLabel = resumeUrl.newBuilder().query(null).build().toString(),
+                localExecutionId = localExecutionId,
             )
         val builder =
             Request.Builder()
@@ -1969,9 +1915,11 @@ open class OpenAIProvider(
             cancelCall.execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorBody = response.body?.string().orEmpty()
+                    val errorSummary = LlmLogPrivacy.summarizeProviderError(errorBody)
                     throw OpenAiHttpResponseException(
                         message =
-                            "Responses cancel failed with HTTP ${response.code}: $errorBody",
+                            "Responses cancel failed with HTTP ${response.code}: " +
+                                errorSummary.exceptionDetail(),
                         statusCode = response.code,
                     )
                 }
@@ -2649,8 +2597,25 @@ open class OpenAIProvider(
                             ?.let { "Responses stream failed with status: $it" }
                         ?: "Responses stream returned $eventType"
 
-                AppLogger.w("AIService", "Responses流式事件错误: $errorMessage")
-                throw IOException(context.getString(R.string.openai_error_response_failed, errorMessage))
+                val errorSummary =
+                    LlmLogPrivacy.summarizeProviderError(
+                        JSONObject()
+                            .put(
+                                "error",
+                                JSONObject().put("message", errorMessage),
+                            )
+                            .toString()
+                    )
+                AppLogger.w(
+                    "AIService",
+                    "Responses流式事件错误: ${errorSummary.format()}"
+                )
+                throw IOException(
+                    context.getString(
+                        R.string.openai_error_response_failed,
+                        errorSummary.exceptionDetail(),
+                    )
+                )
             }
 
             "response.incomplete", "response.cancelled" -> {
@@ -2948,8 +2913,11 @@ open class OpenAIProvider(
                             cause = e,
                         )
                     }
-                    AppLogger.w("AIService", "【发送消息】JSON解析错误: ${e.message}")
-                    logLargeString("AIService", data, "[Send message] Original data when JSON parsing failed: ")
+                    AppLogger.w(
+                        "AIService",
+                        "【发送消息】JSON解析错误: ${e.javaClass.simpleName}; " +
+                            LlmLogPrivacy.summarizeText(data).format()
+                    )
                 }
             }
 
@@ -3094,6 +3062,7 @@ open class OpenAIProvider(
                         requestTraceId = requestTraceId,
                         stream = true,
                         attemptNumber = attemptNumber,
+                        localExecutionId = providerRequestContext.localExecutionId,
                     )
                 } else {
                     createResponsesResumeRequest(
@@ -3101,10 +3070,14 @@ open class OpenAIProvider(
                         startingAfter = executionState.lastAppliedSequence,
                         requestTraceId = requestTraceId,
                         attemptNumber = attemptNumber,
+                        localExecutionId = providerRequestContext.localExecutionId,
                     )
-                }
+            }
             val call = client.newCall(request)
             activeCall = call
+            val transportDiagnostics = request
+                .tag(LlmRequestTraceContext::class.java)
+                ?.state
 
             try {
                 withContext(Dispatchers.IO) {
@@ -3115,12 +3088,13 @@ open class OpenAIProvider(
                             val errorBody =
                                 response.body?.string()
                                     ?: context.getString(R.string.openai_error_no_error_details)
+                            val errorSummary = LlmLogPrivacy.summarizeProviderError(errorBody)
                             throw OpenAiHttpResponseException(
                                 message =
                                     context.getString(
                                         R.string.openai_error_api_request_failed_with_status,
                                         response.code,
-                                        errorBody,
+                                        errorSummary.exceptionDetail(),
                                     ),
                                 statusCode = response.code,
                             )
@@ -3305,12 +3279,15 @@ open class OpenAIProvider(
                             }
 
                             OpenAIResponsesHttpFailurePolicy.SubmissionAction.SUBMISSION_UNKNOWN -> {
+                                val diagnostics =
+                                    transportDiagnostics?.snapshotForHttpStatus(error.statusCode)
                                 repository.updateStatus(
                                     localExecutionId =
                                         providerRequestContext.localExecutionId,
                                     status = ProviderExecutionStatus.SUBMISSION_UNKNOWN,
                                     lastErrorCode = "HTTP_${error.statusCode}_SUBMISSION_UNKNOWN",
-                                    lastErrorMessage = error.message,
+                                    lastErrorMessage =
+                                        appendTransportDiagnostics(error.message, diagnostics),
                                 )
                                 throw OpenAIResponsesSubmissionUnknownException(
                                     localExecutionId =
@@ -3321,6 +3298,7 @@ open class OpenAIProvider(
                                         } else {
                                             IOException(error.message, error)
                                         },
+                                    transportDiagnostics = diagnostics,
                                 )
                             }
                         }
@@ -3333,15 +3311,18 @@ open class OpenAIProvider(
                             } else {
                                 IOException(error.message, error)
                             }
+                        val diagnostics = transportDiagnostics?.snapshot(ioError)
                         repository.updateStatus(
                             localExecutionId = providerRequestContext.localExecutionId,
                             status = ProviderExecutionStatus.SUBMISSION_UNKNOWN,
                             lastErrorCode = "SUBMISSION_UNKNOWN",
-                            lastErrorMessage = ioError.message,
+                            lastErrorMessage =
+                                appendTransportDiagnostics(ioError.message, diagnostics),
                         )
                         throw OpenAIResponsesSubmissionUnknownException(
                             localExecutionId = providerRequestContext.localExecutionId,
                             cause = ioError,
+                            transportDiagnostics = diagnostics,
                         )
                     }
                 }
@@ -3476,6 +3457,7 @@ open class OpenAIProvider(
                 // 在循环开始时检查是否已被取消
                 checkCancellation(context)
                 var responsesSubmissionStarted = false
+                var transportTraceState: LlmRequestTraceState? = null
 
                 try {
                     if (retryCount > 0) {
@@ -3508,7 +3490,16 @@ open class OpenAIProvider(
                 )
                 val attemptNumber = retryCount + 1
                 val requestTraceId = "llm_${attemptNumber}_${UUID.randomUUID().toString().substring(0, 8)}"
-                val request = createRequest(requestBody, requestTraceId, stream, attemptNumber)
+                val request =
+                    createRequest(
+                        requestBody = requestBody,
+                        requestTraceId = requestTraceId,
+                        stream = stream,
+                        attemptNumber = attemptNumber,
+                        localExecutionId = providerRequestContext?.localExecutionId,
+                    )
+                transportTraceState =
+                    request.tag(LlmRequestTraceContext::class.java)?.state
                 AppLogger.d(
                     "AIService",
                     "[req=$requestTraceId] 【发送消息】请求体构建完成，目标模型: $modelName，API端点: $apiEndpoint"
@@ -3540,16 +3531,17 @@ open class OpenAIProvider(
                             val errorBody =
                                 response.body?.string()
                                     ?: context.getString(R.string.openai_error_no_error_details)
+                            val errorSummary = LlmLogPrivacy.summarizeProviderError(errorBody)
                             AppLogger.e(
                                 "AIService",
-                                "【发送消息】API请求失败，状态码: ${response.code}，错误信息: $errorBody"
+                                "【发送消息】API请求失败: ${errorSummary.format(response.code)}"
                             )
                             if (useResponsesApi) {
                                 throw OpenAiHttpResponseException(
                                     context.getString(
                                         R.string.openai_error_api_request_failed_with_status,
                                         response.code,
-                                        errorBody,
+                                        errorSummary.exceptionDetail(),
                                     ),
                                     statusCode = response.code,
                                 )
@@ -3557,12 +3549,22 @@ open class OpenAIProvider(
                             // 4xx错误仍保留单独的异常类型，具体是否重试由统一策略决定
                             if (response.code in 400..499) {
                                 throw NonRetriableException(
-                                    context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody),
+                                    context.getString(
+                                        R.string.openai_error_api_request_failed_with_status,
+                                        response.code,
+                                        errorSummary.exceptionDetail(),
+                                    ),
                                     statusCode = response.code
                                 )
                             }
                             // 对于5xx等服务端错误，允许重试
-                            throw IOException(context.getString(R.string.openai_error_api_request_failed_with_status, response.code, errorBody))
+                            throw IOException(
+                                context.getString(
+                                    R.string.openai_error_api_request_failed_with_status,
+                                    response.code,
+                                    errorSummary.exceptionDetail(),
+                                )
+                            )
                         }
 
                         AppLogger.d(
@@ -3623,7 +3625,8 @@ open class OpenAIProvider(
                                             emitter.emitContent(xmlToolCalls)
                                             AppLogger.d(
                                                 "AIService",
-                                                "Tool Call转XML (Responses非流式): $xmlToolCalls"
+                                                "Tool Call转XML (Responses非流式): " +
+                                                    LlmLogPrivacy.summarizeText(xmlToolCalls).format()
                                             )
                                         }
                                     }
@@ -3643,7 +3646,8 @@ open class OpenAIProvider(
                                                     emitter.emitContent(xmlToolCalls)
                                                     AppLogger.d(
                                                         "AIService",
-                                                        "Tool Call转XML (非流式): $xmlToolCalls"
+                                                        "Tool Call转XML (非流式): " +
+                                                            LlmLogPrivacy.summarizeText(xmlToolCalls).format()
                                                     )
                                                 }
                                             }
@@ -3712,6 +3716,7 @@ open class OpenAIProvider(
                             enableRetry = enableRetry,
                             onNonFatalError = onNonFatalError,
                             providerRequestContext = providerRequestContext,
+                            transportDiagnostics = transportTraceState?.snapshot(e),
                         )
                 } else {
                     emitter.emitRollback(requestSavepointId)

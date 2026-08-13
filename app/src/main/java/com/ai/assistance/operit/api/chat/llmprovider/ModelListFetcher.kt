@@ -290,10 +290,22 @@ object ModelListFetcher {
 
                     if (!response.isSuccessful) {
                         val errorBody = response.body?.string() ?: context.getString(R.string.model_fetch_no_error_details)
+                        val errorSummary = LlmLogPrivacy.summarizeProviderError(errorBody)
                         val responseCode = response.code
                         response.close()
-                        AppLogger.e(TAG, "API请求失败: 状态码=$responseCode, 错误=$errorBody")
-                        return@withContext Result.failure(IOException(context.getString(R.string.model_fetch_api_failed, responseCode, errorBody)))
+                        AppLogger.e(
+                            TAG,
+                            "API请求失败: ${errorSummary.format(responseCode)}"
+                        )
+                        return@withContext Result.failure(
+                            IOException(
+                                context.getString(
+                                    R.string.model_fetch_api_failed,
+                                    responseCode,
+                                    errorSummary.exceptionDetail(),
+                                )
+                            )
+                        )
                     }
 
                     val responseBody = response.body?.string()

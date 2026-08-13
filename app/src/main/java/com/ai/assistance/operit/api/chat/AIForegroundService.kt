@@ -53,6 +53,7 @@ import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.WaifuMessageProcessor
 import com.kiyori.platform.lifecycle.MainApplicationInitialization
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -75,6 +76,25 @@ import kotlin.system.exitProcess
 import java.io.FileInputStream
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * 服务级 Flow 观察器的生命周期边界。
+ *
+ * 服务销毁会取消整个 serviceScope；这个取消是正常生命周期收尾，不能被转换为业务 ERROR。
+ * 只有真正的非取消异常才交给调用方记录，并保持原始异常对象用于诊断。
+ */
+internal suspend fun runServicePreferenceObserver(
+    observe: suspend () -> Unit,
+    onUnexpectedFailure: (Exception) -> Unit,
+) {
+    try {
+        observe()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        onUnexpectedFailure(failure)
+    }
+}
 
 private fun AudioRecordingConfiguration.tryGetClientUid(): Int? {
     return try {
@@ -962,7 +982,8 @@ class AIForegroundService : Service() {
 
     private fun observeRuntimeTaskViewPreference() {
         serviceScope.launch {
-            try {
+            runServicePreferenceObserver(
+                observe = {
                 DisplayPreferencesManager
                     .getInstance(applicationContext)
                     .hideRuntimeTaskView
@@ -970,15 +991,18 @@ class AIForegroundService : Service() {
                         hideRuntimeTaskViewEnabled = enabled
                         updateRuntimeTaskViewVisibility()
                     }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "监听运行时任务视图隐藏设置失败: ${e.message}", e)
-            }
+                },
+                onUnexpectedFailure = { error ->
+                    AppLogger.e(TAG, "监听运行时任务视图隐藏设置失败: ${error.message}", error)
+                },
+            )
         }
     }
 
     private fun observeBackgroundKeepAlivePreference() {
         serviceScope.launch {
-            try {
+            runServicePreferenceObserver(
+                observe = {
                 DisplayPreferencesManager
                     .getInstance(applicationContext)
                     .enableBackgroundKeepAlive
@@ -991,9 +1015,11 @@ class AIForegroundService : Service() {
                             stopSelfIfIdle(ignoreAppForeground = true)
                         }
                     }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "监听后台保活设置失败: ${e.message}", e)
-            }
+                },
+                onUnexpectedFailure = { error ->
+                    AppLogger.e(TAG, "监听后台保活设置失败: ${error.message}", error)
+                },
+            )
         }
     }
 

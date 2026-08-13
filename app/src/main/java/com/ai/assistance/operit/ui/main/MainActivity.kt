@@ -29,6 +29,7 @@ import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingState
 import com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingStateRegistry
 import com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 import com.ai.assistance.operit.util.AnrMonitor
+import com.ai.assistance.operit.util.AnrMonitorObservationState
 import com.ai.assistance.operit.util.LocaleUtils
 import java.util.*
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,7 @@ import com.kiyori.app.startup.KiyoriMainStartupGateCoordinator
 import com.kiyori.app.startup.KiyoriMainTaskVisibilityCoordinator
 import com.kiyori.app.startup.decodeKiyoriMainIntent
 import com.kiyori.platform.lifecycle.MainApplicationInitialization
+import com.ai.assistance.operit.core.application.ActivityLifecycleManager
 import org.json.JSONObject
 
 private data class KiyoriMainIntentHandlingResult(
@@ -146,8 +148,15 @@ class MainActivity : ComponentActivity() {
         (application as MainApplicationInitialization).initializeMainUiPrerequisites()
 
         // 语言设置已在Application中初始化，这里无需重复
-
         initializeComponents()
+        anrMonitor.markProcessLifecycleState(
+            if (ActivityLifecycleManager.isAppInForeground()) {
+                AnrMonitorObservationState.PROCESS_STATE_FOREGROUND
+            } else {
+                AnrMonitorObservationState.PROCESS_STATE_UNKNOWN
+            }
+        )
+        anrMonitor.start()
         KiyoriMainDisplayCoordinator.configure(this)
 
         // 设置上下文以便获取插件元数据
@@ -180,11 +189,12 @@ class MainActivity : ComponentActivity() {
                 if (isFinishing || isDestroyed) {
                     return@post
                 }
-                anrMonitor.start()
+                anrMonitor.markFirstFrameRendered()
                 lifecycleScope.launch {
                     withContext(Dispatchers.Default) {
                         mainApplicationInitialization.initializeMainApplication()
                     }
+                    anrMonitor.markApplicationReady()
                     mainApplicationReady = true
                     KiyoriMainTaskVisibilityCoordinator.restoreIfNeeded(this@MainActivity)
                     processPendingGitHubAuth()
@@ -491,15 +501,26 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        anrMonitor.markProcessLifecycleState(
+            AnrMonitorObservationState.PROCESS_STATE_BACKGROUND
+        )
         val playerSession = PlayerSession.getInstance(this)
         if (playerSession.state.value.presentation == PlayerPresentation.FLOATING_PLAYER) {
             playerSession.onHostBackgrounded()
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        anrMonitor.markProcessLifecycleState(
+            AnrMonitorObservationState.PROCESS_STATE_FOREGROUND
+        )
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         AppLogger.d(TAG, "onDestroy called")
+        anrMonitor.markDestroyed()
 
         PluginLoadingStateRegistry.unbind(pluginLoadingState)
 

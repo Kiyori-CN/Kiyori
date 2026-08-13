@@ -6,6 +6,7 @@ import com.ai.assistance.operit.util.stream.StreamCollector
 import com.ai.assistance.operit.util.stream.StreamGroup
 import com.ai.assistance.operit.util.stream.StreamLogger
 import com.ai.assistance.operit.util.stream.asStream
+import com.ai.assistance.operit.util.stream.recordPropagatedMessageFailure
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -189,7 +190,13 @@ private fun Stream<Char>.nativeMarkdownSplitBySession(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        StreamLogger.e(debugTag, "nativeMarkdownSplitBy failed: ${e.message}", e)
+                        // Markdown 拆分器只投影主消息流；这里只累计传播边界，避免同一个
+                        // Provider 失败在每个渲染层重复输出。
+                        recordPropagatedMessageFailure(
+                            boundaryName = debugTag,
+                            phase = "markdown_split",
+                            failure = e,
+                        )
                         throw e
                     } finally {
                         flushJob?.cancel()
@@ -382,7 +389,13 @@ private fun Stream<String>.nativeMarkdownSplitBySessionString(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        StreamLogger.e(debugTag, "nativeMarkdownSplitBy failed: ${e.message}", e)
+                        // Markdown 拆分器只投影主消息流；这里只累计传播边界，避免同一个
+                        // Provider 失败在每个渲染层重复输出。
+                        recordPropagatedMessageFailure(
+                            boundaryName = debugTag,
+                            phase = "markdown_split",
+                            failure = e,
+                        )
                         throw e
                     } finally {
                         flushJob?.cancel()

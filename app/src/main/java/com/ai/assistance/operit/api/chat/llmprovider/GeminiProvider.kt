@@ -816,80 +816,14 @@ class GeminiProvider(
 
     // 工具函数：分块打印大型文本日志
     private fun logLargeString(tag: String, message: String, prefix: String = "") {
-        // 设置单次日志输出的最大长度（Android日志上限约为4000字符）
-        val maxLogSize = 3000
-
-        // 如果消息长度超过限制，分块打印
-        if (message.length > maxLogSize) {
-            // 计算需要分多少块打印
-            val chunkCount = message.length / maxLogSize + 1
-
-            for (i in 0 until chunkCount) {
-                val start = i * maxLogSize
-                val end = minOf((i + 1) * maxLogSize, message.length)
-                val chunkMessage = message.substring(start, end)
-
-                // 打印带有编号的日志
-                AppLogger.d(tag, "$prefix Part ${i+1}/$chunkCount: $chunkMessage")
-            }
-        } else {
-            // 消息长度在限制之内，直接打印
-            AppLogger.d(tag, "$prefix$message")
-        }
+        AppLogger.d(
+            tag,
+            "${prefix.trimEnd()} ${LlmLogPrivacy.summarizeText(message).format()}"
+        )
     }
 
     private fun logFinalOutput(content: CharSequence, prefix: String = "Gemini final output: ") {
-        val finalOutput = content.toString()
-        if (finalOutput.isBlank()) {
-            AppLogger.d(TAG, "${prefix.trimEnd()}[empty]")
-            return
-        }
-        logLargeString(TAG, finalOutput, prefix)
-    }
-
-    private fun sanitizeImageDataForLogging(json: JSONObject): JSONObject {
-        fun sanitizeObject(obj: JSONObject) {
-            fun sanitizeArray(arr: JSONArray) {
-                for (i in 0 until arr.length()) {
-                    val value = arr.get(i)
-                    when (value) {
-                        is JSONObject -> sanitizeObject(value)
-                        is JSONArray -> sanitizeArray(value)
-                        is String -> {
-                            if (value.startsWith("data:") && value.contains(";base64,")) {
-                                arr.put(i, "[image base64 omitted, length=${value.length}]")
-                            }
-                        }
-                    }
-                }
-            }
-
-            val maybeMimeType = obj.optString("mime_type", obj.optString("mimeType", ""))
-            if (maybeMimeType.startsWith("image/", ignoreCase = true) && obj.has("data")) {
-                val dataValue = obj.opt("data")
-                if (dataValue is String) {
-                    obj.put("data", "[image base64 omitted, length=${dataValue.length}]")
-                }
-            }
-
-            val keys = obj.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val value = obj.get(key)
-                when (value) {
-                    is JSONObject -> sanitizeObject(value)
-                    is JSONArray -> sanitizeArray(value)
-                    is String -> {
-                        if (value.startsWith("data:") && value.contains(";base64,")) {
-                            obj.put(key, "[image base64 omitted, length=${value.length}]")
-                        }
-                    }
-                }
-            }
-        }
-
-        sanitizeObject(json)
-        return json
+        logLargeString(TAG, content.toString(), prefix)
     }
 
      private fun getOutputImagesDir(): File {
@@ -1123,16 +1057,27 @@ class GeminiProvider(
 
                         if (!response.isSuccessful) {
                             val errorBody = response.body?.string() ?: context.getString(R.string.gemini_error_no_error_details)
-                            logError("API请求失败: ${response.code}, $errorBody")
+                            val errorSummary = LlmLogPrivacy.summarizeProviderError(errorBody)
+                            logError("API请求失败: ${errorSummary.format(response.code)}")
                             // 4xx错误仍保留单独的异常类型，具体是否重试由统一策略决定
                             if (response.code in 400..499) {
                                 throw NonRetriableException(
-                                    context.getString(R.string.gemini_error_api_request_failed, response.code, errorBody),
+                                    context.getString(
+                                        R.string.gemini_error_api_request_failed,
+                                        response.code,
+                                        errorSummary.exceptionDetail(),
+                                    ),
                                     statusCode = response.code
                                 )
                             }
                             // 对于5xx等服务端错误，允许重试
-                            throw IOException(context.getString(R.string.gemini_error_api_request_failed, response.code, errorBody))
+                            throw IOException(
+                                context.getString(
+                                    R.string.gemini_error_api_request_failed,
+                                    response.code,
+                                    errorSummary.exceptionDetail(),
+                                )
+                            )
                         }
 
                         // 根据stream参数处理响应
@@ -1297,15 +1242,6 @@ class GeminiProvider(
         json.put("generationConfig", generationConfig)
 
         val jsonString = json.toString()
-        // 使用分块日志函数记录请求体（省略过长的tools字段）
-        val logJson = JSONObject(jsonString)
-        if (logJson.has("tools")) {
-            val toolsArray = logJson.getJSONArray("tools")
-            logJson.put("tools", "[${toolsArray.length()} tools omitted for brevity]")
-        }
-        sanitizeImageDataForLogging(logJson)
-        logLargeString(TAG, logJson.toString(4), context.getString(R.string.gemini_request_body_json))
-
         return jsonString.toByteArray(Charsets.UTF_8).toRequestBody(JSON)
     }
 
@@ -1345,7 +1281,17 @@ class GeminiProvider(
                 .addHeader("Content-Type", "application/json")
                 .build()
 
-        logLargeString(TAG, context.getString(R.string.gemini_request_headers, HttpLogSanitizer.headersForLog(request.headers)))
+        AppLogger.d(
+            TAG,
+            "Gemini request summary: ${LlmLogPrivacy.summarizeRequestBody(requestBody).format()}"
+        )
+        AppLogger.d(
+            TAG,
+            context.getString(
+                R.string.gemini_request_headers,
+                HttpLogSanitizer.headersForLog(request.headers)
+            )
+        )
         return request
     }
 
@@ -1597,7 +1543,7 @@ class GeminiProvider(
         
         try {
             val responseText = responseBody.string()
-            logDebug("收到完整响应，长度: ${responseText.length}")
+            logDebug("收到非流式响应；${LlmLogPrivacy.summarizeText(responseText).format()}")
             
             // 解析JSON响应
             val json = JSONObject(responseText)
