@@ -1,7 +1,5 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
-import java.net.URI
-import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -13,7 +11,7 @@ import org.json.JSONObject
  */
 internal object OpenAIHostedWebSearchResponseParser {
     private data class RawSource(
-        val url: String,
+        val identity: OpenAIHostedWebSearchUrlIdentity,
         val title: String?,
     )
 
@@ -23,7 +21,7 @@ internal object OpenAIHostedWebSearchResponseParser {
     )
 
     private data class RawCitation(
-        val url: String,
+        val identity: OpenAIHostedWebSearchUrlIdentity,
         val title: String?,
         val startIndex: Int,
         val endIndex: Int,
@@ -91,12 +89,14 @@ internal object OpenAIHostedWebSearchResponseParser {
             responseJson.optJSONArray("output")
                 ?: throw schemaFailure("OpenAI Web Search response is missing output items.")
         val actions = mutableListOf<OpenAIHostedWebSearchAction>()
-        val actionSourcesByUrl = linkedMapOf<String, RawSource>()
+        val actionSourcesByIdentity = linkedMapOf<String, RawSource>()
         val feedSourcesByType = linkedMapOf<String, RawFeedSource>()
-        val citationTitlesByUrl = linkedMapOf<String, String?>()
+        val citationTitlesByIdentity = linkedMapOf<String, RawSource>()
         val rawCitations = mutableListOf<RawCitation>()
         val actionSourceIssues = mutableListOf<ActionSourceIssue>()
-        val openPageUrls = linkedSetOf<String>()
+        val openPageUrlsByIdentity = linkedMapOf<String, String>()
+        val reportedUrlsByIdentity =
+            linkedMapOf<String, OpenAIHostedWebSearchUrlIdentity>()
         val searchActionIndexes = linkedSetOf<Int>()
         val missingSourceActionIndexes = linkedSetOf<Int>()
         val answer = StringBuilder()
@@ -118,10 +118,11 @@ internal object OpenAIHostedWebSearchResponseParser {
                         outputIndex = outputIndex,
                         providerContract = binding.providerContract,
                         actions = actions,
-                        actionSourcesByUrl = actionSourcesByUrl,
+                        actionSourcesByIdentity = actionSourcesByIdentity,
                         feedSourcesByType = feedSourcesByType,
                         actionSourceIssues = actionSourceIssues,
-                        openPageUrls = openPageUrls,
+                        openPageUrlsByIdentity = openPageUrlsByIdentity,
+                        reportedUrlsByIdentity = reportedUrlsByIdentity,
                         searchActionIndexes = searchActionIndexes,
                         missingSourceActionIndexes = missingSourceActionIndexes,
                         onActionSource = { totalActionSourceCount += 1 },
@@ -135,7 +136,8 @@ internal object OpenAIHostedWebSearchResponseParser {
                         item = item,
                         answer = answer,
                         rawCitations = rawCitations,
-                        citationTitlesByUrl = citationTitlesByUrl,
+                        citationTitlesByIdentity = citationTitlesByIdentity,
+                        reportedUrlsByIdentity = reportedUrlsByIdentity,
                     )
                 }
             }
@@ -155,12 +157,22 @@ internal object OpenAIHostedWebSearchResponseParser {
             )
         }
         val hasUrlCitations = rawCitations.isNotEmpty()
-        val hasActionSourceUrls = actionSourcesByUrl.isNotEmpty()
+        val hasActionSourceUrls = actionSourcesByIdentity.isNotEmpty()
         val hasStructuredFeeds = feedSourcesByType.isNotEmpty()
-        val actionSourceUrls = actionSourcesByUrl.keys.toList()
-        val citationUrls = rawCitations.map(RawCitation::url).distinct()
+        val actionSourceUrls =
+            actionSourcesByIdentity.values.map { source -> source.identity.displayUrl }
+        val citationUrls =
+            rawCitations
+                .distinctBy { citation -> citation.identity.identityKey }
+                .map { citation -> citation.identity.displayUrl }
         val citationsMissingFromActionSources =
-            citationUrls.filterNot(actionSourcesByUrl::containsKey)
+            rawCitations
+                .distinctBy { citation -> citation.identity.identityKey }
+                .filterNot { citation ->
+                    actionSourcesByIdentity.containsKey(citation.identity.identityKey) ||
+                        openPageUrlsByIdentity.containsKey(citation.identity.identityKey)
+                }
+                .map { citation -> citation.identity.displayUrl }
         val invalidActionSourceCount =
             actionSourceIssues.count(ActionSourceIssue::invalid)
         val actionSourceCoverage =
@@ -180,6 +192,13 @@ internal object OpenAIHostedWebSearchResponseParser {
 
                 else -> OpenAIHostedWebSearchActionSourceCoverage.COMPLETE
             }
+        val domainPolicyState =
+            OpenAIHostedWebSearchDomainPolicy.auditReportedBehavior(
+                providerContract = binding.providerContract,
+                request = request,
+                reportedUrls = reportedUrlsByIdentity.values,
+                actionQueries = actions.mapNotNull(OpenAIHostedWebSearchAction::query),
+            )
         val sourceDiagnostics =
             OpenAIHostedWebSearchSourceDiagnostics(
                 responseId = responseId,
@@ -187,35 +206,17 @@ internal object OpenAIHostedWebSearchResponseParser {
                 actionSourceUrls = actionSourceUrls,
                 citationUrls = citationUrls,
                 citationsMissingFromActionSources = citationsMissingFromActionSources,
-                openPageUrls = openPageUrls.toList(),
+                openPageUrls = openPageUrlsByIdentity.values.toList(),
                 missingSourceActionIndexes = missingSourceActionIndexes.toList(),
                 invalidActionSourceCount = invalidActionSourceCount,
                 allowedDomains = request.allowedDomains,
+                domainPolicyState = domainPolicyState,
             )
-        if (
-            binding.providerContract ==
-                OpenAIHostedWebSearchProviderContract.RESPONSES_HOSTED_OFFICIAL
-        ) {
-            if (!hasUrlCitations && (hasActionSourceUrls || !hasStructuredFeeds)) {
-                throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CITATION_INVALID,
-                    message = "The hosted Web Search response did not contain URL citations.",
-                )
-            }
-        } else {
-            if (!hasUrlCitations && !hasActionSourceUrls && !hasStructuredFeeds) {
-                throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.RELAY_RESPONSE_TEXT_ONLY,
-                    message =
-                        "The relay returned Web Search answer text without URL citations, " +
-                            "URL action sources, or a recognized structured feed.",
-                )
-            }
-        }
-        citationTitlesByUrl.forEach { (url, title) ->
+        citationTitlesByIdentity.forEach { (_, source) ->
             mergeSource(
-                sourcesByUrl = actionSourcesByUrl,
-                source = RawSource(url = url, title = title),
+                sourcesByIdentity = actionSourcesByIdentity,
+                source = source,
+                preferDisplayUrl = true,
             )
         }
 
@@ -226,17 +227,43 @@ internal object OpenAIHostedWebSearchResponseParser {
 
                 hasUrlCitations -> OpenAIHostedWebSearchEvidenceMode.URL_CITATIONS
                 hasActionSourceUrls -> OpenAIHostedWebSearchEvidenceMode.ACTION_SOURCES
-                else -> OpenAIHostedWebSearchEvidenceMode.STRUCTURED_FEEDS
+                hasStructuredFeeds -> OpenAIHostedWebSearchEvidenceMode.STRUCTURED_FEEDS
+                else -> OpenAIHostedWebSearchEvidenceMode.NONE
             }
-        val sourceIdsByUrl =
-            actionSourcesByUrl.keys.mapIndexed { index, url -> url to "S${index + 1}" }.toMap()
+        val allSourcesByIdentity = linkedMapOf<String, RawSource>()
+        actionSourcesByIdentity.forEach { (identityKey, source) ->
+            allSourcesByIdentity[identityKey] = source
+        }
+        openPageUrlsByIdentity.forEach { (identityKey, _) ->
+            val identity = reportedUrlsByIdentity.getValue(identityKey)
+            mergeSource(
+                sourcesByIdentity = allSourcesByIdentity,
+                source = RawSource(identity = identity, title = null),
+            )
+        }
+        citationTitlesByIdentity.forEach { (_, source) ->
+            mergeSource(
+                sourcesByIdentity = allSourcesByIdentity,
+                source = source,
+                preferDisplayUrl = true,
+            )
+        }
+        val sourceIdsByIdentity =
+            allSourcesByIdentity.keys
+                .mapIndexed { index, identityKey -> identityKey to "S${index + 1}" }
+                .toMap()
         val urlSources =
-            actionSourcesByUrl.values.map { source ->
+            allSourcesByIdentity.values.map { source ->
                 OpenAIHostedWebSearchSource(
-                    sourceId = requireNotNull(sourceIdsByUrl[source.url]),
+                    sourceId =
+                        requireNotNull(
+                            sourceIdsByIdentity[source.identity.identityKey]
+                        ),
                     type = "url",
-                    title = source.title?.takeIf(String::isNotBlank) ?: sourceHost(source.url),
-                    url = source.url,
+                    title =
+                        source.title?.takeIf(String::isNotBlank)
+                            ?: source.identity.normalizedHost,
+                    url = source.identity.displayUrl,
                 )
             }
         val feedSources =
@@ -248,16 +275,38 @@ internal object OpenAIHostedWebSearchResponseParser {
                     url = null,
                 )
             }
-        val sources = urlSources + feedSources
+        val allSources = urlSources + feedSources
         val citations =
             rawCitations.map { citation ->
+                val source =
+                    allSourcesByIdentity.getValue(citation.identity.identityKey)
                 OpenAIHostedWebSearchCitation(
-                    sourceId = requireNotNull(sourceIdsByUrl[citation.url]),
+                    sourceId =
+                        requireNotNull(
+                            sourceIdsByIdentity[citation.identity.identityKey]
+                        ),
                     title =
                         citation.title?.takeIf(String::isNotBlank)
-                            ?: actionSourcesByUrl.getValue(citation.url).title
-                                ?.takeIf(String::isNotBlank)
-                            ?: sourceHost(citation.url),
+                            ?: source.title?.takeIf(String::isNotBlank)
+                            ?: source.identity.normalizedHost,
+                    url = source.identity.displayUrl,
+                    startIndex = citation.startIndex,
+                    endIndex = citation.endIndex,
+                )
+            }
+        val citedSourceIds =
+            citations.map(OpenAIHostedWebSearchCitation::sourceId).toSet()
+        val citedSources = allSources.filter { source -> source.sourceId in citedSourceIds }
+        val normalizedAnswer =
+            OpenAIHostedWebSearchAnswerNormalizer.normalize(
+                answer = answerText,
+                citations = citations,
+            )
+        val normalizedCitations =
+            normalizedAnswer.citations.map { citation ->
+                OpenAIHostedWebSearchCitation(
+                    sourceId = citation.sourceId,
+                    title = citation.title,
                     url = citation.url,
                     startIndex = citation.startIndex,
                     endIndex = citation.endIndex,
@@ -293,6 +342,9 @@ internal object OpenAIHostedWebSearchResponseParser {
 
             OpenAIHostedWebSearchEvidenceMode.STRUCTURED_FEEDS ->
                 warnings += "URL_EVIDENCE_NOT_APPLICABLE"
+
+            OpenAIHostedWebSearchEvidenceMode.NONE ->
+                warnings += "NO_WEB_EVIDENCE"
         }
         val parsedUsage =
             OpenAIResponsesPayloadAdapter.parseUsageCounts(
@@ -318,11 +370,22 @@ internal object OpenAIHostedWebSearchResponseParser {
                     mode = binding.mode,
                     modelName = binding.modelName,
                     evidenceMode = evidenceMode,
-                    answer = answerText,
-                    answerWithSourceMarkers = insertSourceMarkers(answerText, citations),
+                    answer = normalizedAnswer.answer,
+                    answerWithSourceMarkers =
+                        insertSourceMarkers(normalizedAnswer.answer, normalizedCitations),
                     searchActions = actions,
-                    citations = citations,
-                    sources = sources,
+                    citations = normalizedCitations,
+                    citedSources = citedSources,
+                    allSources = allSources,
+                    sourceSummary =
+                        OpenAIHostedWebSearchSourceSummary(
+                            allSourceCount = allSources.size,
+                            citedSourceCount = citedSources.size,
+                            uncitedSourceCount = allSources.size - citedSources.size,
+                            urlSourceCount = allSources.count { source -> source.type == "url" },
+                            structuredSourceCount =
+                                allSources.count { source -> source.type != "url" },
+                        ),
                     usage = usage,
                     warnings = warnings,
                     sourceDiagnostics = sourceDiagnostics,
@@ -347,10 +410,12 @@ internal object OpenAIHostedWebSearchResponseParser {
         outputIndex: Int,
         providerContract: OpenAIHostedWebSearchProviderContract,
         actions: MutableList<OpenAIHostedWebSearchAction>,
-        actionSourcesByUrl: LinkedHashMap<String, RawSource>,
+        actionSourcesByIdentity: LinkedHashMap<String, RawSource>,
         feedSourcesByType: LinkedHashMap<String, RawFeedSource>,
         actionSourceIssues: MutableList<ActionSourceIssue>,
-        openPageUrls: MutableSet<String>,
+        openPageUrlsByIdentity: LinkedHashMap<String, String>,
+        reportedUrlsByIdentity:
+            LinkedHashMap<String, OpenAIHostedWebSearchUrlIdentity>,
         searchActionIndexes: MutableSet<Int>,
         missingSourceActionIndexes: MutableSet<Int>,
         onActionSource: () -> Unit,
@@ -373,12 +438,18 @@ internal object OpenAIHostedWebSearchResponseParser {
                 query.trim().takeIf(String::isNotEmpty)?.let(queries::add)
             }
         }
-        val actionUrl =
+        val actionUrlIdentity =
             action.optString("url", "").trim().takeIf(String::isNotEmpty)?.let {
-                normalizeOpenAIHostedWebSearchUrl(it)
+                OpenAIHostedWebSearchUrlIdentity.parse(it)
             }
-        if (type == "open_page" && actionUrl != null) {
-            openPageUrls += actionUrl
+        actionUrlIdentity?.let { identity ->
+            reportedUrlsByIdentity.putIfAbsent(identity.identityKey, identity)
+        }
+        if (type == "open_page" && actionUrlIdentity != null) {
+            openPageUrlsByIdentity.putIfAbsent(
+                actionUrlIdentity.identityKey,
+                actionUrlIdentity.displayUrl,
+            )
         }
         val pattern = action.optString("pattern", "").trim().takeIf(String::isNotEmpty)
 
@@ -387,7 +458,7 @@ internal object OpenAIHostedWebSearchResponseParser {
                 OpenAIHostedWebSearchAction(
                     type = type,
                     query = null,
-                    url = actionUrl,
+                    url = actionUrlIdentity?.displayUrl,
                     pattern = pattern,
                 )
         } else {
@@ -396,7 +467,7 @@ internal object OpenAIHostedWebSearchResponseParser {
                     OpenAIHostedWebSearchAction(
                         type = type,
                         query = query,
-                        url = actionUrl,
+                        url = actionUrlIdentity?.displayUrl,
                         pattern = pattern,
                     )
             }
@@ -443,9 +514,10 @@ internal object OpenAIHostedWebSearchResponseParser {
                         outputIndex = outputIndex,
                         sourceIndex = index,
                         providerContract = providerContract,
-                        actionSourcesByUrl = actionSourcesByUrl,
+                        actionSourcesByIdentity = actionSourcesByIdentity,
                         feedSourcesByType = feedSourcesByType,
                         actionSourceIssues = actionSourceIssues,
+                        reportedUrlsByIdentity = reportedUrlsByIdentity,
                     )
                 ) {
                     ActionSourceClassification.VALID_URL -> onValidActionSourceUrl()
@@ -460,7 +532,9 @@ internal object OpenAIHostedWebSearchResponseParser {
         item: JSONObject,
         answer: StringBuilder,
         rawCitations: MutableList<RawCitation>,
-        citationTitlesByUrl: LinkedHashMap<String, String?>,
+        citationTitlesByIdentity: LinkedHashMap<String, RawSource>,
+        reportedUrlsByIdentity:
+            LinkedHashMap<String, OpenAIHostedWebSearchUrlIdentity>,
     ) {
         val content = item.optJSONArray("content") ?: return
         for (contentIndex in 0 until content.length()) {
@@ -483,7 +557,8 @@ internal object OpenAIHostedWebSearchResponseParser {
                 partText = text,
                 answerOffset = answerOffset,
                 rawCitations = rawCitations,
-                citationTitlesByUrl = citationTitlesByUrl,
+                citationTitlesByIdentity = citationTitlesByIdentity,
+                reportedUrlsByIdentity = reportedUrlsByIdentity,
             )
         }
     }
@@ -493,7 +568,9 @@ internal object OpenAIHostedWebSearchResponseParser {
         partText: String,
         answerOffset: Int,
         rawCitations: MutableList<RawCitation>,
-        citationTitlesByUrl: LinkedHashMap<String, String?>,
+        citationTitlesByIdentity: LinkedHashMap<String, RawSource>,
+        reportedUrlsByIdentity:
+            LinkedHashMap<String, OpenAIHostedWebSearchUrlIdentity>,
     ) {
         annotations ?: return
         for (annotationIndex in 0 until annotations.length()) {
@@ -516,17 +593,20 @@ internal object OpenAIHostedWebSearchResponseParser {
                     message = "OpenAI Web Search citation span is outside the answer text.",
                 )
             }
-            val url = normalizeOpenAIHostedWebSearchUrl(rawUrl)
+            val identity = OpenAIHostedWebSearchUrlIdentity.parse(rawUrl)
+            reportedUrlsByIdentity.putIfAbsent(identity.identityKey, identity)
             val title = annotation.optString("title", "").trim().takeIf(String::isNotEmpty)
-            val existingTitle = citationTitlesByUrl[url]
-            if (existingTitle.isNullOrBlank() && !title.isNullOrBlank()) {
-                citationTitlesByUrl[url] = title
-            } else if (!citationTitlesByUrl.containsKey(url)) {
-                citationTitlesByUrl[url] = title
+            val existingSource = citationTitlesByIdentity[identity.identityKey]
+            if (existingSource == null) {
+                citationTitlesByIdentity[identity.identityKey] =
+                    RawSource(identity = identity, title = title)
+            } else if (existingSource.title.isNullOrBlank() && !title.isNullOrBlank()) {
+                citationTitlesByIdentity[identity.identityKey] =
+                    existingSource.copy(identity = identity, title = title)
             }
             rawCitations +=
                 RawCitation(
-                    url = url,
+                    identity = identity,
                     title = title,
                     startIndex = answerOffset + startIndex,
                     endIndex = answerOffset + endIndex,
@@ -539,9 +619,11 @@ internal object OpenAIHostedWebSearchResponseParser {
         outputIndex: Int,
         sourceIndex: Int,
         providerContract: OpenAIHostedWebSearchProviderContract,
-        actionSourcesByUrl: LinkedHashMap<String, RawSource>,
+        actionSourcesByIdentity: LinkedHashMap<String, RawSource>,
         feedSourcesByType: LinkedHashMap<String, RawFeedSource>,
         actionSourceIssues: MutableList<ActionSourceIssue>,
+        reportedUrlsByIdentity:
+            LinkedHashMap<String, OpenAIHostedWebSearchUrlIdentity>,
     ): ActionSourceClassification {
         val type = sourceObject.optString("type", "").trim()
         if (type in OpenAIHostedWebSearchContract.OFFICIAL_REALTIME_FEED_SOURCE_TYPES) {
@@ -614,9 +696,9 @@ internal object OpenAIHostedWebSearchResponseParser {
                 )
             return ActionSourceClassification.INVALID
         }
-        val normalizedUrl =
+        val identity =
             try {
-                normalizeOpenAIHostedWebSearchUrl(rawUrl)
+                OpenAIHostedWebSearchUrlIdentity.parse(rawUrl)
             } catch (_: OpenAIHostedWebSearchException) {
                 actionSourceIssues +=
                     ActionSourceIssue(
@@ -627,11 +709,12 @@ internal object OpenAIHostedWebSearchResponseParser {
                     )
                 return ActionSourceClassification.INVALID
             }
+        reportedUrlsByIdentity.putIfAbsent(identity.identityKey, identity)
         mergeSource(
-            sourcesByUrl = actionSourcesByUrl,
+            sourcesByIdentity = actionSourcesByIdentity,
             source =
                 RawSource(
-                    url = normalizedUrl,
+                    identity = identity,
                     title =
                         sourceObject.optString("title", "").trim()
                             .takeIf(String::isNotEmpty),
@@ -650,14 +733,25 @@ internal object OpenAIHostedWebSearchResponseParser {
     }
 
     private fun mergeSource(
-        sourcesByUrl: LinkedHashMap<String, RawSource>,
+        sourcesByIdentity: LinkedHashMap<String, RawSource>,
         source: RawSource,
+        preferDisplayUrl: Boolean = false,
     ) {
-        val existing = sourcesByUrl[source.url]
+        val identityKey = source.identity.identityKey
+        val existing = sourcesByIdentity[identityKey]
         if (existing == null) {
-            sourcesByUrl[source.url] = source
-        } else if (existing.title.isNullOrBlank() && !source.title.isNullOrBlank()) {
-            sourcesByUrl[source.url] = existing.copy(title = source.title)
+            sourcesByIdentity[identityKey] = source
+        } else if (
+            preferDisplayUrl ||
+                (existing.title.isNullOrBlank() && !source.title.isNullOrBlank())
+        ) {
+            sourcesByIdentity[identityKey] =
+                existing.copy(
+                    identity =
+                        if (preferDisplayUrl) source.identity else existing.identity,
+                    title =
+                        if (existing.title.isNullOrBlank()) source.title else existing.title,
+                )
         }
     }
 
@@ -693,13 +787,6 @@ internal object OpenAIHostedWebSearchResponseParser {
             markedAnswer.insert(endIndex, markersByEndIndex.getValue(endIndex))
         }
         return markedAnswer.toString()
-    }
-
-    private fun sourceHost(url: String): String {
-        return runCatching { URI(url).host?.lowercase(Locale.ROOT) }
-            .getOrNull()
-            ?.takeIf(String::isNotBlank)
-            ?: "source"
     }
 
     private fun schemaFailure(message: String): OpenAIHostedWebSearchException =

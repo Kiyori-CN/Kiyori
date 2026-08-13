@@ -15,88 +15,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
-internal data class OpenAIHostedWebSearchCompatibilityStatus(
-    val state: String,
-    val testedAtEpochMillis: Long?,
-    val responseId: String?,
-    val evidenceMode: String?,
-    val schemaRevision: Int?,
-    val errorCode: String?,
-    val httpStatus: Int?,
-    val message: String?,
-    val providerErrorType: String?,
-    val providerErrorCode: String?,
-    val providerRequestId: String?,
-)
-
-internal object OpenAIHostedWebSearchCompatibilityStatusResolver {
-    fun resolve(
-        binding: OpenAIHostedWebSearchBinding,
-        compatibilityRecord: OpenAIHostedWebSearchCompatibilityRecord?,
-        compatibilityFailureRecord: OpenAIHostedWebSearchCompatibilityFailureRecord?,
-        hasOtherCompatibilityRecords: Boolean = false,
-    ): OpenAIHostedWebSearchCompatibilityStatus {
-        val relayProbeRequired =
-            binding.providerContract ==
-                OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT
-        val fingerprintDigest = binding.compatibilityFingerprint().digest
-        val state =
-            when {
-                !relayProbeRequired -> "not_required"
-                compatibilityRecord?.fingerprintDigest == fingerprintDigest -> "valid"
-                compatibilityFailureRecord?.fingerprintDigest == fingerprintDigest -> "failed"
-                hasOtherCompatibilityRecords -> "stale"
-                else -> "missing"
-            }
-        return when (state) {
-            "valid" ->
-                OpenAIHostedWebSearchCompatibilityStatus(
-                    state = state,
-                    testedAtEpochMillis = compatibilityRecord?.testedAtEpochMillis,
-                    responseId = compatibilityRecord?.responseId,
-                    evidenceMode = compatibilityRecord?.evidenceMode?.wireValue,
-                    schemaRevision = compatibilityRecord?.schemaRevision,
-                    errorCode = null,
-                    httpStatus = null,
-                    message = null,
-                    providerErrorType = null,
-                    providerErrorCode = null,
-                    providerRequestId = null,
-                )
-
-            "failed" ->
-                OpenAIHostedWebSearchCompatibilityStatus(
-                    state = state,
-                    testedAtEpochMillis = compatibilityFailureRecord?.testedAtEpochMillis,
-                    responseId = null,
-                    evidenceMode = null,
-                    schemaRevision = compatibilityFailureRecord?.schemaRevision,
-                    errorCode = compatibilityFailureRecord?.errorCode?.name,
-                    httpStatus = compatibilityFailureRecord?.httpStatus,
-                    message = compatibilityFailureRecord?.sanitizedMessage,
-                    providerErrorType = compatibilityFailureRecord?.providerErrorType,
-                    providerErrorCode = compatibilityFailureRecord?.providerErrorCode,
-                    providerRequestId = compatibilityFailureRecord?.providerRequestId,
-                )
-
-            else ->
-                OpenAIHostedWebSearchCompatibilityStatus(
-                    state = state,
-                    testedAtEpochMillis = null,
-                    responseId = null,
-                    evidenceMode = null,
-                    schemaRevision = null,
-                    errorCode = null,
-                    httpStatus = null,
-                    message = null,
-                    providerErrorType = null,
-                    providerErrorCode = null,
-                    providerRequestId = null,
-                )
-        }
-    }
-}
-
 internal object OpenAIHostedWebSearchBridgePolicy {
     private val SEARCH_REQUEST_FIELDS =
         setOf(
@@ -133,7 +51,7 @@ internal object OpenAIHostedWebSearchBridgePolicy {
         return normalizedCallId
     }
 
-    fun requireCompatibilityProbeCaller(
+    fun requireSettingsUiCaller(
         boundToolPkgContainerName: String?,
         callId: String,
         isExecutionCallActive: (String) -> Boolean,
@@ -153,12 +71,25 @@ internal object OpenAIHostedWebSearchBridgePolicy {
             throw OpenAIHostedWebSearchException(
                 code = OpenAIHostedWebSearchErrorCode.CALLER_NOT_AUTHORIZED,
                 message =
-                    "OpenAI Web Search compatibility probing is only available from the " +
+                    "OpenAI Web Search settings actions are only available from the " +
                         "plugin settings UI.",
             )
         }
         return normalizedCallId
     }
+
+    fun requireCompatibilityProbeCaller(
+        boundToolPkgContainerName: String?,
+        callId: String,
+        isExecutionCallActive: (String) -> Boolean,
+        resolveExecutionRuntimeKind: (String) -> String?,
+    ): String =
+        requireSettingsUiCaller(
+            boundToolPkgContainerName = boundToolPkgContainerName,
+            callId = callId,
+            isExecutionCallActive = isExecutionCallActive,
+            resolveExecutionRuntimeKind = resolveExecutionRuntimeKind,
+        )
 
     fun parseSearchRequest(
         requestId: String,
@@ -166,33 +97,44 @@ internal object OpenAIHostedWebSearchBridgePolicy {
     ): OpenAIHostedWebSearchRequest {
         val parsed =
             runCatching { JSONTokener(requestJson.trim()).nextValue() }.getOrElse { error ->
-                throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                throw openAIHostedWebSearchInvalidArgument(
+                    field = "request",
+                    reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                     message = "OpenAI Web Search request must be a JSON object.",
                     cause = error,
                 )
             }
         val requestObject =
             parsed as? JSONObject
-                ?: throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                ?: throw openAIHostedWebSearchInvalidArgument(
+                    field = "request",
+                    reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                     message = "OpenAI Web Search request must be a JSON object.",
                 )
         val keys = requestObject.keys().asSequence().toSet()
         val unsupportedFields = keys - SEARCH_REQUEST_FIELDS
         if (unsupportedFields.isNotEmpty()) {
-            throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "request",
+                reason = OpenAIHostedWebSearchArgumentReason.INVALID_VALUE,
                 message =
                     "OpenAI Web Search request contains unsupported fields: " +
                         unsupportedFields.sorted().joinToString(", "),
             )
         }
 
+        if (!requestObject.has("query") || requestObject.isNull("query")) {
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "query",
+                reason = OpenAIHostedWebSearchArgumentReason.MISSING,
+                message = "OpenAI Web Search request query is required.",
+            )
+        }
         val query =
             requestObject.opt("query") as? String
-                ?: throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                ?: throw openAIHostedWebSearchInvalidArgument(
+                    field = "query",
+                    reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                     message = "OpenAI Web Search request query must be a string.",
                 )
         val contextSize =
@@ -201,12 +143,23 @@ internal object OpenAIHostedWebSearchBridgePolicy {
             } else {
                 val rawContextSize =
                     requestObject.opt("context_size") as? String
-                        ?: throw OpenAIHostedWebSearchException(
-                            code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                        ?: throw openAIHostedWebSearchInvalidArgument(
+                            field = "context_size",
+                            reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                             message =
                                 "OpenAI Web Search request context_size must be a string.",
                         )
-                OpenAIHostedWebSearchContextSize.parse(rawContextSize)
+                runCatching {
+                    OpenAIHostedWebSearchContextSize.parse(rawContextSize)
+                }.getOrElse { error ->
+                    throw openAIHostedWebSearchInvalidArgument(
+                        field = "context_size",
+                        reason = OpenAIHostedWebSearchArgumentReason.INVALID_VALUE,
+                        message =
+                            "OpenAI Web Search request context_size must be low, medium, or high.",
+                        cause = error,
+                    )
+                }
             }
 
         return OpenAIHostedWebSearchRequest(
@@ -229,16 +182,18 @@ internal object OpenAIHostedWebSearchBridgePolicy {
         }
         val array =
             opt(key) as? JSONArray
-                ?: throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                ?: throw openAIHostedWebSearchInvalidArgument(
+                    field = key,
+                    reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                     message = "OpenAI Web Search request $key must be a string array.",
                 )
         return buildList {
             for (index in 0 until array.length()) {
                 val value =
                     array.opt(index) as? String
-                        ?: throw OpenAIHostedWebSearchException(
-                            code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                        ?: throw openAIHostedWebSearchInvalidArgument(
+                            field = key,
+                            reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                             message =
                                 "OpenAI Web Search request $key must contain only strings.",
                         )
@@ -252,8 +207,9 @@ internal object OpenAIHostedWebSearchBridgePolicy {
             return defaultValue
         }
         return opt(key) as? Boolean
-            ?: throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+            ?: throw openAIHostedWebSearchInvalidArgument(
+                field = key,
+                reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
                 message = "OpenAI Web Search request $key must be a boolean.",
             )
     }
@@ -262,6 +218,7 @@ internal object OpenAIHostedWebSearchBridgePolicy {
 internal class OpenAIHostedWebSearchRequestOwnershipRegistry {
     private data class OwnedRequest(
         val callId: String,
+        val lifecycle: OpenAIHostedWebSearchRequestLifecycle,
         val cancel: (String) -> Unit,
     )
 
@@ -270,47 +227,111 @@ internal class OpenAIHostedWebSearchRequestOwnershipRegistry {
     fun register(
         requestId: String,
         callId: String,
+        lifecycle: OpenAIHostedWebSearchRequestLifecycle,
         cancel: (String) -> Unit,
     ) {
         val previous =
             requests.putIfAbsent(
                 requestId,
-                OwnedRequest(callId = callId, cancel = cancel),
+                OwnedRequest(
+                    callId = callId,
+                    lifecycle = lifecycle,
+                    cancel = cancel,
+                ),
             )
         check(previous == null) { "OpenAI Web Search request ID is already active" }
     }
 
-    fun requestCancellation(requestId: String, reason: String): Boolean {
+    fun requestCancellation(
+        requestId: String,
+        reason: String,
+        owner: OpenAIHostedWebSearchCancellationOwner =
+            OpenAIHostedWebSearchCancellationOwner.TOOLPKG,
+    ): Boolean {
         val request = requests[requestId.trim()] ?: return false
+        if (!request.lifecycle.requestCancellation(owner = owner, reason = reason)) {
+            return false
+        }
         request.cancel(reason)
         return true
     }
 
-    fun complete(requestId: String): Boolean = requests.remove(requestId.trim()) != null
+    fun settle(
+        requestId: String,
+        proposedOutcome: OpenAIHostedWebSearchTerminalOutcome,
+    ): OpenAIHostedWebSearchRequestSettlement? {
+        val normalizedRequestId = requestId.trim()
+        val request = requests[normalizedRequestId] ?: return null
+        val settlement = request.lifecycle.settle(proposedOutcome) ?: return null
+        requests.remove(normalizedRequestId, request)
+        return settlement
+    }
 
     fun requestCancellationForCall(callId: String, reason: String): Int {
         val normalizedCallId = callId.trim()
         val owned =
             requests.entries
                 .filter { entry -> entry.value.callId == normalizedCallId }
-                .map { entry -> entry.value }
-        owned.forEach { request -> request.cancel(reason) }
-        return owned.size
+                .map { entry -> entry.key }
+        return owned.count { requestId ->
+            requestCancellation(
+                requestId = requestId,
+                reason = reason,
+                owner = OpenAIHostedWebSearchCancellationOwner.EXECUTION_OWNER,
+            )
+        }
     }
 
     fun cancelAll(reason: String): Int {
-        val owned =
-            requests.entries.mapNotNull { entry ->
-                if (requests.remove(entry.key, entry.value)) {
-                    entry.value
-                } else {
-                    null
-                }
-            }
-        owned.forEach { request -> request.cancel(reason) }
-        return owned.size
+        val requestIds = requests.keys.toList()
+        return requestIds.count { requestId ->
+            requestCancellation(
+                requestId = requestId,
+                reason = reason,
+                owner = OpenAIHostedWebSearchCancellationOwner.BRIDGE,
+            )
+        }
     }
+
+    fun lifecycle(requestId: String): OpenAIHostedWebSearchRequestLifecycle? =
+        requests[requestId.trim()]?.lifecycle
 }
+
+private data class OpenAIHostedWebSearchOperationResult(
+    val json: JSONObject,
+    val outcome: OpenAIHostedWebSearchTerminalOutcome,
+)
+
+private fun OpenAIHostedWebSearchRequestSettlement.applyTo(
+    result: OpenAIHostedWebSearchOperationResult,
+    requestId: String,
+    lifecycle: OpenAIHostedWebSearchRequestLifecycle,
+): JSONObject =
+    if (outcome == OpenAIHostedWebSearchTerminalOutcome.CANCELLED) {
+        cancellationException().toJson(requestId)
+    } else {
+        result.json.apply {
+            if (result.outcome == OpenAIHostedWebSearchTerminalOutcome.SUCCESS) {
+                put(
+                    "execution_diagnostics",
+                    lifecycle.executionDiagnostics().toJson(),
+                )
+            }
+        }
+    }
+
+private fun Throwable.openAIWebSearchTerminalOutcome(): OpenAIHostedWebSearchTerminalOutcome =
+    if (
+        this is CancellationException ||
+            (
+                this is OpenAIHostedWebSearchException &&
+                    code == OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED
+            )
+    ) {
+        OpenAIHostedWebSearchTerminalOutcome.CANCELLED
+    } else {
+        OpenAIHostedWebSearchTerminalOutcome.FAILURE
+    }
 
 internal class ToolPkgOpenAIWebSearchBridge(
     context: Context,
@@ -326,18 +347,14 @@ internal class ToolPkgOpenAIWebSearchBridge(
         OpenAIHostedWebSearchRequestOwnershipRegistry(),
     private val bridgeScope: CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val openConfigurationAction: () -> Unit = {},
 ) {
     fun getStatus(
         callId: String,
         deliverResult: (String) -> Unit,
     ) {
         launchLocalOperation(callId, deliverResult) {
-            val resolved =
-                bindingResolver.resolve(
-                    requireRelayProbe = false,
-                    advanceModelConfigKey = false,
-                )
-            buildStatusEnvelope(resolved)
+            buildStatusEnvelope(bindingResolver.inspect())
         }
     }
 
@@ -346,17 +363,30 @@ internal class ToolPkgOpenAIWebSearchBridge(
         deliverResult: (String) -> Unit,
     ) {
         launchLocalOperation(callId, deliverResult) {
-            val resolved =
-                bindingResolver.resolve(
-                    requireRelayProbe = false,
-                    advanceModelConfigKey = false,
-                )
+            val inspection = bindingResolver.inspect()
             JSONObject()
                 .put("success", true)
-                .put("valid", true)
-                .put("status", buildSanitizedStatus(resolved))
+                .put("valid", inspection.localValid)
+                .put("status", buildSanitizedStatus(inspection))
         }
     }
+
+    fun openConfiguration(callId: String): String =
+        try {
+            OpenAIHostedWebSearchBridgePolicy.requireSettingsUiCaller(
+                boundToolPkgContainerName = boundToolPkgContainerName,
+                callId = callId,
+                isExecutionCallActive = isExecutionCallActive,
+                resolveExecutionRuntimeKind = resolveExecutionRuntimeKind,
+            )
+            openConfigurationAction()
+            JSONObject()
+                .put("success", true)
+                .put("opened", true)
+                .toString()
+        } catch (error: Throwable) {
+            error.toOpenAIWebSearchEnvelope(requestId = null).toString()
+        }
 
     fun search(
         callId: String,
@@ -374,6 +404,7 @@ internal class ToolPkgOpenAIWebSearchBridge(
                 return error.toOpenAIWebSearchEnvelope(requestId = null).toString()
             }
         val requestId = nextRequestId("ows")
+        val lifecycle = OpenAIHostedWebSearchRequestLifecycle(requestId)
         val request =
             runCatching {
                 OpenAIHostedWebSearchBridgePolicy.parseSearchRequest(
@@ -387,13 +418,9 @@ internal class ToolPkgOpenAIWebSearchBridge(
         lateinit var job: Job
         job =
             bridgeScope.launch(start = CoroutineStart.LAZY) {
-                val resultJson =
+                val operationResult =
                     try {
-                        val resolved =
-                            bindingResolver.resolve(
-                                requireRelayProbe = true,
-                                advanceModelConfigKey = true,
-                            )
+                        val resolved = bindingResolver.resolve(requireRelayProbe = true)
                         val effectiveRequest =
                             OpenAIHostedWebSearchPolicy.compileEffectiveRequest(
                                 binding = resolved.binding,
@@ -402,20 +429,46 @@ internal class ToolPkgOpenAIWebSearchBridge(
                         gateway.execute(
                             binding = resolved.binding,
                             request = effectiveRequest,
-                        ).result.toJson()
+                            lifecycle = lifecycle,
+                        ).result.toJson().let { json ->
+                            OpenAIHostedWebSearchOperationResult(
+                                json = json,
+                                outcome = OpenAIHostedWebSearchTerminalOutcome.SUCCESS,
+                            )
+                        }
                     } catch (error: Throwable) {
-                        error.toOpenAIWebSearchEnvelope(requestId)
+                        OpenAIHostedWebSearchOperationResult(
+                            json = error.toOpenAIWebSearchEnvelope(requestId),
+                            outcome = error.openAIWebSearchTerminalOutcome(),
+                        )
                     }
-                val shouldDeliver = requestRegistry.complete(requestId)
-                if (shouldDeliver && isExecutionCallActive(normalizedCallId)) {
-                    deliverResult(resultJson.toString())
+                val callbackEligible = isExecutionCallActive(normalizedCallId)
+                if (callbackEligible) {
+                    lifecycle.markPhase(OpenAIHostedWebSearchRequestPhase.DELIVERING_CALLBACK)
+                }
+                val settlement =
+                    requestRegistry.settle(
+                        requestId = requestId,
+                        proposedOutcome = operationResult.outcome,
+                    )
+                if (
+                    settlement != null &&
+                        callbackEligible &&
+                        isExecutionCallActive(normalizedCallId)
+                ) {
+                    deliverResult(
+                        settlement
+                            .applyTo(operationResult, requestId, lifecycle)
+                            .toString()
+                    )
                 }
             }
         requestRegistry.register(
             requestId = requestId,
             callId = normalizedCallId,
+            lifecycle = lifecycle,
             cancel = { reason ->
-                gateway.cancel(requestId)
+                gateway.cancelTransport(requestId)
                 job.cancel(CancellationException(reason))
             },
         )
@@ -423,6 +476,10 @@ internal class ToolPkgOpenAIWebSearchBridge(
             requestRegistry.requestCancellationForCall(
                 callId = normalizedCallId,
                 reason = "OpenAI Web Search execution call ended before request dispatch.",
+            )
+            requestRegistry.settle(
+                requestId = requestId,
+                proposedOutcome = OpenAIHostedWebSearchTerminalOutcome.CANCELLED,
             )
             return OpenAIHostedWebSearchException(
                 code = OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED,
@@ -449,25 +506,51 @@ internal class ToolPkgOpenAIWebSearchBridge(
                 return error.toOpenAIWebSearchEnvelope(requestId = null).toString()
             }
         val requestId = nextRequestId("ows_probe")
+        val lifecycle = OpenAIHostedWebSearchRequestLifecycle(requestId)
         lateinit var job: Job
         job =
             bridgeScope.launch(start = CoroutineStart.LAZY) {
-                val resultJson =
+                val operationResult =
                     try {
-                        compatibilityProbe.run(requestId).toJson()
+                        compatibilityProbe.run(requestId, lifecycle).toJson().let { json ->
+                            OpenAIHostedWebSearchOperationResult(
+                                json = json,
+                                outcome = OpenAIHostedWebSearchTerminalOutcome.SUCCESS,
+                            )
+                        }
                     } catch (error: Throwable) {
-                        error.toOpenAIWebSearchEnvelope(requestId)
+                        OpenAIHostedWebSearchOperationResult(
+                            json = error.toOpenAIWebSearchEnvelope(requestId),
+                            outcome = error.openAIWebSearchTerminalOutcome(),
+                        )
                     }
-                val shouldDeliver = requestRegistry.complete(requestId)
-                if (shouldDeliver && isExecutionCallActive(normalizedCallId)) {
-                    deliverResult(resultJson.toString())
+                val callbackEligible = isExecutionCallActive(normalizedCallId)
+                if (callbackEligible) {
+                    lifecycle.markPhase(OpenAIHostedWebSearchRequestPhase.DELIVERING_CALLBACK)
+                }
+                val settlement =
+                    requestRegistry.settle(
+                        requestId = requestId,
+                        proposedOutcome = operationResult.outcome,
+                    )
+                if (
+                    settlement != null &&
+                        callbackEligible &&
+                        isExecutionCallActive(normalizedCallId)
+                ) {
+                    deliverResult(
+                        settlement
+                            .applyTo(operationResult, requestId, lifecycle)
+                            .toString()
+                    )
                 }
             }
         requestRegistry.register(
             requestId = requestId,
             callId = normalizedCallId,
+            lifecycle = lifecycle,
             cancel = { reason ->
-                compatibilityProbe.cancel(requestId)
+                compatibilityProbe.cancelTransport(requestId)
                 job.cancel(CancellationException(reason))
             },
         )
@@ -475,6 +558,10 @@ internal class ToolPkgOpenAIWebSearchBridge(
             requestRegistry.requestCancellationForCall(
                 callId = normalizedCallId,
                 reason = "OpenAI Web Search probe call ended before request dispatch.",
+            )
+            requestRegistry.settle(
+                requestId = requestId,
+                proposedOutcome = OpenAIHostedWebSearchTerminalOutcome.CANCELLED,
             )
             return OpenAIHostedWebSearchException(
                 code = OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED,
@@ -497,8 +584,9 @@ internal class ToolPkgOpenAIWebSearchBridge(
             )
             val normalizedRequestId = requestId.trim()
             if (normalizedRequestId.isEmpty()) {
-                throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                throw openAIHostedWebSearchInvalidArgument(
+                    field = "request_id",
+                    reason = OpenAIHostedWebSearchArgumentReason.MISSING,
                     message = "OpenAI Web Search request ID must not be blank.",
                 )
             }
@@ -555,57 +643,100 @@ internal class ToolPkgOpenAIWebSearchBridge(
     }
 
     private fun buildStatusEnvelope(
-        resolved: OpenAIHostedWebSearchResolvedBinding,
+        inspection: OpenAIHostedWebSearchBindingInspection,
     ): JSONObject =
         JSONObject()
             .put("success", true)
-            .put("status", buildSanitizedStatus(resolved))
+            .put("status", buildSanitizedStatus(inspection))
 
     private fun buildSanitizedStatus(
-        resolved: OpenAIHostedWebSearchResolvedBinding,
+        inspection: OpenAIHostedWebSearchBindingInspection,
     ): JSONObject {
-        val binding = resolved.binding
-        val compatibilityRecord = resolved.compatibilityRecord
-        val compatibilityFailureRecord = resolved.compatibilityFailureRecord
+        val searchSettings = inspection.searchSettings
+        val admissionSettings = inspection.admissionSettings
+        val compatibilityStatus = inspection.compatibilityStatus
         val relayProbeRequired =
-            binding.providerContract ==
+            inspection.providerContract ==
                 OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT
-        val compatibilityStatus =
-            OpenAIHostedWebSearchCompatibilityStatusResolver.resolve(
-                binding = binding,
-                compatibilityRecord = compatibilityRecord,
-                compatibilityFailureRecord = compatibilityFailureRecord,
-                hasOtherCompatibilityRecords = resolved.hasOtherCompatibilityRecords,
-            )
         return JSONObject()
             .put("toolpkg_id", OpenAIHostedWebSearchContract.TOOLPKG_ID)
             .put("tool_name", OpenAIHostedWebSearchContract.TOOL_NAME)
-            .put("config_source", binding.configSource.name)
-            .put("provider_contract", binding.providerContract.name)
-            .put("model_config_id", binding.modelConfigId ?: JSONObject.NULL)
-            .put("endpoint", binding.endpoint)
-            .put("model", binding.modelName)
-            .put("mode", binding.mode.wireValue)
-            .put("reasoning_effort", binding.reasoningEffort.name.lowercase())
-            .put("context_size", binding.contextSize.wireValue)
-            .put("return_token_budget", binding.returnTokenBudget.wireValue)
-            .put("max_output_tokens", binding.maxOutputTokens ?: JSONObject.NULL)
-            .put("timeout_seconds", binding.timeoutSeconds)
-            .put("max_concurrent_requests", binding.maxConcurrentRequests)
-            .put("requests_per_minute", binding.requestsPerMinute)
+            .put("local_valid", inspection.localValid)
+            .put(
+                "provider_contract",
+                inspection.providerContract?.name ?: JSONObject.NULL,
+            )
+            .put("endpoint_host", inspection.endpointHost ?: JSONObject.NULL)
+            .put("model", inspection.modelName ?: JSONObject.NULL)
+            .put("mode", searchSettings?.mode?.wireValue ?: JSONObject.NULL)
+            .put(
+                "reasoning_effort",
+                searchSettings?.reasoningEffort?.name?.lowercase() ?: JSONObject.NULL,
+            )
+            .put("context_size", searchSettings?.contextSize?.wireValue ?: JSONObject.NULL)
+            .put(
+                "return_token_budget",
+                searchSettings?.returnTokenBudget?.wireValue ?: JSONObject.NULL,
+            )
+            .put("max_output_tokens", searchSettings?.maxOutputTokens ?: JSONObject.NULL)
+            .put(
+                "queue_timeout_seconds",
+                admissionSettings?.queueTimeoutSeconds ?: JSONObject.NULL,
+            )
+            .put(
+                "timeout_seconds",
+                admissionSettings?.timeoutSeconds ?: JSONObject.NULL,
+            )
+            .put(
+                "max_concurrent_requests",
+                admissionSettings?.maxConcurrentRequests ?: JSONObject.NULL,
+            )
+            .put(
+                "requests_per_minute",
+                admissionSettings?.requestsPerMinute ?: JSONObject.NULL,
+            )
             .put(
                 "header_names",
                 JSONArray(
-                    (listOf(binding.authHeaderName) + binding.extraHeaders.keys)
+                    (
+                        listOfNotNull(inspection.authHeaderName) +
+                            inspection.extraHeaderNames
+                    )
                         .distinctBy { headerName -> headerName.lowercase() }
                         .sortedWith(String.CASE_INSENSITIVE_ORDER)
                 ),
             )
-            .put("api_key_configured", binding.apiKey.isNotBlank())
-            .put("api_key_revision", binding.credentialRevision())
-            .put("auth_scheme_present", binding.authScheme.isNotBlank())
-            .put("auth_scheme_kind", binding.authSchemeKind())
+            .put("api_key_configured", inspection.apiKeyConfigured)
+            .put("api_key_revision", inspection.apiKeyRevision ?: JSONObject.NULL)
+            .put(
+                "auth_scheme_present",
+                inspection.authScheme?.isNotBlank() ?: JSONObject.NULL,
+            )
+            .put(
+                "auth_scheme_kind",
+                inspection.authScheme?.let(::authSchemeKind) ?: JSONObject.NULL,
+            )
             .put("chat_provider_independent", true)
+            .put(
+                "readiness",
+                JSONObject().apply {
+                    inspection.readiness.forEach { (name, readinessCheck) ->
+                        put(
+                            name,
+                            JSONObject()
+                                .put("state", readinessCheck.state)
+                                .put(
+                                    "error_code",
+                                    readinessCheck.errorCode ?: JSONObject.NULL,
+                                )
+                                .put(
+                                    "message",
+                                    readinessCheck.message ?: JSONObject.NULL,
+                                ),
+                        )
+                    }
+                },
+            )
             .put(
                 "compatibility",
                 JSONObject()
@@ -653,6 +784,13 @@ internal class ToolPkgOpenAIWebSearchBridge(
                     ),
             )
     }
+
+    private fun authSchemeKind(authScheme: String): String =
+        when {
+            authScheme.isBlank() -> "direct"
+            authScheme.equals("Bearer", ignoreCase = true) -> "bearer"
+            else -> "custom"
+        }
 
     private fun buildStartedEnvelope(requestId: String): JSONObject =
         JSONObject()

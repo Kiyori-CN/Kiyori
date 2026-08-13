@@ -1761,7 +1761,8 @@ class EnhancedAIService private constructor(private val context: Context) {
             memorySpaceIdOverride: String? = null,
             stream: Boolean = true,
             enableGroupOrchestrationHint: Boolean = false,
-            disableWarning: Boolean = false
+            disableWarning: Boolean = false,
+            toolSubtreeTrace: ToolSubtreeTrace? = null,
     ) {
         try {
             val startTime = messageTimingNow()
@@ -1844,7 +1845,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                         stream = stream,
                         enableGroupOrchestrationHint = enableGroupOrchestrationHint,
                         toolResultOverrideMessage = pureThinkingWarning,
-                        disableWarning = disableWarning
+                        disableWarning = disableWarning,
+                        parentToolSubtreeTrace = toolSubtreeTrace,
                 )
                 return
             }
@@ -1957,7 +1959,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                         stream = stream,
                         enableGroupOrchestrationHint = enableGroupOrchestrationHint,
                         toolResultOverrideMessage = warningStatus,
-                        disableWarning = disableWarning
+                        disableWarning = disableWarning,
+                        parentToolSubtreeTrace = toolSubtreeTrace,
                 )
                 return
             }
@@ -1993,7 +1996,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                         memorySpaceIdOverride,
                         stream = stream,
                         enableGroupOrchestrationHint = enableGroupOrchestrationHint,
-                        disableWarning = disableWarning
+                        disableWarning = disableWarning,
+                        parentToolSubtreeTrace = toolSubtreeTrace,
                 )
                 return
             }
@@ -2128,11 +2132,18 @@ class EnhancedAIService private constructor(private val context: Context) {
         stream: Boolean = true,
         enableGroupOrchestrationHint: Boolean = false,
         toolResultOverrideMessage: String? = null,
-        disableWarning: Boolean = false
+        disableWarning: Boolean = false,
+        parentToolSubtreeTrace: ToolSubtreeTrace? = null,
     ) {
         val startTime = messageTimingNow()
         val uniqueToolInvocations =
             ToolExecutionManager.normalizeProviderInvocations(toolInvocations)
+        val toolSubtreeTrace =
+            ToolSubtreeTrace.create(
+                round = context.roundManager.getCurrentRound(),
+                parent = parentToolSubtreeTrace,
+            )
+        val invocationId = toolSubtreeTrace.invocationId
 
         uniqueToolInvocations.forEach { invocation ->
             onToolInvocation?.invoke(invocation.tool.name)
@@ -2173,7 +2184,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                     enableMemoryAutoUpdate, onNonFatalError, onTokenLimitExceeded, maxTokens, tokenUsageThreshold, isSubTask,
                     characterName, avatarUri, roleCardId, chatId, onToolInvocation, notifyReplyOverride,
                     chatModelConfigIdOverride, chatModelIndexOverride, memorySpaceIdOverride, stream, enableGroupOrchestrationHint,
-                    disableWarning = disableWarning
+                    disableWarning = disableWarning,
+                    toolSubtreeTrace = toolSubtreeTrace,
                 )
             } else if (!toolResultOverrideMessage.isNullOrEmpty()) {
                 AppLogger.d(TAG, "0工具路由命中，使用覆盖消息继续请求AI。")
@@ -2202,18 +2214,20 @@ class EnhancedAIService private constructor(private val context: Context) {
                     stream = stream,
                     enableGroupOrchestrationHint = enableGroupOrchestrationHint,
                     toolResultMessageOverride = toolResultOverrideMessage,
-                    disableWarning = disableWarning
+                    disableWarning = disableWarning,
+                    toolSubtreeTrace = toolSubtreeTrace,
                 )
             }
 
             logMessageTiming(
                 stage = "enhanced.handleToolInvocation.complete",
                 startTimeMs = startTime,
-                details = "toolCount=${uniqueToolInvocations.size}"
+                details =
+                    "${toolSubtreeTrace.correlationDetails()}, " +
+                        "toolCount=${uniqueToolInvocations.size}"
             )
         }
 
-        val invocationId = java.util.UUID.randomUUID().toString()
         toolExecutionJobs[invocationId] = processToolJob
 
         try {
@@ -2250,7 +2264,8 @@ class EnhancedAIService private constructor(private val context: Context) {
             stream: Boolean = true,
             enableGroupOrchestrationHint: Boolean = false,
             toolResultMessageOverride: String? = null,
-            disableWarning: Boolean = false
+            disableWarning: Boolean = false,
+            toolSubtreeTrace: ToolSubtreeTrace,
     ) {
         val startTime = messageTimingNow()
         val toolNames = results.joinToString(", ") { it.toolName }
@@ -2447,9 +2462,11 @@ class EnhancedAIService private constructor(private val context: Context) {
                             if (isFirstChunk) {
                                 isFirstChunk = false
                                 logMessageTiming(
-                                    stage = "enhanced.processToolResults.firstResponseChunk",
+                                    stage = "enhanced.toolFollowUp.firstResponseChunk",
                                     startTimeMs = aiStartTime,
-                                    details = "toolNames=$displayToolNames, stream=$stream"
+                                    details =
+                                        "${toolSubtreeTrace.correlationDetails()}, " +
+                                            "toolNames=$displayToolNames, stream=$stream"
                                 )
                             }
 
@@ -2501,9 +2518,11 @@ class EnhancedAIService private constructor(private val context: Context) {
                 )
 
                 logMessageTiming(
-                    stage = "enhanced.processToolResults.aiResponseComplete",
+                    stage = "enhanced.toolFollowUp.complete",
                     startTimeMs = aiStartTime,
-                    details = "toolNames=$displayToolNames, totalChars=$totalChars"
+                    details =
+                        "${toolSubtreeTrace.correlationDetails()}, " +
+                            "toolNames=$displayToolNames, totalChars=$totalChars"
                 )
 
                 // 流处理完成，处理完成逻辑
@@ -2530,7 +2549,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                     memorySpaceIdOverride,
                     stream,
                     enableGroupOrchestrationHint,
-                    disableWarning
+                    disableWarning,
+                    toolSubtreeTrace,
                 )
             } catch (e: CancellationException) {
                 AppLogger.d(TAG, "处理工具执行结果被取消")
@@ -2551,9 +2571,9 @@ class EnhancedAIService private constructor(private val context: Context) {
                 throw e
             } finally {
                 logMessageTiming(
-                    stage = "enhanced.processToolResults.complete",
+                    stage = "enhanced.toolSubtree.complete",
                     startTimeMs = startTime,
-                    details = "toolNames=$displayToolNames, resultCount=${results.size}"
+                    details = toolSubtreeTrace.completionDetails(results.size)
                 )
             }
         }

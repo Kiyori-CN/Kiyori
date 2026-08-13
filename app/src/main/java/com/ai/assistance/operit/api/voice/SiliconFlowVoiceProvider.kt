@@ -45,7 +45,6 @@ class SiliconFlowVoiceProvider(
         private const val SAMPLE_RATE = 32000
         private const val SPEED = 1.0
         private const val GAIN = 0
-        private const val SPEECH_PREVIEW_MAX = 48
 
         // 可用音色列表 - 根据硅基流动官方文档
         // 注意：现在只列出音色名称，模型在设置中独立配置
@@ -60,10 +59,6 @@ class SiliconFlowVoiceProvider(
             VoiceService.Voice("diana", context.getString(R.string.siliconflow_voice_diana), "zh-CN", "FEMALE")
         )
         val DEFAULT_VOICE_ID = "charles"
-    }
-
-    private fun speechPreview(text: String): String {
-        return text.replace("\n", "\\n").take(SPEECH_PREVIEW_MAX)
     }
 
     // 当前音色
@@ -165,7 +160,7 @@ class SiliconFlowVoiceProvider(
     ): Boolean = withContext(Dispatchers.IO) {
         AppLogger.d(
             TAG,
-            "speak request interrupt=$interrupt len=${text.length} preview=\"${speechPreview(text)}\" rate=$rate pitch=$pitch voice=$voiceId paused=${isPaused.get()} initialized=$isInitialized extraKeys=${extraParams.keys}"
+            "speak request interrupt=$interrupt len=${text.length} rate=$rate pitch=$pitch voice=$voiceId paused=${isPaused.get()} initialized=$isInitialized extraKeys=${extraParams.keys}"
         )
         val completion = CompletableDeferred<Boolean>()
         val request = SpeakRequest(

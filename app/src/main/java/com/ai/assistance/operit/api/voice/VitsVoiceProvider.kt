@@ -51,7 +51,6 @@ class VitsVoiceProvider(
 
     private companion object {
         private const val TAG = "VitsVoiceProvider"
-        private const val SPEECH_PREVIEW_MAX = 48
         private const val DEFAULT_CHUNK_FRAMES = 2048
         private const val PACKAGE_MANIFEST = "operit-vits-tts.json"
     }
@@ -343,7 +342,7 @@ class VitsVoiceProvider(
 
             AppLogger.d(
                 TAG,
-                "speak len=${request.text.length} preview=\"${speechPreview(request.text)}\" ids=${ids.size} rate=$effectiveRate pitch=${request.pitch} speaker=$currentSpeakerId"
+                "speak len=${request.text.length} ids=${ids.size} rate=$effectiveRate pitch=${request.pitch} speaker=$currentSpeakerId initialized=$isInitialized"
             )
 
             val pcm = runModel(activeSession, activeConfig, bindings, ids, effectiveRate)
@@ -1384,9 +1383,5 @@ class VitsVoiceProvider(
             " " -> "space"
             else -> symbol
         }
-    }
-
-    private fun speechPreview(text: String): String {
-        return text.replace("\n", "\\n").take(SPEECH_PREVIEW_MAX)
     }
 }

@@ -3,6 +3,7 @@ package com.ai.assistance.operit.api.chat.llmprovider
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -110,9 +111,9 @@ class OpenAIHostedWebSearchResponseParserTest {
         assertEquals("Alpha\nBeta", result.answer)
         assertEquals("Alpha[S1]\nBeta[S2]", result.answerWithSourceMarkers)
         assertEquals(listOf("Kiyori", "Kiyori Android"), result.searchActions.map { it.query })
-        assertEquals(listOf("S1", "S2"), result.sources.map { it.sourceId })
-        assertEquals("First source", result.sources[0].title)
-        assertEquals("Second source", result.sources[1].title)
+        assertEquals(listOf("S1", "S2"), result.allSources.map { it.sourceId })
+        assertEquals("First source", result.allSources[0].title)
+        assertEquals("Second source", result.allSources[1].title)
         assertEquals(0, result.citations[0].startIndex)
         assertEquals(5, result.citations[0].endIndex)
         assertEquals(6, result.citations[1].startIndex)
@@ -178,7 +179,7 @@ class OpenAIHostedWebSearchResponseParserTest {
             ),
             parsed.result.warnings,
         )
-        assertEquals("https://example.com/source", parsed.result.sources.single().url)
+        assertEquals("https://example.com/source", parsed.result.allSources.single().url)
     }
 
     @Test
@@ -290,8 +291,8 @@ class OpenAIHostedWebSearchResponseParserTest {
         assertEquals(2, parsed.diagnostics.totalActionSourceCount)
         assertEquals(1, parsed.diagnostics.validActionSourceUrlCount)
         assertEquals(1, parsed.diagnostics.structuredFeedSourceCount)
-        assertEquals(listOf("url", "oai-weather"), parsed.result.sources.map { it.type })
-        assertEquals(null, parsed.result.sources[1].url)
+        assertEquals(listOf("url", "oai-weather"), parsed.result.allSources.map { it.type })
+        assertEquals(null, parsed.result.allSources[1].url)
     }
 
     @Test
@@ -334,7 +335,7 @@ class OpenAIHostedWebSearchResponseParserTest {
 
         assertEquals(OpenAIHostedWebSearchEvidenceMode.URL_CITATIONS, parsed.result.evidenceMode)
         assertEquals("Evidence[S1]", parsed.result.answerWithSourceMarkers)
-        assertEquals("https://example.com/source", parsed.result.sources.single().url)
+        assertEquals("https://example.com/source", parsed.result.allSources.single().url)
         assertEquals(2, parsed.diagnostics.invalidActionSourceCount)
         assertTrue(parsed.result.warnings.contains("ACTION_SOURCES_PARTIAL"))
     }
@@ -369,7 +370,7 @@ class OpenAIHostedWebSearchResponseParserTest {
         assertEquals(OpenAIHostedWebSearchEvidenceMode.URL_CITATIONS, result.evidenceMode)
         assertEquals("Evidence[S1]", result.answerWithSourceMarkers)
         assertEquals(1, result.citations.size)
-        assertEquals(1, result.sources.size)
+        assertEquals(1, result.allSources.size)
         assertTrue(result.warnings.contains("ACTION_SOURCES_MISSING"))
     }
 
@@ -462,10 +463,7 @@ class OpenAIHostedWebSearchResponseParserTest {
         val parsed =
             OpenAIHostedWebSearchResponseParser.parseWithDiagnostics(
                 responseJson = response,
-                request =
-                    OpenAIHostedWebSearchTestFixtures.effectiveRequest(
-                        allowedDomains = listOf("example.com"),
-                    ),
+                request = OpenAIHostedWebSearchTestFixtures.effectiveRequest(),
                 binding =
                     OpenAIHostedWebSearchTestFixtures.binding(
                         providerContract =
@@ -498,7 +496,7 @@ class OpenAIHostedWebSearchResponseParserTest {
             parsed.result.sourceDiagnostics.openPageUrls,
         )
         assertEquals(
-            listOf("example.com"),
+            emptyList<String>(),
             parsed.result.sourceDiagnostics.allowedDomains,
         )
         assertEquals(1, parsed.diagnostics.citationMissingFromActionSourceCount)
@@ -552,6 +550,169 @@ class OpenAIHostedWebSearchResponseParserTest {
     }
 
     @Test
+    fun canonicalIdentityPreservesDisplayUrlAndRemovesTrackingOnlyMismatch() {
+        val actionUrl = "https://docs.example/wiki/123_%28number%29"
+        val citationUrl =
+            "$actionUrl?utm_source=relay&gclid=fixture#answer"
+        val response =
+            baseResponse(
+                text = "Evidence",
+                startIndex = 0,
+                endIndex = 8,
+                sourceUrl = actionUrl,
+                sourceTitle = "Example",
+            ).apply {
+                getJSONArray("output")
+                    .getJSONObject(1)
+                    .getJSONArray("content")
+                    .getJSONObject(0)
+                    .getJSONArray("annotations")
+                    .getJSONObject(0)
+                    .put("url", citationUrl)
+            }
+
+        val result =
+            OpenAIHostedWebSearchResponseParser.parse(
+                responseJson = response,
+                request = OpenAIHostedWebSearchTestFixtures.effectiveRequest(),
+                binding = OpenAIHostedWebSearchTestFixtures.binding(),
+            )
+
+        assertEquals(1, result.allSources.size)
+        assertFalse(result.allSources.single().url.orEmpty().contains("%2528"))
+        assertFalse(result.warnings.contains("CITATION_NOT_IN_ACTION_SOURCES"))
+        assertTrue(result.sourceDiagnostics.citationsMissingFromActionSources.isEmpty())
+    }
+
+    @Test
+    fun openPageIdentitySatisfiesCitationCrossChannelComparison() {
+        val citationUrl = "https://docs.example/article?utm_source=relay"
+        val response =
+            JSONObject()
+                .put("id", "resp_open_page")
+                .put("status", "completed")
+                .put(
+                    "output",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("type", "web_search_call")
+                                .put(
+                                    "action",
+                                    JSONObject()
+                                        .put("type", "search")
+                                        .put("query", "fixture"),
+                                ),
+                        )
+                        .put(
+                            JSONObject()
+                                .put("type", "web_search_call")
+                                .put(
+                                    "action",
+                                    JSONObject()
+                                        .put("type", "open_page")
+                                        .put("url", "https://docs.example/article"),
+                                ),
+                        )
+                        .put(
+                            JSONObject()
+                                .put("type", "message")
+                                .put(
+                                    "content",
+                                    JSONArray()
+                                        .put(
+                                            outputText(
+                                                text = "Evidence",
+                                                url = citationUrl,
+                                                title = "Example",
+                                                startIndex = 0,
+                                                endIndex = 8,
+                                            )
+                                        ),
+                                ),
+                        ),
+                )
+
+        val result =
+            OpenAIHostedWebSearchResponseParser.parse(
+                responseJson = response,
+                request = OpenAIHostedWebSearchTestFixtures.effectiveRequest(),
+                binding =
+                    OpenAIHostedWebSearchTestFixtures.binding(
+                        providerContract =
+                            OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT,
+                    ),
+            )
+
+        assertFalse(result.warnings.contains("CITATION_NOT_IN_ACTION_SOURCES"))
+        assertTrue(result.sourceDiagnostics.citationsMissingFromActionSources.isEmpty())
+        assertEquals(
+            listOf("https://docs.example/article"),
+            result.sourceDiagnostics.openPageUrls,
+        )
+    }
+
+    @Test
+    fun officialDomainPolicyRejectsReportedUrlAndSiteConstraintViolations() {
+        val request =
+            OpenAIHostedWebSearchTestFixtures.effectiveRequest(
+                allowedDomains = listOf("docs.example"),
+                blockedDomains = listOf("private.docs.example"),
+            )
+        val response =
+            baseResponse(
+                text = "Evidence",
+                startIndex = 0,
+                endIndex = 8,
+                sourceUrl = "https://private.docs.example/source",
+                sourceTitle = "Private",
+            )
+
+        val urlError =
+            assertThrows(OpenAIHostedWebSearchException::class.java) {
+                OpenAIHostedWebSearchResponseParser.parse(
+                    responseJson = response,
+                    request = request,
+                    binding = OpenAIHostedWebSearchTestFixtures.binding(),
+                )
+            }
+        assertEquals(
+            OpenAIHostedWebSearchErrorCode.DOMAIN_POLICY_VIOLATION,
+            urlError.code,
+        )
+
+        response
+            .getJSONArray("output")
+            .getJSONObject(0)
+            .getJSONObject("action")
+            .put("query", "guide site:private.docs.example")
+            .getJSONArray("sources")
+            .getJSONObject(0)
+            .put("url", "https://docs.example/source")
+        response
+            .getJSONArray("output")
+            .getJSONObject(1)
+            .getJSONArray("content")
+            .getJSONObject(0)
+            .getJSONArray("annotations")
+            .getJSONObject(0)
+            .put("url", "https://docs.example/source")
+
+        val queryError =
+            assertThrows(OpenAIHostedWebSearchException::class.java) {
+                OpenAIHostedWebSearchResponseParser.parse(
+                    responseJson = response,
+                    request = request,
+                    binding = OpenAIHostedWebSearchTestFixtures.binding(),
+                )
+            }
+        assertEquals(
+            OpenAIHostedWebSearchErrorCode.DOMAIN_POLICY_VIOLATION,
+            queryError.code,
+        )
+    }
+
+    @Test
     fun relayAcceptsActionSourcesWithoutCitationAndDoesNotInventMarkers() {
         val response =
             baseResponse(
@@ -582,7 +743,7 @@ class OpenAIHostedWebSearchResponseParserTest {
         assertEquals(OpenAIHostedWebSearchEvidenceMode.ACTION_SOURCES, result.evidenceMode)
         assertEquals("Evidence", result.answerWithSourceMarkers)
         assertTrue(result.citations.isEmpty())
-        assertEquals("https://example.com/source", result.sources.single().url)
+        assertEquals("https://example.com/source", result.allSources.single().url)
         assertTrue(result.warnings.contains("URL_CITATIONS_MISSING"))
     }
 
@@ -644,14 +805,14 @@ class OpenAIHostedWebSearchResponseParserTest {
         assertEquals(OpenAIHostedWebSearchEvidenceMode.STRUCTURED_FEEDS, result.evidenceMode)
         assertEquals("Evidence", result.answerWithSourceMarkers)
         assertTrue(result.citations.isEmpty())
-        assertEquals("api", result.sources.single().type)
-        assertEquals("time", result.sources.single().title)
-        assertEquals(null, result.sources.single().url)
+        assertEquals("api", result.allSources.single().type)
+        assertEquals("time", result.allSources.single().title)
+        assertEquals(null, result.allSources.single().url)
         assertTrue(result.warnings.contains("URL_EVIDENCE_NOT_APPLICABLE"))
     }
 
     @Test
-    fun relayRejectsTextOnlyResponseWithoutAnySearchEvidenceChannel() {
+    fun relayReturnsExplicitNoneModeWithoutAnySearchEvidenceChannel() {
         val response =
             JSONObject()
                 .put("id", "resp_text_only")
@@ -685,20 +846,25 @@ class OpenAIHostedWebSearchResponseParserTest {
                         ),
                 )
 
-        val error =
-            assertThrows(OpenAIHostedWebSearchException::class.java) {
-                OpenAIHostedWebSearchResponseParser.parse(
-                    responseJson = response,
-                    request = OpenAIHostedWebSearchTestFixtures.effectiveRequest(),
-                    binding =
-                        OpenAIHostedWebSearchTestFixtures.binding(
-                            providerContract =
-                                OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT,
-                        ),
-                )
-            }
+        val result =
+            OpenAIHostedWebSearchResponseParser.parse(
+                responseJson = response,
+                request = OpenAIHostedWebSearchTestFixtures.effectiveRequest(),
+                binding =
+                    OpenAIHostedWebSearchTestFixtures.binding(
+                        providerContract =
+                            OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT,
+                    ),
+            )
 
-        assertEquals(OpenAIHostedWebSearchErrorCode.RELAY_RESPONSE_TEXT_ONLY, error.code)
+        assertEquals(OpenAIHostedWebSearchEvidenceMode.NONE, result.evidenceMode)
+        assertEquals("Evidence", result.answer)
+        assertEquals("Evidence", result.answerWithSourceMarkers)
+        assertTrue(result.citations.isEmpty())
+        assertTrue(result.citedSources.isEmpty())
+        assertTrue(result.allSources.isEmpty())
+        assertEquals(0, result.sourceSummary.allSourceCount)
+        assertTrue(result.warnings.contains("NO_WEB_EVIDENCE"))
     }
 
     @Test
@@ -772,7 +938,7 @@ class OpenAIHostedWebSearchResponseParserTest {
                 binding = OpenAIHostedWebSearchTestFixtures.binding(),
             )
 
-        assertEquals("news.example", result.sources.single().title)
+        assertEquals("news.example", result.allSources.single().title)
         assertEquals(listOf("USAGE_MISSING"), result.warnings)
     }
 
@@ -844,7 +1010,7 @@ class OpenAIHostedWebSearchResponseParserTest {
     }
 
     @Test
-    fun rejectsMissingSearchCallTextCitationAndInvalidCitationSpan() {
+    fun rejectsMissingSearchCallTextAndInvalidCitationSpanWhileAcceptingActionEvidence() {
         val validMessage =
             JSONObject()
                 .put("type", "message")
@@ -879,9 +1045,10 @@ class OpenAIHostedWebSearchResponseParserTest {
                     JSONArray().put(searchCall("https://example.com", "Example")),
                 ),
         )
-        assertParseError(
-            OpenAIHostedWebSearchErrorCode.CITATION_INVALID,
-            JSONObject()
+        val actionEvidence =
+            OpenAIHostedWebSearchResponseParser.parse(
+                responseJson =
+                    JSONObject()
                 .put("id", "resp_no_citation")
                 .put("status", "completed")
                 .put(
@@ -902,7 +1069,16 @@ class OpenAIHostedWebSearchResponseParserTest {
                                 ),
                         ),
                 ),
+                request = OpenAIHostedWebSearchTestFixtures.effectiveRequest(),
+                binding = OpenAIHostedWebSearchTestFixtures.binding(),
+            )
+        assertEquals(
+            OpenAIHostedWebSearchEvidenceMode.ACTION_SOURCES,
+            actionEvidence.evidenceMode,
         )
+        assertTrue(actionEvidence.citations.isEmpty())
+        assertEquals(1, actionEvidence.allSources.size)
+        assertTrue(actionEvidence.warnings.contains("URL_CITATIONS_MISSING"))
         assertParseError(
             OpenAIHostedWebSearchErrorCode.CITATION_INVALID,
             baseResponse(

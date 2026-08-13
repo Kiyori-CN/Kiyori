@@ -13,12 +13,10 @@ internal class OpenAIHostedWebSearchCompatibilityProbe(
 ) {
     suspend fun run(
         requestId: String = "ows_probe_${UUID.randomUUID().toString().replace("-", "")}",
+        lifecycle: OpenAIHostedWebSearchRequestLifecycle =
+            OpenAIHostedWebSearchRequestLifecycle(requestId),
     ): OpenAIHostedWebSearchResult {
-        val resolved =
-            bindingResolver.resolve(
-                requireRelayProbe = false,
-                advanceModelConfigKey = true,
-            )
+        val resolved = bindingResolver.resolve(requireRelayProbe = false)
         val binding = resolved.binding
         if (
             binding.providerContract !=
@@ -36,14 +34,18 @@ internal class OpenAIHostedWebSearchCompatibilityProbe(
                     "Find the official OpenAI Web Search guide at developers.openai.com and " +
                         "answer with the exact guide title in one concise cited sentence.",
                 contextSize = binding.contextSize,
-                allowedDomains = listOf("developers.openai.com"),
+                allowedDomains = emptyList(),
                 blockedDomains = emptyList(),
                 location = null,
+                locationRequested = false,
+                locationConfigured = binding.location != null,
+                locationPrecision =
+                    openAIHostedWebSearchLocationPrecision(binding.location),
             )
         val testedAtEpochMillis = System.currentTimeMillis()
         val execution =
             try {
-                gateway.execute(binding, request)
+                gateway.execute(binding, request, lifecycle)
             } catch (error: OpenAIHostedWebSearchException) {
                 val rewritten =
                     OpenAIHostedWebSearchCompatibilityProbePolicy.rewriteEvidenceFailure(error)
@@ -97,7 +99,7 @@ internal class OpenAIHostedWebSearchCompatibilityProbe(
         return execution.result
     }
 
-    fun cancel(requestId: String): Boolean = gateway.cancel(requestId)
+    fun cancelTransport(requestId: String): Boolean = gateway.cancelTransport(requestId)
 }
 
 internal object OpenAIHostedWebSearchCompatibilityProbePolicy {

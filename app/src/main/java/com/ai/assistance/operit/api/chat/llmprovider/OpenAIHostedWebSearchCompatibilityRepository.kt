@@ -23,10 +23,9 @@ internal data class OpenAIHostedWebSearchCompatibilityRecordSet(
 /**
  * Maintains compatibility evidence independently for every exact binding fingerprint.
  *
- * A MODEL_CONFIG can rotate through multiple keys. Replacing one global success/failure slot would
- * discard evidence for the previous key, forcing an already-probed key to become stale whenever the
- * pool rotates. The set therefore keeps mutually exclusive success/failure state per digest and
- * bounds the combined history so app-private preferences cannot grow without limit.
+ * Endpoint, model, authentication, headers, or credential changes create a new exact fingerprint.
+ * The set keeps mutually exclusive success/failure state per digest and bounds the combined history
+ * so app-private preferences cannot grow without limit.
  */
 internal object OpenAIHostedWebSearchCompatibilityRecordSetPolicy {
     private const val MAX_RECORDS = 16
@@ -225,9 +224,17 @@ internal object OpenAIHostedWebSearchCompatibilityRecordSetCodec {
     }
 }
 
-internal class OpenAIHostedWebSearchCompatibilityRepository private constructor(context: Context) {
-    private val preferences: SharedPreferences =
-        context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+internal class OpenAIHostedWebSearchCompatibilityRepository internal constructor(
+    private val preferences: SharedPreferences,
+) {
+    private constructor(context: Context) :
+        this(
+            context.applicationContext.getSharedPreferences(
+                PREFERENCES_NAME,
+                Context.MODE_PRIVATE,
+            )
+        )
+
     private val mutationLock = Any()
 
     fun readSet(): OpenAIHostedWebSearchCompatibilityRecordSet {
@@ -249,12 +256,21 @@ internal class OpenAIHostedWebSearchCompatibilityRepository private constructor(
                     current = readSet(),
                     record = record,
                 )
-            preferences
-                .edit()
-                .putString(RECORD_SET_KEY, updated.encode())
-                .remove(LEGACY_RECORD_KEY)
-                .remove(LEGACY_FAILURE_RECORD_KEY)
-                .apply()
+                preferences
+                    .edit()
+                    .putString(RECORD_SET_KEY, updated.encode())
+                    .remove(LEGACY_RECORD_KEY)
+                    .remove(LEGACY_FAILURE_RECORD_KEY)
+                    // Probe success must be durable before its callback is delivered. An async
+                    // apply can be lost when Android kills the process immediately after the
+                    // settings screen closes, causing the next launch to demand another billable
+                    // probe for the unchanged binding.
+                    .commit()
+                    .also { persisted ->
+                        check(persisted) {
+                            "OpenAI Web Search compatibility evidence could not be persisted"
+                        }
+                    }
         }
     }
 
@@ -265,12 +281,17 @@ internal class OpenAIHostedWebSearchCompatibilityRepository private constructor(
                     current = readSet(),
                     record = record,
                 )
-            preferences
-                .edit()
-                .putString(RECORD_SET_KEY, updated.encode())
-                .remove(LEGACY_RECORD_KEY)
-                .remove(LEGACY_FAILURE_RECORD_KEY)
-                .apply()
+                preferences
+                    .edit()
+                    .putString(RECORD_SET_KEY, updated.encode())
+                    .remove(LEGACY_RECORD_KEY)
+                    .remove(LEGACY_FAILURE_RECORD_KEY)
+                    .commit()
+                    .also { persisted ->
+                        check(persisted) {
+                            "OpenAI Web Search compatibility failure could not be persisted"
+                        }
+                    }
         }
     }
 
@@ -281,7 +302,12 @@ internal class OpenAIHostedWebSearchCompatibilityRepository private constructor(
                 .remove(RECORD_SET_KEY)
                 .remove(LEGACY_RECORD_KEY)
                 .remove(LEGACY_FAILURE_RECORD_KEY)
-                .apply()
+                .commit()
+                .also { persisted ->
+                    check(persisted) {
+                        "OpenAI Web Search compatibility evidence could not be cleared"
+                    }
+                }
         }
     }
 

@@ -1,105 +1,254 @@
 ---
 status: verification_pending
-implementation: local_implementation_complete
+implementation: revision_7_local_complete_remote_revalidation_pending
 baseline_branch: main
-baseline_head: 02e97e95db8dbb161fab0d33604fdc228f9b87c0
-last_updated: 2026-08-12
+baseline_head: 180db686aaeedfa301b3c8a31057ee4940d58649
+last_updated: 2026-08-13
 ---
 
 # OpenAI 官方联网搜索插件化接入
 
-## 1. 结论
+## 1. 当前结论
 
-把 OpenAI 官方 Web Search 作为独立工具提供给 DeepSeek、Gemini、本地模型和其他主聊天模型，
-在 Kiyori 中技术上可行。
-
-正式版本采用：
+OpenAI Hosted Web Search 作为独立工具提供给 DeepSeek、Gemini、Claude、本地模型和其他主聊天模型
+在 Kiyori 中已经完成 revision `7` 的本地实现。revision `6` 的现场失败矩阵已转化为本地 URL
+identity、域名策略、零证据、参数、日志隐私、证据投影和可观察性合同；真实 relay、设备和用户现场
+复测仍未执行。
 
 ```text
 任意主聊天模型
-	└─ 调用 openai_web_search:search
-		└─ 包管理 > 插件 > OpenAI Web Search
-			└─ 可安装、可启停 ToolPkg 容器
-				├─ 设置 UI
-				├─ 可选输入菜单开关
-				└─ openai_web_search subpackage
-					└─ Kiyori 宿主 OpenAIHostedWebSearchGateway
-						└─ OpenAI Responses 或严格兼容中转站
-							└─ GPT-5.6 + hosted web_search
+	└─ openai_web_search:search
+		└─ com.kiyori.openai_web_search ToolPkg
+			├─ settings UI
+			├─ openai_web_search subpackage
+			└─ Kiyori host
+				├─ ToolPkgHostEnvironmentRepository
+				├─ OpenAIHostedWebSearchBindingCompiler
+				├─ OpenAIHostedWebSearchRequestLifecycle
+				├─ OpenAIHostedWebSearchAdmissionController
+				└─ OpenAIHostedWebSearchGateway
+					└─ OpenAI Responses hosted web_search
 ```
 
-这个方案中的 GPT-5.6 不承担主聊天角色，只承担查询规划、网页搜索、网页阅读、证据整理和带来源
-输出。但是从 OpenAI 协议与计费角度看，它仍然是一次模型请求，并不是一个脱离模型运行的普通
-搜索 HTTP 接口。
+GPT-5.6 搜索服务只承担查询规划、联网检索、网页阅读、证据整理和来源输出。主聊天模型继续负责用户
+对话与最终回答；从 OpenAI 协议和计费角度看，搜索仍是一次独立模型请求。
 
-第一版产品范围：
+当前合同：
 
-- 与 `APK 逆向工具包`、`楼层限制器`、`深度搜索`、`额外信息注入` 同级，作为 ToolPkg
-  插件容器安装、启停和配置
-- 通过 subpackage 暴露 `openai_web_search:search`
-- 允许任何能使用 Kiyori 工具系统的主聊天模型调用
-- 支持 OpenAI 官方 Responses endpoint
-- 支持通过付费严格兼容探测的 Responses-compatible 中转站
-- 第一阶段通用搜索模型允许列表为 `gpt-5.6`、`gpt-5.6-sol`、`gpt-5.6-terra`、
-  `gpt-5.6-luna`
-- 默认建议 `gpt-5.6-luna`，用户可以显式选择其他允许模型
-- 官方当前还列出支持 Web Search 的专用 `gpt-5.6-cyber`；第一版不把安全领域专用模型纳入通用
-  搜索 allowlist
-- 中转站可以使用自定义模型别名，但不能只根据名称判断兼容
-- 第一版默认执行 live 搜索，用户可以显式配置 indexed；不根据请求自动改变模式、模型、endpoint
-  或搜索后端
-- 返回答案、搜索动作、引用、完整来源、usage 和结构化错误
-- 配置来源显式选择 `PACKAGE_ENV` 或 `MODEL_CONFIG`
-- endpoint、模型、Key、认证、headers、思考强度和搜索参数可以由插件环境变量配置
-- API Key 即使通过插件环境变量设置，也只允许宿主读取，ToolPkg JavaScript 不读取原始凭据
+```text
+ToolPkg ID = com.kiyori.openai_web_search
+ToolPkg version = 1.0.6
+tool = openai_web_search:search
+configuration source = PACKAGE_ENV only
+host-service environment variables = 20
+response schema revision = 7
+container enabled by default = false
+subpackage enabled after container activation = true
+```
 
-## 2. 用户想法的判断
+revision `7` 已完成源码、测试、ToolPkg `dist/`、权威文档、正式开发门禁和 Debug APK 本地验证。
 
-| 想法 | 判断 | 说明 |
-| --- | --- | --- |
-| 与 `tavily.js` 并列，成为主模型可调用的独立搜索工具 | 工具关系正确，产品分类需修正 | 它们都能提供搜索工具，但本能力进入“插件”标签，不进入“脚本包”标签 |
-| 与 APK 逆向、楼层限制器、深度搜索、额外信息注入同级 | 正确且是推荐形态 | 采用可安装、可启停 ToolPkg 容器 |
-| OpenAI API 只用于搜索，不作为当前聊天模型 | 正确 | 产品角色可以完全分离 |
-| 完全不经过 GPT，只调用 `web_search` | 不成立 | Responses `web_search` 由指定模型调用；Codex standalone search 请求也包含模型 |
-| 单独设置 OpenAI 搜索 API Key | 可行且推荐 | 便于预算、限额、用量和吊销隔离 |
-| 自动复用当前主模型 API Key | 不推荐 | 第三方主模型没有 OpenAI Key，切换主模型还会隐式改变费用归属 |
-| 用户主动选择与既有 OpenAI Responses 配置共用 | 可支持 | `MODEL_CONFIG` 必须绑定固定配置，不复制 Key，不跟随当前聊天选择 |
-| 通过环境变量自定义中转站、模型、Key 和思考强度 | 正确 | 使用 `PACKAGE_ENV`；Key 必须是包级敏感且仅宿主消费 |
-| 纯 JavaScript 直连 OpenAI 作为正式版 | 可做原型，不是正式最佳方案 | 会暴露凭据给插件运行时，并形成第二套 Responses 协议实现 |
-| `ToolPkg.registerAiProvider` | 不采用 | 它会把插件注册为完整主聊天供应商，与独立搜索工具的产品语义相反 |
+### Revision 7 hotfix：完整 evidence 与主模型 projection 分流
 
-## 3. 最佳方案
+revision `7` 的结果载荷现在有两个明确消费者：
 
-正式方案是“宿主协议内核 + ToolPkg 产品壳 + subpackage 工具”。
+- 聊天 UI 和结果卡读取 `formatToolResultForMessage()` 生成的完整 XML-safe JSON。该路径保留
+  `all_sources`、`search_actions`、`query`、`usage`、citations 以及结果卡所需的完整 schema
+- 后续主聊天模型读取 `formatToolResultForModel()` 生成的受限 projection。该路径只发送
+  answer、source markers、cited sources、source summary、warnings 和必要 diagnostics，不把
+  完整未引用来源集合再次扩展进主模型上下文
 
-宿主持有：
+两条路径不能互换。UI parser 只解析完整 evidence；main-model projection 只服务后续模型请求。
+这样可以同时保持结果卡所需的 `all_sources` 和主模型上下文边界，不再出现宿主先删除
+`all_sources`、随后又由 UI parser 报告该字段缺失的错位。
 
-- official 与 relay strict contract
-- 包级 host-only 环境变量和模型配置绑定
-- endpoint、认证、API Key 和额外请求头
-- HTTP 请求、取消、超时、并发与速率限制
-- Responses Web Search 请求编译
-- `web_search_call`、annotations、sources 和 usage 解析
-- revision `5` 的 evidence mode、source diagnostics：URL annotations、URL action sources、
-  open-page actions、结构化 feed 和损坏条目
-  分别建模
-- 结构化错误分类
-- 搜索证据、兼容成功记录和兼容失败记录的持久化及 UI 投影
+compatibility record-set 的成功、失败和清理写入已改为同步提交，并在提交失败时显式暴露错误。
+严格 relay 门禁仍然存在；同步提交只解决相同 fingerprint 的成功证据在进程立即退出时可能尚未
+落盘的问题。fingerprint 输入或 response schema revision 变化后重新探测仍是预期行为。
 
-ToolPkg 持有：
+2026-08-13 用户随后完成 `29` 次真实 relay 顶层调用。日志中的四批
+`5 + 8 + 8 + 8` 与现场测试完全对齐：`23` 次结构化成功、`5` 次预期参数拒绝和 `1` 次非预期
+零证据失败。该矩阵证明 revision `6` 的基础搜索质量可用，也暴露了必须进入 revision `7` 的
+生产问题：
 
-- 包管理中的安装、启停、版本和详情
-- `openai_web_search:search` 工具定义
-- 搜索服务配置页
-- 配置来源、模型、live 模式、思考强度、上下文大小、域名和位置偏好
-- 本地配置诊断和显式付费测试入口
+- relay 违反 `blocked_domains` 时，客户端没有 fail-closed 域名策略审计
+- URL raw path 被多参数 `URI` 重建后产生 `%` 双重编码
+- tracking-only URL 差异稳定触发 `CITATION_NOT_IN_ACTION_SOURCES`
+- 零证据结果被提升为 `RELAY_RESPONSE_TEXT_ONLY`
+- 空 Markdown 引用进入用户可见 answer
+- 公开参数的 array/boolean 被错误建模为 string
+- 成功结果缺少 timing、位置和 effective domain diagnostics
+- 日志仍有 Key 前缀、完整 endpoint、正文 preview 和三重 ToolPkg 错误
 
-ToolPkg 只提交结构化搜索请求并接收结构化结果。它不接触 API Key，不自己拼接
-`Authorization` header，也不复制 Kiyori 已有的 OpenAI Responses 客户端。
+详细证据、问题分级和 revision `7` 实施蓝图见
+[`10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md`](10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md)。
 
-环境变量只是 ToolPkg 插件的配置入口，不改变其产品分类。
+## 2. Revision 6 决策
 
-## 4. 文档导航
+Kiyori 没有用户发布版本。旧 `MODEL_CONFIG` 要求用户输入正常 UI 无法获取的内部
+`modelConfigId`，并带来第二配置源、Key selector、双重 limiter、悬空绑定和 readiness 失真。
+revision `6` 已完整删除该专项链，不保留迁移窗口、兼容分支或回退路径。
+
+本插件只使用：
+
+```text
+ToolPkgHostEnvironmentRepository
+	→ compilePackageEnvironment()
+	→ OpenAIHostedWebSearchPolicy
+	→ OpenAIHostedWebSearchGateway
+```
+
+这项删除不影响全局四种 OpenAI 聊天 Provider：
+
+```text
+OPENAI
+OPENAI_GENERIC
+OPENAI_RESPONSES
+OPENAI_RESPONSES_GENERIC
+```
+
+它们继续分别表示官方或兼容端点的 Chat Completions 与 Responses 协议。revision `7` 保持这条配置
+边界，同时原子替换 revision `6` 响应合同，不保留旧 schema 字段的并行别名。
+
+## 3. 当前实现
+
+### 生命周期与错误分类
+
+- `OpenAIHostedWebSearchRequestLifecycle` 是单请求唯一生命周期 owner
+- 取消与 worker 完成通过同一个 `settle()` 领取唯一终态
+- 第一次取消才执行 transport/job cancel
+- callback 只投递一次
+- OkHttp call timeout 在 cancellation 状态之前分类为 `REQUEST_TIMEOUT`
+- 错误诊断包含 phase、cancel owner、submission state、elapsed、configured timeout、
+  queue wait 和 provider request ID
+
+### Admission 与预算
+
+- 普通 search 与 compatibility probe 共用稳定的进程级 FIFO admission controller
+- 支持并发、RPM、queue timeout、waiter cancel、配置热更新和快照
+- queue timeout 默认 `60s`，不创建 HTTP Call
+- HTTP call/read timeout 默认 `300s`
+- connect timeout 上限 `30s`
+- write timeout 上限 `60s`
+
+### 配置与 readiness
+
+- 二十个 package-scoped host-service 环境变量
+- API Key 是 sensitive/password，ToolPkg JavaScript 不可读取
+- extra headers 拒绝认证、`User-Agent` 和 hop-by-hop headers
+- readiness 固定包含 provider contract、endpoint、model、credential、auth、extra headers、
+  search options、admission、compatibility
+- 设置 UI 通过无参数 `ToolPkg.services.openAIWebSearch.openConfiguration()` 打开固定原生配置页
+- JavaScript 不能提交任意 package ID 或变量名
+
+### 结果与 UI
+
+- response schema revision 是 `7`，合法零证据使用 `evidence_mode=none`
+- 成功结果分离 `cited_sources`、`all_sources`、`source_summary` 和 `execution_diagnostics`
+- 主模型 projection 只发送 answer、source markers、cited sources、source counts、warnings 和必要
+  diagnostics；UI 与原始 ToolResult 仍保留完整 `all_sources`
+- 调用参数拒绝统一使用 `INVALID_ARGUMENT`，并携带 `field`、`reason` 和
+  `submission_state=not_sent`
+- ToolPkg 注册日志记录实际 version、artifact SHA-256、source kind、registration thread 和
+  elapsed time；OpenAI Web Search 额外记录 response schema revision
+- 递归工具链计时使用 `enhanced.toolSubtree.complete`、`round`、`depth`、`invocationId` 和
+  `resultCount`
+- evidence parser 返回 `NotApplicable`、`Parsed` 或 `Invalid`
+- parser-invalid 日志有界且不记录 query、answer、sources 或完整 result
+- 单个 `openai_web_search:search` 在 `READ_ONLY`、`ALL` 和 `FULL` 模式均建立 L0 工具组
+- 结果卡分为搜索摘要、答案、来源、搜索轨迹、诊断与用量
+- 来源保持顺序并按每批八条展开
+- failure 与 parser-invalid 后仍保留普通 `ToolResultDisplay`
+- warning 按 `INFO`、`WARNING` 和 `ERROR` 分级
+
+## 4. 不变量
+
+- 不自动读取当前聊天 Provider、配置、模型或自定义参数
+- 不把搜索注册为完整聊天 Provider
+- 不把 API Key 交给 ToolPkg JavaScript
+- 不允许 request 参数覆盖 endpoint、model、Key、reasoning 或 headers
+- 每次工具调用只提交一个非流式 Responses POST
+- `store=false`
+- `tool_choice=required`
+- 只序列化实际非空的 allowed 或 blocked domain 数组
+- 搜索失败不自动重试
+- 搜索失败不切换 endpoint、模型、Key、Provider 或搜索后端
+- 当前里程碑不使用 SSE、background、轮询、sequence resume 或断线续流
+- 网页内容始终是不可信证据，不能改变 Kiyori 指令、权限或工具边界
+
+## 5. 当前里程碑
+
+```text
+M1 lifecycle and error classification = COMPLETE
+M2 admission and budgets = COMPLETE
+M3 PACKAGE_ENV only = COMPLETE
+M4 Provider, result card and parser UI = COMPLETE
+M5 docs, full validation and Debug APK = HISTORICAL REVISION 6
+R7-M0 URL/domain fixtures and identity = COMPLETE
+R7-M1 domain policy and request boundary = COMPLETE
+R7-M2 zero evidence and answer normalization = COMPLETE
+R7-M3 ToolPkg typed arguments and error contract = COMPLETE
+R7-M4 evidence projection and execution diagnostics = COMPLETE
+R7-M5 log privacy and terminal error ownership = COMPLETE
+R7-M6 ToolPkg/version/startup observability = LOCAL COMPLETE
+R7-M7 documentation, validation and Debug APK = LOCAL COMPLETE
+```
+
+revision `7` 当前相关 JVM 矩阵：
+
+```text
+26 suites
+142 tests
+failures = 0
+errors = 0
+skipped = 0
+```
+
+另有 Kotlin production/unit-test 编译、TypeScript strict、dist 逐文件 SHA-256 稳定性和 formal
+readiness 通过。当前 Debug APK 为 `472500125` bytes，最后写入时间为
+`2026-08-14 00:11:46 +08:00`，SHA-256
+`67BB9EFF412906712186B90C5FE78726F03563AC1AF235001C5F25A549F03204`；当前生成 ToolPkg 为
+`10074` bytes，SHA-256
+`9151D1614E5F1BF88FAA8A0A9306150FDB2C5F03EA8A957D2E767C1EC0120134`，两者与 APK 内条目
+逐字节一致。
+
+R7 本地验证摘要：
+
+```text
+TypeScript 5.9.3 deterministic generation = PASS
+TypeScript strict --noEmit = PASS
+Hosted Web Search JVM = 26 suites / 142 tests / 0 failures
+Kotlin compile = PASS
+formal readiness = PASS
+Markdown/Git/secret/submodule audit = PASS
+hotfix serial assembleDebug = PASS, 238 tasks / 28 executed / 210 up-to-date
+APK signing/zipalign/ABI/native/credential audit = PASS
+APK and ToolPkg hash reconciliation = PASS
+```
+
+revision `6` 历史 APK 为 `472492653` bytes，SHA-256
+`BAEC6E5397101E89FD49439823CFCA8D720E850DA0AC3397E35D982FB9F0FFA3`。ToolPkg 为
+`10243` bytes，SHA-256
+`A7AFC0C19DD705E28EE29CE763113F7EA1F1C663F3471499A67964FC3F6C2FB7`，与 APK 内唯一条目
+逐字节一致。APK 为 `com.kiyori / 45 / 0.1.0`、arm64-only、Debug V2 单 signer，
+16 KB ZIP 对齐通过；`51` 个 `.so` 加 `operit_shell_exec` 共 `52/52` 个 `ELF64 AArch64`，
+所有 `PT_LOAD >= 0x4000`。严格凭据扫描为零；完整证据见
+[实施、测试与验收](4_implementation_and_validation.md)。
+
+revision `7` 当前 Debug APK 已完成独立签名、zipalign、ABI、ELF 和敏感内容审计；真实 relay、
+设备和用户验收仍不在当前授权范围内。
+
+用户提供的最新日志 `kiyori_log_20260813_231439.txt` 在旧现场结果中多次记录：
+
+```text
+openai_web_search:search -> success
+evidence_parse_invalid code=REQUIRED_FIELD_INVALID field=all_sources
+```
+
+这份日志是本轮根因复核证据，不是 revision `7` hotfix 的远端复测证据。当前仍需在明确授权
+下完成真实 relay、安装后设备和用户现场验收。
+
+## 6. 文档导航
 
 - [官方合同与可行性](1_official_contract_and_feasibility.md)
 - [插件与宿主架构](2_plugin_and_host_architecture.md)
@@ -108,245 +257,89 @@ ToolPkg 只提交结构化搜索请求并接收结构化结果。它不接触 AP
 - [中转站与环境变量配置](5_relay_and_environment_configuration.md)
 - [2026-08-12 日志深度分析](6_log_deep_analysis_20260812.md)
 - [2026-08-12 后续修复计划](7_log_followup_fix_plan_20260812.md)
-- [正式架构草案](../../doc-src/architecture/openai_hosted_web_search.md)
+- [2026-08-13 优化调查检查点](8_20260813_readonly_analysis_checkpoint.md)
+- [2026-08-13 优化实施计划](9_20260813_optimization_implementation_plan.md)
+- [2026-08-13 现场矩阵深度分析与 revision 7 实施计划](10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md)
+- [正式架构](../../doc-src/architecture/openai_hosted_web_search.md)
 
-## 5. 已冻结的设计决策
+## 7. 历史 revision 3–5 证据
 
-- 产品类型是 ToolPkg 插件容器，不是普通 JS 脚本包
-- container 默认关闭，subpackage 在容器启用后默认可用
-- 配置来源显式二选一：`PACKAGE_ENV` 或 `MODEL_CONFIG`
-- 两种配置来源不混合读取
-- `PACKAGE_ENV` 支持中转站 endpoint、模型名、Key、认证、headers、reasoning 和搜索参数
-- 原始 API Key 不进入现有全局 `EnvPreferences`、ToolPkg `privateData` 或 JavaScript 参数
-- 正式版新增包级、敏感、`host_service` consumer 的 ToolPkg 环境变量语义
-- 默认使用独立 OpenAI Project 或 Service Account Key
-- 可以显式绑定一个已有的官方或经过严格探测的 Responses 模型配置
-- 不自动读取当前聊天使用的 Provider、配置或模型
-- 服务绑定使用稳定配置 ID 和精确模型名，不按模型列表索引静默选择其他模型
-- official endpoint 使用 `RESPONSES_HOSTED_OFFICIAL`
-- 中转站使用 `RESPONSES_RELAY_STRICT`，改变 endpoint、模型或认证后必须重新探测
-- relay strict 的固定 `MODEL_CONFIG` 接受 `OPENAI_RESPONSES` 或
-  `OPENAI_RESPONSES_GENERIC`；official 仍只接受官方 endpoint
-- `tool_choice` 要求执行搜索；没有 `web_search_call` 时按协议错误处理
-- `action.sources` 按集合解析；`oai-sports`、`oai-weather` 和 `oai-finance` 是已知无 URL
-  实时 feed，不得因单个 feed 缺 URL 立即判定整次响应失败
-- compatibility probe 固定访问 `developers.openai.com` 的公开网页并要求真实
-  `url_citation`；不能再用会路由到时间、天气或金融实时 feed 的问题测试 URL 能力
-- `url_citation` annotation 是行内 citation span 的权威证据；`action.sources` 是独立审计通道，
-  不是 citation 白名单。只返回其中一种时保留真实证据；两者集合不一致时返回结构化差异诊断，
-  不伪造另一种，也不伪造 citation span
-- `source_diagnostics` 记录 response ID、action source coverage、citation/action/open-page URL、
-  citation 差集、缺失 sources 的 search action 索引、无效来源数和有效 allowed domains
-- response schema revision 为 `5`；旧 revision `4` 及更早成功或失败记录自动失效
-- compatibility record-set 按 exact fingerprint digest 保存最多 `16` 条记录；同一 digest 的成功
-  与失败互斥，不同 Key 的记录互不覆盖
-- MODEL_CONFIG Key 选择与游标推进在 search 与 compatibility probe bridge 实例之间共享互斥
-- 第一版使用非流式单次请求，`store=false`
-- 第一版不使用 background response、sequence resume 或聊天历史
-- 第一版不实现图片搜索、深度研究、多轮 search session、可由主模型继续调用的 `open` 或 `find`
-- 第一版不接入 Codex `/v1/alpha/search`
-- 搜索失败时不自动切换到 Tavily、浏览器抓取、Google Search 或其他服务
-- 网页内容始终作为不可信证据，不能改变 Kiyori 指令、权限或工具边界
+以下内容是 revision `6` 设计来源，不是当前制品或当前 relay 证明。
 
-## 7. 2026-08-12 日志专项状态
+### Revision 3
 
-指定日志的证据报告和后续修复计划已经写入：
+- Pixel Android 现场返回 HTTP `502`
+- Sub2api Android 现场返回 HTTP `401`
+- 脱敏宿主外矩阵证明只配置 `allowed_domains` 时发送空 `blocked_domains: []` 是共同请求根因
+- ToolPkg 为 `9679` bytes，SHA-256
+  `58025CC245D055D76345F45C9DE67E20D5464240F5033695B4C77380C1B94E24`
+- Debug APK SHA-256
+  `5767522CDEC73096B42A63E6CEA415A704E7F9AE56EA026F8FC17D468B1DF27C`
 
-- [日志深度分析](6_log_deep_analysis_20260812.md)
-- [后续修复计划](7_log_followup_fix_plan_20260812.md)
+### Revision 4
 
-本专项新增结论：
+- 修复空过滤数组后，Sekirocloud 现场出现非确定性 `SOURCE_INVALID`
+- 原因是旧 parser 把 `action.sources` 错当作 citation 白名单
+- `url_citation` 与 `action.sources` 可以独立、缺失或部分覆盖
+- ToolPkg `1.0.3` 为 `9864` bytes，SHA-256
+  `B1A5AFFF5D16FD742A941845FB7EE7EC19B59142F98D5681285F440BE84B480B`
 
-- Pixel relay 请求在 Android 客户端读取 HTTP response headers 前连接中止，提交状态保持未知
-- 当前 at-most-once 状态机不应通过重复 POST、自动切换 endpoint 或静默改写请求来处理
-- 日志中存在 API Key 前后缀、完整 prompt、重复完整堆栈和正常协程取消 ERROR
-- UIHierarchyManager 绑定失败日志的状态语义和诊断字段需要单独修复
-- 510ms 主线程警告和 4715ms TextSegmenter 预热先进入观测与验证阶段，不能仅凭这一条日志宣称
-  首屏卡顿根因
+### Revision 5
 
-该日志分析阶段的历史交付状态：
+- 修复 citation 与 action-source 双通道 evidence 合同
+- 完整定向矩阵为 `13` suites、`91/91` tests，失败、错误和跳过均为 `0`
+- ToolPkg `1.0.4` 为 `9864` bytes，SHA-256
+  `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`
+- Debug APK 为 `472480557` bytes，SHA-256
+  `9F845CC0F71CEBB1929E42148F93C85A489C9FAD20160FAE5E8BFF13EE451536`
+- 历史 APK 为 `com.kiyori / 0.1.0 (45)`，min/target/compile SDK `26 / 34 / 37`，
+  唯一 launcher、arm64-only、Debug V2 单 signer、16 KB ZIP 对齐通过
+- 51 个 `.so` 与 `assets/operit_shell_exec` 共 52 个 AArch64 ELF，历史审计
+  `PT_LOAD >= 0x4000`
 
-```text
-ANALYSIS_DOCUMENTED
-BUSINESS_SOURCE_UNCHANGED
-RELAY_ROOT_CAUSE_PENDING
-DEVICE_VERIFICATION_PENDING
-NO_COMMIT
-NO_PUSH
-```
+revision `3` 至 `6` 的旧 ToolPkg 和 APK 不得作为 revision `7` 当前交付物。
 
-W1–W6 本地实现已经在当前 dirty worktree 中完成，专项状态更新为：
+## 8. 2026-08-12 日志专项历史记录
+
+指定日志证明 OpenAI Responses 请求在 Android 客户端读取 response headers 前连接中止，提交状态
+保持未知。该证据不能确定 relay 服务端具体原因。
+
+日志专项 W1–W6 的本地实现与历史封板已经完成：
 
 ```text
 LOCAL_IMPLEMENTATION_COMPLETE
 REMOTE_RELAY_PENDING
 DEVICE_PENDING
 USER_ACCEPTANCE_PENDING
-NO_COMMIT
-NO_PUSH
 ```
 
-本轮新增的本地证据包括：
+该专项建立的 at-most-once、脱敏诊断、取消传播、绑定状态和 ANR/TextSegmenter 观察合同继续有效。
+它不授权 revision `7` 当前任务调用真实 relay 或设备。
 
-- W1/W2 传输与隐私定向矩阵 `14/14`
-- W3 错误所有权与传播定向测试 `10/10`
-- W4 取消语义与关联流测试已通过
-- W5 绑定状态机测试 `10/10`，并通过 `compileDebugKotlin`
-- W6 ANR/TextSegmenter 观测、Activity 生命周期事实、W3/W5 综合定向矩阵通过
-- `git diff --check` 无 whitespace error
+## 9. 当前授权与验收边界
 
-W6 只增加观测字段，没有根据单条 `510ms` 或 `4715ms` 日志改变阈值、调度器、预热时机或
-引入第二套分词器。
-
-日志专项 W1–W6 的最终本地收尾证据如下：
-
-- 定向 JVM 矩阵共 `51/51`，失败、错误和跳过均为 `0`
-- `check_formal_readiness.py --require-main`：`Formal development readiness: PASS`
-- `git diff --check`：无 whitespace error，仅有既有 CRLF 转换警告
-- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL`，
-  `238` 个任务中 `25` 个执行、`213` 个为最新状态；`verifySingleDebugLauncher` 与
-  `verifyDebugPlayerRuntimePackaging` 通过
-- 最终 Debug APK：
-  `app/build/outputs/apk/debug/app-debug.apk`，观察时间 `2026-08-13 03:56:14 +08:00`，
-  `472480557` bytes，SHA-256
-  `D57921CB207114643FBBC6428E8ED3457930514FF264CB571A9A67239DD7192D`
-- APK 为 `com.kiyori / 0.1.0 (45)`，min/target/compile SDK `26 / 34 / 37`，唯一
-  `MainActivity` launcher，仅 `arm64-v8a`；51 个 `.so` 无重复 basename，另有
-  `assets/operit_shell_exec`，共 52 个 AArch64 ELF，所有 `PT_LOAD >= 0x4000`
-- Android Debug V2 单 signer 和 16 KB ZIP 对齐通过
-- 内置 `openai_web_search.toolpkg` 为 `9864` bytes，SHA-256
-  `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`，与 APK 内条目逐字节一致
-- APK 与 ToolPkg 敏感形状扫描为 `0`：Bearer credential、`sk-*`、长 API key assignment、私钥块、
-  cookie credential
-
-这组证据只关闭本地 W7 门禁。relay 连接中止根因、Pixel/OEM provider、启动性能时间线、
-TextSegmenter 真实资源竞争和用户可见行为仍保持待验证，不能由本地构建结果替代。
-
-## 6. 当前实施状态
-
-revision `5` 已在 revision `4` 本地实现基础上完成：
-
-- ToolPkg 容器级 `PACKAGE + HOST_SERVICE` 环境变量合同和 app-private 存储
-- `PACKAGE_ENV` / `MODEL_CONFIG` 显式绑定解析
-- official / relay strict policy、compatibility fingerprint 和付费探测入口
-- 单次非流式 Responses Web Search gateway、取消、超时、限流和结构化错误
-- 只序列化实际非空的 `allowed_domains` 或 `blocked_domains`，不把空数组发给 relay
-- HTTP 非成功响应的有界、脱敏 provider error type/code/message 与 request/trace ID
-- citation 与 action sources 的独立证据建模、coverage 和结构化差异诊断
-- 多 Key compatibility record-set、仓库级原子合并与跨 bridge Key 选择串行化
-- package-bound `ToolPkg.services.openAIWebSearch` bridge
-- `com.kiyori.openai_web_search` ToolPkg、设置页和 `openai_web_search:search`
-- 搜索结果 XML 安全承载、结构化 evidence parser 和可点击来源卡
-- manifest、归档、bridge、policy、compiler、parser、gateway 和 UI evidence 的自动测试
-
-用户先后在 APK 上执行了两次可能计费的真实中转站 compatibility probe。第一次暴露逐项 URL
-fail-fast；第二次在修复该问题后得到 `CITATION_INVALID`。2026-08-12 的宿主外脱敏协议矩阵证明，
-旧 probe 问“当前 UTC 日期”时中转返回命名 `api` feed，天然没有 URL citation。固定公开网页目标
-时中转可以返回标准 `url_citation`；非流式完整 `action.sources` 是否返回还受
-`x-openai-actor-authorization` 等中转扩展 header 影响；Codex 风格流式完成响应可只含
-`url_citation`。因此第二次失败是 Kiyori 自定义 evidence 合同和 probe 目标共同造成，不是该中转
-缺少 Web Search 能力。
-
-revision `3` 自动矩阵为 `78/78`，但用户安装后在 Pixel 上得到 HTTP `502`，在 Sub2api 上得到
-HTTP `401`。revision `3` APK SHA-256
-`5767522CDEC73096B42A63E6CEA415A704E7F9AE56EA026F8FC17D468B1DF27C` 已经是现场失败基线，
-不能继续称为修复版。
-
-2026-08-12 使用用户明确授权的 Pixel 与 Sub2api endpoint、`gpt-5.6-sol` 和临时 Key 执行真实、
-无重试、无自动切换的请求矩阵：
+revision `7` 当前现场与验收边界：
 
 ```text
-普通 Responses
-	Pixel: HTTP 200
-	Sub2api: HTTP 200
-
-OpenAI 官方最小 hosted web_search
-	Pixel: HTTP 200，web_search_call + URL citation + action sources
-	Sub2api: HTTP 200，web_search_call + URL citation + action sources
-
-revision 3 精确请求
-	Pixel: HTTP 502，provider type=upstream_error
-	Sub2api: 客户端 90 秒超时
-
-revision 3 精确请求，仅省略空 blocked_domains
-	Pixel: HTTP 200，URL citation + action sources
-	Sub2api: HTTP 200，URL citation + action sources
+LOCAL_IMPLEMENTATION_COMPLETE
+REMOTE_RELAY_REVALIDATION_PENDING
+DEVICE_PENDING
+USER_ACCEPTANCE_PENDING
 ```
 
-这组证据把 revision `3` 的共同根因锁定为 `OpenAIHostedWebSearchRequestCompiler` 在只有
-`allowed_domains` 时仍发送空 `blocked_domains: []`。revision `4` 不改变非流式单请求方向，不
-引入失败后重试、流式切换、字段剥离、actor header 注入或其他后端切换。Sub2api Android 现场的
-`401` 与同一 Key 的桌面 HTTP `200` 不一致，因此 revision `4` 还必须显示脱敏 provider 错误详情、
-request/trace ID、认证 scheme 和不可逆凭据修订指纹，供用户确认设备实际保存的绑定。
+本轮 Codex 不运行真实 OpenAI/relay、设备、模拟器、ADB 或 APK 安装。用户已提供一轮真实 relay
+矩阵，但 revision `7` 实现后仍需在独立授权下重新验证：
 
-revision `4` APK 随后在 Sekirocloud 上成功完成 compatibility probe 和部分普通搜索，但用户新的
-11 次现场矩阵为 `2` 次成功、`9` 次 `SOURCE_INVALID`。同一英文请求先成功后失败，有无
-`allowed_domains`、中文或英文、`low` 或 `medium` 都不能稳定决定结果；Python、NASA 和 OpenAI
-官方站点均可失败，F1 查询在返回完整 action sources 时成功。脱敏原始 Responses 对照得到：
+- 官方合同下的 domain policy
+- relay filters 的本地 fail-closed
+- URL fidelity 和 canonical source identity
+- `evidence_mode=none`
+- 空引用清理
+- 320dp 窄屏
+- 系统字体放大
+- 中文/英文设置页视觉
+- TalkBack 朗读
+- 真实聊天消息的展开/收起手感
+- 目标 Android 设备与用户验收
 
-```text
-中文 OpenAI 限域查询
-	HTTP 200
-	web_search_call = 3
-	citation URL = 2
-	action source URL = 18
-	1 个 citation URL 不在 action sources
-
-英文 OpenAI 查询
-	HTTP 200
-	web_search_call = 3
-	citation URL = 2
-	action source URL = 0
-	open_page URL = 1
-```
-
-旧 parser 只在 action-source URL 集合非空但未覆盖全部 citation 时抛错。这证明
-`action.sources` 不是 citation annotation 的完整允许集合，也证明 `allowed_domains` 不是本轮
-根因。revision `5` 保留 citation 的 HTTP(S)、span、source mapping 和 schema 硬校验，把跨通道
-集合关系改为可观察诊断。
-
-revision `5` 当前本地验证：
-
-- 生产 Kotlin 编译已通过
-- TypeScript strict 编译通过
-- 完整定向矩阵 XML 精确为 `13` 个 suite、`91/91` tests，失败、错误和跳过均为 `0`
-- formal readiness 与 `git diff --check` 通过
-- architecture `phase=m03` 与架构门禁自身 `107/107` Python 单元测试通过
-- revision `5` ToolPkg `1.0.4` 于 `2026-08-12 23:37:38 +08:00` 强制生成，为 `9864` bytes，
-  SHA-256 `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`
-- ToolPkg 恰好包含 `5` 个运行时条目、`21` 个 host-service 环境变量和 `1` 个 subpackage；
-  `.ts`、`.env`、三个实测 relay 域名、长 `sk-*`、Bearer credential 和私钥扫描均为 `0`
-- revision `5` Debug APK 于 `2026-08-12 23:39:40 +08:00` 生成，为 `472480557` bytes，
-  SHA-256 `9F845CC0F71CEBB1929E42148F93C85A489C9FAD20160FAE5E8BFF13EE451536`
-- APK 为 `com.kiyori 0.1.0 (45)`，min/target/compile SDK `26 / 34 / 37`，唯一
-  `MainActivity` launcher，仅 `arm64-v8a`；51 个 native 库无重复 basename，Android Debug V2
-  单 signer 和 16 KB ZIP 对齐通过
-- 51 个 `.so` 与 `assets/operit_shell_exec` 共 52 个 AArch64 ELF 的最小 `PT_LOAD` 对齐为
-  `0x4000`
-- APK 内 `openai_web_search.toolpkg` 恰好一份，与生成制品大小和 SHA-256 完全一致；APK 长
-  `sk-*`、Bearer credential、AWS/GitHub token 和完整 PEM 私钥块扫描均为 `0`
-- revision `4` ToolPkg `1.0.3` 为 `9864` bytes，SHA-256
-  `B1A5AFFF5D16FD742A941845FB7EE7EC19B59142F98D5681285F440BE84B480B`，恰好 `5` 个运行时条目、
-  `21` 个 host-service 环境变量和 `1` 个 subpackage；它已经是现场 `SOURCE_INVALID` 失败基线，
-  不能继续作为修复版交付
-- revision `3` ToolPkg 为 `9679` bytes，SHA-256
-  `58025CC245D055D76345F45C9DE67E20D5464240F5033695B4C77380C1B94E24`，恰好 `5` 个运行时条目，
-  manifest 含 `21` 个 host-service 环境变量，凭据特征扫描为 `0`
-- revision `3` 产出构建 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 14s`，`238` 个任务中
-  `30` 个执行、
-  `208` 个为最新状态
-- 文档回填和 ToolPkg 强制重生成后的一次串行复核为 `BUILD SUCCESSFUL in 25s`，`238` 个任务中
-  `25` 个执行、`213` 个为最新状态；APK 时间、大小和 SHA-256 保持不变
-- revision `3` Debug APK 生成于 `2026-08-12 19:35:10 +08:00`，为 `472480557` bytes，SHA-256
-  `5767522CDEC73096B42A63E6CEA415A704E7F9AE56EA026F8FC17D468B1DF27C`
-- revision `3` APK 为 `com.kiyori 0.1.0 (45)`，min/target/compile SDK `26 / 34 / 37`，唯一
-  `MainActivity` launcher，仅 `arm64-v8a`，51 个 native 库无重复 basename
-- Android Debug 仅 V2、单 signer，证书 SHA-256
-  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`；16 KB ZIP 对齐通过
-- APK 内 `openai_web_search.toolpkg` 恰好一份，为 `9679` bytes、SHA-256
-  `58025CC245D055D76345F45C9DE67E20D5464240F5033695B4C77380C1B94E24`，与生成制品逐字节相同
-- ToolPkg 与 APK 解压后共扫描 `5611` 个归档条目；用户凭据精确值、中转域名、长 `sk-*` 值和
-  Bearer credential value 均为 `0`
-
-精确验证矩阵与产物审计见
-[实施、测试与验收](4_implementation_and_validation.md)。
+任何一级本地证据不能替代远端、设备或用户验收。

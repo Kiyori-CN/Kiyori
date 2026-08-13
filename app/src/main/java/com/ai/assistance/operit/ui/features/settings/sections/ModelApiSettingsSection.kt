@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -78,11 +80,6 @@ import kotlinx.coroutines.sync.withLock
 val TAG = "ModelApiSettings"
 
 private val modelApiSettingsSaveMutex = Mutex()
-
-private data class ProviderSelectionOption(
-    val id: String,
-    val displayName: String
-)
 
 private data class PendingModelDeletion(
     val modelName: String,
@@ -272,7 +269,11 @@ fun ModelApiSettingsSection(
         try {
             AppLogger.d(
                 TAG,
-                "保存API设置: apiKey=${state.apiKey.take(5)}..., endpoint=${state.apiEndpoint}, model=${state.modelName}, providerType=${state.provider.name}"
+                ModelApiProviderPresentationPolicy.formatSettingsSaveLog(
+                    provider = state.provider,
+                    modelCount = getModelList(state.modelName).size,
+                    credentialConfigured = state.apiKey.isNotBlank(),
+                )
             )
             val impact = persist(state)
             AppLogger.d(TAG, "API设置保存完成并刷新服务")
@@ -821,6 +822,11 @@ fun ModelApiSettingsSection(
                     title = stringResource(R.string.api_provider),
                     subtitle = stringResource(R.string.select_api_provider),
                     value = getProviderDisplayName(selectedProviderTypeId, resources),
+                    valueSummary =
+                        getProviderSummary(
+                            providerTypeId = selectedProviderTypeId,
+                            resources = resources,
+                        ),
                     onClick = { showApiProviderDialog = true }
             )
 
@@ -1314,23 +1320,89 @@ private fun getProviderDisplayName(providerTypeId: String, resources: Resources)
     return ToolPkgAiProviderRegistry.get(providerTypeId)?.displayName ?: providerTypeId
 }
 
+private fun getProviderSummary(providerTypeId: String, resources: Resources): String {
+    val builtInProvider = ApiProviderType.fromProviderTypeId(providerTypeId)
+    if (builtInProvider != null) {
+        return getBuiltInProviderSummary(builtInProvider, resources)
+    }
+    val toolPkgProvider = ToolPkgAiProviderRegistry.get(providerTypeId)
+    return toolPkgProvider?.description?.trim()?.takeIf(String::isNotEmpty)
+        ?: resources.getString(
+            R.string.provider_summary_toolpkg,
+            providerTypeId,
+        )
+}
+
 private fun getProviderSelectionOptions(resources: Resources): List<ProviderSelectionOption> {
     val builtInProviders =
-        ApiProviderType.values().map { provider ->
+        ModelApiProviderPresentationPolicy
+            .orderBuiltInProviders(ApiProviderType.entries)
+            .map { provider ->
             ProviderSelectionOption(
                 id = provider.name,
-                displayName = getBuiltInProviderDisplayName(provider, resources)
+                displayName = getBuiltInProviderDisplayName(provider, resources),
+                summary = getBuiltInProviderSummary(provider, resources),
+                section = ModelApiProviderPresentationPolicy.section(provider),
+                endpointKind =
+                    ModelApiProviderPresentationPolicy.endpointKind(provider),
             )
         }
     val toolPkgProviders =
         ToolPkgAiProviderRegistry.list().map { provider ->
             ProviderSelectionOption(
                 id = provider.providerId,
-                displayName = provider.displayName
+                displayName = provider.displayName,
+                summary =
+                    provider.description.trim().ifEmpty {
+                        resources.getString(
+                            R.string.provider_summary_toolpkg,
+                            provider.providerId,
+                        )
+                    },
+                section = ProviderSelectionSection.TOOLPKG,
+                endpointKind = ProviderEndpointKind.OTHER,
             )
         }
     return builtInProviders + toolPkgProviders
 }
+
+private fun getBuiltInProviderSummary(
+    provider: ApiProviderType,
+    resources: Resources,
+): String =
+    when (provider) {
+        ApiProviderType.OPENAI ->
+            resources.getString(R.string.provider_summary_chat_official)
+
+        ApiProviderType.OPENAI_GENERIC ->
+            resources.getString(R.string.provider_summary_chat_compatible)
+
+        ApiProviderType.OPENAI_RESPONSES ->
+            resources.getString(R.string.provider_summary_responses_official)
+
+        ApiProviderType.OPENAI_RESPONSES_GENERIC ->
+            resources.getString(R.string.provider_summary_responses_compatible)
+
+        else -> resources.getString(R.string.provider_summary_built_in)
+    }
+
+private fun getProviderSectionDisplayName(
+    section: ProviderSelectionSection,
+    resources: Resources,
+): String =
+    when (section) {
+        ProviderSelectionSection.OPENAI_CHAT_COMPLETIONS ->
+            resources.getString(R.string.provider_section_openai_chat_completions)
+
+        ProviderSelectionSection.OPENAI_RESPONSES ->
+            resources.getString(R.string.provider_section_openai_responses)
+
+        ProviderSelectionSection.OTHER_BUILT_IN ->
+            resources.getString(R.string.provider_section_other_built_in)
+
+        ProviderSelectionSection.TOOLPKG ->
+            resources.getString(R.string.provider_section_toolpkg)
+    }
 
 
 @Composable
@@ -1518,12 +1590,23 @@ private fun SettingsSelectorRow(
         title: String,
         subtitle: String,
         value: String,
+        valueSummary: String? = null,
         onClick: () -> Unit
 ) {
+    val semanticDescription =
+        listOfNotNull(
+            title,
+            value,
+            valueSummary,
+            subtitle.takeIf { valueSummary == null },
+        ).joinToString(". ")
     Surface(
             modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = semanticDescription
+                    }
                     .clickable { onClick() },
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     ) {
@@ -1532,30 +1615,55 @@ private fun SettingsSelectorRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            if (valueSummary == null) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                            text = title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                                .padding(end = 8.dp)
+                                .weight(0.5f, fill = false),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                )
+            } else {
+                Column(
+                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                        text = subtitle,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                    )
+                    Text(
+                        text = valueSummary,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                            .padding(end = 8.dp)
-                            .weight(0.5f, fill = false),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-            )
             Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
@@ -1789,15 +1897,15 @@ private fun ApiProviderDialog(
     val providers = remember(resources) { getProviderSelectionOptions(resources) }
     var searchQuery by remember { mutableStateOf("") }
     
-    val filteredProviders = remember(searchQuery) {
-        if (searchQuery.isEmpty()) {
-            providers
-        } else {
+    val providerRows = remember(providers, searchQuery) {
+        ModelApiProviderPresentationPolicy.buildRows(
             providers.filter { provider ->
-                provider.displayName.contains(searchQuery, ignoreCase = true) ||
-                    provider.id.contains(searchQuery, ignoreCase = true)
+                ModelApiProviderPresentationPolicy.matchesSearch(
+                    option = provider,
+                    query = searchQuery,
+                )
             }
-        }
+        )
     }
 
     Dialog(onDismissRequest = onDismissRequest) {
@@ -1851,45 +1959,83 @@ private fun ApiProviderDialog(
                 androidx.compose.foundation.lazy.LazyColumn(
                         modifier = Modifier.weight(1f)
                 ) {
-                    items(filteredProviders.size) { index ->
-                        val provider = filteredProviders[index]
-                        // 美化的提供商选项
-                        Surface(
-                                modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .clickable { onProviderSelected(provider) },
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                        ) {
-                            Row(
-                                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // 提供商图标（使用圆形背景色）
-                                Box(
-                                        modifier = Modifier
-                                                .size(32.dp)
-                                                .background(
-                                                        getProviderColor(provider.id),
-                                                        CircleShape
-                                                ),
-                                        contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                            text = provider.displayName.firstOrNull()?.toString() ?: "?",
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.width(16.dp))
-                                
+                    items(providerRows.size) { index ->
+                        when (val row = providerRows[index]) {
+                            is ProviderSelectionRow.Header ->
                                 Text(
-                                        text = provider.displayName,
-                                        style = MaterialTheme.typography.bodyLarge
+                                    text =
+                                        getProviderSectionDisplayName(
+                                            section = row.section,
+                                            resources = resources,
+                                        ),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = 4.dp,
+                                                end = 4.dp,
+                                                top = 12.dp,
+                                                bottom = 4.dp,
+                                            ),
                                 )
+
+                            is ProviderSelectionRow.Option -> {
+                                val provider = row.provider
+                                Surface(
+                                        modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                                .semantics(mergeDescendants = true) {
+                                                    contentDescription =
+                                                        "${provider.displayName}. ${provider.summary}"
+                                                }
+                                                .clickable { onProviderSelected(provider) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                ) {
+                                    Row(
+                                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                                modifier = Modifier
+                                                        .size(32.dp)
+                                                        .background(
+                                                                getProviderColor(provider.id),
+                                                                CircleShape
+                                                        ),
+                                                contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                    text = provider.displayName.firstOrNull()?.toString() ?: "?",
+                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                                        ) {
+                                            Text(
+                                                    text = provider.displayName,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.Medium,
+                                            )
+                                            Text(
+                                                text = provider.summary,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

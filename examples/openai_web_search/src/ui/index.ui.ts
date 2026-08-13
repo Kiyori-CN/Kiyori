@@ -41,23 +41,66 @@ function statusLines(status: ToolPkg.OpenAIWebSearchStatus): Array<[string, stri
     status.compatibility.tested_at_epoch_millis === null
       ? "—"
       : new Date(status.compatibility.tested_at_epoch_millis).toISOString();
+  const providerContract =
+    status.provider_contract === null ? "—" : status.provider_contract;
+  const endpointHost =
+    status.endpoint_host === null ? "—" : status.endpoint_host;
+  const model = status.model === null ? "—" : status.model;
+  const mode = status.mode === null ? "—" : status.mode;
+  const reasoningEffort =
+    status.reasoning_effort === null ? "—" : status.reasoning_effort;
+  const contextSize =
+    status.context_size === null ? "—" : status.context_size;
+  const returnTokenBudget =
+    status.return_token_budget === null ? "—" : status.return_token_budget;
+  const queueTimeout =
+    status.queue_timeout_seconds === null
+      ? "—"
+      : `${status.queue_timeout_seconds}s`;
+  const httpTimeout =
+    status.timeout_seconds === null ? "—" : `${status.timeout_seconds}s`;
+  const authSchemePresent =
+    status.auth_scheme_present === null
+      ? "—"
+      : status.auth_scheme_present
+        ? "yes"
+        : "no";
+  const authSchemeKind =
+    status.auth_scheme_kind === null ? "—" : status.auth_scheme_kind;
+  const apiKeyRevision =
+    status.api_key_revision === null ? "—" : status.api_key_revision;
   return [
-    ["Config source", status.config_source],
-    ["Provider contract", status.provider_contract],
-    ["Endpoint", status.endpoint],
-    ["Model", status.model],
-    ["Model config ID", status.model_config_id ?? "—"],
-    ["Web access", status.mode],
-    ["Reasoning", status.reasoning_effort],
-    ["Context", status.context_size],
-    ["Return budget", status.return_token_budget],
-    ["Timeout", `${status.timeout_seconds}s`],
+    ["Provider contract", providerContract],
+    ["Endpoint host", endpointHost],
+    ["Model", model],
+    ["Web access", mode],
+    ["Reasoning", reasoningEffort],
+    ["Context", contextSize],
+    ["Return budget", returnTokenBudget],
+    ["Queue timeout", queueTimeout],
+    ["HTTP timeout", httpTimeout],
     ["Header names", status.header_names.join(", ") || "—"],
-    ["Auth scheme configured", status.auth_scheme_present ? "yes" : "no"],
-    ["Auth scheme kind", status.auth_scheme_kind],
+    ["Auth scheme configured", authSchemePresent],
+    ["Auth scheme kind", authSchemeKind],
     ["API key configured", status.api_key_configured ? "yes" : "no"],
-    ["API key revision", status.api_key_revision],
+    ["API key revision", apiKeyRevision],
     ["Probe time", compatibilityTime],
+  ];
+}
+
+function readinessLines(
+  status: ToolPkg.OpenAIWebSearchStatus
+): Array<[string, string]> {
+  return [
+    ["Provider contract", status.readiness.provider_contract.state],
+    ["Endpoint", status.readiness.endpoint.state],
+    ["Model", status.readiness.model.state],
+    ["Credential", status.readiness.credential.state],
+    ["Authentication", status.readiness.auth.state],
+    ["Additional headers", status.readiness.extra_headers.state],
+    ["Search options", status.readiness.search_options.state],
+    ["Admission", status.readiness.admission.state],
+    ["Compatibility", status.readiness.compatibility.state],
   ];
 }
 
@@ -109,7 +152,10 @@ function evidenceModeLabel(
   if (mode === "action_sources") {
     return text.evidenceModeSources;
   }
-  return text.evidenceModeFeeds;
+  if (mode === "structured_feeds") {
+    return text.evidenceModeFeeds;
+  }
+  return text.evidenceModeNone;
 }
 
 export default function Screen(ctx: ComposeDslContext): ComposeNode {
@@ -123,6 +169,11 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
   const errorState = stateValue(ctx, "error", "");
   const loadingState = stateValue(ctx, "loading", false);
   const probingState = stateValue(ctx, "probing", false);
+  const openingConfigurationState = stateValue(
+    ctx,
+    "openingConfiguration",
+    false
+  );
   const loadedState = stateValue(ctx, "loaded", false);
 
   const loadStatus = async (): Promise<void> => {
@@ -145,7 +196,9 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
         await ToolPkg.services.openAIWebSearch.validateLocalConfiguration();
       statusState.set(result.status);
       errorState.set("");
-      messageState.set(text.validationPassed);
+      messageState.set(
+        result.valid ? text.validationPassed : text.configurationIncomplete
+      );
     } catch (error) {
       console.error("[openai_web_search] local validation failed", error);
       errorState.set(errorMessage(error));
@@ -168,6 +221,19 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
       errorState.set(errorMessage(error));
     } finally {
       probingState.set(false);
+    }
+  };
+
+  const openConfiguration = async (): Promise<void> => {
+    openingConfigurationState.set(true);
+    try {
+      await ToolPkg.services.openAIWebSearch.openConfiguration();
+      errorState.set("");
+    } catch (error) {
+      console.error("[openai_web_search] native configuration open failed", error);
+      errorState.set(errorMessage(error));
+    } finally {
+      openingConfigurationState.set(false);
     }
   };
 
@@ -205,6 +271,17 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
       style: "titleMedium",
       fontWeight: "bold",
     }),
+    ctx.UI.Button({
+      text: openingConfigurationState.value
+        ? text.openingConfiguration
+        : text.openConfiguration,
+      enabled:
+        !openingConfigurationState.value &&
+        !loadingState.value &&
+        !probingState.value,
+      fillMaxWidth: true,
+      onClick: openConfiguration,
+    }),
   ];
 
   if (statusState.value === null) {
@@ -222,6 +299,23 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
   } else {
     const compatibility = statusState.value.compatibility;
     const hint = compatibilityHint(text, compatibility.state);
+    children.push(
+      ctx.UI.Text({
+        text: text.readiness,
+        style: "titleMedium",
+        fontWeight: "bold",
+      })
+    );
+    children.push(
+      ctx.UI.Card({ fillMaxWidth: true }, [
+        ctx.UI.Column(
+          { fillMaxWidth: true, padding: 14, spacing: 10 },
+          readinessLines(statusState.value).map((entry) =>
+            infoLine(ctx, entry[0], entry[1])
+          )
+        ),
+      ])
+    );
     children.push(
       ctx.UI.Card({ fillMaxWidth: true }, [
         ctx.UI.Column(
@@ -336,7 +430,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     }),
     ctx.UI.Button({
       text: loadingState.value ? text.validating : text.validateButton,
-      enabled: !loadingState.value && !probingState.value,
+      enabled:
+        !loadingState.value &&
+        !probingState.value &&
+        !openingConfigurationState.value,
       fillMaxWidth: true,
       onClick: validate,
     }),
@@ -361,7 +458,10 @@ export default function Screen(ctx: ComposeDslContext): ComposeNode {
     ),
     ctx.UI.Button({
       text: probingState.value ? text.probing : text.probeButton,
-      enabled: !probingState.value && !loadingState.value,
+      enabled:
+        !probingState.value &&
+        !loadingState.value &&
+        !openingConfigurationState.value,
       fillMaxWidth: true,
       onClick: runProbe,
     })

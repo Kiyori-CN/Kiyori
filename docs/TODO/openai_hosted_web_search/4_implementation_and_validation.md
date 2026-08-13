@@ -1,753 +1,621 @@
 # 4. 实施、测试与验收
 
-## 4.1 授权边界
+## 4.1 当前状态与授权边界
 
-当前状态：
+revision `7` 当前状态：
 
 ```text
-LOCAL IMPLEMENTATION COMPLETE
-REVISION 5 LOCAL VERIFICATION COMPLETE
-FINAL LOCAL ARTIFACT VERIFICATION COMPLETE
-GIT DELIVERY AUTHORIZED
-DEVICE VERIFICATION PENDING
+LOCAL_IMPLEMENTATION_COMPLETE
+REMOTE_RELAY_REVALIDATION_PENDING
+DEVICE_PENDING
+USER_ACCEPTANCE_PENDING
 ```
 
-用户已经明确下达开发指令，并在当前轮次授权提交和推送。revision `5` 业务代码、完整定向矩阵、
-ToolPkg `1.0.4`、正式开发门禁、Debug APK 构建和静态制品封板均已完成；Git 交付以本轮最终
-提交、推送和远端 ref 对账结果为准。
+当前已授权提交和推送本轮有效修改；当前仍不允许：
 
-当前仍未获授权并且没有执行：
-
+- 创建分支、PR 或发布
+- 调用真实 OpenAI、relay 或可能计费的接口
+- 操作真机、模拟器、ADB 或 MuMu
 - 安装 APK
-- 执行 ADB、MuMu 或真机操作
 
-用户已在修复前 APK 上显式执行过多轮真实中转站 probe 和普通搜索。当前任务还在用户明确授权下
-完成了脱敏宿主外协议对照；真实凭据没有写入源码、文档、测试、ToolPkg、APK 或任务日记。
-revision `5` APK 已生成并完成本地静态审计，但尚未安装和重新探测，因此当前产品验收状态是
-`verification_pending`，不是已经完成真实服务与设备验收。
+revision `6` 的 29 次真实 relay 顶层调用只作为 revision `7` 的问题基线：
+`23` 次结构化成功、`5` 次预期参数拒绝和 `1` 次非预期零证据失败。该现场矩阵不构成
+revision `7` 的远端复测或用户验收证据。
 
-## 4.2 实施里程碑
+## 4.2 Revision 7 本地实现与验证
 
-### M0：ToolPkg 容器环境变量基础 `[LOCAL DONE]`
-
-目标：
-
-- 给 ToolPkg manifest 增加容器级环境变量声明
-- 增加 package scope
-- 增加 sensitive 和 password UI
-- 增加 `host_service` consumer
-- 建立 package-bound host environment repository
-- 保留普通脚本包现有全局环境变量合同
-
-实际主要文件：
+revision `7` 已完成本地源码、测试、ToolPkg 生成制品和文档合同同步。当前合同为：
 
 ```text
-app/src/main/java/com/ai/assistance/operit/core/tools/ToolPackage.kt
-app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt
-app/src/main/java/com/ai/assistance/operit/core/tools/packTool/ToolPkgParser.kt
-app/src/main/java/com/ai/assistance/operit/data/preferences/ToolPkgHostEnvironmentRepository.kt
-app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageEnvironmentVariablesPolicy.kt
-app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageEnvironmentVariablesSheet.kt
-app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt
+ToolPkg version = 1.0.6
+host-service environment variables = 20
+response schema revision = 7
+configuration source = PACKAGE_ENV only
 ```
 
-本地验收：
+本地实现包含：
 
-- container manifest 可以声明环境变量
-- Key 使用 package scope、sensitive、host_service 和 password
-- ToolPkg JavaScript 的 `getEnv()` 无法读取 host-only Key
-- 另一个 ToolPkg 无法读取目标 package namespace
-- 包管理环境变量界面可以编辑、遮蔽和清除 Key
-- artifact scanner 拒绝非法 consumer、scope 和 input type
-- 旧脚本包 env 行为保持不变
+- `cited_sources`、`all_sources`、`source_summary` 和 `execution_diagnostics` 的原子响应合同
+- display URL identity 与 canonical URL identity 分离，保持 percent-encoding fidelity，并处理 tracking-only 差异
+- 官方响应域名策略 fail-closed；relay 带 domain filters 时在 HTTP Call 创建前返回
+  `DOMAIN_FILTER_UNSUPPORTED_FOR_RELAY` 与 `submission_state=not_sent`
+- `evidence_mode=none` 与合法零证据成功 envelope，零证据使用 `NO_WEB_EVIDENCE` warning
+- 空 Markdown 链接/图片清理及 citation offset 映射
+- 单调时钟 lifecycle timing、成功/失败 execution diagnostics 和
+  `enhanced.toolSubtree.complete` 递归工具树计时
+- 主模型 cited-source projection 不重复发送完整 `all_sources`、search actions、query、usage
+  或原始 citations
+- ToolPkg 原生 array/boolean 参数、字段级 `INVALID_ARGUMENT` 与结构化拒绝
+- ToolPkg 注册 version、artifact SHA-256、source type、registration thread 和 elapsed observation
+- 设置保存、TTS/自动朗读、ToolPkg 参数转换和终态错误日志的隐私/所有权收口
 
-上述合同已经由 `PackageEnvironmentVariablesPolicyTest`、`ToolPkgArtifactScannerTest` 和
-`OpenAIWebSearchToolPkgContractTest` 覆盖。
+本轮 revision `7` hotfix 进一步固定两个调用契约：
 
-### M1：能力与绑定模型 `[LOCAL DONE]`
+- `formatToolResultForMessage()` 只用于实时聊天结果和 UI evidence，保留完整
+  `all_sources`；`formatToolResultForModel()` 只用于后续主模型请求，使用受限 projection。
+  `buildBoundedToolResultMessage()` 只能走后者，实时工具结果收集器只能走前者
+- `OpenAIHostedWebSearchCompatibilityRepository` 的成功、失败和清理写入使用同步
+  `SharedPreferences.commit()`，并在返回 callback 前确认提交成功。该改动不放宽
+  `requireRelayProbe=true`，也不改变 fingerprint 变化后的重新探测规则
 
-目标：
-
-- 定义 hosted web search 强类型模型
-- 定义 `PACKAGE_ENV` 与 `MODEL_CONFIG`
-- 定义 `RESPONSES_HOSTED_OFFICIAL` 与 `RESPONSES_RELAY_STRICT`
-- 定义固定服务绑定和兼容探测指纹
-- 复用 official endpoint 判定
-- 增加 official GPT-5.6 allowlist
-
-实际主要文件：
+revision `7` 本地验证证据：
 
 ```text
-app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/
-	OpenAIHostedWebSearchModels.kt
-	OpenAIHostedWebSearchPolicy.kt
-	OpenAIHostedWebSearchBindingResolver.kt
-	OpenAIHostedWebSearchCompatibilityRepository.kt
-	OpenAIHostedWebSearchCompatibilityProbe.kt
+Hosted Web Search JVM = 26 suites / 142 tests
+failures = 0
+errors = 0
+skipped = 0
+Kotlin production/unit-test compile = PASS
+TypeScript strict = PASS
+dist SHA-256 stability = PASS
+formal development readiness = PASS
 ```
 
-验收：
+上述结果只证明本地实现与构建输入一致。真实 relay revalidation、设备安装与复测、320dp/字体放大、
+TalkBack、真实聊天视觉和用户 acceptance 仍待执行。
 
-- 配置来源缺失或混用时被拒绝
-- official endpoint 进入 official contract
-- 中转 endpoint 未探测时被拒绝
-- 中转探测必须返回 web search call 与真实 URL citation；action sources 是独立审计通道
-- endpoint、模型、认证或 reasoning 改变后探测失效
-- Chat Completions provider 被拒绝
-- official 模型不存在或不在 allowlist 时被拒绝
-- `gpt-5.6-cyber` 在第一版通用搜索模式中被明确拒绝
-- 模型列表重排不改变绑定模型
-- Key 不进入 ToolPkg
+## 4.3 Revision 6 历史基线
 
-没有新增虚构的单一 `OpenAIHostedWebSearchBindingRepository`。绑定状态继续由
-`ToolPkgHostEnvironmentRepository`、`ModelConfigManager` 和
-`OpenAIHostedWebSearchCompatibilityRepository` 分别持有，再由
-`OpenAIHostedWebSearchBindingResolver` 编译为一次调用所需的不可变绑定。
+### M1：生命周期与错误分类 `[LOCAL DONE]`
 
-### M2：请求编译和响应解析 `[LOCAL DONE]`
-
-目标：
-
-- 建立搜索专用 Responses compiler/parser
-- 复用 `SharedHttpClient`、ModelConfig Key pool 数据和 usage 解析
-- 支持 package env 与固定 model config 的传输身份
-- 支持 configurable reasoning、headers 和中转 endpoint
-- 完成 source marker 转换
-
-建议影响文件：
+主要实现：
 
 ```text
-app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/
-	OpenAIHostedWebSearchGateway.kt
-	OpenAIHostedWebSearchRequestCompiler.kt
-	OpenAIHostedWebSearchResponseParser.kt
-	OpenAIHostedWebSearchHttpFailurePolicy.kt
+OpenAIHostedWebSearchRequestLifecycle
+OpenAIHostedWebSearchRequestPhase
+OpenAIHostedWebSearchSubmissionState
+OpenAIHostedWebSearchCancellationOwner
+OpenAIHostedWebSearchTerminalOutcome
 ```
 
-验收：
+合同：
 
-- 请求固定 `tool_choice=required`
-- 请求显式 `external_web_access=true`
-- 请求 `store=false`
-- 请求包含完整 sources
-- `return_token_budget` 只接受 `default` 或 `unlimited`
-- reasoning `omit` 时不发送字段，其他值发送精确 effort
-- extra headers 不能覆盖认证或 hop-by-hop header
-- redirect 被拒绝
-- parser 保留 action、citation、source 和 usage
-- parser 遍历全部 output 和全部 web_search_call，并保留 source diagnostics
-- citation/action source URL 集合不一致时保留有效 citation，不再抛出 `SOURCE_INVALID`
-- 没有 `web_search_call` 时失败
-- citation index 越界时失败或产生明确 warning
-- 日志不包含 Key
+- 取消与 worker 完成共用一个 lifecycle owner
+- 第一次取消进入 `CANCEL_REQUESTED`
+- 只有第一次取消实际执行 transport/job cancel
+- `settle()` 领取唯一终态
+- 取消先发生时，后续成功结果收敛为 `CANCELLED`
+- success 先 settle 后，新的取消返回 false
+- callback 只投递一次
+- OkHttp call timeout 在 cancellation 状态之前分类为 `REQUEST_TIMEOUT`
 
-Web Search 不直接调用通用 `ApiKeyProvider`。专用 Key 选择器只读取已经选择的配置来源，不记录
-Key 前后缀；多 Key 模式没有可用成员时返回 `API_KEY_MISSING`，也不读取其他 Key 来源。
-
-### M3：ToolPkg 宿主桥 `[LOCAL DONE]`
-
-目标：
-
-- 提供 package-bound bridge
-- 绑定 caller identity
-- 增加取消、状态和本地校验
-- 提供显式付费 compatibility probe
-
-实际主要文件：
+错误诊断字段：
 
 ```text
-app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/
-	ToolPkgOpenAIWebSearchBridge.kt
-
-app/src/main/java/com/ai/assistance/operit/core/tools/javascript/
-	JsEngine.kt
-	JsToolPkgRegistration.kt
-
-examples/types/
-	toolpkg.d.ts
+phase
+cancel_owner
+submission_state
+elapsed_ms
+configured_timeout_ms
+queue_wait_ms
+provider_request_id
 ```
 
-验收：
+### M2：Admission 与预算 `[LOCAL DONE]`
 
-- 普通脚本不能冒充目标 ToolPkg
-- ToolPkg 不能传 package ID 访问其他包绑定
-- ToolPkg 不能传 endpoint、Key 或 Authorization
-- ToolPkg 不能读取 host-only environment
-- 调用取消能结束对应 HTTP call
-- 未绑定状态返回结构化错误
+`OpenAIHostedWebSearchAdmissionController` 是普通 search 与 compatibility probe 共用的进程内稳定
+FIFO owner。
 
-bridge 只为绑定到 `com.kiyori.openai_web_search` 的执行引擎初始化，并要求 `callId` 属于当前
-`JsEngine.activeExecutionSessions`。compatibility probe 还要求当前 execution runtime 为 `ui`；
-subpackage 和 sandbox runtime 仍可调用普通 `search`。
+覆盖：
 
-### M4：ToolPkg 产品壳 `[LOCAL DONE]`
+- 最大并发
+- RPM
+- queue timeout
+- waiter cancel 精确移除
+- 配置热更新
+- active、queued 与窗口 timestamp 快照
 
-目标：
-
-- 创建 `com.kiyori.openai_web_search`
-- 增加设置 UI
-- 增加 subpackage 搜索工具
-- 加入包管理安装和启停
-- 环境变量配置进入 ToolPkg 容器，不进入脚本包
-
-建议目录：
+默认预算：
 
 ```text
-examples/openai_web_search/
-	manifest.json
-	src/
-	dist/
+queue timeout   = 60s
+call timeout    = 300s
+read timeout    = 300s
+connect timeout = min(call timeout, 30s)
+write timeout   = min(call timeout, 60s)
 ```
 
-当前使用既有 bundled ToolPkg 生成任务，不手工把归档复制进源码资产目录。生成结果位于：
+queue timeout 不创建 HTTP Call，提交状态保持 `not_sent`。
+
+### M3：唯一 PACKAGE_ENV `[LOCAL DONE]`
+
+revision `6` 完整删除本插件专项 `MODEL_CONFIG` 链，包括：
+
+```text
+OPENAI_WEB_SEARCH_CONFIG_SOURCE
+OPENAI_WEB_SEARCH_MODEL_CONFIG_ID
+OpenAIHostedWebSearchConfigSource
+compileModelConfig()
+OpenAIHostedWebSearchModelConfigKeySelector
+modelConfigId
+modelConfigMaxConcurrentRequests
+modelConfigRequestsPerMinute
+modelConfigKeySelectionMutex
+MODEL_CONFIG_NOT_FOUND
+MODEL_NOT_IN_CONFIG
+advanceModelConfigKey
+```
+
+当前唯一配置链：
+
+```text
+ToolPkgHostEnvironmentRepository
+	→ OpenAIHostedWebSearchBindingCompiler.compilePackageEnvironment()
+	→ OpenAIHostedWebSearchPolicy
+	→ OpenAIHostedWebSearchGateway
+```
+
+当前合同：
+
+```text
+ToolPkg version = 1.0.5
+host-service environment variables = 20
+response schema revision = 6
+```
+
+revision `5` record-set 被 revision `6` codec 拒绝。错误 JSON 中已删除 `retryable`。
+`User-Agent` 已加入 extra-header 禁止覆盖名单。
+
+readiness 固定包含九项：
+
+```text
+provider_contract
+endpoint
+model
+credential
+auth
+extra_headers
+search_options
+admission
+compatibility
+```
+
+固定原生配置入口：
+
+```ts
+ToolPkg.services.openAIWebSearch.openConfiguration()
+```
+
+宿主固定打开 `com.kiyori.openai_web_search` 的环境变量编辑器。
+
+### M4：Provider、结果卡与 parser `[LOCAL DONE]`
+
+Evidence parser 返回：
+
+```text
+NotApplicable
+Parsed
+Invalid
+```
+
+`Invalid` 只暴露脱敏诊断：
+
+```text
+code
+sanitizedSummary
+schemaRevision
+hasRequestId
+fieldName
+```
+
+有界 parser-invalid 日志最多持有 `128` 个键，不记录 query、answer、sources 或完整 result。
+
+单个精确工具名 `openai_web_search:search` 在 `READ_ONLY`、`ALL` 和 `FULL` 三种模式都建立消息级
+L0 工具组，继续复用既有 `rendererId`、`stableKey`、`expanded`、`userOverride` 和
+`hasLiveXmlStream` owner。
+
+结果卡层级：
+
+```text
+L0 消息级工具组
+L1 搜索摘要
+L2 答案
+L3 来源
+L3 搜索轨迹
+L3 诊断与用量
+```
+
+L1 默认收起。来源、搜索轨迹和诊断独立折叠；来源保持原顺序并按每批八条展开。failure 与
+parser-invalid 卡仍保留普通 `ToolResultDisplay`。
+
+全局四种 OpenAI Provider 枚举保留：
+
+```text
+OPENAI
+OPENAI_GENERIC
+OPENAI_RESPONSES
+OPENAI_RESPONSES_GENERIC
+```
+
+用户可见名称明确区分 Chat Completions / Responses 与官方 / 兼容端点。选择器按协议分组，并保留
+其他内建 Provider 与动态 ToolPkg Provider。已选 Provider 使用多行全名和协议/端点摘要。
+
+M4 最新定向测试 XML：
+
+```text
+OpenAIHostedWebSearchEvidenceParserTest              9
+OpenAIWebSearchResultPresentationPolicyTest          7
+ThinkToolsXmlNodeGrouperTest                         4
+ModelApiProviderPresentationPolicyTest               4
+```
+
+合计 `24` tests，失败、错误和跳过均为 `0`。前台重跑为 `BUILD SUCCESSFUL in 37s`。
+
+### M5：文档、完整验证与 Debug APK `[LOCAL DONE]`
+
+M5 已完成的构建前门禁：
+
+- [x] 中英文资源无硬编码遗漏
+- [x] `CONTEXT.md` 与正式架构文档同步 revision `6`
+- [x] 专项 2–5 号合同、index 与总 TODO 同步
+- [x] `dist/` 由 TypeScript 编译器重生成
+- [x] 两次生成 SHA-256 逐文件一致
+- [x] TypeScript strict typecheck 通过
+- [x] 完整 Hosted Web Search JVM 矩阵通过
+- [x] Debug Kotlin 与 unit-test Kotlin 编译通过
+- [x] formal readiness 通过
+- [x] Markdown、Git、敏感信息、归档和子模块审计通过
+- [x] 第一次串行 `:app:assembleDebug` 通过
+- [x] 第一次 APK、ToolPkg、签名、ABI、16 KB、native 与敏感信息审计通过
+- [x] 文档证据回填后的串行 `:app:assembleDebug` 通过并复核制品
+
+文档证据回填后的稳定树构建为：
+
+```text
+BUILD SUCCESSFUL in 26s
+238 actionable tasks: 25 executed, 213 up-to-date
+verifySingleDebugLauncher = PASS
+verifyDebugPlayerRuntimePackaging = PASS
+```
+
+APK 与 ToolPkg 的大小、时间和 SHA-256 均保持不变。
+
+## 4.4 自动验证矩阵
+
+### TypeScript 与 ToolPkg
+
+```powershell
+npx tsc -p examples\openai_web_search\tsconfig.json
+npx tsc -p examples\openai_web_search\tsconfig.json --noEmit
+```
+
+两次生成后分别计算：
+
+```text
+dist/main.js
+dist/shared.js
+dist/packages/openai_web_search.js
+dist/ui/index.ui.js
+```
+
+SHA-256 必须逐文件一致。
+
+当前结果：
+
+```text
+TypeScript = 5.9.3
+generation 1 = PASS
+generation 2 = PASS
+strict --noEmit = PASS
+
+dist/main.js
+	714 bytes
+	B3120A78AA107D3FB87285F504A6A0B7AC91A085B0C0B9EADEADB05D66109146
+
+dist/packages/openai_web_search.js
+	3691 bytes
+	DA783A3626BE11C10ADB666E8CF6A8216E775276279B732B8E2A41C2327DF6D6
+
+dist/shared.js
+	5527 bytes
+	C8E67824A53BA6B85884A3617A012B5D356E533A74A8D2A398A456B07ECD685A
+
+dist/ui/index.ui.js
+	14588 bytes
+	4171C6D652D5D8BF8D7696E7B7BAA0C377F80AA3017F01C9949F96333B5E3E38
+```
+
+两次生成的四个 hash 逐一相同。
+
+归档只允许：
+
+```text
+manifest.json
+dist/main.js
+dist/shared.js
+dist/packages/openai_web_search.js
+dist/ui/index.ui.js
+```
+
+### Hosted Web Search JVM
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest `
+  --tests 'com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearch*' `
+  --tests 'com.ai.assistance.operit.api.chat.llmprovider.ToolPkgOpenAIWebSearchBridgePolicyTest' `
+  --tests 'com.ai.assistance.operit.api.chat.ToolSubtreeTraceTest' `
+  --tests 'com.ai.assistance.operit.core.tools.javascript.ToolPkgInvocationArgumentErrorTest' `
+  --tests 'com.ai.assistance.operit.core.tools.javascript.JsToolPkgTerminalErrorPolicyTest' `
+  --tests 'com.ai.assistance.operit.ui.features.packages.screens.ToolPkgHostEnvironmentEditRequestStoreTest' `
+  --tests 'com.ai.assistance.operit.core.tools.packTool.OpenAIWebSearchToolPkgContractTest' `
+  --tests 'com.ai.assistance.operit.core.tools.packTool.ToolPkgRegistrationObservationPolicyTest' `
+  --tests 'com.ai.assistance.operit.services.core.SpeechLogPrivacyTest' `
+  --tests 'com.ai.assistance.operit.ui.features.chat.components.part.OpenAIWebSearchResultPresentationPolicyTest' `
+  --tests 'com.ai.assistance.operit.ui.features.chat.components.part.ThinkToolsXmlNodeGrouperTest' `
+  --tests 'com.ai.assistance.operit.ui.features.settings.sections.ModelApiProviderPresentationPolicyTest' `
+  --no-daemon --console=plain
+```
+
+当前结果：
+
+```text
+BUILD SUCCESSFUL in 23s
+159 actionable tasks: 2 executed, 157 up-to-date
+26 suites
+142 tests
+failures = 0
+errors = 0
+skipped = 0
+```
+
+suite：
+
+```text
+OpenAIHostedWebSearchAdmissionControllerTest          5
+OpenAIHostedWebSearchBindingCompilerTest              5
+OpenAIHostedWebSearchCompatibilityProbePolicyTest     5
+OpenAIHostedWebSearchCompatibilityRecordSetTest       7
+OpenAIHostedWebSearchEvidenceParserTest               9
+OpenAIHostedWebSearchGatewayTest                      8
+OpenAIHostedWebSearchHttpFailurePolicyTest            3
+OpenAIHostedWebSearchPolicyTest                       5
+OpenAIHostedWebSearchReadinessTest                    3
+OpenAIHostedWebSearchRequestCompilerTest              3
+OpenAIHostedWebSearchResponseParserTest              17
+ToolPkgOpenAIWebSearchBridgePolicyTest               15
+OpenAIWebSearchToolPkgContractTest                    5
+OpenAIWebSearchResultPresentationPolicyTest           7
+ThinkToolsXmlNodeGrouperTest                          4
+ToolPkgHostEnvironmentEditRequestStoreTest            1
+ModelApiProviderPresentationPolicyTest                4
+```
+
+### Kotlin 编译
+
+```powershell
+.\gradlew.bat :app:compileDebugKotlin :app:compileDebugUnitTestKotlin `
+  --no-daemon --console=plain
+```
+
+当前结果：
+
+```text
+BUILD SUCCESSFUL in 17s
+137 actionable tasks: 1 executed, 136 up-to-date
+```
+
+### 正式开发门禁
+
+```powershell
+.\.venv\Scripts\python.exe -B ci\script\check_formal_readiness.py `
+  --repository . `
+  --require-main
+```
+
+当前结果：
+
+```text
+Formal development readiness: PASS
+```
+
+通过身份与版本、子模块、品牌、tracked secret/runtime hygiene、生成式 shell launcher 与 terminal
+shim、SSH 密码传输和 CI compileSdk 对齐检查。
+
+### 构建前仓库审计
+
+当前结果：
+
+- `main@180db686aaeedfa301b3c8a31057ee4940d58649`
+- `HEAD...origin/main = 0/0`
+- staged changes 为零
+- `git diff --check` 无 whitespace error，仅有既有 CRLF 转换提示
+- `terminal` 子模块干净并对齐 gitlink
+- 历史 hotbuild gitlink 未初始化，本轮未修改
+- 十个变更 Markdown 文件相对链接全部有效，未新增 Mermaid
+- 高置信 OpenAI/GitHub/AWS token、Bearer credential 和私钥命中为零
+- 变更文件中没有超过 5 MiB 的异常大文件
+- 新增 URL 仅为官方 OpenAI endpoint 与 `.example` 测试域名
+- 新增生产/测试差异没有 fallback、自动 retry、suppress、Lint baseline 扩张或新 TODO
+- manifest 为 `1.0.6`、二十个唯一环境变量、一个 subpackage，旧配置字段为零
+
+### Debug APK
+
+revision `7` 当前树已串行执行：
+
+```powershell
+.\gradlew.bat :app:assembleDebug --no-daemon --console=plain
+```
+
+结果：
+
+```text
+BUILD SUCCESSFUL in 1m 5s
+238 actionable tasks: 28 executed, 210 up-to-date
+verifySingleDebugLauncher = PASS
+verifyDebugPlayerRuntimePackaging = PASS
+```
+
+路径：
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+## 4.5 Revision 7 当前 APK 审计
+
+当前 revision `7` Debug 制品已经独立核验：
+
+- APK：`472500125` bytes，最后写入时间 `2026-08-14 00:11:46 +08:00`
+- APK SHA-256：
+  `67BB9EFF412906712186B90C5FE78726F03563AC1AF235001C5F25A549F03204`
+- package/version：`com.kiyori / 45 / 0.1.0`
+- min/target/compile SDK：`26 / 34 / 37`
+- application label：`Kiyori`
+- 唯一 launcher：`com.ai.assistance.operit.ui.main.MainActivity`
+- ABI 仅 `arm64-v8a`
+- Android Debug V2 单 signer，certificate SHA-256：
+  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`
+- `zipalign -c -P 16 -v 4` 为 `Verification successful`
+- APK 中 `51` 个 arm64 `.so` basename 唯一
+- `51` 个 `.so` 与 `assets/operit_shell_exec` 共 `52/52` 个 `ELF64 AArch64`
+- `PT_LOAD` 最小对齐为 `0x4000`，对齐分布为 `0x4000: 158`、`0x10000: 2`，低于
+  `0x4000` 的 segment 数为 `0`
+- APK 中只有一份 `assets/packages/openai_web_search.toolpkg`
+- 生成 ToolPkg：`10074` bytes，时间 `2026-08-13 22:38:34 +08:00`
+- ToolPkg SHA-256：
+  `9151D1614E5F1BF88FAA8A0A9306150FDB2C5F03EA8A957D2E767C1EC0120134`
+- 生成 ToolPkg 与 APK 内条目逐字节一致
+- ToolPkg manifest 为 `com.kiyori.openai_web_search`、version `1.0.6`，包含 `20` 个环境变量和
+  `1` 个 subpackage；归档只包含五个预期文件，无 `.env`、TypeScript 源码、`node_modules`、
+  缓存或 source map
+- 全 APK 的 OpenAI Key、Bearer credential、GitHub/AWS token 和完整私钥材料扫描均为 `0`
+- 私钥头正则只命中既有解析器、加密库与 `libmpformat.so` 的 PEM 协议字面量；未发现配对的真实
+  私钥正文。credential URL 形状只命中 `assets/subpack/android.apk` 内既有
+  `localhost:<placeholder>@...` 文本，不是可用账号或远端凭据
+- OpenAI Web Search ToolPkg 对上述全部凭据模式均为 `0`
+- APK 唯一 `.ts` 是既有受跟踪模板
+  `assets/templates/typescript/src/index.ts`，与本插件制品无关且和源码逐字节一致
+- APK 非公网 URL 只来自既有 loopback 服务和 `workspace-preview.local` 应用内预览域
+- 当前差异新增 URL 只使用 `api.openai.com` 和 `relay.example`，不携带凭据
+
+生成制品：
 
 ```text
 app/build/generated/bundledToolPkgAssets/packages/openai_web_search.toolpkg
 ```
 
-验收：
-
-- manifest 与 distribution allowlist 通过
-- 工具名稳定为 `openai_web_search:search`
-- container 默认关闭
-- subpackage 在 container 启用后默认开启
-- API Key 声明为 package-scoped sensitive host-only environment
-- 设置页不显示或返回原始 Key
-- 纯本地配置校验不产生 OpenAI 费用
-- compatibility probe 有明确付费确认
-
-### M5：证据持久化和 UI `[LOCAL DONE]`
-
-目标：
-
-- 工具调用保留结构化 evidence
-- 聊天 UI 显示搜索证据卡
-- 来源可点击
-
-实际主要文件：
+APK 条目：
 
 ```text
-app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/
-	OpenAIHostedWebSearchEvidence.kt
-	OpenAIHostedWebSearchToolResultMarkupCodec.kt
-
-app/src/main/java/com/ai/assistance/operit/ui/features/chat/components/part/
-	OpenAIWebSearchToolResultDisplay.kt
-	CustomXmlRenderer.kt
+assets/packages/openai_web_search.toolpkg
 ```
 
-当前复用 provider tool invocation ledger 作为持久 owner，不增加第二份 sidecar。完整结构化 JSON
-同时保留在工具结果与 ledger 中；聊天 XML 边界只对目标 ToolPkg 的 JSON 编码 `<`、`>`、`&`，
-避免网页文本注入 `</content>` 或 `</tool_result>`，JSON 解码后仍恢复原 answer、URL 和 citation
-offset。
+以上证据来自当前 revision `7` 树的串行构建和独立审计。真实 relay、设备 UI 和用户验收继续
+保持待验证。
 
-验收：
+### Revision 6 历史 APK 审计
 
-- 主模型改写答案后，原搜索证据仍可查看
-- citation span 只作用于原 search answer
-- source URL 可点击
-- 同一工具调用的 source ID 稳定
-- 删除聊天时清理关联 evidence
-- 导出与备份策略明确
+以下数字保留用于解释 revision `6` 的历史封板，不作为当前 revision `7` 制品：
 
-本轮专用来源卡已经实现并验证前四项。聊天删除、导出和备份继续复用现有 tool invocation ledger
-生命周期，不引入新的独立 evidence 数据库。
+- APK：`472492653` bytes，SHA-256
+  `BAEC6E5397101E89FD49439823CFCA8D720E850DA0AC3397E35D982FB9F0FFA3`
+- ToolPkg：`10243` bytes，SHA-256
+  `A7AFC0C19DD705E28EE29CE763113F7EA1F1C663F3471499A67964FC3F6C2FB7`
 
-### M6：原生 OpenAI Responses 模式 `[DEFERRED]`
+## 4.6 历史 revision 3–5 证据
 
-后续可选，不进入第一版完成标准。
+历史现场与本地数据保留用于解释 revision `6` 的设计来源，不作为当前交付物：
 
-目标：
-
-- 当前主模型为官方 OpenAI Responses 时直接注入 `web_search`
-- 保留原生 message annotations
-- 避免第二个搜索模型请求
-
-门禁：
-
-- 用户显式选择
-- capability profile 明确支持
-- 与独立工具模式具有不同配置和状态
-- 不在运行失败时切换模式
-
-### M7：Codex standalone backend `[DEFERRED]`
-
-后续实验，不进入当前路线。
-
-只有以下条件全部满足才开始：
-
-- OpenAI 发布公开稳定 API 文档
-- endpoint 不再只处于 alpha
-- API Key 与认证合同明确
-- 模型兼容和计费明确
-- response/history/ref_id 具有版本合同
-- Android 客户端可以完成 mock 与真实验收
-
-## 4.3 建议测试矩阵
-
-### Request compiler
-
-- GPT-5.6 四模型
-- relay 自定义模型别名
-- official 与 relay strict
-- package env 与 model config
-- live/indexed mode
-- low/medium/high
-- return token budget default/unlimited
-- reasoning omit/none/low/medium/high/xhigh/max
-- max output tokens
-- allowed domains
-- blocked domains
-- approximate location
-- `include` 合并去重
-- `store=false`
-- `stream=false`
-- `tool_choice=required`
-- 禁止 caller 覆盖 endpoint/model/key
-- extra headers 冲突
-- redirect reject
-
-### Response parser
-
-- 单次 search
-- 多个 search action
-- open_page
-- find_in_page
-- 多个 message output item
-- 多个 output_text part
-- url citation
-- citation 重叠
-- citation index 越界
-- 完整 sources
-- URL source 与 `oai-sports` / `oai-weather` / `oai-finance` 实时 feed 混合集合
-- relay 命名 `api` feed
-- citation-only response
-- action-sources-only response
-- structured-feed-only response
-- text-only response 明确失败
-- 单个缺 URL、未知 type、非对象或非法 URL source 的集合级诊断
-- citation 与 action sources 同时存在但 URL 不对齐时成功，并报告精确差集
-- action source coverage 分别覆盖 missing、partial、complete 与 not applicable
-- `open_page.url` 进入动作诊断但不冒充 citation 或 action source
-- citation-only source 只来自真实 annotation，不声称 action source 存在
-- 没有真实 citation span 时不生成 `[S1]`
-- source 缺 title
-- source 非 HTTP URL
-- source 去重
-- usage
-- 无 web_search_call
-- 无文本
-- failed/incomplete response
-
-### Binding policy
-
-- binding 缺失
-- config source 缺失
-- config source 混用
-- package env 缺失
-- config 缺失
-- config 删除
-- model 从配置列表删除
-- model 列表重排
-- 官方 endpoint
-- 未探测的 OpenAI-compatible endpoint
-- 探测通过的 Responses-compatible endpoint
-- endpoint/model/auth/reasoning 变化导致探测失效
-- Chat Completions endpoint
-- 空 Key
-- 单 Key
-- Key pool
-- 禁用 Key
-
-### Security
-
-- ToolPkg 不能读取绑定 Key
-- ToolPkg 不能读取 package host-only Key
-- 其他 ToolPkg 不能读取该 package namespace
-- bridge 不接受 ToolPkg ID 参数
-- 非目标 ToolPkg 调用被拒绝
-- APK、资源、ToolPkg 和 fixture 不包含 Kiyori 自有共享 Key
-- 个人 BYOK 直连与服务端代理合同不混用
-- 日志无 Authorization
-- 日志无 Key 前后缀
-- response/error 脱敏
-- password 输入不回显
-- 环境变量导出不包含敏感值
-- 网页 prompt injection fixture
-- domain validation
-- location 默认关闭
-
-### ToolPkg
-
-- manifest parser
-- container-level environment parser
-- subpackage 工具注册
-- 包启停
-- 设置路由
-- process rebuild
-- privateData 只保存非秘密 UI 状态
-- `.toolpkg` scanner/builder
-- package update 后 binding 保留
-- plugin 出现在“插件”而不是“脚本包”
-
-### Chat integration
-
-- DeepSeek 主模型调用
-- Gemini 主模型调用
-- 本地模型使用 XML 工具调用
-- OpenAI Chat Completions 主模型调用
-- OpenAI Responses 主模型调用独立工具
-- 主模型切换不改变 search binding
-- 工具失败不会被报告为成功
-- evidence card 与 tool invocation 对齐
-
-## 4.4 自动测试不得调用真实 OpenAI
-
-自动测试使用：
-
-- `MockWebServer`
-- 固定 JSON fixtures
-- 伪造 SSE fixture 仅在未来引入 streaming 时使用
-- 固定 HTTP 401、403、429、5xx
-- 延迟和取消 fixture
-
-真实 OpenAI 验收只能作为用户确认后的手工 smoke test，并单独记录：
-
-- 时间
-- model
-- query
-- response ID
-- usage
-- web search call count
-- 费用提示
-- 结果与 citation
-
-不得把 API Key、完整 header 或账号信息写入测试报告。
-
-## 4.5 推荐第一版验收场景
-
-### 场景 A：第三方主模型
-
-```text
-主模型：DeepSeek
-搜索服务：OpenAI Responses / gpt-5.6-luna
-问题：查询一个当天可能变化的公开事实
-```
-
-通过条件：
-
-- DeepSeek 调用 `openai_web_search:search`
-- OpenAI 搜索绑定不受 DeepSeek 配置影响
-- 工具返回 answer、citations、sources 和 usage
-- UI 显示独立证据卡
-
-### 场景 B：显式共用配置
-
-```text
-主模型：任意
-搜索服务：用户选定的既有官方 OpenAI Responses config
-```
-
-通过条件：
-
-- 插件不复制 Key
-- 配置页面明确显示共用关系
-- 删除该 config 后插件显示失效，不选择其他 config
-
-### 场景 C：独立搜索项目
-
-```text
-主模型：任意
-搜索服务：PACKAGE_ENV
-endpoint：官方 OpenAI 或严格兼容中转站
-Key：独立 Key
-```
-
-通过条件：
-
-- 搜索用量可与主聊天用量区分
-- 搜索 Key 可单独吊销
-- 主模型切换不影响搜索
-
-### 场景 D：中转站
-
-```text
-配置来源：PACKAGE_ENV
-endpoint：用户中转站 Responses URL
-model：用户填写的 GPT-5.6 名称或中转别名
-reasoning：用户选择的精确值
-```
-
-通过条件：
-
-- 兼容探测前工具不可执行
-- 探测固定访问公开网页，并实际返回 `web_search_call` 与 URL citation
-- 探测通过后可以被第三方主模型调用
-- 改变 endpoint、模型、认证或 reasoning 后要求重新探测
-- 只返回普通文本时明确判定为不兼容
-- sources 混有官方实时 feed 或 relay 命名 `api` feed 时不因 feed 无 URL fail-fast
-- citation 与 action sources 同时出现但不完全覆盖时保留有效 citation并返回结构化诊断
-- citation-only、action-sources-only 与 structured-feed-only 普通搜索分别保留真实证据
-- 失败状态记录错误码、可选 HTTP 状态和脱敏消息
-
-### 场景 E：配置错误
-
-通过条件：
-
-- 兼容 endpoint、错误模型、空 Key 和缺失 binding 均返回确定错误
-- 不发起其他搜索请求
-- 不返回模型记忆答案
-
-### 场景 F：取消
-
-通过条件：
-
-- 用户停止后取消当前 HTTP call
-- 工具状态为 cancelled
-- 不产生第二个请求
-- 后续新调用不继承旧错误
-
-## 4.6 构建与验证顺序
-
-本轮实际按以下顺序执行：
-
-1. 定向 JVM 单元测试
-2. ToolPkg TypeScript 编译
-3. bundled ToolPkg scanner/builder
-4. Markdown 链接检查
-5. formal readiness
-6. `git diff --check`
-7. 相关架构门禁
-8. `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`
-9. 核验 Debug APK
-
-真实 OpenAI smoke 和目标设备验收与本地构建证据分开报告。
-
-## 4.7 第一版完成标准
-
-- [x] 任意支持 Kiyori 工具调用的主聊天模型都能看到独立 OpenAI Web Search 工具合同
-- [x] 插件显示在包管理“插件”标签
-- [x] container 可以独立安装、更新、启停
-- [x] 搜索绑定不跟随当前聊天 Provider
-- [x] API Key 不进入 ToolPkg JavaScript
-- [x] `PACKAGE_ENV` 和 `MODEL_CONFIG` 显式二选一
-- [x] package env 支持 endpoint、model、Key、auth、headers 和 reasoning
-- [x] Key 是 package-scoped sensitive host-only environment
-- [x] APK、ToolPkg 和源码不内置 Kiyori 自有共享 Key
-- [x] official Responses contract 生效
-- [x] relay strict compatibility probe 生效
-- [x] 中转站只返回普通文本时不能标记兼容
-- [x] GPT-5.6 allowlist 生效
-- [x] 请求强制产生 Web Search call
-- [x] live mode 显式启用
-- [x] indexed 只能由用户配置显式启用，模型调用参数不能临时切换
-- [x] answer、action、citation、source、evidence mode 和 usage 无损解析
-- [x] 搜索 evidence 可持久查看
-- [x] 配置错误和 HTTP 错误结构化可见
-- [x] 没有自动搜索服务切换
-- [x] 自动测试不调用付费 API
-- [x] 定向测试、正式门禁和 Debug APK 构建通过
-- [x] 真实 API smoke test 单独获授权并以脱敏结构记录
-- [ ] 目标设备包管理、设置页、工具调用和证据卡验收完成
-
-本地实现、自动化合同与真实中转协议矩阵已经完成，不代表目标设备和用户现场验收已经完成。
-
-## 4.8 本地自动验证结果
-
-### TypeScript 与 ToolPkg
-
-- revision `5` TypeScript strict 编译通过
-- revision `5` manifest 为 `com.kiyori.openai_web_search` `1.0.4`，包含 `21` 个
-  package-scoped host-service 环境变量和 `1` 个 subpackage
-- revision `5` `:app:generateBundledToolPkgAssets --rerun-tasks --no-daemon --console=plain`
-  为 `BUILD SUCCESSFUL in 12s`
-- revision `5` ToolPkg 生成于 `2026-08-12 23:37:38 +08:00`，大小 `9864` bytes，SHA-256
+- revision `3` 暴露空 `blocked_domains` relay 兼容问题
+- revision `4` 暴露 citation 与 `action.sources` 错误绑定造成的 `SOURCE_INVALID`
+- revision `5` 修复双通道 evidence 合同并完成历史本地封板
+- revision `5` ToolPkg `1.0.4` 为 `9864` bytes，SHA-256
   `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`
-- revision `5` 归档恰好包含 `5` 个运行时条目；`.ts`、`.env`、三个实测 relay 域名、长
-  `sk-*`、Bearer credential 和私钥扫描均为 `0`
-- revision `4` ToolPkg 历史大小：`9864` bytes
-- revision `4` ToolPkg 历史 SHA-256：
-  `B1A5AFFF5D16FD742A941845FB7EE7EC19B59142F98D5681285F440BE84B480B`
-- revision `4` ToolPkg 历史归档条目数：`5`；它已经被用户现场证明存在 `SOURCE_INVALID`，
-  不能作为 revision `5` 修复制品
-- revision `3` ToolPkg 大小 `9679` bytes、SHA-256
-  `58025CC245D055D76345F45C9DE67E20D5464240F5033695B4C77380C1B94E24`，已被用户现场证明失败
-- 修复前 ToolPkg 生成时间早于 sources 集合修复，大小 `8345` bytes、SHA-256
-  `0BECAEF4C4E501EEF8D9F43F439339ADC82C0952F92D931CB9349989C7AABD9F`，已过期
-- 归档只包含：
+- revision `5` APK 为 `472480557` bytes，SHA-256
+  `9F845CC0F71CEBB1929E42148F93C85A489C9FAD20160FAE5E8BFF13EE451536`
+
+完整历史请求、relay、parser 和制品证据见
+[专项索引](index.md)、[日志深度分析](6_log_deep_analysis_20260812.md) 与
+[后续修复计划](7_log_followup_fix_plan_20260812.md)。
+
+## 4.7 待验证
+
+当前不运行：
+
+- 真实 relay compatibility probe
+- 真实 `openai_web_search:search`
+- 320dp 窄屏
+- 系统字体放大
+- 中文/英文设置页真机视觉
+- TalkBack 实机朗读
+- 真实聊天消息的展开/收起手感
+- APK 安装与目标设备复测
+
+最终本地收尾后仍保持：
 
 ```text
-dist/main.js
-dist/packages/openai_web_search.js
-dist/shared.js
-dist/ui/index.ui.js
-manifest.json
+LOCAL_IMPLEMENTATION_COMPLETE
+REMOTE_RELAY_REVALIDATION_PENDING
+DEVICE_PENDING
+USER_ACCEPTANCE_PENDING
 ```
 
-归档不包含 `.env`、TypeScript 源码、API Key 或其他凭据。
+## 4.8 2026-08-13 现场矩阵
 
-### 定向 JVM 测试
-
-revision `5` 完整定向矩阵使用 `--rerun-tasks` 强制执行后，测试 XML 于
-`2026-08-12 23:36:43 +08:00` 精确汇总为
-`13` 个 suite、`91/91`
-tests，失败 `0`、错误 `0`、跳过 `0`：
+最新日志：
 
 ```text
-OpenAIHostedWebSearchBindingCompilerTest             5
-OpenAIHostedWebSearchCompatibilityProbePolicyTest    5
-OpenAIHostedWebSearchCompatibilityRecordSetTest      6
-OpenAIHostedWebSearchEvidenceParserTest              7
-OpenAIHostedWebSearchGatewayTest                     6
-OpenAIHostedWebSearchHttpFailurePolicyTest           3
-OpenAIHostedWebSearchPolicyTest                      5
-OpenAIHostedWebSearchRequestCompilerTest             3
-OpenAIHostedWebSearchResponseParserTest             17
-ToolPkgOpenAIWebSearchBridgePolicyTest              13
-OpenAIWebSearchToolPkgContractTest                   5
-ToolPkgArtifactScannerTest                           7
-PackageEnvironmentVariablesPolicyTest                9
+kiyori_log_20260813_193725.txt
+170628 bytes
+SHA-256 BB2F0124ADD4856CD84DEC34A6337EEA743FC48A8F2C4F23607F9D7CBA3396FF
 ```
 
-这些自动测试全部使用本地 fixture 或 mock transport，没有调用真实 OpenAI 或中转站。revision
-`4` 的 `12 / 82` 只作为历史结果保留，不能代替当前 schema revision `5` 的矩阵。
-
-### 真实中转协议矩阵
-
-用户明确授权后，于 2026-08-12 使用与当前 Codex 相同的 endpoint、模型和 Key 做最小真实请求。
-输出只保留 HTTP 状态、字段、事件类型、数量和 URL host，不保存答案全文、Key 或鉴权 header 值。
+日志包含四批 `5 + 8 + 8 + 8` 个 `openai_web_search:search`，合计 `29` 次顶层调用，与用户测试报告
+完全对齐：
 
 ```text
-旧 UTC 日期 probe
-	HTTP 200
-	web_search_call + message
-	source = {type:"api", name:...}
-	url_citation = 0
-
-固定 developers.openai.com 页面，非流式
-	HTTP 200
-	url_citation = 1
-	action.sources = 0
-
-同一页面，非流式 + x-openai-actor-authorization=enabled
-	HTTP 200
-	url_citation = 1
-	action.sources = URL entries
-
-同一页面，流式 + actor header
-	HTTP 200
-	response.output_text.annotation.added = 1
-	completed response 的 action.sources 仍可为空
+23 structured success
+5 expected invalid-argument rejection
+1 unexpected no-evidence failure
 ```
 
-第一轮结论：中转支持 Web Search；旧 probe 目标和 Kiyori 的双通道强制门禁是 revision `2`
-失败根因。
+revision `6` 本地自动测试和 APK 静态封板仍是有效的历史证据，但它们没有覆盖本次现场暴露的：
 
-revision `3` 现场失败后的第二轮矩阵：
+- blocked-domain relay 违规
+- percent-encoded path 双重编码
+- tracking query canonical identity
+- 合法零证据
+- 空 Markdown 引用
+- array/boolean 公开参数类型
+- 成功 timing、位置和 effective domain diagnostics
+- ToolPkg 错误所有权和全应用日志隐私
+
+详细根因、revision `7` schema、候选文件、测试矩阵和禁止方案见
+[现场矩阵深度分析与 revision 7 实施计划](10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md)。
+
+## 4.9 最新现场日志与 hotfix 验收边界
+
+用户提供的 `kiyori_log_20260813_231439.txt` 在成功的
+`openai_web_search:search` 调用之后记录了：
 
 ```text
-普通 Responses
-	Pixel: HTTP 200
-	Sub2api: HTTP 200
-
-OpenAI 官方最小 hosted web_search
-	Pixel: HTTP 200，web_search_call + URL citation + action sources
-	Sub2api: HTTP 200，web_search_call + URL citation + action sources
-
-revision 3 精确请求
-	Pixel: HTTP 502，provider type=upstream_error，message=Upstream request failed
-	Sub2api: 90 秒客户端超时
-
-revision 3 精确请求，仅省略空 blocked_domains
-	Pixel: HTTP 200，URL citation=1，action sources=25
-	Sub2api: HTTP 200，URL citation=1，action sources=25
+evidence_parse_invalid
+code=REQUIRED_FIELD_INVALID
+schema_revision=7
+field=all_sources
 ```
 
-第二轮结论：共同根因是只配置 `allowed_domains` 时仍发送
-`blocked_domains: []`。actor header、流式请求、模型切换、Key 切换和后端切换都不是本轮修复。
-
-### 项目门禁
-
-- 当前 TypeScript、ToolPkg 生成、`git diff --check` 和
-  `ci/script/check_formal_readiness.py --repository . --require-main`：`PASS`
-- `ci/script/check_architecture_boundaries.py --repository . --phase m03` 使用当前新增的
-  `OpenAIHostedWebSearchCompatibilityRepository` 与 `ToolPkgHostEnvironmentRepository`
-  持久化调用合同快照：`PASS`；两条 `getSharedPreferences` 调用已登记，不改变既有持久化
-  owner 或数据迁移边界
-- 架构门禁自身 Python 单元测试：`107/107`，失败和错误均为 `0`
-- 既有 fresh-clone 结果只证明已提交基线
-  `02e97e95db8dbb161fab0d33604fdc228f9b87c0` 可从新克隆复现，不包含本次未提交实现
-
-### Debug APK
-
-- revision `5` 构建命令：`.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`
-- revision `5` 构建结果：`BUILD SUCCESSFUL in 39s`
-- Gradle 任务：`238 actionable tasks: 28 executed, 210 up-to-date`
-- 路径：`app/build/outputs/apk/debug/app-debug.apk`
-- 生成时间：`2026-08-12 23:39:40 +08:00`
-- 大小：`472480557` bytes
-- SHA-256：`9F845CC0F71CEBB1929E42148F93C85A489C9FAD20160FAE5E8BFF13EE451536`
-- application ID：`com.kiyori`
-- version：`0.1.0 (45)`
-- minSdk / targetSdk / compileSdk：`26 / 34 / 37`
-- launcher：唯一 `com.ai.assistance.operit.ui.main.MainActivity`
-- native ABI：仅 `arm64-v8a`
-- native libraries：`51` 个 `.so`，无重复 basename
-- `51` 个 `.so` 加 `assets/operit_shell_exec` 共 `52` 个 ELF 均为 AArch64；`160` 个
-  `PT_LOAD` segment 的最小对齐为 `0x4000`
-- 签名：Android Debug，仅 APK Signature Scheme V2，单 signer
-- signer certificate SHA-256：
-  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`
-- `zipalign -c -P 16 -v 4`：`Verification successful`
-- APK 内 `assets/packages/openai_web_search.toolpkg` 恰好一份，为 `9864` bytes、SHA-256
-  `558382BDDE9688F99395F703D3225C7DAB5452326F85A6660DDB557ACEA3B9FB`，与生成目录产物逐字节相同
-- APK 共 `5635` 个文件条目；长 `sk-*`、Bearer credential、AWS/GitHub token 和完整 PEM
-  私钥块扫描均为 `0`
-- APK 内可见的私钥头字面量来自 Kiyori ToolPkg 安全拒绝规则和依赖二进制固定文本，不存在成对
-  的 PEM 私钥正文
-
-历史失败基线：
-
-- 修复前 APK 生成于 `2026-08-12 15:39:23 +08:00`，大小 `472480077` bytes、SHA-256
-  `428678C582ADFE2096A98F713FCA976D33D6040F78731E61871325B1251C367B`
-- SHA-256 `3152BC745C89F914F1703A35189E5B2137ACE633AE465BBA066811B2022F541C` 的上一轮 APK 已被用户
-  现场证明仍会报 `CITATION_INVALID`，是 revision `2` 失败基线，不能用于重新验证
-- revision `3` 产出构建结果：`BUILD SUCCESSFUL in 1m 14s`
-- Gradle 任务：`238 actionable tasks: 30 executed, 208 up-to-date`
-- 文档回填和 ToolPkg 强制重生成后的一次串行复核：`BUILD SUCCESSFUL in 25s`，
-  `238 actionable tasks: 25 executed, 213 up-to-date`；APK 时间、大小和 SHA-256 保持不变
-- 路径：`app/build/outputs/apk/debug/app-debug.apk`
-- 生成时间：`2026-08-12 19:35:10 +08:00`
-- 大小：`472480557` bytes
-- SHA-256：`5767522CDEC73096B42A63E6CEA415A704E7F9AE56EA026F8FC17D468B1DF27C`
-- application ID：`com.kiyori`
-- version：`0.1.0 (45)`
-- minSdk：`26`
-- targetSdk：`34`
-- compileSdk：`37`
-- launcher：唯一 `com.ai.assistance.operit.ui.main.MainActivity`
-- native ABI：仅 `arm64-v8a`
-- native libraries：`51` 个 `.so`，无重复 basename
-- 签名：Android Debug，仅 APK Signature Scheme V2，单 signer
-- signer certificate SHA-256：
-  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`
-- `zipalign -c -P 16 -v 4`：`Verification successful`
-- APK 内 `assets/packages/openai_web_search.toolpkg` 恰好一份
-- APK 内 ToolPkg 为 `9679` bytes，SHA-256
-  `58025CC245D055D76345F45C9DE67E20D5464240F5033695B4C77380C1B94E24`，与生成目录产物逐字节相同
-- ToolPkg 与 APK 解压后共扫描 `5611` 个归档条目；用户凭据精确值、中转域名、长 `sk-*` 值和
-  Bearer credential value 均为 `0`
-
-## 4.9 待验证与最短下一步
-
-宿主外真实中转协议 smoke 已获授权并完成。仍需用户在 Android 现场完成：
-
-1. 安装 revision `5` APK，对目标 relay 绑定分别重新保存环境变量，并记录状态页的
-   `API key revision`、`Auth scheme kind` 后执行一次可能计费的 compatibility probe
-2. 探测通过后执行一条真实 `openai_web_search:search`，核对 response ID、usage、Web Search call、
-   `evidence_mode`、citations、sources 与 `source_diagnostics`；确认 citation-only、partial
-   action sources 与 complete action sources 都不再触发旧 `SOURCE_INVALID`
-3. 在目标设备验收包管理开关、环境变量遮蔽、设置页、第三方主模型工具调用、取消和来源卡
-
-这些验证不能由 mock、JVM 测试、宿主外协议 smoke 或 APK 静态审计替代。完成现场复测前，任务
-状态保持 `verification_pending`。
+该证据与本地已定位的载荷错位一致：旧链路把主模型 projection 当成 UI evidence 解析。当前
+hotfix 的本地验收重点是确认完整 UI `ToolResult` 可被 parser 重新解析，以及相同 binding
+fingerprint 的同步兼容记录可在重启后被读取。最新日志本身不构成 hotfix APK、真实 relay 或
+设备验收。

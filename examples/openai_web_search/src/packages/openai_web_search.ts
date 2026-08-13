@@ -40,28 +40,28 @@
         {
           "name": "allowed_domains",
           "description": {
-            "zh": "可选允许域名 JSON 字符串数组，只能收窄插件配置的允许列表。",
-            "en": "Optional JSON string array of allowed domains. It may only narrow the plugin-configured allowlist."
+            "zh": "可选允许域名数组，只能收窄插件配置的允许列表。",
+            "en": "Optional array of allowed domains. It may only narrow the plugin-configured allowlist."
           },
-          "type": "string",
+          "type": "array",
           "required": false
         },
         {
           "name": "blocked_domains",
           "description": {
-            "zh": "可选屏蔽域名 JSON 字符串数组。",
-            "en": "Optional JSON string array of blocked domains."
+            "zh": "可选屏蔽域名数组。",
+            "en": "Optional array of blocked domains."
           },
-          "type": "string",
+          "type": "array",
           "required": false
         },
         {
           "name": "use_configured_location",
           "description": {
-            "zh": "是否使用插件配置的 approximate location，true 或 false。",
-            "en": "Whether to use the plugin-configured approximate location: true or false."
+            "zh": "是否使用插件配置的 approximate location。",
+            "en": "Whether to use the plugin-configured approximate location."
           },
-          "type": "string",
+          "type": "boolean",
           "required": false
         }
       ]
@@ -73,35 +73,10 @@
 type SearchToolParams = {
   query: string;
   context_size?: string;
-  allowed_domains?: string;
-  blocked_domains?: string;
-  use_configured_location?: string;
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+  use_configured_location?: boolean;
 };
-
-function parseDomainArray(rawValue: string | undefined, fieldName: string): string[] {
-  if (rawValue === undefined || rawValue.trim() === "") {
-    return [];
-  }
-  const parsed = JSON.parse(rawValue);
-  if (!Array.isArray(parsed) || parsed.some(value => typeof value !== "string")) {
-    throw new Error(`${fieldName} must be a JSON string array`);
-  }
-  return parsed;
-}
-
-function parseBoolean(rawValue: string | undefined, fieldName: string): boolean {
-  if (rawValue === undefined || rawValue.trim() === "") {
-    return false;
-  }
-  const normalized = rawValue.trim().toLowerCase();
-  if (normalized === "true") {
-    return true;
-  }
-  if (normalized === "false") {
-    return false;
-  }
-  throw new Error(`${fieldName} must be true or false`);
-}
 
 function parseContextSize(
   rawValue: string | undefined
@@ -119,23 +94,21 @@ function parseContextSize(
 export async function search(
   params: SearchToolParams
 ): Promise<ToolPkg.OpenAIWebSearchResult> {
-  try {
-    const request: ToolPkg.OpenAIWebSearchRequest = {
-      query: params.query,
-      allowed_domains: parseDomainArray(params.allowed_domains, "allowed_domains"),
-      blocked_domains: parseDomainArray(params.blocked_domains, "blocked_domains"),
-      use_configured_location: parseBoolean(
-        params.use_configured_location,
-        "use_configured_location"
-      ),
-    };
-    const contextSize = parseContextSize(params.context_size);
-    if (contextSize !== undefined) {
-      request.context_size = contextSize;
-    }
-    return await ToolPkg.services.openAIWebSearch.search(request);
-  } catch (error) {
-    console.error("[openai_web_search] search failed", error);
-    throw error;
+  const request: ToolPkg.OpenAIWebSearchRequest = {
+    query: params.query,
+  };
+  const contextSize = parseContextSize(params.context_size);
+  if (contextSize !== undefined) {
+    request.context_size = contextSize;
   }
+  if (params.allowed_domains !== undefined) {
+    request.allowed_domains = params.allowed_domains;
+  }
+  if (params.blocked_domains !== undefined) {
+    request.blocked_domains = params.blocked_domains;
+  }
+  if (params.use_configured_location !== undefined) {
+    request.use_configured_location = params.use_configured_location;
+  }
+  return ToolPkg.services.openAIWebSearch.search(request);
 }

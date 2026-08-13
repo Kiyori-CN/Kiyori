@@ -6,11 +6,10 @@ import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Semaphore
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.EventListener
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,64 +26,78 @@ internal data class OpenAIHostedWebSearchExecution(
 
 internal class OpenAIHostedWebSearchGateway(
     private val baseHttpClient: OkHttpClient = SharedHttpClient.instance,
+    private val admissionController: OpenAIHostedWebSearchAdmissionController =
+        OpenAIHostedWebSearchAdmissionController.shared,
 ) {
-    private val activeCalls = ConcurrentHashMap<String, Call>()
-    private val cancelledRequestIds = ConcurrentHashMap.newKeySet<String>()
+    private data class ActiveCall(
+        val call: Call,
+        val lifecycle: OpenAIHostedWebSearchRequestLifecycle,
+    )
+
+    private val activeCalls = ConcurrentHashMap<String, ActiveCall>()
 
     suspend fun execute(
         binding: OpenAIHostedWebSearchBinding,
         request: OpenAIHostedWebSearchEffectiveRequest,
+        lifecycle: OpenAIHostedWebSearchRequestLifecycle =
+            OpenAIHostedWebSearchRequestLifecycle(request.requestId),
     ): OpenAIHostedWebSearchExecution {
-        val pluginRateLimiter =
-            binding.requestsPerMinute.takeIf { value -> value > 0 }?.let { limit ->
-                RateLimiterRegistry.getOrCreate(
-                    key = "${OpenAIHostedWebSearchContract.TOOLPKG_ID}:rpm",
-                    maxRequestsPerMinute = limit,
-                )
-            }
-        val modelRateLimiter =
-            binding.modelConfigId
-                ?.takeIf { binding.modelConfigRequestsPerMinute > 0 }
-                ?.let { configId ->
-                    RateLimiterRegistry.getOrCreate(
-                        key = configId,
-                        maxRequestsPerMinute = binding.modelConfigRequestsPerMinute,
-                    )
-                }
-        val pluginSemaphore =
-            RequestConcurrencyRegistry.getOrCreate(
-                key = "${OpenAIHostedWebSearchContract.TOOLPKG_ID}:concurrency",
+        lifecycle.configureLocation(
+            requested = request.locationRequested,
+            configured = request.locationConfigured,
+            applied = request.location != null,
+            precision = request.locationPrecision,
+        )
+        // Domain-filter support is a provider-contract decision. Rejecting here keeps an
+        // unsupported relay request out of both the admission queue and the HTTP transport.
+        OpenAIHostedWebSearchDomainPolicy.requireRequestSupported(
+            providerContract = binding.providerContract,
+            request = request,
+        )
+        val permit =
+            admissionController.acquire(
                 maxConcurrentRequests = binding.maxConcurrentRequests,
+                requestsPerMinute = binding.requestsPerMinute,
+                queueTimeoutMs =
+                    TimeUnit.SECONDS.toMillis(binding.queueTimeoutSeconds.toLong()),
+                lifecycle = lifecycle,
             )
-        val modelSemaphore =
-            binding.modelConfigId
-                ?.takeIf { binding.modelConfigMaxConcurrentRequests > 0 }
-                ?.let { configId ->
-                    RequestConcurrencyRegistry.getOrCreate(
-                        key = configId,
-                        maxConcurrentRequests = binding.modelConfigMaxConcurrentRequests,
-                    )
-                }
-
-        pluginRateLimiter?.acquire()
-        modelRateLimiter?.acquire()
-        return withConcurrencyLimits(pluginSemaphore, modelSemaphore) {
-            executeSingleRequest(binding, request)
+        return try {
+            executeSingleRequest(binding, request, lifecycle)
+        } finally {
+            permit.release()
         }
     }
 
-    fun cancel(requestId: String): Boolean =
-        activeCalls[requestId.trim()]?.let { call ->
-            cancelledRequestIds.add(requestId.trim())
-            call.cancel()
+    fun cancel(requestId: String): Boolean {
+        val active = activeCalls[requestId.trim()] ?: return false
+        if (
+            !active.lifecycle.requestCancellation(
+                owner = OpenAIHostedWebSearchCancellationOwner.GATEWAY,
+                reason = "OpenAI Web Search request was cancelled.",
+            )
+        ) {
+            return false
+        }
+        active.call.cancel()
+        return true
+    }
+
+    fun cancelTransport(requestId: String): Boolean =
+        activeCalls[requestId.trim()]?.let { active ->
+            active.call.cancel()
             true
         } ?: false
 
     private suspend fun executeSingleRequest(
         binding: OpenAIHostedWebSearchBinding,
         request: OpenAIHostedWebSearchEffectiveRequest,
+        lifecycle: OpenAIHostedWebSearchRequestLifecycle,
     ): OpenAIHostedWebSearchExecution {
         val payload = OpenAIHostedWebSearchRequestCompiler.compile(binding, request)
+        val timeoutMs = TimeUnit.SECONDS.toMillis(binding.timeoutSeconds.toLong())
+        lifecycle.configureHttpTimeout(timeoutMs)
+        lifecycle.markPhase(OpenAIHostedWebSearchRequestPhase.PREPARING_HTTP)
         val httpClient =
             baseHttpClient
                 .newBuilder()
@@ -92,9 +105,16 @@ internal class OpenAIHostedWebSearchGateway(
                 .followSslRedirects(false)
                 .retryOnConnectionFailure(false)
                 .callTimeout(binding.timeoutSeconds.toLong(), TimeUnit.SECONDS)
-                .connectTimeout(binding.timeoutSeconds.toLong(), TimeUnit.SECONDS)
+                .connectTimeout(
+                    minOf(binding.timeoutSeconds, MAX_CONNECT_TIMEOUT_SECONDS).toLong(),
+                    TimeUnit.SECONDS,
+                )
                 .readTimeout(binding.timeoutSeconds.toLong(), TimeUnit.SECONDS)
-                .writeTimeout(binding.timeoutSeconds.toLong(), TimeUnit.SECONDS)
+                .writeTimeout(
+                    minOf(binding.timeoutSeconds, MAX_WRITE_TIMEOUT_SECONDS).toLong(),
+                    TimeUnit.SECONDS,
+                )
+                .eventListener(lifecycle.eventListener())
                 .build()
         val requestBuilder =
             Request.Builder()
@@ -120,29 +140,49 @@ internal class OpenAIHostedWebSearchGateway(
                     )
                     .build()
             )
-        activeCalls[request.requestId] = call
+        activeCalls[request.requestId] = ActiveCall(call = call, lifecycle = lifecycle)
         try {
-            val responseJson = awaitResponse(call, request.requestId)
+            val responseJson = awaitResponse(call, lifecycle)
+            lifecycle.markParseStarted()
             val parsed =
-                OpenAIHostedWebSearchResponseParser.parseWithDiagnostics(
-                    responseJson = responseJson,
-                    request = request,
-                    binding = binding,
-                )
+                try {
+                    OpenAIHostedWebSearchResponseParser.parseWithDiagnostics(
+                        responseJson = responseJson,
+                        request = request,
+                        binding = binding,
+                    )
+                } finally {
+                    lifecycle.markParseCompleted()
+                }
             return OpenAIHostedWebSearchExecution(
-                result = parsed.result,
+                result =
+                    parsed.result.copy(
+                        executionDiagnostics = lifecycle.executionDiagnostics()
+                    ),
                 diagnostics = parsed.diagnostics,
             )
         } finally {
-            activeCalls.remove(request.requestId, call)
-            cancelledRequestIds.remove(request.requestId)
+            activeCalls.remove(
+                request.requestId,
+                ActiveCall(call = call, lifecycle = lifecycle),
+            )
         }
     }
 
-    private suspend fun awaitResponse(call: Call, requestId: String): JSONObject =
+    private suspend fun awaitResponse(
+        call: Call,
+        lifecycle: OpenAIHostedWebSearchRequestLifecycle,
+    ): JSONObject =
         suspendCancellableCoroutine { continuation ->
-            continuation.invokeOnCancellation {
-                cancelledRequestIds.add(requestId)
+            continuation.invokeOnCancellation { cause ->
+                lifecycle.requestCancellation(
+                    owner = OpenAIHostedWebSearchCancellationOwner.COROUTINE,
+                    reason =
+                        cause?.message
+                            ?.trim()
+                            ?.takeIf(String::isNotEmpty)
+                            ?: "OpenAI Web Search coroutine was cancelled.",
+                )
                 call.cancel()
             }
             call.enqueue(
@@ -152,33 +192,12 @@ internal class OpenAIHostedWebSearchGateway(
                             return
                         }
                         val failure =
-                            when {
-                                requestId in cancelledRequestIds || call.isCanceled() ->
-                                    OpenAIHostedWebSearchException(
-                                        code =
-                                            OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED,
-                                        message = "OpenAI Web Search request was cancelled.",
-                                        cause = e,
-                                    )
-
-                                e is SocketTimeoutException ->
-                                    OpenAIHostedWebSearchException(
-                                        code =
-                                            OpenAIHostedWebSearchErrorCode.REQUEST_TIMEOUT,
-                                        message = "OpenAI Web Search request timed out.",
-                                        retryable = true,
-                                        cause = e,
-                                    )
-
-                                else ->
-                                    OpenAIHostedWebSearchException(
-                                        code =
-                                            OpenAIHostedWebSearchErrorCode.NETWORK_FAILURE,
-                                        message = "OpenAI Web Search network request failed.",
-                                        retryable = true,
-                                        cause = e,
-                                    )
-                            }
+                            classifyTransportFailure(
+                                exception = e,
+                                lifecycle = lifecycle,
+                                networkMessage =
+                                    "OpenAI Web Search network request failed.",
+                            )
                         continuation.resumeWithException(failure)
                     }
 
@@ -207,11 +226,16 @@ internal class OpenAIHostedWebSearchGateway(
                                 return
                             }
                             try {
+                                lifecycle.markResponseBodyReadStarted()
                                 val responseText =
-                                    readResponseBody(
-                                        response = closedResponse,
-                                        requestId = requestId,
-                                    )
+                                    try {
+                                        readResponseBody(
+                                            response = closedResponse,
+                                            requestId = lifecycle.requestId,
+                                        )
+                                    } finally {
+                                        lifecycle.markResponseBodyReadCompleted()
+                                    }
                                 continuation.resume(JSONObject(responseText))
                             } catch (exception: Exception) {
                                 val failure =
@@ -219,37 +243,12 @@ internal class OpenAIHostedWebSearchGateway(
                                         exception is OpenAIHostedWebSearchException ->
                                             exception
 
-                                        requestId in cancelledRequestIds || call.isCanceled() ->
-                                            OpenAIHostedWebSearchException(
-                                                code =
-                                                    OpenAIHostedWebSearchErrorCode
-                                                        .REQUEST_CANCELLED,
-                                                message =
-                                                    "OpenAI Web Search request was cancelled.",
-                                                cause = exception,
-                                            )
-
-                                        exception is SocketTimeoutException ||
-                                            exception is InterruptedIOException ->
-                                            OpenAIHostedWebSearchException(
-                                                code =
-                                                    OpenAIHostedWebSearchErrorCode
-                                                        .REQUEST_TIMEOUT,
-                                                message =
-                                                    "OpenAI Web Search request timed out.",
-                                                retryable = true,
-                                                cause = exception,
-                                            )
-
                                         exception is IOException ->
-                                            OpenAIHostedWebSearchException(
-                                                code =
-                                                    OpenAIHostedWebSearchErrorCode
-                                                        .NETWORK_FAILURE,
-                                                message =
+                                            classifyTransportFailure(
+                                                exception = exception,
+                                                lifecycle = lifecycle,
+                                                networkMessage =
                                                     "OpenAI Web Search response transfer failed.",
-                                                retryable = true,
-                                                cause = exception,
                                             )
 
                                         else ->
@@ -269,6 +268,63 @@ internal class OpenAIHostedWebSearchGateway(
                 }
             )
         }
+
+    private fun classifyTransportFailure(
+        exception: IOException,
+        lifecycle: OpenAIHostedWebSearchRequestLifecycle,
+        networkMessage: String,
+    ): OpenAIHostedWebSearchException {
+        val snapshot = lifecycle.snapshot()
+        // OkHttp's call timeout cancels the Call before reporting InterruptedIOException("timeout").
+        // Timeout must therefore be identified before any cancellation state is considered.
+        val timedOut =
+            exception is SocketTimeoutException ||
+                (
+                    exception is InterruptedIOException &&
+                        exception.message.orEmpty().contains("timeout", ignoreCase = true)
+                )
+        return when {
+            timedOut ->
+                OpenAIHostedWebSearchException(
+                    code = OpenAIHostedWebSearchErrorCode.REQUEST_TIMEOUT,
+                    message = "OpenAI Web Search request timed out.",
+                    phase = snapshot.phase.wireValue,
+                    submissionState = snapshot.submissionState.wireValue,
+                    elapsedMs = snapshot.elapsedMs,
+                    configuredTimeoutMs = snapshot.configuredTimeoutMs,
+                    queueWaitMs = snapshot.queueWaitMs,
+                    providerRequestId = snapshot.providerRequestId,
+                    cause = exception,
+                )
+
+            lifecycle.isCancellationRequested() ->
+                OpenAIHostedWebSearchException(
+                    code = OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED,
+                    message = "OpenAI Web Search request was cancelled.",
+                    phase = snapshot.phase.wireValue,
+                    cancelOwner = snapshot.cancelOwner,
+                    submissionState = snapshot.submissionState.wireValue,
+                    elapsedMs = snapshot.elapsedMs,
+                    configuredTimeoutMs = snapshot.configuredTimeoutMs,
+                    queueWaitMs = snapshot.queueWaitMs,
+                    providerRequestId = snapshot.providerRequestId,
+                    cause = exception,
+                )
+
+            else ->
+                OpenAIHostedWebSearchException(
+                    code = OpenAIHostedWebSearchErrorCode.NETWORK_FAILURE,
+                    message = networkMessage,
+                    phase = snapshot.phase.wireValue,
+                    submissionState = snapshot.submissionState.wireValue,
+                    elapsedMs = snapshot.elapsedMs,
+                    configuredTimeoutMs = snapshot.configuredTimeoutMs,
+                    queueWaitMs = snapshot.queueWaitMs,
+                    providerRequestId = snapshot.providerRequestId,
+                    cause = exception,
+                )
+        }
+    }
 
     private fun readResponseBody(response: Response, requestId: String): String {
         val body =
@@ -335,36 +391,9 @@ internal class OpenAIHostedWebSearchGateway(
             message = "OpenAI Web Search response exceeded the 4 MiB limit for $requestId.",
         )
 
-    private suspend fun <T> withConcurrencyLimits(
-        pluginSemaphore: Semaphore,
-        modelSemaphore: Semaphore?,
-        block: suspend () -> T,
-    ): T {
-        var pluginAcquired = false
-        var modelAcquired = false
-        try {
-            pluginSemaphore.acquire()
-            pluginAcquired = true
-            modelSemaphore?.acquire()
-            modelAcquired = modelSemaphore != null
-            return block()
-        } catch (cancellation: CancellationException) {
-            throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED,
-                message = "OpenAI Web Search request was cancelled.",
-                cause = cancellation,
-            )
-        } finally {
-            if (modelAcquired) {
-                modelSemaphore?.release()
-            }
-            if (pluginAcquired) {
-                pluginSemaphore.release()
-            }
-        }
-    }
-
     companion object {
+        private const val MAX_CONNECT_TIMEOUT_SECONDS = 30
+        private const val MAX_WRITE_TIMEOUT_SECONDS = 60
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private val PROVIDER_REQUEST_ID_HEADERS =
             listOf(

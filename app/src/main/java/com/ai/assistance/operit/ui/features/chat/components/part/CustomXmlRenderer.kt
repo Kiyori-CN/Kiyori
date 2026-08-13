@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchContract
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchEvidenceParseResult
 import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchEvidenceParser
 import com.ai.assistance.operit.ui.common.animations.SimpleAnimatedVisibility
 import com.ai.assistance.operit.ui.common.markdown.DefaultXmlRenderer
@@ -187,7 +189,13 @@ class CustomXmlRenderer(
             "thinking" -> renderThinkContent(trimmedContent, Modifier, textColor, xmlStream)
             "search" -> renderSearchContent(trimmedContent, Modifier, textColor)
             "tool" -> renderToolRequest(trimmedContent, Modifier, textColor, xmlStream)
-            "tool_result" -> renderToolResult(trimmedContent, Modifier, textColor)
+            "tool_result" ->
+                renderToolResult(
+                    content = trimmedContent,
+                    modifier = Modifier,
+                    _textColor = textColor,
+                    renderInstanceKey = renderInstanceKey,
+                )
             "status" -> renderStatus(trimmedContent, Modifier, textColor)
             "html" -> renderHtmlContent(trimmedContent, Modifier, textColor)
             "mood" -> renderMoodTag(trimmedContent, Modifier, textColor)
@@ -861,7 +869,12 @@ class CustomXmlRenderer(
 
     /** 渲染工具结果标签 <tool_result name="..." status="..."><content>...</content></tool_result> */
     @Composable
-    private fun renderToolResult(content: String, modifier: Modifier, _textColor: Color) {
+    private fun renderToolResult(
+        content: String,
+        modifier: Modifier,
+        _textColor: Color,
+        renderInstanceKey: Any?,
+    ) {
         val context = LocalContext.current
 
         val renderState =
@@ -880,22 +893,23 @@ class CustomXmlRenderer(
                 )
             }
         val toolName = renderState.toolName.ifBlank { stringResource(R.string.unknown_tool) }
-        val webSearchEvidence =
+        val webSearchParseResult =
             remember(renderState.toolName, renderState.isSuccess, renderState.resultContent) {
                 if (renderState.isSuccess) {
-                    OpenAIHostedWebSearchEvidenceParser.parseOrNull(
+                    OpenAIHostedWebSearchEvidenceParser.parse(
                         toolName = renderState.toolName,
                         resultJson = renderState.resultContent,
                     )
                 } else {
-                    null
+                    OpenAIHostedWebSearchEvidenceParseResult.NotApplicable
                 }
             }
 
         // 检查结果是否为 file-diff
-        if (webSearchEvidence != null) {
+        if (webSearchParseResult is OpenAIHostedWebSearchEvidenceParseResult.Parsed) {
             OpenAIWebSearchToolResultDisplay(
-                evidence = webSearchEvidence,
+                evidence = webSearchParseResult.evidence,
+                renderInstanceKey = renderInstanceKey,
                 modifier = modifier,
             )
         } else if ((toolName == "apply_file" || toolName == "create_file" || toolName == "edit_file") &&
@@ -935,19 +949,61 @@ class CustomXmlRenderer(
                         renderState.resultContent.replace(fileDiffRegex, "").trim()
                     }
 
-            // 使用ToolResultDisplay组件显示结果
-            ToolResultDisplay(
-                    toolName = toolName,
-                    result = errorContent,
-                    isSuccess = renderState.isSuccess,
-                    onCopyResult = {
-                        if (errorContent.isNotBlank()) {
-                            context.copyPlainTextToClipboard("Kiyori XML error", errorContent)
-                        }
-                    },
-                    modifier = modifier,
-                    enableDialog = enableDialogs  // 传递弹窗启用状态
-            )
+            val isOpenAIWebSearch =
+                renderState.toolName == OpenAIHostedWebSearchContract.TOOL_NAME
+            val invalidEvidence =
+                webSearchParseResult as?
+                    OpenAIHostedWebSearchEvidenceParseResult.Invalid
+
+            if (invalidEvidence != null) {
+                LaunchedEffect(
+                    renderInstanceKey,
+                    invalidEvidence.code,
+                    invalidEvidence.schemaRevision,
+                    invalidEvidence.hasRequestId,
+                    invalidEvidence.fieldName,
+                ) {
+                    OpenAIWebSearchEvidenceParseFailureLogger.logOnce(
+                        renderInstanceKey = renderInstanceKey,
+                        invalid = invalidEvidence,
+                    )
+                }
+            }
+
+            Column(
+                modifier = modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                when {
+                    invalidEvidence != null ->
+                        OpenAIWebSearchEvidenceInvalidDisplay(
+                            invalid = invalidEvidence,
+                            renderInstanceKey = renderInstanceKey,
+                        )
+
+                    isOpenAIWebSearch && !renderState.isSuccess ->
+                        OpenAIWebSearchFailureDisplay(
+                            failure =
+                                OpenAIWebSearchResultPresentationPolicy
+                                    .failurePresentation(errorContent),
+                            renderInstanceKey = renderInstanceKey,
+                        )
+                }
+
+                // 专用卡的失败和解析异常仍保留通用结果入口，确保完整错误可复制，
+                // 也避免 schema 回归时把原始工具结果静默吞掉。
+                ToolResultDisplay(
+                        toolName = toolName,
+                        result = errorContent,
+                        isSuccess = renderState.isSuccess,
+                        onCopyResult = {
+                            if (errorContent.isNotBlank()) {
+                                context.copyPlainTextToClipboard("Kiyori XML error", errorContent)
+                            }
+                        },
+                        enableDialog = enableDialogs
+                )
+            }
         }
     }
 

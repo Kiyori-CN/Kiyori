@@ -274,10 +274,24 @@ fun PackageManagerScreen(
                 .filter { toolPackage -> toolPackage.env.isNotEmpty() }
         }
     }
+    var requestedEnvironmentPackageName by remember {
+        mutableStateOf<String?>(null)
+    }
+    val visibleEnvironmentPackages by remember {
+        derivedStateOf {
+            val requested = requestedEnvironmentPackageName
+            if (requested == null) {
+                environmentPackages
+            } else {
+                listOfNotNull(allAvailablePackages.value[requested])
+                    .filter { toolPackage -> toolPackage.env.isNotEmpty() }
+            }
+        }
+    }
 
     val environmentVariableKeys by remember {
         derivedStateOf {
-            environmentPackages
+            visibleEnvironmentPackages
                 .flatMap { toolPackage ->
                     toolPackage.env.map { envVar ->
                         when (envVar.scope) {
@@ -536,6 +550,49 @@ fun PackageManagerScreen(
         ) {
             pluginOrder = apiPreferences.getPluginOrder()
             skillOrder = apiPreferences.getSkillOrder()
+            val requestedPackageName = ToolPkgHostEnvironmentEditRequestStore.consume()
+            if (requestedPackageName != null) {
+                requestedEnvironmentPackageName = requestedPackageName
+                val requestedPackage =
+                    allAvailablePackages.value[requestedPackageName]
+                        ?.takeIf { toolPackage -> toolPackage.env.isNotEmpty() }
+                if (requestedPackage != null) {
+                    envVariables =
+                        requestedPackage.env.associate { envVar ->
+                            val key =
+                                when (envVar.scope) {
+                                    EnvVarScope.GLOBAL ->
+                                        PackageEnvironmentVariableKey.global(envVar.name)
+                                    EnvVarScope.PACKAGE ->
+                                        PackageEnvironmentVariableKey.packageScoped(
+                                            packageName = requestedPackage.name,
+                                            variableName = envVar.name,
+                                        )
+                                }
+                            key to
+                                when (key.scope) {
+                                    EnvVarScope.GLOBAL ->
+                                        envPreferences.getEnv(key.variableName).orEmpty()
+                                    EnvVarScope.PACKAGE ->
+                                        toolPkgHostEnvironmentRepository
+                                            .getValue(
+                                                containerPackageName =
+                                                    requireNotNull(key.ownerPackageName),
+                                                variableName = key.variableName,
+                                            )
+                                            .orEmpty()
+                                }
+                        }
+                    showEnvSheet = true
+                } else {
+                    requestedEnvironmentPackageName = null
+                    snackbarHostState.showSnackbar(
+                        context.getString(
+                            R.string.openai_web_search_configuration_unavailable
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -958,9 +1015,12 @@ fun PackageManagerScreen(
             // Environment Variables Drawer for packages
             if (showEnvSheet) {
                 PackageEnvironmentVariablesSheet(
-                    packages = environmentPackages,
+                    packages = visibleEnvironmentPackages,
                     currentValues = envVariables,
-                    onDismiss = { showEnvSheet = false },
+                    onDismiss = {
+                        showEnvSheet = false
+                        requestedEnvironmentPackageName = null
+                    },
                     onConfirm = { updated ->
                         val mergedGlobalValues =
                             envPreferences.getAllEnv().toMutableMap().apply {

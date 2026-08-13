@@ -79,6 +79,27 @@ class ToolPkgOpenAIWebSearchBridgePolicyTest {
     }
 
     @Test
+    fun `native configuration requires the same settings UI authority`() {
+        assertEquals(
+            "call-ui",
+            OpenAIHostedWebSearchBridgePolicy.requireSettingsUiCaller(
+                boundToolPkgContainerName = OpenAIHostedWebSearchContract.TOOLPKG_ID,
+                callId = " call-ui ",
+                isExecutionCallActive = { candidate -> candidate == "call-ui" },
+                resolveExecutionRuntimeKind = { "ui" },
+            ),
+        )
+        assertOpenAIWebSearchFailure(OpenAIHostedWebSearchErrorCode.CALLER_NOT_AUTHORIZED) {
+            OpenAIHostedWebSearchBridgePolicy.requireSettingsUiCaller(
+                boundToolPkgContainerName = OpenAIHostedWebSearchContract.TOOLPKG_ID,
+                callId = "call-sandbox",
+                isExecutionCallActive = { true },
+                resolveExecutionRuntimeKind = { "sandbox" },
+            )
+        }
+    }
+
+    @Test
     fun `tool result markup codec preserves decoded JSON and removes XML delimiters`() {
         val original =
             JSONObject()
@@ -138,7 +159,7 @@ class ToolPkgOpenAIWebSearchBridgePolicyTest {
             val quotedValue = org.json.JSONObject.quote(value)
             val error =
                 assertOpenAIWebSearchFailure(
-                    OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID
+                    OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT
                 ) {
                     OpenAIHostedWebSearchBridgePolicy.parseSearchRequest(
                         requestId = "ows_test",
@@ -147,6 +168,9 @@ class ToolPkgOpenAIWebSearchBridgePolicyTest {
                     )
                 }
             assertTrue(error.message.contains(field))
+            assertEquals("request", error.field)
+            assertEquals(OpenAIHostedWebSearchArgumentReason.INVALID_VALUE, error.reason)
+            assertEquals("not_sent", error.submissionState)
         }
     }
 
@@ -162,32 +186,123 @@ class ToolPkgOpenAIWebSearchBridgePolicyTest {
             )
 
         invalidRequests.forEach { requestJson ->
-            assertOpenAIWebSearchFailure(OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID) {
-                OpenAIHostedWebSearchBridgePolicy.parseSearchRequest(
-                    requestId = "ows_test",
-                    requestJson = requestJson,
-                )
-            }
+            val error =
+                assertOpenAIWebSearchFailure(OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT) {
+                    OpenAIHostedWebSearchBridgePolicy.parseSearchRequest(
+                        requestId = "ows_test",
+                        requestJson = requestJson,
+                    )
+                }
+            assertEquals(OpenAIHostedWebSearchArgumentReason.INVALID_TYPE, error.reason)
+            assertEquals("not_sent", error.submissionState)
         }
     }
 
     @Test
-    fun `ownership registry cancels exactly the selected call`() {
+    fun `search parser returns stable field and reason for missing and invalid values`() {
+        val missingQuery =
+            assertOpenAIWebSearchFailure(OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT) {
+                OpenAIHostedWebSearchBridgePolicy.parseSearchRequest(
+                    requestId = "ows_test",
+                    requestJson = "{}",
+                )
+            }
+        assertEquals("query", missingQuery.field)
+        assertEquals(OpenAIHostedWebSearchArgumentReason.MISSING, missingQuery.reason)
+
+        val invalidContext =
+            assertOpenAIWebSearchFailure(OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT) {
+                OpenAIHostedWebSearchBridgePolicy.parseSearchRequest(
+                    requestId = "ows_test",
+                    requestJson = """{"query":"q","context_size":"huge"}""",
+                )
+            }
+        assertEquals("context_size", invalidContext.field)
+        assertEquals(OpenAIHostedWebSearchArgumentReason.INVALID_VALUE, invalidContext.reason)
+    }
+
+    @Test
+    fun `ownership registry gives cancellation one atomic terminal outcome`() {
         val registry = OpenAIHostedWebSearchRequestOwnershipRegistry()
         val firstCancellationCount = AtomicInteger()
         val secondCancellationCount = AtomicInteger()
-        registry.register("ows_first", "call-1") { firstCancellationCount.incrementAndGet() }
-        registry.register("ows_second", "call-2") { secondCancellationCount.incrementAndGet() }
+        registry.register(
+            requestId = "ows_first",
+            callId = "call-1",
+            lifecycle = OpenAIHostedWebSearchRequestLifecycle("ows_first"),
+        ) {
+            firstCancellationCount.incrementAndGet()
+        }
+        registry.register(
+            requestId = "ows_second",
+            callId = "call-2",
+            lifecycle = OpenAIHostedWebSearchRequestLifecycle("ows_second"),
+        ) {
+            secondCancellationCount.incrementAndGet()
+        }
 
         assertEquals(1, registry.requestCancellationForCall("call-1", "chat stopped"))
         assertEquals(1, firstCancellationCount.get())
         assertEquals(0, secondCancellationCount.get())
-        assertTrue(registry.requestCancellation("ows_first", "again"))
-        assertTrue(registry.complete("ows_first"))
+        assertFalse(registry.requestCancellation("ows_first", "again"))
+        val cancelledSettlement =
+            requireNotNull(
+                registry.settle(
+                    "ows_first",
+                    OpenAIHostedWebSearchTerminalOutcome.SUCCESS,
+                )
+            )
+        assertEquals(
+            OpenAIHostedWebSearchTerminalOutcome.CANCELLED,
+            cancelledSettlement.outcome,
+        )
+        assertEquals("execution_owner", cancelledSettlement.cancelOwner)
+        assertFalse(registry.requestCancellation("ows_first", "after terminal"))
+        assertEquals(
+            null,
+            registry.settle(
+                "ows_first",
+                OpenAIHostedWebSearchTerminalOutcome.SUCCESS,
+            ),
+        )
+
         assertTrue(registry.requestCancellation("ows_second", "explicit"))
         assertEquals(1, secondCancellationCount.get())
-        assertTrue(registry.complete("ows_second"))
-        assertFalse(registry.complete("ows_second"))
+        assertFalse(registry.requestCancellation("ows_second", "again"))
+        assertEquals(
+            OpenAIHostedWebSearchTerminalOutcome.CANCELLED,
+            requireNotNull(
+                registry.settle(
+                    "ows_second",
+                    OpenAIHostedWebSearchTerminalOutcome.FAILURE,
+                )
+            ).outcome,
+        )
+    }
+
+    @Test
+    fun `ownership registry rejects cancellation after success settles`() {
+        val registry = OpenAIHostedWebSearchRequestOwnershipRegistry()
+        val cancellationCount = AtomicInteger()
+        registry.register(
+            requestId = "ows_success",
+            callId = "call-1",
+            lifecycle = OpenAIHostedWebSearchRequestLifecycle("ows_success"),
+        ) {
+            cancellationCount.incrementAndGet()
+        }
+
+        val settlement =
+            requireNotNull(
+                registry.settle(
+                    "ows_success",
+                    OpenAIHostedWebSearchTerminalOutcome.SUCCESS,
+                )
+            )
+
+        assertEquals(OpenAIHostedWebSearchTerminalOutcome.SUCCESS, settlement.outcome)
+        assertFalse(registry.requestCancellation("ows_success", "too late"))
+        assertEquals(0, cancellationCount.get())
     }
 
     @Test
@@ -202,6 +317,23 @@ class ToolPkgOpenAIWebSearchBridgePolicyTest {
             "[RELAY_INCOMPATIBLE] Relay evidence is incomplete.",
             envelope.getJSONObject("error").getString("message"),
         )
+    }
+
+    @Test
+    fun `invalid argument envelope includes field reason and not sent state`() {
+        val envelope =
+            openAIHostedWebSearchInvalidArgument(
+                field = "allowed_domains",
+                reason = OpenAIHostedWebSearchArgumentReason.INVALID_TYPE,
+                message = "allowed_domains must be an array.",
+            ).toJson("ows_test")
+        val error = envelope.getJSONObject("error")
+
+        assertEquals("INVALID_ARGUMENT", error.getString("code"))
+        assertEquals("allowed_domains", error.getString("field"))
+        assertEquals("INVALID_TYPE", error.getString("reason"))
+        assertEquals("not_sent", error.getString("submission_state"))
+        assertEquals("ows_test", error.getString("request_id"))
     }
 
     @Test

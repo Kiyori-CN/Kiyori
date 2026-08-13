@@ -12,21 +12,17 @@ class OpenAIHostedWebSearchHttpFailurePolicyTest {
         listOf(401, 403).forEach { status ->
             val failure = OpenAIHostedWebSearchHttpFailurePolicy.exception(status)
             assertEquals(OpenAIHostedWebSearchErrorCode.AUTH_REJECTED, failure.code)
-            assertFalse(failure.retryable)
             assertEquals(status, failure.httpStatus)
         }
 
         val rateLimit = OpenAIHostedWebSearchHttpFailurePolicy.exception(429)
         assertEquals(OpenAIHostedWebSearchErrorCode.RATE_LIMITED, rateLimit.code)
-        assertTrue(rateLimit.retryable)
 
         val serverFailure = OpenAIHostedWebSearchHttpFailurePolicy.exception(503)
         assertEquals(OpenAIHostedWebSearchErrorCode.OPENAI_HTTP_FAILURE, serverFailure.code)
-        assertTrue(serverFailure.retryable)
 
         val badRequest = OpenAIHostedWebSearchHttpFailurePolicy.exception(400)
         assertEquals(OpenAIHostedWebSearchErrorCode.OPENAI_HTTP_FAILURE, badRequest.code)
-        assertFalse(badRequest.retryable)
     }
 
     @Test

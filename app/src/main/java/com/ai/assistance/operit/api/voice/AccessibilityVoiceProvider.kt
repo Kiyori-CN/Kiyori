@@ -31,11 +31,6 @@ class SimpleVoiceProvider(
 ) : VoiceService {
     companion object {
         private const val TAG = "SimpleVoiceProvider"
-        private const val SPEECH_PREVIEW_MAX = 48
-    }
-
-    private fun speechPreview(text: String): String {
-        return text.replace("\n", "\\n").take(SPEECH_PREVIEW_MAX)
     }
 
     private data class PendingUtterance(
@@ -311,7 +306,7 @@ class SimpleVoiceProvider(
             val queueSizeBefore = synchronized(queueLock) { queuedUtterances.size }
             AppLogger.d(
                 TAG,
-                "speak request interrupt=$interrupt len=${text.length} preview=\"${speechPreview(text)}\" rate=$effectiveRate pitch=$effectivePitch voice=$currentVoiceId locale=$currentLocaleTag initialized=$isInitialized speaking=$isSpeaking queueSize=$queueSizeBefore paused=$isPausedInternally"
+                "speak request interrupt=$interrupt len=${text.length} rate=$effectiveRate pitch=$effectivePitch voice=$currentVoiceId locale=$currentLocaleTag initialized=$isInitialized speaking=$isSpeaking queueSize=$queueSizeBefore paused=$isPausedInternally"
             )
 
             return@withContext suspendCancellableCoroutine { continuation ->
@@ -347,7 +342,7 @@ class SimpleVoiceProvider(
                                 pausedSegments = pausedSegments + text
                                 logQueueState(
                                     event = "speak.bufferedWhilePaused",
-                                    extra = "len=${text.length} preview=\"${speechPreview(text)}\""
+                                    extra = "len=${text.length}"
                                 )
                                 return@synchronized true
                             }

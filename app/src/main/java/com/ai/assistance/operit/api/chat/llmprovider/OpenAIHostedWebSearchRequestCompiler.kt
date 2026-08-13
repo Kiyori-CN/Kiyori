@@ -15,6 +15,10 @@ internal object OpenAIHostedWebSearchRequestCompiler {
         binding: OpenAIHostedWebSearchBinding,
         request: OpenAIHostedWebSearchEffectiveRequest,
     ): JSONObject {
+        OpenAIHostedWebSearchDomainPolicy.requireRequestSupported(
+            providerContract = binding.providerContract,
+            request = request,
+        )
         val instructions =
             binding.additionalInstructions.trim().let { additional ->
                 if (additional.isEmpty()) {

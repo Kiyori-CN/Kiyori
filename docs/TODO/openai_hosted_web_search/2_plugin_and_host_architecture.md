@@ -12,7 +12,7 @@
 - 不复制现有 OpenAI Responses 实现
 - 不把搜索注册为完整聊天 Provider
 - 支持官方 OpenAI 和严格兼容中转站
-- 支持独立环境变量或固定模型配置两种来源
+- 只使用插件独立的 package-scoped host-service 环境变量
 - 保留 ToolPkg 的安装、启停、UI 和包管理体验
 - 失败时返回明确错误，不切换成其他搜索服务
 - 搜索证据不会在主模型改写答案后失去来源关系
@@ -124,10 +124,10 @@ Main chat turn
 						├─ caller identity
 						├─ OpenAIHostedWebSearchBindingResolver
 						├─ ToolPkgHostEnvironmentRepository
-						├─ ModelConfigManager
 						├─ OpenAIHostedWebSearchCompatibilityRepository
+						├─ OpenAIHostedWebSearchRequestLifecycle
+						├─ OpenAIHostedWebSearchAdmissionController
 						└─ OpenAIHostedWebSearchGateway
-							├─ Web Search 专用 Key 选择器
 							├─ SharedHttpClient
 							├─ request compiler
 							├─ response parser
@@ -140,29 +140,41 @@ Main chat turn
 
 搜索绑定不是一份可漂移的独立配置副本，而是由以下现有事实源和解析器共同持有：
 
-- `ToolPkgHostEnvironmentRepository`：持有插件环境中的配置来源、provider contract、固定
-  `modelConfigId`、精确搜索模型名和搜索参数
-- `ModelConfigManager`：在 `MODEL_CONFIG` 模式持有 endpoint、Key/Key pool、非秘密 headers、
-  provider type、模型列表和配置级请求限制
-- `OpenAIHostedWebSearchBindingResolver`：严格按所选来源编译一次完整运行绑定，不从另一来源补字段，
-  不读取当前聊天配置
+- `ToolPkgHostEnvironmentRepository`：持有目标 ToolPkg 的二十个 package-scoped、
+  host-service 环境变量
+- `OpenAIHostedWebSearchBindingResolver`：只通过
+  `OpenAIHostedWebSearchBindingCompiler.compilePackageEnvironment()` 编译一次完整运行绑定，不读取
+  当前聊天配置
 - `OpenAIHostedWebSearchCompatibilityRepository`：持有最多 `16` 条、按 exact fingerprint digest
   区分的 relay strict 成功/失败 record-set；同一 digest 的状态互斥，不同 Key 互不覆盖
 
-ToolPkg `privateData` 不保存模型配置副本或 Key。
+ToolPkg `privateData` 不保存绑定副本或 Key。本插件不读取 `ModelConfigManager`、Key pool 或当前
+聊天 Provider。
 
 ### `OpenAIHostedWebSearchPolicy`
 
 负责：
 
-- 校验配置来源只使用一套值
+- 校验二十个 package environment 字段
 - 校验 official 或 relay strict contract
 - official 模式校验精确官方 endpoint 和 GPT-5.6 allowlist
 - relay 模式校验 HTTPS、兼容探测指纹和精确模型名
-- 校验绑定模型仍存在于模型配置
 - 校验 Key 可用
-- 校验域名、位置、预算和输入长度
+- 校验域名、位置、queue/HTTP 预算、admission 和输入长度
+- 禁止 extra headers 覆盖认证、`User-Agent` 或 hop-by-hop headers
 - 禁止插件传入 endpoint、Authorization header 或任意模型名
+
+### `OpenAIHostedWebSearchRequestLifecycle`
+
+每个 request ID 只有一个 lifecycle owner，记录 phase、submission state、cancel owner、elapsed、
+configured timeout、queue wait 和 provider request ID。取消和 worker 完成必须通过同一个原子
+`settle()` 领取唯一终态，确保 callback 只投递一次。
+
+### `OpenAIHostedWebSearchAdmissionController`
+
+这是普通搜索与 compatibility probe 共用的进程内稳定 FIFO owner。配置变化原地更新并发和 RPM，
+不会通过替换 semaphore 或 limiter 让新旧请求绕过同一门。queue timeout 独立于 HTTP timeout，
+在排队超时时不创建 HTTP Call。
 
 ### `OpenAIHostedWebSearchRequestCompiler`
 
@@ -220,11 +232,16 @@ ToolPkg.services.openAIWebSearch.search(request)
 ToolPkg.services.openAIWebSearch.cancel(requestId)
 ToolPkg.services.openAIWebSearch.validateLocalConfiguration()
 ToolPkg.services.openAIWebSearch.runCompatibilityProbe()
+ToolPkg.services.openAIWebSearch.openConfiguration()
 ```
 
 兼容探测只能由当前 ToolPkg 的 `ui` runtime 发起。宿主在网络调度前校验 active execution
 session 的 runtime kind；subpackage 或 sandbox runtime 不能调用付费探测。正常
 `openai_web_search:search` 继续由 sandbox runtime 使用。
+
+`openConfiguration()` 同样只允许绑定 ToolPkg 的 active `ui` runtime 调用。它没有参数，宿主固定
+打开 `com.kiyori.openai_web_search` 的原生环境变量编辑器；JavaScript 不能提交任意 package ID
+或变量名。
 
 ### `ToolPkgHostEnvironmentRepository`
 
@@ -240,7 +257,7 @@ session 的 runtime kind；subpackage 或 sandbox runtime 不能调用付费探�
 
 ## 2.5 ToolPkg 职责
 
-建议包结构：
+当前包结构：
 
 ```text
 openai_web_search/
@@ -249,44 +266,38 @@ openai_web_search/
 	│	├─ main.js
 	│	├─ packages/
 	│	│	└─ openai_web_search.js
-	│	├─ shared/
-	│	│	├─ contracts.js
-	│	│	└─ ipc.js
+	│	├─ shared.js
 	│	└─ ui/
-	│		└─ settings/
-	│			└─ index.ui.js
+	│		└─ index.ui.js
 	└─ src/
 		├─ main.ts
 		├─ packages/
 		│	└─ openai_web_search.ts
-		├─ shared/
-		│	├─ contracts.ts
-		│	└─ ipc.ts
+		├─ shared.ts
 		└─ ui/
-			└─ settings/
-				└─ index.ui.ts
+			└─ index.ui.ts
 ```
 
-建议 manifest：
+revision `6` manifest 摘要：
 
 ```json
 {
   "schema_version": 1,
   "toolpkg_id": "com.kiyori.openai_web_search",
-  "version": "0.1.0",
+  "version": "1.0.5",
   "main": "dist/main.js",
   "enabled_by_default": false,
   "environment": [
     {
-      "name": "OPENAI_WEB_SEARCH_CONFIG_SOURCE",
-      "required": true,
+      "name": "OPENAI_WEB_SEARCH_PROVIDER_CONTRACT",
+      "required": false,
       "scope": "package",
       "sensitive": false,
       "consumer": "host_service",
       "input_type": "enum",
       "allowed_values": [
-        "PACKAGE_ENV",
-        "MODEL_CONFIG"
+        "RESPONSES_HOSTED_OFFICIAL",
+        "RESPONSES_RELAY_STRICT"
       ]
     },
     {
@@ -303,17 +314,11 @@ openai_web_search/
       "id": "openai_web_search",
       "entry": "dist/packages/openai_web_search.js"
     }
-  ],
-  "distribution": {
-    "include": [
-      "manifest.json",
-      "dist/**"
-    ]
-  }
+  ]
 }
 ```
 
-`environment` 是需要开发的新容器级 manifest 能力。完整字段见
+完整 manifest 有二十个 package-scoped host-service 环境变量。完整字段见
 [中转站与环境变量配置](5_relay_and_environment_configuration.md)。
 
 subpackage 内部 `ToolPackage.enabled_by_default=true`。容器默认关闭；用户主动开启容器后，搜索
@@ -354,11 +359,11 @@ openai_web_search:search
 
 设置页显示：
 
-- 当前状态：未绑定、配置无效、可用、最近失败
+- 九项字段级 readiness：provider contract、endpoint、model、credential、auth、extra headers、
+  search options、admission、compatibility
 - 产品类型：ToolPkg 插件
-- 配置来源：`PACKAGE_ENV` 或 `MODEL_CONFIG`
 - official 或 relay strict contract
-- 搜索服务配置：固定 `modelConfigId` 或包级环境变量
+- 搜索服务配置：固定 package environment
 - 搜索模型：精确 GPT-5.6 模型名
 - 模式：默认 live，可显式选择 indexed
 - reasoning effort
@@ -372,12 +377,12 @@ openai_web_search:search
 - 最近调用次数与 token usage
 - 本地配置校验
 - 显式付费 compatibility probe
+- 打开固定原生配置界面
 
 设置页必须明确：
 
 - 搜索会产生独立 OpenAI 费用
 - 当前主聊天模型不会改变搜索绑定
-- 共用既有配置会共用其项目预算、限额和 Key 轮换
 - 独立配置便于单独吊销和审计
 - 中转站只有在严格探测返回 Web Search actions、citations 和 sources 后才显示为兼容
 
@@ -385,24 +390,15 @@ openai_web_search:search
 
 当前可复用：
 
-- `ModelConfigManager`
-- `ModelConfigData`
 - `SharedHttpClient`
 - `OpenAIResponsesPayloadAdapter.parseUsageCounts`
-- `RequestConcurrencyRegistry`
-- `SlidingWindowRateLimiter`
 - provider/tool invocation 持久化
 - ToolPkg container identity
 - ToolPkg Compose DSL UI
 - ToolPkg subpackage
 - ToolPkg `privateData` 与 IPC
 
-`MODEL_CONFIG` 复用现有 Key、Key pool 和轮换索引数据，但不直接调用通用 `ApiKeyProvider`。Web
-Search 使用专用选择器，避免记录 Key 前后缀，并且在多 Key 模式没有可用成员时直接返回
-`API_KEY_MISSING`，不读取其他 Key 来源。搜索与 compatibility probe 可能由不同 bridge 实例
-发起，因此 Key 选择、精确 fingerprint 校验和游标推进使用进程内共享互斥。
-
-需要新增或扩展：
+revision `6` 当前专用组件：
 
 - `HostedWebSearchCapability`
 - `WebSearchMode`
@@ -413,8 +409,12 @@ Search 使用专用选择器，避免记录 Key 前后缀，并且在多 Key 模
 - package-bound host service bridge
 - ToolPkg container-level environment schema
 - package-scoped sensitive host-only environment repository
+- request lifecycle 与 ownership registry
+- 稳定共享 admission controller
+- 字段级 readiness evaluator
 - relay compatibility probe and fingerprint
 - tool result/provider ledger 结构化承载、evidence parser 和 UI
+- 结果卡纯展示状态与 Provider 展示策略
 - mock fixture 与架构门禁
 
 ## 2.9 为什么不直接调用 `OpenAIResponsesProvider`

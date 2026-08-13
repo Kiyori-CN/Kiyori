@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.packTool
 
 import android.content.Context
+import android.os.SystemClock
 import com.ai.assistance.operit.core.tools.ToolPackage
 import com.ai.assistance.operit.core.tools.javascript.JsEngine
 import java.io.File
@@ -17,6 +18,7 @@ internal object ToolPkgLoader {
         val scanReport = ToolPkgArtifactScanner.scan(file)
         scanReport.requireAccepted()
         ZipFile(file).use { archive ->
+            var registrationObservation: ToolPkgRegistrationExecutionObservation? = null
             val entryIndex = ToolPkgArchiveParser.buildZipEntryIndex(archive)
             val readEntryText =
                 { path: String ->
@@ -26,23 +28,34 @@ internal object ToolPkgLoader {
                         rawPath = path
                     )
                 }
-            return jsEngine.withTemporaryToolPkgTextResourceResolver(
-                resolver = { _, resourcePath -> readEntryText(resourcePath) }
-            ) {
-                ToolPkgArchiveParser.parseToolPkgFromIndexedEntries(
-                    entryIndex = entryIndex,
-                    readEntryText = readEntryText,
-                    sourceType = ToolPkgSourceType.EXTERNAL,
-                    sourcePath = file.absolutePath,
-                    artifactSha256 = scanReport.artifactSha256,
-                    isBuiltIn = false,
-                    parseJsPackage = parseJsPackage,
-                    parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
-                        parseMainRegistration(mainScriptText, toolPkgId, mainScriptPath, jsEngine)
-                    },
-                    reportPackageLoadError = reportPackageLoadError
-                )
-            }
+            return jsEngine
+                .withTemporaryToolPkgTextResourceResolver(
+                    resolver = { _, resourcePath -> readEntryText(resourcePath) }
+                ) {
+                    ToolPkgArchiveParser.parseToolPkgFromIndexedEntries(
+                        entryIndex = entryIndex,
+                        readEntryText = readEntryText,
+                        sourceType = ToolPkgSourceType.EXTERNAL,
+                        sourcePath = file.absolutePath,
+                        artifactSha256 = scanReport.artifactSha256,
+                        isBuiltIn = false,
+                        parseJsPackage = parseJsPackage,
+                        parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
+                            observeMainRegistration {
+                                parseMainRegistration(
+                                    mainScriptText,
+                                    toolPkgId,
+                                    mainScriptPath,
+                                    jsEngine,
+                                )
+                            }.also { observed ->
+                                registrationObservation = observed.observation
+                            }.result
+                        },
+                        reportPackageLoadError = reportPackageLoadError
+                    )
+                }
+                .copy(registrationObservation = registrationObservation)
         }
     }
 
@@ -72,6 +85,7 @@ internal object ToolPkgLoader {
                 inputStreamFactory = { context.assets.open(assetPath) }
             ) ?: throw IllegalArgumentException("manifest.hjson or manifest.json not found")
         val extractedDir = prepareAssetCache(manifestPreview)
+        var registrationObservation: ToolPkgRegistrationExecutionObservation? = null
         val entryIndex = ToolPkgArchiveParser.buildDirectoryEntryIndex(extractedDir)
         val readEntryText =
             { path: String ->
@@ -81,23 +95,55 @@ internal object ToolPkgLoader {
                     rawPath = path
                 )
             }
-        return jsEngine.withTemporaryToolPkgTextResourceResolver(
-            resolver = { _, resourcePath -> readEntryText(resourcePath) }
-        ) {
-            ToolPkgArchiveParser.parseToolPkgFromIndexedEntries(
-                entryIndex = entryIndex,
-                readEntryText = readEntryText,
-                sourceType = ToolPkgSourceType.ASSET,
-                sourcePath = assetPath,
-                artifactSha256 = artifactSha256,
-                isBuiltIn = true,
-                parseJsPackage = parseJsPackage,
-                parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
-                    parseMainRegistration(mainScriptText, toolPkgId, mainScriptPath, jsEngine)
-                },
-                reportPackageLoadError = reportPackageLoadError
-            )
-        }
+        return jsEngine
+            .withTemporaryToolPkgTextResourceResolver(
+                resolver = { _, resourcePath -> readEntryText(resourcePath) }
+            ) {
+                ToolPkgArchiveParser.parseToolPkgFromIndexedEntries(
+                    entryIndex = entryIndex,
+                    readEntryText = readEntryText,
+                    sourceType = ToolPkgSourceType.ASSET,
+                    sourcePath = assetPath,
+                    artifactSha256 = artifactSha256,
+                    isBuiltIn = true,
+                    parseJsPackage = parseJsPackage,
+                    parseMainRegistration = { mainScriptText, toolPkgId, mainScriptPath ->
+                        observeMainRegistration {
+                            parseMainRegistration(
+                                mainScriptText,
+                                toolPkgId,
+                                mainScriptPath,
+                                jsEngine,
+                            )
+                        }.also { observed ->
+                            registrationObservation = observed.observation
+                        }.result
+                    },
+                    reportPackageLoadError = reportPackageLoadError
+                )
+            }
+            .copy(registrationObservation = registrationObservation)
+    }
+
+    private data class ObservedMainRegistration(
+        val result: ToolPkgMainRegistrationParseResult,
+        val observation: ToolPkgRegistrationExecutionObservation,
+    )
+
+    private inline fun observeMainRegistration(
+        block: () -> ToolPkgMainRegistrationParseResult,
+    ): ObservedMainRegistration {
+        val startMs = SystemClock.elapsedRealtime()
+        val threadName = Thread.currentThread().name
+        val result = block()
+        return ObservedMainRegistration(
+            result = result,
+            observation =
+                ToolPkgRegistrationExecutionObservation(
+                    elapsedMs = SystemClock.elapsedRealtime() - startMs,
+                    threadName = threadName,
+                ),
+        )
     }
 
     private fun parseMainRegistration(

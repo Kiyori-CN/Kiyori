@@ -106,6 +106,38 @@ class OpenAIHostedWebSearchPolicyTest {
     }
 
     @Test
+    fun relayBindingRejectsConfiguredDomainFilters() {
+        listOf(
+            OpenAIHostedWebSearchTestFixtures.binding(
+                providerContract =
+                    OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT,
+                endpoint = "https://relay.example/v1/responses",
+                allowedDomains = listOf("docs.example"),
+            ),
+            OpenAIHostedWebSearchTestFixtures.binding(
+                providerContract =
+                    OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT,
+                endpoint = "https://relay.example/v1/responses",
+                blockedDomains = listOf("blocked.example"),
+            ),
+        ).forEach { binding ->
+            val error =
+                assertThrows(OpenAIHostedWebSearchException::class.java) {
+                    OpenAIHostedWebSearchPolicy.validateBinding(
+                        binding = binding,
+                        compatibilityRecord = null,
+                        requireRelayProbe = false,
+                    )
+                }
+            assertEquals(
+                OpenAIHostedWebSearchErrorCode.DOMAIN_FILTER_UNSUPPORTED_FOR_RELAY,
+                error.code,
+            )
+            assertEquals("not_sent", error.submissionState)
+        }
+    }
+
+    @Test
     fun apiKeyAndHeaderValidationRejectsCredentialInjection() {
         listOf("", " \t", "test-key\r\nInjected: value").forEach { apiKey ->
             assertError(OpenAIHostedWebSearchErrorCode.API_KEY_MISSING) {
@@ -117,7 +149,13 @@ class OpenAIHostedWebSearchPolicyTest {
             }
         }
 
-        listOf("Authorization", "Content-Type", "Accept", "Connection").forEach { headerName ->
+        listOf(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "User-Agent",
+            "Connection",
+        ).forEach { headerName ->
             assertError(OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID) {
                 OpenAIHostedWebSearchPolicy.validateBinding(
                     binding =
@@ -158,27 +196,92 @@ class OpenAIHostedWebSearchPolicyTest {
             narrowed.blockedDomains,
         )
 
-        assertError(OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID) {
-            OpenAIHostedWebSearchPolicy.compileEffectiveRequest(
-                binding = binding,
-                request =
-                    OpenAIHostedWebSearchRequest(
-                        requestId = "ows_expand",
-                        query = "news",
-                        contextSize = null,
-                        allowedDomains = listOf("unrelated.example"),
-                        blockedDomains = emptyList(),
-                        useConfiguredLocation = false,
+        val expansionError =
+            assertError(OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT) {
+                OpenAIHostedWebSearchPolicy.compileEffectiveRequest(
+                    binding = binding,
+                    request =
+                        OpenAIHostedWebSearchRequest(
+                            requestId = "ows_expand",
+                            query = "news",
+                            contextSize = null,
+                            allowedDomains = listOf("unrelated.example"),
+                            blockedDomains = emptyList(),
+                            useConfiguredLocation = false,
+                        ),
+                )
+            }
+        assertEquals("allowed_domains", expansionError.field)
+        assertEquals(
+            OpenAIHostedWebSearchArgumentReason.INVALID_VALUE,
+            expansionError.reason,
+        )
+        assertEquals("not_sent", expansionError.submissionState)
+    }
+
+    @Test
+    fun toolCallValidationReportsStableFieldAndReasonBeforeSubmission() {
+        val binding = OpenAIHostedWebSearchTestFixtures.binding()
+        val cases =
+            listOf(
+                OpenAIHostedWebSearchRequest(
+                    requestId = "ows_blank",
+                    query = " ",
+                    contextSize = null,
+                    allowedDomains = emptyList(),
+                    blockedDomains = emptyList(),
+                    useConfiguredLocation = false,
+                ) to
+                    Triple(
+                        "query",
+                        OpenAIHostedWebSearchArgumentReason.MISSING,
+                        OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT,
+                    ),
+                OpenAIHostedWebSearchRequest(
+                    requestId = "ows_domain",
+                    query = "q",
+                    contextSize = null,
+                    allowedDomains = listOf("https://example.com/path"),
+                    blockedDomains = emptyList(),
+                    useConfiguredLocation = false,
+                ) to
+                    Triple(
+                        "allowed_domains",
+                        OpenAIHostedWebSearchArgumentReason.INVALID_VALUE,
+                        OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT,
+                    ),
+                OpenAIHostedWebSearchRequest(
+                    requestId = "ows_conflict",
+                    query = "q",
+                    contextSize = null,
+                    allowedDomains = listOf("example.com"),
+                    blockedDomains = listOf("example.com"),
+                    useConfiguredLocation = false,
+                ) to
+                    Triple(
+                        "allowed_domains",
+                        OpenAIHostedWebSearchArgumentReason.CONFLICT,
+                        OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT,
                     ),
             )
+
+        cases.forEach { (request, expected) ->
+            val error =
+                assertError(expected.third) {
+                    OpenAIHostedWebSearchPolicy.compileEffectiveRequest(binding, request)
+                }
+            assertEquals(expected.first, error.field)
+            assertEquals(expected.second, error.reason)
+            assertEquals("not_sent", error.submissionState)
         }
     }
 
     private fun assertError(
         expectedCode: OpenAIHostedWebSearchErrorCode,
         block: () -> Unit,
-    ) {
+    ): OpenAIHostedWebSearchException {
         val error = assertThrows(OpenAIHostedWebSearchException::class.java, block)
         assertEquals(expectedCode, error.code)
+        return error
     }
 }

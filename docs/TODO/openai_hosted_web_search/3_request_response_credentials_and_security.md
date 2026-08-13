@@ -66,42 +66,6 @@ Kiyori 需要区分两种部署：
 如果未来提供 Kiyori 托管搜索额度，必须建立独立服务端代理、用户认证、配额、审计、隐私和滥用
 控制，不能沿用本地 BYOK 合同。
 
-### 可选共用
-
-用户可以显式把插件绑定到一个现有的 Responses 配置：
-
-```text
-OPENAI_RESPONSES
-OPENAI_RESPONSES_GENERIC
-```
-
-`OPENAI_RESPONSES_GENERIC` 必须先通过当前 endpoint、模型和参数组合的严格 Web Search 兼容探测。
-
-正确做法：
-
-```text
-插件保存 modelConfigId
-宿主按 ID 读取现有配置
-```
-
-不正确的做法：
-
-```text
-读取主配置 Key
-复制到 OPENAI_WEB_SEARCH_API_KEY
-```
-
-共用时应显示：
-
-- 共用 OpenAI Project
-- 共用预算
-- 共用 rate limit
-- 共用 Key 池与轮换状态
-- 删除或修改该模型配置会使搜索绑定失效
-
-共用只包含 endpoint、Key、认证、额外请求头和配置级请求限制。聊天 `customParameters`、
-Prompt Cache、background、reasoning replay、Tool Search 和聊天历史不进入搜索请求。
-
 ### 禁止自动跟随当前聊天
 
 搜索插件不能使用“当前聊天选中的配置”作为隐式凭据来源：
@@ -111,6 +75,10 @@ Prompt Cache、background、reasoning replay、Tool Search 和聊天历史不进
 - 聊天配置刷新会影响搜索稳定性
 - 多会话可能同时使用不同主配置
 - 用户无法从插件设置确认真实计费项目
+
+revision `6` 也不提供固定模型配置引用。Kiyori 没有用户发布版本，旧 `MODEL_CONFIG` 正常 UI 无法
+取得内部 ID，因此该专项链已完整删除。需要使用相同账号时，用户在插件原生配置界面显式填写
+endpoint、模型、Key、认证和搜索参数；宿主不读取或复制当前聊天配置。
 
 ## 3.2 当前 Kiyori 凭据边界
 
@@ -148,14 +116,9 @@ OPENAI_WEB_SEARCH_API_KEY
 - 被攻破或恶意的插件可以发送其读到的内容
 - 当前 API 没有不可导出的 key handle 语义
 
-### 模型配置
-
-现有 `ModelConfigManager` 已经是 Kiyori 模型 API Key、endpoint、模型列表和 Key 池的主要 owner。
-`MODEL_CONFIG` 来源复用这个 owner，由原生宿主发请求，不让 ToolPkg 读取 Key。
-
 ### 包级 host-only 环境变量
 
-`PACKAGE_ENV` 来源需要新增：
+revision `6` 使用：
 
 ```text
 ToolPkgHostEnvironmentRepository
@@ -191,53 +154,41 @@ inputType = password
 
 ```text
 OpenAIHostedWebSearchBinding
-	id
 	toolPkgId
-	purpose
-	configSource
 	providerContract
-	modelConfigId
+	endpoint
 	modelName
+	apiKey
+	authHeaderName
+	authScheme
+	extraHeaders
 	mode
 	reasoningEffort
+	maxOutputTokens
 	searchContextSize
 	returnTokenBudget
 	allowedDomains
 	blockedDomains
-	locationPolicy
+	location
+	queueTimeoutSeconds
+	timeoutSeconds
 	maxConcurrentRequests
-	maxRequestsPerMinute
-	createdAt
-	updatedAt
+	requestsPerMinute
 ```
 
 固定值：
 
 ```text
-purpose = OPENAI_HOSTED_WEB_SEARCH
 toolPkgId = com.kiyori.openai_web_search
 ```
 
-`modelName` 保存精确字符串，不只保存 model index。模型列表重排时不能静默指向另一个模型。
-
-`PACKAGE_ENV` 执行前要求：
+执行前要求：
 
 1. binding 存在
-2. config source 精确为 `PACKAGE_ENV`
-3. 包级 endpoint、model 和 Key 完整
-4. endpoint 使用 HTTPS
-5. official endpoint 符合 GPT-5.6 allowlist，或中转站探测指纹仍有效
-6. reasoning、搜索和执行参数通过强类型校验
-
-`MODEL_CONFIG` 执行前要求：
-
-1. binding 存在
-2. config source 精确为 `MODEL_CONFIG`
-3. model config 存在
-4. provider type 是 `OPENAI_RESPONSES` 或 `OPENAI_RESPONSES_GENERIC`
-5. `modelName` 仍存在于配置模型列表
-6. official endpoint 符合 GPT-5.6 allowlist，或 generic 配置探测指纹仍有效
-7. 至少有一个可用 Key
+2. 包级 endpoint、model 和 Key 完整
+3. endpoint 使用 HTTPS
+4. official endpoint 符合 GPT-5.6 allowlist，或中转站探测指纹仍有效
+5. auth、extra headers、reasoning、搜索和 admission 参数通过强类型校验
 
 任何一项不满足都返回配置错误。
 
@@ -441,7 +392,7 @@ max
 
 ```json
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "request_id": "local-request-id",
   "response_id": "resp_...",
   "provider": "openai",
@@ -562,22 +513,21 @@ OpenAI 的 `start_index` 和 `end_index` 只对应搜索模型生成的 `answer`
 BINDING_MISSING
 CONFIG_SOURCE_INVALID
 PACKAGE_ENV_MISSING
-MODEL_CONFIG_NOT_FOUND
-PROVIDER_NOT_RESPONSES
 ENDPOINT_INVALID
 ENDPOINT_NOT_HTTPS
 MODEL_NOT_ALLOWED
-MODEL_NOT_IN_CONFIG
 API_KEY_MISSING
 RELAY_PROBE_REQUIRED
 RELAY_PROBE_STALE
 RELAY_INCOMPATIBLE
 AUTH_REJECTED
 RATE_LIMITED
+QUEUE_TIMEOUT
 REQUEST_TIMEOUT
 REQUEST_CANCELLED
 NETWORK_FAILURE
 OPENAI_HTTP_FAILURE
+RESPONSE_TOO_LARGE
 RESPONSE_SCHEMA_INVALID
 SEARCH_TOOL_NOT_CALLED
 SEARCH_OUTPUT_EMPTY
@@ -594,8 +544,14 @@ RELAY_RESPONSE_TEXT_ONLY
   "error": {
     "code": "MODEL_NOT_ALLOWED",
     "message": "The bound search model is not enabled for OpenAI hosted web search.",
-    "retryable": false,
     "http_status": null,
+    "provider_request_id": null,
+    "phase": "preparing_http",
+    "cancel_owner": null,
+    "submission_state": "not_sent",
+    "elapsed_ms": 12,
+    "configured_timeout_ms": 300000,
+    "queue_wait_ms": 3,
     "request_id": "local-request-id"
   }
 }
@@ -616,15 +572,22 @@ APK、ToolPkg、测试 fixture 和文档示例中也不能出现任何真实或�
 
 第一版：
 
-- 单绑定默认最大并发 `1`
-- 默认每分钟上限由产品配置确定并可见
+- 稳定共享的 FIFO admission owner 同时控制普通 search 与 compatibility probe
+- 插件默认最大并发 `1`，允许范围 `1..8`
+- 默认 RPM 为 `0`，表示不设置插件级 RPM 上限；允许范围 `0..600`
+- queue timeout 默认 `60s`，允许范围 `1..300s`
+- queue timeout 返回 `QUEUE_TIMEOUT`，保持 `submission_state=not_sent`，不创建 HTTP Call
+- 取得许可后 HTTP call/read timeout 默认 `300s`
+- connect timeout 为 `min(timeout, 30s)`，write timeout 为 `min(timeout, 60s)`
 - 一次工具调用只提交一个 Responses POST
-- HTTP 超时后结束本次调用
-- 用户停止时取消对应 OkHttp call
+- OkHttp call timeout 在 cancellation 状态之前分类为 `REQUEST_TIMEOUT`
+- 用户停止、execution owner、协程、bridge 与 gateway 取消都进入同一个 lifecycle owner
+- 第一次取消才执行 transport/job cancel，取消和 worker 完成只产生一个 terminal outcome 与 callback
 - HTTP 重定向直接拒绝
 - 自动化测试不访问真实 OpenAI endpoint
 - 401、403、429、5xx 和网络失败都返回原始类别
 - 不在一次工具调用内自动提交第二个搜索请求
+- 不引入 SSE、background、轮询、断线续流或后端切换
 
 用户或主模型可以在收到明确错误后发起新的工具调用。新的调用必须有新的本地 request ID 和独立
 usage 记录。

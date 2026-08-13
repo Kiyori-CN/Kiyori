@@ -3640,9 +3640,9 @@
     <string name="tested_model_name">测试模型：%1$s</string>
     <string name="auto_save_failed">自动保存失败</string>
     <!-- API Provider names -->
-    <string name="provider_openai">OpenAI (GPT系列)</string>
-    <string name="provider_openai_responses">OpenAI 官方（Responses API）</string>
-    <string name="provider_openai_responses_generic">Responses 兼容端点</string>
+    <string name="provider_openai">OpenAI Chat Completions（官方）</string>
+    <string name="provider_openai_responses">OpenAI Responses（官方）</string>
+    <string name="provider_openai_responses_generic">OpenAI Responses（兼容端点）</string>
     <string name="provider_anthropic">Anthropic (Claude系列)</string>
     <string name="provider_anthropic_generic">Anthropic通用</string>
     <string name="provider_google">Google (Gemini系列)</string>
@@ -3670,8 +3670,18 @@
     <string name="provider_llama_cpp">llama.cpp 本地推理</string>
     <string name="provider_ppinfra">派欧云</string>
     <string name="provider_novita">Novita AI</string>
-    <string name="provider_openai_generic">OpenAI通用</string>
+    <string name="provider_openai_generic">OpenAI Chat Completions（兼容端点）</string>
     <string name="provider_other">其他供应商</string>
+    <string name="provider_summary_chat_official">Chat Completions API · 官方 endpoint</string>
+    <string name="provider_summary_chat_compatible">Chat Completions API · 自定义 endpoint</string>
+    <string name="provider_summary_responses_official">Responses API · 官方 endpoint</string>
+    <string name="provider_summary_responses_compatible">Responses API · 自定义 endpoint</string>
+    <string name="provider_summary_built_in">内建 Provider</string>
+    <string name="provider_summary_toolpkg">ToolPkg Provider · %1$s</string>
+    <string name="provider_section_openai_chat_completions">OpenAI Chat Completions</string>
+    <string name="provider_section_openai_responses">OpenAI Responses</string>
+    <string name="provider_section_other_built_in">其他提供商</string>
+    <string name="provider_section_toolpkg">ToolPkg Provider</string>
     <string name="select_api_provider_title">选择API提供商</string>
     <string name="search_providers">搜索提供商</string>
     <!-- ModelParametersSection strings -->
@@ -8241,4 +8251,33 @@
     <string name="openai_web_search_actions_count">搜索动作（%1$d）</string>
     <string name="openai_web_search_warnings_value">警告：%1$s</string>
     <string name="openai_web_search_citations_count">原始答案引用跨度：%1$d</string>
+    <string name="openai_web_search_summary_counts">已引用来源 %1$d · 全部来源 %2$d · 未引用来源 %3$d · 动作 %4$d</string>
+    <string name="openai_web_search_show_more_sources">再显示 %1$d 个来源</string>
+    <string name="openai_web_search_diagnostics">诊断与用量</string>
+    <string name="openai_web_search_citations">引用跨度</string>
+    <string name="openai_web_search_structured_feed">结构化来源 · %1$s</string>
+    <string name="openai_web_search_no_web_evidence">未返回可验证的网页证据。</string>
+    <string name="openai_web_search_source_summary">来源摘要</string>
+    <string name="openai_web_search_source_summary_value">已引用 %1$d / 全部 %2$d / 未引用 %3$d / URL %4$d / 结构化 %5$d</string>
+    <string name="openai_web_search_domain_policy_state">域名策略状态</string>
+    <string name="openai_web_search_total_elapsed">总耗时</string>
+    <string name="openai_web_search_queue_wait">排队等待</string>
+    <string name="openai_web_search_http_elapsed">HTTP 耗时</string>
+    <string name="openai_web_search_response_header_wait">响应头等待</string>
+    <string name="openai_web_search_response_body_read">响应正文读取</string>
+    <string name="openai_web_search_parse_elapsed">解析耗时</string>
+    <string name="openai_web_search_callback_delivery">回调投递</string>
+    <string name="openai_web_search_submission_state">提交状态</string>
+    <string name="openai_web_search_location_precision">位置精度</string>
+    <string name="openai_web_search_provider_request_id">Provider 请求 ID</string>
+    <string name="openai_web_search_milliseconds">%1$d 毫秒</string>
+    <string name="openai_web_search_action_title">%1$d. %2$s</string>
+    <string name="openai_web_search_failed">联网搜索失败</string>
+    <string name="openai_web_search_parse_failed">搜索结果卡解析失败</string>
+    <string name="openai_web_search_error_code">错误码</string>
+    <string name="openai_web_search_schema_revision">Schema revision</string>
+    <string name="openai_web_search_request_id_present">包含 request ID</string>
+    <string name="openai_web_search_invalid_field">无效字段</string>
+    <string name="openai_web_search_not_present">未提供</string>
+    <string name="openai_web_search_configuration_unavailable">OpenAI Web Search 配置当前不可用</string>
 </resources>

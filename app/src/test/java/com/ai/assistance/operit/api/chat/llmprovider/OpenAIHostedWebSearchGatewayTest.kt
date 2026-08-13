@@ -1,7 +1,9 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
@@ -142,7 +144,69 @@ class OpenAIHostedWebSearchGatewayTest {
                 }
             assertEquals(OpenAIHostedWebSearchErrorCode.REQUEST_CANCELLED, failure.code)
             assertEquals(1, server.requestCount)
+        }
+    }
+
+    @Test
+    fun callTimeoutIsReportedAsRequestTimeoutEvenThoughOkHttpCancelsCall() = runBlocking {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val gateway = gateway()
+        val request =
+            OpenAIHostedWebSearchTestFixtures.effectiveRequest(requestId = "ows_timeout")
+
+        val failure =
+            try {
+                gateway.execute(
+                    relayBinding(timeoutSeconds = 1),
+                    request,
+                )
+                throw AssertionError("Expected call timeout")
+            } catch (error: OpenAIHostedWebSearchException) {
+                error
             }
+
+        assertEquals(OpenAIHostedWebSearchErrorCode.REQUEST_TIMEOUT, failure.code)
+        assertEquals("waiting_response_headers", failure.phase)
+        assertEquals("submission_unknown", failure.submissionState)
+        assertEquals(1_000L, failure.configuredTimeoutMs)
+        assertTrue(requireNotNull(failure.elapsedMs) >= 900L)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun queueTimeoutDoesNotCreateHttpCall() = runBlocking {
+        val controller =
+            OpenAIHostedWebSearchAdmissionController(
+                scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            )
+        val first =
+            controller.acquire(
+                maxConcurrentRequests = 1,
+                requestsPerMinute = 0,
+                queueTimeoutMs = 10_000,
+                lifecycle = OpenAIHostedWebSearchRequestLifecycle("ows_blocker"),
+            )
+        val gateway = gateway(controller)
+        val request =
+            OpenAIHostedWebSearchTestFixtures.effectiveRequest(requestId = "ows_queue_timeout")
+
+        val failure =
+            try {
+                gateway.execute(
+                    relayBinding().copy(queueTimeoutSeconds = 1),
+                    request,
+                )
+                throw AssertionError("Expected queue timeout")
+            } catch (error: OpenAIHostedWebSearchException) {
+                error
+            } finally {
+                first.release()
+            }
+
+        assertEquals(OpenAIHostedWebSearchErrorCode.QUEUE_TIMEOUT, failure.code)
+        assertEquals("waiting_concurrency", failure.phase)
+        assertEquals("not_sent", failure.submissionState)
+        assertEquals(0, server.requestCount)
     }
 
     @Test
@@ -206,17 +270,21 @@ class OpenAIHostedWebSearchGatewayTest {
         )
         assertEquals("Evidence", result.result.answerWithSourceMarkers)
         assertTrue(result.result.citations.isEmpty())
-        assertEquals("api", result.result.sources.single().type)
-        assertEquals("time", result.result.sources.single().title)
+        assertEquals("api", result.result.allSources.single().type)
+        assertEquals("time", result.result.allSources.single().title)
         assertEquals(1, result.diagnostics.structuredFeedSourceCount)
     }
 
-    private fun gateway(): OpenAIHostedWebSearchGateway =
+    private fun gateway(
+        admissionController: OpenAIHostedWebSearchAdmissionController =
+            OpenAIHostedWebSearchAdmissionController.shared,
+    ): OpenAIHostedWebSearchGateway =
         OpenAIHostedWebSearchGateway(
             baseHttpClient =
                 OkHttpClient.Builder()
                     .retryOnConnectionFailure(false)
-                    .build()
+                    .build(),
+            admissionController = admissionController,
         )
 
     private fun relayBinding(

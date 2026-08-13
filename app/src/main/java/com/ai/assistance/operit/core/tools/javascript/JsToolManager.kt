@@ -21,8 +21,8 @@ class JsToolManager private constructor(
 ) {
 
     private class ToolParameterConversionException(
-        message: String
-    ) : IllegalArgumentException(message)
+        val argumentError: ToolPkgInvocationArgumentError,
+    ) : IllegalArgumentException(argumentError.toJson())
 
     companion object {
         private const val TAG = "JsToolManager"
@@ -166,8 +166,17 @@ class JsToolManager private constructor(
             .orEmpty()
 
         if (missingRequiredParameters.isNotEmpty()) {
-            throw ToolParameterConversionException(
-                "Missing required parameters: ${missingRequiredParameters.joinToString(", ")}"
+            val missingField = missingRequiredParameters.first()
+            val expectedType =
+                parameterDefinitions[missingField]
+                    ?.type
+                    ?.lowercase()
+                    ?: "string"
+            throw toolParameterConversionFailure(
+                toolName = tool.name,
+                parameterName = missingField,
+                expectedType = expectedType,
+                reason = ToolPkgInvocationArgumentReason.MISSING,
             )
         }
 
@@ -194,15 +203,15 @@ class JsToolManager private constructor(
         val normalizedValue = rawValue.trim()
         return when (type) {
             "number" -> parseNumberValue(normalizedValue)
-                ?: throw invalidParameterType(toolName, parameterName, type, rawValue)
+                ?: throw invalidParameterType(toolName, parameterName, type)
             "integer" -> normalizedValue.toLongOrNull()
-                ?: throw invalidParameterType(toolName, parameterName, type, rawValue)
+                ?: throw invalidParameterType(toolName, parameterName, type)
             "boolean" -> parseBooleanValue(normalizedValue)
-                ?: throw invalidParameterType(toolName, parameterName, type, rawValue)
+                ?: throw invalidParameterType(toolName, parameterName, type)
             "array" -> runCatching { jsonArrayToKotlin(JSONArray(rawValue)) }
-                .getOrElse { throw invalidParameterType(toolName, parameterName, type, rawValue, it) }
+                .getOrElse { throw invalidParameterType(toolName, parameterName, type) }
             "object" -> runCatching { jsonObjectToKotlin(JSONObject(rawValue)) }
-                .getOrElse { throw invalidParameterType(toolName, parameterName, type, rawValue, it) }
+                .getOrElse { throw invalidParameterType(toolName, parameterName, type) }
             else -> rawValue
         }
     }
@@ -229,18 +238,32 @@ class JsToolManager private constructor(
         toolName: String,
         parameterName: String,
         expectedType: String,
-        rawValue: String,
-        cause: Throwable? = null
+    ): ToolParameterConversionException =
+        toolParameterConversionFailure(
+            toolName = toolName,
+            parameterName = parameterName,
+            expectedType = expectedType,
+            reason = ToolPkgInvocationArgumentReason.INVALID_TYPE,
+        )
+
+    private fun toolParameterConversionFailure(
+        toolName: String,
+        parameterName: String,
+        expectedType: String,
+        reason: ToolPkgInvocationArgumentReason,
     ): ToolParameterConversionException {
-        val detail = cause?.message?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
-        val preview = rawValue.replace("\n", "\\n").take(120)
+        val argumentError =
+            ToolPkgInvocationArgumentError(
+                toolName = toolName,
+                field = parameterName,
+                expectedType = expectedType,
+                reason = reason,
+            )
         AppLogger.w(
             TAG,
-            "Strict parameter conversion failed: tool=$toolName, param=$parameterName, type=$expectedType, value=$preview${if (rawValue.length > 120) "..." else ""}${detail}"
+            argumentError.formatLog(),
         )
-        return ToolParameterConversionException(
-            "Invalid parameter '$parameterName' for tool '$toolName': expected $expectedType"
-        )
+        return ToolParameterConversionException(argumentError)
     }
 
     private fun jsonObjectToKotlin(jsonObject: JSONObject): Map<String, Any?> {
@@ -357,7 +380,7 @@ class JsToolManager private constructor(
         val runtimeParams = try {
             convertToolParameters(tool, packageName, functionName)
         } catch (e: ToolParameterConversionException) {
-            send(failure(tool.name, e.message ?: "Invalid tool parameters"))
+            send(failure(tool.name, e.argumentError.toJson()))
             return@channelFlow
         }
         withExecutionEngineForPackage(packageName) { engine ->

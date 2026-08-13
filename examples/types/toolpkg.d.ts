@@ -942,7 +942,8 @@ export namespace ToolPkg {
         | "url_citations_and_action_sources"
         | "url_citations"
         | "action_sources"
-        | "structured_feeds";
+        | "structured_feeds"
+        | "none";
 
     export interface OpenAIWebSearchCitation extends JsonObject {
         source_id: string;
@@ -965,6 +966,10 @@ export namespace ToolPkg {
         | "partial"
         | "complete";
 
+    export type OpenAIWebSearchDomainPolicyState =
+        | "not_requested"
+        | "reported_actions_compliant";
+
     export interface OpenAIWebSearchSourceDiagnostics extends JsonObject {
         response_id: string;
         action_source_coverage: OpenAIWebSearchActionSourceCoverage;
@@ -975,12 +980,47 @@ export namespace ToolPkg {
         missing_source_action_indexes: number[];
         invalid_action_source_count: number;
         allowed_domains: string[];
-        url_normalization: "http_https_uri";
+        domain_policy_state: OpenAIWebSearchDomainPolicyState;
+        url_normalization: "http_https_identity";
+    }
+
+    export interface OpenAIWebSearchSourceSummary extends JsonObject {
+        all_source_count: number;
+        cited_source_count: number;
+        uncited_source_count: number;
+        url_source_count: number;
+        structured_source_count: number;
+    }
+
+    export interface OpenAIWebSearchLocationDiagnostics extends JsonObject {
+        location_requested: boolean;
+        location_configured: boolean;
+        location_applied: boolean;
+        location_precision:
+            | "none"
+            | "country"
+            | "region"
+            | "city"
+            | "timezone"
+            | "mixed";
+    }
+
+    export interface OpenAIWebSearchExecutionDiagnostics extends JsonObject {
+        total_elapsed_ms: number;
+        queue_wait_ms: number | null;
+        http_elapsed_ms: number | null;
+        response_header_wait_ms: number | null;
+        response_body_read_ms: number | null;
+        parse_ms: number | null;
+        callback_delivery_ms: number | null;
+        provider_request_id: string | null;
+        submission_state: "not_sent" | "submission_unknown" | "response_started";
+        location: OpenAIWebSearchLocationDiagnostics;
     }
 
     export interface OpenAIWebSearchResult extends JsonObject {
         success: true;
-        schema_version: number;
+        schema_version: 7;
         request_id: string;
         response_id: string;
         provider: "openai";
@@ -993,10 +1033,13 @@ export namespace ToolPkg {
         answer_with_source_markers: string;
         search_actions: OpenAIWebSearchAction[];
         citations: OpenAIWebSearchCitation[];
-        sources: OpenAIWebSearchSource[];
+        cited_sources: OpenAIWebSearchSource[];
+        all_sources: OpenAIWebSearchSource[];
+        source_summary: OpenAIWebSearchSourceSummary;
         usage: OpenAIWebSearchUsage;
         warnings: string[];
         source_diagnostics: OpenAIWebSearchSourceDiagnostics;
+        execution_diagnostics: OpenAIWebSearchExecutionDiagnostics;
     }
 
     export interface OpenAIWebSearchCompatibilityStatus extends JsonObject {
@@ -1017,25 +1060,41 @@ export namespace ToolPkg {
     export interface OpenAIWebSearchStatus extends JsonObject {
         toolpkg_id: string;
         tool_name: string;
-        config_source: "PACKAGE_ENV" | "MODEL_CONFIG";
-        provider_contract: "RESPONSES_HOSTED_OFFICIAL" | "RESPONSES_RELAY_STRICT";
-        model_config_id: string | null;
-        endpoint: string;
-        model: string;
-        mode: "live" | "indexed";
-        reasoning_effort: string;
-        context_size: OpenAIWebSearchContextSize;
-        return_token_budget: "default" | "unlimited";
+        local_valid: boolean;
+        provider_contract: "RESPONSES_HOSTED_OFFICIAL" | "RESPONSES_RELAY_STRICT" | null;
+        endpoint_host: string | null;
+        model: string | null;
+        mode: "live" | "indexed" | null;
+        reasoning_effort: string | null;
+        context_size: OpenAIWebSearchContextSize | null;
+        return_token_budget: "default" | "unlimited" | null;
         max_output_tokens: number | null;
-        timeout_seconds: number;
-        max_concurrent_requests: number;
-        requests_per_minute: number;
+        queue_timeout_seconds: number | null;
+        timeout_seconds: number | null;
+        max_concurrent_requests: number | null;
+        requests_per_minute: number | null;
         header_names: string[];
         api_key_configured: boolean;
-        api_key_revision: string;
-        auth_scheme_present: boolean;
-        auth_scheme_kind: "bearer" | "direct" | "custom";
+        api_key_revision: string | null;
+        auth_scheme_present: boolean | null;
+        auth_scheme_kind: "bearer" | "direct" | "custom" | null;
         chat_provider_independent: true;
+        readiness: Record<
+            | "provider_contract"
+            | "endpoint"
+            | "model"
+            | "credential"
+            | "auth"
+            | "extra_headers"
+            | "search_options"
+            | "admission"
+            | "compatibility",
+            {
+                state: string;
+                error_code: string | null;
+                message: string | null;
+            }
+        >;
         compatibility: OpenAIWebSearchCompatibilityStatus;
     }
 
@@ -1046,8 +1105,13 @@ export namespace ToolPkg {
 
     export interface OpenAIWebSearchValidationResult extends JsonObject {
         success: true;
-        valid: true;
+        valid: boolean;
         status: OpenAIWebSearchStatus;
+    }
+
+    export interface OpenAIWebSearchOpenConfigurationResult extends JsonObject {
+        success: true;
+        opened: true;
     }
 
     export interface OpenAIWebSearchCancelResult extends JsonObject {
@@ -1063,6 +1127,7 @@ export namespace ToolPkg {
     export interface OpenAIWebSearchService {
         getStatus(): Promise<OpenAIWebSearchStatusResult>;
         validateLocalConfiguration(): Promise<OpenAIWebSearchValidationResult>;
+        openConfiguration(): Promise<OpenAIWebSearchOpenConfigurationResult>;
         search(request: OpenAIWebSearchRequest): OpenAIWebSearchPendingRequest<OpenAIWebSearchResult>;
         cancel(requestId: string): Promise<OpenAIWebSearchCancelResult>;
         runCompatibilityProbe(): OpenAIWebSearchPendingRequest<OpenAIWebSearchResult>;

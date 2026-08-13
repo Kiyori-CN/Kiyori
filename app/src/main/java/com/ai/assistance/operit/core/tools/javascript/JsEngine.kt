@@ -7,6 +7,7 @@ import android.webkit.JavascriptInterface
 import androidx.annotation.Keep
 import androidx.core.content.ContextCompat
 import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchBridgePolicy
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchContract
 import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchErrorCode
 import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchException
 import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchToolResultMarkupCodec
@@ -21,6 +22,9 @@ import com.ai.assistance.operit.ui.main.navigation.AppRouteDiscoveryGateway
 import com.ai.assistance.operit.ui.main.navigation.AppRouterGateway
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.navigation.RouteRuntime
+import com.ai.assistance.operit.ui.main.screens.Screen
+import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
+import com.ai.assistance.operit.ui.features.packages.screens.ToolPkgHostEnvironmentEditRequestStore
 import com.ai.assistance.operit.ui.common.composedsl.ComposeDslFilePickerHostRegistry
 import com.ai.assistance.operit.ui.common.composedsl.ComposeDslWebViewHostRegistry
 import com.ai.assistance.operit.util.AppLogger
@@ -35,6 +39,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -77,6 +82,15 @@ class JsEngine(
             resolveExecutionRuntimeKind = { callId ->
                 resolveExecutionSession(callId)?.toolPkgRuntimeKind
             },
+            openConfigurationAction = {
+                ToolPkgHostEnvironmentEditRequestStore.request(
+                    OpenAIHostedWebSearchContract.TOOLPKG_ID
+                )
+                AppRouterGateway.navigate(
+                    routeId = ScreenRouteRegistry.routeIdOf(Screen.Packages),
+                    source = RouteEntrySource.SCRIPT,
+                )
+            },
         )
     }
     private val openAIWebSearchBridge by openAIWebSearchBridgeDelegate
@@ -107,7 +121,9 @@ class JsEngine(
         val packageChatId: String?,
         val toolPkgRuntimeKind: String?,
         val toolPkgLogSnapshot: JsToolPkgExecutionContext.LogSnapshot,
-        val executionListener: JsExecutionListener?
+        val executionListener: JsExecutionListener?,
+        val pendingErrorDiagnostic: AtomicReference<PendingJsErrorDiagnostic?> =
+            AtomicReference(null),
     )
 
     private data class PendingJsBridgeCallback(
@@ -521,10 +537,6 @@ class JsEngine(
 
     private fun withToolPkgPluginTag(session: ExecutionSession?, message: String): String {
         return toolPkgExecutionContext.withPluginTag(session?.toolPkgLogSnapshot, message)
-    }
-
-    private fun withToolPkgCodeContext(session: ExecutionSession?, message: String): String {
-        return toolPkgExecutionContext.withCodeContext(session?.toolPkgLogSnapshot, message)
     }
 
     private fun runtimeBootstrapModules(): List<JsBootstrapModule> {
@@ -1793,6 +1805,12 @@ class JsEngine(
         }
 
         @JavascriptInterface
+        fun openAIWebSearchOpenConfiguration(callId: String): String =
+            openAIWebSearchBridgeForHostCall()
+                ?.openConfiguration(callId)
+                ?: openAIWebSearchCallerNotAuthorizedEnvelope()
+
+        @JavascriptInterface
         fun openAIWebSearchSearch(
             callId: String,
             callbackId: String,
@@ -2623,10 +2641,20 @@ class JsEngine(
                     return
                 }
 
-                val logMessage = extractErrorLogMessage(error)
-                val enrichedLogMessage = withToolPkgCodeContext(session, logMessage)
-                AppLogger.e(TOOLPKG_TAG, withToolPkgPluginTag(session, "JS ERROR: $enrichedLogMessage"))
-                session.executionListener?.onFailed(callId, logMessage)
+                val decision =
+                    JsToolPkgTerminalErrorPolicy.decide(
+                        rawError = error,
+                        diagnostic = session.pendingErrorDiagnostic.getAndSet(null),
+                    )
+                val terminalLog = withToolPkgPluginTag(session, decision.format())
+                when (decision.severity) {
+                    JsToolPkgTerminalErrorSeverity.WARNING ->
+                        AppLogger.w(TOOLPKG_TAG, terminalLog)
+
+                    JsToolPkgTerminalErrorSeverity.ERROR ->
+                        AppLogger.e(TOOLPKG_TAG, terminalLog)
+                }
+                session.executionListener?.onFailed(callId, decision.format())
 
                 completeCallFuture(
                     session = session,
@@ -2711,10 +2739,17 @@ class JsEngine(
                 errorLine: Int,
                 errorStack: String
         ) {
+            val diagnostic =
+                JsToolPkgTerminalErrorPolicy.captureDiagnostic(
+                    errorType = errorType,
+                    errorLine = errorLine,
+                    errorStack = errorStack,
+                )
             AppLogger.e(
                     TOOLPKG_TAG,
                     withToolPkgPluginTag(
-                        "DETAILED JS ERROR: \nType: $errorType\nMessage: $errorMessage\nLine: $errorLine\nStack: $errorStack"
+                        "JS diagnostic without execution owner: ${diagnostic.format()} " +
+                            "message_chars=${errorMessage.length}"
                     )
             )
         }
@@ -2728,13 +2763,21 @@ class JsEngine(
                 errorStack: String
         ) {
             val session = resolveExecutionSession(callId)
-            AppLogger.e(
-                    TOOLPKG_TAG,
-                    withToolPkgPluginTag(
-                        session,
-                        "DETAILED JS ERROR: \nType: $errorType\nMessage: $errorMessage\nLine: $errorLine\nStack: $errorStack"
+            if (session != null) {
+                val diagnostic =
+                    JsToolPkgTerminalErrorPolicy.captureDiagnostic(
+                        errorType = errorType,
+                        errorLine = errorLine,
+                        errorStack = errorStack,
                     )
-            )
+                session.pendingErrorDiagnostic.set(diagnostic)
+                session.executionListener?.onCallLog(
+                    callId,
+                    "debug",
+                    "JS diagnostic captured: ${diagnostic.format()} " +
+                        "message_chars=${errorMessage.length}",
+                )
+            }
         }
     }
 

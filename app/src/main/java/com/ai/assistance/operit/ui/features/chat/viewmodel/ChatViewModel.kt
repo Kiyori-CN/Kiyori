@@ -102,7 +102,6 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     companion object {
         private const val TAG = "ChatViewModel"
-        private const val SPEECH_PREVIEW_MAX = 48
     }
 
     private data class ActiveMentionTrigger(
@@ -115,10 +114,6 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         val value: TextFieldValue,
         val removedMentionToken: String? = null,
     )
-
-    private fun speechPreview(text: String): String {
-        return text.replace("\n", "\\n").take(SPEECH_PREVIEW_MAX)
-    }
 
     private fun logSpeechState(event: String, extra: String = "") {
         val suffix = if (extra.isNotBlank()) " $extra" else ""
@@ -2984,7 +2979,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                 _isSpeechPaused.value = false
                 logSpeechState(
                     "speakMessage.start",
-                    "interrupt=$interrupt provider=${currentVoiceService?.javaClass?.simpleName} rawLen=${message.length} preview=\"${speechPreview(message)}\""
+                    "interrupt=$interrupt provider=${currentVoiceService?.javaClass?.simpleName} rawLen=${message.length}"
                 )
                 if (currentVoiceService == null) {
                     _isSpeechSessionActive.value = false
@@ -2999,7 +2994,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                 val cleanMessage = WaifuMessageProcessor.cleanContentForWaifu(cleanedText)
                 AppLogger.d(
                     TAG,
-                    "speech[cleaned] rawLen=${message.length} cleanedLen=${cleanedText.length} finalLen=${cleanMessage.length} preview=\"${speechPreview(cleanMessage)}\""
+                    "speech[cleaned] rawLen=${message.length} cleanedLen=${cleanedText.length} finalLen=${cleanMessage.length}"
                 )
 
                 if (cleanMessage.isBlank()) {
@@ -3021,7 +3016,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
                     AppLogger.d(
                         TAG,
-                        "speech[segmentSpeak] index=$index/${segments.lastIndex} interrupt=${if (isFirstSegment) interrupt else false} len=${segment.length} preview=\"${speechPreview(segment)}\""
+                        "speech[segmentSpeak] index=$index/${segments.lastIndex} interrupt=${if (isFirstSegment) interrupt else false} len=${segment.length}"
                     )
                     val success = currentVoiceService.speak(
                         text = segment,
@@ -3138,7 +3133,10 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     }
 
     fun enableAutoReadAndSpeak(content: String) {
-        AppLogger.d(TAG, "speech[enableAutoReadAndSpeak] autoReadBefore=${isAutoReadEnabled.value} len=${content.length} preview=\"${speechPreview(content)}\"")
+        AppLogger.d(
+            TAG,
+            "speech[enableAutoReadAndSpeak] autoReadBefore=${isAutoReadEnabled.value} len=${content.length}"
+        )
         if (!isAutoReadEnabled.value) {
             apiConfigDelegate.toggleAutoRead() // This will set it to true
         }

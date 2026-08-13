@@ -25,18 +25,32 @@ Current work status and implementation notes belong in `docs/TODO/`.
 
 - **OpenAI Hosted Web Search ToolPkg** is the independent hosted-search capability exposed as
   `openai_web_search:search`. `com.kiyori.openai_web_search` is a disabled-by-default ToolPkg
-  container with an enabled-by-default subpackage and settings UI. It uses exactly one selected
-  configuration source, `PACKAGE_ENV` or a fixed `MODEL_CONFIG`; it never follows the active chat
-  provider, config, model, or custom parameters. Package environment values are
-  `PACKAGE + HOST_SERVICE`; the API key is sensitive/password and inaccessible to JavaScript.
+  container with an enabled-by-default subpackage and settings UI. Revision `7` uses one
+  configuration source only: package-scoped `PACKAGE + HOST_SERVICE` values stored by
+  `ToolPkgHostEnvironmentRepository`. It never follows the active chat provider, config, model, or
+  custom parameters. The API key is sensitive/password and inaccessible to ToolPkg JavaScript.
+  The settings UI opens the native environment editor through the fixed no-argument
+  `ToolPkg.services.openAIWebSearch.openConfiguration()` service; JavaScript cannot submit an
+  arbitrary package ID or variable name.
   The host owns endpoint, authentication, request compilation, one non-streaming Responses POST,
-  cancellation, limits, relay compatibility evidence, response parsing, XML-safe JSON transport,
-  and the structured clickable source card. Relay probing is a potentially billable action that
-  only the plugin settings UI runtime may start. Search execution has no automatic retry,
-  redirect, backend switch, endpoint switch, model switch, key-source switch, or second request.
-  Response schema revision `5` keeps four explicit evidence modes:
+  cancellation, relay compatibility evidence, response parsing, XML-safe JSON transport, and the
+  structured result card. `OpenAIHostedWebSearchRequestLifecycle` is the unique owner of request
+  phase, submission state, cancellation owner, elapsed time and terminal settlement.
+  `OpenAIHostedWebSearchAdmissionController` is the process-wide FIFO owner for plugin concurrency
+  and RPM. Queue waiting has its own default `60s` budget; after admission, the HTTP call has a
+  default `300s` budget with connect capped at `30s` and write capped at `60s`. Queue timeout never
+  creates an HTTP call. OkHttp call timeout is classified as `REQUEST_TIMEOUT` before cancellation
+  state is considered, while explicit cancellation and worker completion compete for one atomic
+  terminal outcome.
+  Relay probing is a potentially billable action that only the plugin settings UI runtime may
+  start. Search execution has no automatic retry, redirect, backend switch, endpoint switch, model
+  switch, key-source switch, background response, sequence resume, polling, SSE continuation, or
+  second request. Response schema revision `7` keeps four explicit evidence modes:
   `url_citations_and_action_sources`, `url_citations`, `action_sources`, and `structured_feeds`.
-  HTTP(S) annotation URLs and action-source URLs are never guessed from answer text. Native
+  Successful results atomically separate `cited_sources`, `all_sources`, `source_summary`, and
+  `execution_diagnostics`; the main-model projection does not repeat the full uncited
+  source/action/query/usage payload. HTTP(S) annotation URLs and action-source URLs are never
+  guessed from answer text. Native
   `url_citation` annotations are the authority for inline citation spans; action sources are an
   independent search-audit channel that can be complete, missing, partial, or contain invalid
   entries. A citation URL is not required to appear in `action.sources`: relays and official
@@ -51,18 +65,35 @@ Current work status and implementation notes belong in `docs/TODO/`.
   requires a real `url_citation`; a time or weather query is not a URL-evidence probe because it may
   legitimately use structured live data. Successful and failed probes are stored as a bounded
   record set against the exact binding fingerprint and schema revision, with the successful
-  evidence mode. The set retains up to 16 recent fingerprints, so one `MODEL_CONFIG` Key failure
-  does not erase another Key's valid probe. The fingerprint includes an irreversible digest of the
-  selected credential, so changing only the Key also invalidates prior evidence. Key selection and
-  cursor advancement are serialized across search and probe bridge instances. Domain filters
+  evidence mode. The set retains up to 16 recent fingerprints. The fingerprint includes an
+  irreversible digest of the selected credential, so changing only the Key also invalidates prior
+  evidence. Successful and failed compatibility record-set mutations are synchronously committed
+  before the probe callback is delivered, so an immediate process death after closing the settings
+  page cannot lose an unchanged fingerprint's evidence. A current fingerprint still requires a
+  fresh probe when any fingerprint input changes, including endpoint, model, auth mode, selected
+  credential, non-secret header names, reasoning effort, external web access, or response schema
+  revision. Domain filters
   serialize only non-empty `allowed_domains` or
   `blocked_domains`; an empty peer array is not sent because real Responses relays may reject that
   otherwise redundant field combination. Non-success HTTP responses read at most 64 KiB and expose
   only redacted provider type, code, message and request/trace ID. The settings page shows a short
   credential revision and `bearer` / `direct` / `custom` authentication classification, never the
-  Key or custom scheme text. A fixed
-  `MODEL_CONFIG` in relay-strict mode may use either `OPENAI_RESPONSES` or
-  `OPENAI_RESPONSES_GENERIC`; official mode still requires the exact official Responses endpoint.
+  Key or custom scheme text. Its readiness object always contains
+  `provider_contract`, `endpoint`, `model`, `credential`, `auth`, `extra_headers`,
+  `search_options`, `admission`, and `compatibility`, including field-level failures when the whole
+  binding is not yet valid.
+  UI evidence parsing is explicit `NotApplicable`, `Parsed`, or `Invalid`; invalid diagnostics are
+  bounded and never log query, answer, sources, or raw result JSON. The complete successful
+  `ToolResult` used by the live chat renderer is separate from the bounded main-model projection:
+  `formatToolResultForMessage()` retains `all_sources`, `search_actions`, `query`, `usage`, and
+  the complete schema needed by the result card, while `formatToolResultForModel()` is used only
+  for the follow-up model context and omits the uncited source/action payload. A single
+  `openai_web_search:search` establishes the message-level tool group in every collapse mode.
+  Inside it, the summary, sources, search trace, and diagnostics have independent presentation
+  state; sources expand in stable batches of eight. The four persistent OpenAI chat-provider enum
+  values remain separate global provider contracts and are presented as official or compatible
+  Chat Completions and Responses choices rather than being removed with the Web Search
+  configuration-source cleanup.
 
 ## Architecture ownership transition
 

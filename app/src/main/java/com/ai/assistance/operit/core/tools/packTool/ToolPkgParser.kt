@@ -176,7 +176,8 @@ internal data class ToolPkgContainerRuntime(
 internal data class ToolPkgLoadResult(
     val containerPackage: ToolPackage,
     val subpackagePackages: List<ToolPackage>,
-    val containerRuntime: ToolPkgContainerRuntime
+    val containerRuntime: ToolPkgContainerRuntime,
+    val registrationObservation: ToolPkgRegistrationExecutionObservation? = null,
 )
 
 @Serializable

@@ -28,6 +28,7 @@ class OpenAIWebSearchToolPkgContractTest {
             )
 
         assertEquals(OpenAIHostedWebSearchContract.TOOLPKG_ID, manifest.toolpkgId)
+        assertEquals(OpenAIHostedWebSearchContract.TOOLPKG_VERSION, manifest.version)
         assertFalse(manifest.enabledByDefault)
         assertEquals(1, manifest.subpackages.size)
         assertEquals(
@@ -45,6 +46,16 @@ class OpenAIWebSearchToolPkgContractTest {
         val tools = metadata.getJSONArray("tools")
         assertEquals(1, tools.length())
         assertEquals("search", tools.getJSONObject(0).getString("name"))
+        val parameters = tools.getJSONObject(0).getJSONArray("parameters")
+        val parameterTypes =
+            (0 until parameters.length())
+                .associate { index ->
+                    val parameter = parameters.getJSONObject(index)
+                    parameter.getString("name") to parameter.getString("type")
+                }
+        assertEquals("array", parameterTypes.getValue("allowed_domains"))
+        assertEquals("array", parameterTypes.getValue("blocked_domains"))
+        assertEquals("boolean", parameterTypes.getValue("use_configured_location"))
         assertEquals(
             OpenAIHostedWebSearchContract.TOOL_NAME,
             "${metadata.getString("name")}:${tools.getJSONObject(0).getString("name")}",
@@ -60,7 +71,7 @@ class OpenAIWebSearchToolPkgContractTest {
                 "manifest.json",
             )
 
-        assertEquals(21, manifest.environment.size)
+        assertEquals(20, manifest.environment.size)
         assertEquals(
             OpenAIHostedWebSearchContract.ENVIRONMENT_NAMES.toSet(),
             manifest.environment.map { environment -> environment.name }.toSet(),
@@ -91,6 +102,9 @@ class OpenAIWebSearchToolPkgContractTest {
                 .joinToString("\n") { file -> file.readText() }
 
         assertTrue(runtimeJavaScript.contains("ToolPkg.services.openAIWebSearch"))
+        assertFalse(runtimeJavaScript.contains("parseDomainArray"))
+        assertFalse(runtimeJavaScript.contains("parseBoolean"))
+        assertFalse(runtimeJavaScript.contains("[openai_web_search] search failed"))
         listOf(
             "getEnv(",
             "fetch(",
@@ -148,7 +162,10 @@ class OpenAIWebSearchToolPkgContractTest {
 
             assertTrue(result.report.findings.toString(), result.report.accepted)
             assertEquals(OpenAIHostedWebSearchContract.TOOLPKG_ID, result.report.toolPkgId)
-            assertEquals("1.0.4", result.report.toolPkgVersion)
+            assertEquals(
+                OpenAIHostedWebSearchContract.TOOLPKG_VERSION,
+                result.report.toolPkgVersion,
+            )
 
             ZipFile(result.archiveFile).use { archive ->
                 val entries =

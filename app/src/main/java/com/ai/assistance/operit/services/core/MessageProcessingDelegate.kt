@@ -92,7 +92,6 @@ class MessageProcessingDelegate(
         private const val TAG = "MessageProcessingDelegate"
         private const val STREAM_SCROLL_THROTTLE_MS = 200L
         private const val STREAM_PERSIST_INTERVAL_MS = 1000L
-        private const val AUTO_READ_PREVIEW_MAX = 48
 
         internal fun completeInterruptedMessage(
             streamingMessage: ChatMessage,
@@ -164,10 +163,6 @@ class MessageProcessingDelegate(
                 AppLogger.e(TAG, "生成对话标题失败", e)
             }
         }
-    }
-
-    private fun speechPreview(text: String): String {
-        return text.replace("\n", "\\n").take(AUTO_READ_PREVIEW_MAX)
     }
 
     // 角色卡管理器
@@ -1524,7 +1519,7 @@ class MessageProcessingDelegate(
                 state.didStreamAutoRead = true
                 AppLogger.d(
                     TAG,
-                    "autoRead[waifuStream] interrupt=$interrupt len=${segment.length} preview=\"${speechPreview(segment)}\""
+                    "autoRead[waifuStream] interrupt=$interrupt len=${segment.length}"
                 )
                 speakMessageHandler(segment, interrupt)
             }
@@ -1601,7 +1596,7 @@ class MessageProcessingDelegate(
                     state.didStreamAutoRead = true
                     AppLogger.d(
                         TAG,
-                        "autoRead[flush] interrupt=$interrupt didStreamAutoRead=${state.didStreamAutoRead} len=${trimmed.length} preview=\"${speechPreview(trimmed)}\""
+                        "autoRead[flush] interrupt=$interrupt didStreamAutoRead=${state.didStreamAutoRead} rawLen=${segment.length} trimmedLen=${trimmed.length}"
                     )
                     speakMessageHandler(trimmed, interrupt)
                 } else if (segment.isNotEmpty()) {
@@ -1624,7 +1619,7 @@ class MessageProcessingDelegate(
                     autoReadBuffer.delete(0, cutIdx)
                     AppLogger.d(
                         TAG,
-                        "autoRead[cut] cutIdx=$cutIdx bufferBefore=$bufferBefore bufferAfter=${autoReadBuffer.length} firstSegment=$isFirstAutoReadSegment rawLen=${seg.length} preview=\"${speechPreview(seg)}\""
+                        "autoRead[cut] cutIdx=$cutIdx bufferBefore=$bufferBefore bufferAfter=${autoReadBuffer.length} firstSegment=$isFirstAutoReadSegment rawLen=${seg.length}"
                     )
 
                     flushAutoReadSegment(seg, interrupt = isFirstAutoReadSegment)
@@ -1815,7 +1810,7 @@ class MessageProcessingDelegate(
                 autoReadBuffer.clear()
                 AppLogger.d(
                     TAG,
-                    "autoRead[remaining] firstSegment=$isFirstAutoReadSegment rawLen=${remaining.length} trimmedLen=${remaining.trim().length} preview=\"${speechPreview(remaining)}\""
+                    "autoRead[remaining] firstSegment=$isFirstAutoReadSegment rawLen=${remaining.length} trimmedLen=${remaining.trim().length}"
                 )
                 flushAutoReadSegment(remaining, interrupt = isFirstAutoReadSegment)
             }
@@ -2369,7 +2364,7 @@ class MessageProcessingDelegate(
                         }
                         AppLogger.d(
                             TAG,
-                            "autoRead[final] enabled=${getIsAutoReadEnabled()} skipFinalAutoRead=$skipFinalAutoRead len=${finalContent.length} preview=\"${speechPreview(finalContent)}\""
+                            "autoRead[final] enabled=${getIsAutoReadEnabled()} skipFinalAutoRead=$skipFinalAutoRead len=${finalContent.length}"
                         )
                         // 如果启用了自动朗读，则朗读完整消息
                         if (getIsAutoReadEnabled() && !skipFinalAutoRead) {

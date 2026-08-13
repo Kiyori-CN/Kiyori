@@ -18,6 +18,7 @@ internal object OpenAIHostedWebSearchPolicy {
             "content-type",
             "host",
             "content-length",
+            "user-agent",
             "connection",
             "keep-alive",
             "proxy-authenticate",
@@ -39,37 +40,121 @@ internal object OpenAIHostedWebSearchPolicy {
                 message = "OpenAI Web Search binding belongs to an unexpected ToolPkg.",
             )
         }
-        validateResponsesEndpoint(binding.endpoint)
-        requireNonBlank(binding.modelName, OpenAIHostedWebSearchErrorCode.MODEL_NOT_ALLOWED) {
+        validateEndpoint(binding.providerContract, binding.endpoint)
+        validateModel(binding.providerContract, binding.modelName)
+        validateCredential(binding.apiKey)
+        validateAuthConfiguration(binding.authHeaderName, binding.authScheme)
+        validateExtraHeaders(binding.extraHeaders, binding.authHeaderName)
+        validateSearchOptions(binding)
+        validateAdmission(binding)
+        validateCompatibility(binding, compatibilityRecord, requireRelayProbe)
+    }
+
+    fun validateEndpoint(
+        providerContract: OpenAIHostedWebSearchProviderContract,
+        endpoint: String,
+    ) {
+        validateResponsesEndpoint(endpoint)
+        if (
+            providerContract ==
+                OpenAIHostedWebSearchProviderContract.RESPONSES_HOSTED_OFFICIAL
+        ) {
+            val authority =
+                OpenAiEndpointContract.resolve(
+                    providerType = ApiProviderType.OPENAI_RESPONSES,
+                    apiEndpoint = endpoint,
+                )
+            if (authority != ProviderContractAuthority.OPENAI_OFFICIAL) {
+                throw OpenAIHostedWebSearchException(
+                    code = OpenAIHostedWebSearchErrorCode.ENDPOINT_INVALID,
+                    message =
+                        "RESPONSES_HOSTED_OFFICIAL requires the exact official " +
+                            "https://api.openai.com/v1/responses endpoint.",
+                )
+            }
+        }
+    }
+
+    fun validateModel(
+        providerContract: OpenAIHostedWebSearchProviderContract,
+        modelName: String,
+    ) {
+        requireNonBlank(modelName, OpenAIHostedWebSearchErrorCode.MODEL_NOT_ALLOWED) {
             "OpenAI Web Search model must not be blank."
         }
-        requireNonBlank(binding.apiKey, OpenAIHostedWebSearchErrorCode.API_KEY_MISSING) {
+        if (
+            providerContract ==
+                OpenAIHostedWebSearchProviderContract.RESPONSES_HOSTED_OFFICIAL &&
+                modelName !in OpenAIHostedWebSearchContract.OFFICIAL_MODEL_ALLOWLIST
+        ) {
+            throw OpenAIHostedWebSearchException(
+                code = OpenAIHostedWebSearchErrorCode.MODEL_NOT_ALLOWED,
+                message =
+                    "The official OpenAI Web Search model must be one of: " +
+                        OpenAIHostedWebSearchContract.OFFICIAL_MODEL_ALLOWLIST
+                            .sorted()
+                            .joinToString(", "),
+            )
+        }
+    }
+
+    fun validateCredential(apiKey: String) {
+        requireNonBlank(apiKey, OpenAIHostedWebSearchErrorCode.API_KEY_MISSING) {
             "OpenAI Web Search API key is missing."
         }
-        if (binding.apiKey.any { character -> character == '\r' || character == '\n' }) {
+        if (apiKey.any { character -> character == '\r' || character == '\n' }) {
             throw OpenAIHostedWebSearchException(
                 code = OpenAIHostedWebSearchErrorCode.API_KEY_MISSING,
                 message = "OpenAI Web Search API key is invalid.",
             )
         }
-        if (binding.configSource == OpenAIHostedWebSearchConfigSource.MODEL_CONFIG) {
-            requireNonBlank(
-                binding.modelConfigId,
-                OpenAIHostedWebSearchErrorCode.MODEL_CONFIG_NOT_FOUND,
-            ) {
-                "MODEL_CONFIG requires a fixed model config ID."
-            }
-        } else if (!binding.modelConfigId.isNullOrBlank()) {
+    }
+
+    fun validateAuthConfiguration(headerName: String, authScheme: String) {
+        validateAuth(headerName, authScheme)
+    }
+
+    fun validateExtraHeaders(
+        headers: Map<String, String>,
+        authHeaderName: String,
+    ) {
+        validateHeaders(headers, authHeaderName)
+    }
+
+    fun validateSearchOptions(binding: OpenAIHostedWebSearchBinding) {
+        validateSearchOptions(
+            OpenAIHostedWebSearchSearchSettings(
+                reasoningEffort = binding.reasoningEffort,
+                maxOutputTokens = binding.maxOutputTokens,
+                returnTokenBudget = binding.returnTokenBudget,
+                additionalInstructions = binding.additionalInstructions,
+                mode = binding.mode,
+                contextSize = binding.contextSize,
+                allowedDomains = binding.allowedDomains,
+                blockedDomains = binding.blockedDomains,
+                location = binding.location,
+            )
+        )
+        if (
+            binding.providerContract ==
+                OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT &&
+                (binding.allowedDomains.isNotEmpty() || binding.blockedDomains.isNotEmpty())
+        ) {
             throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
-                message = "PACKAGE_ENV must not include a model config ID.",
+                code =
+                    OpenAIHostedWebSearchErrorCode
+                        .DOMAIN_FILTER_UNSUPPORTED_FOR_RELAY,
+                message =
+                    "Domain filters require the official OpenAI hosted Responses contract.",
+                submissionState = "not_sent",
             )
         }
-        validateAuth(binding.authHeaderName, binding.authScheme)
-        validateHeaders(binding.extraHeaders, binding.authHeaderName)
-        validateDomains(binding.allowedDomains, binding.blockedDomains)
-        validateLocation(binding.location)
-        if (binding.additionalInstructions.length >
+    }
+
+    fun validateSearchOptions(settings: OpenAIHostedWebSearchSearchSettings) {
+        validateDomains(settings.allowedDomains, settings.blockedDomains)
+        validateLocation(settings.location)
+        if (settings.additionalInstructions.length >
             OpenAIHostedWebSearchContract.MAX_ADDITIONAL_INSTRUCTIONS_CHARACTERS
         ) {
             throw OpenAIHostedWebSearchException(
@@ -77,7 +162,7 @@ internal object OpenAIHostedWebSearchPolicy {
                 message = "OpenAI Web Search additional instructions are too long.",
             )
         }
-        binding.maxOutputTokens?.let { maxOutputTokens ->
+        settings.maxOutputTokens?.let { maxOutputTokens ->
             if (maxOutputTokens !in 1..OpenAIHostedWebSearchContract.MAX_OUTPUT_TOKENS) {
                 throw OpenAIHostedWebSearchException(
                     code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
@@ -87,7 +172,32 @@ internal object OpenAIHostedWebSearchPolicy {
                 )
             }
         }
-        if (binding.timeoutSeconds !in 1..OpenAIHostedWebSearchContract.MAX_TIMEOUT_SECONDS) {
+    }
+
+    fun validateAdmission(binding: OpenAIHostedWebSearchBinding) {
+        validateAdmission(
+            OpenAIHostedWebSearchAdmissionSettings(
+                queueTimeoutSeconds = binding.queueTimeoutSeconds,
+                timeoutSeconds = binding.timeoutSeconds,
+                maxConcurrentRequests = binding.maxConcurrentRequests,
+                requestsPerMinute = binding.requestsPerMinute,
+            )
+        )
+    }
+
+    fun validateAdmission(settings: OpenAIHostedWebSearchAdmissionSettings) {
+        if (
+            settings.queueTimeoutSeconds !in
+                1..OpenAIHostedWebSearchContract.MAX_TIMEOUT_SECONDS
+        ) {
+            throw OpenAIHostedWebSearchException(
+                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                message =
+                    "OpenAI Web Search queue timeout must be between 1 and " +
+                        "${OpenAIHostedWebSearchContract.MAX_TIMEOUT_SECONDS} seconds.",
+            )
+        }
+        if (settings.timeoutSeconds !in 1..OpenAIHostedWebSearchContract.MAX_TIMEOUT_SECONDS) {
             throw OpenAIHostedWebSearchException(
                 code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
                 message =
@@ -96,7 +206,7 @@ internal object OpenAIHostedWebSearchPolicy {
             )
         }
         if (
-            binding.maxConcurrentRequests !in
+            settings.maxConcurrentRequests !in
                 1..OpenAIHostedWebSearchContract.MAX_CONCURRENT_REQUESTS
         ) {
             throw OpenAIHostedWebSearchException(
@@ -107,7 +217,7 @@ internal object OpenAIHostedWebSearchPolicy {
             )
         }
         if (
-            binding.requestsPerMinute !in
+            settings.requestsPerMinute !in
                 0..OpenAIHostedWebSearchContract.MAX_REQUESTS_PER_MINUTE
         ) {
             throw OpenAIHostedWebSearchException(
@@ -117,62 +227,33 @@ internal object OpenAIHostedWebSearchPolicy {
                         "${OpenAIHostedWebSearchContract.MAX_REQUESTS_PER_MINUTE}.",
             )
         }
+    }
+
+    fun validateCompatibility(
+        binding: OpenAIHostedWebSearchBinding,
+        compatibilityRecord: OpenAIHostedWebSearchCompatibilityRecord?,
+        requireRelayProbe: Boolean,
+    ) {
         if (
-            binding.modelConfigMaxConcurrentRequests < 0 ||
-                binding.modelConfigRequestsPerMinute < 0
+            binding.providerContract ==
+                OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT &&
+                requireRelayProbe
         ) {
-            throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
-                message = "OpenAI Web Search model config request limits must not be negative.",
-            )
-        }
-
-        when (binding.providerContract) {
-            OpenAIHostedWebSearchProviderContract.RESPONSES_HOSTED_OFFICIAL -> {
-                val authority =
-                    OpenAiEndpointContract.resolve(
-                        providerType = ApiProviderType.OPENAI_RESPONSES,
-                        apiEndpoint = binding.endpoint,
-                    )
-                if (authority != ProviderContractAuthority.OPENAI_OFFICIAL) {
-                    throw OpenAIHostedWebSearchException(
-                        code = OpenAIHostedWebSearchErrorCode.ENDPOINT_INVALID,
+            val record =
+                compatibilityRecord
+                    ?: throw OpenAIHostedWebSearchException(
+                        code = OpenAIHostedWebSearchErrorCode.RELAY_PROBE_REQUIRED,
                         message =
-                            "RESPONSES_HOSTED_OFFICIAL requires the exact official " +
-                                "https://api.openai.com/v1/responses endpoint.",
+                            "This Responses-compatible relay requires an explicit paid " +
+                                "Web Search compatibility probe.",
                     )
-                }
-                if (binding.modelName !in OpenAIHostedWebSearchContract.OFFICIAL_MODEL_ALLOWLIST) {
-                    throw OpenAIHostedWebSearchException(
-                        code = OpenAIHostedWebSearchErrorCode.MODEL_NOT_ALLOWED,
-                        message =
-                            "The official OpenAI Web Search model must be one of: " +
-                                OpenAIHostedWebSearchContract.OFFICIAL_MODEL_ALLOWLIST
-                                    .sorted()
-                                    .joinToString(", "),
-                    )
-                }
-            }
-
-            OpenAIHostedWebSearchProviderContract.RESPONSES_RELAY_STRICT -> {
-                if (requireRelayProbe) {
-                    val record =
-                        compatibilityRecord
-                            ?: throw OpenAIHostedWebSearchException(
-                                code = OpenAIHostedWebSearchErrorCode.RELAY_PROBE_REQUIRED,
-                                message =
-                                    "This Responses-compatible relay requires an explicit paid " +
-                                        "Web Search compatibility probe.",
-                            )
-                    if (record.fingerprintDigest != binding.compatibilityFingerprint().digest) {
-                        throw OpenAIHostedWebSearchException(
-                            code = OpenAIHostedWebSearchErrorCode.RELAY_PROBE_STALE,
-                            message =
-                                "The relay endpoint, model, auth mode, headers, reasoning, or " +
-                                    "web access setting changed after the last compatibility probe.",
-                        )
-                    }
-                }
+            if (record.fingerprintDigest != binding.compatibilityFingerprint().digest) {
+                throw OpenAIHostedWebSearchException(
+                    code = OpenAIHostedWebSearchErrorCode.RELAY_PROBE_STALE,
+                    message =
+                        "The relay endpoint, model, auth mode, headers, reasoning, or " +
+                            "web access setting changed after the last compatibility probe.",
+                )
             }
         }
     }
@@ -183,20 +264,35 @@ internal object OpenAIHostedWebSearchPolicy {
     ): OpenAIHostedWebSearchEffectiveRequest {
         val query = request.query.trim()
         if (query.isEmpty()) {
-            throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "query",
+                reason = OpenAIHostedWebSearchArgumentReason.MISSING,
                 message = "OpenAI Web Search query must not be blank.",
             )
         }
         if (query.length > OpenAIHostedWebSearchContract.MAX_QUERY_CHARACTERS) {
-            throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "query",
+                reason = OpenAIHostedWebSearchArgumentReason.TOO_LARGE,
                 message = "OpenAI Web Search query is too long.",
             )
         }
 
-        val requestedAllowed = normalizeDomains(request.allowedDomains)
-        val requestedBlocked = normalizeDomains(request.blockedDomains)
+        val requestedAllowed =
+            normalizeRequestDomains(
+                field = "allowed_domains",
+                domains = request.allowedDomains,
+            )
+        val requestedBlocked =
+            normalizeRequestDomains(
+                field = "blocked_domains",
+                domains = request.blockedDomains,
+            )
+        validateRequestedDomains(
+            binding = binding,
+            requestedAllowed = requestedAllowed,
+            requestedBlocked = requestedBlocked,
+        )
         val effectiveAllowed =
             if (binding.allowedDomains.isEmpty()) {
                 requestedAllowed
@@ -211,8 +307,9 @@ internal object OpenAIHostedWebSearchPolicy {
                         }
                     }
                 ) {
-                    throw OpenAIHostedWebSearchException(
-                        code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
+                    throw openAIHostedWebSearchInvalidArgument(
+                        field = "allowed_domains",
+                        reason = OpenAIHostedWebSearchArgumentReason.INVALID_VALUE,
                         message =
                             "Tool-call allowed domains may only narrow the configured allowlist.",
                     )
@@ -221,7 +318,6 @@ internal object OpenAIHostedWebSearchPolicy {
             }
         val effectiveBlocked =
             (binding.blockedDomains + requestedBlocked).distinct().sorted()
-        validateDomains(effectiveAllowed, effectiveBlocked)
 
         return OpenAIHostedWebSearchEffectiveRequest(
             requestId = request.requestId,
@@ -230,6 +326,10 @@ internal object OpenAIHostedWebSearchPolicy {
             allowedDomains = effectiveAllowed,
             blockedDomains = effectiveBlocked,
             location = if (request.useConfiguredLocation) binding.location else null,
+            locationRequested = request.useConfiguredLocation,
+            locationConfigured = binding.location != null,
+            locationPrecision =
+                openAIHostedWebSearchLocationPrecision(binding.location),
         )
     }
 
@@ -450,6 +550,83 @@ internal object OpenAIHostedWebSearchPolicy {
             }
             .distinct()
             .sorted()
+    }
+
+    private fun normalizeRequestDomains(
+        field: String,
+        domains: List<String>,
+    ): List<String> {
+        if (domains.size > OpenAIHostedWebSearchContract.MAX_DOMAIN_COUNT) {
+            throw openAIHostedWebSearchInvalidArgument(
+                field = field,
+                reason = OpenAIHostedWebSearchArgumentReason.TOO_LARGE,
+                message = "OpenAI Web Search request $field is too large.",
+            )
+        }
+        return domains
+            .map { rawDomain ->
+                val domain = rawDomain.trim().trimEnd('.').lowercase(Locale.ROOT)
+                if (
+                    domain.isEmpty() ||
+                        "://" in domain ||
+                        domain.any { character ->
+                            character == '/' ||
+                                character == ':' ||
+                                character == '?' ||
+                                character == '#' ||
+                                character == '@'
+                        } ||
+                        domain.split('.').any { label -> !DOMAIN_LABEL.matches(label) }
+                ) {
+                    throw openAIHostedWebSearchInvalidArgument(
+                        field = field,
+                        reason = OpenAIHostedWebSearchArgumentReason.INVALID_VALUE,
+                        message = "OpenAI Web Search request $field contains an invalid domain.",
+                    )
+                }
+                domain
+            }
+            .distinct()
+            .sorted()
+    }
+
+    private fun validateRequestedDomains(
+        binding: OpenAIHostedWebSearchBinding,
+        requestedAllowed: List<String>,
+        requestedBlocked: List<String>,
+    ) {
+        if (requestedAllowed.toSet().intersect(requestedBlocked.toSet()).isNotEmpty()) {
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "allowed_domains",
+                reason = OpenAIHostedWebSearchArgumentReason.CONFLICT,
+                message =
+                    "OpenAI Web Search request allowed_domains conflicts with blocked_domains.",
+            )
+        }
+        if (requestedAllowed.toSet().intersect(binding.blockedDomains.toSet()).isNotEmpty()) {
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "allowed_domains",
+                reason = OpenAIHostedWebSearchArgumentReason.CONFLICT,
+                message =
+                    "OpenAI Web Search request allowed_domains conflicts with configured " +
+                        "blocked domains.",
+            )
+        }
+        val configuredOrRequestedAllowed =
+            if (requestedAllowed.isEmpty()) binding.allowedDomains else requestedAllowed
+        if (
+            requestedBlocked.toSet()
+                .intersect(configuredOrRequestedAllowed.toSet())
+                .isNotEmpty()
+        ) {
+            throw openAIHostedWebSearchInvalidArgument(
+                field = "blocked_domains",
+                reason = OpenAIHostedWebSearchArgumentReason.CONFLICT,
+                message =
+                    "OpenAI Web Search request blocked_domains conflicts with effective " +
+                        "allowed domains.",
+            )
+        }
     }
 
     private fun validateDomains(

@@ -10,13 +10,8 @@ import org.junit.Test
 class OpenAIHostedWebSearchEvidenceParserTest {
     @Test
     fun `parser accepts the exact structured evidence contract`() {
-        val evidence =
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
-                resultJson = evidenceJson(),
-            )
+        val evidence = parseEvidence(evidenceJson())
 
-        requireNotNull(evidence)
         assertEquals("ows_test", evidence.requestId)
         assertEquals("resp_test", evidence.responseId)
         assertEquals("live", evidence.mode)
@@ -27,8 +22,15 @@ class OpenAIHostedWebSearchEvidenceParserTest {
         )
         assertEquals("OpenAI.[S1]", evidence.answerWithSourceMarkers)
         assertEquals(1, evidence.searchActions.size)
+        assertEquals(
+            OpenAIHostedWebSearchEvidenceActionType.SEARCH,
+            evidence.searchActions.single().type,
+        )
         assertEquals(1, evidence.citations.size)
-        assertEquals("S1", evidence.sources.single().sourceId)
+        assertEquals("S1", evidence.citedSources.single().sourceId)
+        assertEquals("S1", evidence.allSources.single().sourceId)
+        assertEquals(1, evidence.sourceSummary.citedSourceCount)
+        assertEquals(1, evidence.sourceSummary.allSourceCount)
         assertEquals(1, evidence.usage.webSearchCalls)
         assertTrue(evidence.warnings.isEmpty())
         assertEquals(
@@ -39,23 +41,31 @@ class OpenAIHostedWebSearchEvidenceParserTest {
 
     @Test
     fun `parser ignores other tools and rejects incomplete evidence`() {
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
+        assertEquals(
+            OpenAIHostedWebSearchEvidenceParseResult.NotApplicable,
+            OpenAIHostedWebSearchEvidenceParser.parse(
                 toolName = "other:search",
                 resultJson = evidenceJson(),
-            )
+            ),
         )
 
-        val incomplete = JSONObject(evidenceJson()).remove("sources").let { removed ->
+        val incomplete = JSONObject(evidenceJson()).remove("all_sources").let { removed ->
             assertTrue(removed is JSONArray)
-            JSONObject(evidenceJson()).apply { remove("sources") }.toString()
+            JSONObject(evidenceJson()).apply { remove("all_sources") }.toString()
         }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
+        val invalid =
+            assertInvalid(
                 resultJson = incomplete,
+                expectedCode =
+                    OpenAIHostedWebSearchEvidenceInvalidCode.REQUIRED_FIELD_INVALID,
+                expectedFieldName = "all_sources",
             )
+        assertEquals(
+            OpenAIHostedWebSearchContract.RESPONSE_SCHEMA_REVISION,
+            invalid.schemaRevision,
         )
+        assertTrue(invalid.hasRequestId)
+        assertTrue(!invalid.sanitizedSummary.contains("What is OpenAI?"))
     }
 
     @Test
@@ -64,22 +74,20 @@ class OpenAIHostedWebSearchEvidenceParserTest {
             JSONObject(evidenceJson()).apply {
                 getJSONArray("citations").getJSONObject(0).put("end_index", 100)
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                invalidOffset.toString(),
-            )
+        assertInvalid(
+            resultJson = invalidOffset.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.CITATION_INVALID,
+            expectedFieldName = "citations.start_index",
         )
 
         val invalidUrl =
             JSONObject(evidenceJson()).apply {
-                getJSONArray("sources").getJSONObject(0).put("url", "javascript:alert(1)")
+                getJSONArray("all_sources").getJSONObject(0).put("url", "javascript:alert(1)")
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                invalidUrl.toString(),
-            )
+        assertInvalid(
+            resultJson = invalidUrl.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.SOURCE_INVALID,
+            expectedFieldName = "all_sources.url",
         )
     }
 
@@ -87,7 +95,7 @@ class OpenAIHostedWebSearchEvidenceParserTest {
     fun `parser accepts known realtime feed metadata without a clickable url`() {
         val withFeed =
             JSONObject(evidenceJson()).apply {
-                getJSONArray("sources")
+                getJSONArray("all_sources")
                     .put(
                         JSONObject()
                             .put("source_id", "S2")
@@ -95,24 +103,20 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                             .put("title", "OpenAI Weather live feed")
                             .put("url", JSONObject.NULL)
                     )
+                synchronizeSourceSummary(this)
             }
 
-        val evidence =
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
-                resultJson = withFeed.toString(),
-            )
+        val evidence = parseEvidence(withFeed.toString())
 
-        requireNotNull(evidence)
-        assertEquals(listOf("url", "oai-weather"), evidence.sources.map { it.type })
-        assertNull(evidence.sources[1].url)
+        assertEquals(listOf("url", "oai-weather"), evidence.allSources.map { it.type })
+        assertNull(evidence.allSources[1].url)
     }
 
     @Test
     fun `parser accepts complete action coverage with a citation outside action urls`() {
         val citationOutsideActionUrls =
             JSONObject(evidenceJson()).apply {
-                getJSONArray("sources")
+                getJSONArray("all_sources")
                     .put(
                         JSONObject()
                             .put("source_id", "S2")
@@ -133,15 +137,11 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                     "warnings",
                     JSONArray().put("CITATION_NOT_IN_ACTION_SOURCES"),
                 )
+                synchronizeSourceSummary(this)
             }
 
-        val evidence =
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
-                resultJson = citationOutsideActionUrls.toString(),
-            )
+        val evidence = parseEvidence(citationOutsideActionUrls.toString())
 
-        requireNotNull(evidence)
         assertEquals(
             OpenAIHostedWebSearchActionSourceCoverage.COMPLETE,
             evidence.sourceDiagnostics.actionSourceCoverage,
@@ -170,12 +170,7 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                     ),
                 )
             }
-        val citationEvidence =
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
-                resultJson = citationOnly.toString(),
-            )
-        requireNotNull(citationEvidence)
+        val citationEvidence = parseEvidence(citationOnly.toString())
         assertEquals(
             OpenAIHostedWebSearchEvidenceMode.URL_CITATIONS,
             citationEvidence.evidenceMode,
@@ -186,8 +181,9 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                 put("evidence_mode", "structured_feeds")
                 put("answer_with_source_markers", "OpenAI.")
                 put("citations", JSONArray())
+                put("cited_sources", JSONArray())
                 put(
-                    "sources",
+                    "all_sources",
                     JSONArray()
                         .put(
                             JSONObject()
@@ -207,13 +203,9 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                         citationsMissingFromActionSources = emptyList(),
                     ),
                 )
+                synchronizeSourceSummary(this)
             }
-        val feedEvidence =
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
-                resultJson = structuredFeed.toString(),
-            )
-        requireNotNull(feedEvidence)
+        val feedEvidence = parseEvidence(structuredFeed.toString())
         assertEquals(
             OpenAIHostedWebSearchEvidenceMode.STRUCTURED_FEEDS,
             feedEvidence.evidenceMode,
@@ -226,30 +218,32 @@ class OpenAIHostedWebSearchEvidenceParserTest {
     fun `parser rejects unknown feed types and citations bound to non-url sources`() {
         val unknownFeed =
             JSONObject(evidenceJson()).apply {
-                getJSONArray("sources")
+                getJSONArray("all_sources")
                     .getJSONObject(0)
                     .put("type", "oai-unknown")
                     .put("url", JSONObject.NULL)
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                unknownFeed.toString(),
-            )
+        assertInvalid(
+            resultJson = unknownFeed.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.UNSUPPORTED_VALUE,
+            expectedFieldName = "all_sources.type",
         )
 
         val citationBoundToFeed =
             JSONObject(evidenceJson()).apply {
-                getJSONArray("sources")
+                getJSONArray("all_sources")
+                    .getJSONObject(0)
+                    .put("type", "oai-finance")
+                    .put("url", JSONObject.NULL)
+                getJSONArray("cited_sources")
                     .getJSONObject(0)
                     .put("type", "oai-finance")
                     .put("url", JSONObject.NULL)
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                citationBoundToFeed.toString(),
-            )
+        assertInvalid(
+            resultJson = citationBoundToFeed.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.CITATION_INVALID,
+            expectedFieldName = "citations.source_id",
         )
 
         val unsupportedNormalization =
@@ -257,11 +251,10 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                 getJSONObject("source_diagnostics")
                     .put("url_normalization", "unverified")
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                unsupportedNormalization.toString(),
-            )
+        assertInvalid(
+            resultJson = unsupportedNormalization.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.UNSUPPORTED_VALUE,
+            expectedFieldName = "source_diagnostics.url_normalization",
         )
 
         val incompleteCitationDifference =
@@ -275,7 +268,7 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                         "citations_missing_from_action_sources",
                         JSONArray(),
                     )
-                getJSONArray("sources")
+                getJSONArray("all_sources")
                     .put(
                         JSONObject()
                             .put("source_id", "S2")
@@ -283,12 +276,13 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                             .put("title", "Search index")
                             .put("url", "https://openai.com/news/")
                     )
+                synchronizeSourceSummary(this)
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                incompleteCitationDifference.toString(),
-            )
+        assertInvalid(
+            resultJson = incompleteCitationDifference.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.EVIDENCE_INCONSISTENT,
+            expectedFieldName =
+                "source_diagnostics.citations_missing_from_action_sources",
         )
 
         val inventedOpenPage =
@@ -299,12 +293,89 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                         JSONArray().put("https://openai.com/news/"),
                     )
             }
-        assertNull(
-            OpenAIHostedWebSearchEvidenceParser.parseOrNull(
-                OpenAIHostedWebSearchContract.TOOL_NAME,
-                inventedOpenPage.toString(),
-            )
+        assertInvalid(
+            resultJson = inventedOpenPage.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.EVIDENCE_INCONSISTENT,
+            expectedFieldName = "source_diagnostics.open_page_urls",
         )
+    }
+
+    @Test
+    fun `parser exposes bounded diagnostics for malformed target results`() {
+        val malformed =
+            OpenAIHostedWebSearchEvidenceParser.parse(
+                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
+                resultJson = "{",
+            )
+        require(malformed is OpenAIHostedWebSearchEvidenceParseResult.Invalid)
+        assertEquals(
+            OpenAIHostedWebSearchEvidenceInvalidCode.INVALID_JSON,
+            malformed.code,
+        )
+        assertNull(malformed.schemaRevision)
+        assertTrue(!malformed.hasRequestId)
+        assertNull(malformed.fieldName)
+
+        val revisionMismatch =
+            assertInvalid(
+                resultJson =
+                    JSONObject(evidenceJson())
+                        .put(
+                            "schema_version",
+                            OpenAIHostedWebSearchContract.RESPONSE_SCHEMA_REVISION - 1,
+                        )
+                        .toString(),
+                expectedCode =
+                    OpenAIHostedWebSearchEvidenceInvalidCode.SCHEMA_REVISION_MISMATCH,
+                expectedFieldName = "schema_version",
+            )
+        assertEquals(
+            OpenAIHostedWebSearchContract.RESPONSE_SCHEMA_REVISION - 1,
+            revisionMismatch.schemaRevision,
+        )
+        assertTrue(revisionMismatch.hasRequestId)
+    }
+
+    @Test
+    fun `parser rejects unknown search action types explicitly`() {
+        val unknownAction =
+            JSONObject(evidenceJson()).apply {
+                getJSONArray("search_actions")
+                    .getJSONObject(0)
+                    .put("type", "browse")
+            }
+
+        assertInvalid(
+            resultJson = unknownAction.toString(),
+            expectedCode = OpenAIHostedWebSearchEvidenceInvalidCode.UNSUPPORTED_VALUE,
+            expectedFieldName = "search_actions.type",
+        )
+    }
+
+    private fun parseEvidence(resultJson: String): OpenAIHostedWebSearchEvidence {
+        val result =
+            OpenAIHostedWebSearchEvidenceParser.parse(
+                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
+                resultJson = resultJson,
+            )
+        require(result is OpenAIHostedWebSearchEvidenceParseResult.Parsed)
+        return result.evidence
+    }
+
+    private fun assertInvalid(
+        resultJson: String,
+        expectedCode: OpenAIHostedWebSearchEvidenceInvalidCode,
+        expectedFieldName: String?,
+    ): OpenAIHostedWebSearchEvidenceParseResult.Invalid {
+        val result =
+            OpenAIHostedWebSearchEvidenceParser.parse(
+                toolName = OpenAIHostedWebSearchContract.TOOL_NAME,
+                resultJson = resultJson,
+            )
+        require(result is OpenAIHostedWebSearchEvidenceParseResult.Invalid)
+        assertEquals(expectedCode, result.code)
+        assertEquals(expectedFieldName, result.fieldName)
+        return result
     }
 
     private fun evidenceJson(): String =
@@ -345,7 +416,7 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                     )
             )
             .put(
-                "sources",
+                "cited_sources",
                 JSONArray()
                     .put(
                         JSONObject()
@@ -354,6 +425,26 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                             .put("title", "OpenAI")
                             .put("url", "https://openai.com/")
                     )
+            )
+            .put(
+                "all_sources",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("source_id", "S1")
+                            .put("type", "url")
+                            .put("title", "OpenAI")
+                            .put("url", "https://openai.com/")
+                    )
+            )
+            .put(
+                "source_summary",
+                JSONObject()
+                    .put("all_source_count", 1)
+                    .put("cited_source_count", 1)
+                    .put("uncited_source_count", 0)
+                    .put("url_source_count", 1)
+                    .put("structured_source_count", 0)
             )
             .put(
                 "usage",
@@ -372,6 +463,10 @@ class OpenAIHostedWebSearchEvidenceParserTest {
                     citationUrls = listOf("https://openai.com/"),
                     citationsMissingFromActionSources = emptyList(),
                 ),
+            )
+            .put(
+                "execution_diagnostics",
+                executionDiagnostics(),
             )
             .toString()
 
@@ -398,5 +493,52 @@ class OpenAIHostedWebSearchEvidenceParserTest {
             )
             .put("invalid_action_source_count", 0)
             .put("allowed_domains", JSONArray())
-            .put("url_normalization", "http_https_uri")
+            .put("domain_policy_state", "not_requested")
+            .put("url_normalization", "http_https_identity")
+
+    private fun executionDiagnostics(): JSONObject =
+        JSONObject()
+            .put("total_elapsed_ms", 100)
+            .put("queue_wait_ms", 5)
+            .put("http_elapsed_ms", 80)
+            .put("response_header_wait_ms", 40)
+            .put("response_body_read_ms", 10)
+            .put("parse_ms", 5)
+            .put("callback_delivery_ms", 1)
+            .put("provider_request_id", "provider-request")
+            .put("submission_state", "response_started")
+            .put(
+                "location",
+                JSONObject()
+                    .put("location_requested", false)
+                    .put("location_configured", false)
+                    .put("location_applied", false)
+                    .put("location_precision", "none"),
+            )
+
+    private fun synchronizeSourceSummary(root: JSONObject) {
+        val allSources = root.getJSONArray("all_sources")
+        val citedSources = root.getJSONArray("cited_sources")
+        var urlSourceCount = 0
+        for (index in 0 until allSources.length()) {
+            if (allSources.getJSONObject(index).getString("type") == "url") {
+                urlSourceCount += 1
+            }
+        }
+        root.put(
+            "source_summary",
+            JSONObject()
+                .put("all_source_count", allSources.length())
+                .put("cited_source_count", citedSources.length())
+                .put(
+                    "uncited_source_count",
+                    allSources.length() - citedSources.length(),
+                )
+                .put("url_source_count", urlSourceCount)
+                .put(
+                    "structured_source_count",
+                    allSources.length() - urlSourceCount,
+                ),
+        )
+    }
 }

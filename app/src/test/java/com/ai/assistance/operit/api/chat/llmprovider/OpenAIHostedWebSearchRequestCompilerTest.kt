@@ -2,6 +2,7 @@ package com.ai.assistance.operit.api.chat.llmprovider
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -124,5 +125,31 @@ class OpenAIHostedWebSearchRequestCompilerTest {
             "spam.example",
             blockedFilters.getJSONArray("blocked_domains").getString(0),
         )
+    }
+
+    @Test
+    fun relayDomainFiltersFailBeforePayloadCreation() {
+        val error =
+            assertThrows(OpenAIHostedWebSearchException::class.java) {
+                OpenAIHostedWebSearchRequestCompiler.compile(
+                    binding =
+                        OpenAIHostedWebSearchTestFixtures.binding(
+                            providerContract =
+                                OpenAIHostedWebSearchProviderContract
+                                    .RESPONSES_RELAY_STRICT,
+                            endpoint = "https://relay.example/v1/responses",
+                        ),
+                    request =
+                        OpenAIHostedWebSearchTestFixtures.effectiveRequest(
+                            allowedDomains = listOf("docs.example")
+                        ),
+                )
+            }
+
+        assertEquals(
+            OpenAIHostedWebSearchErrorCode.DOMAIN_FILTER_UNSUPPORTED_FOR_RELAY,
+            error.code,
+        )
+        assertEquals("not_sent", error.submissionState)
     }
 }

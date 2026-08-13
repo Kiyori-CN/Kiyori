@@ -368,6 +368,17 @@ internal fun buildToolPkgRegistrationBridgeScript(): String {
                             []
                         );
                     },
+                    openConfiguration: function() {
+                        var envelope = parseOpenAIWebSearchEnvelope(
+                            requireNative('openAIWebSearchOpenConfiguration')(
+                                currentExecutionCallId()
+                            )
+                        );
+                        if (envelope.success !== true) {
+                            return Promise.reject(openAIWebSearchError(envelope));
+                        }
+                        return Promise.resolve(envelope);
+                    },
                     search: function(request) {
                         var requestJson;
                         try {

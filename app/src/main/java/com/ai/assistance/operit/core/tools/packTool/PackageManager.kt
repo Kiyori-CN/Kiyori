@@ -1120,7 +1120,18 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                     toolPkgContainersTarget = stagedToolPkgContainers,
                     toolPkgSubpackageByPackageNameTarget = stagedToolPkgSubpackages,
                     packageLoadErrorsTarget = stagedPackageLoadErrors
-                )
+                ).also { registered ->
+                    if (registered) {
+                        loadResult.registrationObservation?.let { observation ->
+                            logToolPkgInfo(
+                                ToolPkgRegistrationObservationPolicy.format(
+                                    runtime = loadResult.containerRuntime,
+                                    execution = observation,
+                                )
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -1234,7 +1245,13 @@ private constructor(private val context: Context, private val aiToolHandler: AIT
                 nextCache[file.absolutePath] =
                     ExternalPackageScanCacheEntry(
                         signature = signature,
-                        result = result
+                        result =
+                            result.copy(
+                                toolPkgLoadResult =
+                                    result.toolPkgLoadResult?.copy(
+                                        registrationObservation = null
+                                    )
+                            )
                     )
                 result
             }

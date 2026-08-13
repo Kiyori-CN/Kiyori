@@ -14,6 +14,9 @@ const ZH = {
     probeButton: "运行可能计费的兼容探测",
     probing: "正在探测…",
     currentBinding: "当前搜索绑定",
+    openConfiguration: "打开原生配置",
+    openingConfiguration: "正在打开…",
+    readiness: "配置就绪状态",
     configurationIncomplete: "配置未完成",
     validationPassed: "本地配置有效，未发送网络请求。",
     probePassed: "兼容探测通过，已记录当前绑定指纹。",
@@ -37,6 +40,7 @@ const ZH = {
     evidenceModeCitations: "URL 引用",
     evidenceModeSources: "完整 URL 来源",
     evidenceModeFeeds: "结构化实时数据",
+    evidenceModeNone: "没有可验证网页证据",
 };
 const EN = {
     title: "OpenAI Web Search",
@@ -50,6 +54,9 @@ const EN = {
     probeButton: "Run potentially billable probe",
     probing: "Probing…",
     currentBinding: "Current search binding",
+    openConfiguration: "Open native configuration",
+    openingConfiguration: "Opening…",
+    readiness: "Configuration readiness",
     configurationIncomplete: "Configuration incomplete",
     validationPassed: "Local configuration is valid. No network request was sent.",
     probePassed: "Compatibility probe passed and recorded the current binding fingerprint.",
@@ -73,6 +80,7 @@ const EN = {
     evidenceModeCitations: "URL citations",
     evidenceModeSources: "Full URL sources",
     evidenceModeFeeds: "Structured live data",
+    evidenceModeNone: "No verifiable web evidence",
 };
 function strings() {
     const language = typeof getLang === "function" ? getLang().trim().toLowerCase() : "";

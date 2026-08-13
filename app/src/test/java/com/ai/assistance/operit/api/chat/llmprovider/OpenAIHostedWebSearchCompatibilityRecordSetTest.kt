@@ -1,12 +1,57 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
+import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 class OpenAIHostedWebSearchCompatibilityRecordSetTest {
+    @Test
+    fun repositoryCommitsSuccessfulProbeEvidenceSynchronously() {
+        val preferences = mock<SharedPreferences>()
+        val editor = mock<SharedPreferences.Editor>()
+        whenever(preferences.getString(any(), anyOrNull())).thenReturn(null)
+        whenever(preferences.edit()).thenReturn(editor)
+        whenever(editor.putString(any(), any())).thenReturn(editor)
+        whenever(editor.remove(any())).thenReturn(editor)
+        whenever(editor.commit()).thenReturn(true)
+
+        OpenAIHostedWebSearchCompatibilityRepository(preferences)
+            .write(success("key-a", 1L))
+
+        verify(editor).commit()
+        verify(editor, never()).apply()
+    }
+
+    @Test
+    fun repositoryExposesSynchronousPersistenceFailure() {
+        val preferences = mock<SharedPreferences>()
+        val editor = mock<SharedPreferences.Editor>()
+        whenever(preferences.getString(any(), anyOrNull())).thenReturn(null)
+        whenever(preferences.edit()).thenReturn(editor)
+        whenever(editor.putString(any(), any())).thenReturn(editor)
+        whenever(editor.remove(any())).thenReturn(editor)
+        whenever(editor.commit()).thenReturn(false)
+
+        val failure =
+            runCatching {
+                OpenAIHostedWebSearchCompatibilityRepository(preferences)
+                    .write(success("key-a", 1L))
+            }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertTrue(failure?.message?.contains("could not be persisted") == true)
+        verify(editor, never()).apply()
+    }
+
     @Test
     fun multipleKeySuccessesRemainAvailableByExactFingerprint() {
         val first = success("key-a", 1L)
@@ -94,6 +139,24 @@ class OpenAIHostedWebSearchCompatibilityRecordSetTest {
         assertEquals(original, decoded)
         assertFalse(encoded.contains("credential-a"))
         assertFalse(encoded.contains("credential-b"))
+    }
+
+    @Test
+    fun revisionFiveRecordSetIsRejectedByRevisionSixCodec() {
+        val failure =
+            runCatching {
+                OpenAIHostedWebSearchCompatibilityRecordSetCodec.decode(
+                    """
+                    {
+                      "schema_revision": 5,
+                      "successes": [],
+                      "failures": []
+                    }
+                    """.trimIndent()
+                )
+            }.exceptionOrNull()
+
+        assertTrue(failure is IllegalArgumentException)
     }
 
     @Test

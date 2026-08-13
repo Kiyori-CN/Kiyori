@@ -61,7 +61,8 @@ class OpenAIHostedWebSearchCompatibilityProbePolicyTest {
                         )
                     ),
                 citations = emptyList(),
-                sources =
+                citedSources = emptyList(),
+                allSources =
                     listOf(
                         OpenAIHostedWebSearchSource(
                             sourceId = "S1",
@@ -69,6 +70,14 @@ class OpenAIHostedWebSearchCompatibilityProbePolicyTest {
                             title = "time",
                             url = null,
                         )
+                    ),
+                sourceSummary =
+                    OpenAIHostedWebSearchSourceSummary(
+                        allSourceCount = 1,
+                        citedSourceCount = 0,
+                        uncitedSourceCount = 1,
+                        urlSourceCount = 0,
+                        structuredSourceCount = 1,
                     ),
                 usage =
                     OpenAIHostedWebSearchUsage(
@@ -145,7 +154,7 @@ class OpenAIHostedWebSearchCompatibilityProbePolicyTest {
                             endIndex = 8,
                         )
                     ),
-                sources =
+                citedSources =
                     listOf(
                         OpenAIHostedWebSearchSource(
                             sourceId = "S1",
@@ -153,6 +162,23 @@ class OpenAIHostedWebSearchCompatibilityProbePolicyTest {
                             title = "Example",
                             url = "https://example.com/",
                         )
+                    ),
+                allSources =
+                    listOf(
+                        OpenAIHostedWebSearchSource(
+                            sourceId = "S1",
+                            type = "url",
+                            title = "Example",
+                            url = "https://example.com/",
+                        )
+                    ),
+                sourceSummary =
+                    OpenAIHostedWebSearchSourceSummary(
+                        allSourceCount = 1,
+                        citedSourceCount = 1,
+                        uncitedSourceCount = 0,
+                        urlSourceCount = 1,
+                        structuredSourceCount = 0,
                     ),
                 usage =
                     OpenAIHostedWebSearchUsage(
@@ -192,6 +218,83 @@ class OpenAIHostedWebSearchCompatibilityProbePolicyTest {
             )
 
         OpenAIHostedWebSearchCompatibilityProbePolicy.requireCompatible(execution)
+    }
+
+    @Test
+    fun compatibilityRejectsZeroEvidenceMode() {
+        val result =
+            OpenAIHostedWebSearchResult(
+                requestId = "ows_probe",
+                responseId = "resp_probe",
+                query = "probe",
+                mode = OpenAIHostedWebSearchMode.LIVE,
+                modelName = "gpt-5.6-sol",
+                evidenceMode = OpenAIHostedWebSearchEvidenceMode.NONE,
+                answer = "No matching evidence was returned.",
+                answerWithSourceMarkers = "No matching evidence was returned.",
+                searchActions =
+                    listOf(
+                        OpenAIHostedWebSearchAction(
+                            type = "search",
+                            query = "probe",
+                            url = null,
+                            pattern = null,
+                        )
+                    ),
+                citations = emptyList(),
+                citedSources = emptyList(),
+                allSources = emptyList(),
+                sourceSummary =
+                    OpenAIHostedWebSearchSourceSummary(
+                        allSourceCount = 0,
+                        citedSourceCount = 0,
+                        uncitedSourceCount = 0,
+                        urlSourceCount = 0,
+                        structuredSourceCount = 0,
+                    ),
+                usage =
+                    OpenAIHostedWebSearchUsage(
+                        inputTokens = 1,
+                        cachedInputTokens = 0,
+                        outputTokens = 1,
+                        webSearchCalls = 1,
+                    ),
+                warnings = listOf("NO_WEB_EVIDENCE"),
+                sourceDiagnostics =
+                    OpenAIHostedWebSearchSourceDiagnostics(
+                        responseId = "resp_probe",
+                        actionSourceCoverage =
+                            OpenAIHostedWebSearchActionSourceCoverage.MISSING,
+                        actionSourceUrls = emptyList(),
+                        citationUrls = emptyList(),
+                        citationsMissingFromActionSources = emptyList(),
+                        openPageUrls = emptyList(),
+                        missingSourceActionIndexes = listOf(0),
+                        invalidActionSourceCount = 0,
+                        allowedDomains = emptyList(),
+                    ),
+            )
+        val execution =
+            OpenAIHostedWebSearchExecution(
+                result = result,
+                diagnostics =
+                    OpenAIHostedWebSearchResponseParser.Diagnostics(
+                        totalActionSourceCount = 0,
+                        validActionSourceUrlCount = 0,
+                        structuredFeedSourceCount = 0,
+                        invalidActionSourceCount = 0,
+                        urlCitationCount = 0,
+                        evidenceMode = OpenAIHostedWebSearchEvidenceMode.NONE,
+                        missingSourceActionCount = 1,
+                    ),
+            )
+
+        val error =
+            assertThrows(OpenAIHostedWebSearchException::class.java) {
+                OpenAIHostedWebSearchCompatibilityProbePolicy.requireCompatible(execution)
+            }
+
+        assertEquals(OpenAIHostedWebSearchErrorCode.RELAY_INCOMPATIBLE, error.code)
     }
 
     @Test

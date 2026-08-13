@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchContract
 import com.ai.assistance.operit.data.preferences.ToolCollapseMode
 import com.ai.assistance.operit.ui.common.markdown.MarkdownGroupedItem
 import com.ai.assistance.operit.ui.common.markdown.MarkdownNodeGrouper
@@ -56,6 +57,7 @@ class ThinkToolsXmlNodeGrouper(
                 var j = i + 1
                 var toolCount = 0
                 var xmlToolRelatedCount = 0
+                val toolNames = mutableListOf<String?>()
                 while (j < nodes.size) {
                     val next = nodes[j]
                     // 允许 think 与 tool/tool_result 之间出现纯空白文本（通常是换行）
@@ -77,6 +79,7 @@ class ThinkToolsXmlNodeGrouper(
                     if (isToolRelated) {
                         val toolName = extractToolNameFromToolOrResult(next.content)
                         if (!shouldGroupToolByName(toolName, toolCollapseMode)) break
+                        toolNames += toolName
                         if (nextTag == "tool") toolCount++
                         xmlToolRelatedCount++
                     }
@@ -84,7 +87,14 @@ class ThinkToolsXmlNodeGrouper(
                     j++
                 }
 
-                if (shouldCollapseToolSequence(toolCollapseMode, toolCount, xmlToolRelatedCount)) {
+                if (
+                    shouldCollapseToolSequence(
+                        toolCollapseMode = toolCollapseMode,
+                        toolCount = toolCount,
+                        xmlToolRelatedCount = xmlToolRelatedCount,
+                        toolNames = toolNames,
+                    )
+                ) {
                     out.add(
                         MarkdownGroupedItem.Group(
                             startIndex = i,
@@ -112,6 +122,7 @@ class ThinkToolsXmlNodeGrouper(
                 var j = i + 1
                 var toolCount = if (tag == "tool") 1 else 0
                 var xmlToolRelatedCount = 1
+                val toolNames = mutableListOf(firstToolName)
 
                 while (j < nodes.size) {
                     val next = nodes[j]
@@ -132,12 +143,20 @@ class ThinkToolsXmlNodeGrouper(
                     val toolName = extractToolNameFromToolOrResult(next.content)
                     if (!shouldGroupToolByName(toolName, toolCollapseMode)) break
 
+                    toolNames += toolName
                     xmlToolRelatedCount++
                     if (nextTag == "tool") toolCount++
                     j++
                 }
 
-                if (shouldCollapseToolSequence(toolCollapseMode, toolCount, xmlToolRelatedCount)) {
+                if (
+                    shouldCollapseToolSequence(
+                        toolCollapseMode = toolCollapseMode,
+                        toolCount = toolCount,
+                        xmlToolRelatedCount = xmlToolRelatedCount,
+                        toolNames = toolNames,
+                    )
+                ) {
                     out.add(
                         MarkdownGroupedItem.Group(
                             startIndex = i,
@@ -411,11 +430,18 @@ private fun shouldGroupToolByName(
 private fun shouldCollapseToolSequence(
     toolCollapseMode: ToolCollapseMode,
     toolCount: Int,
-    xmlToolRelatedCount: Int
+    xmlToolRelatedCount: Int,
+    toolNames: List<String?>,
 ): Boolean {
     if (xmlToolRelatedCount <= 0) return false
     return when (toolCollapseMode) {
         ToolCollapseMode.FULL -> true
-        ToolCollapseMode.READ_ONLY, ToolCollapseMode.ALL -> toolCount >= 2 && xmlToolRelatedCount >= 2
+        ToolCollapseMode.READ_ONLY,
+        ToolCollapseMode.ALL ->
+            toolNames.any(::isOpenAIWebSearchToolName) ||
+                (toolCount >= 2 && xmlToolRelatedCount >= 2)
     }
 }
+
+internal fun isOpenAIWebSearchToolName(toolName: String?): Boolean =
+    toolName?.trim() == OpenAIHostedWebSearchContract.TOOL_NAME

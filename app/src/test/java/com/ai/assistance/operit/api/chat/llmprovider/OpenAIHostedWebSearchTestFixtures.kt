@@ -2,11 +2,8 @@ package com.ai.assistance.operit.api.chat.llmprovider
 
 internal object OpenAIHostedWebSearchTestFixtures {
     fun binding(
-        configSource: OpenAIHostedWebSearchConfigSource =
-            OpenAIHostedWebSearchConfigSource.PACKAGE_ENV,
         providerContract: OpenAIHostedWebSearchProviderContract =
             OpenAIHostedWebSearchProviderContract.RESPONSES_HOSTED_OFFICIAL,
-        modelConfigId: String? = null,
         endpoint: String = "https://api.openai.com/v1/responses",
         modelName: String = "gpt-5.6-luna",
         apiKey: String = "test-key",
@@ -25,17 +22,14 @@ internal object OpenAIHostedWebSearchTestFixtures {
         allowedDomains: List<String> = emptyList(),
         blockedDomains: List<String> = emptyList(),
         location: OpenAIHostedWebSearchApproximateLocation? = null,
-        timeoutSeconds: Int = 60,
+        queueTimeoutSeconds: Int = 60,
+        timeoutSeconds: Int = 300,
         maxConcurrentRequests: Int = 1,
         requestsPerMinute: Int = 0,
-        modelConfigMaxConcurrentRequests: Int = 0,
-        modelConfigRequestsPerMinute: Int = 0,
     ): OpenAIHostedWebSearchBinding =
         OpenAIHostedWebSearchBinding(
             toolPkgId = OpenAIHostedWebSearchContract.TOOLPKG_ID,
-            configSource = configSource,
             providerContract = providerContract,
-            modelConfigId = modelConfigId,
             endpoint = endpoint,
             modelName = modelName,
             apiKey = apiKey,
@@ -51,11 +45,10 @@ internal object OpenAIHostedWebSearchTestFixtures {
             allowedDomains = allowedDomains,
             blockedDomains = blockedDomains,
             location = location,
+            queueTimeoutSeconds = queueTimeoutSeconds,
             timeoutSeconds = timeoutSeconds,
             maxConcurrentRequests = maxConcurrentRequests,
             requestsPerMinute = requestsPerMinute,
-            modelConfigMaxConcurrentRequests = modelConfigMaxConcurrentRequests,
-            modelConfigRequestsPerMinute = modelConfigRequestsPerMinute,
         )
 
     fun effectiveRequest(
@@ -66,6 +59,10 @@ internal object OpenAIHostedWebSearchTestFixtures {
         allowedDomains: List<String> = emptyList(),
         blockedDomains: List<String> = emptyList(),
         location: OpenAIHostedWebSearchApproximateLocation? = null,
+        locationRequested: Boolean = location != null,
+        locationConfigured: Boolean = location != null,
+        locationPrecision: String =
+            openAIHostedWebSearchLocationPrecision(location),
     ): OpenAIHostedWebSearchEffectiveRequest =
         OpenAIHostedWebSearchEffectiveRequest(
             requestId = requestId,
@@ -74,5 +71,8 @@ internal object OpenAIHostedWebSearchTestFixtures {
             allowedDomains = allowedDomains,
             blockedDomains = blockedDomains,
             location = location,
+            locationRequested = locationRequested,
+            locationConfigured = locationConfigured,
+            locationPrecision = locationPrecision,
         )
 }

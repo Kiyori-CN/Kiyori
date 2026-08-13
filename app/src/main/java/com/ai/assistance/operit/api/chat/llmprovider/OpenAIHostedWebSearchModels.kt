@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
-import java.net.URI
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
@@ -9,9 +8,10 @@ import org.json.JSONObject
 
 internal object OpenAIHostedWebSearchContract {
     const val TOOLPKG_ID = "com.kiyori.openai_web_search"
+    const val TOOLPKG_VERSION = "1.0.6"
     const val SUBPACKAGE_NAME = "openai_web_search"
     const val TOOL_NAME = "openai_web_search:search"
-    const val RESPONSE_SCHEMA_REVISION = 5
+    const val RESPONSE_SCHEMA_REVISION = 7
     const val MAX_QUERY_CHARACTERS = 8_000
     const val MAX_ADDITIONAL_INSTRUCTIONS_CHARACTERS = 4_000
     const val MAX_DOMAIN_COUNT = 100
@@ -22,9 +22,7 @@ internal object OpenAIHostedWebSearchContract {
     const val MAX_RESPONSE_BYTES = 4L * 1024L * 1024L
     const val MAX_ERROR_RESPONSE_BYTES = 64L * 1024L
 
-    const val ENV_CONFIG_SOURCE = "OPENAI_WEB_SEARCH_CONFIG_SOURCE"
     const val ENV_PROVIDER_CONTRACT = "OPENAI_WEB_SEARCH_PROVIDER_CONTRACT"
-    const val ENV_MODEL_CONFIG_ID = "OPENAI_WEB_SEARCH_MODEL_CONFIG_ID"
     const val ENV_RESPONSES_ENDPOINT = "OPENAI_WEB_SEARCH_RESPONSES_ENDPOINT"
     const val ENV_MODEL = "OPENAI_WEB_SEARCH_MODEL"
     const val ENV_API_KEY = "OPENAI_WEB_SEARCH_API_KEY"
@@ -40,15 +38,14 @@ internal object OpenAIHostedWebSearchContract {
     const val ENV_ALLOWED_DOMAINS_JSON = "OPENAI_WEB_SEARCH_ALLOWED_DOMAINS_JSON"
     const val ENV_BLOCKED_DOMAINS_JSON = "OPENAI_WEB_SEARCH_BLOCKED_DOMAINS_JSON"
     const val ENV_LOCATION_JSON = "OPENAI_WEB_SEARCH_LOCATION_JSON"
+    const val ENV_QUEUE_TIMEOUT_SECONDS = "OPENAI_WEB_SEARCH_QUEUE_TIMEOUT_SECONDS"
     const val ENV_TIMEOUT_SECONDS = "OPENAI_WEB_SEARCH_TIMEOUT_SECONDS"
     const val ENV_MAX_CONCURRENT_REQUESTS = "OPENAI_WEB_SEARCH_MAX_CONCURRENT_REQUESTS"
     const val ENV_REQUESTS_PER_MINUTE = "OPENAI_WEB_SEARCH_REQUESTS_PER_MINUTE"
 
     val ENVIRONMENT_NAMES: List<String> =
         listOf(
-            ENV_CONFIG_SOURCE,
             ENV_PROVIDER_CONTRACT,
-            ENV_MODEL_CONFIG_ID,
             ENV_RESPONSES_ENDPOINT,
             ENV_MODEL,
             ENV_API_KEY,
@@ -64,6 +61,7 @@ internal object OpenAIHostedWebSearchContract {
             ENV_ALLOWED_DOMAINS_JSON,
             ENV_BLOCKED_DOMAINS_JSON,
             ENV_LOCATION_JSON,
+            ENV_QUEUE_TIMEOUT_SECONDS,
             ENV_TIMEOUT_SECONDS,
             ENV_MAX_CONCURRENT_REQUESTS,
             ENV_REQUESTS_PER_MINUTE,
@@ -88,20 +86,6 @@ internal object OpenAIHostedWebSearchContract {
         setOf(
             "api",
         )
-}
-
-internal enum class OpenAIHostedWebSearchConfigSource {
-    PACKAGE_ENV,
-    MODEL_CONFIG;
-
-    companion object {
-        fun parse(value: String): OpenAIHostedWebSearchConfigSource =
-            entries.firstOrNull { source -> source.name == value.trim().uppercase(Locale.ROOT) }
-                ?: throw OpenAIHostedWebSearchException(
-                    code = OpenAIHostedWebSearchErrorCode.CONFIG_SOURCE_INVALID,
-                    message = "OpenAI Web Search config source must be PACKAGE_ENV or MODEL_CONFIG.",
-                )
-    }
 }
 
 internal enum class OpenAIHostedWebSearchProviderContract {
@@ -200,9 +184,7 @@ internal data class OpenAIHostedWebSearchApproximateLocation(
 
 internal data class OpenAIHostedWebSearchBinding(
     val toolPkgId: String,
-    val configSource: OpenAIHostedWebSearchConfigSource,
     val providerContract: OpenAIHostedWebSearchProviderContract,
-    val modelConfigId: String?,
     val endpoint: String,
     val modelName: String,
     val apiKey: String,
@@ -218,16 +200,13 @@ internal data class OpenAIHostedWebSearchBinding(
     val allowedDomains: List<String>,
     val blockedDomains: List<String>,
     val location: OpenAIHostedWebSearchApproximateLocation?,
+    val queueTimeoutSeconds: Int,
     val timeoutSeconds: Int,
     val maxConcurrentRequests: Int,
     val requestsPerMinute: Int,
-    val modelConfigMaxConcurrentRequests: Int,
-    val modelConfigRequestsPerMinute: Int,
 ) {
     fun credentialRevision(): String =
-        sha256Hex(
-            "openai-hosted-web-search-credential\u0000${apiKey.trim()}"
-        ).take(CREDENTIAL_REVISION_CHARACTERS)
+        openAIHostedWebSearchCredentialRevision(apiKey)
 
     fun authSchemeKind(): String =
         when {
@@ -251,9 +230,6 @@ internal data class OpenAIHostedWebSearchBinding(
             responseSchemaRevision = OpenAIHostedWebSearchContract.RESPONSE_SCHEMA_REVISION,
         )
 
-    private companion object {
-        const val CREDENTIAL_REVISION_CHARACTERS = 12
-    }
 }
 
 internal data class OpenAIHostedWebSearchRequest(
@@ -272,7 +248,25 @@ internal data class OpenAIHostedWebSearchEffectiveRequest(
     val allowedDomains: List<String>,
     val blockedDomains: List<String>,
     val location: OpenAIHostedWebSearchApproximateLocation?,
+    val locationRequested: Boolean = false,
+    val locationConfigured: Boolean = location != null,
+    val locationPrecision: String =
+        openAIHostedWebSearchLocationPrecision(location),
 )
+
+internal fun openAIHostedWebSearchLocationPrecision(
+    location: OpenAIHostedWebSearchApproximateLocation?,
+): String {
+    location ?: return "none"
+    val populated =
+        listOfNotNull(
+            location.country?.let { "country" },
+            location.region?.let { "region" },
+            location.city?.let { "city" },
+            location.timezone?.let { "timezone" },
+        )
+    return if (populated.size == 1) populated.single() else "mixed"
+}
 
 internal data class OpenAIHostedWebSearchCompatibilityFingerprint(
     val endpoint: String,
@@ -324,19 +318,18 @@ internal data class OpenAIHostedWebSearchCompatibilityFailureRecord(
 internal enum class OpenAIHostedWebSearchErrorCode {
     BINDING_MISSING,
     CONFIG_SOURCE_INVALID,
+    INVALID_ARGUMENT,
     PACKAGE_ENV_MISSING,
-    MODEL_CONFIG_NOT_FOUND,
-    PROVIDER_NOT_RESPONSES,
     ENDPOINT_INVALID,
     ENDPOINT_NOT_HTTPS,
     MODEL_NOT_ALLOWED,
-    MODEL_NOT_IN_CONFIG,
     API_KEY_MISSING,
     RELAY_PROBE_REQUIRED,
     RELAY_PROBE_STALE,
     RELAY_INCOMPATIBLE,
     AUTH_REJECTED,
     RATE_LIMITED,
+    QUEUE_TIMEOUT,
     REQUEST_TIMEOUT,
     REQUEST_CANCELLED,
     NETWORK_FAILURE,
@@ -348,14 +341,25 @@ internal enum class OpenAIHostedWebSearchErrorCode {
     CITATION_INVALID,
     SOURCE_INVALID,
     RELAY_RESPONSE_TEXT_ONLY,
+    DOMAIN_FILTER_UNSUPPORTED_FOR_RELAY,
+    DOMAIN_POLICY_VIOLATION,
     CALLER_NOT_AUTHORIZED,
+}
+
+internal enum class OpenAIHostedWebSearchArgumentReason {
+    MISSING,
+    INVALID_TYPE,
+    INVALID_VALUE,
+    CONFLICT,
+    TOO_LARGE,
 }
 
 internal enum class OpenAIHostedWebSearchEvidenceMode(val wireValue: String) {
     URL_CITATIONS_AND_ACTION_SOURCES("url_citations_and_action_sources"),
     URL_CITATIONS("url_citations"),
     ACTION_SOURCES("action_sources"),
-    STRUCTURED_FEEDS("structured_feeds");
+    STRUCTURED_FEEDS("structured_feeds"),
+    NONE("none");
 
     companion object {
         fun parse(value: String): OpenAIHostedWebSearchEvidenceMode =
@@ -367,12 +371,19 @@ internal enum class OpenAIHostedWebSearchEvidenceMode(val wireValue: String) {
 internal class OpenAIHostedWebSearchException(
     val code: OpenAIHostedWebSearchErrorCode,
     override val message: String,
-    val retryable: Boolean = false,
+    val field: String? = null,
+    val reason: OpenAIHostedWebSearchArgumentReason? = null,
     val httpStatus: Int? = null,
     val providerErrorType: String? = null,
     val providerErrorCode: String? = null,
     val providerRequestId: String? = null,
     val sourceDiagnostics: OpenAIHostedWebSearchSourceDiagnostics? = null,
+    val phase: String? = null,
+    val cancelOwner: String? = null,
+    val submissionState: String? = null,
+    val elapsedMs: Long? = null,
+    val configuredTimeoutMs: Long? = null,
+    val queueWaitMs: Long? = null,
     cause: Throwable? = null,
 ) : Exception(message, cause) {
     fun toJson(requestId: String?): JSONObject =
@@ -382,12 +393,19 @@ internal class OpenAIHostedWebSearchException(
                 "error",
                 JSONObject()
                     .put("code", code.name)
+                    .put("field", field ?: JSONObject.NULL)
+                    .put("reason", reason?.name ?: JSONObject.NULL)
                     .put("message", "[$code] $message")
-                    .put("retryable", retryable)
                     .put("http_status", httpStatus ?: JSONObject.NULL)
                     .put("provider_error_type", providerErrorType ?: JSONObject.NULL)
                     .put("provider_error_code", providerErrorCode ?: JSONObject.NULL)
                     .put("provider_request_id", providerRequestId ?: JSONObject.NULL)
+                    .put("phase", phase ?: JSONObject.NULL)
+                    .put("cancel_owner", cancelOwner ?: JSONObject.NULL)
+                    .put("submission_state", submissionState ?: JSONObject.NULL)
+                    .put("elapsed_ms", elapsedMs ?: JSONObject.NULL)
+                    .put("configured_timeout_ms", configuredTimeoutMs ?: JSONObject.NULL)
+                    .put("queue_wait_ms", queueWaitMs ?: JSONObject.NULL)
                     .put(
                         "source_diagnostics",
                         sourceDiagnostics?.toJson() ?: JSONObject.NULL,
@@ -395,6 +413,21 @@ internal class OpenAIHostedWebSearchException(
                     .put("request_id", requestId ?: JSONObject.NULL),
             )
 }
+
+internal fun openAIHostedWebSearchInvalidArgument(
+    field: String,
+    reason: OpenAIHostedWebSearchArgumentReason,
+    message: String,
+    cause: Throwable? = null,
+): OpenAIHostedWebSearchException =
+    OpenAIHostedWebSearchException(
+        code = OpenAIHostedWebSearchErrorCode.INVALID_ARGUMENT,
+        field = field,
+        reason = reason,
+        message = message,
+        submissionState = "not_sent",
+        cause = cause,
+    )
 
 internal data class OpenAIHostedWebSearchAction(
     val type: String,
@@ -443,6 +476,8 @@ internal data class OpenAIHostedWebSearchSourceDiagnostics(
     val missingSourceActionIndexes: List<Int>,
     val invalidActionSourceCount: Int,
     val allowedDomains: List<String>,
+    val domainPolicyState: OpenAIHostedWebSearchDomainPolicyState =
+        OpenAIHostedWebSearchDomainPolicyState.NOT_REQUESTED,
 ) {
     fun toJson(): JSONObject =
         JSONObject()
@@ -458,7 +493,64 @@ internal data class OpenAIHostedWebSearchSourceDiagnostics(
             .put("missing_source_action_indexes", JSONArray(missingSourceActionIndexes))
             .put("invalid_action_source_count", invalidActionSourceCount)
             .put("allowed_domains", JSONArray(allowedDomains))
-            .put("url_normalization", "http_https_uri")
+            .put("domain_policy_state", domainPolicyState.wireValue)
+            .put("url_normalization", "http_https_identity")
+}
+
+internal data class OpenAIHostedWebSearchSourceSummary(
+    val allSourceCount: Int,
+    val citedSourceCount: Int,
+    val uncitedSourceCount: Int,
+    val urlSourceCount: Int,
+    val structuredSourceCount: Int,
+) {
+    fun toJson(): JSONObject =
+        JSONObject()
+            .put("all_source_count", allSourceCount)
+            .put("cited_source_count", citedSourceCount)
+            .put("uncited_source_count", uncitedSourceCount)
+            .put("url_source_count", urlSourceCount)
+            .put("structured_source_count", structuredSourceCount)
+}
+
+internal data class OpenAIHostedWebSearchLocationDiagnostics(
+    val requested: Boolean,
+    val configured: Boolean,
+    val applied: Boolean,
+    val precision: String,
+) {
+    fun toJson(): JSONObject =
+        JSONObject()
+            .put("location_requested", requested)
+            .put("location_configured", configured)
+            .put("location_applied", applied)
+            .put("location_precision", precision)
+}
+
+internal data class OpenAIHostedWebSearchExecutionDiagnostics(
+    val totalElapsedMs: Long,
+    val queueWaitMs: Long?,
+    val httpElapsedMs: Long?,
+    val responseHeaderWaitMs: Long?,
+    val responseBodyReadMs: Long?,
+    val parseMs: Long?,
+    val callbackDeliveryMs: Long?,
+    val providerRequestId: String?,
+    val submissionState: OpenAIHostedWebSearchSubmissionState,
+    val location: OpenAIHostedWebSearchLocationDiagnostics,
+) {
+    fun toJson(): JSONObject =
+        JSONObject()
+            .put("total_elapsed_ms", totalElapsedMs)
+            .put("queue_wait_ms", queueWaitMs ?: JSONObject.NULL)
+            .put("http_elapsed_ms", httpElapsedMs ?: JSONObject.NULL)
+            .put("response_header_wait_ms", responseHeaderWaitMs ?: JSONObject.NULL)
+            .put("response_body_read_ms", responseBodyReadMs ?: JSONObject.NULL)
+            .put("parse_ms", parseMs ?: JSONObject.NULL)
+            .put("callback_delivery_ms", callbackDeliveryMs ?: JSONObject.NULL)
+            .put("provider_request_id", providerRequestId ?: JSONObject.NULL)
+            .put("submission_state", submissionState.wireValue)
+            .put("location", location.toJson())
 }
 
 internal data class OpenAIHostedWebSearchSource(
@@ -516,12 +608,35 @@ internal data class OpenAIHostedWebSearchResult(
     val answerWithSourceMarkers: String,
     val searchActions: List<OpenAIHostedWebSearchAction>,
     val citations: List<OpenAIHostedWebSearchCitation>,
-    val sources: List<OpenAIHostedWebSearchSource>,
+    val citedSources: List<OpenAIHostedWebSearchSource>,
+    val allSources: List<OpenAIHostedWebSearchSource>,
+    val sourceSummary: OpenAIHostedWebSearchSourceSummary,
     val usage: OpenAIHostedWebSearchUsage,
     val warnings: List<String>,
     val sourceDiagnostics: OpenAIHostedWebSearchSourceDiagnostics,
+    val executionDiagnostics: OpenAIHostedWebSearchExecutionDiagnostics =
+        OpenAIHostedWebSearchExecutionDiagnostics(
+            totalElapsedMs = 0L,
+            queueWaitMs = null,
+            httpElapsedMs = null,
+            responseHeaderWaitMs = null,
+            responseBodyReadMs = null,
+            parseMs = null,
+            callbackDeliveryMs = null,
+            providerRequestId = null,
+            submissionState = OpenAIHostedWebSearchSubmissionState.RESPONSE_STARTED,
+            location =
+                OpenAIHostedWebSearchLocationDiagnostics(
+                    requested = false,
+                    configured = false,
+                    applied = false,
+                    precision = "none",
+                ),
+        ),
 ) {
-    fun toJson(): JSONObject =
+    fun toJson(
+        executionDiagnosticsOverride: OpenAIHostedWebSearchExecutionDiagnostics? = null,
+    ): JSONObject =
         JSONObject()
             .put("success", true)
             .put("schema_version", OpenAIHostedWebSearchContract.RESPONSE_SCHEMA_REVISION)
@@ -544,53 +659,31 @@ internal data class OpenAIHostedWebSearchResult(
                 JSONArray().apply { citations.forEach { citation -> put(citation.toJson()) } },
             )
             .put(
-                "sources",
-                JSONArray().apply { sources.forEach { source -> put(source.toJson()) } },
+                "cited_sources",
+                JSONArray().apply { citedSources.forEach { source -> put(source.toJson()) } },
             )
+            .put(
+                "all_sources",
+                JSONArray().apply { allSources.forEach { source -> put(source.toJson()) } },
+            )
+            .put("source_summary", sourceSummary.toJson())
             .put("usage", usage.toJson())
             .put("warnings", JSONArray(warnings))
             .put("source_diagnostics", sourceDiagnostics.toJson())
+            .put(
+                "execution_diagnostics",
+                (executionDiagnosticsOverride ?: executionDiagnostics).toJson(),
+            )
 }
 
-internal fun normalizeOpenAIHostedWebSearchUrl(rawUrl: String): String {
-    val uri =
-        runCatching { URI(rawUrl.trim()) }.getOrNull()
-            ?: throw OpenAIHostedWebSearchException(
-                code = OpenAIHostedWebSearchErrorCode.SOURCE_INVALID,
-                message = "Web Search source URL is invalid.",
-            )
-    val scheme = uri.scheme?.lowercase(Locale.ROOT)
-    if (scheme != "http" && scheme != "https") {
-        throw OpenAIHostedWebSearchException(
-            code = OpenAIHostedWebSearchErrorCode.SOURCE_INVALID,
-            message = "Web Search source URL must use HTTP or HTTPS.",
-        )
-    }
-    if (uri.host.isNullOrBlank() || uri.userInfo != null) {
-        throw OpenAIHostedWebSearchException(
-            code = OpenAIHostedWebSearchErrorCode.SOURCE_INVALID,
-            message = "Web Search source URL has an invalid authority.",
-        )
-    }
-    val port =
-        when {
-            uri.port == -1 -> -1
-            scheme == "http" && uri.port == 80 -> -1
-            scheme == "https" && uri.port == 443 -> -1
-            else -> uri.port
-        }
-    return URI(
-        scheme,
-        null,
-        uri.host.lowercase(Locale.ROOT),
-        port,
-        uri.rawPath.ifBlank { "/" },
-        uri.rawQuery,
-        null,
-    ).toASCIIString()
-}
+internal fun openAIHostedWebSearchCredentialRevision(apiKey: String): String =
+    sha256Hex(
+        "openai-hosted-web-search-credential\u0000${apiKey.trim()}"
+    ).take(CREDENTIAL_REVISION_CHARACTERS)
 
 private fun sha256Hex(value: String): String =
     MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray(Charsets.UTF_8))
         .joinToString("") { byte -> "%02x".format(byte) }
+
+private const val CREDENTIAL_REVISION_CHARACTERS = 12

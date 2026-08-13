@@ -52,11 +52,6 @@ open class HttpVoiceProvider(
     companion object {
         private const val TAG = "HttpVoiceProvider"
         private const val DEFAULT_TIMEOUT = 10 // 10秒超时
-        private const val SPEECH_PREVIEW_MAX = 48
-    }
-
-    private fun speechPreview(text: String): String {
-        return text.replace("\n", "\\n").take(SPEECH_PREVIEW_MAX)
     }
 
     // OkHttpClient实例
@@ -194,7 +189,7 @@ open class HttpVoiceProvider(
     ): Boolean = withContext(Dispatchers.IO) {
         AppLogger.d(
             TAG,
-            "speak request interrupt=$interrupt len=${text.length} preview=\"${speechPreview(text)}\" rate=$rate pitch=$pitch voice=$currentVoiceId initialized=$isInitialized extraKeys=${extraParams.keys}"
+            "speak request interrupt=$interrupt len=${text.length} rate=$rate pitch=$pitch voice=$currentVoiceId initialized=$isInitialized extraKeys=${extraParams.keys}"
         )
         playbackQueue.speak(
             text = text,
@@ -319,7 +314,7 @@ open class HttpVoiceProvider(
     ): File? = withContext(Dispatchers.IO) {
         AppLogger.d(
             TAG,
-            "fetchAudioFromServer len=${text.length} preview=\"${speechPreview(text)}\" rate=$rate pitch=$pitch voice=${voiceId?.length ?: 0} chars extraKeys=${extraParams.keys}"
+            "fetchAudioFromServer len=${text.length} rate=$rate pitch=$pitch voice=${voiceId?.length ?: 0} chars extraKeys=${extraParams.keys}"
         )
         if (httpConfig.urlTemplate.isBlank()) {
             AppLogger.e(TAG, "HTTP TTS URL template is not configured.")

@@ -3,6 +3,9 @@ package com.ai.assistance.operit.api.chat.enhance
 import android.content.Context
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchContract
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchMainModelProjection
+import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchToolResultMarkupCodec
 import com.ai.assistance.operit.core.tools.ToolExecutionLimits
 import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.data.model.ToolResult
@@ -52,8 +55,52 @@ class ConversationMarkupManager {
          * @return The formatted tool result message
          */
         fun formatToolResultForMessage(result: ToolResult): String {
+            return formatToolResult(
+                result = result,
+                useMainModelProjection = false,
+            )
+        }
+
+        /**
+         * Formats a tool result for the follow-up model request.
+         *
+         * The conversation renderer receives the complete result through
+         * [formatToolResultForMessage]. The follow-up model receives this bounded projection so
+         * uncited sources, search actions, and provider usage do not expand its context. Keeping
+         * these paths separate is required because the renderer must still see all_sources.
+         */
+        fun formatToolResultForModel(result: ToolResult): String {
+            return formatToolResult(
+                result = result,
+                useMainModelProjection = true,
+            )
+        }
+
+        private fun formatToolResult(
+            result: ToolResult,
+            useMainModelProjection: Boolean,
+        ): String {
             return if (result.success) {
-                val (toolPayload, imageLinkPayload) = splitImageLinksForModel(result.result.toString())
+                val rawResult = result.result.toString()
+                val projectedResult =
+                    if (useMainModelProjection) {
+                        OpenAIHostedWebSearchMainModelProjection.project(
+                            toolName = result.toolName,
+                            serializedResult = rawResult,
+                        ) ?: rawResult
+                    } else {
+                        rawResult
+                    }
+                val xmlSafeResult =
+                    if (result.toolName == OpenAIHostedWebSearchContract.TOOL_NAME) {
+                        OpenAIHostedWebSearchToolResultMarkupCodec.encodeSerializedJson(
+                            projectedResult
+                        )
+                    } else {
+                        projectedResult
+                    }
+                val (toolPayload, imageLinkPayload) =
+                    splitImageLinksForModel(xmlSafeResult)
                 val toolResultXml =
                     createBoundedToolResultXml(
                         toolName = result.toolName,
@@ -117,7 +164,7 @@ class ConversationMarkupManager {
             val builder = StringBuilder()
 
             for (result in results) {
-                val formatted = formatToolResultForMessage(result)
+                val formatted = formatToolResultForModel(result)
                 val additionalLength =
                     (if (builder.isEmpty()) 0 else separator.length) + formatted.length
                 if (builder.length + additionalLength > maxChars) {
