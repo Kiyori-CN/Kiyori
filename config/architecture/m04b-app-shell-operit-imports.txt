@@ -2,10 +2,12 @@ com.ai.assistance.operit.ui.main.AiHomeQuickAction
 com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
 com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
+com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriDownloadDrawerHost
 com.ai.assistance.operit.ui.main.shell.KiyoriDownloadSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
 com.ai.assistance.operit.ui.main.shell.KiyoriPlayerSettingsPage
+com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
 com.kiyori.design.theme.KiyoriBrowserTheme
 com.kiyori.design.theme.KiyoriSettingsTheme

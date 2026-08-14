@@ -293,6 +293,7 @@ fun KiyoriApp(
     fun navigateTo(
         newScreen: Screen,
         source: RouteEntrySource = RouteEntrySource.DEFAULT,
+        forceNewInstance: Boolean = false,
     ) {
         isNavigatingBack = false
         val nextEntry =
@@ -300,14 +301,26 @@ fun KiyoriApp(
                 screen = newScreen,
                 source = source,
             )
-        if (currentRouteEntry.routeId == nextEntry.routeId && currentRouteEntry.args == nextEntry.args) {
+        if (
+            !forceNewInstance &&
+                currentRouteEntry.routeId == nextEntry.routeId &&
+                currentRouteEntry.args == nextEntry.args
+        ) {
             return
         }
+        val routeSpec = navigationModel.routesById[nextEntry.routeId]
         routerState.navigate(
             routeId = nextEntry.routeId,
             args = nextEntry.args,
             source = nextEntry.source,
-            routeSpec = navigationModel.routesById[nextEntry.routeId],
+            routeSpec =
+                if (forceNewInstance) {
+                    requireNotNull(routeSpec) {
+                        "Missing route spec ${nextEntry.routeId} for forced settings navigation"
+                    }.copy(reuseOnTop = false)
+                } else {
+                    routeSpec
+                },
         )
     }
 
@@ -363,6 +376,16 @@ fun KiyoriApp(
         screen: Screen,
         rootId: String,
     ) {
+        if (shellState.child == KiyoriShellChild.SETTINGS_HOME) {
+            // 覆盖式设置首页必须保留来源 AI 栈；把详情压入当前栈，返回时才能先回设置首页，
+            // 再由设置首页返回浏览器或原 AI 页面。
+            navigateTo(
+                newScreen = screen,
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                forceNewInstance = true,
+            )
+            return
+        }
         saveCurrentAiPrimaryStack()
         isNavigatingBack = false
         routerState.resetTo(
@@ -475,6 +498,12 @@ fun KiyoriApp(
         if (action != null) {
             updateShellState(shellState.closeAiDrawer())
             runToolPkgNavigationEntryAction(entry)
+            return
+        }
+        if (entry.entryId == aiSettingsDrawerEntry.entryId) {
+            updateShellState(
+                shellState.openChild(KiyoriShellChild.SETTINGS_HOME),
+            )
             return
         }
         when (resolveAiDrawerSelection(currentAiPrimaryEntryId, entry.entryId)) {
@@ -635,13 +664,21 @@ fun KiyoriApp(
                     )
                 },
                 onOpenAiAssistantFromKiyoriSettings = {
-                    replaceAiPrimary(
-                        aiSettingsDrawerEntry,
-                        RouteEntrySource.KIYORI_SETTINGS,
-                    )
-                    updateShellState(
-                        shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
-                    )
+                    if (shellState.child == KiyoriShellChild.SETTINGS_HOME) {
+                        navigateTo(
+                            newScreen = Screen.Settings,
+                            source = RouteEntrySource.KIYORI_SETTINGS,
+                            forceNewInstance = true,
+                        )
+                    } else {
+                        replaceAiPrimary(
+                            aiSettingsDrawerEntry,
+                            RouteEntrySource.KIYORI_SETTINGS,
+                        )
+                        updateShellState(
+                            shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
+                        )
+                    }
                 },
                 onOpenSpeechServicesFromKiyoriSettings = {
                     openKiyoriSettingsRoot(
@@ -690,9 +727,9 @@ fun KiyoriApp(
                         onOpenAiDialogue = {
                             openAiHome(AiHomeQuickAction.FOCUS_INPUT)
                         },
-                        onOpenBrowserSettings = {
+                        onOpenSettingsHome = {
                             updateShellState(
-                                shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
+                                shellState.openChild(KiyoriShellChild.SETTINGS_HOME),
                             )
                         },
                         onOpenDownloadSettings = {

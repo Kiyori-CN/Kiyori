@@ -210,6 +210,20 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         }
     }
 
+    suspend fun deleteHistoryEntries(entryKeys: Set<WebSessionHistoryEntryKey>) {
+        if (entryKeys.isEmpty()) return
+        context.webSessionHistoryDataStore.edit { preferences ->
+            // Titles may be refreshed after a visit. URL, category, and visit time are the stable
+            // record identity, so exact deletion cannot accidentally remove a newer visit.
+            val updated =
+                removeWebSessionHistoryEntries(
+                    entries = decodeHistory(preferences[KEY_HISTORY]),
+                    entryKeys = entryKeys,
+                )
+            preferences[KEY_HISTORY] = json.encodeToString(updated)
+        }
+    }
+
     suspend fun setSearchEngine(engine: WebSessionSearchEngine) {
         context.webSessionHistoryDataStore.edit { preferences ->
             preferences[KEY_SEARCH_ENGINE] = engine.id

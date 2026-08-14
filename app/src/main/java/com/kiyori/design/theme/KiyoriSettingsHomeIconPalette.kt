@@ -19,7 +19,7 @@ internal enum class KiyoriSettingsHomeIconPalette {
     BROWSER,
     VIDEO_PLAYER,
     MUSIC_PLAYER,
-    NOVEL_READER,
+    DOCUMENT_READER,
     DOWNLOADS,
     FILE_MANAGER,
     AD_BLOCKER,
@@ -50,7 +50,7 @@ internal fun resolveKiyoriSettingsHomeIconColors(
                 KiyoriSemanticColors(Color(0xFFFF8A8A), Color(0xFF472323))
             KiyoriSettingsHomeIconPalette.MUSIC_PLAYER ->
                 KiyoriSemanticColors(Color(0xFFFFD166), Color(0xFF493B16))
-            KiyoriSettingsHomeIconPalette.NOVEL_READER ->
+            KiyoriSettingsHomeIconPalette.DOCUMENT_READER ->
                 KiyoriSemanticColors(Color(0xFFD7A86E), Color(0xFF44311F))
             KiyoriSettingsHomeIconPalette.DOWNLOADS ->
                 KiyoriSemanticColors(Color(0xFFFFB76A), Color(0xFF432B16))
@@ -85,7 +85,7 @@ internal fun resolveKiyoriSettingsHomeIconColors(
                 KiyoriSemanticColors(Color(0xFFD64545), Color(0xFFFDEAEA))
             KiyoriSettingsHomeIconPalette.MUSIC_PLAYER ->
                 KiyoriSemanticColors(Color(0xFFB77900), Color(0xFFFFF5D6))
-            KiyoriSettingsHomeIconPalette.NOVEL_READER ->
+            KiyoriSettingsHomeIconPalette.DOCUMENT_READER ->
                 KiyoriSemanticColors(Color(0xFF8D5A2B), Color(0xFFF8EEE5))
             KiyoriSettingsHomeIconPalette.DOWNLOADS ->
                 KiyoriSemanticColors(Color(0xFFC66A13), Color(0xFFFFF0DF))

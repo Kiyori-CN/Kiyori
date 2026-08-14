@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
@@ -87,6 +88,7 @@ private const val NETWORK_LOG_TAG = "WebSessionNetworkLog"
 
 private enum class BrowserNetworkLogFilter(
     val category: BrowserNetworkRequestCategory?,
+    val blockedOnly: Boolean = false,
 ) {
     ALL(null),
     VIDEO(BrowserNetworkRequestCategory.VIDEO),
@@ -94,6 +96,7 @@ private enum class BrowserNetworkLogFilter(
     IMAGE(BrowserNetworkRequestCategory.IMAGE),
     WEB(BrowserNetworkRequestCategory.WEB),
     OTHER(BrowserNetworkRequestCategory.OTHER),
+    BLOCKED(null, blockedOnly = true),
 }
 
 @Composable
@@ -101,6 +104,7 @@ internal fun WebSessionBrowserNetworkLog(
     entries: List<WebSessionBrowserNetworkEntry>,
     currentPageUrl: String,
     onClear: () -> Unit,
+    onBlockUrl: (String) -> Unit,
     onStartDownload: (String, String, String, BrowserDownloadEngine) -> Boolean,
     onPlayMediaCandidate: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
@@ -115,7 +119,12 @@ internal fun WebSessionBrowserNetworkLog(
     var detailEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
     val filteredEntries =
         remember(entries, selectedFilter, query) {
-            filterBrowserNetworkLogEntries(entries, selectedFilter.category, query)
+            filterBrowserNetworkLogEntries(
+                entries = entries,
+                category = selectedFilter.category,
+                query = query,
+                blockedOnly = selectedFilter.blockedOnly,
+            )
         }
     val copiedMessage = stringResource(R.string.web_session_network_log_copied)
     val externalOpenFailedMessage = stringResource(R.string.web_session_network_log_external_open_failed)
@@ -170,7 +179,9 @@ internal fun WebSessionBrowserNetworkLog(
                 BrowserNetworkLogFilterChip(
                     label = browserNetworkLogFilterLabel(filter),
                     count =
-                        if (filter.category == null) {
+                        if (filter.blockedOnly) {
+                            entries.count(WebSessionBrowserNetworkEntry::blocked)
+                        } else if (filter.category == null) {
                             entries.size
                         } else {
                             entries.count { entry -> entry.category == filter.category }
@@ -263,6 +274,15 @@ internal fun WebSessionBrowserNetworkLog(
             },
             onOpenExternal = {
                 openNetworkLogUrlExternally(context, entry.url, externalOpenFailedMessage)
+                actionEntry = null
+            },
+            onBlock = {
+                onBlockUrl(entry.url)
+                Toast.makeText(
+                    context,
+                    R.string.web_session_network_log_block_rule_saved,
+                    Toast.LENGTH_SHORT,
+                ).show()
                 actionEntry = null
             },
             onViewDetails = {
@@ -422,6 +442,20 @@ private fun BrowserNetworkLogRow(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                 }
+                if (entry.blocked) {
+                    val blockedColors = KiyoriSemanticTone.RED.resolveColors()
+                    Text(
+                        text = stringResource(R.string.web_session_network_log_filter_blocked),
+                        color = blockedColors.icon,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier =
+                            Modifier
+                                .background(blockedColors.container, RoundedCornerShape(5.dp))
+                                .padding(horizontal = 5.dp, vertical = 2.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
                 Text(
                     text = formatNetworkLogTime(entry.timestamp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -436,16 +470,37 @@ private fun BrowserNetworkLogRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 6.dp),
             )
+            if (entry.blocked) {
+                Text(
+                    text =
+                        entry.blockingSourceName
+                            ?.takeIf(String::isNotBlank)
+                            ?: stringResource(R.string.web_session_network_log_blocked_by_custom),
+                    color = KiyoriSemanticTone.RED.resolveColors().icon,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
-    val colors = browserNetworkTone(entry.category).resolveColors()
+    val colors =
+        if (entry.blocked) {
+            KiyoriSemanticTone.RED.resolveColors()
+        } else {
+            browserNetworkTone(entry.category).resolveColors()
+        }
     val extension = browserNetworkUrlExtension(entry.url)
     val label =
-        extension.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
+        if (entry.blocked) {
+            "BLOCK"
+        } else {
+            extension.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
             ?: when (entry.category) {
                 BrowserNetworkRequestCategory.VIDEO -> "VIDEO"
                 BrowserNetworkRequestCategory.AUDIO -> "AUDIO"
@@ -453,6 +508,7 @@ private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
                 BrowserNetworkRequestCategory.WEB -> "WEB"
                 BrowserNetworkRequestCategory.OTHER -> "REQ"
             }
+        }
     Text(
         text = label,
         color = colors.icon,
@@ -477,6 +533,7 @@ private fun BrowserNetworkLogActionDialog(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onOpenExternal: () -> Unit,
+    onBlock: () -> Unit,
     onViewDetails: () -> Unit,
 ) {
     val networkUrl = entry.url.startsWith("http://", true) || entry.url.startsWith("https://", true)
@@ -514,6 +571,14 @@ private fun BrowserNetworkLogActionDialog(
                     tone = KiyoriSemanticTone.BLUE,
                     onClick = onOpenExternal,
                 )
+                if (!entry.blocked) {
+                    BrowserNetworkLogActionRow(
+                        icon = Icons.Filled.Block,
+                        title = stringResource(R.string.web_session_network_log_block_url),
+                        tone = KiyoriSemanticTone.RED,
+                        onClick = onBlock,
+                    )
+                }
             }
             BrowserNetworkLogActionRow(
                 icon = Icons.Filled.Info,
@@ -608,6 +673,28 @@ private fun BrowserNetworkLogDetailsDialog(
                     stringResource(R.string.web_session_network_log_detail_url),
                     entry.url,
                 )
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_result),
+                    stringResource(
+                        if (entry.blocked) {
+                            R.string.web_session_network_log_result_blocked
+                        } else {
+                            R.string.web_session_network_log_result_allowed
+                        },
+                    ),
+                )
+                entry.blockingSourceName?.takeIf(String::isNotBlank)?.let { sourceName ->
+                    BrowserNetworkLogDetailRow(
+                        stringResource(R.string.web_session_network_log_detail_block_source),
+                        sourceName,
+                    )
+                }
+                entry.blockingRule?.takeIf(String::isNotBlank)?.let { rule ->
+                    BrowserNetworkLogDetailRow(
+                        stringResource(R.string.web_session_network_log_detail_block_rule),
+                        rule,
+                    )
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -677,6 +764,7 @@ private fun browserNetworkLogFilterLabel(filter: BrowserNetworkLogFilter): Strin
             BrowserNetworkLogFilter.IMAGE -> R.string.web_session_network_log_filter_image
             BrowserNetworkLogFilter.WEB -> R.string.web_session_network_log_filter_web
             BrowserNetworkLogFilter.OTHER -> R.string.web_session_network_log_filter_other
+            BrowserNetworkLogFilter.BLOCKED -> R.string.web_session_network_log_filter_blocked
         },
     )
 

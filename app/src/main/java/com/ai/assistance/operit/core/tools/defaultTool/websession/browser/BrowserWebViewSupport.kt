@@ -38,10 +38,12 @@ import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.AppLogger
+import java.io.ByteArrayInputStream
 import java.util.LinkedHashSet
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 
 private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
 private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
@@ -164,6 +166,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
         addJavascriptInterface(BrowserWebDownloadBridge(this@configureWebView, session), "OperitWebDownloadBridge")
         addJavascriptInterface(BrowserAsyncBridge(), "OperitAsyncBridge")
         addJavascriptInterface(BrowserTextSelectionBridge(this@configureWebView), "OperitTextSelectionBridge")
+        addJavascriptInterface(
+            BrowserWebElementBridge(this@configureWebView, session),
+            "OperitWebElementBridge",
+        )
         addJavascriptInterface(
             BrowserMediaCandidateBridge(this@configureWebView, session),
             "OperitMediaCandidateBridge",
@@ -379,7 +385,9 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 applyBrowserDisplaySettingsOnPage(session)
                 refreshNavigationStateFromWebView(view, session)
                 injectDownloadHelper(view)
+                injectBrowserElementInteractionHelper(view)
                 injectTextSelectionHelper(view)
+                injectBrowserAdBlockElementRules(session)
                 injectBrowserCredentialSupport(session)
                 // This observer only reads video URLs and reports them to the owning WebSession.
                 // Calling webpage media controls here would mutate site state during presentation changes.
@@ -423,7 +431,16 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 view: WebView,
                 request: WebResourceRequest
             ): android.webkit.WebResourceResponse? {
-                recordNetworkRequest(session, request)
+                val blockDecision =
+                    adBlockStore.decide(
+                        pageUrl = session.currentUrl,
+                        requestUrl = request.url?.toString().orEmpty(),
+                    )
+                recordNetworkRequest(session, request, blockDecision)
+                if (blockDecision != null) {
+                    adBlockStore.recordBlockedRequest()
+                    return browserAdBlockBlockedResponse()
+                }
                 recordRequestMediaCandidate(session, request)
                 val interceptedResponse = userscriptManager.interceptWebRequest(session.id, request)
                 if (interceptedResponse != null) {
@@ -719,6 +736,29 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
+        override fun onOpenExternalUrl(url: String) {
+            runOnMainSync<Unit> {
+                val uri =
+                    runCatching { Uri.parse(url.trim()) }.getOrNull()
+                        ?: run {
+                            showToast(context.getString(R.string.web_session_external_open_failed, url))
+                            return@runOnMainSync
+                        }
+                val scheme = uri.scheme?.lowercase(Locale.ROOT)
+                if (scheme.isNullOrBlank()) {
+                    showToast(context.getString(R.string.web_session_external_open_failed, url))
+                    return@runOnMainSync
+                }
+                val intent =
+                    Intent(Intent.ACTION_VIEW, uri).apply {
+                        addCategory(Intent.CATEGORY_BROWSABLE)
+                    }
+                if (!launchBrowserExternalIntent(intent)) {
+                    showToast(context.getString(R.string.web_session_external_open_failed, url))
+                }
+            }
+        }
+
         override fun onOpenHistoryEntry(entry: WebSessionHistoryEntry): Boolean =
             when (entry.category) {
                 WebSessionHistoryCategory.WEB,
@@ -744,6 +784,12 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
+        override fun onDeleteHistoryEntries(entryKeys: Set<WebSessionHistoryEntryKey>) {
+            ioScope.launch {
+                historyStore.deleteHistoryEntries(entryKeys)
+            }
+        }
+
         override fun onClearNetworkLog() {
             val session = getActiveSessionOnMain() ?: return
             // Network-log clearing is session-scoped so another live window and console evidence
@@ -751,6 +797,57 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             clearNetworkRequests(session)
             refreshSessionUiOnMain(session.id)
         }
+
+        override fun onAddNetworkBlockRule(url: String) {
+            try {
+                adBlockStore.addOrUpdateNetworkRule(
+                    id = null,
+                    rule = suggestBrowserAdBlockNetworkRule(url),
+                )
+                applyBrowserAdBlockRulesToAllSessionsOnMain()
+                showToast("网址过滤规则已添加")
+            } catch (error: Exception) {
+                AppLogger.e(
+                    WEBVIEW_SUPPORT_TAG,
+                    "Failed to add network ad-block rule",
+                    error,
+                )
+                showToast("网址过滤规则添加失败")
+            }
+        }
+
+        override fun onAddElementBlockRule(domain: String, selector: String) {
+            adBlockStore.addOrUpdateElementRule(
+                id = null,
+                domain = domain,
+                selector = selector,
+            )
+            applyBrowserAdBlockRulesToAllSessionsOnMain()
+        }
+
+        override fun onRemoveElementBlockRule(domain: String, selector: String): Boolean =
+            try {
+                val target =
+                    adBlockStore.current.customElementRules.singleOrNull { rule ->
+                        rule.domain == domain && rule.selector == selector.trim()
+                    }
+                if (target == null) {
+                    showToast("当前网页元素规则尚未保存")
+                    false
+                } else {
+                    adBlockStore.removeElementRule(target.id)
+                    applyBrowserAdBlockRulesToAllSessionsOnMain()
+                    true
+                }
+            } catch (error: Exception) {
+                AppLogger.e(
+                    WEBVIEW_SUPPORT_TAG,
+                    "Failed to remove web-element ad-block rule",
+                    error,
+                )
+                showToast("网页元素拦截规则删除失败")
+                false
+            }
 
         override fun onSelectUserAgentMode(mode: WebSessionUserAgentMode) {
             removeActiveSiteUserAgentRule()
@@ -909,7 +1006,9 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 applyViewportOverride(session)
                 refreshNavigationStateFromWebView(session.webView, session)
                 injectDownloadHelper(session.webView)
+                injectBrowserElementInteractionHelper(session.webView)
                 injectTextSelectionHelper(session.webView)
+                injectBrowserAdBlockElementRules(session)
                 injectMediaCandidateObserver(session.webView)
                 requestSessionThumbnailOnMain(session, force = true)
             }
@@ -1682,6 +1781,9 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                                     activeMediaCandidates,
                                     entry.url,
                                 ),
+                            blocked = entry.blocked,
+                            blockingRule = entry.blockingRule,
+                            blockingSourceName = entry.blockingSourceName,
                         )
                     }
                 }
@@ -1898,6 +2000,60 @@ internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserT
     browserHost?.setViewportSize(requestedWidth, requestedHeight)
     session.webView.requestLayout()
 }
+
+internal fun StandardBrowserSessionTools.injectBrowserAdBlockElementRules(
+    session: BrowserToolSession,
+) {
+    val selectors = adBlockStore.selectorsForPage(session.currentUrl)
+    val encodedSelectors = JSONArray(selectors).toString()
+    session.webView.evaluateJavascript(
+        """
+        (function(selectors) {
+            const styleId = "kiyori-adblock-style";
+            let style = document.getElementById(styleId);
+            if (!Array.isArray(selectors) || selectors.length === 0) {
+                if (style && style.parentNode) {
+                    style.parentNode.removeChild(style);
+                }
+                return;
+            }
+            if (!style) {
+                style = document.createElement("style");
+                style.id = styleId;
+                style.setAttribute("data-kiyori-runtime-ui", "adblock");
+                (document.head || document.documentElement).appendChild(style);
+            }
+            style.textContent = selectors
+                .map(function(selector) {
+                    return selector + " { display: none !important; }";
+                })
+                .join("\n");
+        })($encodedSelectors);
+        """.trimIndent(),
+        null,
+    )
+}
+
+internal fun StandardBrowserSessionTools.applyBrowserAdBlockRulesToAllSessionsOnMain() {
+    runOnMainSync<Unit> {
+        StandardBrowserSessionTools.sessions.values.forEach { session ->
+            injectBrowserAdBlockElementRules(session)
+        }
+    }
+}
+
+private fun browserAdBlockBlockedResponse(): android.webkit.WebResourceResponse =
+    android.webkit.WebResourceResponse(
+        "text/plain",
+        "UTF-8",
+        204,
+        "No Content",
+        mapOf(
+            "Cache-Control" to "no-store",
+            "X-Kiyori-AdBlock" to "blocked",
+        ),
+        ByteArrayInputStream(ByteArray(0)),
+    )
 
 internal fun StandardBrowserSessionTools.configureCookiePolicy(session: BrowserToolSession) {
     val webView = session.webView

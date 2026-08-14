@@ -50,7 +50,7 @@ internal enum class KiyoriDownloadSettingsAction {
     SELECT_DOWNLOAD_PROTOCOL,
 }
 
-internal const val KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE = "文件下载器设置"
+internal const val KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE = "文件下载器"
 
 internal data class KiyoriDownloadSettingsEntrySpec(
     val title: String,

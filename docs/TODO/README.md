@@ -7,6 +7,219 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-14 广告拦截器、标记广告与网页元素操作
+
+状态：本地实现、定向验证、正式门禁与 Debug APK 已完成；设备和真实网页验收待完成。
+
+### 任务目标
+
+在唯一 Browser Runtime、WebSession 和 Android System WebView 上建立 Kiyori 原生广告拦截能力：
+接通设置首页“广告拦截器”，完成浏览器菜单“网络日志”和“标记广告”，在网络日志“其他”右侧
+增加“拦截”筛选，并为网页元素长按提供按目标能力生成的现代化操作弹窗。功能设计参考
+`D:\10_Project\hikerView` 与用户提供的七张参考图，但视觉、状态所有权和交互层级必须适配
+Kiyori 现有设置、浏览器抽屉和模态体系。
+
+### 非目标与授权边界
+
+- 不移植 hikerView 的 X5/TBS、旧 Activity/EventBus/LitePal 架构或旧版 Adblock Plus native 二进制
+- 不创建第二 WebView、第二网络日志、第二浏览器状态或并行广告设置源
+- 不在 `shouldInterceptRequest` 后台线程访问 WebView、WebSettings、DOM 或 Compose 状态
+- 不写回退、降级、双轨兼容或静默吞错逻辑；解析、下载和持久化失败必须形成明确状态
+- 不内置未经本轮核验的远程订阅地址；订阅由用户显式添加并主动刷新
+- 不提交、不推送、不安装 APK，不执行 ADB、模拟器或真机操作
+
+### 采用的功能与状态设计
+
+1. `BrowserAdBlockStore` 是唯一持久化 owner，保存总开关、站点白名单、自定义网址规则、
+   自定义元素规则、订阅元数据与订阅规则；同时发布不可变编译快照供后台请求线程只读匹配
+2. 请求级拦截在现有 `WebViewClient.shouldInterceptRequest` 中先计算广告决定，再把允许或拦截事实
+   写入同一个每会话 500 条网络日志；拦截返回明确空响应，不触发第二次网络请求
+3. 网址规则兼容 hikerView 常用的普通包含式规则，并支持必要的 Adblock 形式：
+   `||host^`、`|prefix`、`suffix|`、`*` 通配和 `@@` 例外；订阅同时解析 `domain##selector`
+   元素隐藏规则。无法识别的行不伪装为有效规则，订阅页显示有效与忽略数量
+4. 元素隐藏按页面 host 解析 CSS selector，在 `onPageFinished` 和源码工作台 Apply 后注入同一
+   文档；`style` 节点属于 Kiyori 运行时，页面源码快照和标记工作台需要排除 Kiyori 自有 UI
+5. “标记广告”进入原生 Compose 底部工作台，网页脚本只负责元素命中、稳定 selector、
+   HTML 摘要与高亮。工作台作为实时 WebView 下方的固定 `320dp` sibling 占位，不覆盖页面内容；
+   上栏固定为“拦截规则 / 节点 / HTML / 父 / 兄 / 弟 / 子 / 关闭”，下栏固定为
+   “保存规则 / 编辑规则 / 预览 / 重置 / 清除拦截 / 拦截网站跳转”。编辑只修改当前草稿，
+   清除需要确认，网站跳转策略使用独立底部抽屉；保存后写入当前 host 的元素规则并立即应用
+6. 网页长按沿用现有注入式触摸所有权，按命中目标动态提供：
+   “新窗口打开 / 后台打开 / 复制链接 / 复制文本 / 外部打开 / 选择文本 /
+   拦截网页元素 / 拦截过滤网址”；没有对应链接、文本或资源 URL 的动作不显示
+7. 设置页复用 Kiyori 折叠设置视觉，首页提供总开关、当前统计、网址过滤、网页元素、
+   站点白名单和订阅入口；各管理页支持搜索、添加、启停、编辑、删除和明确空态
+8. 网络日志新增独立“拦截”筛选，不把被拦截请求伪装成媒体或 HTTP 失败；列表、详情和操作
+   弹窗显示命中来源及规则，并允许把真实记录写入网址规则
+
+### 细化计划
+
+1. [DONE] 读取 `AGENTS.md`、正式开发准备五份清单、Git 基线、相关任务日记和现有文档合同
+2. [DONE] 研究 Kiyori 设置首页、Shell 子页、浏览器菜单、网络日志、请求采集、文本选择和
+   页面脚本注入链路
+3. [DONE] 研究 hikerView `AdblockHolder`、`AdBlockRule`、`AdBlockUrl`、订阅格式、
+   网页长按与七张参考图，确认请求阻断与元素隐藏两层模型
+4. [DONE] 实现纯策略模型、唯一规则 store、原子持久化、订阅解析与定向单元测试
+5. [DONE] 接入 `shouldInterceptRequest`、网络日志拦截字段/筛选/详情和页面元素隐藏注入
+6. [DONE] 实现长按元素动作桥、动态操作弹窗与前台/后台新窗口、复制、外部打开和拦截动作
+7. [DONE] 实现“标记广告”元素选择脚本、原生工作台、DOM 导航、预览与保存；第二轮将工作台
+   改为不覆盖 WebView 的固定底部 sibling，并补齐编辑规则、清除确认、网站跳转策略抽屉和询问链路
+8. [DONE] 接通设置首页、广告拦截主页面及网址/元素/白名单/订阅管理页
+9. [DONE] 同步 `CONTEXT.md`、浏览器菜单能力、设置首页计划、架构文档和资源
+10. [DONE] 运行定向 JVM、Kotlin 编译、正式门禁、资源/XML、Markdown、差异检查和
+    `:app:assembleDebug`，核验 Debug APK
+11. [PENDING] 目标设备验收长按冲突、标记模式、动态页面元素、网络日志、规则实时生效、
+    浅深主题、窄屏、Back 顺序和真实站点兼容性
+
+### 验收标准
+
+- 总开关、白名单、网址规则、元素规则和订阅只有一个持久化 owner，所有 UI 与 WebView 消费同一快照
+- 被命中请求不会继续交给 userscript 或系统网络加载，网络日志可在“拦截”筛选中复核规则来源
+- 元素规则保存后当前页立即隐藏，刷新和同 host 后续页面继续应用；退出标记模式不残留高亮或触摸拦截
+- 标记工作台出现时 WebView 使用剩余实际高度，面板左右下贴边；默认策略阻止网页点击误跳转，
+  只有用户显式选择“允许跳转”时才恢复链接导航
+- 长按链接、图片、普通文本和无动作区域分别显示与目标能力一致的操作，不破坏现有文本选择入口
+- 浏览器菜单、来源保持型设置首页和普通设置首页的 Back/子页层级保持现有合同
+- 自动测试、静态检查、Debug 构建和 APK 核验通过；设备与真实网页体验未执行时保持
+  `verification_pending`
+
+### 当前本地实现证据
+
+- `BrowserAdBlockStore` 是唯一规则持久化 owner；设置页、网络日志、元素长按和标记工作台均消费同一状态
+- `shouldInterceptRequest` 的客户端阻断决定写入当前 WebSession 网络日志，blocked 行不会伪装成服务端 HTTP 失败
+- `WebSessionBrowserBackPolicyTest` `3/3`、`KiyoriSettingsPagesTest` `13/13`、`KiyoriShellStateTest`
+  `57/57` 已通过；`compileDebugKotlin` 已通过
+- `BrowserAdBlockPolicyTest` `7/7`、`BrowserNetworkLogPolicyTest` `4/4` 已通过；正式开发准备检查
+  `PASS`，8 个相关 JVM 测试类合计 `97/97`，architecture boundary `phase=m03` 与对应 Python
+  正反向测试 `107/107` 通过，`git diff --check` 通过
+- `:app:assembleDebug --no-daemon --console=plain` `BUILD SUCCESSFUL`；APK 为
+  `app/build/outputs/apk/debug/app-debug.apk`，大小 `471058927` bytes，SHA-256
+  `DA1C2F4EEF44071B3B3AE333AFC2873D11F882EB4E5969134807E073B99E0291`，Debug V2 签名和
+  `zipalign -c -P 16 -v 4` 通过
+- 设备长按手势、标记工作台触控、真实网页规则命中、远程订阅兼容性仍未执行，状态保持
+  `verification_pending`
+
+## 2026-08-14 历史记录长按操作与批量删除
+
+状态：本地实现、自动验证和 Debug APK 核验已完成；目标设备交互与视觉验收待完成，保持
+`verification_pending`。
+
+### 任务目标
+
+为浏览器菜单与负一屏共用的“历史记录”下拉抽屉增加单条长按操作弹窗，并按网页和视频的真实
+能力分别设计操作集合；在不创建第二历史、书签、浏览器或播放器 owner 的前提下，补齐单条精确
+删除和可选择的批量删除。
+
+### 非目标与边界
+
+- 不改变普通/无痕历史持久化策略、网页访问写入、媒体重播身份、PlayerSession 或 Browser Runtime
+- 不把视频直链或本地媒体 URI 当成网页书签；视频只在保存了有效来源网页时显示“打开来源网页”
+- 不为当前没有真实写入 owner 的音乐、小说和其他分类虚构专属长按动作
+- 不增加回退、兼容开关、第二套历史页面或并行数据库
+- 不提交、不推送、不安装 APK，不执行 ADB、模拟器或真机操作
+
+### 细化计划
+
+1. [DONE] 核对 `AGENTS.md`、正式开发门禁、Git 基线、共享历史 owner、浏览器/负一屏宿主、
+   网页与媒体重播链路及现有长按弹窗
+2. [DONE] 确定 UI 基准：复用 `WebSessionBrowserModalDialog`、
+   `WebSessionBrowserDialogSurface`、历史入口语义色和 `48dp` 操作行
+3. [DONE] 网页记录提供“打开网页 / 加入书签 / 复制链接 / 复制标题 / 删除记录 /
+   批量删除”；加入书签继续打开现有书签编辑弹窗
+4. [DONE] 视频记录提供“播放视频 / 打开来源网页（仅有效来源）/ 复制视频链接 /
+   复制标题 / 删除记录 / 批量删除”，继续调用唯一 PlayerSession 和 Browser Runtime
+5. [DONE] 长按进入操作弹窗；批量删除进入选择模式，保留搜索与分类，支持当前结果全选、
+   取消、精确删除和二次确认
+6. [DONE] 为 `WebSessionHistoryStore` 增加按 `url / category / visitedAt` 精确身份删除，
+   不改变现有序列化 schema 和分时段删除
+7. [DONE] 更新 `CONTEXT.md` 与浏览器菜单能力文档，补充网页/视频动作、精确删除和批量
+   选择策略测试
+8. [DONE] 运行定向 JVM、正式开发准备、资源/XML 与差异检查，串行构建并核验 Debug APK
+9. [PENDING] 目标设备验收长按时长、弹窗层级、浅深主题、窄屏、复制 Toast、书签编辑、
+   网页/视频打开、单条删除、当前筛选范围批量选择与 Back 顺序
+
+### 验收边界
+
+- 自动测试与 Debug APK 只能证明策略、状态接线和构建产物；长按触感、弹窗视觉、触控热区和
+  Browser/Player 现场跳转仍需目标设备验收
+- 浏览器菜单与负一屏必须继续组合同一个 `WebSessionHistorySheet`，两处不得复制交互状态或 mutation
+
+### 本地验证证据
+
+- `:app:compileDebugKotlin` 与首轮 `WebSessionHistoryPolicyTest` 通过；历史策略最终为 `5/5`
+- `WebSessionHistoryPolicyTest`、`WebSessionBookmarkPolicyTest` 与 `KiyoriShellStateTest`
+  合计 `68/68`，零失败、零错误、零跳过
+- architecture boundary `107/107`、formal readiness、七语种 `49` 个
+  `web_session_history_*` 资源键与占位符一致性、`git diff --check` 均通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 58s`，`232` 个任务，`22 executed / 210 up-to-date`；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-08-14 23:29:15 +08:00`，`471054375` bytes，SHA-256
+  `BDF9312092D368780F256450EE4A2039CA56C59538D7BE2966AD497BBFBAE2A9`
+- APK 为 `com.kiyori`、`versionCode 45`、`versionName 0.1.0`、min/target/compile SDK
+  `26 / 34 / 37`、`debuggable=true`、仅 `arm64-v8a`；Android Debug V2 单 signer，
+  `zipalign -c -P 16 -v 4` 为 `Verification successful`
+- 未提交、未推送、未安装 APK，未执行 ADB、模拟器或真机操作
+
+## 2026-08-14 设置标题、主题菜单与来源保持导航
+
+状态：本地实现、自动验证和 Debug APK 构建已完成；浏览器菜单、AI 抽屉、主题菜单间距与返回交互
+仍待目标设备验收，保持 `verification_pending`。
+
+### 任务目标
+
+统一设置首页与设置详情页的用户可见名称，压缩主题快捷菜单的横向留白，并让浏览器菜单与 AI
+左抽屉都进入同一个来源保持型设置首页：该设置首页覆盖在来源页面之上，不显示软件首页底部五
+入口，Back 逐层返回设置首页和原来源页面。
+
+### 非目标与边界
+
+- 不创建第二套设置首页、设置偏好、Browser Runtime、AI 路由 owner 或持久化状态
+- 不改变浏览器、播放器、下载器和 AI 设置的业务设置内容
+- 不加入回退、兼容开关或并行旧入口；Kiyori 尚未发布，本轮直接替换当前内部导航方案
+- 不提交、不推送、不安装 APK，不执行 ADB、模拟器或真机操作
+
+### 细化计划
+
+1. [DONE] 核对 `AGENTS.md`、正式开发准备清单、Git 基线、设置/浏览器/AI 抽屉调用链与既有任务记录
+2. [DONE] 将“小说阅读器”统一为“文档阅读器”，让网页浏览器、视频播放器、文件下载器
+   详情标题直接复用设置首页对应名称
+3. [DONE] 将主题快捷菜单从 `172dp` 缩窄到 `156dp`，保持唯一主题 owner 与三项顺序不变
+4. [DONE] 新增来源保持型 `KiyoriShellChild.SETTINGS_HOME`，复用现有
+   `KiyoriSettingsHomePage`，在覆盖式展示中提供返回动作并隐藏底部五入口
+5. [DONE] 浏览器菜单第四行第三项改为通用“设置”并打开覆盖式设置首页；AI 左抽屉底部同样
+   显示“设置”并保持当前 AI 页面/子栈
+6. [DONE] 覆盖式设置首页进入浏览器、下载器、播放器详情时使用嵌套子页；进入 AI、账号、
+   语音、界面和数据根时压入当前 AI 路由栈，Back 先回设置首页再回来源页
+7. [DONE] 更新 `CONTEXT.md`、导航架构/决策与设置视觉文档，增加标题、菜单宽度、底栏与
+   来源返回合同测试
+8. [DONE] 运行定向 JVM、正式开发准备、资源/XML 与差异检查，串行构建并核验 Debug APK
+
+### 验收边界
+
+- 自动测试与 Debug APK 只能证明静态合同、状态转换和构建产物；浏览器菜单、AI 抽屉、主题弹窗
+  间距、返回手势和不同窗口尺寸的视觉仍需目标设备验收
+- 浏览器或 AI 页面进入设置首页后，来源页面必须保持原状态；不得以切换到底部设置主目的地模拟返回
+
+### 本地验证证据
+
+- `:app:compileDebugKotlin --no-daemon --console=plain`：`BUILD SUCCESSFUL`
+- `KiyoriSettingsPagesTest` `13/13`、`KiyoriShellStateTest` `56/56`、浏览器菜单色彩/布局与
+  `MainActivityBrowserActionTest` `13/13`，合计 `82/82`，零失败、零错误、零跳过
+- 项目 `.venv` 的 architecture boundary `107/107`、formal readiness、七份 `strings.xml`
+  解析、worktree Markdown 链接和 `git diff --check` 均通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain`：
+  `BUILD SUCCESSFUL in 59s`，`232` 个任务，`22 executed / 210 up-to-date`；
+  `verifySingleDebugLauncher` 与 `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-08-14 22:38:50 +08:00`，`471035851` bytes，SHA-256
+  `28BFBC295AEA0433C279FC7EFCF9BE6FF37468E306B5E3C33CCBF4384CAD821C`
+- APK 为 `com.kiyori`、`versionCode 45`、`versionName 0.1.0`、min/target/compile SDK
+  `26 / 34 / 37`、`debuggable=true`、仅 `arm64-v8a`；Android Debug V2 单 signer，
+  `zipalign -c -P 16 -v 4` 为 `Verification successful`
+- 未提交、未推送、未安装 APK，未执行 ADB、模拟器或真机操作
+
 ## 2026-08-14 全项目深度整理与质量优化
 
 状态：`verification_pending`

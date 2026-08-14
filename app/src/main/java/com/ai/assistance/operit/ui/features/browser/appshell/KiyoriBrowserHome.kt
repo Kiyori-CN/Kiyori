@@ -58,7 +58,7 @@ internal fun shouldDispatchPendingForegroundBrowserUrl(
 internal fun KiyoriBrowserHome(
     onExitBrowser: () -> Unit,
     onOpenAiDialogue: () -> Unit,
-    onOpenBrowserSettings: () -> Unit,
+    onOpenSettingsHome: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onCloseBrowser: () -> Unit,
     pendingForegroundUrl: String?,
@@ -150,7 +150,7 @@ internal fun KiyoriBrowserHome(
                     onOpenAiDialogue,
                 )
             },
-            onOpenBrowserSettings = onOpenBrowserSettings,
+            onOpenSettingsHome = onOpenSettingsHome,
             onOpenDownloadSettings = onOpenDownloadSettings,
             onExitBrowser = {
                 finishPresentation(

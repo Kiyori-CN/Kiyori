@@ -26,9 +26,11 @@ import org.junit.Test
 class KiyoriSettingsPagesTest {
     @Test
     fun `shared settings header follows the reference start middle and pinned frames`() {
-        assertEquals("网页浏览器设置", KIYORI_BROWSER_SETTINGS_PAGE_TITLE)
-        assertEquals("文件下载器设置", KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE)
-        assertEquals("视频播放器设置", KIYORI_PLAYER_SETTINGS_PAGE_TITLE)
+        assertEquals("网页浏览器", KIYORI_BROWSER_SETTINGS_PAGE_TITLE)
+        assertEquals("文件下载器", KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE)
+        assertEquals("视频播放器", KIYORI_PLAYER_SETTINGS_PAGE_TITLE)
+        assertEquals("广告拦截器", KIYORI_AD_BLOCK_SETTINGS_PAGE_TITLE)
+        assertEquals(156, KIYORI_SETTINGS_THEME_MENU_WIDTH_DP)
         assertEquals(
             0f,
             calculateKiyoriSettingsHeaderCollapseProgress(0, 0, 72f),
@@ -85,7 +87,7 @@ class KiyoriSettingsPagesTest {
                 "网页浏览器",
                 "视频播放器",
                 "音乐播放器",
-                "小说阅读器",
+                "文档阅读器",
                 "文件下载器",
                 "文件管理器",
                 "广告拦截器",
@@ -156,6 +158,15 @@ class KiyoriSettingsPagesTest {
                 .flatten()
                 .filter { entry ->
                     entry.action == KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("广告拦截器"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS
                 }
                 .map(KiyoriSettingsHomeEntry::title),
         )

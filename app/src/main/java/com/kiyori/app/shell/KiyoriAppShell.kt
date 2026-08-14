@@ -39,11 +39,13 @@ import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
 import com.ai.assistance.operit.ui.main.shell.KiyoriPlayerSettingsPage
+import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
 import com.kiyori.design.theme.KiyoriBrowserTheme
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import kotlin.math.abs
@@ -291,6 +293,9 @@ internal fun KiyoriAppShell(
                     onOpenPlayerSettings = {
                         onStateChange(state.openChild(KiyoriShellChild.PLAYER_SETTINGS))
                     },
+                    onOpenAdBlockSettings = {
+                        onStateChange(state.openChild(KiyoriShellChild.AD_BLOCKER_SETTINGS))
+                    },
                     onOpenAppearanceSettings = onOpenAppearanceSettingsFromKiyoriSettings,
                     onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
                     modifier = Modifier.fillMaxSize().zIndex(4f),
@@ -353,6 +358,42 @@ internal fun KiyoriAppShell(
                             onSubmitSearch = onSubmitWebSearch,
                             modifier = Modifier.fillMaxSize(),
                         )
+                    KiyoriShellChild.SETTINGS_HOME ->
+                        KiyoriSettingsHomePage(
+                            onOpenAccountConnections =
+                                onOpenAccountConnectionsFromKiyoriSettings,
+                            onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
+                            onOpenSpeechServices = onOpenSpeechServicesFromKiyoriSettings,
+                            // 详情页压在来源保持型设置首页之上，Back 必须先回设置首页，
+                            // 否则会直接暴露浏览器或 AI 来源页并打断设置浏览路径。
+                            onOpenBrowserSettings = {
+                                onStateChange(
+                                    state.openNestedChild(KiyoriShellChild.BROWSER_SETTINGS),
+                                )
+                            },
+                            onOpenDownloadSettings = {
+                                onStateChange(
+                                    state.openNestedChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
+                                )
+                            },
+                            onOpenPlayerSettings = {
+                                onStateChange(
+                                    state.openNestedChild(KiyoriShellChild.PLAYER_SETTINGS),
+                                )
+                            },
+                            onOpenAdBlockSettings = {
+                                onStateChange(
+                                    state.openNestedChild(
+                                        KiyoriShellChild.AD_BLOCKER_SETTINGS,
+                                    ),
+                                )
+                            },
+                            onOpenAppearanceSettings =
+                                onOpenAppearanceSettingsFromKiyoriSettings,
+                            onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
+                            onBack = { onStateChange(state.closeChild()) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     KiyoriShellChild.BROWSER_SETTINGS ->
                         KiyoriBrowserSettingsPage(
                             onBack = { onStateChange(state.closeChild()) },
@@ -365,6 +406,11 @@ internal fun KiyoriAppShell(
                         )
                     KiyoriShellChild.PLAYER_SETTINGS ->
                         KiyoriPlayerSettingsPage(
+                            onBack = { onStateChange(state.closeChild()) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    KiyoriShellChild.AD_BLOCKER_SETTINGS ->
+                        KiyoriAdBlockSettingsPage(
                             onBack = { onStateChange(state.closeChild()) },
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -504,7 +550,9 @@ internal fun shouldProvideKiyoriSettingsTheme(child: KiyoriShellChild?): Boolean
         KiyoriShellChild.BROWSER_SETTINGS,
         KiyoriShellChild.DOWNLOAD_SETTINGS,
         KiyoriShellChild.PLAYER_SETTINGS,
+        KiyoriShellChild.AD_BLOCKER_SETTINGS,
         -> true
+        KiyoriShellChild.SETTINGS_HOME,
         KiyoriShellChild.FULL_SCREEN_WEB_SEARCH,
         null,
         -> false

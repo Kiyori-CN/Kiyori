@@ -42,6 +42,39 @@ internal enum class WebSessionHistoryDeleteRange(
         durationMillis?.let { duration -> nowMillis - duration }
 }
 
+internal enum class WebSessionHistoryActionKind {
+    WEB_PAGE,
+    VIDEO,
+}
+
+internal data class WebSessionHistoryEntryKey(
+    val url: String,
+    val category: WebSessionHistoryCategory,
+    val visitedAt: Long,
+)
+
+internal fun WebSessionHistoryEntry.actionKind(): WebSessionHistoryActionKind? =
+    when (category) {
+        WebSessionHistoryCategory.WEB -> WebSessionHistoryActionKind.WEB_PAGE
+        WebSessionHistoryCategory.VIDEO -> WebSessionHistoryActionKind.VIDEO
+        WebSessionHistoryCategory.MUSIC,
+        WebSessionHistoryCategory.NOVEL,
+        WebSessionHistoryCategory.OTHER,
+        -> null
+    }
+
+internal fun WebSessionHistoryEntry.entryKey(): WebSessionHistoryEntryKey =
+    WebSessionHistoryEntryKey(
+        url = url,
+        category = category,
+        visitedAt = visitedAt,
+    )
+
+internal fun WebSessionHistoryEntry.validSourcePageUrl(): String? =
+    sourcePageUrl
+        .takeIf { actionKind() == WebSessionHistoryActionKind.VIDEO }
+        ?.let(::normalizeWebSessionBookmarkUrl)
+
 internal fun filterWebSessionHistoryEntries(
     entries: List<WebSessionHistoryEntry>,
     filter: WebSessionHistoryFilter,
@@ -68,6 +101,14 @@ internal fun shouldDeleteWebSessionHistoryEntry(
 ): Boolean =
     (category == null || entry.category == category) &&
         (cutoffTimeMillis == null || entry.visitedAt >= cutoffTimeMillis)
+
+internal fun removeWebSessionHistoryEntries(
+    entries: List<WebSessionHistoryEntry>,
+    entryKeys: Set<WebSessionHistoryEntryKey>,
+): List<WebSessionHistoryEntry> {
+    if (entryKeys.isEmpty()) return entries
+    return entries.filterNot { entry -> entry.entryKey() in entryKeys }
+}
 
 internal fun resolveWebSessionHistoryMediaOrigin(uri: String): WebSessionHistoryMediaOrigin {
     val scheme = uri.trim().substringBefore(':').lowercase(Locale.ROOT)

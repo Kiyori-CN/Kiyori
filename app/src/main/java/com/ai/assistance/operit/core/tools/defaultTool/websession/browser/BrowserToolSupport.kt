@@ -46,6 +46,9 @@ internal data class BrowserNetworkRequestEntry(
     val isStatic: Boolean,
     val category: BrowserNetworkRequestCategory,
     val headers: Map<String, String> = emptyMap(),
+    val blocked: Boolean = false,
+    val blockingRule: String? = null,
+    val blockingSourceName: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -239,7 +242,8 @@ internal fun StandardBrowserSessionTools.clearNetworkRequests(session: BrowserTo
 
 internal fun StandardBrowserSessionTools.recordNetworkRequest(
     session: BrowserToolSession,
-    request: WebResourceRequest
+    request: WebResourceRequest,
+    blockDecision: BrowserAdBlockDecision? = null,
 ) {
     val url = request.url?.toString().orEmpty()
     if (url.isBlank()) {
@@ -259,7 +263,10 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
                     acceptHeader = acceptHeader,
                     isMainFrame = request.isForMainFrame,
                 ),
-            headers = headers
+            headers = headers,
+            blocked = blockDecision?.blocked == true,
+            blockingRule = blockDecision?.rule,
+            blockingSourceName = blockDecision?.sourceName,
         )
     synchronized(session.networkEntries) {
         session.networkEntries += entry

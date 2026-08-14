@@ -34,9 +34,11 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
+    SETTINGS_HOME,
     BROWSER_SETTINGS,
     DOWNLOAD_SETTINGS,
     PLAYER_SETTINGS,
+    AD_BLOCKER_SETTINGS,
 }
 
 enum class KiyoriShellExternalDestination {
@@ -348,9 +350,12 @@ internal fun KiyoriShellState.openExternalChild(
     val owner =
         when (destination) {
             KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
+            KiyoriShellChild.SETTINGS_HOME ->
+                error("Settings Home overlay must preserve its current primary owner.")
             KiyoriShellChild.BROWSER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
             KiyoriShellChild.DOWNLOAD_SETTINGS -> PrimaryDestination.SETTINGS_HOME
             KiyoriShellChild.PLAYER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
+            KiyoriShellChild.AD_BLOCKER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
         }
     return selectPrimary(owner).openChild(destination)
 }

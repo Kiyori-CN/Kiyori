@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +20,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccountCircle
@@ -57,6 +59,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +90,7 @@ internal enum class KiyoriSettingsHomeAction {
     OPEN_BROWSER_SETTINGS,
     OPEN_DOWNLOAD_SETTINGS,
     OPEN_PLAYER_SETTINGS,
+    OPEN_AD_BLOCKER_SETTINGS,
     OPEN_APPEARANCE_SETTINGS,
     OPEN_DATA_SETTINGS,
 }
@@ -96,6 +100,8 @@ internal enum class KiyoriSettingsQuickTheme {
     LIGHT,
     DARK,
 }
+
+internal const val KIYORI_SETTINGS_THEME_MENU_WIDTH_DP = 156
 
 internal fun resolveKiyoriSettingsQuickTheme(
     useSystemTheme: Boolean,
@@ -155,13 +161,13 @@ internal val kiyoriSettingsHomeGroups =
         ),
         listOf(
             KiyoriSettingsHomeEntry(
-                "网页浏览器",
+                KIYORI_BROWSER_SETTINGS_PAGE_TITLE,
                 Icons.Default.Language,
                 KiyoriSettingsHomeIconPalette.BROWSER,
                 KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
-                "视频播放器",
+                KIYORI_PLAYER_SETTINGS_PAGE_TITLE,
                 Icons.Default.PlayCircle,
                 KiyoriSettingsHomeIconPalette.VIDEO_PLAYER,
                 KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS,
@@ -172,14 +178,14 @@ internal val kiyoriSettingsHomeGroups =
                 KiyoriSettingsHomeIconPalette.MUSIC_PLAYER,
             ),
             KiyoriSettingsHomeEntry(
-                "小说阅读器",
+                "文档阅读器",
                 Icons.AutoMirrored.Filled.MenuBook,
-                KiyoriSettingsHomeIconPalette.NOVEL_READER,
+                KiyoriSettingsHomeIconPalette.DOCUMENT_READER,
             ),
         ),
         listOf(
             KiyoriSettingsHomeEntry(
-                "文件下载器",
+                KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE,
                 Icons.Default.Download,
                 KiyoriSettingsHomeIconPalette.DOWNLOADS,
                 KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS,
@@ -193,6 +199,7 @@ internal val kiyoriSettingsHomeGroups =
                 "广告拦截器",
                 Icons.Default.Block,
                 KiyoriSettingsHomeIconPalette.AD_BLOCKER,
+                KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS,
             ),
             KiyoriSettingsHomeEntry(
                 "日志记录器",
@@ -234,10 +241,15 @@ internal fun KiyoriSettingsHomePage(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    BackHandler(enabled = onBack != null) {
+        onBack?.invoke()
+    }
     KiyoriSettingsTheme {
         val context = LocalContext.current
         val preferencesManager =
@@ -269,6 +281,7 @@ internal fun KiyoriSettingsHomePage(
                 KiyoriSettingsHomeHeader(
                     effectiveDarkTheme = effectiveDarkTheme,
                     selectedQuickTheme = selectedQuickTheme,
+                    onBack = onBack,
                     onSelectQuickTheme = { selection ->
                         scope.launch {
                             when (selection) {
@@ -298,6 +311,7 @@ internal fun KiyoriSettingsHomePage(
                     onOpenBrowserSettings = onOpenBrowserSettings,
                     onOpenDownloadSettings = onOpenDownloadSettings,
                     onOpenPlayerSettings = onOpenPlayerSettings,
+                    onOpenAdBlockSettings = onOpenAdBlockSettings,
                     onOpenAppearanceSettings = onOpenAppearanceSettings,
                     onOpenDataSettings = onOpenDataSettings,
                 )
@@ -311,6 +325,7 @@ internal fun KiyoriSettingsHomePage(
 private fun KiyoriSettingsHomeHeader(
     effectiveDarkTheme: Boolean,
     selectedQuickTheme: KiyoriSettingsQuickTheme,
+    onBack: (() -> Unit)?,
     onSelectQuickTheme: (KiyoriSettingsQuickTheme) -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
@@ -324,7 +339,11 @@ private fun KiyoriSettingsHomeHeader(
                 .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Spacer(modifier = Modifier.width(10.dp))
+        if (onBack == null) {
+            Spacer(modifier = Modifier.width(10.dp))
+        } else {
+            KiyoriSettingsHomeBackAction(onBack)
+        }
         Text(
             text = "设置",
             fontSize = 21.sp,
@@ -384,7 +403,7 @@ private fun KiyoriSettingsThemeShortcut(
             onDismissRequest = { onExpandedChange(false) },
             modifier =
                 Modifier
-                    .width(172.dp)
+                    .width(KIYORI_SETTINGS_THEME_MENU_WIDTH_DP.dp)
                     .background(colors.cardBackground),
         ) {
             KiyoriSettingsQuickTheme.entries.forEach { option ->
@@ -424,6 +443,21 @@ private fun KiyoriSettingsThemeShortcut(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun KiyoriSettingsHomeBackAction(onBack: () -> Unit) {
+    Box(
+        modifier = Modifier.size(36.dp).clickable(onClick = onBack),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = stringResource(R.string.back),
+            tint = LocalKiyoriSettingsColors.current.secondaryText,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -477,6 +511,7 @@ private fun KiyoriSettingsHomeGroupCard(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
 ) {
@@ -492,6 +527,7 @@ private fun KiyoriSettingsHomeGroupCard(
                 onOpenBrowserSettings = onOpenBrowserSettings,
                 onOpenDownloadSettings = onOpenDownloadSettings,
                 onOpenPlayerSettings = onOpenPlayerSettings,
+                onOpenAdBlockSettings = onOpenAdBlockSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
             )
@@ -517,6 +553,7 @@ private fun KiyoriSettingsHomeRow(
     onOpenBrowserSettings: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onOpenPlayerSettings: () -> Unit,
+    onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
 ) {
@@ -537,6 +574,8 @@ private fun KiyoriSettingsHomeRow(
                         KiyoriSettingsHomeAction.OPEN_BROWSER_SETTINGS -> onOpenBrowserSettings()
                         KiyoriSettingsHomeAction.OPEN_DOWNLOAD_SETTINGS -> onOpenDownloadSettings()
                         KiyoriSettingsHomeAction.OPEN_PLAYER_SETTINGS -> onOpenPlayerSettings()
+                        KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS ->
+                            onOpenAdBlockSettings()
                         KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS ->
                             onOpenAppearanceSettings()
                         KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS -> onOpenDataSettings()

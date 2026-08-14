@@ -83,6 +83,37 @@ class BrowserNetworkLogPolicyTest {
             listOf(3L),
             filterBrowserNetworkLogEntries(entries, category = null, query = "COVER").map { it.timestamp },
         )
+
+        val blocked =
+            entries +
+                WebSessionBrowserNetworkEntry(
+                    method = "GET",
+                    url = "https://ads.example.com/banner.js",
+                    isMainFrame = false,
+                    isStatic = true,
+                    category = BrowserNetworkRequestCategory.WEB,
+                    timestamp = 4L,
+                    blocked = true,
+                    blockingRule = "||ads.example.com^",
+                    blockingSourceName = "My filters",
+                )
+        assertEquals(
+            listOf(4L),
+            filterBrowserNetworkLogEntries(
+                entries = blocked,
+                category = null,
+                query = "",
+                blockedOnly = true,
+            ).map { it.timestamp },
+        )
+        assertEquals(
+            listOf(4L),
+            filterBrowserNetworkLogEntries(
+                entries = blocked,
+                category = null,
+                query = "filters",
+            ).map { it.timestamp },
+        )
     }
 
     @Test

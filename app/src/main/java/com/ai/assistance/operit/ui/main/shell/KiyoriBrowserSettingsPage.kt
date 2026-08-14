@@ -71,7 +71,7 @@ internal enum class KiyoriBrowserSettingsAction {
     CLEAR_COOKIES,
 }
 
-internal const val KIYORI_BROWSER_SETTINGS_PAGE_TITLE = "网页浏览器设置"
+internal const val KIYORI_BROWSER_SETTINGS_PAGE_TITLE = "网页浏览器"
 
 internal data class KiyoriBrowserSettingsEntrySpec(
     val title: String,

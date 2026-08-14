@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Security
@@ -116,13 +115,6 @@ private fun WebSessionBrowserPlaceholderPage.placeholderModel(): PlaceholderMode
                 description = stringResource(R.string.web_session_placeholder_reader_mode),
                 icon = Icons.AutoMirrored.Filled.MenuBook,
                 tone = WebSessionBrowserMenuTone.READER_MODE,
-            )
-        WebSessionBrowserPlaceholderPage.AD_MARKING ->
-            PlaceholderModel(
-                title = stringResource(R.string.web_session_ad_marking),
-                description = stringResource(R.string.web_session_placeholder_ad_marking),
-                icon = Icons.Filled.Block,
-                tone = WebSessionBrowserMenuTone.AD_MARKING,
             )
         WebSessionBrowserPlaceholderPage.SITE_CONFIG ->
             PlaceholderModel(

@@ -681,8 +681,8 @@ rg -n "KiyoriSemanticTone|kiyoriSemanticToneForStableId|KiyoriSemanticColors|res
 
 ARCH041 必须先在真实仓库只报告缺少
 `app/src/main/java/com/kiyori/design/theme/KiyoriSemanticColors.kt`。实现后锁定两个 design
-source、旧路径清零、唯一声明、固定色值/顺序/映射、两个 Compose adapter、58 个消费者、
-102 条 import、新旧测试分工和 Operit UI-only 依赖方向。ARCH025/026/027 的定向正反向
+source、旧路径清零、唯一声明、固定色值/顺序/映射、两个 Compose adapter、55 个显式
+import 消费文件、98 条 import、新旧测试分工和 Operit UI-only 依赖方向。ARCH025/026/027 的定向正反向
 测试必须与 ARCH041 一起通过；随后执行完整 architecture、Python/JVM、formal readiness、
 lint、Markdown、diff、规定 Debug 构建与 APK 审计。
 

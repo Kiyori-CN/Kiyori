@@ -117,6 +117,9 @@ class StandardBrowserSessionTools private constructor(
     internal val browserSettingsStore by lazy {
         WebSessionBrowserSettingsStore.getInstance(context.applicationContext)
     }
+    internal val adBlockStore by lazy {
+        BrowserAdBlockStore.getInstance(context.applicationContext)
+    }
     internal val browserCredentialVault by lazy {
         BrowserCredentialVault.getInstance(context.applicationContext)
     }

@@ -42,14 +42,18 @@ internal fun filterBrowserNetworkLogEntries(
     entries: List<WebSessionBrowserNetworkEntry>,
     category: BrowserNetworkRequestCategory?,
     query: String,
+    blockedOnly: Boolean = false,
 ): List<WebSessionBrowserNetworkEntry> {
     val normalizedQuery = query.trim()
     return entries.asReversed().filter { entry ->
         (category == null || entry.category == category) &&
+            (!blockedOnly || entry.blocked) &&
             (
                 normalizedQuery.isBlank() ||
                     entry.url.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.method.contains(normalizedQuery, ignoreCase = true)
+                    entry.method.contains(normalizedQuery, ignoreCase = true) ||
+                    entry.blockingRule?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    entry.blockingSourceName?.contains(normalizedQuery, ignoreCase = true) == true
                 )
     }
 }

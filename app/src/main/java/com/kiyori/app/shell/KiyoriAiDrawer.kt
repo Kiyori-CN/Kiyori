@@ -347,7 +347,7 @@ private fun KiyoriAiDrawerContent(
         )
         KiyoriAiDrawerNavigationRow(
             entry = settingsEntry,
-            label = stringResource(R.string.kiyori_shell_ai_settings),
+            label = stringResource(R.string.settings),
             selected = selectedEntryId == settingsEntry.entryId,
             enabled = isOpen,
             onClick = { onEntrySelected(settingsEntry) },

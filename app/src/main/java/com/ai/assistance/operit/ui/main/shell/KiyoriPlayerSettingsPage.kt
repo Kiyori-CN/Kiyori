@@ -35,7 +35,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.util.AppLogger
 
-internal const val KIYORI_PLAYER_SETTINGS_PAGE_TITLE = "视频播放器设置"
+internal const val KIYORI_PLAYER_SETTINGS_PAGE_TITLE = "视频播放器"
 
 internal enum class KiyoriPlayerSettingsDependency {
     ALWAYS,

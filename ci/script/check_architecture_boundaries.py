@@ -430,6 +430,8 @@ M05A1_EXPECTED_IMPORT_CONSUMERS = {
     },
     "LocalKiyoriSettingsColors": {
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+        "KiyoriAdBlockSettingsPage.kt",
+        "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriBrowserPasswordManagerPage.kt",
         "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
         "KiyoriBrowserTextSizePage.kt",
@@ -490,9 +492,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 49
+M05A2_PRODUCTION_CONSUMER_COUNT = 51
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 95
+M05A2_CONSUMER_IMPORT_COUNT = 98
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",

@@ -25,6 +25,56 @@ class WebSessionBrowserBackPolicyTest {
             )
 
         assertEquals(
+            WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    adMarking = WebSessionAdMarkingState(active = true),
+                    adMarkingNavigationRequest =
+                        WebSessionAdMarkingNavigationRequest(
+                            url = "https://outside.example",
+                            text = "Outside",
+                        ),
+                ),
+            ),
+        )
+        assertEquals(
+            WebSessionBrowserBackAction.DISMISS_AD_MARKING_OVERLAY,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    adMarking = WebSessionAdMarkingState(active = true),
+                    adMarkingOverlay = WebSessionAdMarkingOverlay.EDIT_RULE,
+                ),
+            ),
+        )
+        assertEquals(
+            WebSessionBrowserBackAction.EXIT_AD_MARKING,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    adMarking = WebSessionAdMarkingState(active = true),
+                ),
+            ),
+        )
+        assertEquals(
+            WebSessionBrowserBackAction.DISMISS_WEB_ELEMENT_ACTION,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    webElementAction =
+                        WebSessionWebElementActionState(
+                            sessionId = "window-1",
+                            pageUrl = "https://example.com",
+                            tagName = "div",
+                            text = "",
+                            linkUrl = null,
+                            resourceUrl = null,
+                            selector = "div",
+                            html = "<div></div>",
+                            clientX = 1.0,
+                            clientY = 2.0,
+                        ),
+                ),
+            ),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.DISMISS_TEXT_SELECTION,
             resolveWebSessionBrowserBackAction(base),
         )
@@ -194,5 +244,13 @@ class WebSessionBrowserBackPolicyTest {
                 ),
             ),
         )
+    }
+
+    @Test
+    fun `ad-marking navigation policy keeps the default safe`() {
+        assertEquals("block", BrowserAdMarkingNavigationPolicy.DEFAULT.toJavascriptValue())
+        assertEquals("allow", BrowserAdMarkingNavigationPolicy.ALLOW.toJavascriptValue())
+        assertEquals("ask", BrowserAdMarkingNavigationPolicy.ASK.toJavascriptValue())
+        assertEquals("block", BrowserAdMarkingNavigationPolicy.BLOCK.toJavascriptValue())
     }
 }

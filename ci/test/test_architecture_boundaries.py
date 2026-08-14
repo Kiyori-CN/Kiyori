@@ -2217,6 +2217,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             },
             "LocalKiyoriSettingsColors": {
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
+                "KiyoriAdBlockSettingsPage.kt",
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriBrowserPasswordManagerPage.kt",
                 "app/src/main/java/com/ai/assistance/operit/ui/main/shell/"
                 "KiyoriBrowserTextSizePage.kt",
@@ -2507,11 +2509,11 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             navigation_consumer_index = M05A2_PRODUCTION_CONSUMER_COUNT - 2
             # The final synthetic consumer models WebSessionPageSourceEditor, which uses both
             # the stable semantic tone and its Compose color resolver.
-            # The current tree also contains PackageEnvironmentVariablesSheet as a two-import
-            # consumer, while Settings Home has moved to its dedicated sixteen-entry palette.
+            # The current tree adds WebSessionHistoryDialogs as a two-import consumer and
+            # KiyoriAdBlockSettingsPage as a tone-only consumer.
             if index < stable_id_consumer_indices[0] or index == page_source_consumer_index:
                 symbols.append("KiyoriSemanticTone")
-            if index < stable_id_consumer_indices[0] - 5 or index == page_source_consumer_index:
+            if index < stable_id_consumer_indices[0] - 6 or index == page_source_consumer_index:
                 symbols.append("resolveColors")
             if index in stable_id_consumer_indices:
                 symbols.append("kiyoriSemanticToneForStableId")

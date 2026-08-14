@@ -1,5 +1,26 @@
 # 网页浏览器设置复刻
 
+> 2026-08-14 当前合同：设置首页“广告拦截器”进入唯一 `KiyoriShellChild.AD_BLOCKER_SETTINGS`；
+> 浏览器菜单第四行第三项显示通用“设置”，打开保留 Browser Home
+> 状态的 `KiyoriShellChild.SETTINGS_HOME`；设置首页中的“网页浏览器”再进入唯一 Browser
+> Settings owner，顶部标题固定为同名“网页浏览器”。Back 先回设置首页，再回原 Browser Home。
+
+## 2026-08-14 广告拦截器设置页
+
+[LOCAL IMPLEMENTED]
+
+- 设置首页的“广告拦截器”使用 `KiyoriSettingsHomeAction.OPEN_AD_BLOCKER_SETTINGS`，
+  普通设置根直接打开 `KiyoriShellChild.AD_BLOCKER_SETTINGS`；来源保持型设置首页使用嵌套 child，
+  Back 先回设置首页，再回原 Browser Home 或 AI owner
+- `KiyoriAdBlockSettingsPage` 只投影 `BrowserAdBlockStore`：总开关、当前进程拦截数量、网址过滤、
+  网页元素、站点白名单和广告拦截订阅均使用同一个持久化状态
+- 网址规则与元素规则支持搜索、新增、启停、编辑、删除；白名单支持搜索、新增、删除；订阅支持
+  搜索、新增、启停、编辑、删除和用户主动刷新
+- 页面修改后调用现有 `StandardBrowserSessionTools` 重新应用所有活动 WebSession 的 DOM 规则；
+  请求级 matcher 由 store 的不可变快照直接供 `shouldInterceptRequest` 读取
+- 本地编译和设置/Shell 定向测试通过；真机视觉、输入法、窄屏、远程订阅和真实网页命中仍为
+  `verification_pending`
+
 ## 2026-08-09 返回、缩放、文字与网站密码
 
 [LOCAL DONE]

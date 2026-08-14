@@ -67,12 +67,15 @@ import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingMove
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingNavigationPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmark
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkFolder
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkMutation
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserHostState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionAdMarkingOverlay
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPlaceholderPage
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
@@ -83,6 +86,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.popBro
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.pushBrowserPluginRoute
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntryKey
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPendingDialogState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
@@ -144,7 +148,7 @@ internal fun WebSessionBrowserScreen(
     onRequestTabThumbnails: () -> Unit,
     onTopBarBack: () -> Unit,
     onOpenAiDialogue: () -> Unit,
-    onOpenBrowserSettings: () -> Unit,
+    onOpenSettingsHome: () -> Unit,
     onOpenDownloadSettings: () -> Unit,
     onExitBrowser: () -> Unit,
     onCloseCurrentTab: () -> Unit,
@@ -153,9 +157,12 @@ internal fun WebSessionBrowserScreen(
     onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
     onOpenBookmarkInTab: (String, Boolean) -> Unit,
     onOpenUrl: (String) -> Unit,
+    onOpenExternalUrl: (String) -> Unit,
     onOpenHistoryEntry: (WebSessionHistoryEntry) -> Boolean,
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
+    onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     onClearNetworkLog: () -> Unit,
+    onAddNetworkBlockRule: (String) -> Unit,
     onSelectUserAgentMode: (WebSessionUserAgentMode) -> Unit,
     onSaveCustomGlobalUserAgent: (String) -> Unit,
     onSaveSiteUserAgentRule: (String, String) -> Unit,
@@ -234,6 +241,27 @@ internal fun WebSessionBrowserScreen(
     onCopyTextSelection: () -> Unit,
     onSelectAllTextSelection: () -> Unit,
     onDismissTextSelection: () -> Unit,
+    onStartAdMarking: () -> Unit,
+    onStartAdMarkingFromCurrentElement: () -> Unit,
+    onChooseAdMarkingNode: () -> Unit,
+    onMoveAdMarking: (BrowserAdMarkingMove) -> Unit,
+    onSetAdMarkingPreview: (Boolean) -> Unit,
+    onSaveAdMarking: () -> Unit,
+    onResetAdMarking: () -> Unit,
+    onExitAdMarking: () -> Unit,
+    onOpenAdMarkingRuleEditor: () -> Unit,
+    onUpdateAdMarkingRuleDraft: (String) -> Unit,
+    onConfirmAdMarkingRuleEdit: () -> Unit,
+    onDismissAdMarkingOverlay: () -> Unit,
+    onOpenClearAdMarkingConfirmation: () -> Unit,
+    onConfirmClearAdMarking: () -> Unit,
+    onOpenAdMarkingNavigationPolicy: () -> Unit,
+    onSelectAdMarkingNavigationPolicy: (BrowserAdMarkingNavigationPolicy) -> Unit,
+    onCancelAdMarkingNavigationRequest: () -> Unit,
+    onAllowAdMarkingNavigationRequest: () -> Unit,
+    onSelectElementText: (Double, Double) -> Unit,
+    onCopyWebElementText: () -> Unit,
+    onCopyWebElementUrl: () -> Unit,
     homeUrl: String,
     modifier: Modifier = Modifier
 ) {
@@ -641,30 +669,46 @@ internal fun WebSessionBrowserScreen(
                 }
             }
 
-            WebSessionBrowserBottomBar(
-                canNavigateBack =
-                    browserState.canGoBack || browserState.canReturnToHome,
-                canGoForward = browserState.canGoForward,
-                tabCount = browserState.tabs.size,
-                onBack = onBack,
-                onForward = onForward,
-                onHome = { onNavigate(homeUrl) },
-                onTabs = {
-                    onHostStateChange { current ->
-                        current.copy(
-                            sheetRoute = WebSessionBrowserSheetRoute.TABS,
-                            selectedProfile =
-                                browserState.activeProfile
-                                    ?: browserState.defaultSessionProfile,
-                        )
-                    }
-                },
-                onToolbox = {
-                    onHostStateChange { current ->
-                        current.copy(sheetRoute = WebSessionBrowserSheetRoute.MENU)
-                    }
-                }
-            )
+            if (hostState.adMarking.active) {
+                WebSessionAdMarkingWorkbench(
+                    state = hostState.adMarking,
+                    onChooseNode = onChooseAdMarkingNode,
+                    onMove = onMoveAdMarking,
+                    onSetPreview = onSetAdMarkingPreview,
+                    onSave = onSaveAdMarking,
+                    onReset = onResetAdMarking,
+                    onExit = onExitAdMarking,
+                    onEditRule = onOpenAdMarkingRuleEditor,
+                    onClearIntercept = onOpenClearAdMarkingConfirmation,
+                    onOpenNavigationPolicy = onOpenAdMarkingNavigationPolicy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                WebSessionBrowserBottomBar(
+                    canNavigateBack =
+                        browserState.canGoBack || browserState.canReturnToHome,
+                    canGoForward = browserState.canGoForward,
+                    tabCount = browserState.tabs.size,
+                    onBack = onBack,
+                    onForward = onForward,
+                    onHome = { onNavigate(homeUrl) },
+                    onTabs = {
+                        onHostStateChange { current ->
+                            current.copy(
+                                sheetRoute = WebSessionBrowserSheetRoute.TABS,
+                                selectedProfile =
+                                    browserState.activeProfile
+                                        ?: browserState.defaultSessionProfile,
+                            )
+                        }
+                    },
+                    onToolbox = {
+                        onHostStateChange { current ->
+                            current.copy(sheetRoute = WebSessionBrowserSheetRoute.MENU)
+                        }
+                    },
+                )
+            }
             }
         }
 
@@ -871,11 +915,14 @@ internal fun WebSessionBrowserScreen(
                         dismissSheet()
                         onOpenPageSource()
                     },
-                    onOpenAdMarking = { openPlaceholder(WebSessionBrowserPlaceholderPage.AD_MARKING) },
-                    onOpenSiteConfig = { openPlaceholder(WebSessionBrowserPlaceholderPage.SITE_CONFIG) },
-                    onOpenBrowserSettings = {
+                    onOpenAdMarking = {
                         dismissSheet()
-                        onOpenBrowserSettings()
+                        onStartAdMarking()
+                    },
+                    onOpenSiteConfig = { openPlaceholder(WebSessionBrowserPlaceholderPage.SITE_CONFIG) },
+                    onOpenSettingsHome = {
+                        dismissSheet()
+                        onOpenSettingsHome()
                     },
                     onExitBrowser = {
                         dismissSheet()
@@ -928,7 +975,9 @@ internal fun WebSessionBrowserScreen(
                             onOpenUrl = onOpenUrl,
                             onOpenHistoryEntry = onOpenHistoryEntry,
                             onDeleteHistory = onDeleteHistory,
+                            onDeleteHistoryEntries = onDeleteHistoryEntries,
                             onClearNetworkLog = onClearNetworkLog,
+                            onAddNetworkBlockRule = onAddNetworkBlockRule,
                             onHostStateChange = onHostStateChange,
                             hostState = hostState,
                             onImportUserscript = onImportUserscript,
@@ -1137,6 +1186,49 @@ internal fun WebSessionBrowserScreen(
                 },
             )
         }
+        when (hostState.adMarkingOverlay) {
+            WebSessionAdMarkingOverlay.NONE -> Unit
+            WebSessionAdMarkingOverlay.EDIT_RULE ->
+                WebSessionAdMarkingRuleEditor(
+                    ruleDraft = hostState.adMarking.ruleDraft,
+                    onRuleDraftChange = onUpdateAdMarkingRuleDraft,
+                    onDismiss = onDismissAdMarkingOverlay,
+                    onConfirm = onConfirmAdMarkingRuleEdit,
+                )
+            WebSessionAdMarkingOverlay.CLEAR_CONFIRM ->
+                WebSessionAdMarkingClearConfirmation(
+                    onDismiss = onDismissAdMarkingOverlay,
+                    onConfirm = onConfirmClearAdMarking,
+                )
+            WebSessionAdMarkingOverlay.NAVIGATION_POLICY ->
+                WebSessionAdMarkingNavigationPolicySheet(
+                    selectedPolicy = hostState.adMarking.navigationPolicy,
+                    onDismiss = onDismissAdMarkingOverlay,
+                    onSelect = onSelectAdMarkingNavigationPolicy,
+                )
+        }
+        hostState.adMarkingNavigationRequest?.let { request ->
+            WebSessionAdMarkingNavigationRequestDialog(
+                request = request,
+                onDismiss = onCancelAdMarkingNavigationRequest,
+                onAllow = onAllowAdMarkingNavigationRequest,
+            )
+        }
+        hostState.webElementAction?.let { element ->
+            WebSessionWebElementActionDialog(
+                state = element,
+                onDismiss = {
+                    onHostStateChange { current -> current.copy(webElementAction = null) }
+                },
+                onOpenInNewTab = onOpenBookmarkInTab,
+                onCopyUrl = onCopyWebElementUrl,
+                onCopyText = onCopyWebElementText,
+                onOpenExternal = onOpenExternalUrl,
+                onSelectText = onSelectElementText,
+                onBlockElement = onStartAdMarkingFromCurrentElement,
+                onBlockUrl = onAddNetworkBlockRule,
+            )
+        }
     }
 }
 
@@ -1305,7 +1397,9 @@ private fun WebSessionBrowserDrawerContent(
     onOpenUrl: (String) -> Unit,
     onOpenHistoryEntry: (WebSessionHistoryEntry) -> Boolean,
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
+    onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     onClearNetworkLog: () -> Unit,
+    onAddNetworkBlockRule: (String) -> Unit,
     onHostStateChange: ((WebSessionBrowserHostState) -> WebSessionBrowserHostState) -> Unit,
     hostState: WebSessionBrowserHostState,
     onImportUserscript: () -> Unit,
@@ -1374,12 +1468,19 @@ private fun WebSessionBrowserDrawerContent(
         WebSessionBrowserSheetRoute.HISTORY ->
             WebSessionHistorySheet(
                 entries = globalHistory,
+                bookmarkFolders = bookmarkFolders,
                 onOpenEntry = { entry ->
                     onOpenHistoryEntry(entry).also { accepted ->
                         if (accepted) onDismiss()
                     }
                 },
+                onOpenWebUrl = { url ->
+                    onOpenUrl(url)
+                    onDismiss()
+                },
+                onBookmarkMutation = onBookmarkMutation,
                 onDeleteHistory = onDeleteHistory,
+                onDeleteHistoryEntries = onDeleteHistoryEntries,
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -1460,6 +1561,7 @@ private fun WebSessionBrowserDrawerContent(
                 entries = browserState.networkEntries,
                 currentPageUrl = browserState.currentUrl,
                 onClear = onClearNetworkLog,
+                onBlockUrl = onAddNetworkBlockRule,
                 onStartDownload = onStartManualDownload,
                 onPlayMediaCandidate = onPlayMediaCandidate,
                 onDownloadMediaCandidate = onDownloadMediaCandidate,
@@ -1536,7 +1638,7 @@ private fun BrowserDownloadSummaryBar(
     }
 }
 
-private fun buildWebSessionFaviconUrl(url: String): String =
+internal fun buildWebSessionFaviconUrl(url: String): String =
     Uri.parse(url)
         .buildUpon()
         .encodedPath("/favicon.ico")

@@ -1,7 +1,14 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,9 +31,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -57,71 +68,189 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkDraft
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkFolder
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBookmarkMutation
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryActionKind
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryDeleteRange
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryEntryKey
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryFilter
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionHistoryMediaOrigin
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.actionKind
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.entryKey
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filterWebSessionHistoryEntries
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeWebSessionBookmarkUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.validSourcePageUrl
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import java.text.DateFormat
 import java.util.Date
 
+private data class HistoryDeleteRequest(
+    val entryTitle: String?,
+    val entryKeys: Set<WebSessionHistoryEntryKey>,
+)
+
 @Composable
 internal fun WebSessionHistorySheet(
     entries: List<WebSessionHistoryEntry>,
+    bookmarkFolders: List<WebSessionBookmarkFolder>,
     onOpenEntry: (WebSessionHistoryEntry) -> Boolean,
+    onOpenWebUrl: (String) -> Unit,
+    onBookmarkMutation: (WebSessionBookmarkMutation) -> Unit,
     onDeleteHistory: (WebSessionHistoryCategory?, Long?) -> Unit,
+    onDeleteHistoryEntries: (Set<WebSessionHistoryEntryKey>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var selectedFilter by rememberSaveable { mutableStateOf(WebSessionHistoryFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
     var showDeleteRangeSheet by remember { mutableStateOf(false) }
+    var actionEntry by remember { mutableStateOf<WebSessionHistoryEntry?>(null) }
+    var bookmarkDraft by remember { mutableStateOf<WebSessionBookmarkDraft?>(null) }
+    var deleteRequest by remember { mutableStateOf<HistoryDeleteRequest?>(null) }
+    var batchMode by rememberSaveable { mutableStateOf(false) }
+    var selectedEntryKeys by remember { mutableStateOf(emptySet<WebSessionHistoryEntryKey>()) }
     val filteredEntries =
         remember(entries, selectedFilter, query) {
             filterWebSessionHistoryEntries(entries, selectedFilter, query)
         }
+    val filteredEntryKeys = remember(filteredEntries) { filteredEntries.mapTo(mutableSetOf()) { it.entryKey() } }
+    val allFilteredEntriesSelected =
+        filteredEntryKeys.isNotEmpty() && filteredEntryKeys.all(selectedEntryKeys::contains)
     val selectedCategoryCount =
         remember(entries, selectedFilter) {
             entries.count { entry ->
                 selectedFilter.category == null || entry.category == selectedFilter.category
             }
         }
+    val bookmarkFolderOptions =
+        remember(bookmarkFolders) {
+            buildWebSessionBookmarkFolderTree(
+                folders = bookmarkFolders,
+                secret = false,
+            ).map { entry ->
+                WebSessionBookmarkFolderOption(
+                    id = entry.id,
+                    title = entry.title,
+                    depth = entry.depth,
+                )
+            }
+        }
+
+    fun leaveBatchMode() {
+        batchMode = false
+        selectedEntryKeys = emptySet()
+    }
+
+    fun enterBatchMode(entry: WebSessionHistoryEntry) {
+        actionEntry = null
+        batchMode = true
+        selectedEntryKeys = setOf(entry.entryKey())
+    }
+
+    BackHandler(enabled = batchMode) {
+        leaveBatchMode()
+    }
+
+    LaunchedEffect(entries) {
+        val availableKeys = entries.mapTo(mutableSetOf()) { entry -> entry.entryKey() }
+        selectedEntryKeys = selectedEntryKeys.intersect(availableKeys)
+        actionEntry = actionEntry?.takeIf { entry -> entry.entryKey() in availableKeys }
+    }
+    LaunchedEffect(batchMode, filteredEntryKeys) {
+        if (batchMode) {
+            // Batch controls describe the current search/filter result. Removing hidden selections
+            // keeps the visible count, select-all state, and destructive confirmation consistent.
+            selectedEntryKeys = selectedEntryKeys.intersect(filteredEntryKeys)
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         WebSessionDrawerHeader(
-            title = stringResource(R.string.web_session_history_title),
+            title =
+                if (batchMode) {
+                    pluralStringResource(
+                        R.plurals.web_session_history_selected_count,
+                        selectedEntryKeys.size,
+                        selectedEntryKeys.size,
+                    )
+                } else {
+                    stringResource(R.string.web_session_history_title)
+                },
             leadingIcon = Icons.Filled.History,
             tone = WebSessionBrowserMenuTone.HISTORY,
             countText =
-                pluralStringResource(
-                    R.plurals.web_session_history_count,
-                    entries.size,
-                    entries.size,
-                ),
+                if (batchMode) {
+                    null
+                } else {
+                    pluralStringResource(
+                        R.plurals.web_session_history_count,
+                        entries.size,
+                        entries.size,
+                    )
+                },
+            navigationIcon =
+                if (batchMode) {
+                    {
+                        IconButton(onClick = ::leaveBatchMode, modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription =
+                                    stringResource(R.string.web_session_history_batch_cancel),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
             actions = {
-            Text(
-                text = stringResource(R.string.web_session_history_delete),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color =
-                    if (selectedCategoryCount == 0) {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
-                    } else {
-                        KiyoriSemanticTone.RED.resolveColors().icon
-                    },
-                modifier =
-                    Modifier
-                        .height(44.dp)
-                        .clickable(
-                            enabled = selectedCategoryCount > 0,
-                            role = Role.Button,
-                            onClick = { showDeleteRangeSheet = true },
-                        )
-                        .padding(horizontal = 10.dp, vertical = 13.dp),
-            )
+                if (batchMode) {
+                    HistoryHeaderAction(
+                        title =
+                            stringResource(
+                                if (allFilteredEntriesSelected) {
+                                    R.string.web_session_history_deselect_all
+                                } else {
+                                    R.string.web_session_history_select_all
+                                }
+                            ),
+                        enabled = filteredEntryKeys.isNotEmpty(),
+                        color = WebSessionBrowserMenuTone.HISTORY.resolveColors().icon,
+                        onClick = {
+                            selectedEntryKeys =
+                                if (allFilteredEntriesSelected) {
+                                    selectedEntryKeys - filteredEntryKeys
+                                } else {
+                                    selectedEntryKeys + filteredEntryKeys
+                                }
+                        },
+                    )
+                    HistoryHeaderAction(
+                        title = stringResource(R.string.web_session_history_delete),
+                        enabled = selectedEntryKeys.isNotEmpty(),
+                        color = KiyoriSemanticTone.RED.resolveColors().icon,
+                        onClick = {
+                            deleteRequest =
+                                HistoryDeleteRequest(
+                                    entryTitle = null,
+                                    entryKeys = selectedEntryKeys,
+                                )
+                        },
+                    )
+                } else {
+                    HistoryHeaderAction(
+                        title = stringResource(R.string.web_session_history_delete),
+                        enabled = selectedCategoryCount > 0,
+                        color = KiyoriSemanticTone.RED.resolveColors().icon,
+                        onClick = { showDeleteRangeSheet = true },
+                    )
+                }
             },
         )
 
@@ -193,7 +322,29 @@ internal fun WebSessionHistorySheet(
                 ) { entry ->
                     HistoryEntryRow(
                         entry = entry,
-                        onClick = { onOpenEntry(entry) },
+                        batchMode = batchMode,
+                        selected = entry.entryKey() in selectedEntryKeys,
+                        onClick = {
+                            if (batchMode) {
+                                val key = entry.entryKey()
+                                selectedEntryKeys =
+                                    if (key in selectedEntryKeys) {
+                                        selectedEntryKeys - key
+                                    } else {
+                                        selectedEntryKeys + key
+                                    }
+                            } else {
+                                onOpenEntry(entry)
+                            }
+                        },
+                        onLongClick =
+                            entry.actionKind()?.let {
+                                {
+                                    if (!batchMode) {
+                                        actionEntry = entry
+                                    }
+                                }
+                            },
                     )
                 }
             }
@@ -212,6 +363,141 @@ internal fun WebSessionHistorySheet(
             },
         )
     }
+
+    actionEntry?.let { entry ->
+        val actionKind = entry.actionKind()
+        if (actionKind != null) {
+            val sourcePageUrl = entry.validSourcePageUrl()
+            WebSessionHistoryActionDialog(
+                entry = entry,
+                actionKind = actionKind,
+                sourcePageUrl = sourcePageUrl,
+                onDismiss = { actionEntry = null },
+                onOpenEntry = {
+                    if (onOpenEntry(entry)) {
+                        actionEntry = null
+                    }
+                },
+                onOpenSourcePage = {
+                    sourcePageUrl?.let(onOpenWebUrl)
+                    actionEntry = null
+                },
+                onAddBookmark = {
+                    bookmarkDraft =
+                        WebSessionBookmarkDraft(
+                            title = entry.title,
+                            url = entry.url,
+                            iconUrl = buildWebSessionFaviconUrl(entry.url),
+                            folderId = null,
+                        )
+                    actionEntry = null
+                },
+                onCopyLink = {
+                    copyHistoryText(context, entry.title, entry.url)
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.web_session_history_link_copied),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    actionEntry = null
+                },
+                onCopyTitle = {
+                    copyHistoryText(context, entry.title, entry.title)
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.web_session_history_title_copied),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    actionEntry = null
+                },
+                onDeleteEntry = {
+                    deleteRequest =
+                        HistoryDeleteRequest(
+                            entryTitle = entry.title,
+                            entryKeys = setOf(entry.entryKey()),
+                        )
+                    actionEntry = null
+                },
+                onStartBatchDelete = { enterBatchMode(entry) },
+            )
+        }
+    }
+
+    bookmarkDraft?.let { draft ->
+        WebSessionBookmarkEditorDialog(
+            title = stringResource(R.string.web_session_history_add_bookmark),
+            tone = WebSessionBrowserMenuTone.ADD_BOOKMARK,
+            initialDraft = draft,
+            folderOptions = bookmarkFolderOptions,
+            onDismiss = { bookmarkDraft = null },
+            onConfirm = { confirmed ->
+                if (normalizeWebSessionBookmarkUrl(confirmed.url) == null) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.web_session_history_invalid_bookmark_url),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                } else {
+                    onBookmarkMutation(
+                        WebSessionBookmarkMutation.SaveBookmark(
+                            draft = confirmed,
+                            secret = false,
+                        )
+                    )
+                    bookmarkDraft = null
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.web_session_history_bookmark_saved),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            },
+        )
+    }
+
+    deleteRequest?.let { request ->
+        WebSessionHistoryDeleteConfirmationDialog(
+            entryTitle = request.entryTitle,
+            selectedCount = request.entryKeys.size,
+            onDismiss = { deleteRequest = null },
+            onConfirm = {
+                onDeleteHistoryEntries(request.entryKeys)
+                deleteRequest = null
+                if (batchMode) {
+                    leaveBatchMode()
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun HistoryHeaderAction(
+    title: String,
+    enabled: Boolean,
+    color: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = title,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        color =
+            if (enabled) {
+                color
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
+            },
+        modifier =
+            Modifier
+                .height(44.dp)
+                .clickable(
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = onClick,
+                )
+                .padding(horizontal = 8.dp, vertical = 13.dp),
+    )
 }
 
 @Composable
@@ -304,14 +590,25 @@ private fun HistoryFilterChip(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryEntryRow(
     entry: WebSessionHistoryEntry,
+    batchMode: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
 ) {
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    role = Role.Button,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
@@ -375,6 +672,31 @@ private fun HistoryEntryRow(
                         fontSize = 9.5.sp,
                     )
                 }
+            }
+            if (batchMode) {
+                Icon(
+                    imageVector =
+                        if (selected) {
+                            Icons.Filled.CheckCircle
+                        } else {
+                            Icons.Filled.RadioButtonUnchecked
+                        },
+                    contentDescription =
+                        stringResource(
+                            if (selected) {
+                                R.string.web_session_history_selected
+                            } else {
+                                R.string.web_session_history_not_selected
+                            }
+                        ),
+                    tint =
+                        if (selected) {
+                            WebSessionBrowserMenuTone.HISTORY.resolveColors().icon
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    modifier = Modifier.padding(start = 8.dp).size(22.dp),
+                )
             }
         }
     }
@@ -492,3 +814,12 @@ private fun historyCategoryTone(category: WebSessionHistoryCategory): KiyoriSema
         WebSessionHistoryCategory.NOVEL -> KiyoriSemanticTone.PURPLE
         WebSessionHistoryCategory.OTHER -> KiyoriSemanticTone.ORANGE
     }
+
+private fun copyHistoryText(
+    context: Context,
+    label: String,
+    text: String,
+) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+}

@@ -117,6 +117,63 @@ internal class BrowserTextSelectionBridge(
     }
 }
 
+internal class BrowserWebElementBridge(
+    private val browserTools: StandardBrowserSessionTools,
+    private val session: BrowserToolSession,
+) {
+    @JavascriptInterface
+    fun showActions(payload: String?) {
+        if (payload.isNullOrBlank()) {
+            return
+        }
+        StandardBrowserSessionTools.mainHandler.post {
+            browserTools.browserHost?.showWebElementActions(
+                sessionId = session.id,
+                payload = payload,
+            )
+        }
+    }
+
+    @JavascriptInterface
+    fun updateAdMarking(payload: String?) {
+        if (payload.isNullOrBlank()) {
+            return
+        }
+        StandardBrowserSessionTools.mainHandler.post {
+            browserTools.browserHost?.updateAdMarkingSelection(
+                sessionId = session.id,
+                payload = payload,
+            )
+        }
+    }
+
+    @JavascriptInterface
+    fun requestNavigation(payload: String?) {
+        if (payload.isNullOrBlank()) {
+            return
+        }
+        StandardBrowserSessionTools.mainHandler.post {
+            browserTools.browserHost?.showAdMarkingNavigationRequest(
+                sessionId = session.id,
+                payload = payload,
+            )
+        }
+    }
+
+    @JavascriptInterface
+    fun reportRuntimeFailure(operation: String?) {
+        val normalizedOperation =
+            when (operation) {
+                "resolve-url" -> "resolve-url"
+                else -> "unknown"
+            }
+        AppLogger.w(
+            EXECUTION_SUPPORT_TAG,
+            "Browser element helper failed operation=$normalizedOperation session=${session.id}",
+        )
+    }
+}
+
 internal fun StandardBrowserSessionTools.createDownloadListener(
     session: BrowserToolSession
 ): DownloadListener {
@@ -181,6 +238,362 @@ internal fun StandardBrowserSessionTools.createDownloadListener(
             }
         }
     }
+}
+
+internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(webView: WebView) {
+    webView.evaluateJavascript(
+        """
+        (function() {
+            if (window.__kiyoriElementActions) {
+                window.__kiyoriElementActions.finish();
+            }
+
+            const runtimeAttribute = "data-kiyori-runtime-ui";
+            const state = {
+                contextElement: null,
+                selectedElement: null,
+                highlight: null,
+                marking: false,
+                previewing: false,
+                previewDisplayValue: "",
+                previewDisplayPriority: "",
+                navigationPolicy: "block"
+            };
+
+            function stringValue(value, limit) {
+                const normalized = String(value || "").replace(/\s+/g, " ").trim();
+                return normalized.length > limit
+                    ? normalized.slice(0, limit) + "…"
+                    : normalized;
+            }
+
+            function cssEscape(value) {
+                return Array.from(String(value || "")).map(function(character) {
+                    return "\\" + character.codePointAt(0).toString(16) + " ";
+                }).join("");
+            }
+
+            function isRuntimeElement(element) {
+                return !!element &&
+                    !!element.closest &&
+                    !!element.closest("[" + runtimeAttribute + "]");
+            }
+
+            function stableClasses(element) {
+                return Array.from(element.classList || [])
+                    .filter(function(name) {
+                        return name.length > 0 &&
+                            name.length <= 48 &&
+                            !/\d{5,}/.test(name);
+                    })
+                    .slice(0, 3);
+            }
+
+            function selectorPart(element) {
+                const tag = String(element.tagName || "").toLowerCase();
+                const classes = stableClasses(element);
+                let part = tag || "*";
+                if (classes.length > 0) {
+                    part += classes.map(function(name) {
+                        return "." + cssEscape(name);
+                    }).join("");
+                }
+                const parent = element.parentElement;
+                if (parent) {
+                    const sameTagSiblings = Array.from(parent.children).filter(function(child) {
+                        return child.tagName === element.tagName;
+                    });
+                    if (sameTagSiblings.length > 1) {
+                        part += ":nth-of-type(" + (sameTagSiblings.indexOf(element) + 1) + ")";
+                    }
+                }
+                return part;
+            }
+
+            function selectorFor(element) {
+                if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+                    return "";
+                }
+                if (element.id) {
+                    const idSelector = "#" + cssEscape(element.id);
+                    if (document.querySelectorAll(idSelector).length === 1) {
+                        return idSelector;
+                    }
+                }
+                const parts = [];
+                let current = element;
+                while (
+                    current &&
+                    current.nodeType === Node.ELEMENT_NODE &&
+                    current !== document.documentElement &&
+                    parts.length < 7
+                ) {
+                    parts.unshift(selectorPart(current));
+                    const candidate = parts.join(" > ");
+                    if (document.querySelectorAll(candidate).length === 1) {
+                        return candidate;
+                    }
+                    current = current.parentElement;
+                }
+                return parts.join(" > ");
+            }
+
+            function resolvedUrl(value) {
+                const raw = String(value || "").trim();
+                if (!raw) {
+                    return "";
+                }
+                try {
+                    return new URL(raw, document.baseURI).href;
+                } catch (error) {
+                    window.OperitWebElementBridge.reportRuntimeFailure("resolve-url");
+                    return "";
+                }
+            }
+
+            function resourceUrlFor(element) {
+                if (!element) {
+                    return "";
+                }
+                const direct =
+                    element.currentSrc ||
+                    element.src ||
+                    element.getAttribute("src") ||
+                    element.getAttribute("data-src") ||
+                    element.getAttribute("poster");
+                return resolvedUrl(direct);
+            }
+
+            function payloadFor(element, x, y) {
+                if (!element || isRuntimeElement(element)) {
+                    return null;
+                }
+                const anchor = element.closest ? element.closest("a[href]") : null;
+                const selector = selectorFor(element);
+                if (!selector) {
+                    return null;
+                }
+                return {
+                    pageUrl: String(location.href || ""),
+                    tagName: String(element.tagName || "").toLowerCase(),
+                    text: stringValue(element.innerText || element.textContent || "", 1000),
+                    linkUrl: anchor ? resolvedUrl(anchor.getAttribute("href")) : "",
+                    resourceUrl: resourceUrlFor(element),
+                    selector: selector,
+                    html: stringValue(element.outerHTML || "", 5000),
+                    clientX: Number(x || 0),
+                    clientY: Number(y || 0)
+                };
+            }
+
+            function navigationUrlFor(element) {
+                if (!element || !element.closest) {
+                    return "";
+                }
+                const anchor = element.closest("a[href]");
+                return anchor ? resolvedUrl(anchor.getAttribute("href")) : "";
+            }
+
+            function removeHighlight() {
+                if (state.highlight && state.highlight.parentNode) {
+                    state.highlight.parentNode.removeChild(state.highlight);
+                }
+                state.highlight = null;
+            }
+
+            function ensureHighlight() {
+                if (state.highlight && state.highlight.parentNode) {
+                    return state.highlight;
+                }
+                const highlight = document.createElement("div");
+                highlight.setAttribute(runtimeAttribute, "ad-marking-highlight");
+                highlight.style.position = "fixed";
+                highlight.style.pointerEvents = "none";
+                highlight.style.zIndex = "2147483646";
+                highlight.style.border = "2px solid #ef4444";
+                highlight.style.background = "rgba(239, 68, 68, 0.14)";
+                highlight.style.borderRadius = "4px";
+                highlight.style.boxSizing = "border-box";
+                document.documentElement.appendChild(highlight);
+                state.highlight = highlight;
+                return highlight;
+            }
+
+            function updateHighlight() {
+                const element = state.selectedElement;
+                if (!state.marking || !element || !element.isConnected || state.previewing) {
+                    removeHighlight();
+                    return;
+                }
+                const rect = element.getBoundingClientRect();
+                const highlight = ensureHighlight();
+                highlight.style.left = rect.left + "px";
+                highlight.style.top = rect.top + "px";
+                highlight.style.width = Math.max(0, rect.width) + "px";
+                highlight.style.height = Math.max(0, rect.height) + "px";
+            }
+
+            function restorePreview() {
+                const element = state.selectedElement;
+                if (!state.previewing || !element) {
+                    state.previewing = false;
+                    return;
+                }
+                if (state.previewDisplayValue) {
+                    element.style.setProperty(
+                        "display",
+                        state.previewDisplayValue,
+                        state.previewDisplayPriority
+                    );
+                } else {
+                    element.style.removeProperty("display");
+                }
+                state.previewing = false;
+            }
+
+            function notifySelection(x, y) {
+                const payload = payloadFor(state.selectedElement, x, y);
+                if (!payload) {
+                    return;
+                }
+                payload.previewing = state.previewing;
+                window.OperitWebElementBridge.updateAdMarking(JSON.stringify(payload));
+            }
+
+            function selectElement(element, x, y) {
+                if (!element || isRuntimeElement(element)) {
+                    return false;
+                }
+                restorePreview();
+                state.selectedElement = element;
+                state.previewDisplayValue = element.style.getPropertyValue("display");
+                state.previewDisplayPriority = element.style.getPropertyPriority("display");
+                updateHighlight();
+                notifySelection(x, y);
+                return true;
+            }
+
+            function moveSelection(direction) {
+                const current = state.selectedElement;
+                if (!current) {
+                    return false;
+                }
+                let target = null;
+                if (direction === "parent") {
+                    target = current.parentElement;
+                } else if (direction === "previous") {
+                    target = current.previousElementSibling;
+                } else if (direction === "next") {
+                    target = current.nextElementSibling;
+                } else if (direction === "child") {
+                    target = current.firstElementChild;
+                }
+                return selectElement(target, 0, 0);
+            }
+
+            function setPreview(enabled) {
+                const element = state.selectedElement;
+                if (!element) {
+                    return false;
+                }
+                if (enabled && !state.previewing) {
+                    state.previewDisplayValue = element.style.getPropertyValue("display");
+                    state.previewDisplayPriority = element.style.getPropertyPriority("display");
+                    element.style.setProperty("display", "none", "important");
+                    state.previewing = true;
+                } else if (!enabled && state.previewing) {
+                    restorePreview();
+                }
+                updateHighlight();
+                notifySelection(0, 0);
+                return true;
+            }
+
+            function startMarking(useContextElement) {
+                state.marking = true;
+                if (useContextElement && state.contextElement) {
+                    selectElement(state.contextElement, 0, 0);
+                } else {
+                    restorePreview();
+                    state.selectedElement = null;
+                    removeHighlight();
+                }
+            }
+
+            function finish() {
+                restorePreview();
+                state.marking = false;
+                state.contextElement = null;
+                state.selectedElement = null;
+                state.navigationPolicy = "block";
+                removeHighlight();
+            }
+
+            document.addEventListener("click", function(event) {
+                if (!state.marking || isRuntimeElement(event.target)) {
+                    return;
+                }
+                const linkUrl = navigationUrlFor(event.target);
+                if (linkUrl && state.navigationPolicy === "allow") {
+                    return;
+                }
+                if (linkUrl && state.navigationPolicy === "ask") {
+                    selectElement(event.target, event.clientX, event.clientY);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    window.OperitWebElementBridge.requestNavigation(
+                        JSON.stringify({
+                            url: linkUrl,
+                            text: stringValue(event.target.innerText || event.target.textContent || "", 160)
+                        })
+                    );
+                    return;
+                }
+                if (selectElement(event.target, event.clientX, event.clientY)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            }, true);
+
+            window.addEventListener("scroll", updateHighlight, true);
+            window.addEventListener("resize", updateHighlight, true);
+
+            window.__kiyoriElementActions = {
+                handleLongPress: function(x, y) {
+                    const element = document.elementFromPoint(x, y);
+                    const payload = payloadFor(element, x, y);
+                    if (!payload) {
+                        return false;
+                    }
+                    state.contextElement = element;
+                    window.OperitWebElementBridge.showActions(JSON.stringify(payload));
+                    return true;
+                },
+                startMarking: startMarking,
+                moveSelection: moveSelection,
+                setPreview: setPreview,
+                setNavigationPolicy: function(policy) {
+                    state.navigationPolicy =
+                        policy === "allow"
+                            ? "allow"
+                            : policy === "ask"
+                                ? "ask"
+                                : "block";
+                },
+                selectText: function(x, y) {
+                    if (
+                        window.__operitTextSelection &&
+                        typeof window.__operitTextSelection.selectAtPoint === "function"
+                    ) {
+                        window.__operitTextSelection.selectAtPoint(x, y);
+                    }
+                },
+                finish: finish
+            };
+        })();
+        """.trimIndent(),
+        null,
+    )
 }
 
 internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebView) {
@@ -764,6 +1177,9 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 },
                 selectAll: function() {
                     selectAllText();
+                },
+                selectAtPoint: function(x, y) {
+                    selectAtPoint(x, y);
                 }
             };
 
@@ -785,7 +1201,17 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 state.longPressTimer = setTimeout(function() {
                     state.longPressTimer = null;
                     state.longPressArmed = true;
-                    selectAtPoint(state.startX, state.startY);
+                    const handled =
+                        window.__kiyoriElementActions &&
+                        window.__kiyoriElementActions.handleLongPress(
+                            state.startX,
+                            state.startY
+                        );
+                    if (!handled) {
+                        selectAtPoint(state.startX, state.startY);
+                    } else {
+                        performHapticFeedback();
+                    }
                 }, 560);
             }, { capture: true, passive: false });
 

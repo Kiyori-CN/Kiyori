@@ -44,6 +44,7 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimiz
 import com.ai.assistance.operit.util.AppLogger
 import java.util.UUID
 import kotlin.math.roundToInt
+import org.json.JSONObject
 import org.json.JSONTokener
 
 internal class WebSessionBrowserHost(
@@ -72,9 +73,14 @@ internal class WebSessionBrowserHost(
         fun onBookmarkMutation(mutation: WebSessionBookmarkMutation)
         fun onOpenBookmarkInTab(url: String, active: Boolean)
         fun onOpenUrl(url: String)
+        fun onOpenExternalUrl(url: String)
         fun onOpenHistoryEntry(entry: WebSessionHistoryEntry): Boolean
         fun onDeleteHistory(category: WebSessionHistoryCategory?, cutoffTimeMillis: Long?)
+        fun onDeleteHistoryEntries(entryKeys: Set<WebSessionHistoryEntryKey>)
         fun onClearNetworkLog()
+        fun onAddNetworkBlockRule(url: String)
+        fun onAddElementBlockRule(domain: String, selector: String)
+        fun onRemoveElementBlockRule(domain: String, selector: String): Boolean
         fun onSelectUserAgentMode(mode: WebSessionUserAgentMode)
         fun onSaveCustomGlobalUserAgent(userAgent: String)
         fun onSaveSiteUserAgentRule(domain: String, userAgent: String)
@@ -185,6 +191,7 @@ internal class WebSessionBrowserHost(
     }
 
     fun destroy() {
+        exitAdMarking()
         hideTextSelectionActionsOverlay()
         hideIndicator()
         cancelPendingPresentationTransfer()
@@ -205,7 +212,7 @@ internal class WebSessionBrowserHost(
         webViewHost: WebSessionWebViewHost,
         onTopBarBack: () -> Unit,
         onOpenAiDialogue: () -> Unit,
-        onOpenBrowserSettings: () -> Unit,
+        onOpenSettingsHome: () -> Unit,
         onOpenDownloadSettings: () -> Unit,
         onExitBrowser: () -> Unit,
         modifier: Modifier = Modifier,
@@ -240,7 +247,7 @@ internal class WebSessionBrowserHost(
             onRequestTabThumbnails = callbacks::onRequestTabThumbnails,
             onTopBarBack = onTopBarBack,
             onOpenAiDialogue = onOpenAiDialogue,
-            onOpenBrowserSettings = onOpenBrowserSettings,
+            onOpenSettingsHome = onOpenSettingsHome,
             onOpenDownloadSettings = onOpenDownloadSettings,
             onExitBrowser = onExitBrowser,
             onCloseCurrentTab = callbacks::onCloseCurrentTab,
@@ -249,10 +256,13 @@ internal class WebSessionBrowserHost(
             onBookmarkMutation = callbacks::onBookmarkMutation,
             onOpenBookmarkInTab = callbacks::onOpenBookmarkInTab,
             onOpenUrl = callbacks::onOpenUrl,
+            onOpenExternalUrl = callbacks::onOpenExternalUrl,
             onOpenHistoryEntry = callbacks::onOpenHistoryEntry,
             onDeleteHistory = callbacks::onDeleteHistory,
-            onClearNetworkLog = callbacks::onClearNetworkLog,
-            onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
+            onDeleteHistoryEntries = callbacks::onDeleteHistoryEntries,
+             onClearNetworkLog = callbacks::onClearNetworkLog,
+             onAddNetworkBlockRule = callbacks::onAddNetworkBlockRule,
+             onSelectUserAgentMode = callbacks::onSelectUserAgentMode,
             onSaveCustomGlobalUserAgent = callbacks::onSaveCustomGlobalUserAgent,
             onSaveSiteUserAgentRule = callbacks::onSaveSiteUserAgentRule,
             onSetSearchEngine = callbacks::onSetSearchEngine,
@@ -338,6 +348,27 @@ internal class WebSessionBrowserHost(
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
             onDismissTextSelection = ::dismissTextSelectionActions,
+             onStartAdMarking = ::startAdMarking,
+             onStartAdMarkingFromCurrentElement = ::startAdMarkingFromCurrentElement,
+             onChooseAdMarkingNode = ::chooseAdMarkingNode,
+             onMoveAdMarking = ::moveAdMarking,
+             onSetAdMarkingPreview = ::setAdMarkingPreview,
+             onSaveAdMarking = ::saveAdMarking,
+             onResetAdMarking = ::resetAdMarking,
+             onExitAdMarking = ::exitAdMarking,
+             onOpenAdMarkingRuleEditor = ::openAdMarkingRuleEditor,
+             onUpdateAdMarkingRuleDraft = ::updateAdMarkingRuleDraft,
+             onConfirmAdMarkingRuleEdit = ::confirmAdMarkingRuleEdit,
+             onDismissAdMarkingOverlay = ::dismissAdMarkingOverlay,
+             onOpenClearAdMarkingConfirmation = ::openClearAdMarkingConfirmation,
+             onConfirmClearAdMarking = ::confirmClearAdMarking,
+             onOpenAdMarkingNavigationPolicy = ::openAdMarkingNavigationPolicy,
+             onSelectAdMarkingNavigationPolicy = ::selectAdMarkingNavigationPolicy,
+             onCancelAdMarkingNavigationRequest = ::cancelAdMarkingNavigationRequest,
+             onAllowAdMarkingNavigationRequest = ::allowAdMarkingNavigationRequest,
+             onSelectElementText = ::selectElementText,
+             onCopyWebElementText = ::copyCurrentWebElementText,
+             onCopyWebElementUrl = ::copyCurrentWebElementUrl,
             homeUrl = browserSettings.homeUrl,
             modifier = modifier,
         )
@@ -348,6 +379,12 @@ internal class WebSessionBrowserHost(
         downloadUiState: BrowserDownloadUiState,
         downloadPrompt: BrowserDownloadPromptState?,
     ) {
+        if (
+            hostState.browserState.activeSessionId != browserState.activeSessionId ||
+                hostState.browserState.currentUrl != browserState.currentUrl
+        ) {
+            clearWebElementTransientState()
+        }
         if (downloadPrompt != null) {
             applyIndicatorCloseEvent(BrowserMinimizedIndicatorCloseEvent.RESET)
         }
@@ -368,6 +405,7 @@ internal class WebSessionBrowserHost(
             return
         }
 
+        clearWebElementTransientState()
         detachPresentationWebViews()
         attachedPresentationTarget = BrowserPresentationTarget.DETACHED
         activeWebView = webView
@@ -407,6 +445,7 @@ internal class WebSessionBrowserHost(
             return false
         }
 
+        clearWebElementTransientState()
         appPresentationActive = false
         hideTextSelectionActionsOverlay()
         requestPresentationTarget(
@@ -610,6 +649,22 @@ internal class WebSessionBrowserHost(
             return true
         }
         return when (resolveWebSessionBrowserBackAction(hostState)) {
+            WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST -> {
+                cancelAdMarkingNavigationRequest()
+                true
+            }
+            WebSessionBrowserBackAction.DISMISS_AD_MARKING_OVERLAY -> {
+                dismissAdMarkingOverlay()
+                true
+            }
+            WebSessionBrowserBackAction.EXIT_AD_MARKING -> {
+                exitAdMarking()
+                true
+            }
+            WebSessionBrowserBackAction.DISMISS_WEB_ELEMENT_ACTION -> {
+                updateHostState { current -> current.copy(webElementAction = null) }
+                true
+            }
             WebSessionBrowserBackAction.DISMISS_TEXT_SELECTION -> {
                 hideTextSelectionActionsOverlay()
                 true
@@ -710,6 +765,578 @@ internal class WebSessionBrowserHost(
             hostState = hostState.copy(textSelectionActions = null)
         }
     }
+
+    fun showWebElementActions(
+        sessionId: String,
+        payload: String,
+    ) {
+        if (hostState.adMarking.active) {
+            return
+        }
+        if (hostState.browserState.activeSessionId != sessionId) {
+            AppLogger.w(
+                "WebSessionBrowserHost",
+                "Ignoring stale web-element action for session=$sessionId",
+            )
+            return
+        }
+        val action = parseWebElementActionPayload(sessionId, payload) ?: return
+        hideTextSelectionActionsOverlay()
+        updateHostState { current ->
+            current.copy(webElementAction = action)
+        }
+    }
+
+    fun openAdMarkingRuleEditor() {
+        if (!hostState.adMarking.active) {
+            return
+        }
+        updateHostState {
+            it.copy(
+                adMarkingOverlay = WebSessionAdMarkingOverlay.EDIT_RULE,
+                adMarking = it.adMarking.copy(ruleDraft = it.adMarking.selector),
+            )
+        }
+    }
+
+    fun updateAdMarkingRuleDraft(value: String) {
+        if (!hostState.adMarking.active ||
+            hostState.adMarkingOverlay != WebSessionAdMarkingOverlay.EDIT_RULE
+        ) {
+            return
+        }
+        updateHostState { it.copy(adMarking = it.adMarking.copy(ruleDraft = value)) }
+    }
+
+    fun dismissAdMarkingOverlay() {
+        if (hostState.adMarkingOverlay != WebSessionAdMarkingOverlay.NONE) {
+            updateHostState { it.copy(adMarkingOverlay = WebSessionAdMarkingOverlay.NONE) }
+        }
+    }
+
+    fun confirmAdMarkingRuleEdit() {
+        if (hostState.adMarkingOverlay != WebSessionAdMarkingOverlay.EDIT_RULE) {
+            return
+        }
+        val draft = hostState.adMarking.ruleDraft.trim()
+        if (!isValidBrowserAdBlockSelector(draft)) {
+            Toast.makeText(appContext, "请输入有效的 CSS 元素规则", Toast.LENGTH_SHORT).show()
+            return
+        }
+        updateHostState {
+            it.copy(
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarking = it.adMarking.copy(selector = draft, ruleDraft = draft),
+            )
+        }
+    }
+
+    fun openClearAdMarkingConfirmation() {
+        if (hostState.adMarking.active) {
+            updateHostState {
+                it.copy(adMarkingOverlay = WebSessionAdMarkingOverlay.CLEAR_CONFIRM)
+            }
+        }
+    }
+
+    fun confirmClearAdMarking() {
+        if (hostState.adMarkingOverlay != WebSessionAdMarkingOverlay.CLEAR_CONFIRM) {
+            return
+        }
+        val state = hostState.adMarking
+        if (state.domain.isBlank() || state.selector.isBlank()) {
+            Toast.makeText(appContext, "当前没有可清除的拦截规则", Toast.LENGTH_SHORT).show()
+            dismissAdMarkingOverlay()
+            return
+        }
+        try {
+            if (!callbacks.onRemoveElementBlockRule(state.domain, state.selector)) {
+                dismissAdMarkingOverlay()
+                return
+            }
+            activeWebView?.evaluateJavascript(
+                """
+                (function() {
+                    if (window.__kiyoriElementActions) {
+                        window.__kiyoriElementActions.setPreview(false);
+                    }
+                })();
+                """.trimIndent(),
+                null,
+            )
+            updateHostState {
+                it.copy(
+                    adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                    adMarking = it.adMarking.copy(previewing = false),
+                )
+            }
+            Toast.makeText(appContext, "当前网页元素拦截已清除", Toast.LENGTH_SHORT).show()
+        } catch (error: Exception) {
+            AppLogger.e("WebSessionBrowserHost", "Failed to clear web-element ad-block rule", error)
+            Toast.makeText(appContext, "清除网页元素拦截失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun openAdMarkingNavigationPolicy() {
+        if (hostState.adMarking.active) {
+            updateHostState {
+                it.copy(adMarkingOverlay = WebSessionAdMarkingOverlay.NAVIGATION_POLICY)
+            }
+        }
+    }
+
+    fun selectAdMarkingNavigationPolicy(policy: BrowserAdMarkingNavigationPolicy) {
+        if (!hostState.adMarking.active) {
+            return
+        }
+        updateHostState {
+            it.copy(
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarking = it.adMarking.copy(navigationPolicy = policy),
+            )
+        }
+        val javascriptPolicy = policy.toJavascriptValue()
+        activeWebView?.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.setNavigationPolicy("$javascriptPolicy");
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun chooseAdMarkingNode() {
+        val current = hostState.adMarking
+        if (!current.active || activeWebView == null) {
+            return
+        }
+        val javascriptPolicy = current.navigationPolicy.toJavascriptValue()
+        activeWebView?.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.startMarking(false);
+                    window.__kiyoriElementActions.setNavigationPolicy("$javascriptPolicy");
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+        updateHostState {
+            it.copy(
+                adMarking =
+                    it.adMarking.copy(
+                        tagName = "",
+                        text = "",
+                        selector = "",
+                        html = "",
+                        previewing = false,
+                        ruleDraft = "",
+                    ),
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarkingNavigationRequest = null,
+            )
+        }
+    }
+
+    fun showAdMarkingNavigationRequest(
+        sessionId: String,
+        payload: String,
+    ) {
+        if (!hostState.adMarking.active ||
+            hostState.adMarking.sessionId != sessionId ||
+            hostState.adMarking.navigationPolicy != BrowserAdMarkingNavigationPolicy.ASK
+        ) {
+            return
+        }
+        val json =
+            runCatching { JSONObject(payload) }.getOrElse { error ->
+                AppLogger.e("WebSessionBrowserHost", "Failed to parse ad-marking navigation request", error)
+                return
+            }
+        val url = json.optString("url").trim()
+        if (url.isBlank()) {
+            return
+        }
+        updateHostState {
+            it.copy(
+                adMarkingNavigationRequest =
+                    WebSessionAdMarkingNavigationRequest(
+                        url = url,
+                        text = json.optString("text").trim(),
+                    ),
+            )
+        }
+    }
+
+    fun cancelAdMarkingNavigationRequest() {
+        if (hostState.adMarkingNavigationRequest != null) {
+            updateHostState { it.copy(adMarkingNavigationRequest = null) }
+        }
+    }
+
+    fun allowAdMarkingNavigationRequest() {
+        val request = hostState.adMarkingNavigationRequest ?: return
+        updateHostState { it.copy(adMarkingNavigationRequest = null) }
+        exitAdMarking()
+        callbacks.onNavigate(request.url)
+    }
+
+    fun updateAdMarkingSelection(
+        sessionId: String,
+        payload: String,
+    ) {
+        val current = hostState.adMarking
+        if (!current.active || current.sessionId != sessionId) {
+            return
+        }
+        val action = parseWebElementActionPayload(sessionId, payload) ?: return
+        updateHostState {
+            it.copy(
+                adMarking =
+                    current.copy(
+                        pageUrl = action.pageUrl,
+                        domain = normalizeBrowserAdBlockDomain(action.pageUrl),
+                        tagName = action.tagName,
+                        text = action.text,
+                        selector = action.selector,
+                        html = action.html,
+                        previewing = payloadPreviewing(payload),
+                        ruleDraft = action.selector,
+                    ),
+            )
+        }
+    }
+
+    fun startAdMarking() {
+        val sessionId = hostState.browserState.activeSessionId
+        val webView = activeWebView
+        if (sessionId == null || webView == null) {
+            AppLogger.w("WebSessionBrowserHost", "Cannot start ad marking without an active WebSession")
+            return
+        }
+        val pageUrl = hostState.browserState.currentUrl.trim()
+        if (pageUrl.isBlank()) {
+            AppLogger.w("WebSessionBrowserHost", "Cannot start ad marking on a blank page URL")
+            return
+        }
+        hideTextSelectionActionsOverlay()
+        updateHostState {
+            it.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                placeholderPage = null,
+                webElementAction = null,
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarkingNavigationRequest = null,
+                adMarking =
+                    WebSessionAdMarkingState(
+                        active = true,
+                        sessionId = sessionId,
+                        pageUrl = pageUrl,
+                        domain = normalizeBrowserAdBlockDomain(pageUrl),
+                        navigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+                    ),
+            )
+        }
+        webView.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.startMarking(false);
+                    window.__kiyoriElementActions.setNavigationPolicy("block");
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun startAdMarkingFromCurrentElement() {
+        val action = hostState.webElementAction ?: return
+        val sessionId = hostState.browserState.activeSessionId
+        val webView = activeWebView
+        if (sessionId == null || sessionId != action.sessionId || webView == null) {
+            AppLogger.w(
+                "WebSessionBrowserHost",
+                "Cannot start element marking from a stale web-element action",
+            )
+            return
+        }
+        hideTextSelectionActionsOverlay()
+        updateHostState {
+            it.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.NONE,
+                placeholderPage = null,
+                webElementAction = null,
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarkingNavigationRequest = null,
+                adMarking =
+                    WebSessionAdMarkingState(
+                        active = true,
+                        sessionId = sessionId,
+                        pageUrl = action.pageUrl,
+                        domain = normalizeBrowserAdBlockDomain(action.pageUrl),
+                        tagName = action.tagName,
+                        text = action.text,
+                        selector = action.selector,
+                        html = action.html,
+                        ruleDraft = action.selector,
+                        navigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+                    ),
+            )
+        }
+        webView.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.startMarking(true);
+                    window.__kiyoriElementActions.setNavigationPolicy("block");
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun moveAdMarking(move: BrowserAdMarkingMove) {
+        if (!hostState.adMarking.active || activeWebView == null) {
+            return
+        }
+        val direction =
+            when (move) {
+                BrowserAdMarkingMove.PARENT -> "parent"
+                BrowserAdMarkingMove.PREVIOUS_SIBLING -> "previous"
+                BrowserAdMarkingMove.NEXT_SIBLING -> "next"
+                BrowserAdMarkingMove.FIRST_CHILD -> "child"
+            }
+        activeWebView?.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.moveSelection("$direction");
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun setAdMarkingPreview(enabled: Boolean) {
+        if (!hostState.adMarking.active || activeWebView == null) {
+            return
+        }
+        val enabledLiteral = enabled.toString()
+        activeWebView?.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.setPreview($enabledLiteral);
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun saveAdMarking() {
+        val state = hostState.adMarking
+        if (!state.active || state.sessionId == null) {
+            return
+        }
+        if (state.domain.isBlank() || state.selector.isBlank()) {
+            Toast.makeText(
+                appContext,
+                "请先选择一个可拦截的网页元素",
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+        try {
+            callbacks.onAddElementBlockRule(state.domain, state.selector)
+            Toast.makeText(
+                appContext,
+                "网页元素拦截规则已保存",
+                Toast.LENGTH_SHORT,
+            ).show()
+        } catch (error: Exception) {
+            AppLogger.e("WebSessionBrowserHost", "Failed to save web-element ad-block rule", error)
+            Toast.makeText(
+                appContext,
+                "网页元素拦截规则保存失败",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    fun resetAdMarking() {
+        if (!hostState.adMarking.active) {
+            return
+        }
+        activeWebView?.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.startMarking(true);
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+        updateHostState {
+            it.copy(
+                adMarking =
+                    it.adMarking.copy(
+                        tagName = "",
+                        text = "",
+                        selector = "",
+                        html = "",
+                        previewing = false,
+                        ruleDraft = "",
+                    ),
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarkingNavigationRequest = null,
+            )
+        }
+    }
+
+    fun exitAdMarking() {
+        if (hostState.adMarking.active || hostState.webElementAction != null) {
+            activeWebView?.evaluateJavascript(
+                """
+                (function() {
+                    if (window.__kiyoriElementActions) {
+                        window.__kiyoriElementActions.finish();
+                    }
+                })();
+                """.trimIndent(),
+                null,
+            )
+        }
+        updateHostState {
+            it.copy(
+                webElementAction = null,
+                adMarking = WebSessionAdMarkingState(),
+                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                adMarkingNavigationRequest = null,
+            )
+        }
+    }
+
+    fun selectElementText(
+        clientX: Double,
+        clientY: Double,
+    ) {
+        val webView = activeWebView ?: return
+        if (!clientX.isFinite() || !clientY.isFinite()) {
+            AppLogger.w("WebSessionBrowserHost", "Ignoring invalid element text-selection point")
+            return
+        }
+        updateHostState { it.copy(webElementAction = null) }
+        webView.evaluateJavascript(
+            """
+            (function() {
+                if (window.__kiyoriElementActions) {
+                    window.__kiyoriElementActions.selectText($clientX, $clientY);
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun copyCurrentWebElementText() {
+        val text = hostState.webElementAction?.text.orEmpty()
+        if (text.isBlank()) {
+            Toast.makeText(appContext, "当前元素没有可复制文本", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("web_element_text", text))
+        Toast.makeText(appContext, "文本已复制", Toast.LENGTH_SHORT).show()
+        updateHostState { it.copy(webElementAction = null) }
+    }
+
+    fun copyCurrentWebElementUrl() {
+        val action = hostState.webElementAction ?: return
+        val url = action.linkUrl ?: action.resourceUrl
+        if (url.isNullOrBlank()) {
+            Toast.makeText(appContext, "当前元素没有可复制链接", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("web_element_url", url))
+        Toast.makeText(appContext, "链接已复制", Toast.LENGTH_SHORT).show()
+        updateHostState { it.copy(webElementAction = null) }
+    }
+
+    private fun clearWebElementTransientState() {
+        if (hostState.adMarking.active || hostState.webElementAction != null) {
+            activeWebView?.evaluateJavascript(
+                """
+                (function() {
+                    if (window.__kiyoriElementActions) {
+                        window.__kiyoriElementActions.finish();
+                    }
+                })();
+                """.trimIndent(),
+                null,
+            )
+        }
+        if (hostState.adMarking.active || hostState.webElementAction != null) {
+            hostState =
+                hostState.copy(
+                    webElementAction = null,
+                    adMarking = WebSessionAdMarkingState(),
+                    adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                    adMarkingNavigationRequest = null,
+                )
+        }
+    }
+
+    private fun parseWebElementActionPayload(
+        sessionId: String,
+        payload: String,
+    ): WebSessionWebElementActionState? {
+        return try {
+            val json = JSONObject(payload)
+            val pageUrl = json.optString("pageUrl").trim()
+            val tagName = json.optString("tagName").trim().lowercase()
+            val selector = json.optString("selector").trim()
+            require(pageUrl.isNotBlank()) { "Web-element payload pageUrl is blank" }
+            require(tagName.isNotBlank()) { "Web-element payload tagName is blank" }
+            require(selector.isNotBlank()) { "Web-element payload selector is blank" }
+            WebSessionWebElementActionState(
+                sessionId = sessionId,
+                pageUrl = pageUrl,
+                tagName = tagName,
+                text = json.optString("text").trim(),
+                linkUrl = json.optString("linkUrl").trim().takeIf(String::isNotBlank),
+                resourceUrl = json.optString("resourceUrl").trim().takeIf(String::isNotBlank),
+                selector = selector,
+                html = json.optString("html").trim(),
+                clientX = json.optDouble("clientX", 0.0),
+                clientY = json.optDouble("clientY", 0.0),
+            )
+        } catch (error: Exception) {
+            AppLogger.e(
+                "WebSessionBrowserHost",
+                "Failed to parse web-element payload for session=$sessionId",
+                error,
+            )
+            null
+        }
+    }
+
+    private fun payloadPreviewing(payload: String): Boolean =
+        try {
+            JSONObject(payload).optBoolean("previewing", false)
+        } catch (error: Exception) {
+            AppLogger.e("WebSessionBrowserHost", "Failed to read ad-marking preview state", error)
+            false
+        }
 
     fun setViewportSize(width: Int?, height: Int?) {
         require((width == null) == (height == null)) {

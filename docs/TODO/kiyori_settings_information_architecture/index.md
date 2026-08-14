@@ -19,6 +19,13 @@ baseline: c036a03e
 3. 语音服务
 4. 小程序
 
+第二组从上到下固定为：
+
+1. 网页浏览器
+2. 视频播放器
+3. 音乐播放器
+4. 文档阅读器
+
 最后一组从上到下固定为：
 
 1. 界面定制
@@ -50,15 +57,19 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
   `KiyoriCollapsingSettingsPage`
 - 分组统一使用标题、说明、`16dp` 白色圆角卡片、双行设置项和 `0.6dp` 分隔线
 - 可选择项继续使用文件下载器设置页的 `26dp` 圆角底部面板
-- AI 助手详情页从模态抽屉进入时折叠标题左侧显示菜单；从设置首页进入时显示返回
+- 模态 AI 抽屉底部显示通用“设置”，打开来源保持型设置首页；AI 助手详情由设置首页同名入口进入并显示返回
 - 账号、语音、界面和备份根页使用 `RouteEntrySource.KIYORI_SETTINGS`，根页面 Back 直接返回
-  Settings Home，内部子页 Back 先返回对应设置根
+  Settings Home，内部子页 Back 先返回对应设置根；来源保持型 Settings Home 则把这些页面压入
+  当前 AI 栈，Back 先返回设置首页再返回原浏览器或 AI 页面
 - 小程序、开发手册和更多功能保持空动作，不建立页面、状态或与 AI 包管理之间的路由
 - 首页 16 个入口分别使用 16 个不同图标和 16 组固定浅深色图标容器；详情页继续使用全应用
   `KiyoriSemanticTone` 身份，但通过 Settings Surface 专用低饱和浅深色对渲染，不把首页专用
   色板扩散到业务状态语义，也不改变文件管理、工具箱等非设置界面
 - 顶栏第 4 个按钮在自身下方展开“跟随系统 / 浅色模式 / 深色模式”，直接写入唯一
-  `UserPreferencesManager` 主题 owner；按钮按当前有效主题显示太阳或月亮
+  `UserPreferencesManager` 主题 owner；菜单固定宽度为 `156dp`，按钮按当前有效主题显示太阳或月亮
+- 网页浏览器、视频播放器和文件下载器详情标题直接复用设置首页同名文案，不再追加“设置”
+- 浏览器菜单与 AI 抽屉进入 `KiyoriShellChild.SETTINGS_HOME`，不切换到底部设置主目的地；
+  覆盖式设置首页隐藏底部五入口并提供显式返回
 
 ## 串行实施
 
@@ -71,6 +82,8 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
 7. [DONE] 将设置首页短标签收敛为两组固定四项，并建立 16 图标、16 色的一一对应合同
 8. [DONE] 将账号首页与详情标题统一为“我的账号”，将数据根标题统一为“数据备份”，并新增
    主题快捷菜单与 Settings Surface 详情图标色板
+9. [DONE] 将第二组末项改为“文档阅读器”，统一浏览器/播放器/下载器同名标题，缩窄
+   主题菜单，并建立浏览器与 AI 来源保持型设置首页返回链
 
 ## 验收边界
 
@@ -92,3 +105,13 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
   签名与 `zipalign -c -P 16 -v 4` 验证通过
 - 未安装 APK、未操作设备；折叠标题、长语音表单、GitHub 登录弹窗、来源相关返回和横竖屏视觉
   保持 `verification_pending`
+
+### 2026-08-14 增量验证
+
+- 设置/Shell、浏览器菜单/布局和外部入口定向 JVM 共 `82/82`，architecture boundary
+  `107/107`，Kotlin 编译、formal readiness、七语种 XML、worktree Markdown 链接和
+  `git diff --check` 均通过
+- Debug 构建为 `232` 个任务、`22 executed / 210 up-to-date`；APK 为 `471035851` bytes，
+  SHA-256 `28BFBC295AEA0433C279FC7EFCF9BE6FF37468E306B5E3C33CCBF4384CAD821C`
+- APK 身份为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，Android Debug V2 单 signer，
+  16 KB ZIP 对齐通过；目标设备视觉与交互仍保持 `verification_pending`

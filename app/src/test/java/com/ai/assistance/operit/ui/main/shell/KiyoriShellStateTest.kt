@@ -358,10 +358,14 @@ class KiyoriShellStateTest {
         assertFalse(
             shouldProvideKiyoriSettingsTheme(KiyoriShellChild.FULL_SCREEN_WEB_SEARCH),
         )
+        assertFalse(
+            shouldProvideKiyoriSettingsTheme(KiyoriShellChild.SETTINGS_HOME),
+        )
         listOf(
             KiyoriShellChild.BROWSER_SETTINGS,
             KiyoriShellChild.DOWNLOAD_SETTINGS,
             KiyoriShellChild.PLAYER_SETTINGS,
+            KiyoriShellChild.AD_BLOCKER_SETTINGS,
         ).forEach { child ->
             assertTrue(shouldProvideKiyoriSettingsTheme(child))
         }
@@ -379,6 +383,55 @@ class KiyoriShellStateTest {
         assertEquals(PrimaryDestination.BROWSER_HOME, settingsState.primaryDestination)
         assertEquals(KiyoriShellChild.BROWSER_SETTINGS, settingsState.child)
         assertEquals(browserState, settingsState.closeChild())
+    }
+
+    @Test
+    fun `source preserving settings home hides bottom navigation and restores browser owner`() {
+        val browserState =
+            KiyoriShellState().openBrowser(
+                returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            )
+        val settingsHome = browserState.openChild(KiyoriShellChild.SETTINGS_HOME)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, settingsHome.primaryDestination)
+        assertEquals(KiyoriShellChild.SETTINGS_HOME, settingsHome.child)
+        assertFalse(settingsHome.showsBottomBar)
+        assertEquals(browserState, settingsHome.closeChild())
+    }
+
+    @Test
+    fun `settings details return through source preserving settings home`() {
+        val aiOwner =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            )
+        val settingsHome = aiOwner.openChild(KiyoriShellChild.SETTINGS_HOME)
+        val browserSettings =
+            settingsHome.openNestedChild(KiyoriShellChild.BROWSER_SETTINGS)
+
+        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, browserSettings.child)
+        assertEquals(KiyoriShellChild.SETTINGS_HOME, browserSettings.childBackTarget)
+        assertEquals(settingsHome, browserSettings.closeChild())
+        assertEquals(aiOwner, browserSettings.closeChild().closeChild())
+    }
+
+    @Test
+    fun `ad blocker settings detail returns through settings home`() {
+        val owner =
+            KiyoriShellState(
+                primaryDestination = PrimaryDestination.SOFTWARE_HOME,
+                softwareHomePage = SoftwareHomePage.HOME,
+            )
+        val settingsHome = owner.openChild(KiyoriShellChild.SETTINGS_HOME)
+        val adBlockSettings =
+            settingsHome.openNestedChild(KiyoriShellChild.AD_BLOCKER_SETTINGS)
+
+        assertEquals(KiyoriShellChild.AD_BLOCKER_SETTINGS, adBlockSettings.child)
+        assertEquals(KiyoriShellChild.SETTINGS_HOME, adBlockSettings.childBackTarget)
+        assertEquals(settingsHome, adBlockSettings.closeChild())
+        assertEquals(owner, adBlockSettings.closeChild().closeChild())
     }
 
     @Test

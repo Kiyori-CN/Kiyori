@@ -168,7 +168,7 @@ internal enum class WebSessionBrowserMenuTone(
         Color(0xFF83E6CF),
         Color(0xFF073B36),
     ),
-    BROWSER_SETTINGS(
+    SETTINGS(
         3,
         2,
         Color(0xFF475569),

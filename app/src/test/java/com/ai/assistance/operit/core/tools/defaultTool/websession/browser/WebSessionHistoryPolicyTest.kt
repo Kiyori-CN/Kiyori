@@ -111,6 +111,67 @@ class WebSessionHistoryPolicyTest {
         )
     }
 
+    @Test
+    fun `history actions distinguish only current web and video owners`() {
+        val web = entry("https://example.com", "Web", 100L, WebSessionHistoryCategory.WEB)
+        val video =
+            entry(
+                url = "https://cdn.example.com/video.mp4",
+                title = "Video",
+                visitedAt = 200L,
+                category = WebSessionHistoryCategory.VIDEO,
+                sourcePageUrl = "https://example.com/watch/1#player",
+            )
+        val localVideo =
+            entry(
+                url = "content://media/video/1",
+                title = "Local",
+                visitedAt = 300L,
+                category = WebSessionHistoryCategory.VIDEO,
+            )
+        val music =
+            entry(
+                "https://cdn.example.com/audio.mp3",
+                "Music",
+                400L,
+                WebSessionHistoryCategory.MUSIC,
+            )
+
+        assertEquals(WebSessionHistoryActionKind.WEB_PAGE, web.actionKind())
+        assertEquals(WebSessionHistoryActionKind.VIDEO, video.actionKind())
+        assertEquals("https://example.com/watch/1", video.validSourcePageUrl())
+        assertEquals(null, localVideo.validSourcePageUrl())
+        assertEquals(null, music.actionKind())
+    }
+
+    @Test
+    fun `exact history deletion keeps newer visit and other category`() {
+        val target = entry("https://example.com", "Old", 100L, WebSessionHistoryCategory.WEB)
+        val newer = entry("https://example.com", "New", 200L, WebSessionHistoryCategory.WEB)
+        val video =
+            entry(
+                "https://example.com",
+                "Video",
+                100L,
+                WebSessionHistoryCategory.VIDEO,
+            )
+
+        assertEquals(
+            listOf(newer, video),
+            removeWebSessionHistoryEntries(
+                entries = listOf(target, newer, video),
+                entryKeys = setOf(target.entryKey()),
+            ),
+        )
+        assertEquals(
+            listOf(target, newer, video),
+            removeWebSessionHistoryEntries(
+                entries = listOf(target, newer, video),
+                entryKeys = emptySet(),
+            ),
+        )
+    }
+
     private fun entry(
         url: String,
         title: String,

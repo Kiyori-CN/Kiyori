@@ -50,6 +50,7 @@ internal fun KiyoriHistoryDrawerHost(
     val browserTools =
         remember(context) { StandardBrowserSessionTools.getSharedInstance(context.applicationContext) }
     val entries by store.historyFlow.collectAsState(initial = emptyList<WebSessionHistoryEntry>())
+    val bookmarkFolders by store.bookmarkFoldersFlow.collectAsState(initial = emptyList())
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val drawerLayout =
@@ -68,6 +69,7 @@ internal fun KiyoriHistoryDrawerHost(
         ) {
             WebSessionHistorySheet(
                 entries = entries,
+                bookmarkFolders = bookmarkFolders,
                 onOpenEntry = { entry ->
                     val accepted =
                         when (entry.category) {
@@ -103,9 +105,20 @@ internal fun KiyoriHistoryDrawerHost(
                     }
                     accepted
                 },
+                onOpenWebUrl = onOpenWebHistory,
+                onBookmarkMutation = { mutation ->
+                    scope.launch {
+                        store.applyBookmarkMutation(mutation)
+                    }
+                },
                 onDeleteHistory = { category, cutoffTimeMillis ->
                     scope.launch {
                         store.deleteHistory(category, cutoffTimeMillis)
+                    }
+                },
+                onDeleteHistoryEntries = { entryKeys ->
+                    scope.launch {
+                        store.deleteHistoryEntries(entryKeys)
                     }
                 },
                 modifier = Modifier.fillMaxSize(),

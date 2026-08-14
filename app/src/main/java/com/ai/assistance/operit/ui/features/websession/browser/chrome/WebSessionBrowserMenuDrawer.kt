@@ -65,7 +65,7 @@ internal fun WebSessionBrowserMenuDrawer(
     onOpenPageSource: () -> Unit,
     onOpenAdMarking: () -> Unit,
     onOpenSiteConfig: () -> Unit,
-    onOpenBrowserSettings: () -> Unit,
+    onOpenSettingsHome: () -> Unit,
     onExitBrowser: () -> Unit,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
@@ -205,10 +205,10 @@ internal fun WebSessionBrowserMenuDrawer(
                             contentAlignment = Alignment.Center,
                         ) {
                             BottomMenuAction(
-                                title = stringResource(R.string.web_session_browser_settings),
+                                title = stringResource(R.string.settings),
                                 iconResId = R.drawable.ic_kiyori_tool_settings,
-                                onClick = onOpenBrowserSettings,
-                                tone = WebSessionBrowserMenuTone.BROWSER_SETTINGS,
+                                onClick = onOpenSettingsHome,
+                                tone = WebSessionBrowserMenuTone.SETTINGS,
                             )
                         }
                     }

@@ -58,7 +58,6 @@ internal sealed interface WebSessionBrowserPluginRoute {
 internal enum class WebSessionBrowserPlaceholderPage {
     TOOLBOX,
     READER_MODE,
-    AD_MARKING,
     SITE_CONFIG,
 }
 
@@ -83,6 +82,9 @@ internal data class WebSessionBrowserNetworkEntry(
     val category: BrowserNetworkRequestCategory,
     val timestamp: Long,
     val mediaCandidateId: String? = null,
+    val blocked: Boolean = false,
+    val blockingRule: String? = null,
+    val blockingSourceName: String? = null,
 )
 
 @Immutable
@@ -149,6 +151,70 @@ internal data class WebSessionPageSourceState(
 internal data class WebSessionTextSelectionActionsState(
     val anchorXPx: Int,
     val anchorYPx: Int,
+)
+
+@Immutable
+internal data class WebSessionWebElementActionState(
+    val sessionId: String,
+    val pageUrl: String,
+    val tagName: String,
+    val text: String,
+    val linkUrl: String?,
+    val resourceUrl: String?,
+    val selector: String,
+    val html: String,
+    val clientX: Double,
+    val clientY: Double,
+)
+
+internal enum class BrowserAdMarkingMove {
+    PARENT,
+    PREVIOUS_SIBLING,
+    NEXT_SIBLING,
+    FIRST_CHILD,
+}
+
+internal enum class WebSessionAdMarkingOverlay {
+    NONE,
+    EDIT_RULE,
+    CLEAR_CONFIRM,
+    NAVIGATION_POLICY,
+}
+
+internal enum class BrowserAdMarkingNavigationPolicy {
+    DEFAULT,
+    ALLOW,
+    ASK,
+    BLOCK,
+}
+
+internal fun BrowserAdMarkingNavigationPolicy.toJavascriptValue(): String =
+    when (this) {
+        BrowserAdMarkingNavigationPolicy.ALLOW -> "allow"
+        BrowserAdMarkingNavigationPolicy.ASK -> "ask"
+        BrowserAdMarkingNavigationPolicy.BLOCK,
+        BrowserAdMarkingNavigationPolicy.DEFAULT -> "block"
+    }
+
+@Immutable
+internal data class WebSessionAdMarkingNavigationRequest(
+    val url: String,
+    val text: String,
+)
+
+@Immutable
+internal data class WebSessionAdMarkingState(
+    val active: Boolean = false,
+    val sessionId: String? = null,
+    val pageUrl: String = "",
+    val domain: String = "",
+    val tagName: String = "",
+    val text: String = "",
+    val selector: String = "",
+    val html: String = "",
+    val previewing: Boolean = false,
+    val ruleDraft: String = "",
+    val navigationPolicy: BrowserAdMarkingNavigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
 )
 
 @Immutable
@@ -341,6 +407,10 @@ internal data class WebSessionBrowserHostState(
     val isSearchEngineQuickSwitchBarVisible: Boolean = false,
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val textSelectionActions: WebSessionTextSelectionActionsState? = null,
+    val webElementAction: WebSessionWebElementActionState? = null,
+    val adMarking: WebSessionAdMarkingState = WebSessionAdMarkingState(),
+    val adMarkingOverlay: WebSessionAdMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+    val adMarkingNavigationRequest: WebSessionAdMarkingNavigationRequest? = null,
     val downloadPrompt: BrowserDownloadPromptState? = null,
     val downloadUiState: BrowserDownloadUiState = BrowserDownloadUiState(),
     val viewportWidthCssPx: Int? = null,
@@ -351,6 +421,10 @@ internal data class WebSessionBrowserHostState(
 )
 
 internal enum class WebSessionBrowserBackAction {
+    DISMISS_AD_MARKING_NAVIGATION_REQUEST,
+    DISMISS_AD_MARKING_OVERLAY,
+    EXIT_AD_MARKING,
+    DISMISS_WEB_ELEMENT_ACTION,
     DISMISS_TEXT_SELECTION,
     DISMISS_PENDING_DIALOG,
     CANCEL_DOWNLOAD_PROMPT,
@@ -369,6 +443,14 @@ internal fun resolveWebSessionBrowserBackAction(
     state: WebSessionBrowserHostState,
 ): WebSessionBrowserBackAction =
     when {
+        state.adMarkingNavigationRequest != null ->
+            WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST
+        state.adMarkingOverlay != WebSessionAdMarkingOverlay.NONE ->
+            WebSessionBrowserBackAction.DISMISS_AD_MARKING_OVERLAY
+        state.adMarking.active ->
+            WebSessionBrowserBackAction.EXIT_AD_MARKING
+        state.webElementAction != null ->
+            WebSessionBrowserBackAction.DISMISS_WEB_ELEMENT_ACTION
         state.textSelectionActions != null ->
             WebSessionBrowserBackAction.DISMISS_TEXT_SELECTION
         state.browserState.pendingDialog != null ->

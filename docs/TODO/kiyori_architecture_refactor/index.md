@@ -344,7 +344,7 @@ Application、稳定 launcher、多进程、arm64 53 native、零重复 basename
 16 KB 对齐全部保持。M-05A1 已封板。M-05A2 已把纯 enum/data/color resolver 与 Compose
 `MaterialTheme` adapter 拆为两个 `com.kiyori.design.theme` owner，锁定全部浅深色值、
 枚举顺序、稳定 ID 映射、底栏 `#FFC153`、天气 `#C57C00/#FFD166`、`0.5f` luminance
-阈值、58 个消费者、102 条 import 与测试所有权；旧
+阈值、55 个显式 import 消费文件、98 条 import 与测试所有权；旧
 `ui/theme/KiyoriSemanticTheme.kt` 已删除，不保留 compatibility facade。M-04B AI Drawer、
 Primary Navigation 与 Software Home 的精确项目 import/hash snapshot 随批准的 owner 迁移
 同步。ARCH025/026/027/040/041、完整 architecture、Python `156/156`、JVM
