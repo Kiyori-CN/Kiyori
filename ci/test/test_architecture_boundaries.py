@@ -3443,6 +3443,20 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "fun test() = Mockito.mockStatic(AppLogger::class.java)\n",
         )
         write(
+            "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+            "ApiKeyProviderLogPrivacyTest.kt",
+            "package com.ai.assistance.operit.api.chat.llmprovider\n"
+            f"import {M05B_OLD_LOGGER_IMPORT}\n"
+            "fun test() = Mockito.mockStatic(AppLogger::class.java)\n",
+        )
+        write(
+            "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+            "LlmTransportDiagnosticsTest.kt",
+            "package com.ai.assistance.operit.api.chat.llmprovider\n"
+            f"import {M05B_OLD_LOGGER_IMPORT}\n"
+            "fun test() = Mockito.mockStatic(AppLogger::class.java)\n",
+        )
+        write(
             M05B_FORMATTER_TEST_PATH,
             "package com.kiyori.platform.logging\n"
             "fun unchangedTextRemainsUnchanged() = Unit\n"
@@ -3528,6 +3542,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "    private var startedActivityCount = 0\n"
             "    private var isAppInForeground = false\n"
             "    fun getCurrentActivity(): Activity? = currentActivity?.get()\n"
+            "    fun isAppInForeground(): Boolean = isAppInForeground\n"
             "    fun onActivityCreated(): Int { activityCount += 1; return activityCount }\n"
             "    fun onActivityStarted(): Boolean {\n"
             "        startedActivityCount += 1\n"
@@ -3568,6 +3583,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "        application.registerActivityLifecycleCallbacks(this)\n"
             "    }\n"
             "    fun getCurrentActivity(): Activity? = facts.getCurrentActivity()\n"
+            "    fun isAppInForeground(): Boolean = facts.isAppInForeground()\n"
             "    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {\n"
             "        observer.onActivityCreated(activity, facts.onActivityCreated())\n"
             "    }\n"
@@ -3695,6 +3711,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "    }\n"
             "    fun getCurrentActivity(): Activity? =\n"
             "        KiyoriActivityLifecycle.getCurrentActivity()\n"
+            "    fun isAppInForeground(): Boolean = KiyoriActivityLifecycle.isAppInForeground()\n"
             "    fun checkAndApplyKeepScreenOn(enable: Boolean) =\n"
             "        OperitActivityLifecycleIntegration.checkAndApplyKeepScreenOn(enable)\n"
             "    fun forceKeepScreenOn(enable: Boolean) =\n"

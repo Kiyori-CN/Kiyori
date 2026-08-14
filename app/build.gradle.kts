@@ -973,9 +973,9 @@ android {
         }
         
         ndk {
-            // Explicitly specify the ABIs we package for the app process.
-            // terminal now also ships x86_64 runtime binaries for the Android Studio emulator,
-            // while the rest of the app remains primarily ARM-focused.
+            // The parent Kiyori APK currently has one explicit native product contract.
+            // Other modules may support additional ABIs in isolated builds, but they are not
+            // packaged into this application artifact.
             abiFilters.addAll(listOf("arm64-v8a"))
         }
 
@@ -1471,7 +1471,6 @@ dependencies {
     add(poiOoxmlSanitizerInput.name, libs.poi.ooxml)
     add(bcpkixSanitizerInput.name, libs.bouncycastle.bcpkix)
 
-    implementation("com.github.jelmerk:hnswlib-core:1.2.1")
     implementation(project(":dragonbones"))
     implementation(project(":terminal"))
     implementation(project(":mnn"))
@@ -1482,9 +1481,9 @@ dependencies {
     implementation(project(":quickjs"))
 
     // glTF runtime rendering (Filament)
-    implementation("com.google.android.filament:filament-android:1.74.0")
-    implementation("com.google.android.filament:gltfio-android:1.74.0")
-    implementation("com.google.android.filament:filament-utils-android:1.74.0")
+    implementation(libs.filament.android)
+    implementation(libs.filament.gltfio)
+    implementation(libs.filament.utils)
     implementation(libs.androidx.ui.graphics.android)
     // Fixed vendored JARs remain globbed. The two generated player AARs are explicit and own
     // disjoint native names, including one C++ runtime built with the same toolchain as libmpv.
@@ -1527,13 +1526,10 @@ dependencies {
     // 图片处理库
     implementation(libs.glide) // 用于处理图像
     
-    // XML处理
-    implementation(libs.androidx.core.ktx)
-    
     // libsu - root access library
-    implementation("com.github.topjohnwu.libsu:core:6.0.0")
-    implementation("com.github.topjohnwu.libsu:service:6.0.0")
-    implementation("com.github.topjohnwu.libsu:nio:6.0.0")
+    implementation(libs.libsu.core)
+    implementation(libs.libsu.service)
+    implementation(libs.libsu.nio)
     
     // Add missing SVG support
     implementation(libs.androidsvg)
@@ -1597,7 +1593,7 @@ dependencies {
     implementation(libs.hnswlib.utils)
     
     // ONNX Runtime for Android - 支持更强大的多语言Embedding模型
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.28.0")
+    implementation(libs.onnxruntime.android)
 
     // Room 数据库
     implementation(libs.room.runtime)
@@ -1633,7 +1629,7 @@ dependencies {
     implementation(libs.shizuku.provider)
 
     // Tasker Plugin Library
-    implementation("com.joaomgcd:taskerpluginlibrary:0.4.10")
+    implementation(libs.tasker.plugin)
     
     // WorkManager for scheduled workflows
     implementation(libs.work.runtime.ktx)
@@ -1653,8 +1649,8 @@ dependencies {
 
     // Test dependencies
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20240303")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation(libs.org.json)
+    testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(enforcedPlatform(libs.compose.bom))
@@ -1696,13 +1692,7 @@ dependencies {
     // NanoHTTPD for local web server
     implementation(libs.nanohttpd)
 
-    // 添加测试依赖
-    testImplementation(libs.junit)
-    
-    // Android测试依赖
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(enforcedPlatform(libs.compose.bom))
+    // Additional Android test infrastructure
     androidTestImplementation(libs.ui.test.junit4)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
@@ -1739,7 +1729,7 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
 
-    implementation("io.modelcontextprotocol.sdk:mcp:1.1.0")
+    implementation(libs.mcp.sdk)
     
     // PDFBox Android still declares the older jdk15to18 line. Keep one current
     // BouncyCastle family so PKIX, utility, and provider classes cannot diverge.
@@ -1750,7 +1740,7 @@ dependencies {
     }
 
     // Security
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.security.crypto)
     
     // BouncyCastle - explicitly include jdk18on version to avoid conflicts
     implementation(libs.bouncycastle.bcprov)
@@ -1758,14 +1748,14 @@ dependencies {
     implementation(libs.bouncycastle.bcutil)
 
     // Retrofit
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
-    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.moshi)
+    implementation(libs.moshi.kotlin)
+    implementation(libs.okhttp.logging)
 
 
     // Accompanist
-    implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
+    implementation(libs.accompanist.systemuicontroller)
 
     // Glance for Widgets (Compose for Widgets)
     implementation(libs.glance.appwidget)

@@ -24,7 +24,7 @@ last_reviewed: 2026-07-14
 - 现有 ADB 文档主要介绍通用 `EXECUTE_JS` receiver，没有说明具名调试接口的注册规范
 - 数据救援路径与内部 Shell 调试命令缺少正式说明
 - 构建文档仍包含 `clone`、`nightly`、`assembleDebugClone` 和旧 APK 路径
-- `Repo_Arch_Basic.md` 仍将开发、调试、构建和应用内置工具统一描述为 `tools/`
+- `docs/doc-src/dev-core/REPOSITORY_LAYOUT.md` 需要随目录迁移持续更新脚本、宿主工具和应用内置工具的职责
 - TODO 计划与正式开发文档没有明确的归档边界
 
 ## 预期的新实现情况
@@ -54,7 +54,7 @@ last_reviewed: 2026-07-14
 - `docs/doc-src/dev-core/DATA_RESCUE_SHELL.md`
 - web-chat 与 example 的构建错误提示
 - 补丁发布相关文档
-- `Repo_Arch_Basic.md`
+- `docs/doc-src/dev-core/REPOSITORY_LAYOUT.md`
 - `docs/TODO/refactor_building_sys/`
 
 本步骤不修改：

@@ -1,4 +1,4 @@
- [versions]
+[versions]
 agp = "9.3.1"
 kotlin = "2.4.10"
 coreKtx = "1.12.0"
@@ -40,7 +40,8 @@ uuid = "0.8.2"
 gson = "2.10.1"
 hjson = "3.0.0"
 jieba = "1.0.2"
-hnswlib = "0.0.46"
+hnswlib-core = "1.2.1"
+hnswlib-utils = "0.0.46"
 room = "2.8.4"
 commons-compress-v2 = "1.28.0"
 junrar = "8.1.0"
@@ -74,8 +75,18 @@ objectbox = "5.3.0"
 work = "2.9.0"
 glance = "1.0.0"
 activityKtx = "1.7.1"
+filament = "1.74.0"
+onnxruntime = "1.28.0"
+tasker-plugin = "0.4.10"
+org-json = "20240303"
+mcp = "1.1.0"
+security-crypto = "1.1.0-alpha06"
+retrofit = "2.9.0"
+moshi = "1.15.0"
+accompanist = "0.32.0"
+sshd = "2.10.0"
 
- [libraries]
+[libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -134,9 +145,6 @@ androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "a
 android-gif = { group = "pl.droidsonroids.gif", name = "android-gif-drawable", version.ref = "android-gif" }
 image-cropper = { group = "com.vanniktech", name = "android-image-cropper", version.ref = "image-cropper" }
 
-# Root access
-libsu = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsu" }
-
 # Media
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
@@ -171,8 +179,14 @@ hjson = { group = "org.hjson", name = "hjson", version.ref = "hjson" }
 
 # NLP
 jieba = { group = "com.huaban", name = "jieba-analysis", version.ref = "jieba" }
-hnswlib-core = { group = "com.github.jelmerk", name = "hnswlib-core", version.ref = "hnswlib" }
-hnswlib-utils = { group = "com.github.jelmerk", name = "hnswlib-utils", version.ref = "hnswlib" }
+hnswlib-core = { group = "com.github.jelmerk", name = "hnswlib-core", version.ref = "hnswlib-core" }
+hnswlib-utils = { group = "com.github.jelmerk", name = "hnswlib-utils", version.ref = "hnswlib-utils" }
+
+# 3D and local inference
+filament-android = { group = "com.google.android.filament", name = "filament-android", version.ref = "filament" }
+filament-gltfio = { group = "com.google.android.filament", name = "gltfio-android", version.ref = "filament" }
+filament-utils = { group = "com.google.android.filament", name = "filament-utils-android", version.ref = "filament" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 # Database
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -190,9 +204,21 @@ navigation-compose = { group = "androidx.navigation", name = "navigation-compose
 shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
 shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 
+# Privileged execution and Android integrations
+libsu-core = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsu" }
+libsu-service = { group = "com.github.topjohnwu.libsu", name = "service", version.ref = "libsu" }
+libsu-nio = { group = "com.github.topjohnwu.libsu", name = "nio", version.ref = "libsu" }
+tasker-plugin = { group = "com.joaomgcd", name = "taskerpluginlibrary", version.ref = "tasker-plugin" }
+security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
+
 # Network
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-moshi = { group = "com.squareup.retrofit2", name = "converter-moshi", version.ref = "retrofit" }
+moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshi" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 
 # DataStore
@@ -215,6 +241,8 @@ mina-core = { group = "org.apache.mina", name = "mina-core", version.ref = "mina
 jsch = { group = "com.jcraft", name = "jsch", version.ref = "jsch" }
 ftpserver-core = { group = "org.apache.ftpserver", name = "ftpserver-core", version.ref = "ftpserver" }
 ftpserver-ftplet-api = { group = "org.apache.ftpserver", name = "ftplet-api", version.ref = "ftpserver" }
+sshd-core = { group = "org.apache.sshd", name = "sshd-core", version.ref = "sshd" }
+sshd-sftp = { group = "org.apache.sshd", name = "sshd-sftp", version.ref = "sshd" }
 
 # Logging
 kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging-jvm", version.ref = "kotlin-logging" }
@@ -226,11 +254,14 @@ colorpicker = { group = "com.github.skydoves", name = "colorpicker-compose", ver
 backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 liquid = { group = "io.github.fletchmckee.liquid", name = "liquid-android", version.ref = "liquid" }
 nanohttpd = { group = "org.nanohttpd", name = "nanohttpd", version.ref = "nanohttpd" }
+accompanist-systemuicontroller = { group = "com.google.accompanist", name = "accompanist-systemuicontroller", version.ref = "accompanist" }
+mcp-sdk = { group = "io.modelcontextprotocol.sdk", name = "mcp", version.ref = "mcp" }
 
 # Testing
 test-runner = { group = "androidx.test", name = "runner", version.ref = "test-runner" }
 test-rules = { group = "androidx.test", name = "rules", version.ref = "test-rules" }
 ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+org-json = { group = "org.json", name = "json", version.ref = "org-json" }
 
 # Coroutines
 coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -253,18 +284,18 @@ objectbox-processor = { group = "io.objectbox", name = "objectbox-processor", ve
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 
 
- androidx-ui-text-android = { group = "androidx.compose.ui", name = "ui-text-android" }
- androidx-animation-android = { group = "androidx.compose.animation", name = "animation-android" }
- androidx-ui-android = { group = "androidx.compose.ui", name = "ui-android" }
+androidx-ui-text-android = { group = "androidx.compose.ui", name = "ui-text-android" }
+androidx-animation-android = { group = "androidx.compose.animation", name = "animation-android" }
+androidx-ui-android = { group = "androidx.compose.ui", name = "ui-android" }
 
 # Glance (Compose for Widgets)
 glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
- androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activityKtx" }
- androidx-ui = { group = "androidx.compose.ui", name = "ui" }
- androidx-animation = { group = "androidx.compose.animation", name = "animation" }
+androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activityKtx" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-animation = { group = "androidx.compose.animation", name = "animation" }
 
- [plugins]
+[plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

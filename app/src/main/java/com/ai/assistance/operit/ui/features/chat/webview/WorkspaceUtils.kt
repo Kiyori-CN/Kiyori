@@ -100,6 +100,30 @@ private enum class ProjectType {
     WEB, ANDROID, FLUTTER, NODE, TYPESCRIPT, PYTHON, JAVA, GO, OFFICE, BLANK
 }
 
+internal data class WorkspaceTemplateSharedAsset(
+    val sourceAssetPath: String,
+    val destinationRelativePath: String,
+)
+
+internal fun workspaceTemplateSharedAssets(templateName: String): List<WorkspaceTemplateSharedAsset> =
+    when (templateName) {
+        "android" ->
+            listOf(
+                WorkspaceTemplateSharedAsset(
+                    sourceAssetPath = "templates/shared/android-tools/aapt2-arm64-v8a",
+                    destinationRelativePath = "tools/aapt2/aapt2-arm64-v8a",
+                )
+            )
+        "flutter" ->
+            listOf(
+                WorkspaceTemplateSharedAsset(
+                    sourceAssetPath = "templates/shared/android-tools/aapt2-arm64-v8a",
+                    destinationRelativePath = "android/tools/aapt2/aapt2-arm64-v8a",
+                )
+            )
+        else -> emptyList()
+    }
+
 /**
  * 生成空白项目配置JSON
  */
@@ -713,8 +737,34 @@ private fun copyTemplateFiles(context: Context, workspaceDir: File, templateName
                 }
             }
         }
+
+        // Android and Flutter workspaces require the same ARM64 AAPT2 binary at
+        // different destination paths. Keep one APK asset owner and materialize
+        // the template-specific path only when a workspace is created.
+        copySharedTemplateAssets(assetManager, workspaceDir, templateName)
     } catch (e: IOException) {
         e.printStackTrace()
+    }
+}
+
+private fun copySharedTemplateAssets(
+    assetManager: android.content.res.AssetManager,
+    workspaceDir: File,
+    templateName: String,
+) {
+    for (asset in workspaceTemplateSharedAssets(templateName)) {
+        val destination = File(workspaceDir, asset.destinationRelativePath)
+        val parent = requireNotNull(destination.parentFile) {
+            "Shared template destination has no parent: ${asset.destinationRelativePath}"
+        }
+        if (!parent.exists() && !parent.mkdirs()) {
+            throw IOException("Unable to create shared template directory: ${parent.absolutePath}")
+        }
+        assetManager.open(asset.sourceAssetPath).use { inputStream ->
+            destination.outputStream().use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
     }
 }
 

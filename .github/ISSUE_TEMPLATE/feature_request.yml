@@ -26,7 +26,7 @@ body:
     attributes:
       label: 当前版本 / Current version
       description: 请填写你当前使用的完整版本；纯功能建议也请提供版本作为背景。
-      placeholder: 例如 1.12.0+4、Nightly 日期或 commit hash
+      placeholder: 例如 0.1.0 (45)、构建日期或 commit hash
     validations:
       required: true
 
@@ -51,6 +51,9 @@ body:
         - Model or provider / 模型或服务商
         - Tool calling or workflow / 工具调用或工作流
         - Plugin, Skill or MCP / 插件、Skill 或 MCP
+        - Browser or web automation / 浏览器或网页自动化
+        - Download / 下载
+        - Player or media / 播放器或媒体
         - UI/UX / 界面交互
         - Local model, audio or voice / 本地模型、音频或语音
         - Permission, system or device / 权限、系统或设备
@@ -102,7 +105,7 @@ body:
       description: 请至少上传一张截图、草图或参考图；也可以忽略图片，直接用文字补充。 / Please add a screenshot, mockup or reference; you may skip the image and provide text only.
       placeholder: 将图片拖到这里，或粘贴图片/参考链接
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: alternatives

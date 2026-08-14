@@ -14,19 +14,19 @@ sys.path.insert(0, str(REPO_ROOT / "tools" / "example_packages"))
 
 from sync_example_packages import (  # noqa: E402
     _manifest_runtime_files,
+    _npm_executable,
     _pack_toolpkg_folder,
-    _pnpm_executable,
     _read_whitelist_file,
     _resolve_plan_item_from_roots,
 )
 
 
 class ToolPkgRuntimeFilesTest(unittest.TestCase):
-    def test_pnpm_executable_uses_windows_command_shim(self) -> None:
-        self.assertEqual(_pnpm_executable("win32"), "pnpm.cmd")
+    def test_npm_executable_uses_windows_command_shim(self) -> None:
+        self.assertEqual(_npm_executable("win32"), "npm.cmd")
 
-    def test_pnpm_executable_uses_posix_command(self) -> None:
-        self.assertEqual(_pnpm_executable("linux"), "pnpm")
+    def test_npm_executable_uses_posix_command(self) -> None:
+        self.assertEqual(_npm_executable("linux"), "npm")
 
     def test_production_copy_assets_match_their_whitelisted_sources(self) -> None:
         whitelist = _read_whitelist_file(

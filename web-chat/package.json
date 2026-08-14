@@ -10,6 +10,9 @@
     "preview": "vite preview",
     "sync:android-assets": "node ./scripts/sync-to-android-assets.mjs"
   },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  },
   "dependencies": {
     "liquid-glass-react": "^1.1.1",
     "react": "^19.2.5",

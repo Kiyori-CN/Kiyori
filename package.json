@@ -1,25 +1,22 @@
 {
-    "scripts": {
-        "build": "webpack",
-        "java2ts": "java2ts config.json",
-        "builder": "node ./build/build.js",
-        "build:examples:github": "node ./examples/github/build.js",
-        "build:webchat": "npm --prefix web-chat run build && npm --prefix web-chat run sync:android-assets"
-    },
-    "dependencies": {},
-    "devDependencies": {
-        "@types/jest": "^29.5.12",
-        "@types/node": "^22.4.1",
-        "copy-paste": "^1.5.3",
-        "esbuild": "^0.25.0",
-        "object-sizeof": "^2.6.1",
-        "typescript": "5.9.3"
-    },
-    "name": "kiyori-tooling",
-    "private": true,
-    "version": "1.0.0",
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "description": ""
+  "name": "kiyori-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private development tooling for the Kiyori Android project",
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=22"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  },
+  "scripts": {
+    "build:examples:github": "node ./examples/github/build.js",
+    "build:webchat": "npm --prefix web-chat run build && npm --prefix web-chat run sync:android-assets"
+  },
+  "devDependencies": {
+    "@types/node": "^22.4.1",
+    "esbuild": "^0.25.0",
+    "typescript": "5.9.3"
+  }
 }

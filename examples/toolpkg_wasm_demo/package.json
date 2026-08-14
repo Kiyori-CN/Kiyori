@@ -1,5 +1,15 @@
 {
+  "name": "toolpkg_wasm_demo",
+  "version": "1.0.0",
   "private": true,
+  "description": "Deterministic ToolPkg example that bundles an AssemblyScript WebAssembly module",
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=22"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  },
   "scripts": {
     "build:js": "tsc -p tsconfig.json --noEmit && esbuild src/main.ts --bundle --format=cjs --platform=neutral --target=es2020 --outfile=main.js",
     "build:wasm": "asc src/wasm/core.as.ts --config asconfig.json --target release",

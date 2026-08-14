@@ -2,7 +2,7 @@
 
 ## 1. 简介
 
-**ToolPkg** 是 Operit 项目中用于打包和分发工具包的标准格式。它允许开发者将多个相关的工具脚本、资源文件和 UI 模块打包成一个单一的、易于分发和管理的文件。
+**ToolPkg** 是 Kiyori 内置 Operit 工具体系用于打包和分发工具包的稳定格式。它允许开发者将多个相关的工具脚本、资源文件和 UI 模块打包成一个单一、可审计、易于分发和管理的文件。
 
 本文档的格式、manifest 与运行时说明适用于所有 ToolPkg 作者。文中 `tools/toolpkg/debug_toolpkg.*` 的命令仅面向拥有 Operit 源码仓库和 ADB 的桌面开发环境；应用内 AI 协作开发应先更新 `SandboxPackage_DEV`，并遵循其本地 `SKILL.md` 指定的目录与调试方式。
 

@@ -1,35 +1,40 @@
-# doc-src
+# Kiyori 正式文档源
 
-这里是项目设计、开发和功能相关文档的单一事实源，按主题分类维护，方便快速了解当前实现和方案及构建i18n和文档站
+`doc-src/` 是 Kiyori 长期维护的设计与开发文档源。这里记录当前有效的架构、决策、协议、开发入口和可复核研究；当前工作进度与未完成验收保留在 [`../TODO/`](../TODO/README.md)。
 
 ## 目录结构
 
-- `architecture/`：整体架构、核心模块和运行流程设计
-- `decisions/`：已经接受且具有长期影响的架构与产品决策
-- `dev-core/`：核心开发资料，包括构建、贡献指南和底层接口说明
-- `feature-protocol/`：具体功能与协议流程，例如意图触发、工具调用和聊天导入
-- `package-dev/`：各功能包和业务模块的开发说明，同时用于给用户及其agent开发包
-- `research/`：对引入、接入的外部依赖或api等的调研记录和技术验证结果
-- `test-example/`：对项目内功能的测试示例、实验记录和问题分析
+- `architecture/`：整体架构、核心模块、运行时与跨模块数据流。
+- `decisions/`：已经接受且具有长期影响的架构和产品决策。
+- `dev-core/`：构建、贡献、仓库布局、播放器与底层开发资料。
+- `feature-protocol/`：具体功能、协议、数据和执行合同。
+- `package-dev/`：脚本包、ToolPkg、工具类型和宿主 API。
+- `research/`：外部依赖、API 和候选方案的研究记录。
+- `test-example/`：测试示例、实验记录和问题分析。
 
-## 文档维护
+## 推荐阅读顺序
 
-- 新增文档时，请放入最匹配的主题目录，并在文件名中体现内容主题
-- 方案发生较大变化时，应同步更新相关设计文档，避免文档与当前实现不一致
-- 请按照项目规范排布文档、脚本、源码和其他文件，必要时可引入标签化索引
-- 在移动文件位置前，务必用 `rg` 检查所有文档和文件，查看是否有依赖自身相对位置的引用，记得及时修改
-- 建议使用 Agent 来移动文件位置（除非你清楚自己在做什么），并记得明确提示检查各类引用和相对链接
-- 构建 App 不应直接依赖文档的相对位置，应先解析适当的元数据；若没有，应做必要的创建
-- 严禁让发布版或 CDN 直接索引项目目录位置，这会严重限制日后结构改动，且降低稳健性
+1. 根 [`README.md`](../../README.md)：产品与构建入口。
+2. 根 [`CONTEXT.md`](../../CONTEXT.md)：产品语言、所有权和兼容性合同。
+3. [仓库布局](dev-core/REPOSITORY_LAYOUT.md)：模块、生成目录和本地输入。
+4. [构建指南](dev-core/BUILDING.md) 与 [贡献指南](dev-core/CONTRIBUTING.md)。
+5. 与任务相关的 `architecture/`、`decisions/` 或 `feature-protocol/` 文档。
 
-建议参考[文档撰写指南](before_docing.md)
+## 维护规则
 
-## Kiyori 产品架构入口
+- 新文档放入最匹配的主题目录，并使用能长期表达主题的文件名。
+- 方案、接口、状态所有者或用户可见行为变化时，同步更新对应的权威文档。
+- 不在正式文档中保存临时聊天记录、大段日志或仅对一次执行有效的检查点。
+- 移动文件前使用 `rg` 查找引用并同步修改相对链接、代码路径和测试。
+- 构建产物不应依赖文档目录的偶然布局；需要机器消费时使用显式 schema 或清单。
+- 详细格式、状态和归档要求见 [文档维护规范](before_docing.md)。
+
+## 关键入口
 
 - [Kiyori 产品壳与导航架构](architecture/kiyori_product_shell_and_navigation.md)
 - [浏览器插件平台与插件中心架构](architecture/browser_plugin_platform.md)
-  - 覆盖 userscript、`.kbx`、WebExtension 导入、隔离世界、权限、安装事务、AI 创作和实施门禁
+- [统一模型能力与可恢复执行](architecture/model_capability_and_resumable_execution.md)
+- [OpenAI Hosted Web Search](architecture/openai_hosted_web_search.md)
 - [Kiyori 产品定位与 Operit AI 边界](decisions/0001_kiyori_product_positioning.md)
 - [模态 AI 左抽屉导航](decisions/0004_modal_ai_drawer_navigation.md)
-- [已取代：产品壳与 AI 中心导航](decisions/0002_product_shell_and_ai_center_navigation.md)
 - [UI 设计来源层级](decisions/0003_ui_design_source_hierarchy.md)

@@ -490,9 +490,9 @@ M05A2_CONSUMER_IMPORT_SNAPSHOT = (
     "m05a2-semantic-consumer-imports.txt"
 )
 M05A2_DESIGN_PACKAGE = "com.kiyori.design.theme"
-M05A2_PRODUCTION_CONSUMER_COUNT = 50
+M05A2_PRODUCTION_CONSUMER_COUNT = 49
 M05A2_EXTERNAL_TEST_CONSUMER_COUNT = 4
-M05A2_CONSUMER_IMPORT_COUNT = 97
+M05A2_CONSUMER_IMPORT_COUNT = 95
 M05A2_MOVED_IMPORT_SYMBOLS = {
     "KiyoriSemanticTone",
     "kiyoriSemanticToneForStableId",
@@ -752,7 +752,7 @@ M05C_OBSERVER_IMPORT = (
 M05C_LEGACY_IMPORT = (
     "com.ai.assistance.operit.core.application.ActivityLifecycleManager"
 )
-M05C_LEGACY_CONSUMER_COUNT = 13
+M05C_LEGACY_CONSUMER_COUNT = 14
 M05C_HASHED_PATHS = (
     M05C_PLATFORM_LIFECYCLE_PATH,
     M05C_OPERIT_INTEGRATION_PATH,
@@ -776,6 +776,7 @@ M05C_LEGACY_CONSUMER_PATHS = (
     "websession/userscript/install/UserscriptImportCoordinator.kt",
     "app/src/main/java/com/ai/assistance/operit/core/tools/javascript/"
     "JsEngine.kt",
+    M04_MAIN_ACTIVITY_PATH,
     "app/src/main/java/com/ai/assistance/operit/util/crash/"
     "PlayerCrashCoordinator.kt",
     "app/src/main/java/com/ai/assistance/operit/core/tools/javascript/"
@@ -9034,6 +9035,10 @@ def check_m05b_platform_logging(
             if "Mockito.mockStatic(AppLogger::class.java)" in code:
                 mock_static_sites.add(path.relative_to(root).as_posix())
     expected_mock_static_sites = {
+        "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+        "ApiKeyProviderLogPrivacyTest.kt",
+        "app/src/test/java/com/ai/assistance/operit/api/chat/llmprovider/"
+        "LlmTransportDiagnosticsTest.kt",
         "app/src/test/java/com/ai/assistance/operit/core/tools/condition/"
         "ConditionEvaluatorTest.kt",
         "app/src/test/java/com/ai/assistance/operit/core/tools/condition/"
@@ -9238,10 +9243,12 @@ def check_m05c_platform_lifecycle(
         "private var activityCount = 0",
         "private var startedActivityCount = 0",
         "private var isAppInForeground = false",
+        "fun isAppInForeground(): Boolean = isAppInForeground",
         "private val facts = KiyoriActivityLifecycleFacts()",
         "private lateinit var observer: KiyoriActivityLifecycleObserver",
         "application.registerActivityLifecycleCallbacks(this)",
         "fun getCurrentActivity(): Activity? = facts.getCurrentActivity()",
+        "fun isAppInForeground(): Boolean = facts.isAppInForeground()",
         "observer.onActivityCreated(activity, facts.onActivityCreated())",
         "observer.onActivityStarted(activity, facts.onActivityStarted())",
         "facts.onActivityResumed(activity)",
@@ -9386,6 +9393,7 @@ def check_m05c_platform_lifecycle(
         "observer = OperitActivityLifecycleIntegration",
         "fun getCurrentActivity(): Activity? =",
         "KiyoriActivityLifecycle.getCurrentActivity()",
+        "fun isAppInForeground(): Boolean = KiyoriActivityLifecycle.isAppInForeground()",
         "fun checkAndApplyKeepScreenOn(enable: Boolean)",
         "OperitActivityLifecycleIntegration.checkAndApplyKeepScreenOn(enable)",
         "fun forceKeepScreenOn(enable: Boolean)",

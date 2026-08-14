@@ -60,11 +60,21 @@ static llama_sampler * createSamplerChain(
     if (penaltyLastN < -1) penaltyLastN = -1;
     if (repeatPenalty < 0.0f) repeatPenalty = 0.0f;
 
+    if (vocab == nullptr) {
+        return nullptr;
+    }
+
+    const int32_t nVocab = llama_vocab_n_tokens(vocab);
+    if (nVocab <= 0) {
+        return nullptr;
+    }
+
     llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
     llama_sampler * chain = llama_sampler_chain_init(sparams);
     if (!chain) return nullptr;
 
     llama_sampler_chain_add(chain, llama_sampler_init_penalties(
+            nVocab,
             penaltyLastN,
             repeatPenalty,
             frequencyPenalty,
@@ -76,11 +86,6 @@ static llama_sampler * createSamplerChain(
     llama_sampler_chain_add(chain, llama_sampler_init_temp(temperature));
 
     if (grammarConfig != nullptr && !grammarConfig->grammar.empty()) {
-        if (vocab == nullptr) {
-            llama_sampler_free(chain);
-            return nullptr;
-        }
-
         llama_sampler * grammarSampler = nullptr;
         if (grammarConfig->lazy) {
             std::vector<const char *> triggerPatternsC;

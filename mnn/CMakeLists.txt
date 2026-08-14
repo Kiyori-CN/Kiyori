@@ -9,7 +9,7 @@ operit_prepare_git_source(
     OPERIT_MNN_BINARY_DIR
     mnn
     "https://github.com/alibaba/MNN.git"
-    "master"
+    "ea44a3ebd5dd6348eea501047b17c43aa3ecccb6"
 )
 
 operit_prepare_git_source(
@@ -51,9 +51,17 @@ set(MNN_BUILD_QUANTOOLS OFF CACHE BOOL "Build quantools" FORCE)
 set(MNN_EVALUATION OFF CACHE BOOL "Build evaluation" FORCE)
 set(MNN_BUILD_CONVERTER OFF CACHE BOOL "Build converter" FORCE)
 set(MNN_BUILD_TRAIN OFF CACHE BOOL "Build train" FORCE)
+set(MNN_LLM_BUILD_DEMO OFF CACHE BOOL "Do not build upstream LLM demos" FORCE)
+set(MNN_LLM_BUILD_TEST OFF CACHE BOOL "Do not build upstream LLM tests" FORCE)
+set(BUILD_MLS OFF CACHE BOOL "Do not build the upstream desktop MLS app" FORCE)
 
-# 添加 MNN 主项目
-add_subdirectory(${MNN_SOURCE_DIR} ${OPERIT_MNN_BINARY_DIR})
+# 上游默认 all 目标还包含 Android 产品不需要的工具和示例。排除该目录后，
+# MNNWrapper 实际链接的 MNN/llm 依赖仍会构建，但未链接的可执行文件不会进入默认构建。
+add_subdirectory(
+    "${MNN_SOURCE_DIR}"
+    "${OPERIT_MNN_BINARY_DIR}"
+    EXCLUDE_FROM_ALL
+)
 
 # 包含 JNI 绑定代码（只包含我们需要的文件）
 add_library(

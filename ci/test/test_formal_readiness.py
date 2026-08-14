@@ -12,6 +12,7 @@ sys.path.insert(0, str(REPO_ROOT / "ci" / "script"))
 from check_formal_readiness import (  # noqa: E402
     check_ci_android_toolchain,
     check_generated_native_inputs,
+    check_native_source_pins,
     check_package_metadata,
     check_runtime_urls,
     check_ssh_secret_transport,
@@ -165,8 +166,61 @@ private fun installSudoShim() {
 
             check_generated_native_inputs(root, errors)
 
-            self.assertEqual(len(errors), 1)
-            self.assertIn("must not exist", errors[0])
+        self.assertEqual(len(errors), 1)
+        self.assertIn("must not exist", errors[0])
+
+    def write_native_source_pin_fixture(
+        self,
+        root: Path,
+        *,
+        llama_ref: str = "885c5bbe8e04dc78db25beb911a2715312ad7b54",
+        mnn_ref: str = "ea44a3ebd5dd6348eea501047b17c43aa3ecccb6",
+    ) -> None:
+        files = {
+            "llama/CMakeLists.txt": f'''
+operit_prepare_git_source(
+    LLAMA_SOURCE_DIR
+    LLAMA_BINARY_DIR
+    llama_cpp
+    "https://github.com/ggml-org/llama.cpp.git"
+    "{llama_ref}"
+)
+''',
+            "mnn/CMakeLists.txt": f'''
+operit_prepare_git_source(
+    MNN_SOURCE_DIR
+    MNN_BINARY_DIR
+    mnn
+    "https://github.com/alibaba/MNN.git"
+    "{mnn_ref}"
+)
+''',
+        }
+        for relative_path, content in files.items():
+            path = root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content.strip() + "\n", encoding="utf-8")
+
+    def test_exact_native_source_pins_are_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_native_source_pin_fixture(root)
+            errors: list[str] = []
+
+            check_native_source_pins(root, errors)
+
+            self.assertEqual(errors, [])
+
+    def test_moving_native_source_refs_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_native_source_pin_fixture(root, llama_ref="master", mnn_ref="master")
+            errors: list[str] = []
+
+            check_native_source_pins(root, errors)
+
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(all("must pin" in error for error in errors))
 
     def write_ssh_secret_transport_fixture(self, root: Path, *, use_server_env: bool) -> None:
         path = (

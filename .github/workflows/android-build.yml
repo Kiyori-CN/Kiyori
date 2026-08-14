@@ -178,7 +178,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install -g pnpm@10.34.5
           npm ci --no-audit --no-fund
           npm --prefix web-chat ci --no-audit --no-fund
 

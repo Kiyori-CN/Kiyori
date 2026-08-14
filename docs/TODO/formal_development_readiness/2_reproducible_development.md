@@ -3,12 +3,15 @@
 ## 源码入口
 
 ```bash
-git clone --recurse-submodules https://github.com/Kiyori-CN/Kiyori.git
+git clone https://github.com/Kiyori-CN/Kiyori.git
 cd Kiyori
 git switch main
 git submodule sync -- terminal
 git submodule update --init --recursive terminal
 ```
+
+不要对整个仓库使用 `--recurse-submodules`：`terminal` 是常规构建需要的固定子模块；
+`tools/hotbuild/OperitNightlyRelease` 是独立的可选私有子模块，不属于 Debug 构建入口。
 
 父仓库只使用 `main` 作为持续开发分支。`terminal` 子模块固定到父仓库 gitlink 指定的提交，子模块自身也只使用 Kiyori 远端的 `main` 发布。
 
@@ -18,10 +21,15 @@ git submodule update --init --recursive terminal
 - Gradle Wrapper 为 9.5.0，Android Gradle Plugin 为 9.3.1，Kotlin 编译器插件为 2.4.10
 - Android compile SDK 为 37，target SDK 为 34，CI Build Tools 为 36.0.0，CMake 为 3.22.1
 - 所有 Android native 模块通过 `gradle.properties` 固定使用 NDK 28.2.13676358；该版本属于 NDK r28，源码构建的 ELF 默认支持 16 KB segment 对齐
+- JNI API 敏感的 llama.cpp 与 MNN 分别锁定到精确 commit
+  `885c5bbe8e04dc78db25beb911a2715312ad7b54` 与
+  `ea44a3ebd5dd6348eea501047b17c43aa3ecccb6`；不得改回会随时间漂移的 `master`/`main`
+- `cmake/operit_git_source.cmake` 对 40 位十六进制 commit 直接进行内容寻址，不执行远端 ref
+  解析；长度错误或非十六进制 token 不得伪装成固定 commit
 - native ripgrep 固定使用 rustup 管理的 Rust 1.88.0 与 `aarch64-linux-android` target；Gradle 以 Cargo 锁文件、Rust 源码和固定 NDK 为输入生成 arm64 JNI 库
 - shell identity launcher 固定从 `tools/shell_identity_launcher/native-lib.cpp` 生成；Gradle 使用 NDK 28、API 26、`-nostdlib++` 和 16 KB linker 对齐参数构建并验证 ELF，源码 assets 不保留预编译副本
 - terminal 的 `sudo` 命令由唯一 `TerminalManager` 在私有 bin 目录生成 `/system/bin/sh` shim；仓库不保留伪装成 native library 的 `libsudo.so`
-- Node.js、pnpm 和 Python 版本以 `.github/workflows/` 和现有脚本为准
+- Node.js、npm 和 Python 版本以 `.github/workflows/`、已提交 lockfile 和现有脚本为准
 - 本地凭据仅放在未跟踪的 `local.properties`，不得写入仓库或 CI 日志
 
 ## 预置插件资产
@@ -42,6 +50,7 @@ git submodule update --init --recursive terminal
 
 - 新鲜克隆可以初始化 `terminal`，且子模块工作树干净
 - `git diff --check` 通过
+- formal readiness 确认 llama.cpp 与 MNN 的精确 commit，CMake 单元测试确认 SHA 判断边界
 - 根 `package.json` 为私有工具包，不可被 npm 误发布
 - 资源、JSON、Markdown 和现有 CI 单元检查通过
 - `assembleDebug` 通过并生成 `app/build/outputs/apk/debug/app-debug.apk`

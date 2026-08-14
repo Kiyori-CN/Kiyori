@@ -13,7 +13,7 @@ from check_markdown_links import check_file, directory_paths, inline_targets  # 
 
 class MarkdownLinkParserTest(unittest.TestCase):
     def test_parentheses_in_destination_are_preserved(self) -> None:
-        self.assertEqual(inline_targets("[English](README(E).md)"), ["README(E).md"])
+        self.assertEqual(inline_targets("[English](README.en.md)"), ["README.en.md"])
 
     def test_inline_code_is_ignored(self) -> None:
         self.assertEqual(inline_targets("Use `[label](missing.md)` here."), [])

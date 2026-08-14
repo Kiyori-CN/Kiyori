@@ -1,113 +1,176 @@
-# Operit 贡献指南
+# Kiyori 贡献指南
 
-感谢你为 Operit 提交 Issue、文档、脚本、插件或代码。本文说明当前仓库的协作流程；构建细节请参考 [Android 编译指南](./BUILDING.md)，脚本和 ToolPkg 开发请参考 [脚本开发指南](../../SCRIPT_DEV_GUIDE.md)。
+感谢你为 Kiyori 提交问题、文档、脚本、插件或代码。本指南说明问题反馈、开发分支、验证、
+Pull Request 和安全边界。环境准备与构建步骤见 [Kiyori Android 构建指南](./BUILDING.md)。
+
+## 项目定位
+
+Kiyori 是以浏览器为产品中心、以内置 Operit AI 为智能子系统的 Android 应用。贡献时请保持：
+
+- Browser Home 与 AI 浏览器工具继续共用唯一 Browser Runtime
+- 播放器、下载器、设置、存储和权限继续使用既有唯一状态所有者
+- `com.ai.assistance.operit`、`operit://`、AIDL、JNI、Intent、数据库、备份和 ToolPkg 等稳定
+  兼容标识不做机械品牌替换
+- 用户数据、公开协议和外部调用行为的变化具有明确兼容与迁移说明
+
+术语、模块所有权和不变量以 [`CONTEXT.md`](../../../CONTEXT.md) 为准。
 
 ## 贡献类型
 
-- Android 应用、工具调用、工作流、数据和 UI：主要位于 `app/`
-- WebChat：位于 `web-chat/`，构建结果会同步到 Android assets
-- 脚本、Skill、Plugin、MCP 和示例包：位于 `examples/`，格式说明见 [ToolPkg 指南](../../TOOLPKG_FORMAT_GUIDE.md)
-- 文档和协作资料：位于 `docs/`
-- 构建、检查和仓库自动化：位于 `.github/`、`ci/` 和 `tools/`
+| 领域 | 主要目录 |
+| --- | --- |
+| Android 应用、浏览器、AI、设置与系统集成 | `app/` |
+| Android/native library 模块 | `dragonbones/`、`terminal/`、`mnn/`、`llama/`、`mmd/`、`fbx/`、`showerclient/`、`quickjs/` |
+| WebChat | `web-chat/` |
+| 脚本、ToolPkg 与示例 | `examples/` |
+| 构建、检查和仓库工具 | `.github/`、`ci/`、`tools/` |
+| 正式文档和专项计划 | `docs/` |
+
+脚本作者还应阅读 [脚本开发指南](../../SCRIPT_DEV_GUIDE.md) 和
+[ToolPkg 格式指南](../../TOOLPKG_FORMAT_GUIDE.md)。
 
 ## 提交 Issue
 
-请先在 [Issue 区](https://github.com/AAswordman/Operit/issues) 搜索相同问题，再选择对应的 Issue Form：
+提交前先搜索 [Kiyori Issues](https://github.com/Kiyori-CN/Kiyori/issues)，并选择匹配的
+Issue Form：
 
-- Bug report：错误、崩溃和异常行为
-- Feature request：功能和行为建议
-- Plugin, Skill or MCP report：外部包、工具和 MCP 服务问题
-- Question：使用、配置和行为咨询
+- Bug report：可复现错误、崩溃、卡死或异常行为
+- Feature request：具体功能需求或行为改进
+- Plugin, Skill or MCP report：外部包、Skill、工具或 MCP 服务问题
+- Question：使用、配置和项目行为咨询
 
-提交时请填写完整版本号、运行环境、主要问题、复现步骤和相关配置。截图或日志字段用于补充证据，文字说明也可以。请勿提交 API Key、Token、Cookie、个人信息或其他敏感内容。
+高质量问题至少包含：
 
-只有标题、没有正文和评论的 Issue 会被自动关闭。功能、Bug 和工具问题应尽量关联已有讨论，避免重复跟进。
+- Kiyori 完整版本、构建日期或 commit hash
+- 设备型号、Android 版本或 WebChat 浏览器环境
+- 实际行为、预期行为和影响
+- 可重复的最短步骤
+- 相关模型、Provider、工具、插件或设置
+- 必要且已脱敏的截图、录屏或日志
 
-## 开发前准备
+不要提交 API Key、Token、Cookie、手机号、私人对话、签名材料、私有端点或其他敏感数据。
+只有标题、缺少上下文或未经脱敏的反馈会显著增加处理时间。
 
-项目是 Android 主应用，同时包含 native 子模块、WebChat 和脚本构建步骤。完整环境要求以 [Android 编译指南](./BUILDING.md) 为准，当前 CI 使用的主要版本包括：
+## 开发环境
 
-- JDK 21
-- Node.js 22、npm 和 pnpm
-- Python 3
-- Android SDK Platform 37、target SDK 34、Build Tools 36.0.0
-- NDK 28.2.13676358 和 CMake 3.22.1
+项目使用 JDK 21、Node.js 22 与 npm lockfile、Android Platform 37、Build Tools 36.0.0、
+NDK 28.2.13676358、CMake 3.22.1 和 Rust 1.88.0。请按
+[构建指南](./BUILDING.md)准备工具链、大型 Android 输入、WebChat 和 ToolPkg 依赖。
 
-Fork 并克隆仓库后，建议保留 `upstream` 远程：
+不要递归初始化所有子模块。常规开发只需要：
 
 ```bash
-git clone https://github.com/<your-account>/Operit.git
-cd Operit
+git submodule sync -- terminal
 git submodule update --init --recursive terminal
-git remote add upstream https://github.com/AAswordman/Operit.git
+```
+
+## Fork 与分支
+
+Fork Kiyori 后克隆自己的仓库：
+
+```bash
+git clone https://github.com/<your-account>/Kiyori.git
+cd Kiyori
+git remote add upstream https://github.com/Kiyori-CN/Kiyori.git
 git fetch upstream
 git switch -c fix/short-description upstream/main
+git submodule update --init --recursive terminal
 ```
 
-不要提交 `local.properties`、本地密钥、手动下载的模型和二进制依赖。修改 WebChat 或示例包时，先按照编译指南准备根目录和 `web-chat` 的依赖。
-
-## 开发原则
-
-- 先阅读相关模块和现有测试，再开始修改
-- 保持 PR 聚焦，不把无关格式化、重命名和功能改动混在一起
-- 变更持久化数据、配置格式、工具参数或公开行为时，说明兼容性和迁移影响
-- 新增面向用户的文字时优先使用资源字符串或项目已有的多语言机制
-- UI、行为或文档发生变化时，在 PR 中提供验证结果和必要的截图、日志或对比信息
-- 不修改第三方子模块内容来解决主仓库问题；需要变更时单独说明来源和同步方式
-
-## 本地检查
-
-在仓库根目录可以复现主要的快速检查：
-
-```bash
-git fetch upstream main
-BASE_SHA="$(git merge-base upstream/main HEAD)"
-CANDIDATE_SHA="HEAD"
-
-python3 -B -m unittest discover -s ci/test -p 'test_*.py'
-python3 -B ci/script/check_repo_hygiene.py --base "$BASE_SHA" --candidate "$CANDIDATE_SHA"
-python3 -B ci/script/check_markdown_links.py --base "$BASE_SHA" --candidate "$CANDIDATE_SHA"
-python3 -B ci/script/check_localizations.py --base "$BASE_SHA" --candidate "$CANDIDATE_SHA"
-python3 -B ci/script/normalize_lint_baseline.py --check
-npm --prefix web-chat run typecheck
-```
-
-根据改动范围选择额外检查：
-
-```bash
-# WebChat
-npm --prefix web-chat ci
-npm --prefix web-chat run build
-
-# 示例包或 ToolPkg
-npm ci
-npm run build:examples:github
-git diff --exit-code -- examples/github.js
-npm --prefix examples/toolpkg_wasm_demo ci
-npm --prefix examples/toolpkg_wasm_demo run pack:toolpkg
-python3 ./tools/example_packages/sync_example_packages.py --mode test --no-hot-reload
-python3 ./tools/example_packages/sync_example_packages.py --no-hot-reload
-
-# Android JVM 单测、lint 和构建
-./gradlew :app:testDebugUnitTest
-./gradlew :app:lintDebug
-./gradlew assembleDebug
-```
-
-本地构建需要手动依赖时，按 [Android 编译指南](./BUILDING.md) 下载并放置 `models.zip`、`subpack.zip`、`jniLibs.zip` 和 `libs.zip`，不要将这些文件提交到 Git。
-
-## 创建 Pull Request
-
-所有上游 PR 的目标分支是 `main`，不再使用旧的 `pr-branch` 流程。建议使用以下分支前缀：
+推荐使用清晰的分支前缀：
 
 - `feat/`：新功能
 - `fix/`：问题修复
+- `perf/`：有证据的性能优化
 - `docs/`：文档
 - `ci/`：构建和自动化
-- `refactor/`：不改变行为的重构
-- `test/`：测试改动
+- `refactor/`：不改变公开行为的结构调整
+- `test/`：测试
 
-推送个人分支并创建 PR：
+所有 Pull Request 以 `main` 为目标分支。
+
+## 开发原则
+
+- 先阅读项目规则、相关实现、测试和正式文档，再修改代码
+- 修复根因，不通过异常吞噬、隐式重试、禁用检查、扩大 Lint baseline 或 suppression 掩盖问题
+- 保持改动聚焦，不混入无关格式化、依赖升级、重命名或重构
+- 优先复用已有状态所有者、协议和构建入口，不创建平行实现
+- 数据、配置、公开 API、Intent、AIDL、JNI 或存储变化必须说明兼容与迁移
+- 新增用户文字时同步维护所有支持的语言资源和本地化检查
+- UI 与交互变化提供截图、录屏或设备说明；无法运行设备验证时明确标记
+- native、播放器和 ABI 改动必须说明工具链、owner、符号、ELF 与 16 KB 对齐证据
+- 不直接修改第三方子模块来绕过主仓问题；子模块变更应独立审计和交付
+
+## 文档职责
+
+不同文档具有不同职责，避免复制出多份权威来源：
+
+| 文件或目录 | 职责 |
+| --- | --- |
+| `README.md` | 面向用户和新贡献者的项目入口、构建与导航 |
+| `CONTEXT.md` | 术语、状态所有者、协议、兼容性和不变量 |
+| `AGENTS.md` | Agent 与维护者工作规则 |
+| `docs/doc-src/` | 正式架构、开发、协议、测试和决策文档 |
+| `docs/TODO/` | 专项计划、阶段状态与历史验证证据 |
+
+行为、配置或协议变化必须同步修改对应权威文档。历史验证数字只代表当时观察点，不应伪装为
+当前结果。
+
+## 本地验证
+
+仓库 Python 命令使用项目 `.venv`。Windows 示例：
+
+```powershell
+.\.venv\Scripts\python.exe -B -m unittest discover -s ci\test -p "test_*.py"
+.\.venv\Scripts\python.exe -B ci\script\check_formal_readiness.py --repository . --require-main
+.\.venv\Scripts\python.exe -B ci\script\check_architecture_boundaries.py --repository . --require-main
+.\.venv\Scripts\python.exe -B ci\script\normalize_lint_baseline.py --check
+```
+
+WebChat：
+
+```bash
+npm --prefix web-chat ci --no-audit --no-fund
+npm --prefix web-chat run typecheck
+npm run build:webchat
+```
+
+示例与 ToolPkg：
+
+```bash
+npm ci --no-audit --no-fund
+npm run build:examples:github
+git diff --exit-code -- examples/github.js
+npm --prefix examples/toolpkg_wasm_demo ci --no-audit --no-fund
+npm --prefix examples/toolpkg_wasm_demo run pack:toolpkg
+```
+
+完整 Android 仓库矩阵：
+
+```bash
+./gradlew \
+  testDebugUnitTest \
+  compileDebugAndroidTestKotlin \
+  compileDebugAndroidTestJavaWithJavac \
+  lintDebug \
+  --stacktrace \
+  --no-build-cache \
+  --no-daemon \
+  --console=plain
+```
+
+最终 Debug APK：
+
+```bash
+./gradlew :app:assembleDebug --no-daemon --console=plain
+```
+
+Windows 使用同名的 `gradlew.bat`。候选提交的 Markdown、本地化、仓库卫生、YAML 和
+fresh-clone 检查见 [`ci/README.md`](../../../ci/README.md)。
+
+## Pull Request 要求
+
+提交前把分支更新到最新 `upstream/main`，解决分歧并重跑相关验证：
 
 ```bash
 git fetch upstream
@@ -115,41 +178,38 @@ git rebase upstream/main
 git push --set-upstream origin fix/short-description
 ```
 
-PR 页面会自动加载 [PR 模板](../../../.github/PULL_REQUEST_TEMPLATE.md)。请保留并填写以下内容：
+PR 应说明：
 
-- 变更背景、动机和改动范围
-- 关联 Issue；纯文档、CI 或维护性改动说明 `N/A` 及其背景
-- 兼容性、数据、配置、性能和安全影响
-- 运行过的命令、测试环境、构建变体和结果
-- 必要的截图、录屏、日志或构建产物
-- 提交前按检查清单自查；不适用项可在“验证方式”中说明原因
+- 背景、目标、改动范围和明确非目标
+- 关联 Issue；纯文档或维护改动可写 `N/A` 并解释背景
+- 用户行为、数据、协议、配置、性能、安全和包体影响
+- 运行过的精确命令、环境、变体和结果
+- 未运行的设备、Release、远端或用户验收及原因
+- 截图、录屏、日志、构建产物或前后对比等必要证据
 
-草稿 PR 转为 Ready 时会重新运行技术预审。标题、正文、Issue 引用和 checklist 由贡献者与维护者共同审阅，不作为自动技术检查的通过条件。
-
-PR 标题建议使用 Conventional Commits 格式，例如：
+推荐使用 Conventional Commits 风格标题，例如：
 
 ```text
-fix(chat): preserve scroll position
-feat(tools): add package description
-docs: update contribution guide
-ci: add localization checks
+fix(browser): preserve tab state after media playback
+perf(packaging): deduplicate shared workspace toolchains
+docs: rebuild contributor and build guides
 ```
 
-功能、修复和性能改动建议关联已有 Issue 或讨论。不要把 API Key、Token、私有 URL 或本地路径写入 PR。
+## 提交前安全检查
 
-## CI 检查
+禁止提交：
 
-PR 会进入 [PR Check workflow](../../../.github/workflows/pr-check.yml)，并只生成一个 `Candidate checks` 技术状态。检查运行在 GitHub 为 PR 与当前 `main` 生成的 merge candidate 上：
+- `local.properties`、`.env`、API Key、Token、Cookie、私钥和签名文件
+- `.venv/`、`node_modules/`、Gradle/CMake 缓存和 `build/`
+- APK、AAB、生成 `.toolpkg`、WebChat 构建输出和临时报告
+- 未审计的大型二进制、Junction、符号链接或嵌套 `.git`
+- 与当前 PR 无关的用户工作或本机配置
 
-- 快速检查：差异空白、冲突标记、JSON/XML/YAML、Actions、本地 Markdown 链接和门禁单元测试
-- 本地化：按 locale 和资源 key 归责类型、重复项、占位符及 locale 配置错误
-- 翻译资源：执行 AAPT2 resource compile，不启动完整 Android 构建
-- Kotlin/Java：执行 JVM 单测与 Android lint
-- Native、Gradle 和构建输入：执行 assemble、JVM 单测与 Android lint
-- WebChat 和 ToolPkg：对应路径变化时执行专项检查，完整 Android lane 也会准备最终打包输入
+提交前检查 `git status`、`git diff --check`、暂存路径、异常大文件和敏感内容。不要使用
+`git add -A` 代替对最终交付范围的理解。
 
-快速检查会在同一 job 中收集可修诊断，再统一给出一次结果。既有且未被本 PR 触碰的问题只作为计数提示。请查看 step summary 和文件 annotation 后更新 PR。
+## 许可证与上游归属
 
-## 社区项目与衍生项目
-
-欢迎基于 Operit 开发衍生项目。请在公开代码托管平台发布源代码，在项目文档中注明 Operit 的来源并链接回本仓库，方便社区审查、学习和继续贡献。
+Kiyori 基于 Operit 演进，并继续保留上游作者、贡献者、源码归属和兼容标识。本仓库按
+[GNU GPL v3 或更高版本](../../../LICENSE)提供。提交代码、文档或资源前，请确认你有权按该
+许可证贡献，并保留适用的第三方许可证与 NOTICE。

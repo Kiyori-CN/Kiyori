@@ -2,6 +2,148 @@
 For_Agent: 对项目大规模动工前按本规范协作
 ---
 
+# Kiyori 开发任务与验证索引
+
+本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
+APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
+
+## 2026-08-14 全项目深度整理与质量优化
+
+状态：`verification_pending`
+
+### 任务目标
+
+在保持 Kiyori 现有产品合同、数据、协议、状态所有者和用户工作不受破坏的前提下，分阶段完成：
+
+1. 深度理解并审计根目录、Gradle 模块、子模块、工具、文档、生成目录和本地构建输入
+2. 规范目录与文件命名，消除职责不清、重复入口、过时说明和无效文件
+3. 把根 README、英文 README、文档索引、构建与贡献资料整理为专业、可查找、可操作的用户与开发入口
+4. 证据驱动清理缓存、旧审计产物和垃圾文件，同时保护本地 AAR、模型、subpack、JNI、`.venv` 和外部链接目标
+5. 修复范围内发现的真实代码、Lint、测试、稳定性、性能和包体积问题
+6. 运行仓库等价的全量门禁、测试、Lint、构建和 APK 审计
+7. 完成敏感内容、暂存树、子模块、异常大文件和远端竞争审计后提交并推送 `main`
+
+### 非目标与硬边界
+
+- 不执行 Release/AAB 发布、部署、商店操作、设备安装、ADB、模拟器或真机交互
+- 不通过 fallback、回退、隐式重试、suppression、Lint baseline 扩张、禁用检查或伪造 ABI 掩盖问题
+- 不机械全局替换 `com.ai.assistance.operit`、AIDL、JNI、Intent、authority、数据库、备份、ToolPkg、MCP 或市场协议标识
+- 不使用 `git clean -X`：该命令会同时列出缓存和本机构建必需输入
+- 不在缺少性能采样、调用链或包体证据时进行随机“优化”
+
+### 任务起始基线
+
+- 父仓库：`main@96259e2ae99aab16f1ae6cfb9165ea0fe32e5539`
+- 父仓库本地、`origin/main` 与远端 `main`：一致，divergence `0/0`
+- `terminal`：`d330366cfaff7ca73383b71504ec1a9a42e8a1c2`，工作树干净
+- `tools/hotbuild/OperitNightlyRelease`：未初始化固定 gitlink，不是垃圾目录
+- 正式开发准备：`check_formal_readiness.py --require-main` 通过
+- Debug APK 基线：`472502409` bytes；压缩后 `assets/` 约 `295026456` bytes，
+  `lib/` 约 `78057322` bytes
+- 包体最大来源：语音模型、Ubuntu rootfs、Android subpack、apktool ToolPkg、native runtime、
+  字体和多 DEX；优化必须保持对应功能合同
+
+### 既有计划复用
+
+本任务不创建平行架构来源，按领域复用并校对以下专项：
+
+- [构建系统重构](refactor_building_sys/index.md)
+- [Tools 目录重整](tools_directory_reorganization/index.md)
+- [正式开发准备](formal_development_readiness/index.md)
+- [全量 UI 与功能逻辑链路审计](kiyori_full_ui_and_function_chain_audit/index.md)
+- [启动性能优化](kiyori_startup_performance/index.md)
+
+### 分阶段实施
+
+1. [DONE] **规则与基线**：读取项目规则、正式开发门禁、Git/子模块、历史全仓验证矩阵和任务日记
+2. [DONE] **文档与根目录入口**：重写中英文 README、文档索引、文档规范、仓库布局和元数据
+3. [DONE] **目录与命名审计**：建立受保护路径、稳定标识、可迁移目录和候选重命名清单，按证据实施
+4. [DONE] **垃圾与缓存治理**：解析 Junction/符号链接，核对进程和可再生性后清理构建、CMake、
+   Gradle、Node、Python 与旧审计产物
+5. [DONE] **代码与构建质量**：修复重复配置、错误、警报、依赖与构建入口问题，不扩大 baseline
+6. [DONE] **稳定性与性能**：按构建链、资产重复、依赖解析和包体证据完成当前可验证优化
+7. [DONE] **全仓验证**：运行 Python、架构、Markdown、本地化、WebChat、ToolPkg、AndroidTest、
+   所有 Gradle 模块测试与 Lint
+8. [DONE] **最终 Debug APK**：串行 `:app:assembleDebug`，独立核验身份、签名、ZIP、ABI、ELF、
+   launcher、native owner 和主要包体来源
+9. [DONE] **交付**：审计最终树、敏感信息、子模块、暂存内容和远端竞争；先提交推送
+   `terminal`，再以已推送 gitlink 构造、验证并提交父仓 `main`
+
+### 清理分类
+
+- **可再生成缓存**：`.gradle/`、`.gradle-user-home-*/`、`.kotlin/`、各模块 `build/` 与 `.cxx/`、
+  `node_modules/`、`web-chat/dist/`、Python `__pycache__/`
+- **受保护本地输入**：`.venv/`、`app/libs/`、`app/src/main/assets/models/`、
+  `app/src/main/assets/subpack/`、`app/src/main/jniLibs/`
+- **需单独审计**：`work/`、Junction/reparse point、旧日志、下载归档、测试制品与未初始化子模块
+
+### 全量验收矩阵
+
+- 项目 `.venv`：`ci/test`、architecture、formal readiness、fresh clone、Markdown、本地化和仓库卫生
+- JavaScript：根工具、WebChat typecheck/build、GitHub 示例确定性生成、ToolPkg/WASM 打包
+- Android：根聚合 `testDebugUnitTest`、AndroidTest Kotlin/Java 编译、所有模块 `lintDebug`
+- 构建：串行 `:app:assembleDebug --no-daemon --console=plain`
+- APK：`aapt`、`apksigner`、`zipalign -P 16`、ZIP 清单、NDK `llvm-readelf`
+- Git：父仓库与 `terminal` 的状态、差异、敏感内容、模式、异常大文件、gitlink 和远端 ref 对账
+
+### 当前增量
+
+- 已完成中英文 README、文档中心、文档规范、构建指南、贡献指南、仓库布局、
+  Issue Forms 和根工具元数据重构；英文入口统一为 `README.en.md`
+- 已删除 `work/`、仓库内 Gradle/Kotlin/CMake/Node/Python 缓存与生成产物；仅 `work/`
+  清理约 `3.15 GB / 20805` 个文件。外部 Gradle 缓存、`.venv`、AAR、模型、subpack 和 JNI
+  均保持不变
+- 已删除 `docs/assets/` 下 `56` 个零引用图片（`26401148` bytes）和三份生成报告；
+  文档资源改为按需创建且必须具有正式引用
+- 已恢复 ARCH039/041/042/043/044 机器合同，architecture `phase=m03` 与
+  Python `186/186` 均通过，没有放宽 owner 或新增 suppression
+- 已把散落依赖版本收口到 Gradle version catalog，显式保留
+  `hnswlib-core 1.2.1 / hnswlib-utils 0.0.46`，消除隐式冲突选择、重复测试依赖和重复
+  `libsu` alias
+- 已把 ToolPkg 预构建从混用 pnpm 改为复用 npm lockfile；测试/生产双模式后
+  `npm ls` 无 extraneous、未生成 `pnpm-lock.yaml`，生产 assets 无差异
+- Android 与 Flutter 工作区模板共用唯一 `4706040` bytes AAPT2 源资产，并在工作区创建时
+  物化到原有目标路径；旧两份重复源码资产已删除
+- 已把 JNI API 敏感的 llama.cpp 与 MNN 从移动 `master` 收口到精确 commit：
+  `885c5bbe8e04dc78db25beb911a2715312ad7b54` 与
+  `ea44a3ebd5dd6348eea501047b17c43aa3ecccb6`；正式 readiness 和 CMake 单元测试阻止恢复为移动 ref
+- 已修复 llama penalty sampler 的 `n_vocab` API、MNN 非产品 LLM demo/default-all 目标、
+  CMake 3.22 的 40 位 SHA 判断，以及 DragonBones 的现代 iterator、`Path` 枚举和死代码；
+  DragonBones native 构建同时从四套 ABI 收口到产品唯一 `arm64-v8a`
+- 根工具、WebChat、GitHub 示例、WASM ToolPkg、生产 ToolPkg 白名单均已从 lockfile 重建；
+  WASM ToolPkg 连续两次生成均为 `3094` bytes、SHA-256
+  `A2BE9C593EAAF0C597F16125445762369BAF31890B6DAC0FB1E21DB0C87AB04A`
+- 完整 Gradle 聚合矩阵为 `BUILD SUCCESSFUL in 15m 28s`，`431` tasks；
+  JVM 汇总 `217 suites / 1251 tests`，失败、错误和跳过均为 `0`，AndroidTest Kotlin/Java
+  编译通过，完整日志无 Kotlin/compiler warning
+- Lint 临时完整结果为 `5279` 条；结构化交集
+  `retained=5256 / stale=24 / current-only=23`，正式 baseline 未新增记录，SHA-256
+  `B0A52E2B1C42516B84BB1B22E0940A8DB3130840D5D754E09BDD2444A366D621`
+- 最终 App Lint 为 `23 warnings`：`GradleDependency 5 / NewerVersionAvailable 15 / UseKtx 3`；
+  Terminal 保留 arm64-only 合同对应的 `ChromeOsAbiSupport 1`
+- 最终 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 11m 57s`，
+  `232` tasks（`43 executed / 189 up-to-date`）；唯一 launcher 与 player runtime packaging 通过
+- 最终 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-08-14 20:26:18 +08:00`，大小 `463101042` bytes，SHA-256
+  `F5763BC7C066FB375099D04E1A2B4D6F51B65198FA664F5D208E780BC0279099`
+- APK 为 `com.kiyori`、`45 / 0.1.0`、SDK `26 / 34 / 37`，Android Debug V2 单 signer；
+  `zipalign -c -P 16 -v 4` 为 `Verification successful`
+- APK 仅含 `arm64-v8a`；`51` 个 `.so` basename 零重复，加
+  `assets/operit_shell_exec` 共 `52/52` 个 ELF64/AArch64，`160` 个 `PT_LOAD` 的全局最小
+  alignment 为 `0x4000`
+- APK 只含 `assets/templates/shared/android-tools/aapt2-arm64-v8a` 一份 AAPT2，
+  SHA-256 `E5B5FF7F0D4F6ECD7FA5D05D77FED3F09F6F1BF80F078B8AADA82BC578848561`；
+  两个旧模板路径不存在
+- 相对任务起始 APK `472502409` bytes，最终包体减少 `9401367` bytes（`1.9897%`）
+- Terminal 已提交并推送 `e11053d60dc02b0d162ee4a3a2f655c28c1afcbb`；本地、tracking 与
+  远端 `main` 三方一致，divergence `0/0`
+- Terminal gitlink 更新后的父仓候选已通过 repository hygiene、fresh clone、formal readiness、
+  architecture `phase=m03` 与 Markdown 链接门禁；包含本段状态更新的最终提交继续执行同一快速门禁
+- 交付前增量 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 22s`，`232` tasks
+  （`19 executed / 213 up-to-date`）；APK 时间、大小和 SHA-256 均保持不变
+- 本地实现、自动门禁、Debug APK 和 Git 交付完成；Release/AAB、远端 GitHub Actions、设备安装、
+  真机交互与用户验收仍保持 `verification_pending`
+
 ## 2026-08-14 扩展命名与脚本创建入口整理
 
 状态：最新“扩展”统一命名与 Skill/MCP 顶栏迁移已完成本地实现、定向验证、完整 Lint、
@@ -756,7 +898,7 @@ userscript runtime；不创建第二套浏览器、标签注册表、页面代�
   恰好一份
 - Android Debug v2 单 signer 签名和 `zipalign -c -P 16 -v 4` 验证通过
 
-# TODO不误砍柴功
+## 历史任务记录（2026-08-10 及更早）
 
 ## 2026-08-10 Kiyori 首启收口、默认新对话与设置首页16色
 
@@ -3234,47 +3376,13 @@ Surface 两阶段 ACK、Binder death、退出证据、前后台报告展示和�
   51 个 native 库无重复 basename，Android Debug V2 签名与
   `zipalign -c -P 16 -v 4` 均通过
 
-## 无组织无纪律是谓乌合
+## TODO 协作与归档约定
 
-如果你想做一个消费一定时间、有一定规模的改动：
-- 接下的issue可能被别人捷足先登，努力只能存档吃灰
-- 一个承诺就此忘却，对应的issue高高挂起
-- 一合并激起千重浪，矛盾...冲突！
+大型修改必须复用现有专项目录或创建职责明确的 TODO，并记录目标、非目标、范围、依赖、风险、
+验收和当前状态。每个步骤应保持可独立审查，只在实现和相称验证完成后标记 `DONE`。
 
-## 优雅的协作始于你知道我知道你知道
-
-那么，起一个TODO吧：
-- 创建一个以你的修改特性命名的文件夹
-- 写下index.md，在元数据中填入您的fork仓库地址
-- 原本状况是什么样的？你的大致意图是什么？你期待什么样的结果？
-- 再写下你的大致作用域，PR，然后干活吧
-
-为什么不是issue: 
-- 在BugReport和featureRequest里面捞协作者，是一种奢求
-- Agent大概率不会看issue，但绝对不会不瞪一眼文档
-
-## Step By Step
-
-- 按照顺序创建一些以数字+步骤意图命名的MarkDown文档
-- 添加每个功能元的旧实现情况，意图修正和期待的新实现情况
-- 如果你写下细化的作用域，我们就能更快跟进
-- 每一个文档分拆出一个最小可用功能单位，完成你的代码的时候在结尾加一个[DONE]，一起传上去吧
-- 别人就可以让Agent根据该文档的git历史捞出对应的differ，没有压缩的话
-- 完成最后一个更改时，你可以上传您的详细文档、实验记录、稳定API，并执行自动化i18n
-- squansh时尽量不要把i18n和文档更改放进一个pr，这会导致git历史不那么整洁
-- 用单独的pr将您的文件夹移入 `docs/.Meta/Legacy/TODO`
-
-## 如果你想鸽了
-
-在你的命名文件夹前加上give-up_，我们的收尾人会迅速继承您的衣钵
-如果你忘了这回事，我们的赛博监工会时不时看看你的仓库有没有动静
-
-## 实在懒得写呀...
-
-事实上哪怕您使用Agent完成代码，必要的计划也能使得使得准确率更高，咋一看本计划会留下大量不可压缩的历史更改，但是事实上因为高度可读，不会是一个仓库的负担。并且大型修改在无充分文档和测试记录条件下快速上线，一旦出现问题，新增修改反而会产生更多不可合并的脏历史。
-
-当然，如果您是纯粹新增或修改少量代码，那么的确可以快速上线，本文档是给那些雄心勃勃，致力于大型计划的潜在贡献者们的
-以及遇事不决开个goal的Agent
+完成的专项在更新所有引用并经过项目约定确认后，移入 `docs/.META/legacy/TODO/`。详细命名、
+链接、证据和状态要求见 [`docs/doc-src/before_docing.md`](../doc-src/before_docing.md)。
 
 ## 2026-07-28 浏览器 presentation 与播放器 Surface lease 正式实现
 
@@ -3426,9 +3534,10 @@ Java `IllegalStateException` 的重复释放路径已在状态机与调用层闭
 
 ## 2026-08-11 全仓 Lint、测试与开发健康收口
 
-状态：本地实现、全量回归、Lint baseline 交集裁剪和 Debug APK 独立静态审计已经完成；
-Terminal 子仓库与父仓库的提交、推送和远端 ref 对账正在进行。真机、Release 和远端 GitHub
-Actions 不属于本轮本地验证结果。
+状态：本地实现、全量回归、Lint baseline 交集裁剪、Debug APK 独立静态审计以及双仓提交推送
+均已完成。Terminal 为 `d330366cfaff7ca73383b71504ec1a9a42e8a1c2`，父仓为
+`02e97e95db8dbb161fab0d33604fdc228f9b87c0`；真机、Release 和远端 GitHub Actions
+不属于本轮本地验证结果。
 
 实施与验收顺序：
 
@@ -3452,8 +3561,8 @@ Actions 不属于本轮本地验证结果。
    `MainActivity` launcher、Debug V2 单签名和 16 KB ZIP 对齐；APK 仅含 `arm64-v8a`，
    51 个 `.so` 无重复 basename，加上 `assets/operit_shell_exec` 共 52 个 AArch64 ELF64，
    所有 `PT_LOAD >= 0x4000`
-9. [IN PROGRESS] 审计最终差异、暂存树、敏感内容、构建产物、异常大文件、Git mode、重解析点、
-   子模块和远端竞争状态；依次提交推送 Terminal 与父仓库，并核对本地、tracking 与远端 ref
+9. [DONE] 审计最终差异、暂存树、敏感内容、构建产物、异常大文件、Git mode、重解析点、
+   子模块和远端竞争状态；依次提交推送 Terminal 与父仓库，本地、tracking 与远端 ref 均完成对账
 
 本轮保留的诊断均有明确工程边界：
 

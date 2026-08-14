@@ -232,7 +232,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install -g pnpm@10.34.5
           if [[ "$TOOLPKG_REQUIRED" == "true" || "$FULL_ANDROID_REQUIRED" == "true" ]]; then
             npm ci --no-audit --no-fund
             npm --prefix examples/toolpkg_wasm_demo ci --no-audit --no-fund

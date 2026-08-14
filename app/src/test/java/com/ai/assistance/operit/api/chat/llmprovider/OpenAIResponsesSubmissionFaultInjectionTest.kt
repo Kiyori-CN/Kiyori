@@ -128,8 +128,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                     )
                     assertEquals(
                         "LLM_TRANSPORT_HTTP_STATUS_502",
-                        (failure as OpenAIResponsesSubmissionUnknownException)
-                            .transportDiagnostics
+                        failure.transportDiagnostics
                             ?.diagnosticCode,
                     )
                     assertEquals(listOf("POST /v1/responses"), server.requests.toList())

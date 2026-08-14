@@ -23,8 +23,6 @@ app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageE
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageEnvironmentVariablesSheet.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt	com.kiyori.design.theme.resolveColors
-app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageTabContent.kt	com.kiyori.design.theme.KiyoriSemanticTone
-app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageTabContent.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PluginTabContent.kt	com.kiyori.design.theme.KiyoriSemanticTone
 app/src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PluginTabContent.kt	com.kiyori.design.theme.resolveColors
 app/src/main/java/com/ai/assistance/operit/ui/features/player/PlayerScreen.kt	com.kiyori.design.theme.KiyoriSemanticTone

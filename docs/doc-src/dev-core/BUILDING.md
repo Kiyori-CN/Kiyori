@@ -1,302 +1,374 @@
-# **Android 项目 Operit 编译指南（Linux/Ubuntu）**
+# Kiyori Android 构建指南
 
-本指南详细介绍了在 Linux 环境下（推荐 Ubuntu/Debian）编译 Android 项目 **Operit** 所需的全部环境配置和步骤。
+本文说明如何从干净源码准备 Kiyori 的本地开发环境、可复现依赖和 Debug APK。它面向
+Windows、Linux 与 macOS 开发者；仓库当前不提供公开 Release/AAB 发布流程。
 
-## **关于 Operit**
+> [!IMPORTANT]
+> 常规构建只初始化 `terminal` 子模块。不要使用 `git clone --recurse-submodules`，
+> 否则 Git 还会尝试访问不属于常规 Debug 构建的可选私有夜间构建子模块。
 
-**Operit AI** 是移动端首个功能完备的 AI 智能助手应用，它**完全独立运行**于您的 Android 设备上，拥有强大的**工具调用能力**。本项目旨在为开发者提供一个可深度定制和扩展的 AI 助手框架。
+## 构建输出
 
-在开始编译之前，请确保您已了解本项目的功能和目标。更多信息请参考项目主页的 [README.md](../../../README.md)。
+| 变体 | 命令 | 输出 |
+| --- | --- | --- |
+| Debug | `:app:assembleDebug` | `app/build/outputs/apk/debug/app-debug.apk` |
+| Clone | `assembleDebugClone` | `app/build/outputs/apk/clone/app-clone.apk` |
 
-## **目录**
+当前应用 APK 只打包 `arm64-v8a`。Debug 构建、静态 APK 审计和自动化测试不能替代真机、
+Release 签名、商店发布或用户验收。
 
-1. 第一步：安装系统基础依赖
-2. 第二步：安装 Android 命令行工具
-3. 第三步：配置环境变量
-4. 第四步：安装 Android SDK 和 NDK
-5. 附：性能优化 - 配置编译资源
-6. 第五步：克隆并编译项目
-7. 常见问题排查
+## 工具链基线
 
-## **1. 第一步：安装系统基础依赖**
+项目和 CI 使用以下受控基线：
 
-首先，我们需要更新包管理器并安装编译所需的关键基础软件：**Git**、**JDK 21**、**Node.js**、**npm** 和 **Python 3**。  
-```bash 
-# 更新软件包列表  
+| 工具 | 版本或约束 |
+| --- | --- |
+| JDK | 21；Java/Kotlin 字节码目标为 JVM 17 |
+| Gradle | 使用仓库自带 Wrapper |
+| Android SDK | Platform 37；target SDK 34 |
+| Android Build Tools | 36.0.0 |
+| Android NDK | 28.2.13676358 |
+| CMake | 3.22.1 |
+| Rust | 1.88.0；target `aarch64-linux-android` |
+| Node.js | 22 |
+| npm | 随 Node.js 22 提供；依赖由已提交的 `package-lock.json` 冻结 |
+| Python | Python 3；仓库脚本使用项目 `.venv` |
+
+版本权威来源是 `.github/workflows/`、`gradle/libs.versions.toml`、
+`gradle/wrapper/gradle-wrapper.properties` 和 `gradle.properties`。本文件不应独立漂移。
+
+## 1. 克隆源码
+
+直接克隆 Kiyori 并只初始化公开构建依赖 `terminal`：
+
+```bash
+git clone https://github.com/Kiyori-CN/Kiyori.git
+cd Kiyori
+git switch main
+git submodule sync -- terminal
+git submodule update --init --recursive terminal
+```
+
+贡献者使用个人 Fork 时，把第一条命令替换为自己的仓库地址，并把 Kiyori 主仓添加为
+`upstream`：
+
+```bash
+git remote add upstream https://github.com/Kiyori-CN/Kiyori.git
+git fetch upstream
+```
+
+## 2. 安装基础工具
+
+### Windows
+
+安装 JDK 21、Android SDK、Node.js 22、Python 3、Git 和 Rust。确保以下命令可用：
+
+```powershell
+java -version
+node --version
+npm --version
+python --version
+rustup --version
+```
+
+设置 `JAVA_HOME`、`ANDROID_HOME` 或 `ANDROID_SDK_ROOT`，并把 Java、Android
+Command-line Tools、Platform Tools、Node.js、Python 和 Rust 加入 `PATH`。
+
+### Linux / macOS
+
+通过系统包管理器安装 Git、JDK 21、Node.js 22、Python 3、unzip 和 Rust。Linux 示例：
+
+```bash
 sudo apt update
-
-# 安装必要的工具、JDK 21、Node.js、npm 和 Python 3
-sudo apt install -y git wget unzip openjdk-21-jdk nodejs npm python3
-
-# 安装 pnpm（tools/example_packages/sync_example_packages.py 预构建 examples 时会用到）
-sudo npm install -g pnpm
-
-# 安装完成后，请验证 Java 版本是否正确
-java -version  
-# 预期输出应包含 "OpenJDK Runtime Environment (build 21..." 或类似信息
-
-# 建议同时确认 Node.js、npm、pnpm 和 Python 3 可用
-node -v
-npm -v
-pnpm -v
-python3 --version
-``` 
-**注意：** 项目官方要求 **JDK 21**。为确保最大兼容性，强烈建议优先安装和使用 JDK 21。
-
-**补充说明：** 项目中的 `web-chat` 使用 React + Vite 构建；`tools/example_packages/sync_example_packages.py` 会预构建 `examples/` 下的脚本包并打包 `.toolpkg`。因此除了 Android 环境外，还需要准备好 Node.js、npm、pnpm 和 Python 3。如果后续执行前端构建时提示 Node.js 版本过低，请升级到较新的 Node.js LTS 版本后再继续。
-
-## **2. 第二步：安装 Android 命令行工具**
-
-为了管理 SDK，我们将使用更轻量的 Android 命令行工具（Command Line Tools），而非庞大的 Android Studio。
-
-1. **创建 Android SDK 目录:**  
-```bash
-mkdir -p ~/Android/cmdline-tools
-```
-2. 下载命令行工具:  
-访问 Android Developers 官网，复制最新的 Linux 版本链接。  
-**警告：** 下方的链接仅为示例，请务必检查并替换为官方提供的最新链接！  
-```bash
-# 示例链接，请务必检查并替换为最新版本  
-wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O ~/cmdline-tools.zip
+sudo apt install -y git unzip openjdk-21-jdk nodejs npm python3 python3-venv
 ```
 
-3. 解压并配置目录结构:  
-命令行工具要求其文件位于一个名为 latest 的子目录中，否则 sdkmanager 可能无法识别。  
+不同发行版和 macOS 的 JDK 路径不同；请把 `JAVA_HOME` 指向实际安装的 JDK 21，不要复制
+与本机不匹配的固定路径。
+
+### Node.js 与 npm
+
+根工具、WebChat 和 WASM ToolPkg 示例各自使用已提交的 npm lockfile。ToolPkg 同步脚本复用
+根安装树执行 TypeScript 预构建，不会切换包管理器：
+
 ```bash
-# 解压到目标目录  
-unzip ~/cmdline-tools.zip -d ~/Android/cmdline-tools
-
-# 将解压后的 cmdline-tools 移动到 latest 子目录  
-mv ~/Android/cmdline-tools/cmdline-tools ~/Android/cmdline-tools/latest
-
-# 清理下载的压缩包  
-rm ~/cmdline-tools.zip
-```
-最终的工具路径应为 ~/Android/cmdline-tools/latest/bin。
-
-## **3. 第三步：配置环境变量**
-
-配置环境变量以便系统能找到 **Java** 和 **Android SDK** 的相关命令，如 java、git 和 sdkmanager。
-
-1. **编辑配置文件：**  
-```bash
-nano ~/.bashrc
+npm ci --no-audit --no-fund
+npm --prefix web-chat ci --no-audit --no-fund
+npm --prefix examples/toolpkg_wasm_demo ci --no-audit --no-fund
 ```
 
-2. **在文件末尾添加以下内容：**  
-```bash
-# =============== Java JDK 21 配置 ===============  
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64  
-export PATH=$JAVA_HOME/bin:$PATH
+根 `package.json` 是私有开发工具包，不用于发布到 npm。
 
-# =============== Android SDK 配置 ===============  
-export ANDROID_HOME=$HOME/Android  
-# 将 latest/bin 添加到 PATH  
-export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH  
-# 将 platform-tools (ADB/Fastboot) 添加到 PATH  
-export PATH=$ANDROID_HOME/platform-tools:$PATH
+### Python 虚拟环境
+
+仓库 Python 检查只依赖标准库，但仍使用项目 `.venv` 隔离运行时。
+
+Windows：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe --version
 ```
 
-3. **使配置生效:**  
+Linux / macOS：
+
 ```bash
-source ~/.bashrc
+python3 -m venv .venv
+.venv/bin/python --version
 ```
 
-## **4. 第四步：安装 Android SDK 和 NDK**
+### Rust target
 
-使用刚才配置好的 sdkmanager 命令来安装项目所需的 SDK 平台、构建工具和特定版本的 NDK。
+native ripgrep 构建锁定 Rust 1.88.0 和 Android arm64 target：
 
-1. 接受所有 SDK 许可 (关键步骤！):  
-此步骤是必须的，否则 Gradle 构建会因许可问题而失败。  
+```bash
+rustup toolchain install 1.88.0
+rustup target add aarch64-linux-android --toolchain 1.88.0
+```
+
+### Native source snapshots
+
+直接与 Kiyori JNI 代码共同编译的 llama.cpp 与 MNN 使用精确上游 commit：
+
+```text
+llama.cpp  885c5bbe8e04dc78db25beb911a2715312ad7b54
+MNN        ea44a3ebd5dd6348eea501047b17c43aa3ecccb6
+```
+
+不要把它们改回 `master` 或 `main`。移动 ref 会让同一 Kiyori commit 在不同日期解析到不同
+native API 和产物。更新 snapshot 时必须在同一变更中完成 JNI/CMake 兼容性检查、定向
+arm64 构建、完整 `assembleDebug`、ELF 审计和正式 readiness 更新。
+
+## 3. 安装 Android SDK、NDK 与 CMake
+
+可使用 Android Studio SDK Manager，也可使用 `sdkmanager`：
+
+```bash
+sdkmanager \
+  "platform-tools" \
+  "platforms;android-37" \
+  "build-tools;36.0.0" \
+  "ndk;28.2.13676358" \
+  "cmake;3.22.1"
+```
+
+首次安装后接受 Android SDK 许可证：
+
 ```bash
 yes | sdkmanager --licenses
 ```
 
-2. 安装平台工具、SDK 平台和构建工具:  
-Kiyori 使用 compile SDK 37、target SDK 34、Build Tools 36.0.0 和 CMake 3.22.1。
-```bash
-sdkmanager "platform-tools" "platforms;android-37" "build-tools;36.0.0" "cmake;3.22.1"
-```
-3. 安装项目指定的 NDK 版本:  
-本项目要求使用 NDK 28.2.13676358。该版本属于 NDK r28，项目内编译的 native ELF 默认采用 16 KB segment 对齐。
-```bash
-sdkmanager "ndk;28.2.13676358"
-```
+Windows PowerShell 可直接运行 `sdkmanager.bat`，或在 Android Studio 中完成同样操作。
 
-## **附：性能优化 - 配置编译资源**
+## 4. 配置本地属性
 
-对于配置较高的机器（如 16GB 内存或以上），可以通过调整 Gradle 配置来显著加快编译速度。  
-在项目根目录下的 **gradle.properties** 文件中，您可以调整以下参数：  
+复制模板：
 
-```properties
-# 设置 Gradle 使用的 JVM 最大内存，例如 8GB  
-org.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError
+Windows：
 
-# 开启并行编译  
-org.gradle.parallel=true
-
-# (可选) 设置并行编译的 worker 数量，通常建议设置为 CPU 核心数  
-# org.gradle.workers.max=8
-``` 
-
-## **5. 第五步：配置 GitHub OAuth 应用**
-
-为了使应用的 GitHub 相关功能（如登录、MCP 包管理）能正常工作，你需要注册自己的 GitHub OAuth Application 并配置 Client ID。
-
-1. **创建 GitHub OAuth App:**  
-   - 访问你的 GitHub 开发者设置页面：[**GitHub Developer Settings**](https://github.com/settings/developers)
-   - 点击 **"New OAuth App"**。
-   - 填写以下信息：
-     - **Application name**: `Operit Dev` (或任何你喜欢的名字)
-     - **Homepage URL**: `https://github.com/<你的 GitHub 用户名>/Operit` (使用你 Fork 后的仓库地址)
-     - **Authorization callback URL**: `operit://github-oauth-callback` (**必须完全匹配！**)
-
-2. **获取 Client ID:**  
-   创建成功后，页面会显示生成的 **Client ID**。复制这个 ID。
-
-3. **配置项目:**  
-   - 在项目根目录，找到 `local.properties.example` 文件。
-   - 复制该文件并重命名为 `local.properties`。
-   - 打开 `local.properties` 文件，将 `"YOUR_OWN_GITHUB_CLIENT_ID_HERE"` 替换为你刚刚复制的 Client ID。
-
-   ```properties
-   # 示例:
-   GITHUB_CLIENT_ID=iv1.1234567890abcdef
-   ```
-   **注意：** `local.properties` 文件已被 Git 忽略，因此你的个人 ID 不会被提交到仓库中，确保了安全。
-
-## **6. 第六步：克隆并编译项目**
-
-环境准备就绪，现在开始编译项目。
-
-1. 克隆项目仓库并进入目录:  
-请根据需要选择以下两种克隆方式（项目包含 Git 子模块）：
-
-**推荐：先 Fork 后克隆你的仓库**  
-在 GitHub 打开上游仓库并点击 Fork： [AAswordman/Operit](https://github.com/AAswordman/Operit)  
-克隆你的 Fork，并只初始化公开构建依赖 `terminal`：
-```bash
-git clone https://github.com/<你的 GitHub 用户名>/Operit.git
-cd Operit
-git submodule update --init --recursive terminal
-```  
-（可选）添加上游仓库以便同步更新：  
-```bash
-git remote add upstream https://github.com/AAswordman/Operit.git
-```  
-
-**备选：不 Fork，直接克隆上游仓库（只读）**  
-```bash
-git clone https://github.com/AAswordman/Operit.git
-cd Operit
-git submodule update --init --recursive terminal
-```  
-
-如果你已克隆但尚未初始化公开子模块，可在仓库目录中执行：
-```bash
-git submodule update --init --recursive terminal
-```  
-其中 `ufbx`、`Bullet3`、`Saba`、`ncnn`、`sherpa-ncnn`、WAMR、`llama.cpp`、QuickJS、MNN 和 MNN 使用的 KleidiAI 由 CMake 通过 `FetchContent` 获取。CMake 会先解析远端 ref 的 commit，再下载对应 GitHub archive，因此不会拉取完整 Git 历史；默认跟随各自上游主分支或上游工程声明的 tag。如需固定某个 ref，可在 CMake 参数中设置 `OPERIT_UFBX_GIT_REF`、`OPERIT_BULLET3_GIT_REF`、`OPERIT_SABA_GIT_REF`、`OPERIT_NCNN_GIT_REF`、`OPERIT_SHERPA_NCNN_GIT_REF`、`OPERIT_WAMR_GIT_REF`、`OPERIT_LLAMA_CPP_GIT_REF`、`OPERIT_QUICKJS_GIT_REF`、`OPERIT_MNN_GIT_REF` 或 `OPERIT_KLEIDIAI_GIT_REF`。
-2. **下载并放置依赖库 (关键步骤！):**  
-`README.md` 中提到，项目依赖一些需要手动下载的库。请从 [这个 Google Drive 链接](https://drive.google.com/drive/folders/1g-Q_i7cf6Ua4KX9ZM6V282EEZvTVVfF7?usp=sharing) 下载所有文件，并将它们解压或放置到项目根目录下对应的 `libs` 或有 `.keep` 文件的文件夹中。  **警告：** 如果跳过此步骤，编译将因缺少依赖而失败。当前需要下载并解压这四个压缩包：`models.zip`、`subpack.zip`、`jniLibs.zip`、`libs.zip`。  
-```bash
-./app/src/main/assets/models/.keep  
-./app/src/main/assets/subpack/.keep  
-./app/src/main/jniLibs/.keep
-./app/libs
+```powershell
+Copy-Item local.properties.example local.properties
 ```
 
-下载完成后使用固定 NDK 运行受控解包；该步骤会删除归档中的旧 GIF native 副本、旧
-`ffmpeg-kit-local.aar` 和手工 `libc++_shared.so`，并从两个固定 release/hash 生成互不重叠的 arm64
-native AAR。mpv AAR 包含 Java API、`libmpv.so`、`libplayer.so`、同工具链的
-`libc++_shared.so`，以及由固定 mpv 输入构建、启用 Mbed TLS 的七个 FFmpeg ELF。准备脚本保持 ELF
-字符串长度不变，把这七个库及 `libmpv.so` / `libplayer.so` 的 SONAME / `DT_NEEDED` 改到
-`libmp*.so` 命名空间。FFmpegKit AAR继续保留 Java/资源/许可证和九个正常名称的 FFmpeg native 库，
-供主进程中的 FFmpeg 工具箱、媒体处理和下载合并使用：
+Linux / macOS：
 
 ```bash
-python3 ci/script/prepare_android_dependencies.py \
+cp local.properties.example local.properties
+```
+
+如需 GitHub 登录或相关集成功能，为自己的 GitHub OAuth App 配置 Client ID。稳定回调协议仍是：
+
+```text
+operit://github-oauth-callback
+```
+
+`local.properties` 已被 Git 忽略，不得把真实 Client ID、Client Secret、签名材料或本机路径提交
+到仓库。
+
+## 5. 准备大型 Android 输入
+
+仓库不会提交全部 AAR、模型、subpack 和 JNI 输入。完整构建需要以下四个归档：
+
+| 归档 | 目标 |
+| --- | --- |
+| `libs.zip` | `app/libs/` |
+| `models.zip` | `app/src/main/assets/models/` |
+| `subpack.zip` | `app/src/main/assets/subpack/` |
+| `jniLibs.zip` | `app/src/main/jniLibs/` |
+
+这些目录是本机准备的构建输入，不是普通缓存。不要使用 `git clean -X` 或无差别删除命令清理
+它们。
+
+### 在 Bash 环境下载固定归档
+
+CI 使用受控下载脚本。把归档写入已忽略的 `work/manual-deps`：
+
+```bash
+export RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
+bash ci/script/download_android_dependencies.sh full "$PWD/work/manual-deps"
+```
+
+### 解包、净化并验证输入
+
+Windows：
+
+```powershell
+.\.venv\Scripts\python.exe -B ci\script\prepare_android_dependencies.py `
+  --profile full `
+  --archives work\manual-deps `
+  --repository . `
+  --android-ndk "$env:ANDROID_HOME\ndk\28.2.13676358"
+```
+
+Linux / macOS：
+
+```bash
+.venv/bin/python -B ci/script/prepare_android_dependencies.py \
   --profile full \
-  --archives ./manual-deps \
-  --repository . \
+  --archives "$PWD/work/manual-deps" \
+  --repository "$PWD" \
   --android-ndk "$ANDROID_HOME/ndk/28.2.13676358"
 ```
 
-本地只需重新生成播放器 native AAR 时，使用项目虚拟环境：
+准备脚本限制归档成员、解压大小、压缩比、文件类型、符号链接和越界路径，并生成经过哈希、
+ABI、native owner、TLS 与 C++ 符号检查的播放器 AAR。详细合同见
+[Player native stack](./PLAYER_NATIVE_STACK.md)。
+
+只重新生成播放器输入时：
+
+Windows：
 
 ```powershell
 .\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py --repository .
 ```
 
-准备脚本固定下载并校验 `dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7` 与
-`mpv-android-lib-2026-06-25.aar` 原始输入。Gradle 只消费两份生成 AAR，`preBuild` 强制核对输出
-SHA-256、精确 native member 集、旧 `libav*.so` 依赖名在 mpv AAR 中清零、隔离 FFmpeg 的
-`--enable-mbedtls` / HTTPS 构建证据，以及 `libmpv.so` 所需的两个
-`__from_chars_floating_point` 符号是否由唯一 `libc++_shared.so` 提供。最终 APK 门禁再次确认正常
-FFmpegKit 名称与 `libmp*.so` 播放器名称各出现一次。
-完整来源、哈希、许可证与动态链接边界见 [Player native stack](./PLAYER_NATIVE_STACK.md)。准备后必须重新运行
-Debug 构建、`zipalign -c -P 16 -v 4` 与逐 ELF `llvm-readelf -lW` 审计。不得只凭 AAR 文件名或构建成功
-宣称支持 16 KB。
+Linux / macOS：
 
-3. **切换到你的工作分支 (如果需要):**
 ```bash
-git checkout docs/add-building-guide
-# 将上面的示例分支名替换为你自己创建的分支名
+.venv/bin/python -B ci/script/prepare_mpv_player_dependency.py --repository .
 ```
 
-4. **安装项目根目录的脚本依赖:**
-```bash
-npm install
-```
-这一步会安装 `tools/example_packages/sync_example_packages.py` 预构建示例脚本包时需要用到的 `typescript`、`esbuild` 等依赖。
+## 6. 生成 WebChat 与示例输入
 
-5. **安装 web-chat 的前端依赖:**
-```bash
-npm --prefix web-chat install
-```
+先执行 TypeScript 检查并生成 WebChat：
 
-6. **先构建 web-chat 并同步到 Android assets (关键步骤！):**
 ```bash
+npm --prefix web-chat run typecheck
 npm run build:webchat
 ```
-该命令会先执行 `web-chat` 的 React/Vite 构建，再把生成的静态文件同步到 `app/src/main/assets/web-chat`。如果你修改了 `web-chat/src` 下的代码，重新编译 APK 前也需要重新执行一次这一步。
 
-7. **打包 ToolPkg 并同步示例包到应用 assets (关键步骤！):**
+`build:webchat` 会构建 Vite 产物并同步到忽略的
+`app/src/main/assets/web-chat/`。该目录可重新生成，不应提交。
+
+验证 GitHub 示例和 WASM ToolPkg：
+
 ```bash
-python3 ./tools/example_packages/sync_example_packages.py
+npm run build:examples:github
+git diff --exit-code -- examples/github.js
+npm --prefix examples/toolpkg_wasm_demo ci --no-audit --no-fund
+npm --prefix examples/toolpkg_wasm_demo run pack:toolpkg
 ```
-该命令会按 `tools/example_packages/packages_whitelist.txt` 预构建 `examples/` 下的脚本包，并将包含 `manifest.json` 或 `manifest.hjson` 的目录打包成 `.toolpkg`，最终输出到 `app/src/main/assets/packages/`。如果你修改了 `examples/` 下的脚本包代码，重新编译 APK 前也需要重新执行一次这一步。
 
-8. **为 Gradle 包装器添加可执行权限:**
+Android 构建会从生产白名单生成目录型 ToolPkg 到 `app/build/generated/`，不把生成的
+`.toolpkg` 写回源码目录。需要核对生产脚本包同步时运行：
+
+Windows：
+
+```powershell
+.\.venv\Scripts\python.exe -B tools\example_packages\sync_example_packages.py `
+  --mode normal `
+  --no-hot-reload
+```
+
+Linux / macOS：
+
 ```bash
-chmod +x ./gradlew
+.venv/bin/python -B tools/example_packages/sync_example_packages.py \
+  --mode normal \
+  --no-hot-reload
 ```
 
-9. 运行 assembleDebug 命令进行编译:  
-首次编译会下载大量依赖，请耐心等待。  
+## 7. 运行开发门禁
+
+修改前后至少运行与改动相关的检查。完整仓库验证使用根聚合任务，而不是只检查 `:app`。
+
+Windows：
+
+```powershell
+.\.venv\Scripts\python.exe -B -m unittest discover -s ci\test -p "test_*.py"
+.\.venv\Scripts\python.exe -B ci\script\check_formal_readiness.py --repository . --require-main
+.\.venv\Scripts\python.exe -B ci\script\check_architecture_boundaries.py --repository . --require-main
+.\.venv\Scripts\python.exe -B ci\script\normalize_lint_baseline.py --check
+.\gradlew.bat testDebugUnitTest compileDebugAndroidTestKotlin compileDebugAndroidTestJavaWithJavac lintDebug `
+  --stacktrace --no-build-cache --no-daemon --console=plain
+```
+
+Linux / macOS：
+
 ```bash
-./gradlew assembleDebug
+.venv/bin/python -B -m unittest discover -s ci/test -p "test_*.py"
+.venv/bin/python -B ci/script/check_formal_readiness.py --repository . --require-main
+.venv/bin/python -B ci/script/check_architecture_boundaries.py --repository . --require-main
+.venv/bin/python -B ci/script/normalize_lint_baseline.py --check
+./gradlew testDebugUnitTest compileDebugAndroidTestKotlin compileDebugAndroidTestJavaWithJavac lintDebug \
+  --stacktrace --no-build-cache --no-daemon --console=plain
 ```
 
-或者运行 assembleDebugClone 编译共存版:
+候选提交的 Markdown、本地化、仓库卫生和 fresh-clone 检查见 [`ci/README.md`](../../../ci/README.md)。
+
+## 8. 构建 Debug APK
+
+Windows：
+
+```powershell
+.\gradlew.bat :app:assembleDebug --no-daemon --console=plain
 ```
-./gradlew assembleDebugClone
+
+Linux / macOS：
+
+```bash
+./gradlew :app:assembleDebug --no-daemon --console=plain
 ```
 
-10. 查找 APK 文件:  
-编译成功后，生成的 APK 文件位于项目目录下的以下路径：  
-app/build/outputs/apk/debug/app-debug.apk
-app/build/outputs/apk/clone/app-clone.apk
+构建会同时验证：
 
-## **7. 常见问题排查**
+- 唯一 Debug launcher
+- 受控 player AAR 输入与 native owner
+- 精确 commit 的 llama.cpp 与 MNN 产品 JNI 目标
+- arm64 native ripgrep
+- 16 KB 对齐的 shell identity launcher
+- 生产 ToolPkg 生成输入
 
-| 错误信息 | 解决方案 |
-| :---- | :---- |
-| sdkmanager: command not found | 环境变量未正确设置或生效。请检查 **~/.bashrc** 文件内容，并执行 source ~/.bashrc。 |
-| Could not determine Java version... | **JAVA_HOME** 环境变量不正确，或安装了错误的 JDK 版本。请确保已安装 **JDK 21** 并指向正确的路径。 |
-| NDK not found. | 确保已在 **第四步** 中使用 sdkmanager 安装了项目所需的 **ndk;28.2.13676358** 版本。 |
-| pnpm: command not found | 尚未安装 `pnpm`。请先执行 `sudo npm install -g pnpm`，再重新运行 `python3 ./tools/example_packages/sync_example_packages.py`。 |
-| Missing web-chat/dist. Run `npm --prefix web-chat run build` first. | 尚未构建 `web-chat` 或构建失败。请先执行 `npm --prefix web-chat install`，再在项目根目录执行 `npm run build:webchat`。 |
-| ERROR: prebuild step failed | `tools/example_packages/sync_example_packages.py` 在预构建 `examples/` 时失败。请先确认已在项目根目录执行 `npm install`，并检查 `pnpm -v`、`python3 --version` 是否可用。 |
-| You have not accepted the license agreements... | 你跳过了或未成功执行接受许可的步骤。请返回 **第四步** 执行 `yes |
+## 9. 独立核验 APK
+
+不能只凭 Gradle 退出码判断产物正确。至少检查：
+
+```text
+aapt dump badging app/build/outputs/apk/debug/app-debug.apk
+apksigner verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
+zipalign -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk
+```
+
+16 KB ZIP alignment 不等于 ELF segment alignment。native 产物还需要使用 NDK
+`llvm-readelf -lW` 核对所有 `PT_LOAD` 不低于 `0x4000`。
+
+APK 还应只包含 `arm64-v8a`、零重复 `.so` basename、一份共享模板 AAPT2，并包含
+`liboperit_ripgrep.so` 与 `assets/operit_shell_exec`，同时不包含 `libsudo.so`。
+
+## 常见问题
+
+| 现象 | 检查方向 |
+| --- | --- |
+| `JAVA_HOME` 或 Java 版本错误 | 确认 JDK 21 实际路径及 `java -version` |
+| `sdkmanager` 不存在 | 把 Android Command-line Tools 的 `latest/bin` 加入 `PATH` |
+| Android 许可证错误 | 重新运行 `sdkmanager --licenses` |
+| NDK/CMake 不存在 | 安装本文件锁定版本，并核对 `ANDROID_HOME` |
+| `npm ci` 报 lockfile 不一致 | 不要手工改 `node_modules`；同步更新对应 `package.json` 与 `package-lock.json` |
+| WebChat 产物缺失 | 先执行 `npm --prefix web-chat ci` 和 `npm run build:webchat` |
+| AAR、模型或 subpack 缺失 | 重新下载四个归档并运行依赖准备脚本 |
+| player input hash 或 native owner 失败 | 不要手工替换 AAR；重新运行受控准备脚本 |
+| `terminal` 类或资源缺失 | 运行 `git submodule update --init --recursive terminal` |
+| Gradle 内存不足 | 先关闭并发构建，再按本机内存审慎调整 `org.gradle.jvmargs` |
+
+如问题仍未解决，请在 Issue 中提供完整命令、首个根因错误、操作系统、JDK/SDK/NDK 版本和经过
+脱敏的必要日志；不要只提交最终的级联异常。

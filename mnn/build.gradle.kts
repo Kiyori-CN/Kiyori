@@ -24,6 +24,7 @@ android {
 
         externalNativeBuild {
             cmake {
+                targets += listOf("MNNWrapper")
                 cppFlags += listOf("-std=c++17", "-fno-emulated-tls")
                 arguments += listOf(
                     "-DANDROID_STL=c++_static",

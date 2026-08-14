@@ -9,7 +9,9 @@ com.ai.assistance.operit.ui.features.startup.screens.PluginLoadingStateRegistry
 com.kiyori.app.theme.KiyoriTheme
 com.ai.assistance.operit.ui.common.displays.VirtualDisplayOverlay
 com.ai.assistance.operit.util.AnrMonitor
+com.ai.assistance.operit.util.AnrMonitorObservationState
 com.ai.assistance.operit.util.LocaleUtils
+com.ai.assistance.operit.core.application.ActivityLifecycleManager
 com.ai.assistance.operit.core.player.PlayerPresentation
 com.ai.assistance.operit.core.player.PlayerSession
 com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadManager

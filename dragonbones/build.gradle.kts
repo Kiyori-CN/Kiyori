@@ -15,6 +15,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a"))
+        }
+
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")

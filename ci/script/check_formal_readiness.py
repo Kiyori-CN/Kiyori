@@ -12,6 +12,16 @@ from pathlib import Path
 
 
 EXPECTED_TERMINAL_URL = "https://github.com/Kiyori-CN/KiyoriTerminalCore.git"
+EXPECTED_NATIVE_SOURCE_PINS = {
+    Path("llama/CMakeLists.txt"): (
+        "https://github.com/ggml-org/llama.cpp.git",
+        "885c5bbe8e04dc78db25beb911a2715312ad7b54",
+    ),
+    Path("mnn/CMakeLists.txt"): (
+        "https://github.com/alibaba/MNN.git",
+        "ea44a3ebd5dd6348eea501047b17c43aa3ecccb6",
+    ),
+}
 FORBIDDEN_RUNTIME_URLS = (
     "https://github.com/AAswordman/Operit",
     "https://github.com/AAswordman/OperitTerminalCore",
@@ -227,6 +237,24 @@ def check_generated_native_inputs(root: Path, errors: list[str]) -> None:
                 )
 
 
+def check_native_source_pins(root: Path, errors: list[str]) -> None:
+    for relative_path, (repository, expected_sha) in EXPECTED_NATIVE_SOURCE_PINS.items():
+        path = root / relative_path
+        if not path.is_file():
+            errors.append(f"required native source definition is missing: {relative_path}")
+            continue
+
+        text = path.read_text(encoding="utf-8")
+        match = re.search(
+            rf'"{re.escape(repository)}"\s*"{re.escape(expected_sha)}"',
+            text,
+        )
+        if match is None:
+            errors.append(
+                f"{relative_path} must pin {repository} to exact commit {expected_sha}"
+            )
+
+
 def check_ssh_secret_transport(root: Path, errors: list[str]) -> None:
     path = (
         root
@@ -315,6 +343,7 @@ def main() -> int:
     check_runtime_urls(root, errors)
     check_tracked_artifacts(root, errors)
     check_generated_native_inputs(root, errors)
+    check_native_source_pins(root, errors)
     check_ssh_secret_transport(root, errors)
     check_ci_android_toolchain(root, errors)
 
@@ -331,6 +360,7 @@ def main() -> int:
     print("- runtime upstream URL exclusion")
     print("- tracked secret/runtime artifact hygiene")
     print("- generated shell launcher and terminal shim source contracts")
+    print("- exact llama.cpp and MNN native source commits")
     print("- SSH password transport avoids command text and server AcceptEnv dependency")
     print("- CI Android platform matches app compileSdk")
     return 0

@@ -34,9 +34,9 @@ class SyncPlanItem:
     destination_name: str
 
 
-def _pnpm_executable(platform: str = sys.platform) -> str:
-    # Windows Python cannot launch the extensionless pnpm shim that may appear first on PATH.
-    return "pnpm.cmd" if platform == "win32" else "pnpm"
+def _npm_executable(platform: str = sys.platform) -> str:
+    # Windows Python must launch npm.cmd rather than the PowerShell shim or extensionless wrapper.
+    return "npm.cmd" if platform == "win32" else "npm"
 
 
 def _run_checked_command(command: list[str], cwd: Path, *, dry_run: bool) -> None:
@@ -190,7 +190,7 @@ def _prebuild_examples(
             print(f"SKIP-PREBUILD(ROOT): {examples_dir}")
         else:
             _run_checked_command(
-                [_pnpm_executable(), "exec", "tsc", "-p", str(root_tsconfig)],
+                [_npm_executable(), "exec", "--", "tsc", "-p", str(root_tsconfig)],
                 cwd=repo_root,
                 dry_run=dry_run,
             )
@@ -222,7 +222,7 @@ def _prebuild_examples(
 
         if should_run_tsc:
             _run_checked_command(
-                [_pnpm_executable(), "exec", "tsc", "-p", str(tsconfig)],
+                [_npm_executable(), "exec", "--", "tsc", "-p", str(tsconfig)],
                 cwd=repo_root,
                 dry_run=dry_run,
             )
@@ -241,7 +241,7 @@ def _prebuild_examples(
         should_run_build = should_run_tsc or prebuild_state.get(build_key) != child_signature
         if package_json.is_file() and should_run_build:
             _run_checked_command(
-                [_pnpm_executable(), "build"],
+                [_npm_executable(), "run", "build"],
                 cwd=child_dir,
                 dry_run=dry_run,
             )

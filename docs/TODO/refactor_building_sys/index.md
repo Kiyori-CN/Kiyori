@@ -1,13 +1,12 @@
 ---
-title: Operit 构建系统重构总计划
+title: Kiyori 构建系统重构总计划
 status: draft
 document_type: refactoring-plan-index
 For_Agent: 未经用户明确授权，不执行编译、构建、测试或发布命令
-fork_repository: "git@github.com:Nyashiiro/Operit-follow-up.git"
-last_reviewed: 2026-07-14
+last_reviewed: 2026-08-14
 ---
 
-# Operit 构建系统重构总计划
+# Kiyori 构建系统重构总计划
 
 本目录是构建系统重构的工作草稿，不代表已经发布或最终确定的实现。每个编号文件对应一个可独立审查和提交的最小步骤，后一步只依赖已经完成的前一步。
 

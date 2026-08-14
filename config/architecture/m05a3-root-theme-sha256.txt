@@ -8,5 +8,5 @@ B46FDF3DF4BEC9B5622BFA714D666936AAC8DEB433431989227D54EAB9AA6D39	app/src/main/ja
 0958C96D76C5C30E98EA84F08AC29CA576FA263C497AD1976BFEF9B4E326B7CA	app/src/main/java/com/ai/assistance/operit/ui/features/player/PlayerActivity.kt
 3EFC336D49E38E557B43C274902CB488B47C6C55CCF627021349EA40980A2645	app/src/main/java/com/ai/assistance/operit/ui/common/OperitUtilityTheme.kt
 B78AD927ABF62719EE28B730E2D3531EF05C4CEE26064986CEF1977FA43E8C3C	app/src/main/java/com/ai/assistance/operit/ui/floating/FloatingWindowTheme.kt
-451A14A5F12DABD7B1796363C9D03E6BCF364AC00598D21252699014D8BE50E5	app/src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt
+9B5BA4809856BF96A7A7ED9A7AC32C8EC9B59624F678B3F0A6D3277F1C89BAFE	app/src/main/java/com/ai/assistance/operit/ui/main/MainActivity.kt
 C9F4B93DAE6BAC4FD984D9ECD16F47B98910E541186D6F1C084CB539C1186AFA	app/src/main/java/com/ai/assistance/operit/widget/ToolPkgDesktopWidgetConfigActivity.kt

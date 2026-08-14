@@ -22,9 +22,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: Operit 版本 / Operit version
+      label: Kiyori 版本 / Kiyori version
       description: 请填写完整版本和补丁号。
-      placeholder: 例如 1.12.0+4、Nightly 日期或 commit hash
+      placeholder: 例如 0.1.0 (45)、构建日期或 commit hash
     validations:
       required: true
 
@@ -45,6 +45,7 @@ body:
     attributes:
       label: 类型 / Type
       options:
+        - Script package / 脚本包
         - Plugin / 插件
         - Skill
         - MCP server / MCP 服务
@@ -118,7 +119,7 @@ body:
       description: 请至少上传一张能说明配置、错误或结果的截图，或粘贴录屏链接；也可以忽略上传，直接用文字补充。 / Please add a screenshot or recording link; you may skip the upload and provide text only.
       placeholder: 将截图拖到这里，或粘贴图片/录屏链接
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: logs
@@ -130,4 +131,4 @@ body:
         在这里粘贴日志、请求或响应
         ```
     validations:
-      required: true
+      required: false

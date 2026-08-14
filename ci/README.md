@@ -42,6 +42,9 @@ python3 -B ci/script/normalize_lint_baseline.py --check
 依赖的 fresh clone 中运行。被 `.gitignore` 排除的 player AAR 由
 `prepare_android_dependencies.py` 生成，并由 Gradle `verifyPlayerNativeInputs`
 在 Android JVM/full lane 中严格核对哈希、成员、ABI、native 所有权、TLS 和 C++ 符号。
+正式 readiness 还锁定 llama.cpp 与 MNN 的精确 commit；`test_cmake_git_source.py`
+使用 CMake 自身验证 40 位十六进制 SHA 的识别边界，避免固定 commit 被错误地当作移动
+远端 ref 解析。
 
 ## PR check lanes
 
@@ -64,7 +67,9 @@ python3 -B ci/script/normalize_lint_baseline.py --check
 
 根项目、`web-chat` 和独立的 `examples/toolpkg_wasm_demo` 分别提交 `package-lock.json`，CI 使用 `npm ci` 安装确定的依赖树。
 
-`tools/example_packages/sync_example_packages.py` 从 Python 子进程调用 pnpm。Windows 使用 `pnpm.cmd`，其他平台使用 `pnpm`，避免 PATH 中无扩展名 shim 阻止 Windows Python 启动预构建命令。
+`tools/example_packages/sync_example_packages.py` 复用根 `package-lock.json` 对应的 npm 安装树。
+Windows 从 Python 子进程调用 `npm.cmd`，其他平台调用 `npm`；TypeScript 预构建使用
+`npm exec -- tsc`，避免混用包管理器改写 `node_modules` 或生成未受控 lockfile。
 
 PR workflow 只有 `contents: read` 权限，不读取仓库 secret，也不上传 APK/AAB。`Android Build` 是独立的可信 main/手工构建 workflow。
 
@@ -99,7 +104,7 @@ POI 与 BouncyCastle 由 app 直接持有；MINA 由直接使用 FTPServer 的 t
 
 Android lint 使用 `app/lint-baseline.xml` 记录启用 PR 检查前已有的问题。新增 error 仍会使 `:app:lintDebug` 失败；新增 warning 按 Android lint 默认策略报告。
 
-初始 baseline 使用 AGP 8.13.2 并启用依赖检查，从上游提交 `1fe3b5eddb1f5c6ed795465f80716dda8c36cc65` 生成，对应 [GitHub Actions 运行](https://github.com/luojiaping/Operit/actions/runs/29661867372)。2026-07-24 在 AGP 9.3.1 下生成临时完整 baseline，与已审阅 baseline 求交集：原样保留 `5843` 条仍存在的记录，删除 `200` 条失效记录，不吸收 `30` 条当时可见问题。2026-07-31 的 M-01 只把 6 个 `OperitApplication.kt` location 路径改为 `KiyoriApplication.kt`；2026-08-01 的 M-03 继续把这 6 个 location 路径移到 `com/kiyori/app/KiyoriApplication.kt`，两次均未改变 issue、message、line、column 或条目数量。2026-08-01 在 M-04 根组合、Shell 与 MainActivity 职责拆分后重新生成完整 lint 结果，通过结构化交集删除当前工具链不再报告的 `51` 条历史记录，保留 `5792` 条原有记录，且不吸收 `328` 条 current-only 问题。2026-08-02 的 M-05B 把 logger 的早期绑定状态从静态 Android `Context` 收敛为提前解析的 `filesDir: File`；新鲜完整 baseline 证明旧 `AppLogger.kt` 的 1 条 `StaticFieldLeak` 已失效，结构化交集只删除该记录，保留 `5791` 条且不吸收 `316` 条 current-only 问题。2026-08-02 的 M-05E 把唯一 `SdCardPath` 既有记录从兼容 facade `OperitPaths.kt` 精确迁到唯一 owner `KiyoriPaths.kt`，只更新 location 与同一代码行中的 owner 常量名，不新增、删除或吸收 issue。2026-08-02 的 QD-03 删除 3 个已无引用且缺少翻译的设置字符串，并把 1 个无引用英文数量字符串移出资源树；临时完整 baseline 为 `5845` 条，结构化交集只删除这 4 条失效记录，保留 `5787` 条原有记录，不吸收 `58` 条 current-only 警报。2026-08-02 的 QD-04 为 reply-proxy 补齐 `WEB_MESSAGE_LISTENER` 正向 feature guard；临时完整 baseline 为 `5814` 条，结构化交集只删除对应 1 条失效 `RequiresFeature`，保留 `5786` 条，不吸收 `28` 条依赖警报。2026-08-03 的 QD-05 升级并净化依赖后，fresh lint current-only 为 0；临时完整 baseline 为 `5776` 条，结构化交集删除 7 条已升级版本记录和 3 条失效版本目录记录。2026-08-03 的 QD-06/QD-07 又完成 Locale、WebKit feature、receiver、Shizuku listener、URI flag、PTY 私有 API、native asset 与 Android 定时器根因清理；最终完整 baseline 为 `5606` 条，交集 `retained=5606 / stale=92 / current-only=0`。2026-08-09 浏览器设置与 Lint 收口补齐 77 个五语言翻译键、Compose 可观察资源读取、KTX、Modifier、数量文案、无引用资源和 Media3 稳定版本，完整 Lint 为 `0 errors / 0 warnings / 0 hints`；结构化交集只删除 `39` 条失效记录，得到 `retained=5567 / stale=39 / current-only=0`。当前归一化 SHA-256 为 `dda9a10b3c899698271aeca2b3be9812674d3041adf20af4ea6d15d80c552405`。
+初始 baseline 使用 AGP 8.13.2 并启用依赖检查，从上游提交 `1fe3b5eddb1f5c6ed795465f80716dda8c36cc65` 生成，对应 [GitHub Actions 运行](https://github.com/luojiaping/Operit/actions/runs/29661867372)。2026-07-24 在 AGP 9.3.1 下生成临时完整 baseline，与已审阅 baseline 求交集：原样保留 `5843` 条仍存在的记录，删除 `200` 条失效记录，不吸收 `30` 条当时可见问题。2026-07-31 的 M-01 只把 6 个 `OperitApplication.kt` location 路径改为 `KiyoriApplication.kt`；2026-08-01 的 M-03 继续把这 6 个 location 路径移到 `com/kiyori/app/KiyoriApplication.kt`，两次均未改变 issue、message、line、column 或条目数量。2026-08-01 在 M-04 根组合、Shell 与 MainActivity 职责拆分后重新生成完整 lint 结果，通过结构化交集删除当前工具链不再报告的 `51` 条历史记录，保留 `5792` 条原有记录，且不吸收 `328` 条 current-only 问题。2026-08-02 的 M-05B 把 logger 的早期绑定状态从静态 Android `Context` 收敛为提前解析的 `filesDir: File`；新鲜完整 baseline 证明旧 `AppLogger.kt` 的 1 条 `StaticFieldLeak` 已失效，结构化交集只删除该记录，保留 `5791` 条且不吸收 `316` 条 current-only 问题。2026-08-02 的 M-05E 把唯一 `SdCardPath` 既有记录从兼容 facade `OperitPaths.kt` 精确迁到唯一 owner `KiyoriPaths.kt`，只更新 location 与同一代码行中的 owner 常量名，不新增、删除或吸收 issue。2026-08-02 的 QD-03 删除 3 个已无引用且缺少翻译的设置字符串，并把 1 个无引用英文数量字符串移出资源树；临时完整 baseline 为 `5845` 条，结构化交集只删除这 4 条失效记录，保留 `5787` 条原有记录，不吸收 `58` 条 current-only 警报。2026-08-02 的 QD-04 为 reply-proxy 补齐 `WEB_MESSAGE_LISTENER` 正向 feature guard；临时完整 baseline 为 `5814` 条，结构化交集只删除对应 1 条失效 `RequiresFeature`，保留 `5786` 条，不吸收 `28` 条依赖警报。2026-08-03 的 QD-05 升级并净化依赖后，fresh lint current-only 为 0；临时完整 baseline 为 `5776` 条，结构化交集删除 7 条已升级版本记录和 3 条失效版本目录记录。2026-08-03 的 QD-06/QD-07 又完成 Locale、WebKit feature、receiver、Shizuku listener、URI flag、PTY 私有 API、native asset 与 Android 定时器根因清理；最终完整 baseline 为 `5606` 条，交集 `retained=5606 / stale=92 / current-only=0`。2026-08-09 浏览器设置与 Lint 收口补齐 77 个五语言翻译键、Compose 可观察资源读取、KTX、Modifier、数量文案、无引用资源和 Media3 稳定版本，完整 Lint 为 `0 errors / 0 warnings / 0 hints`；结构化交集只删除 `39` 条失效记录，得到 `retained=5567 / stale=39 / current-only=0`。2026-08-11 的全仓健康审计继续得到 `retained=5306 / stale=261 / current-only=2`，SHA-256 为 `9ecd07d023005a6732f2f56f110675ec6ac64bfec8c64107e8780b7c42396fe5`。随后 `main@96259e2a` 的源码修复精确删除 26 条旧记录，baseline 为 `5280` 条，SHA-256 为 `a0950846d4d41eca6d7e3b302b21bd7c8317490fd2d9fb1c88e9ba57fd5cc00e`。2026-08-14 的全项目整理把依赖声明收口到 version catalog，并删除重复资源；当前临时完整 baseline 为 `5279` 条，结构化交集 `retained=5256 / stale=24 / current-only=23`。24 条 stale 为 `GradleDependency 1 / NewerVersionAvailable 7 / UseTomlInstead 16`，23 条 current-only 继续保持可见且没有进入 baseline。当前归一化 SHA-256 为 `b0a52e2b1c42516b84bb1b22e0940a8db3130840d5d754e09bdd2444a366d621`。
 
 baseline 维护必须把完整结果写入 `app/build/`，再用结构化 XML 交集脚本只删除失效记录：
 

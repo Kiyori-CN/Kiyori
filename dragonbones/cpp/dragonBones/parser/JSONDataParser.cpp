@@ -577,6 +577,13 @@ DisplayData* JSONDataParser::_parseDisplay(const rapidjson::Value& rawData)
             }
             break;
         }
+
+        case dragonBones::DisplayType::Path:
+        {
+            // 当前 C++ runtime 没有 PathDisplayData 或路径约束解析模型。显式保留
+            // “不创建显示对象”的既有语义；误当作 Mesh/Image 会导致错误的类型转换和顶点读取。
+            break;
+        }
     }
 
     if (display != nullptr && rawData.HasMember(TRANSFORM))
