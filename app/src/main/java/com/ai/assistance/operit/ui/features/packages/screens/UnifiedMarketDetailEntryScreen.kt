@@ -5,7 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
@@ -14,6 +14,10 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -239,9 +243,11 @@ fun UnifiedMarketDetailEntryScreen(
                     if (isCurrentMarketCompatibilityUnsupported) {
                         Icons.Default.Warning
                     } else if (localInstallState.shouldShowSwitchAction()) {
-                        Icons.Default.Update
-                    } else {
+                        Icons.Outlined.Update
+                    } else if (localInstallState?.kind == MarketLocalInstallStateKind.INSTALLED) {
                         Icons.Default.Check
+                    } else {
+                        Icons.Outlined.Download
                     },
                 isWarning = isCurrentMarketCompatibilityUnsupported
             ),
@@ -250,7 +256,7 @@ fun UnifiedMarketDetailEntryScreen(
                 UnifiedMarketDetailAction(
                     label = stringResource(R.string.mcp_plugin_repository),
                     onClick = { openExternalUrl(context, repositoryUrl) },
-                    icon = Icons.AutoMirrored.Filled.OpenInNew
+                    icon = Icons.AutoMirrored.Outlined.OpenInNew
                 )
             },
         banner =
@@ -354,7 +360,7 @@ fun UnifiedMarketDetailEntryScreen(
                 UnifiedMarketDetailIconAction(
                     contentDescription = stringResource(R.string.market_detail_view_version_history),
                     onClick = { showVersionHistoryDialog = true },
-                    icon = Icons.Default.History
+                    icon = Icons.Outlined.History
                 )
             },
         metadataTitle = stringResource(R.string.metadata_title),
@@ -370,7 +376,7 @@ fun UnifiedMarketDetailEntryScreen(
                         UnifiedMarketDetailReactionOption(
                             label = stringResource(R.string.market_detail_like_action),
                             count = likes,
-                            icon = Icons.Default.ThumbUp,
+                            icon = Icons.Outlined.ThumbUp,
                             tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                             isSelected = hasThumbsUp,
                             enabled = currentUser != null,

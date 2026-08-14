@@ -12,7 +12,7 @@
     <string name="nav_tool_permissions">도구 권한</string>
     <string name="nav_about">정보</string>
     <string name="common_collapse">접기</string>
-    <string name="nav_packages">패키지</string>
+    <string name="nav_ai_extensions">확장</string>
     <string name="nav_memory_base">메모리</string>
     <string name="nav_assistant_config">어시스턴트 설정</string>
     <string name="nav_terminal">터미널</string>
@@ -99,7 +99,6 @@
     <string name="nav_group_ai_features">AI 기능</string>
     <string name="nav_group_tools">도구</string>
     <string name="nav_group_plugins">플러그인</string>
-    <string name="script_packages">스크립트 패키지</string>
     <string name="nav_group_system">시스템</string>
     <string name="menu">메뉴</string>
     <string name="token_config">API 키 받기</string>
@@ -822,19 +821,16 @@
     <string name="tag_count_lock">잠금 횟수</string>
     <string name="tag_count_limit">최대 선택 가능</string>
     <string name="tag_count_locked_status">%1$d 선택 / %2$d 제한</string>
-    <string name="skills">스킬</string>
-    <string name="quick_plugin_creator_title">스크립트 패키지를 빠르게 만들기</string>
-    <string name="quick_plugin_creator_desc">내장 목록이나 마켓에서 원하는 스크립트 패키지를 찾을 수 없나요? 직접 만들어 보세요.</string>
-    <string name="quick_plugin_creator_step1_title">1. 패키지 생성 스킬 업데이트 또는 다운로드</string>
-    <string name="quick_plugin_creator_step1_desc">설치 또는 업데이트를 위해 install_or_update.js를 자동으로 다운로드하고 operit_editor debug_run_sandbox_script를 실행하려면 버튼을 클릭하세요.</string>
-    <string name="quick_plugin_creator_run_setup">자동 다운로드 및 실행</string>
-    <string name="quick_plugin_creator_pull_skill_update">스킬 업데이트 가져오기</string>
-    <string name="quick_plugin_creator_setup_failed">패키지 생성 스킬을 설치하거나 업데이트하지 못했습니다.</string>
-    <string name="quick_plugin_creator_step2_title">2. 만들기를 시작하려면 요구사항을 입력하세요.</string>
-    <string name="quick_plugin_creator_requirement_hint">예: 다운로드 디렉터리의 이미지를 일괄 구성하고 색인을 생성하는 도구를 만듭니다.</string>
-    <string name="quick_plugin_creator_requirement_empty">먼저 스크립트 패키지 요구 사항을 입력하세요.</string>
+    <string name="ai_extensions_tab_scripts">스크립트</string>
+    <string name="ai_extensions_tab_skill">Skill</string>
+    <string name="script_add_actions">스크립트 추가</string>
+    <string name="create_script">스크립트 만들기</string>
+    <string name="import_script_package">스크립트 패키지 가져오기</string>
+    <string name="create_script_requirement_title">만들고 싶은 스크립트를 설명하세요</string>
+    <string name="create_script_requirement_description">Kiyori가 이 요청을 바탕으로 스크립트 제작 흐름을 엽니다. 다음 단계에서 구현, 문서 및 설정을 계속 다듬을 수 있습니다.</string>
+    <string name="create_script_requirement_hint">예: 다운로드 폴더의 이미지를 정리하고 색인을 생성하는 도구</string>
+    <string name="create_script_requirement_empty">먼저 만들고 싶은 스크립트를 설명하세요.</string>
     <string name="show_to_ai_short">AI</string>
-    <string name="package_manager">패키지 관리자</string>
     <string name="available_packages">사용 가능한 패키지</string>
     <string name="imported_packages">가져온 패키지</string>
     <string name="import_package">패키지 가져오기</string>
@@ -848,7 +844,6 @@
     <string name="no_packages_imported">아직 가져온 패키지가 없습니다.</string>
     <string name="remove_package">패키지 제거</string>
     <string name="package_removed">패키지가 제거되었습니다.</string>
-    <string name="import_external_package">외부 패키지 가져오기</string>
     <string name="import_external_plugin">외부 플러그인 가져오기</string>
     <string name="external_package_import_success">외부 패키지를 성공적으로 가져왔습니다.</string>
     <string name="external_package_import_error">외부 패키지 가져오기 실패</string>
@@ -5121,7 +5116,6 @@
     <string name="memory_repository_folder_description_content">%1$s 폴더에 대한 설명입니다.</string>
     <string name="gemini_connecting">연결 중...</string>
     <string name="gemini_connected_success">연결됨, 응답 처리 중...</string>
-    <string name="gemini_request_body_json">요청 본문 JSON:</string>
     <string name="gemini_request_headers">요청 헤더: \n%1$s</string>
     <string name="gemini_response_empty">응답이 비어 있습니다.</string>
     <string name="gemini_unknown_error">알 수 없는 오류</string>
@@ -5205,7 +5199,7 @@
     <string name="skill_publish_body_section_repo_info">## 🔗 저장소 정보</string>
     <string name="skill_publish_body_label_repo_url">**저장소 URL:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 설치</string>
-    <string name="skill_publish_body_install_step1">1. Kiyori 열기 → 패키지 관리자 → 스킬</string>
+    <string name="skill_publish_body_install_step1">1. Kiyori 열기 → 확장 → Skill</string>
     <string name="skill_publish_body_install_step2">2. "스킬 가져오기" → "저장소에서 가져오기"를 탭하세요.</string>
     <string name="skill_publish_body_install_step3">3. 저장소 URL 입력: `%1$s`</string>
     <string name="skill_publish_body_install_step4">4. 가져오기 확인</string>
@@ -6930,7 +6924,6 @@
     <string name="app_update_channel">앱 업데이트</string>
     <string name="app_update_channel_disabled">이 버전은 원격 업데이트나 공지를 받지 않습니다. 새 버전은 Kiyori 저장소를 통해 별도로 배포됩니다.</string>
     <string name="about_source_attribution">Kiyori는 Operit 오픈 소스 코드를 기반으로 개발을 이어갑니다. 원저자, 라이선스 및 프로젝트 이력은 저장소에 보존됩니다.</string>
-    <string name="quick_plugin_creator_setup_unavailable">Kiyori는 아직 신뢰할 수 있는 빠른 설정 스크립트를 제공하지 않으므로 이 작업은 비활성화되어 있습니다.</string>
     <string name="artifact_publish_encrypt_market_toolpkg_title">플러그인 압축 및 난독화</string>
     <string name="artifact_publish_encrypt_market_toolpkg_desc">활성화하면 ToolPkg 플러그인의 실행 스크립트가 JavaScript 구문 트리를 통해 축소됩니다. 결과 플러그인 아카이브는 표준 ZIP 파일로 유지되며 바로 가져올 수 있습니다.</string>
     <string name="artifact_publish_encrypt_market_toolpkg_confirmation">플러그인 압축 및 난독화: %1$s</string>
@@ -7270,4 +7263,62 @@
     <string name="kiyori_onboarding_permission_root_desc">보호된 시스템 및 앱 데이터를 읽고 변경할 수 있는 수퍼유저 접근을 요청합니다.</string>
     <string name="kiyori_onboarding_permission_screen_capture_title">화면 캡처</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">스크린샷, 녹화와 시각 분석을 사용할 때 Android가 매번 확인합니다.</string>
+
+    <!-- Provider selection summaries -->
+    <string name="provider_summary_chat_official">Chat Completions API · 공식 엔드포인트</string>
+    <string name="provider_summary_chat_compatible">Chat Completions API · 사용자 지정 엔드포인트</string>
+    <string name="provider_summary_responses_official">Responses API · 공식 엔드포인트</string>
+    <string name="provider_summary_responses_compatible">Responses API · 사용자 지정 엔드포인트</string>
+    <string name="provider_summary_built_in">기본 제공 공급자</string>
+    <string name="provider_summary_toolpkg">ToolPkg 공급자 · %1$s</string>
+    <string name="provider_section_openai_chat_completions">OpenAI Chat Completions</string>
+    <string name="provider_section_openai_responses">OpenAI Responses</string>
+    <string name="provider_section_other_built_in">기타 기본 제공 공급자</string>
+    <string name="provider_section_toolpkg">ToolPkg 공급자</string>
+
+    <!-- Package environment variable security -->
+    <string name="pkg_env_show_sensitive">민감한 값 표시</string>
+    <string name="pkg_env_hide_sensitive">민감한 값 숨기기</string>
+
+    <!-- OpenAI Web Search evidence -->
+    <string name="openai_web_search_evidence_title">OpenAI 웹 검색</string>
+    <string name="openai_web_search_mode_live">실시간</string>
+    <string name="openai_web_search_mode_indexed">색인됨</string>
+    <string name="openai_web_search_sources_count">출처(%1$d)</string>
+    <string name="openai_web_search_model">모델</string>
+    <string name="openai_web_search_evidence_mode">증거 모드</string>
+    <string name="openai_web_search_usage">사용량</string>
+    <string name="openai_web_search_usage_value">입력 %1$d, 캐시 %2$d, 출력 %3$d, 검색 호출 %4$d</string>
+    <string name="openai_web_search_actions_count">검색 작업(%1$d)</string>
+    <string name="openai_web_search_summary_counts">인용됨 %1$d · 전체 출처 %2$d · 미인용 %3$d · 작업 %4$d</string>
+    <plurals name="openai_web_search_show_more_sources">
+        <item quantity="other">출처 %1$d개 더 보기</item>
+    </plurals>
+    <string name="openai_web_search_diagnostics">진단 및 사용량</string>
+    <string name="openai_web_search_citations">인용 범위</string>
+    <string name="openai_web_search_structured_feed">구조화된 출처 · %1$s</string>
+    <string name="openai_web_search_no_web_evidence">검증 가능한 웹 증거가 반환되지 않았습니다.</string>
+    <string name="openai_web_search_source_summary">출처 요약</string>
+    <string name="openai_web_search_source_summary_value">인용됨 %1$d / 전체 %2$d / 미인용 %3$d / URL %4$d / 구조화 %5$d</string>
+    <string name="openai_web_search_domain_policy_state">도메인 정책 상태</string>
+    <string name="openai_web_search_total_elapsed">총 소요 시간</string>
+    <string name="openai_web_search_queue_wait">대기열 대기 시간</string>
+    <string name="openai_web_search_http_elapsed">HTTP 소요 시간</string>
+    <string name="openai_web_search_response_header_wait">응답 헤더 대기 시간</string>
+    <string name="openai_web_search_response_body_read">응답 본문 읽기 시간</string>
+    <string name="openai_web_search_parse_elapsed">파싱 소요 시간</string>
+    <string name="openai_web_search_callback_delivery">콜백 전달</string>
+    <string name="openai_web_search_submission_state">제출 상태</string>
+    <string name="openai_web_search_location_precision">위치 정밀도</string>
+    <string name="openai_web_search_provider_request_id">공급자 요청 ID</string>
+    <string name="openai_web_search_milliseconds">%1$d ms</string>
+    <string name="openai_web_search_action_title">%1$d. %2$s</string>
+    <string name="openai_web_search_failed">웹 검색 실패</string>
+    <string name="openai_web_search_parse_failed">검색 결과 카드 파싱 실패</string>
+    <string name="openai_web_search_error_code">오류 코드</string>
+    <string name="openai_web_search_schema_revision">스키마 개정</string>
+    <string name="openai_web_search_request_id_present">요청 ID 있음</string>
+    <string name="openai_web_search_invalid_field">잘못된 필드</string>
+    <string name="openai_web_search_not_present">없음</string>
+    <string name="openai_web_search_configuration_unavailable">OpenAI 웹 검색 설정을 사용할 수 없습니다.</string>
 </resources>

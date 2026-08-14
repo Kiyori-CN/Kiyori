@@ -5,8 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,7 +76,7 @@ fun MCPEnvironmentVariablesDialog(
                                 }
                                 IconButton(onClick = { envVarsList.remove(Pair(key, value)) }) {
                                     Icon(
-                                            imageVector = Icons.Default.Delete,
+                                            imageVector = Icons.Outlined.Delete,
                                             contentDescription = stringResource(R.string.delete)
                                     )
                                 }
@@ -121,7 +121,7 @@ fun MCPEnvironmentVariablesDialog(
                         },
                         modifier = Modifier.align(Alignment.End)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = stringResource(R.string.add))
+                    Icon(imageVector = Icons.Outlined.Add, contentDescription = stringResource(R.string.add))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(stringResource(R.string.mcp_add_var))
                 }

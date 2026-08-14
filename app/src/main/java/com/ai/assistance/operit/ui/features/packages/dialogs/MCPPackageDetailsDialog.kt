@@ -28,8 +28,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -271,7 +271,7 @@ private fun MCPPackageToolCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = Icons.Outlined.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -644,7 +644,7 @@ private fun MCPToolExecutionDialog(
                             Spacer(modifier = Modifier.width(6.dp))
                         } else {
                             Icon(
-                                imageVector = Icons.Default.PlayArrow,
+                                imageVector = Icons.Outlined.PlayArrow,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )

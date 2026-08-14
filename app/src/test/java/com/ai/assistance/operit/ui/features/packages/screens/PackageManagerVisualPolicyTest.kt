@@ -7,6 +7,19 @@ import org.junit.Test
 
 class PackageManagerVisualPolicyTest {
     @Test
+    fun `ai extensions tabs keep script first`() {
+        assertEquals(
+            listOf(
+                PackageTab.PACKAGES,
+                PackageTab.PLUGINS,
+                PackageTab.SKILLS,
+                PackageTab.MCP,
+            ),
+            aiExtensionsTabOrder(),
+        )
+    }
+
+    @Test
     fun `package manager tabs keep stable feature tones`() {
         assertEquals(
             mapOf(
@@ -34,8 +47,57 @@ class PackageManagerVisualPolicyTest {
     }
 
     @Test
-    fun `skill and mcp tabs keep their own page actions`() {
-        assertEquals(emptyList<PackageManagerTopBarAction>(), packageManagerTopBarActions(PackageTab.SKILLS))
-        assertEquals(emptyList<PackageManagerTopBarAction>(), packageManagerTopBarActions(PackageTab.MCP))
+    fun `script add menu keeps create before import`() {
+        assertEquals(
+            listOf(
+                ScriptAddMenuAction.CREATE_SCRIPT,
+                ScriptAddMenuAction.IMPORT_SCRIPT_PACKAGE,
+            ),
+            scriptAddMenuActions(),
+        )
+    }
+
+    @Test
+    fun `skill top bar keeps market add and refresh with conditional error first`() {
+        val normalActions =
+            listOf(
+                PackageManagerTopBarAction.MARKET,
+                PackageManagerTopBarAction.ADD,
+                PackageManagerTopBarAction.REFRESH,
+            )
+        val errorActions =
+            listOf(PackageManagerTopBarAction.ERROR) + normalActions
+
+        assertEquals(normalActions, packageManagerTopBarActions(PackageTab.SKILLS))
+        assertEquals(
+            errorActions,
+            packageManagerTopBarActions(
+                tab = PackageTab.SKILLS,
+                hasSkillLoadErrors = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `mcp top bar keeps start market add and refresh order`() {
+        assertEquals(
+            listOf(
+                PackageManagerTopBarAction.START,
+                PackageManagerTopBarAction.MARKET,
+                PackageManagerTopBarAction.ADD,
+                PackageManagerTopBarAction.REFRESH,
+            ),
+            packageManagerTopBarActions(PackageTab.MCP),
+        )
+    }
+
+    @Test
+    fun `skill import indicator covers every import tab`() {
+        assertEquals(0..2, skillImportTabIndices())
+    }
+
+    @Test
+    fun `mcp import indicator covers every import tab`() {
+        assertEquals(0..3, mcpImportTabIndices())
     }
 }

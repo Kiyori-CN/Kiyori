@@ -417,17 +417,6 @@
 
     <issue
         id="GradleDependency"
-        message="A newer version of androidx.appcompat:appcompat than 1.6.1 is available: 1.7.1"
-        errorLine1="appcompat = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="9"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
         message="A newer version of com.google.android.material:material than 1.10.0 is available: 1.14.0"
         errorLine1="material = &quot;1.10.0&quot;"
         errorLine2="           ~~~~~~~~">
@@ -8987,17 +8976,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                                                context.getString(R.string.mcp_regenerate_description_success),"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/MCPConfigScreen.kt"
-            line="1839"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                                context.getString("
         errorLine2="                                                ^">
         <location
@@ -10093,226 +10071,6 @@
             file="src/main/java/com/ai/assistance/operit/ui/features/packages/dialogs/PackageDetailsDialog.kt"
             line="381"
             column="78"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            snackbarHostState.showSnackbar(context.getString(R.string.no_filename))"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="314"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                            context.getString("
-        errorLine2="                                            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="337"
-            column="45"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    snackbarHostState.showSnackbar(message = context.getString(R.string.external_package_imported))"
-        errorLine2="                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="406"
-            column="78"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                snackbarHostState.showSnackbar(context.getString(R.string.current_tab_not_support_import))"
-        errorLine2="                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="426"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            context.getString("
-        errorLine2="                            ^">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="433"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                e.message ?: context.getString(R.string.unknown_error)"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="435"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                contentDescription = context.getString(R.string.error_occurred_simple)"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="551"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                PackageTab.PLUGINS -> context.getString(R.string.import_external_plugin)"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="604"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                PackageTab.PACKAGES -> context.getString(R.string.import_external_package)"
-        errorLine2="                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="605"
-            column="56"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                else -> context.getString(R.string.import_action)"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="606"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            context.getString(R.string.nav_group_plugins),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="664"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            context.getString(R.string.packages),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="696"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            context.getString(R.string.skills),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="728"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            context.getString(R.string.mcp),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="760"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    context.getString(R.string.plugin_enable_failed)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="827"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    context.getString(R.string.plugin_disable_failed)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="829"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    context.getString(R.string.package_import_failed)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="893"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                                    context.getString(R.string.package_remove_failed)"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="895"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    message = context.getString(R.string.package_conflict_delete_failed)"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="1050"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                message = context.getString(R.string.package_conflict_delete_success)"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ai/assistance/operit/ui/features/packages/screens/PackageManagerScreen.kt"
-            line="1081"
-            column="43"/>
     </issue>
 
     <issue
@@ -21610,34 +21368,12 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.quick_plugin_creator_pull_skill_update` appears to be unused"
-        errorLine1="    &lt;string name=&quot;quick_plugin_creator_pull_skill_update&quot;>拉取 Skill 更新&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1009"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.show_to_ai_short` appears to be unused"
         errorLine1="    &lt;string name=&quot;show_to_ai_short&quot;>AI&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="1015"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.package_manager` appears to be unused"
-        errorLine1="    &lt;string name=&quot;package_manager&quot;>包管理器&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="1016"
             column="13"/>
     </issue>
 
@@ -33930,17 +33666,6 @@
 
     <issue
         id="UnusedResources"
-        message="The resource `R.string.mcp_plugin_author` appears to be unused"
-        errorLine1="    &lt;string name=&quot;mcp_plugin_author&quot;>作者: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4821"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
         message="The resource `R.string.mcp_plugin_shared_by` appears to be unused"
         errorLine1="    &lt;string name=&quot;mcp_plugin_shared_by&quot;>分享者: %1$s&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -34057,17 +33782,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="4846"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.mcp_plugin_unknown_author` appears to be unused"
-        errorLine1="    &lt;string name=&quot;mcp_plugin_unknown_author&quot;>未知&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="4847"
             column="13"/>
     </issue>
 

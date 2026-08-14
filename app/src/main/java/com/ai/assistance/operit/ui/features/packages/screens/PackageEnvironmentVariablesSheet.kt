@@ -33,12 +33,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -373,7 +373,7 @@ private fun PackageEnvironmentVariablesHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         KiyoriSemanticIconBadge(
-            imageVector = Icons.Filled.Settings,
+            imageVector = Icons.Outlined.Settings,
             tone = KiyoriSemanticTone.CYAN,
             contentDescription = null,
             containerSize = 36.dp,
@@ -408,7 +408,7 @@ private fun PackageEnvironmentVariablesHeader(
         }
         IconButton(onClick = onClose) {
             Icon(
-                imageVector = Icons.Filled.Close,
+                imageVector = Icons.Outlined.Close,
                 contentDescription = stringResource(R.string.close),
             )
         }
@@ -433,7 +433,7 @@ private fun PackageEnvironmentSearchField(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                imageVector = Icons.Filled.Search,
+                imageVector = Icons.Outlined.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(17.dp),
@@ -465,7 +465,7 @@ private fun PackageEnvironmentSearchField(
             if (value.isNotBlank()) {
                 IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.clear),
                         modifier = Modifier.size(16.dp),
                     )
@@ -911,9 +911,9 @@ private fun PackageEnvironmentValueField(
                     Icon(
                         imageVector =
                             if (passwordVisible) {
-                                Icons.Filled.VisibilityOff
+                                Icons.Outlined.VisibilityOff
                             } else {
-                                Icons.Filled.Visibility
+                                Icons.Outlined.Visibility
                             },
                         contentDescription =
                             stringResource(

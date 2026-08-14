@@ -16,20 +16,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +68,8 @@ import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 
+internal fun mcpImportTabIndices(): IntRange = 0..3
+
 /** MCP配置屏幕 - 极简风格界面，专注于插件快速部署 */
 @SuppressLint("StateFlowValueCalledInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +79,7 @@ fun MCPConfigScreen(
     searchQuery: String = ""
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val activity = context as? androidx.activity.ComponentActivity
     val mcpLocalServer = remember { MCPLocalServer.getInstance(context) }
     val mcpRepository = remember { MCPRepository(context) }
@@ -607,7 +612,7 @@ fun MCPConfigScreen(
                             edgePadding = 8.dp,
                             divider = {},
                             indicator = {
-                                if (importTabIndex in 0..1) {
+                                if (importTabIndex in mcpImportTabIndices()) {
                                     TabRowDefaults.SecondaryIndicator(
                                         Modifier.tabIndicatorOffset(importTabIndex)
                                     )
@@ -740,7 +745,7 @@ fun MCPConfigScreen(
                                 )
                                 
                                 IconButton(onClick = { showFilePickerDialog = true }) {
-                                    Icon(Icons.Default.Folder, contentDescription = stringResource(R.string.select_file))
+                                    Icon(Icons.Outlined.Folder, contentDescription = stringResource(R.string.select_file))
                                 }
                             }
                         }
@@ -845,7 +850,7 @@ fun MCPConfigScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(stringResource(R.string.mcp_open_config_file), fontSize = 12.sp)
                             }
@@ -901,11 +906,11 @@ fun MCPConfigScreen(
                                             showImportDialog = false
                                         }.onFailure { error ->
                                             AppLogger.e("MCPConfigScreen", "配置导入失败: ${error.message}", error)
-                                            Toast.makeText(context, context.getString(R.string.mcp_merge_failed, error.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, context.getString(R.string.mcp_merge_failed, error.message ?: context.getString(R.string.unknown_error)), Toast.LENGTH_LONG).show()
                                         }
                                     } catch (e: Exception) {
                                         AppLogger.e("MCPConfigScreen", "配置导入异常", e)
-                                        Toast.makeText(context, context.getString(R.string.mcp_import_exception, e.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, context.getString(R.string.mcp_import_exception, e.message ?: context.getString(R.string.unknown_error)), Toast.LENGTH_LONG).show()
                                     } finally {
                                         isImporting = false
                                     }
@@ -1087,6 +1092,34 @@ fun MCPConfigScreen(
     val isFullscreenLoading =
         isToolsLoading || (visiblePluginIds.isEmpty() && (isAnyLoading || !initialAutoStartPerformed.value))
 
+    BindMcpTopBarActions(
+        isBusy = isAnyLoading || isFullscreenLoading,
+        isRefreshing = isRefreshing || isToolsLoading,
+        isStarting = isPluginLoading,
+        onStartClick = {
+            val lifecycleScope = activity?.lifecycleScope
+            if (lifecycleScope != null) {
+                pluginLoadingState.reset()
+                pluginLoadingState.show()
+                pluginLoadingState.initializeMCPServer(context, lifecycleScope)
+            } else {
+                Toast.makeText(
+                    context,
+                    resources.getString(R.string.plugin_loading_failed),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        },
+        onMarketClick = onNavigateToMCPMarket,
+        onImportClick = { showImportDialog = true },
+        onRefreshClick = {
+            scope.launch {
+                refreshMcpScreen()
+                toolRefreshTrigger++
+            }
+        },
+    )
+
     if (isFullscreenLoading) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -1097,76 +1130,19 @@ fun MCPConfigScreen(
         return
     }
     
-    CustomScaffold(
-            floatingActionButton = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // 启动插件按钮
-                    FloatingActionButton(
-                        onClick = {
-                            if (!isAnyLoading) {
-                                val lifecycleScope = activity?.lifecycleScope
-                                if (lifecycleScope != null) {
-                                    pluginLoadingState.reset() // 确保每次都重置状态
-                                    pluginLoadingState.show()
-                                    pluginLoadingState.initializeMCPServer(context, lifecycleScope)
-                                } else {
-                                    Toast.makeText(context, "Failed to start plugin loading", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.size(56.dp)
-                    ) {
-                        if (isAnyLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        } else {
-                            Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.start_plugin))
-                        }
-                    }
-
-                    // 市场按钮
-                    FloatingActionButton(
-                        onClick = onNavigateToMCPMarket,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(56.dp)
-                    ) {
-                        Icon(Icons.Default.Store, contentDescription = stringResource(R.string.mcp_market))
-                    }
-
-                    // 导入按钮
-                    FloatingActionButton(
-                        onClick = {
-                            showImportDialog = true
-                        },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(56.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.import_action))
-                    }
-                }
-            }
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-                // 主界面内容
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(
-                        start = 8.dp,
-                        top = 8.dp,
-                        end = 8.dp,
-                        bottom = 200.dp // 为悬浮按钮留出空间
-                    )
-                ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 主界面内容
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 8.dp,
+                    top = 8.dp,
+                    end = 8.dp,
+                    bottom = 24.dp,
+                ),
+        ) {
                     // 状态指示器
                     item {
                         val statusTone =
@@ -1372,9 +1348,7 @@ fun MCPConfigScreen(
                             }
                         }
                     }
-                }
-
-            }
+        }
     }
 }
 
@@ -1793,6 +1767,7 @@ fun RemoteServerEditDialog(
     onRegenerateDescription: suspend (MCPLocalServer.PluginMetadata, String) -> Result<String>
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var name by remember(server.id) { mutableStateOf(server.name) }
     var description by remember(server.id) { mutableStateOf(server.description) }
@@ -1839,16 +1814,16 @@ fun RemoteServerEditDialog(
                                             description = generatedDescription
                                             Toast.makeText(
                                                 context,
-                                                context.getString(R.string.mcp_regenerate_description_success),
+                                                resources.getString(R.string.mcp_regenerate_description_success),
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }
                                         .onFailure { error ->
                                             Toast.makeText(
                                                 context,
-                                                context.getString(
+                                                resources.getString(
                                                     R.string.mcp_regenerate_description_failed,
-                                                    error.message ?: context.getString(R.string.unknown_error)
+                                                    error.message ?: resources.getString(R.string.unknown_error)
                                                 ),
                                                 Toast.LENGTH_LONG
                                             ).show()
@@ -1867,7 +1842,7 @@ fun RemoteServerEditDialog(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.AutoAwesome,
+                                imageVector = Icons.Outlined.AutoAwesome,
                                 contentDescription = null
                             )
                         }
@@ -2050,7 +2025,7 @@ private fun RemoteHeadersEditor(
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Icons.Outlined.Delete,
                             contentDescription = stringResource(R.string.mcp_remote_remove_header)
                         )
                     }
@@ -2064,7 +2039,7 @@ private fun RemoteHeadersEditor(
             }
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.Outlined.Add,
                 contentDescription = null
             )
             Spacer(modifier = Modifier.width(6.dp))

@@ -16,7 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -230,7 +230,7 @@ fun RepoMarketPublishScreen(
                     minLines = 3,
                     maxLines = 8,
                     leadingIcon = {
-                        Icon(Icons.Default.Terminal, contentDescription = stringResource(R.string.install_config))
+                        Icon(Icons.Outlined.Terminal, contentDescription = stringResource(R.string.install_config))
                     },
                     supportingText = { Text(stringResource(R.string.install_config_optional_description)) }
                 )

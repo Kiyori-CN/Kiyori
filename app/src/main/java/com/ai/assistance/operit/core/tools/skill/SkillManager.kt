@@ -43,7 +43,7 @@ class SkillManager private constructor(private val context: Context) {
             getSkillsRootDir()
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error getting skills directory", e)
-            skillLoadErrors[context.getString(R.string.skills)] =
+            skillLoadErrors[context.getString(R.string.ai_extensions_tab_skill)] =
                 context.getString(R.string.skill_error_cannot_access_dir, e.message ?: "")
             return
         }

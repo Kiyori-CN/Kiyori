@@ -42,7 +42,7 @@ sealed class NavItem(val route: String, val titleResId: Int, val icon: ImageVect
                         R.string.chat_history_settings,
                         Icons.Default.History
                 )
-        object Packages : NavItem("packages", R.string.nav_packages, Icons.Default.Extension)
+        object Packages : NavItem("packages", R.string.nav_ai_extensions, Icons.Default.Extension)
         object MemoryBase :
                 NavItem("memory_base", R.string.nav_memory_base, Icons.Default.History)
         object Terminal : NavItem("terminal", R.string.terminal, Icons.Default.Terminal)

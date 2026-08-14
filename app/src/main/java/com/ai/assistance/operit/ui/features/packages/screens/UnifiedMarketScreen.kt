@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -36,18 +35,21 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -797,26 +799,26 @@ private fun MarketMinePane(
                 onClick = {
                     if (authState.isLoggedIn) onManage() else showLoginDialog = true
                 },
-                icon = Icons.Default.Settings
+                icon = Icons.Outlined.Settings
             )
             MarketMineActionCard(
                 title = stringResource(R.string.market_section_publish),
                 onClick = {
                     if (authState.isLoggedIn) showPublishDialog = true else showLoginDialog = true
                 },
-                icon = Icons.Default.Add
+                icon = Icons.Outlined.Add
             )
             MarketMineActionCard(
                 title = stringResource(R.string.market_notifications_title),
                 onClick = {
                     if (authState.isLoggedIn) onOpenNotifications() else showLoginDialog = true
                 },
-                icon = Icons.Default.Notifications
+                icon = Icons.Outlined.Notifications
             )
             MarketMineActionCard(
                 title = stringResource(R.string.market_agreement_entry),
                 onClick = onOpenAgreement,
-                icon = Icons.Default.Description
+                icon = Icons.Outlined.Description
             )
         }
     }
@@ -980,7 +982,7 @@ private fun MarketAccountCard(
 
                 OutlinedButton(onClick = onLogout) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                        imageVector = Icons.AutoMirrored.Outlined.Logout,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1019,7 +1021,7 @@ private fun MarketAccountCard(
 
                 Button(onClick = onLogin) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Login,
+                        imageVector = Icons.AutoMirrored.Outlined.Login,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )

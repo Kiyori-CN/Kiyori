@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -127,7 +127,7 @@ fun MCPServerConfigContent(
             )
         ) {
             Icon(
-                imageVector = Icons.Default.Save,
+                imageVector = Icons.Outlined.Save,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )

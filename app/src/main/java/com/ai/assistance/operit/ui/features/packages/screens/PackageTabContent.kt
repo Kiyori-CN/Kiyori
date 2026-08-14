@@ -15,12 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoMode
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,16 +27,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.ToolPackage
-import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.ai.assistance.operit.ui.features.packages.components.EmptyState
-import com.kiyori.design.theme.KiyoriSemanticTone
-import com.kiyori.design.theme.resolveColors
 
 private data class PackageListEntry(
     val packageName: String,
@@ -57,7 +48,6 @@ fun PackageTabContent(
     enabledPackageNames: List<String>,
     isLoading: Boolean,
     isSearchActive: Boolean,
-    onQuickPluginCreatorClick: () -> Unit,
     onPackageClick: (String) -> Unit,
     onTogglePackage: (String, Boolean) -> Unit
 ) {
@@ -114,12 +104,6 @@ fun PackageTabContent(
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
                 ) {
-                    if (!isSearchActive) {
-                        item(key = "quick_plugin_creator_entry") {
-                            QuickPluginCreatorEntry(onClick = onQuickPluginCreatorClick)
-                        }
-                    }
-
                     if (packages.isEmpty()) {
                         item(key = "empty_packages_state") {
                             EmptyState(
@@ -170,62 +154,6 @@ fun PackageTabContent(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        }
-    }
-}
-
-@Composable
-private fun QuickPluginCreatorEntry(
-    onClick: () -> Unit
-) {
-    val colors = KiyoriSemanticTone.PURPLE.resolveColors()
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp),
-        onClick = onClick,
-        colors =
-            CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            KiyoriSemanticIconBadge(
-                imageVector = Icons.Default.AutoMode,
-                tone = KiyoriSemanticTone.PURPLE,
-                contentDescription = null,
-                containerSize = 46.dp,
-                iconSize = 24.dp,
-                shape = RoundedCornerShape(16.dp),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.quick_plugin_creator_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.quick_plugin_creator_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = colors.icon
-            )
         }
     }
 }

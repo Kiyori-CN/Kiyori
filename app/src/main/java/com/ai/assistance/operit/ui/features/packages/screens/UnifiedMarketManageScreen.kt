@@ -16,10 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -440,7 +440,7 @@ private fun ManagedEntryCard(
             if (canManageEntry && canOpenPublicEntry) {
                 MarketManageSecondaryActionButton(
                     label = stringResource(R.string.edit),
-                    icon = Icons.Default.Edit,
+                    icon = Icons.Outlined.Edit,
                     onClick = {
                         viewModel.openEntryDetail(entry) { fullEntry ->
                             when (val type = fullEntry.marketStatsType()) {
@@ -457,7 +457,7 @@ private fun ManagedEntryCard(
             if (canOpenPublicEntry) {
                 MarketManageSecondaryActionButton(
                     label = stringResource(R.string.market_publish_new_version),
-                    icon = Icons.Default.NewReleases,
+                    icon = Icons.Outlined.NewReleases,
                     onClick = {
                         viewModel.openEntryDetail(entry) { fullEntry ->
                             when (val type = fullEntry.marketStatsType()) {
@@ -480,14 +480,14 @@ private fun ManagedEntryCard(
             if (canManageEntry && entry.isOpen()) {
                 MarketManageDangerActionButton(
                     label = stringResource(R.string.remove),
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     onClick = { onDelete(entry) }
                 )
             }
             if (canSubmitRevision) {
                 MarketManagePrimaryActionButton(
                     label = stringResource(R.string.market_manage_submit_revision),
-                    icon = Icons.Default.NewReleases,
+                    icon = Icons.Outlined.NewReleases,
                     onClick = { onRequestRevision(entry) }
                 )
             }

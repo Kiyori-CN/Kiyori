@@ -27,19 +27,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,7 +42,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -83,6 +77,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+internal fun skillImportTabIndices(): IntRange = 0..2
 
 @SuppressLint("LocalContextGetResourceValueCall")
 @Composable
@@ -164,6 +160,21 @@ fun SkillConfigScreen(
         refreshSkills()
     }
 
+    BindSkillTopBarActions(
+        isBusy = isLoading || isImporting,
+        isRefreshing = isLoading,
+        hasLoadErrors = skillLoadErrors.isNotEmpty(),
+        onLoadErrorsClick = { showSkillLoadErrorsDialog = true },
+        onMarketClick = onNavigateToSkillMarket,
+        onImportClick = { showImportDialog = true },
+        onRefreshClick = {
+            scope.launch {
+                refreshSkills()
+                snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_refreshed))
+            }
+        },
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -181,33 +192,11 @@ fun SkillConfigScreen(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.skills),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        IconButton(
-                            modifier = Modifier.size(24.dp),
-                            onClick = {
-                                scope.launch {
-                                    refreshSkills()
-                                    snackbarHostState.showSnackbar(context.getString(R.string.skillmgr_refreshed))
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Refresh,
-                                contentDescription = stringResource(R.string.refresh),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = stringResource(R.string.ai_extensions_tab_skill),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
 
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -263,7 +252,7 @@ fun SkillConfigScreen(
                     state = lazyListState,
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 120.dp)
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     if (orderedSkills.isEmpty()) {
                         item(key = "empty_skill_search_state") {
@@ -343,48 +332,6 @@ fun SkillConfigScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            if (skillLoadErrors.isNotEmpty()) {
-                SmallFloatingActionButton(
-                    onClick = { showSkillLoadErrorsDialog = true },
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Error,
-                        contentDescription = stringResource(R.string.error_occurred_simple)
-                    )
-                }
-            }
-
-            FloatingActionButton(
-                onClick = onNavigateToSkillMarket,
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Store,
-                    contentDescription = stringResource(R.string.screen_title_skill_market)
-                )
-            }
-
-            FloatingActionButton(
-                onClick = { showImportDialog = true }
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = stringResource(R.string.import_action)
-                )
-            }
-        }
-
         if (skills.isEmpty() && (isLoading || isImporting)) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -411,7 +358,7 @@ fun SkillConfigScreen(
                         edgePadding = 8.dp,
                         divider = {},
                         indicator = {
-                            if (importTabIndex in 0..1) {
+                            if (importTabIndex in skillImportTabIndices()) {
                                 TabRowDefaults.SecondaryIndicator(
                                     Modifier.tabIndicatorOffset(importTabIndex)
                                 )
@@ -494,7 +441,7 @@ fun SkillConfigScreen(
                                     onClick = { zipPicker.launch("application/zip") }
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Folder,
+                                        imageVector = Icons.Outlined.Folder,
                                         contentDescription = stringResource(R.string.select_file)
                                     )
                                 }
@@ -548,7 +495,7 @@ fun SkillConfigScreen(
                                     onClick = { attachmentPicker.launch(arrayOf("*/*")) }
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.AttachFile,
+                                        imageVector = Icons.Outlined.AttachFile,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -585,7 +532,7 @@ fun SkillConfigScreen(
                                                 }
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Filled.Close,
+                                                    imageVector = Icons.Outlined.Close,
                                                     contentDescription = stringResource(R.string.remove_attachment),
                                                     modifier = Modifier.size(18.dp)
                                                 )

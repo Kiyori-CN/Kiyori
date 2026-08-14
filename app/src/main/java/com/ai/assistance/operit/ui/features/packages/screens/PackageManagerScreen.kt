@@ -30,6 +30,7 @@ import com.ai.assistance.operit.ui.components.CustomScaffold
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,8 +49,8 @@ import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.ui.components.ErrorDialog
 import com.ai.assistance.operit.ui.features.packages.components.EmptyState
 import com.ai.assistance.operit.ui.features.packages.components.PackageTab
+import com.ai.assistance.operit.ui.features.packages.dialogs.CreateScriptDialog
 import com.ai.assistance.operit.ui.features.packages.dialogs.PackageDetailsDialog
-import com.ai.assistance.operit.ui.features.packages.dialogs.QuickPluginCreatorDialog
 import com.ai.assistance.operit.ui.features.packages.dialogs.ScriptExecutionDialog
 import com.ai.assistance.operit.ui.features.packages.lists.PackagesList
 import com.ai.assistance.operit.ui.features.packages.market.MarketInstallStateStore
@@ -86,6 +87,14 @@ private data class PackageManagerSnapshot(
     val packageLoadErrorInfos: List<PackageManager.PackageLoadErrorInfo>
 )
 
+internal fun aiExtensionsTabOrder(): List<PackageTab> =
+    listOf(
+        PackageTab.PACKAGES,
+        PackageTab.PLUGINS,
+        PackageTab.SKILLS,
+        PackageTab.MCP,
+    )
+
 private suspend fun loadPackageManagerSnapshot(
     context: android.content.Context,
     packageManager: PackageManager,
@@ -105,31 +114,6 @@ private suspend fun loadPackageManagerSnapshot(
         )
     }
 
-private suspend fun runQuickPluginCreatorSetupAndPublishResult(
-    context: android.content.Context,
-    onRunningChange: (Boolean) -> Unit,
-    onResult: (ToolResult?) -> Unit,
-    onMessage: suspend (String) -> Unit
-) {
-    onRunningChange(true)
-    onResult(null)
-    val result =
-        withContext(Dispatchers.IO) {
-            runQuickPluginCreatorSetup(
-                context = context
-            )
-        }
-    onResult(result)
-    onRunningChange(false)
-    onMessage(
-        if (result.success) {
-            result.result.toString()
-        } else {
-            result.error ?: context.getString(R.string.quick_plugin_creator_setup_failed)
-        }
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PackageManagerScreen(
@@ -140,6 +124,7 @@ fun PackageManagerScreen(
     onOpenToolPkgPluginConfig: (String, String, String, Boolean) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val toolHandler = remember { AIToolHandler.getInstance(context) }
     val packageManager = remember {
         PackageManager.getInstance(context, toolHandler)
@@ -177,7 +162,7 @@ fun PackageManagerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Tab selection state
-    var selectedTab by rememberSaveable { mutableStateOf(PackageTab.PLUGINS) }
+    var selectedTab by rememberSaveable { mutableStateOf(PackageTab.PACKAGES) }
     var pluginSearchInput by rememberSaveable { mutableStateOf("") }
     var pluginSearchQuery by rememberSaveable { mutableStateOf("") }
     var filteredPluginContainers by remember {
@@ -207,10 +192,8 @@ fun PackageManagerScreen(
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
     var pluginOrder by remember { mutableStateOf<List<String>>(emptyList()) }
     var skillOrder by remember { mutableStateOf<List<String>>(emptyList()) }
-    var showQuickPluginCreatorDialog by remember { mutableStateOf(false) }
-    var quickPluginRequirement by rememberSaveable { mutableStateOf("") }
-    var quickPluginSetupRunning by remember { mutableStateOf(false) }
-    var quickPluginSetupResult by remember { mutableStateOf<ToolResult?>(null) }
+    var showCreateScriptDialog by remember { mutableStateOf(false) }
+    var createScriptRequirement by rememberSaveable { mutableStateOf("") }
     val packageSnapshotMutex = remember { Mutex() }
     val artifactCatalogRevision by MarketInstallStateStore.artifactCatalogRevision.collectAsState()
     var observedArtifactCatalogRevision by remember {
@@ -242,7 +225,7 @@ fun PackageManagerScreen(
                 )
                 if (showSuccessMessage) {
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.package_manager_refresh_success)
+                        resources.getString(R.string.package_manager_refresh_success)
                     )
                 }
                 true
@@ -250,9 +233,9 @@ fun PackageManagerScreen(
                 AppLogger.e("PackageManagerScreen", "Failed to refresh package snapshot", e)
                 if (showFailureMessage) {
                     snackbarHostState.showSnackbar(
-                        context.getString(
+                        resources.getString(
                             R.string.package_manager_refresh_failed,
-                            e.message ?: context.getString(R.string.unknown_error),
+                            e.message ?: resources.getString(R.string.unknown_error),
                         )
                     )
                 }
@@ -402,7 +385,7 @@ fun PackageManagerScreen(
                             }
 
                         if (fileName == null) {
-                            snackbarHostState.showSnackbar(context.getString(R.string.no_filename))
+                            snackbarHostState.showSnackbar(resources.getString(R.string.no_filename))
                             return@launch
                         }
 
@@ -425,7 +408,7 @@ fun PackageManagerScreen(
                                 if (!supported) {
                                     snackbarHostState.showSnackbar(
                                         message =
-                                            context.getString(
+                                            resources.getString(
                                                 if (selectedTab == PackageTab.PLUGINS) {
                                                     R.string.plugin_toolpkg_only
                                                 } else {
@@ -496,7 +479,7 @@ fun PackageManagerScreen(
                                 if (importSucceeded) {
                                     snackbarHostState.showSnackbar(
                                         message =
-                                            context.getString(
+                                            resources.getString(
                                                 if (selectedTab == PackageTab.PLUGINS) {
                                                     R.string.external_plugin_imported
                                                 } else {
@@ -523,16 +506,16 @@ fun PackageManagerScreen(
                                 }
                             }
                             else -> {
-                                snackbarHostState.showSnackbar(context.getString(R.string.current_tab_not_support_import))
+                                snackbarHostState.showSnackbar(resources.getString(R.string.current_tab_not_support_import))
                             }
                         }
                     } catch (e: Exception) {
                         isLoading = false
                         AppLogger.e("PackageManagerScreen", "Failed to import file", e)
                         importErrorMessage =
-                            context.getString(
+                            resources.getString(
                                 R.string.import_failed,
-                                e.message ?: context.getString(R.string.unknown_error)
+                                e.message ?: resources.getString(R.string.unknown_error)
                             ) + "\n\n" + e.stackTraceToString()
                     }
                 }
@@ -587,7 +570,7 @@ fun PackageManagerScreen(
                 } else {
                     requestedEnvironmentPackageName = null
                     snackbarHostState.showSnackbar(
-                        context.getString(
+                        resources.getString(
                             R.string.openai_web_search_configuration_unavailable
                         )
                     )
@@ -671,7 +654,10 @@ fun PackageManagerScreen(
                 }
             )
         },
-        onAddClick = { packageFilePicker.launch("*/*") },
+        onImportClick = { packageFilePicker.launch("*/*") },
+        onCreateScriptClick = {
+            showCreateScriptDialog = true
+        },
         onRefreshClick = {
             scope.launch {
                 refreshPackageManagerSnapshot(
@@ -682,6 +668,8 @@ fun PackageManagerScreen(
         },
     )
     val selectedTabColors = packageManagerTabTone(selectedTab).resolveColors()
+    val tabOrder = aiExtensionsTabOrder()
+    val selectedTabIndex = tabOrder.indexOf(selectedTab)
 
     CustomScaffold(
         snackbarHost = {
@@ -709,7 +697,7 @@ fun PackageManagerScreen(
             )
 
             PrimaryTabRow(
-                selectedTabIndex = selectedTab.ordinal,
+                selectedTabIndex = selectedTabIndex,
                 modifier = Modifier.fillMaxWidth(),
                 divider = {
                     HorizontalDivider(
@@ -718,15 +706,29 @@ fun PackageManagerScreen(
                     )
                 },
                 indicator = {
-                    if (selectedTab.ordinal in PackageTab.entries.indices) {
+                    if (selectedTabIndex in tabOrder.indices) {
                         TabRowDefaults.PrimaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(selectedTab.ordinal),
+                            modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
                             height = 2.dp,
                             color = selectedTabColors.icon
                         )
                     }
                 }
             ) {
+                // 脚本标签
+                Tab(
+                    selected = selectedTab == PackageTab.PACKAGES,
+                    onClick = { selectedTab = PackageTab.PACKAGES },
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    PackageManagerTabLabel(
+                        tab = PackageTab.PACKAGES,
+                        title = resources.getString(R.string.ai_extensions_tab_scripts),
+                        icon = Icons.Default.Extension,
+                        selected = selectedTab == PackageTab.PACKAGES,
+                    )
+                }
+
                 // 插件标签
                 Tab(
                     selected = selectedTab == PackageTab.PLUGINS,
@@ -735,27 +737,13 @@ fun PackageManagerScreen(
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.PLUGINS,
-                        title = context.getString(R.string.nav_group_plugins),
+                        title = resources.getString(R.string.nav_group_plugins),
                         icon = Icons.Default.Apps,
                         selected = selectedTab == PackageTab.PLUGINS,
                     )
                 }
 
-                // 包管理标签
-                Tab(
-                    selected = selectedTab == PackageTab.PACKAGES,
-                    onClick = { selectedTab = PackageTab.PACKAGES },
-                    modifier = Modifier.height(48.dp)
-                ) {
-                    PackageManagerTabLabel(
-                        tab = PackageTab.PACKAGES,
-                        title = context.getString(R.string.script_packages),
-                        icon = Icons.Default.Extension,
-                        selected = selectedTab == PackageTab.PACKAGES,
-                    )
-                }
-
-                // Skills标签
+                // Skill 标签
                 Tab(
                     selected = selectedTab == PackageTab.SKILLS,
                     onClick = { selectedTab = PackageTab.SKILLS },
@@ -763,7 +751,7 @@ fun PackageManagerScreen(
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.SKILLS,
-                        title = context.getString(R.string.skills),
+                        title = resources.getString(R.string.ai_extensions_tab_skill),
                         icon = Icons.Default.Build,
                         selected = selectedTab == PackageTab.SKILLS,
                     )
@@ -777,7 +765,7 @@ fun PackageManagerScreen(
                 ) {
                     PackageManagerTabLabel(
                         tab = PackageTab.MCP,
-                        title = context.getString(R.string.mcp),
+                        title = resources.getString(R.string.mcp),
                         icon = Icons.Default.Cloud,
                         selected = selectedTab == PackageTab.MCP,
                     )
@@ -848,9 +836,9 @@ fun PackageManagerScreen(
                                         snackbarHostState.showSnackbar(
                                             message =
                                                 if (isChecked) {
-                                                    context.getString(R.string.plugin_enable_failed)
+                                                    resources.getString(R.string.plugin_enable_failed)
                                                 } else {
-                                                    context.getString(R.string.plugin_disable_failed)
+                                                    resources.getString(R.string.plugin_disable_failed)
                                                 }
                                         )
                                     }
@@ -872,9 +860,6 @@ fun PackageManagerScreen(
                             enabledPackageNames = visibleImportedPackages.value,
                             isLoading = isLoading,
                             isSearchActive = packageSearchQuery.isNotBlank(),
-                            onQuickPluginCreatorClick = {
-                                showQuickPluginCreatorDialog = true
-                            },
                             onPackageClick = { packageName ->
                                 selectedPackage = packageName
                                 showDetails = true
@@ -915,9 +900,9 @@ fun PackageManagerScreen(
                                         snackbarHostState.showSnackbar(
                                             message =
                                                 if (isChecked) {
-                                                    context.getString(R.string.package_import_failed)
+                                                    resources.getString(R.string.package_import_failed)
                                                 } else {
-                                                    context.getString(R.string.package_remove_failed)
+                                                    resources.getString(R.string.package_remove_failed)
                                                 }
                                         )
                                     }
@@ -1062,7 +1047,7 @@ fun PackageManagerScreen(
                                 }
                             if (!deleted) {
                                 snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.package_conflict_delete_failed)
+                                    message = resources.getString(R.string.package_conflict_delete_failed)
                                 )
                                 return@launch
                             }
@@ -1078,7 +1063,7 @@ fun PackageManagerScreen(
                             }
                             if (refreshed) {
                                 snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.package_conflict_delete_success)
+                                    message = resources.getString(R.string.package_conflict_delete_success)
                                 )
                             }
                         }
@@ -1094,36 +1079,22 @@ fun PackageManagerScreen(
                 )
             }
 
-            if (showQuickPluginCreatorDialog) {
-                QuickPluginCreatorDialog(
-                    requirement = quickPluginRequirement,
-                    onRequirementChange = { quickPluginRequirement = it },
-                    setupRunning = quickPluginSetupRunning,
-                    setupResult = quickPluginSetupResult,
-                    onRunSetup = {
-                        scope.launch {
-                            runQuickPluginCreatorSetupAndPublishResult(
-                                context = context,
-                                onRunningChange = { quickPluginSetupRunning = it },
-                                onResult = { quickPluginSetupResult = it },
-                                onMessage = { message ->
-                                    snackbarHostState.showSnackbar(message)
-                                }
-                            )
-                        }
-                    },
-                    onDismiss = { showQuickPluginCreatorDialog = false },
+            if (showCreateScriptDialog) {
+                CreateScriptDialog(
+                    requirement = createScriptRequirement,
+                    onRequirementChange = { createScriptRequirement = it },
+                    onDismiss = { showCreateScriptDialog = false },
                     onConfirm = {
-                        val requirement = quickPluginRequirement.trim()
+                        val requirement = createScriptRequirement.trim()
                         if (requirement.isBlank()) {
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    context.getString(R.string.quick_plugin_creator_requirement_empty)
+                                    resources.getString(R.string.create_script_requirement_empty)
                                 )
                             }
                         } else {
-                            showQuickPluginCreatorDialog = false
-                            quickPluginRequirement = ""
+                            showCreateScriptDialog = false
+                            createScriptRequirement = ""
                             onStartPluginCreation(PluginCreationIntent.Fresh(requirement))
                         }
                     }

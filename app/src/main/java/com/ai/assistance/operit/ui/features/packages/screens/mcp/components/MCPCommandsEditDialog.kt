@@ -7,10 +7,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -78,7 +79,7 @@ fun MCPCommandsEditDialog(
 
                     IconButton(onClick = onDismissRequest, modifier = Modifier.size(32.dp)) {
                         Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.mcp_close),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -232,7 +233,7 @@ fun MCPCommandsEditDialog(
                                     )
                     ) {
                         Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Icons.Outlined.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                         )

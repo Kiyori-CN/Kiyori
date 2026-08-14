@@ -2,6 +2,66 @@
 For_Agent: 对项目大规模动工前按本规范协作
 ---
 
+## 2026-08-14 扩展命名与脚本创建入口整理
+
+状态：最新“扩展”统一命名与 Skill/MCP 顶栏迁移已完成本地实现、定向验证、完整 Lint、
+正式开发门禁、Debug APK 构建和独立静态产物审计；目标设备视觉与交互保持
+`verification_pending`。
+
+Kiyori 尚未发布，本轮直接把 AI 左抽屉与宿主顶栏的“包管理”统一改为“扩展”，固定按
+“脚本 / 插件 / Skill / MCP”显示四个标签，并默认打开“脚本”。只调整用户可见信息架构与
+页面级操作位置，不改变内部 `packages` 路由、`PackageManager` 类型、ToolPkg、Skill、MCP
+的协议、存储、权限和运行时。
+
+实施与验收门禁：
+
+1. [DONE] 左抽屉、宿主顶栏和市场 Skill 安装说明统一显示“扩展”，七个语言目录均移除名称中的 AI 限定
+2. [DONE] 四个标签统一按“脚本 / 插件 / Skill / MCP”显示，默认打开“脚本”，技术语境仍保留“脚本包”
+3. [DONE] 删除脚本列表顶部的“快速创作”宣传卡片及零引用说明资源
+4. [DONE] 脚本标签右上角加号改为“创建脚本 / 导入脚本包”两项菜单；创建脚本直接进入需求创作流程，插件加号继续直接导入
+5. [DONE] 主顶栏及 Skill/MCP 子页面的普通操作统一使用细线图标，状态图标继续保留明确语义
+6. [DONE] Skill 页面级动作迁入顶栏，固定为条件错误入口及“市场 / 添加 / 刷新”；删除右下角 FAB 和卡片内重复刷新
+7. [DONE] MCP 页面级动作迁入顶栏，固定为“启动 / 市场 / 添加 / 刷新”；删除右下角 FAB 与 `200dp` 遮挡预留
+8. [DONE] Skill/MCP 继续持有各自弹窗、加载状态和执行回调，顶栏只投影当前活动标签动作；加载时禁用冲突入口并只在所属动作显示进度
+9. [DONE] 修复 Skill 三种导入方式与 MCP 四种导入方式的标签指示器范围
+10. [DONE] 全面审查并修正 Skill/MCP 文案、英文硬编码、零引用旧资源和旧快速配置流程
+11. [DONE] 同步七个语言目录、README、CONTEXT、市场 Skill 安装说明与设备验收文档
+12. [DONE] 重跑定向 JVM、资源解析、Kotlin 编译、formal readiness、完整 Lint 与差异审计
+13. [DONE] 串行重建并独立核验最终 Debug APK
+
+本地验证证据：
+
+- `:app:lintDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 8m 57s`，最终
+  `0 errors / 12 warnings`；剩余项仅为 `GradleDependency 4`、`NewerVersionAvailable 3`、
+  `UseKtx 3` 和 `UseTomlInstead 2`
+- `MissingTranslation`、`LocalContextGetResourceValueCall`、`MissingQuantity`、
+  `UnusedQuantity`、`UnusedResources` 和 `LintBaselineFixed` 均为 `0`；未扩大 baseline，
+  未新增 suppression，未禁用检查
+- 三处保留的 `UseKtx` 均需同步 `commit()` 的布尔返回值证明兼容性证据已持久化；KTX
+  `edit(commit = true)` 不返回该结果，因此不做会丢失验证语义的机械改写
+- `PackageManagerVisualPolicyTest` 为 `BUILD SUCCESSFUL in 27s`，`159` 个任务中
+  `4` 个执行、`155` 个为最新状态；标签、加号菜单、Skill/MCP 顶栏动作和导入指示器策略通过
+- formal readiness 为 `PASS`；七个语言目录的 `50` 项相关资源唯一、类型和占位符合同一致；
+  旧“AI 扩展”前缀、旧快速创作流程、Skill/MCP 页面级 FAB 反向检查均为 `0`
+- `git diff --check` 通过；Git 输出的 CRLF/LF 提示是现有换行配置提示，不是差异错误
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 3s`，共
+  `238` 个任务，其中 `28` 个执行、`210` 个为最新状态；唯一 Debug launcher 和 Player runtime
+  packaging 门禁均通过
+- 最终 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于
+  `2026-08-14 12:42:32 +08:00`，大小 `472502409` bytes，SHA-256
+  `0B2E000BAD7F291FE0FA6FB84A20DBE47C43D5A226D488195890DE23BE6E9115`
+- APK 为 `com.kiyori`、`versionCode 45`、`versionName 0.1.0`、min/target/compile SDK
+  `26 / 34 / 37`、`debuggable=true`，唯一 launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`
+- APK 仅含 `arm64-v8a`；`51` 个 native `.so` basename 唯一，加上
+  `assets/operit_shell_exec` 共 `52/52` 个 `ELF64 AArch64`，逐项审计确认所有
+  `PT_LOAD >= 0x4000`，全局最小对齐为 `0x4000`
+- APK 使用 Android Debug 证书 V2 单 signer 签名，证书 SHA-256 为
+  `e72ad950d07adbedfb9c909c48d922fddb3560677012da79b686a127867ae902`；
+  `zipalign -c -P 16 -v 4` 为 `Verification successful`
+- 未提交、未推送、未安装 APK，未运行 ADB、模拟器或真机；目标设备上的视觉、文案、图标、
+  菜单、加载态和交互结果仍需现场验收
+
 ## 2026-08-12 OpenAI 官方联网搜索插件化接入
 
 ### 2026-08-13 revision 7 正式实施

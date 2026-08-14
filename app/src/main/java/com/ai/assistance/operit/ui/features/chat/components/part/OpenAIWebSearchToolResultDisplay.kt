@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -174,6 +175,7 @@ internal fun OpenAIWebSearchToolResultDisplay(
                         evidence.allSources.take(state.visibleSourceCount),
                 )
                 if (state.visibleSourceCount < evidence.allSources.size) {
+                    val hiddenSourceCount = evidence.allSources.size - state.visibleSourceCount
                     TextButton(
                         onClick = {
                             state =
@@ -186,9 +188,10 @@ internal fun OpenAIWebSearchToolResultDisplay(
                         modifier = Modifier.align(Alignment.End),
                     ) {
                         Text(
-                            stringResource(
-                                R.string.openai_web_search_show_more_sources,
-                                evidence.allSources.size - state.visibleSourceCount,
+                            pluralStringResource(
+                                R.plurals.openai_web_search_show_more_sources,
+                                hiddenSourceCount,
+                                hiddenSourceCount,
                             )
                         )
                     }

@@ -16,10 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +71,7 @@ fun MCPServerDetailsHeader(
             var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
             var imageLoadJob by remember { mutableStateOf<Job?>(null) }
             val coroutineScope = rememberCoroutineScope()
+            val unknownAuthor = stringResource(R.string.mcp_plugin_unknown_author)
 
             LaunchedEffect(server.logoUrl) {
                 if (!server.logoUrl.isNullOrBlank()) {
@@ -91,7 +90,7 @@ fun MCPServerDetailsHeader(
                 if (imageBitmap != null) {
                     Image(
                         bitmap = imageBitmap!!.asImageBitmap(),
-                        contentDescription = "${server.name} logo",
+                        contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.size(28.dp).padding(4.dp)
                     )
@@ -133,9 +132,9 @@ fun MCPServerDetailsHeader(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (server.author.isNotBlank() && server.author != "Unknown") {
+                            if (server.author.isNotBlank() && server.author != unknownAuthor && server.author != "Unknown") {
                                 Text(
-                                    text = "by ${server.author}",
+                                    text = stringResource(R.string.mcp_plugin_author, server.author),
                                     style = MaterialTheme.typography.labelSmall, // 更小的文本
                                     color = MaterialTheme.colorScheme.primary,
                                     maxLines = 1,
@@ -146,7 +145,7 @@ fun MCPServerDetailsHeader(
 
                             // 版本信息放在作者旁边
                             if (server.version.isNotBlank()) {
-                                if (server.author.isNotBlank() && server.author != "Unknown") {
+                                if (server.author.isNotBlank() && server.author != unknownAuthor && server.author != "Unknown") {
                                     Text(
                                         text = " · ",
                                         style = MaterialTheme.typography.labelSmall, // 更小的文本
@@ -170,7 +169,7 @@ fun MCPServerDetailsHeader(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = stringResource(R.string.pkg_close),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
@@ -185,4 +184,4 @@ fun MCPServerDetailsHeader(
             }
         }
     }
-} 
+}

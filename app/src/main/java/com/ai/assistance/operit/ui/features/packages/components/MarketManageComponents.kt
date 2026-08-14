@@ -18,9 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -72,7 +72,7 @@ fun MarketManageScaffold(
         floatingActionButton = {
             if (isLoggedIn) {
                 FloatingActionButton(onClick = onPublish) {
-                    Icon(Icons.Default.Add, contentDescription = publishContentDescription)
+                    Icon(Icons.Outlined.Add, contentDescription = publishContentDescription)
                 }
             }
         }

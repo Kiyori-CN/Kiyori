@@ -15,7 +15,7 @@
     <string name="nav_tool_permissions">工具权限</string>
     <string name="nav_about">关于</string>
     <string name="common_collapse">收起</string>
-    <string name="nav_packages">包管理</string>
+    <string name="nav_ai_extensions">扩展</string>
     <string name="nav_memory_base">记忆库</string>
     <string name="nav_assistant_config">助手配置</string>
     <string name="nav_terminal">终端</string>
@@ -111,7 +111,6 @@
     <string name="nav_group_ai_features">AI 功能</string>
     <string name="nav_group_tools">工具</string>
     <string name="nav_group_plugins">插件</string>
-    <string name="script_packages">脚本包</string>
     <string name="nav_group_system">系统</string>
     <string name="menu">菜单</string>
     <string name="token_config">获取密钥</string>
@@ -916,20 +915,16 @@
     <string name="tag_count_locked_status">已选择 %1$d / 上限 %2$d</string>
 
     <!-- Package Manager Screen -->
-    <string name="skills">技能</string>
-    <string name="quick_plugin_creator_title">快速创作你的脚本包</string>
-    <string name="quick_plugin_creator_desc">内置和市场都找不到想要的脚本包？创作你自己想要的！</string>
-    <string name="quick_plugin_creator_step1_title">1. 更新或者下载包创作 Skill</string>
-    <string name="quick_plugin_creator_step1_desc">点击按钮后会自动下载 `install_or_update.js`，并调用 operit_editor 的 debug_run_sandbox_script 执行安装或更新。</string>
-    <string name="quick_plugin_creator_run_setup">自动下载并执行</string>
-    <string name="quick_plugin_creator_pull_skill_update">拉取 Skill 更新</string>
-    <string name="quick_plugin_creator_setup_failed">包创作 Skill 安装或更新失败</string>
-    <string name="quick_plugin_creator_setup_unavailable">Kiyori 尚未提供可信的一键配置脚本，此入口已停用</string>
-    <string name="quick_plugin_creator_step2_title">2. 输入需求开始创作</string>
-    <string name="quick_plugin_creator_requirement_hint">例如：做一个可以批量整理下载目录图片并生成索引的工具</string>
-    <string name="quick_plugin_creator_requirement_empty">请先输入脚本包需求</string>
+    <string name="ai_extensions_tab_scripts">脚本</string>
+    <string name="ai_extensions_tab_skill">Skill</string>
+    <string name="script_add_actions">添加脚本</string>
+    <string name="create_script">创建脚本</string>
+    <string name="import_script_package">导入脚本包</string>
+    <string name="create_script_requirement_title">描述你想创建的脚本</string>
+    <string name="create_script_requirement_description">Kiyori 将根据这段需求进入脚本创作流程；你可以在后续步骤中继续完善实现、说明和配置。</string>
+    <string name="create_script_requirement_hint">例如：创建一个可以整理下载目录图片并生成索引的工具</string>
+    <string name="create_script_requirement_empty">请先描述你想创建的脚本</string>
     <string name="show_to_ai_short">AI</string>
-    <string name="package_manager">包管理器</string>
     <string name="available_packages">可用包</string>
     <string name="imported_packages">已导入包</string>
     <string name="import_package">导入包</string>
@@ -943,7 +938,6 @@
     <string name="no_packages_imported">尚未导入任何包</string>
     <string name="remove_package">移除包</string>
     <string name="package_removed">包已移除</string>
-    <string name="import_external_package">导入外部包</string>
     <string name="import_external_plugin">导入外部插件</string>
     <string name="external_package_import_success">成功导入外部包</string>
     <string name="external_package_import_error">导入外部包失败</string>
@@ -2028,7 +2022,7 @@
     <string name="choose_mcp_plugin_zip">选择MCP插件压缩包</string>
     <string name="open_file_picker">打开文件选择器</string>
     <string name="start_plugin">启动插件</string>
-    <string name="mcp_management">MCP管理</string>
+    <string name="mcp_management">MCP 管理</string>
     <string name="running">运行中</string>
     <string name="not_running">未运行</string>
     <string name="no_plugins">暂无插件</string>
@@ -4136,7 +4130,7 @@
     <string name="no_matching_skills_found">未找到匹配的 Skill</string>
     <string name="no_matching_scripts_found">未找到匹配的脚本</string>
     <string name="no_matching_packages_found">未找到匹配的脚本包</string>
-    <string name="skill_market_search_placeholder">搜索技能</string>
+    <string name="skill_market_search_placeholder">搜索 Skill 或作者</string>
     <string name="script_market_search_placeholder">搜索脚本名称、描述、作者...</string>
     <string name="plugin_market_search_placeholder">搜索插件</string>
     <string name="package_market_search_placeholder">搜索脚本包</string>
@@ -4188,7 +4182,7 @@
     <string name="publish_to_market">发布到市场</string>
     <string name="confirm_update">确认更新</string>
     <string name="confirm_publish">确认发布</string>
-    <string name="confirm_mcp_git_import_deployment">我已确认mcp可以通过软件git导入得方式，并正常部署和运行</string>
+    <string name="confirm_mcp_git_import_deployment">我已确认该 MCP 可以通过软件的 Git 导入方式正常导入、部署并运行</string>
     <string name="update_failed_check_network">更新失败，请检查网络连接</string>
     <string name="publish_failed_check_network_repo">发布失败，请检查网络连接和仓库地址</string>
     <string name="update_success">更新成功</string>
@@ -4515,7 +4509,7 @@
     <string name="skill_update_login_required">GitHub 登录后才能更新 Skill。</string>
     <string name="skill_publish_name_empty">Skill 名称不能为空。</string>
     <string name="skill_publish_check_name_conflict_failed">检查 Skill 名称是否重名失败：%1$s</string>
-    <string name="skill_publish_name_taken_message">Skill 市场里已经有同名插件「%1$s」，请换一个名称。</string>
+    <string name="skill_publish_name_taken_message">Skill 市场中已经有同名 Skill「%1$s」，请更换名称。</string>
     <string name="script_publish_info_description">脚本会先上传到您自己的 OperitForge 发布仓库，再将元数据登记到 OperitScriptMarket。请确认脚本内容、版本和描述准确无误。</string>
     <string name="script_edit_info_description">您正在编辑已发布脚本的信息。更新后会覆盖市场仓库中对应 Issue 的元数据。</string>
     <string name="package_publish_info_description">插件会先上传到您自己的 OperitForge 发布仓库，再将元数据登记到 OperitPackageMarket。请确认插件内容、版本和描述准确无误。</string>
@@ -5930,7 +5924,6 @@
     <!-- Gemini Provider -->
     <string name="gemini_connecting">建立连接中...</string>
     <string name="gemini_connected_success">连接成功，处理响应...</string>
-    <string name="gemini_request_body_json">请求体JSON: </string>
     <string name="gemini_request_headers">请求头: \n%1$s</string>
     <string name="gemini_response_empty">响应为空</string>
     <string name="gemini_unknown_error">未知错误</string>
@@ -6030,7 +6023,7 @@
     <string name="skill_publish_body_section_repo_info">## 🔗 仓库信息</string>
     <string name="skill_publish_body_label_repo_url">**仓库地址:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 安装方式</string>
-    <string name="skill_publish_body_install_step1">1. 打开 Kiyori → 包管理 → Skills</string>
+    <string name="skill_publish_body_install_step1">1. 打开 Kiyori → 扩展 → Skill</string>
     <string name="skill_publish_body_install_step2">2. 点击「导入 Skill」→ 「从仓库导入」</string>
     <string name="skill_publish_body_install_step3">3. 输入仓库地址：`%1$s`</string>
     <string name="skill_publish_body_install_step4">4. 确认导入</string>
@@ -6221,7 +6214,7 @@
     <string name="skillmgr_import_failed">导入失败: %1$s</string>
     <string name="skillmgr_deleted">已删除: %1$s</string>
     <string name="skillmgr_delete_failed">删除失败: %1$s</string>
-    <string name="skillmgr_no_skills_found">未找到任何Skill。请将Skill文件夹放入: %1$s，并确保其中包含 SKILL.md。</string>
+    <string name="skillmgr_no_skills_found">未找到任何 Skill。请将 Skill 文件夹放入：%1$s，并确保其中包含 SKILL.md。</string>
     <string name="skillmgr_cannot_read_file">无法读取文件</string>
     <string name="skillmgr_delete">删除</string>
     <string name="skillmgr_close">关闭</string>
@@ -6576,7 +6569,7 @@
     <string name="file_type_unknown">文件</string>
 
     <!-- Skill Market Error Messages -->
-    <string name="skillmarket_load_failed">加载Skill市场失败: %1$s</string>
+    <string name="skillmarket_load_failed">加载 Skill 市场失败：%1$s</string>
     <string name="skillmarket_network_error">网络错误: %1$s</string>
     <string name="skillmarket_load_more_failed">加载更多失败: %1$s</string>
     <string name="skillmarket_github_login_required">请先登录GitHub</string>
@@ -8243,16 +8236,16 @@
     <string name="openai_web_search_mode_live">实时</string>
     <string name="openai_web_search_mode_indexed">索引</string>
     <string name="openai_web_search_sources_count">来源（%1$d）</string>
-    <string name="openai_web_search_details">搜索证据详情</string>
     <string name="openai_web_search_model">模型</string>
     <string name="openai_web_search_evidence_mode">证据模式</string>
     <string name="openai_web_search_usage">用量</string>
     <string name="openai_web_search_usage_value">输入 %1$d，缓存 %2$d，输出 %3$d，搜索调用 %4$d</string>
     <string name="openai_web_search_actions_count">搜索动作（%1$d）</string>
-    <string name="openai_web_search_warnings_value">警告：%1$s</string>
-    <string name="openai_web_search_citations_count">原始答案引用跨度：%1$d</string>
     <string name="openai_web_search_summary_counts">已引用来源 %1$d · 全部来源 %2$d · 未引用来源 %3$d · 动作 %4$d</string>
-    <string name="openai_web_search_show_more_sources">再显示 %1$d 个来源</string>
+    <plurals name="openai_web_search_show_more_sources">
+        <item quantity="one">再显示 %1$d 个来源</item>
+        <item quantity="other">再显示 %1$d 个来源</item>
+    </plurals>
     <string name="openai_web_search_diagnostics">诊断与用量</string>
     <string name="openai_web_search_citations">引用跨度</string>
     <string name="openai_web_search_structured_feed">结构化来源 · %1$s</string>

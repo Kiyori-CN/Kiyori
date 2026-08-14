@@ -11,7 +11,7 @@
     <string name="nav_tool_permissions">Permissões de ferramentas</string>
     <string name="nav_about">sobre</string>
     <string name="common_collapse">fechar</string>
-    <string name="nav_packages">Gerenciamento de pacotes</string>
+    <string name="nav_ai_extensions">Extensões</string>
     <string name="nav_memory_base">banco de memória</string>
     <string name="nav_assistant_config">Configuração do assistente</string>
     <string name="nav_terminal">terminal</string>
@@ -808,9 +808,7 @@
     <string name="preferences_guide_title">Para melhor atendê-lo, preencha as seguintes configurações</string>
     <string name="preference_lock">Bloquear preferências do usuário</string>
     <string name="preference_lock_desc">Uma vez bloqueadas, as informações de preferência do usuário não podem ser modificadas.</string>
-    <string name="skills">Habilidade</string>
     <string name="show_to_ai_short">IA</string>
-    <string name="package_manager">Gerenciador de pacotes</string>
     <string name="available_packages">Pacotes disponíveis</string>
     <string name="imported_packages">Pacote importado</string>
     <string name="import_package">Pacote de importação</string>
@@ -823,7 +821,6 @@
     <string name="no_packages_imported">Nenhum pacote foi importado ainda</string>
     <string name="remove_package">Remover pacote</string>
     <string name="package_removed">Pacote removido</string>
-    <string name="import_external_package">Importar pacotes externos</string>
     <string name="external_package_import_success">Pacote externo importado com sucesso</string>
     <string name="external_package_import_error">Falha ao importar pacote externo</string>
     <string name="only_hjson_supported">Suporta apenas arquivos no formato HJSON</string>
@@ -4698,7 +4695,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="memory_repository_folder_description_content">Esta é a descrição da pasta %1$s.</string>
     <string name="gemini_connecting">Estabelecendo conexão...</string>
     <string name="gemini_connected_success">Conexão bem-sucedida, processando resposta...</string>
-    <string name="gemini_request_body_json">Corpo da solicitação JSON:</string>
     <string name="gemini_request_headers">Cabeçalho da solicitação: \n%1$s</string>
     <string name="gemini_response_empty">a resposta está vazia</string>
     <string name="gemini_unknown_error">erro desconhecido</string>
@@ -4782,7 +4778,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="skill_publish_body_section_repo_info">## 🔗 Informações do armazém</string>
     <string name="skill_publish_body_label_repo_url">**Endereço do armazém:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 Método de instalação</string>
-    <string name="skill_publish_body_install_step1">1. Abra Kiyori → Gerenciamento de Pacotes → Habilidades</string>
+    <string name="skill_publish_body_install_step1">1. Abra Kiyori → Extensões → Skill</string>
     <string name="skill_publish_body_install_step2">2. Clique em "Importar Habilidade" → "Importar do Armazém"</string>
     <string name="skill_publish_body_install_step3">3. Insira o endereço do armazém: `%1$s`</string>
     <string name="skill_publish_body_install_step4">4. Confirme a importação</string>
@@ -6577,7 +6573,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="chat_auto_update_memory_failed">Falha ao atualizar memória automaticamente: %1$s</string>
 
     <string name="nav_group_plugins">Plugins</string>
-    <string name="script_packages">Pacotes de Script</string>
     <string name="tag_count_lock">Bloquear quantidade</string>
     <string name="tag_count_limit">Quantidade máxima selecionável</string>
     <string name="tag_count_locked_status">Selecionados %1$d / Limite %2$d</string>
@@ -6594,17 +6589,17 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="share_preview_include_background">Incluir plano de fundo</string>
     <string name="share_preview_border_width">Borda: %1$.1f dp</string>
 
-    <string name="quick_plugin_creator_title">Crie rapidamente seu pacote de scripts</string>
-    <string name="quick_plugin_creator_desc">Não encontrou o pacote de scripts que deseja no sistema ou na loja? Crie o seu próprio!</string>
-    <string name="quick_plugin_creator_step1_title">1. Atualize ou baixe o pacote para criar a Skill</string>
-    <string name="quick_plugin_creator_step1_desc">Ao clicar no botão, o `install_or_update.js` será baixado automaticamente e o debug_run_sandbox_script do operit_editor será chamado para executar a instalação ou atualização.</string>
-    <string name="quick_plugin_creator_run_setup">Baixar e executar automaticamente</string>
-    <string name="quick_plugin_creator_step2_title">2. Insira os requisitos para começar a criar</string>
-    <string name="quick_plugin_creator_requirement_hint">Exemplo: crie uma ferramenta para organizar em lote imagens do diretório de download e gerar um índice</string>
-    <string name="quick_plugin_creator_requirement_empty">Insira primeiro os requisitos do pacote de scripts</string>
+    <string name="ai_extensions_tab_scripts">Scripts</string>
+    <string name="ai_extensions_tab_skill">Skill</string>
+    <string name="script_add_actions">Adicionar script</string>
+    <string name="create_script">Criar script</string>
+    <string name="import_script_package">Importar pacote de scripts</string>
+    <string name="create_script_requirement_title">Descreva o script que deseja criar</string>
+    <string name="create_script_requirement_description">O Kiyori abrirá o fluxo de criação de scripts a partir deste pedido. Você poderá refinar a implementação, a documentação e a configuração nas etapas seguintes.</string>
+    <string name="create_script_requirement_hint">Exemplo: crie uma ferramenta que organize as imagens da pasta de downloads e gere um índice</string>
+    <string name="create_script_requirement_empty">Descreva primeiro o script que deseja criar</string>
     <string name="mcp_plugin_comment_view_thread">Ver andar</string>
     <string name="mcp_plugin_user_comments">Comentários do usuário</string>
-    <string name="quick_plugin_creator_setup_failed">Falha na instalação ou atualização do Skill de criação de pacote</string>
     <string name="pkg_toolpkg_workflow_templates">Modelos de fluxo de trabalho: %1$d</string>
     <string name="pkg_toolpkg_workspace_templates">Modelos de espaço de trabalho: %1$d</string>
     <string name="pkg_toolpkg_registered_workflow_templates">Modelos de fluxo de trabalho</string>
@@ -6627,7 +6622,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_dialog_title_confirm">Confirmação da página</string>
     <string name="web_session_dialog_title_prompt">Entrada da página</string>
     <string name="web_session_dialog_empty_message">(mensagem vazia)</string>
-    <string name="quick_plugin_creator_pull_skill_update">Puxar atualização de Skill</string>
     <string name="speech_services_tts_type_vits">VITS/Piper TTS (local)</string>
     <string name="speech_services_vits_config">Configuração VITS/Piper TTS</string>
     <string name="speech_services_vits_package_path">Caminho do pacote VITS/Piper</string>
@@ -6946,7 +6940,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="app_update_channel">Atualizações do aplicativo</string>
     <string name="app_update_channel_disabled">Esta versão não recebe atualizações nem avisos remotos. Novas versões são distribuídas separadamente pelo repositório do Kiyori.</string>
     <string name="about_source_attribution">O Kiyori continua o desenvolvimento a partir do código aberto do Operit. A autoria original, as licenças e o histórico do projeto são preservados no repositório.</string>
-    <string name="quick_plugin_creator_setup_unavailable">O Kiyori ainda não oferece um script confiável de configuração rápida, portanto esta ação está desativada.</string>
     <string name="artifact_publish_encrypt_market_toolpkg_title">Compactar e ofuscar o plugin</string>
     <string name="artifact_publish_encrypt_market_toolpkg_desc">Quando ativado, os scripts executáveis do plugin ToolPkg são minificados por meio da árvore sintática JavaScript. O arquivo do plugin continua sendo um ZIP padrão e pode ser importado diretamente.</string>
     <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Compactar e ofuscar o plugin: %1$s</string>
@@ -7296,4 +7289,64 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="kiyori_onboarding_permission_root_desc">Solicita acesso de superusuário, capaz de ler e alterar dados protegidos do sistema e dos aplicativos.</string>
     <string name="kiyori_onboarding_permission_screen_capture_title">Captura de tela</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">O Android confirma cada uso para capturas, gravações e análise visual.</string>
+
+    <!-- Provider selection summaries -->
+    <string name="provider_summary_chat_official">Chat Completions API · Endpoint oficial</string>
+    <string name="provider_summary_chat_compatible">Chat Completions API · Endpoint personalizado</string>
+    <string name="provider_summary_responses_official">Responses API · Endpoint oficial</string>
+    <string name="provider_summary_responses_compatible">Responses API · Endpoint personalizado</string>
+    <string name="provider_summary_built_in">Provedor integrado</string>
+    <string name="provider_summary_toolpkg">Provedor ToolPkg · %1$s</string>
+    <string name="provider_section_openai_chat_completions">OpenAI Chat Completions</string>
+    <string name="provider_section_openai_responses">OpenAI Responses</string>
+    <string name="provider_section_other_built_in">Outros provedores</string>
+    <string name="provider_section_toolpkg">Provedores ToolPkg</string>
+
+    <!-- Package environment variable security -->
+    <string name="pkg_env_show_sensitive">Mostrar valor sensível</string>
+    <string name="pkg_env_hide_sensitive">Ocultar valor sensível</string>
+
+    <!-- OpenAI Web Search evidence -->
+    <string name="openai_web_search_evidence_title">Pesquisa na Web da OpenAI</string>
+    <string name="openai_web_search_mode_live">Ao vivo</string>
+    <string name="openai_web_search_mode_indexed">Indexado</string>
+    <string name="openai_web_search_sources_count">Fontes (%1$d)</string>
+    <string name="openai_web_search_model">Modelo</string>
+    <string name="openai_web_search_evidence_mode">Modo de evidência</string>
+    <string name="openai_web_search_usage">Uso</string>
+    <string name="openai_web_search_usage_value">Entrada %1$d, em cache %2$d, saída %3$d, chamadas de pesquisa %4$d</string>
+    <string name="openai_web_search_actions_count">Ações de pesquisa (%1$d)</string>
+    <string name="openai_web_search_summary_counts">Citadas %1$d · todas as fontes %2$d · não citadas %3$d · ações %4$d</string>
+    <plurals name="openai_web_search_show_more_sources">
+        <item quantity="one">Mostrar mais %1$d fonte</item>
+        <item quantity="many">Mostrar mais %1$d fontes</item>
+        <item quantity="other">Mostrar mais %1$d fontes</item>
+    </plurals>
+    <string name="openai_web_search_diagnostics">Diagnóstico e uso</string>
+    <string name="openai_web_search_citations">Intervalos de citação</string>
+    <string name="openai_web_search_structured_feed">Fonte estruturada · %1$s</string>
+    <string name="openai_web_search_no_web_evidence">Nenhuma evidência web verificável foi retornada.</string>
+    <string name="openai_web_search_source_summary">Resumo das fontes</string>
+    <string name="openai_web_search_source_summary_value">Citadas %1$d / todas %2$d / não citadas %3$d / URL %4$d / estruturadas %5$d</string>
+    <string name="openai_web_search_domain_policy_state">Estado da política de domínios</string>
+    <string name="openai_web_search_total_elapsed">Tempo total</string>
+    <string name="openai_web_search_queue_wait">Espera na fila</string>
+    <string name="openai_web_search_http_elapsed">Tempo de HTTP</string>
+    <string name="openai_web_search_response_header_wait">Espera pelo cabeçalho da resposta</string>
+    <string name="openai_web_search_response_body_read">Leitura do corpo da resposta</string>
+    <string name="openai_web_search_parse_elapsed">Tempo de análise</string>
+    <string name="openai_web_search_callback_delivery">Entrega do callback</string>
+    <string name="openai_web_search_submission_state">Estado do envio</string>
+    <string name="openai_web_search_location_precision">Precisão da localização</string>
+    <string name="openai_web_search_provider_request_id">ID da solicitação do provedor</string>
+    <string name="openai_web_search_milliseconds">%1$d ms</string>
+    <string name="openai_web_search_action_title">%1$d. %2$s</string>
+    <string name="openai_web_search_failed">Falha na pesquisa web</string>
+    <string name="openai_web_search_parse_failed">Falha ao analisar o cartão de resultados da pesquisa</string>
+    <string name="openai_web_search_error_code">Código do erro</string>
+    <string name="openai_web_search_schema_revision">Revisão do esquema</string>
+    <string name="openai_web_search_request_id_present">ID da solicitação presente</string>
+    <string name="openai_web_search_invalid_field">Campo inválido</string>
+    <string name="openai_web_search_not_present">Não presente</string>
+    <string name="openai_web_search_configuration_unavailable">A configuração da Pesquisa na Web da OpenAI não está disponível.</string>
 </resources>

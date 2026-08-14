@@ -21,14 +21,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
@@ -556,7 +556,7 @@ private fun resolveMarketBrowseInstallButtonUi(
                 containerColor = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
                 enabled = true,
-                icon = Icons.Default.Download
+                icon = Icons.Outlined.Download
             )
 
         MarketBrowseActionState.Updatable ->
@@ -564,7 +564,7 @@ private fun resolveMarketBrowseInstallButtonUi(
                 containerColor = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
                 enabled = true,
-                icon = Icons.Default.Update
+                icon = Icons.Outlined.Update
             )
 
         MarketBrowseActionState.Installed ->
@@ -580,7 +580,7 @@ private fun resolveMarketBrowseInstallButtonUi(
                 containerColor = colorScheme.primaryContainer,
                 contentColor = colorScheme.onPrimaryContainer,
                 enabled = false,
-                icon = Icons.Default.Download,
+                icon = Icons.Outlined.Download,
                 isLoading = true,
                 progress = state.progress
             )

@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -63,7 +63,7 @@ fun MCPServerDetailsActions(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Link,
+                    imageVector = Icons.Outlined.Link,
                     contentDescription = null
                 )
                 Text(text = stringResource(R.string.repo))
@@ -81,7 +81,7 @@ fun MCPServerDetailsActions(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = Icons.Outlined.Delete,
                     contentDescription = null
                 )
                 Text(text = stringResource(R.string.uninstall))
@@ -92,11 +92,11 @@ fun MCPServerDetailsActions(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Download,
+                    imageVector = Icons.Outlined.Download,
                     contentDescription = null
                 )
                 Text(text = stringResource(R.string.install))
             }
         }
     }
-} 
+}

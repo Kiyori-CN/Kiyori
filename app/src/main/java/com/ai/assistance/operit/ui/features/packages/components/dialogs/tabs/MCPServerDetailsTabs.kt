@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -117,7 +117,7 @@ fun MCPServerDetailsTabs(selectedTabIndex: Int, onTabSelected: (Int) -> Unit) {
                             verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                                imageVector = Icons.Default.Settings,
+                                imageVector = Icons.Outlined.Settings,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
                                 tint =

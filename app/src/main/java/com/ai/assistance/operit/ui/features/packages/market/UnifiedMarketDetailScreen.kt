@@ -28,7 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddComment
+import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -997,7 +997,7 @@ private fun UnifiedMarketDetailCommentsSectionHeader(
                     )
                 }
                 Icon(
-                    imageVector = Icons.Default.AddComment,
+                    imageVector = Icons.Outlined.AddComment,
                     contentDescription = stringResource(R.string.market_detail_post_comment),
                     modifier = Modifier.size(16.dp),
                     tint =

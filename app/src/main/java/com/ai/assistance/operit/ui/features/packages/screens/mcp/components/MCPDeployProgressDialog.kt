@@ -7,11 +7,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -83,7 +83,7 @@ fun MCPDeployProgressDialog(
                                 modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                    imageVector = Icons.Default.Settings,
+                                    imageVector = Icons.Outlined.Settings,
                                     contentDescription = stringResource(R.string.mcp_env_variables),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -97,7 +97,7 @@ fun MCPDeployProgressDialog(
                                 modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                    imageVector = Icons.Default.Close,
+                                    imageVector = Icons.Outlined.Close,
                                     contentDescription = stringResource(R.string.mcp_close),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -245,7 +245,7 @@ fun MCPDeployProgressDialog(
                                 )
                         ) {
                             Icon(
-                                    imageVector = Icons.Default.Refresh,
+                                    imageVector = Icons.Outlined.Refresh,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                             )

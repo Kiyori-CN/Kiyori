@@ -3,6 +3,7 @@ package com.ai.assistance.operit.data.preferences
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
+import androidx.core.content.edit
 import java.nio.charset.StandardCharsets
 
 /**
@@ -25,14 +26,14 @@ class ToolPkgHostEnvironmentRepository private constructor(context: Context) {
     fun setValue(containerPackageName: String, variableName: String, value: String) {
         val storageKey = storageKey(containerPackageName, variableName)
         if (value.isBlank()) {
-            preferences.edit().remove(storageKey).apply()
+            preferences.edit { remove(storageKey) }
         } else {
-            preferences.edit().putString(storageKey, value).apply()
+            preferences.edit { putString(storageKey, value) }
         }
     }
 
     fun removeValue(containerPackageName: String, variableName: String) {
-        preferences.edit().remove(storageKey(containerPackageName, variableName)).apply()
+        preferences.edit { remove(storageKey(containerPackageName, variableName)) }
     }
 
     private fun storageKey(containerPackageName: String, variableName: String): String {

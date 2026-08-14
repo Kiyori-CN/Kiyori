@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -96,7 +96,7 @@ fun BindMarketSearchToTopBar(
             if (!isSearchActive) {
                 IconButton(onClick = { isSearchExpanded = true }) {
                     Icon(
-                        imageVector = Icons.Default.Search,
+                        imageVector = Icons.Outlined.Search,
                         contentDescription = stringResource(R.string.search),
                         tint = latestAppBarContentColor.value
                     )
@@ -179,7 +179,7 @@ private fun MarketTopBarSearchField(
         },
         leadingIcon = {
             Icon(
-                imageVector = Icons.Default.Search,
+                imageVector = Icons.Outlined.Search,
                 contentDescription = null
             )
         },
@@ -193,7 +193,7 @@ private fun MarketTopBarSearchField(
             } else {
                 IconButton(onClick = onCloseSearch) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = stringResource(R.string.cancel)
                     )
                 }

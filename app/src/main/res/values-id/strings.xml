@@ -214,7 +214,7 @@
     <string name="nav_tool_permissions">Izin Alat</string>
     <string name="nav_about">Tentang</string>
     <string name="common_collapse">Tutup</string>
-    <string name="nav_packages">Manajemen Paket</string>
+    <string name="nav_ai_extensions">Ekstensi</string>
     <string name="nav_memory_base">Basis Memori</string>
     <string name="nav_assistant_config">Konfigurasi Asisten</string>
     <string name="nav_terminal">Terminal</string>
@@ -659,9 +659,7 @@
     <string name="preferences_guide_title">Untuk layanan yang lebih baik, harap lengkapi pengaturan berikut</string>
     <string name="preference_lock">Kunci preferensi pengguna</string>
     <string name="preference_lock_desc">Setelah dikunci, informasi preferensi pengguna tidak dapat diubah</string>
-    <string name="skills">Keterampilan</string>
     <string name="show_to_ai_short">AI</string>
-    <string name="package_manager">Manajer paket</string>
     <string name="available_packages">Paket tersedia</string>
     <string name="imported_packages">Paket yang diimpor</string>
     <string name="import_package">Impor paket</string>
@@ -782,7 +780,6 @@
     <string name="no_packages_imported">Belum ada paket yang diimpor</string>
     <string name="remove_package">Hapus Paket</string>
     <string name="package_removed">Paket telah dihapus</string>
-    <string name="import_external_package">Impor Paket Eksternal</string>
     <string name="external_package_import_success">Paket eksternal berhasil diimpor</string>
     <string name="external_package_import_error">Gagal mengimpor paket eksternal</string>
     <string name="only_hjson_supported">Hanya mendukung file format HJSON</string>
@@ -5022,7 +5019,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="memory_repository_folder_description_content">Ini adalah deskripsi folder %1$s.</string>
     <string name="gemini_connecting">Membuat koneksi...</string>
     <string name="gemini_connected_success">Koneksi berhasil, memproses respons...</string>
-    <string name="gemini_request_body_json">Request body JSON: </string>
     <string name="gemini_request_headers">Request headers: \n%1$s</string>
     <string name="gemini_response_empty">Respons kosong</string>
     <string name="gemini_unknown_error">Kesalahan tidak diketahui</string>
@@ -5137,7 +5133,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="memory_embedding_error_empty_data">Data respons vektor kosong: %1$s</string>
     <string name="memory_embedding_error_invalid_first_item">Respons vektor data[0] bukan objek: %1$s</string>
 
-    <string name="skill_publish_body_install_step1">1. Buka Kiyori → Manajemen Paket → Skills</string>
+    <string name="skill_publish_body_install_step1">1. Buka Kiyori → Ekstensi → Skill</string>
     <string name="skill_publish_body_install_step2">2. Ketuk "Impor Skill" → "Impor dari Repositori"</string>
     <string name="skill_publish_body_install_step3">3. Masukkan alamat repositori: `%1$s`</string>
     <string name="skill_publish_body_install_step4">4. Konfirmasi impor</string>
@@ -6714,7 +6710,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="chat_auto_update_memory_failed">Gagal memperbarui memori otomatis: %1$s</string>
 
     <string name="nav_group_plugins">Plugin</string>
-    <string name="script_packages">Paket Skrip</string>
     <string name="tag_count_lock">Jumlah terkunci</string>
     <string name="tag_count_limit">Jumlah maksimal yang dapat dipilih</string>
     <string name="tag_count_locked_status">Telah dipilih %1$d / batas %2$d</string>
@@ -6731,17 +6726,17 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="share_preview_include_background">Sertakan latar belakang</string>
     <string name="share_preview_border_width">Bingkai: %1$.1f dp</string>
 
-    <string name="quick_plugin_creator_title">Buat Paket Skrip Anda dengan Cepat</string>
-    <string name="quick_plugin_creator_desc">Tidak menemukan paket skrip yang diinginkan di bawaan atau pasar? Buat sendiri yang Anda inginkan!</string>
-    <string name="quick_plugin_creator_step1_title">1. Perbarui atau unduh paket untuk membuat Skill</string>
-    <string name="quick_plugin_creator_step1_desc">Setelah menekan tombol, `install_or_update.js` akan diunduh secara otomatis, dan debug_run_sandbox_script dari operit_editor akan dipanggil untuk menjalankan instalasi atau pembaruan.</string>
-    <string name="quick_plugin_creator_run_setup">Unduh dan jalankan secara otomatis</string>
-    <string name="quick_plugin_creator_step2_title">2. Masukkan kebutuhan untuk mulai membuat</string>
-    <string name="quick_plugin_creator_requirement_hint">Contoh: buat alat yang dapat mengatur gambar di direktori unduhan secara massal dan menghasilkan indeks</string>
-    <string name="quick_plugin_creator_requirement_empty">Silakan masukkan kebutuhan paket skrip terlebih dahulu</string>
+    <string name="ai_extensions_tab_scripts">Skrip</string>
+    <string name="ai_extensions_tab_skill">Skill</string>
+    <string name="script_add_actions">Tambah skrip</string>
+    <string name="create_script">Buat skrip</string>
+    <string name="import_script_package">Impor paket skrip</string>
+    <string name="create_script_requirement_title">Jelaskan skrip yang ingin dibuat</string>
+    <string name="create_script_requirement_description">Kiyori akan membuka alur pembuatan skrip dari permintaan ini. Anda dapat menyempurnakan implementasi, dokumentasi, dan konfigurasi pada langkah berikutnya.</string>
+    <string name="create_script_requirement_hint">Contoh: buat alat yang menata gambar di folder unduhan dan menghasilkan indeks</string>
+    <string name="create_script_requirement_empty">Jelaskan terlebih dahulu skrip yang ingin dibuat</string>
     <string name="mcp_plugin_comment_view_thread">Lihat lantai</string>
     <string name="mcp_plugin_user_comments">Komentar pengguna</string>
-    <string name="quick_plugin_creator_setup_failed">Pembuatan Skill plugin gagal dipasang atau diperbarui</string>
     <string name="pkg_toolpkg_workflow_templates">Jumlah template alur kerja: %1$d</string>
     <string name="pkg_toolpkg_workspace_templates">Jumlah template ruang kerja: %1$d</string>
     <string name="pkg_toolpkg_registered_workflow_templates">Template alur kerja</string>
@@ -6764,7 +6759,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_dialog_title_confirm">Konfirmasi Halaman</string>
     <string name="web_session_dialog_title_prompt">Input Halaman</string>
     <string name="web_session_dialog_empty_message">(Pesan Kosong)</string>
-    <string name="quick_plugin_creator_pull_skill_update">Ambil Pembaruan Skill</string>
     <string name="speech_services_tts_type_vits">VITS/Piper TTS (Lokal)</string>
     <string name="speech_services_vits_config">Konfigurasi VITS/Piper TTS</string>
     <string name="speech_services_vits_package_path">Path Paket VITS/Piper</string>
@@ -7083,7 +7077,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="app_update_channel">Pembaruan aplikasi</string>
     <string name="app_update_channel_disabled">Versi ini tidak menerima pembaruan atau pengumuman jarak jauh. Versi baru didistribusikan secara terpisah melalui repositori Kiyori.</string>
     <string name="about_source_attribution">Kiyori melanjutkan pengembangan dari basis kode sumber terbuka Operit. Kepengarangan asli, lisensi, dan riwayat proyek tetap disimpan dalam repositori.</string>
-    <string name="quick_plugin_creator_setup_unavailable">Kiyori belum menyediakan skrip penyiapan cepat yang tepercaya, sehingga tindakan ini dinonaktifkan.</string>
     <string name="artifact_publish_encrypt_market_toolpkg_title">Kompres dan samarkan plugin</string>
     <string name="artifact_publish_encrypt_market_toolpkg_desc">Jika diaktifkan, skrip yang dapat dijalankan di dalam plugin ToolPkg akan diperkecil melalui pohon sintaks JavaScript. Arsip plugin tetap berupa file ZIP standar dan dapat langsung diimpor.</string>
     <string name="artifact_publish_encrypt_market_toolpkg_confirmation">Kompres dan samarkan plugin: %1$s</string>
@@ -7423,4 +7416,62 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="kiyori_onboarding_permission_root_desc">Meminta akses superuser yang dapat membaca dan mengubah data sistem serta aplikasi yang dilindungi.</string>
     <string name="kiyori_onboarding_permission_screen_capture_title">Penangkapan layar</string>
     <string name="kiyori_onboarding_permission_screen_capture_desc">Android mengonfirmasi setiap penggunaan untuk tangkapan layar, perekaman, dan analisis visual.</string>
+
+    <!-- Provider selection summaries -->
+    <string name="provider_summary_chat_official">Chat Completions API · Endpoint resmi</string>
+    <string name="provider_summary_chat_compatible">Chat Completions API · Endpoint kustom</string>
+    <string name="provider_summary_responses_official">Responses API · Endpoint resmi</string>
+    <string name="provider_summary_responses_compatible">Responses API · Endpoint kustom</string>
+    <string name="provider_summary_built_in">Penyedia bawaan</string>
+    <string name="provider_summary_toolpkg">Penyedia ToolPkg · %1$s</string>
+    <string name="provider_section_openai_chat_completions">OpenAI Chat Completions</string>
+    <string name="provider_section_openai_responses">OpenAI Responses</string>
+    <string name="provider_section_other_built_in">Penyedia lain</string>
+    <string name="provider_section_toolpkg">Penyedia ToolPkg</string>
+
+    <!-- Package environment variable security -->
+    <string name="pkg_env_show_sensitive">Tampilkan nilai sensitif</string>
+    <string name="pkg_env_hide_sensitive">Sembunyikan nilai sensitif</string>
+
+    <!-- OpenAI Web Search evidence -->
+    <string name="openai_web_search_evidence_title">Pencarian Web OpenAI</string>
+    <string name="openai_web_search_mode_live">Langsung</string>
+    <string name="openai_web_search_mode_indexed">Terindeks</string>
+    <string name="openai_web_search_sources_count">Sumber (%1$d)</string>
+    <string name="openai_web_search_model">Model</string>
+    <string name="openai_web_search_evidence_mode">Mode bukti</string>
+    <string name="openai_web_search_usage">Penggunaan</string>
+    <string name="openai_web_search_usage_value">Masukan %1$d, tersimpan di cache %2$d, keluaran %3$d, panggilan pencarian %4$d</string>
+    <string name="openai_web_search_actions_count">Tindakan pencarian (%1$d)</string>
+    <string name="openai_web_search_summary_counts">Dikutip %1$d · semua sumber %2$d · tidak dikutip %3$d · tindakan %4$d</string>
+    <plurals name="openai_web_search_show_more_sources">
+        <item quantity="other">Tampilkan %1$d sumber lagi</item>
+    </plurals>
+    <string name="openai_web_search_diagnostics">Diagnostik dan penggunaan</string>
+    <string name="openai_web_search_citations">Rentang kutipan</string>
+    <string name="openai_web_search_structured_feed">Sumber terstruktur · %1$s</string>
+    <string name="openai_web_search_no_web_evidence">Tidak ada bukti web terverifikasi yang dikembalikan.</string>
+    <string name="openai_web_search_source_summary">Ringkasan sumber</string>
+    <string name="openai_web_search_source_summary_value">Dikutip %1$d / semua %2$d / tidak dikutip %3$d / URL %4$d / terstruktur %5$d</string>
+    <string name="openai_web_search_domain_policy_state">Status kebijakan domain</string>
+    <string name="openai_web_search_total_elapsed">Total waktu</string>
+    <string name="openai_web_search_queue_wait">Waktu tunggu antrean</string>
+    <string name="openai_web_search_http_elapsed">Waktu HTTP</string>
+    <string name="openai_web_search_response_header_wait">Waktu tunggu header respons</string>
+    <string name="openai_web_search_response_body_read">Pembacaan isi respons</string>
+    <string name="openai_web_search_parse_elapsed">Waktu penguraian</string>
+    <string name="openai_web_search_callback_delivery">Pengiriman callback</string>
+    <string name="openai_web_search_submission_state">Status pengiriman</string>
+    <string name="openai_web_search_location_precision">Presisi lokasi</string>
+    <string name="openai_web_search_provider_request_id">ID permintaan penyedia</string>
+    <string name="openai_web_search_milliseconds">%1$d md</string>
+    <string name="openai_web_search_action_title">%1$d. %2$s</string>
+    <string name="openai_web_search_failed">Pencarian web gagal</string>
+    <string name="openai_web_search_parse_failed">Penguraian kartu hasil pencarian gagal</string>
+    <string name="openai_web_search_error_code">Kode kesalahan</string>
+    <string name="openai_web_search_schema_revision">Revisi skema</string>
+    <string name="openai_web_search_request_id_present">ID permintaan tersedia</string>
+    <string name="openai_web_search_invalid_field">Kolom tidak valid</string>
+    <string name="openai_web_search_not_present">Tidak tersedia</string>
+    <string name="openai_web_search_configuration_unavailable">Konfigurasi Pencarian Web OpenAI tidak tersedia.</string>
 </resources>

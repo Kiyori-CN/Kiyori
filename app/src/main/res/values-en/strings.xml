@@ -14,7 +14,7 @@
     <string name="nav_settings">Settings</string>
     <string name="nav_tool_permissions">Tool Permissions</string>
     <string name="nav_about">About</string>
-    <string name="nav_packages">Packages</string>
+    <string name="nav_ai_extensions">Extensions</string>
     <string name="nav_assistant_config">Assistant Config</string>
     <string name="nav_terminal">Terminal</string>
     <string name="nav_toolbox">Toolbox</string>
@@ -983,9 +983,7 @@
     <string name="tag_count_locked_status">Selected %1$d / Limit %2$d</string>
 
     <!-- Package Manager Screen -->
-    <string name="skills">Skills</string>
     <string name="show_to_ai_short">AI</string>
-    <string name="package_manager">Package Manager</string>
     <string name="available_packages">Available Packages</string>
     <string name="imported_packages">Imported Packages</string>
     <string name="import_package">Import Package</string>
@@ -998,7 +996,6 @@
     <string name="no_packages_imported">No packages imported yet</string>
     <string name="remove_package">Remove Package</string>
     <string name="package_removed">Package removed</string>
-    <string name="import_external_package">Import External Package</string>
     <string name="external_package_import_success">External package imported successfully</string>
     <string name="external_package_import_error">External package import failed</string>
     <string name="only_hjson_supported">Only HJSON format files supported</string>
@@ -5629,7 +5626,6 @@
     <!-- Gemini Provider -->
     <string name="gemini_connecting">Connecting...</string>
     <string name="gemini_connected_success">Connected, processing response...</string>
-    <string name="gemini_request_body_json">Request body JSON: </string>
     <string name="gemini_request_headers">Request headers: \n%1$s</string>
     <string name="gemini_response_empty">Response is empty</string>
     <string name="gemini_unknown_error">Unknown error</string>
@@ -5727,7 +5723,7 @@
     <string name="skill_publish_body_section_repo_info">## 🔗 Repository Info</string>
     <string name="skill_publish_body_label_repo_url">**Repository URL:** %1$s</string>
     <string name="skill_publish_body_section_install_method">## 📦 Installation</string>
-    <string name="skill_publish_body_install_step1">1. Open Kiyori → Package Manager → Skills</string>
+    <string name="skill_publish_body_install_step1">1. Open Kiyori → Extensions → Skill</string>
     <string name="skill_publish_body_install_step2">2. Tap "Import Skill" → "Import from Repository"</string>
     <string name="skill_publish_body_install_step3">3. Enter repository URL: `%1$s`</string>
     <string name="skill_publish_body_install_step4">4. Confirm import</string>
@@ -7667,26 +7663,22 @@
     <string name="display_name_label">Display Name</string>
 
     <string name="nav_group_plugins">Plugins</string>
-    <string name="script_packages">Script Packages</string>
     <string name="chat_delete_single_variant">Delete Single Message</string>
     <string name="chat_delete_single_variant_unavailable">No single message candidates available for deletion</string>
     <string name="chat_delete_single_variant_failed">Failed to delete single message: %1$s</string>
     <string name="chat_delete_message_confirm_message">Are you sure you want to delete this message? This action cannot be undone.</string>
 
-    <string name="quick_plugin_creator_title">Quickly Create Your Script Package</string>
-    <string name="quick_plugin_creator_desc">Cannot find the script package you want in the built-in list or marketplace? Create your own.</string>
-    <string name="quick_plugin_creator_step1_title">1. Update or download the package creation Skill</string>
-    <string name="quick_plugin_creator_step1_desc">Click the button to automatically download install_or_update.js and run the operit_editor debug_run_sandbox_script for installation or update.</string>
-    <string name="quick_plugin_creator_run_setup">Auto download and execute</string>
-    <string name="quick_plugin_creator_pull_skill_update">Pull Skill Updates</string>
-    <string name="quick_plugin_creator_step2_title">2. Enter requirements to start creating</string>
-    <string name="quick_plugin_creator_requirement_hint">For example: create a tool to batch organize images in the download directory and generate an index</string>
-    <string name="quick_plugin_creator_requirement_empty">Please enter the script package requirements first</string>
+    <string name="ai_extensions_tab_scripts">Scripts</string>
+    <string name="ai_extensions_tab_skill">Skill</string>
+    <string name="script_add_actions">Add script</string>
+    <string name="create_script">Create script</string>
+    <string name="import_script_package">Import script package</string>
+    <string name="create_script_requirement_title">Describe the script you want to create</string>
+    <string name="create_script_requirement_description">Kiyori will open the script creation workflow from this request. You can refine the implementation, documentation, and configuration in the following steps.</string>
+    <string name="create_script_requirement_hint">For example: create a tool that organizes images in the download folder and generates an index</string>
+    <string name="create_script_requirement_empty">Please describe the script you want to create</string>
     <string name="mcp_plugin_comment_view_thread">View thread</string>
     <string name="mcp_plugin_user_comments">User comments</string>
-
-    <string name="quick_plugin_creator_setup_failed">Failed to install or update the Skill for package creation</string>
-    <string name="quick_plugin_creator_setup_unavailable">Kiyori does not yet provide a trusted quick-setup script, so this action is disabled</string>
     <string name="pkg_toolpkg_workflow_templates">Workflow templates: %1$d</string>
     <string name="pkg_toolpkg_workspace_templates">Workspace templates: %1$d</string>
     <string name="pkg_toolpkg_registered_workflow_templates">Workflow templates</string>
@@ -8159,16 +8151,16 @@
     <string name="openai_web_search_mode_live">Live</string>
     <string name="openai_web_search_mode_indexed">Indexed</string>
     <string name="openai_web_search_sources_count">Sources (%1$d)</string>
-    <string name="openai_web_search_details">Search evidence details</string>
     <string name="openai_web_search_model">Model</string>
     <string name="openai_web_search_evidence_mode">Evidence mode</string>
     <string name="openai_web_search_usage">Usage</string>
     <string name="openai_web_search_usage_value">Input %1$d, cached %2$d, output %3$d, search calls %4$d</string>
     <string name="openai_web_search_actions_count">Search actions (%1$d)</string>
-    <string name="openai_web_search_warnings_value">Warnings: %1$s</string>
-    <string name="openai_web_search_citations_count">Original-answer citation spans: %1$d</string>
     <string name="openai_web_search_summary_counts">Cited %1$d · all sources %2$d · uncited %3$d · actions %4$d</string>
-    <string name="openai_web_search_show_more_sources">Show %1$d more sources</string>
+    <plurals name="openai_web_search_show_more_sources">
+        <item quantity="one">Show %1$d more source</item>
+        <item quantity="other">Show %1$d more sources</item>
+    </plurals>
     <string name="openai_web_search_diagnostics">Diagnostics and usage</string>
     <string name="openai_web_search_citations">Citation spans</string>
     <string name="openai_web_search_structured_feed">Structured source · %1$s</string>

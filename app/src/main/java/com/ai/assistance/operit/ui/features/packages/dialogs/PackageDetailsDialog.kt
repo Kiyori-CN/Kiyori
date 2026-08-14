@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -589,7 +591,7 @@ fun PackageDetailsDialog(
                             )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.Outlined.Delete,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -920,7 +922,7 @@ private fun ToolCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = Icons.Outlined.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.primary
