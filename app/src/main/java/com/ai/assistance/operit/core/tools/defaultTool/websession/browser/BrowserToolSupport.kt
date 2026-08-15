@@ -39,16 +39,23 @@ internal data class BrowserConsoleEntry(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+internal enum class BrowserNetworkLogEntryKind {
+    REQUEST,
+    ELEMENT,
+}
+
 internal data class BrowserNetworkRequestEntry(
     val method: String,
     val url: String,
     val isMainFrame: Boolean,
     val isStatic: Boolean,
     val category: BrowserNetworkRequestCategory,
+    val kind: BrowserNetworkLogEntryKind = BrowserNetworkLogEntryKind.REQUEST,
     val headers: Map<String, String> = emptyMap(),
     val blocked: Boolean = false,
     val blockingRule: String? = null,
     val blockingSourceName: String? = null,
+    val elementSelector: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -274,10 +281,72 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
             session.networkEntries.removeAt(0)
         }
     }
+    scheduleNetworkStateRefresh(session)
+}
+
+internal fun StandardBrowserSessionTools.replaceElementBlockLogEntries(
+    session: BrowserToolSession,
+    pageUrl: String,
+    decisions: List<BrowserAdBlockElementDecision>,
+) {
+    if (pageUrl.isBlank()) {
+        return
+    }
+    val entries =
+        decisions
+            .asSequence()
+            // 订阅 cosmetic selector 是页面样式输入，不是逐条发生的网络事件；日志仅记录
+            // 用户明确创建并可在设置页管理的元素规则，避免虚构数万条“已拦截请求”。
+            .filter { decision -> decision.source == BrowserAdBlockRuleSource.CUSTOM }
+            .distinctBy(BrowserAdBlockElementDecision::selector)
+            .take(StandardBrowserSessionTools.MAX_EVENT_LOG_ENTRIES)
+            .map { decision ->
+                BrowserNetworkRequestEntry(
+                    method = "DOM",
+                    url = pageUrl,
+                    isMainFrame = true,
+                    isStatic = false,
+                    category = BrowserNetworkRequestCategory.OTHER,
+                    kind = BrowserNetworkLogEntryKind.ELEMENT,
+                    blocked = true,
+                    blockingRule = decision.selector,
+                    blockingSourceName = decision.sourceName,
+                    elementSelector = decision.selector,
+                )
+            }
+            .toList()
+    synchronized(session.networkEntries) {
+        session.networkEntries.removeAll { entry ->
+            entry.kind == BrowserNetworkLogEntryKind.ELEMENT &&
+                entry.url == pageUrl
+        }
+        session.networkEntries += entries
+        while (session.networkEntries.size > StandardBrowserSessionTools.MAX_EVENT_LOG_ENTRIES) {
+            session.networkEntries.removeAt(0)
+        }
+    }
     notifySessionStateChanged(session)
     StandardBrowserSessionTools.mainHandler.post {
         refreshSessionUiOnMain(session.id)
     }
+}
+
+private fun StandardBrowserSessionTools.scheduleNetworkStateRefresh(
+    session: BrowserToolSession,
+) {
+    if (!session.networkRefreshScheduled.compareAndSet(false, true)) {
+        return
+    }
+    // WebView 会并发产生图片、脚本和接口请求。每条请求都向主线程投递重组会形成消息风暴，
+    // 因此在不丢失日志条目的前提下合并状态通知和 Compose 刷新。
+    StandardBrowserSessionTools.mainHandler.postDelayed(
+        {
+            session.networkRefreshScheduled.set(false)
+            notifySessionStateChanged(session)
+            refreshSessionUiOnMain(session.id)
+        },
+        BROWSER_NETWORK_REFRESH_INTERVAL_MILLIS,
+    )
 }
 
 internal fun StandardBrowserSessionTools.notifySessionStateChanged(session: BrowserToolSession) {
@@ -286,6 +355,8 @@ internal fun StandardBrowserSessionTools.notifySessionStateChanged(session: Brow
         session.stateChanged.signalAll()
     }
 }
+
+private const val BROWSER_NETWORK_REFRESH_INTERVAL_MILLIS = 100L
 
 internal fun StandardBrowserSessionTools.awaitSessionStateChange(
     session: BrowserToolSession,
@@ -354,7 +425,13 @@ internal fun StandardBrowserSessionTools.renderNetworkRequestLog(
     return entries.joinToString("\n") { entry ->
         val frameTag = if (entry.isMainFrame) " [main-frame]" else ""
         val staticTag = if (entry.isStatic) " [static]" else ""
-        "- ${entry.method} ${entry.url}$frameTag$staticTag"
+        val elementTag =
+            if (entry.kind == BrowserNetworkLogEntryKind.ELEMENT) {
+                " [element:${checkNotNull(entry.elementSelector)}]"
+            } else {
+                ""
+            }
+        "- ${entry.method} ${entry.url}$frameTag$staticTag$elementTag"
     }
 }
 

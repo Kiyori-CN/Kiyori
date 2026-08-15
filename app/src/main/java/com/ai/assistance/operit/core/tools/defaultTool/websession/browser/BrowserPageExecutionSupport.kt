@@ -240,12 +240,20 @@ internal fun StandardBrowserSessionTools.createDownloadListener(
     }
 }
 
-internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(webView: WebView) {
+internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
+    webView: WebView,
+    navigationPolicy: BrowserAdMarkingNavigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+) {
+    val navigationPolicyValue = navigationPolicy.toJavascriptValue()
     webView.evaluateJavascript(
         """
         (function() {
             if (window.__kiyoriElementActions) {
-                window.__kiyoriElementActions.finish();
+                if (typeof window.__kiyoriElementActions.destroy === "function") {
+                    window.__kiyoriElementActions.destroy();
+                } else {
+                    window.__kiyoriElementActions.finish();
+                }
             }
 
             const runtimeAttribute = "data-kiyori-runtime-ui";
@@ -257,7 +265,12 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                 previewing: false,
                 previewDisplayValue: "",
                 previewDisplayPriority: "",
-                navigationPolicy: "block"
+                previewedElements: [],
+                navigationPolicy: "$navigationPolicyValue",
+                eventHandlers: [],
+                lastSelectionAt: 0,
+                lastNavigationUrl: "",
+                lastNavigationAt: 0
             };
 
             function stringValue(value, limit) {
@@ -267,10 +280,32 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                     : normalized;
             }
 
-            function cssEscape(value) {
-                return Array.from(String(value || "")).map(function(character) {
-                    return "\\" + character.codePointAt(0).toString(16) + " ";
-                }).join("");
+            function prettyHtml(value) {
+                const source = String(value || "").trim();
+                if (!source) {
+                    return "";
+                }
+                let depth = 0;
+                return source
+                    .replace(/>\s*</g, ">\n<")
+                    .split("\n")
+                    .map(function(rawLine) {
+                        const line = rawLine.trim();
+                        if (/^<\//.test(line)) {
+                            depth = Math.max(0, depth - 1);
+                        }
+                        const rendered = "    ".repeat(depth) + line;
+                        const opensContainer =
+                            /^<[^!/][^>]*>$/.test(line) &&
+                            !/^<[^>]+\/>$/.test(line) &&
+                            !/<\/[^>]+>$/.test(line) &&
+                            !/^<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/i.test(line);
+                        if (opensContainer) {
+                            depth += 1;
+                        }
+                        return rendered;
+                    })
+                    .join("\n");
             }
 
             function isRuntimeElement(element) {
@@ -284,41 +319,73 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                     .filter(function(name) {
                         return name.length > 0 &&
                             name.length <= 48 &&
-                            !/\d{5,}/.test(name);
+                            name.replace(/[^0-9]/g, "").length <= 3 &&
+                            name.indexOf("&&") < 0 &&
+                            name.indexOf(",") < 0;
                     })
                     .slice(0, 3);
             }
 
-            function selectorPart(element) {
-                const tag = String(element.tagName || "").toLowerCase();
-                const classes = stableClasses(element);
-                let part = tag || "*";
-                if (classes.length > 0) {
-                    part += classes.map(function(name) {
-                        return "." + cssEscape(name);
-                    }).join("");
-                }
-                const parent = element.parentElement;
-                if (parent) {
-                    const sameTagSiblings = Array.from(parent.children).filter(function(child) {
-                        return child.tagName === element.tagName;
-                    });
-                    if (sameTagSiblings.length > 1) {
-                        part += ":nth-of-type(" + (sameTagSiblings.indexOf(element) + 1) + ")";
+            function previousMatchIndex(element, kind, name) {
+                let count = 0;
+                let sibling = element.previousElementSibling;
+                while (sibling) {
+                    const tag = String(sibling.localName || "").toLowerCase();
+                    if (tag !== "script" && tag !== "style") {
+                        if (
+                            kind === "class" &&
+                            sibling.classList &&
+                            sibling.classList.contains(name)
+                        ) {
+                            count += 1;
+                        } else if (kind === "tag" && tag === name) {
+                            count += 1;
+                        }
                     }
+                    sibling = sibling.previousElementSibling;
                 }
-                return part;
+                return count;
+            }
+
+            function hikerSelectorPart(element) {
+                const tag = String(element.localName || "").toLowerCase();
+                if (tag === "body") {
+                    return { value: "body", stop: true };
+                }
+                const id = String(element.getAttribute("id") || "").trim();
+                if (
+                    id &&
+                    id.length <= 128 &&
+                    id.indexOf("&&") < 0 &&
+                    id.replace(/[^0-9]/g, "").length <= 3 &&
+                    document.getElementById(id) === element
+                ) {
+                    return { value: "#" + id, stop: true };
+                }
+                const classes = stableClasses(element);
+                if (classes.length > 0) {
+                    const className = classes[0];
+                    return {
+                        value:
+                            "." +
+                            className +
+                            "," +
+                            previousMatchIndex(element, "class", className),
+                        stop: false
+                    };
+                }
+                if (!tag) {
+                    return null;
+                }
+                return {
+                    value: tag + "," + previousMatchIndex(element, "tag", tag),
+                    stop: false
+                };
             }
 
             function selectorFor(element) {
                 if (!element || element.nodeType !== Node.ELEMENT_NODE) {
                     return "";
-                }
-                if (element.id) {
-                    const idSelector = "#" + cssEscape(element.id);
-                    if (document.querySelectorAll(idSelector).length === 1) {
-                        return idSelector;
-                    }
                 }
                 const parts = [];
                 let current = element;
@@ -326,16 +393,115 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                     current &&
                     current.nodeType === Node.ELEMENT_NODE &&
                     current !== document.documentElement &&
-                    parts.length < 7
+                    parts.length < 12
                 ) {
-                    parts.unshift(selectorPart(current));
-                    const candidate = parts.join(" > ");
-                    if (document.querySelectorAll(candidate).length === 1) {
-                        return candidate;
+                    const part = hikerSelectorPart(current);
+                    if (!part) {
+                        break;
+                    }
+                    parts.unshift(part.value);
+                    if (part.stop) {
+                        break;
                     }
                     current = current.parentElement;
                 }
-                return parts.join(" > ");
+                return parts.join("&&");
+            }
+
+            function parseIndexedSelectorPart(part) {
+                const separator = part.lastIndexOf(",");
+                if (separator <= 0) {
+                    return null;
+                }
+                const index = Number(part.slice(separator + 1));
+                if (!Number.isInteger(index) || index < 0) {
+                    return null;
+                }
+                return {
+                    token: part.slice(0, separator),
+                    index: index
+                };
+            }
+
+            function matchingSelectorChildren(parent, token) {
+                const children = Array.from(parent.children || []).filter(function(child) {
+                    const tag = String(child.localName || "").toLowerCase();
+                    return tag !== "script" && tag !== "style";
+                });
+                if (token.startsWith(".")) {
+                    const className = token.slice(1);
+                    return children.filter(function(child) {
+                        return child.classList && child.classList.contains(className);
+                    });
+                }
+                return children.filter(function(child) {
+                    return String(child.localName || "").toLowerCase() === token.toLowerCase();
+                });
+            }
+
+            function resolveHikerSelector(selector) {
+                const parts = String(selector || "")
+                    .split("&&")
+                    .map(function(part) {
+                        return part.trim();
+                    })
+                    .filter(Boolean);
+                if (parts.length === 0) {
+                    return null;
+                }
+                let current = null;
+                for (let index = 0; index < parts.length; index += 1) {
+                    const part = parts[index];
+                    if (part.startsWith("#")) {
+                        const identified = document.getElementById(part.slice(1));
+                        if (!identified || (current && identified.parentElement !== current)) {
+                            return null;
+                        }
+                        current = identified;
+                        continue;
+                    }
+                    if (part === "body") {
+                        if (index !== 0 || !document.body) {
+                            return null;
+                        }
+                        current = document.body;
+                        continue;
+                    }
+                    const parsed = parseIndexedSelectorPart(part);
+                    if (!parsed) {
+                        return null;
+                    }
+                    if (!current) {
+                        const rootMatches =
+                            parsed.token.startsWith(".")
+                                ? Array.from(document.getElementsByClassName(parsed.token.slice(1)))
+                                : Array.from(document.getElementsByTagName(parsed.token));
+                        current = rootMatches[parsed.index] || null;
+                    } else {
+                        current =
+                            matchingSelectorChildren(current, parsed.token)[parsed.index] || null;
+                    }
+                    if (!current) {
+                        return null;
+                    }
+                }
+                return current;
+            }
+
+            function elementsForRule(selector) {
+                const normalized = String(selector || "").trim();
+                if (!normalized) {
+                    return [];
+                }
+                if (normalized.indexOf("&&") >= 0) {
+                    const resolved = resolveHikerSelector(normalized);
+                    return resolved ? [resolved] : [];
+                }
+                try {
+                    return Array.from(document.querySelectorAll(normalized));
+                } catch (error) {
+                    return [];
+                }
             }
 
             function resolvedUrl(value) {
@@ -355,20 +521,47 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                 if (!element) {
                     return "";
                 }
-                const direct =
-                    element.currentSrc ||
-                    element.src ||
-                    element.getAttribute("src") ||
-                    element.getAttribute("data-src") ||
-                    element.getAttribute("poster");
-                return resolvedUrl(direct);
+                const directValues = [
+                    element.currentSrc,
+                    element.src,
+                    element.getAttribute("src"),
+                    element.getAttribute("data-src"),
+                    element.getAttribute("data-original"),
+                    element.getAttribute("data-lazy-src"),
+                    element.getAttribute("data-url"),
+                    element.getAttribute("poster")
+                ];
+                for (let index = 0; index < directValues.length; index += 1) {
+                    const direct = resolvedUrl(directValues[index]);
+                    if (direct) {
+                        return direct;
+                    }
+                }
+                const source = element.querySelector
+                    ? element.querySelector("source[src], source[data-src]")
+                    : null;
+                if (source) {
+                    const sourceUrl = resolvedUrl(
+                        source.getAttribute("src") || source.getAttribute("data-src")
+                    );
+                    if (sourceUrl) {
+                        return sourceUrl;
+                    }
+                }
+                const backgroundImage =
+                    element.ownerDocument.defaultView.getComputedStyle(element).backgroundImage || "";
+                const backgroundMatch =
+                    backgroundImage.match(/url\((?:"([^"]+)"|'([^']+)'|([^)]*))\)/i);
+                return backgroundMatch
+                    ? resolvedUrl(backgroundMatch[1] || backgroundMatch[2] || backgroundMatch[3])
+                    : "";
             }
 
             function payloadFor(element, x, y) {
                 if (!element || isRuntimeElement(element)) {
                     return null;
                 }
-                const anchor = element.closest ? element.closest("a[href]") : null;
+                const anchor = element.closest ? element.closest("a[href], area[href]") : null;
                 const selector = selectorFor(element);
                 if (!selector) {
                     return null;
@@ -380,7 +573,7 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                     linkUrl: anchor ? resolvedUrl(anchor.getAttribute("href")) : "",
                     resourceUrl: resourceUrlFor(element),
                     selector: selector,
-                    html: stringValue(element.outerHTML || "", 5000),
+                    html: prettyHtml(String(element.outerHTML || "").slice(0, 20000)),
                     clientX: Number(x || 0),
                     clientY: Number(y || 0)
                 };
@@ -390,8 +583,55 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                 if (!element || !element.closest) {
                     return "";
                 }
-                const anchor = element.closest("a[href]");
+                const anchor = element.closest("a[href], area[href]");
                 return anchor ? resolvedUrl(anchor.getAttribute("href")) : "";
+            }
+
+            function elementFromEvent(event) {
+                const path =
+                    event && typeof event.composedPath === "function"
+                        ? event.composedPath()
+                        : [];
+                for (let index = 0; index < path.length; index += 1) {
+                    const candidate = path[index];
+                    if (
+                        candidate &&
+                        candidate.nodeType === Node.ELEMENT_NODE &&
+                        !isRuntimeElement(candidate)
+                    ) {
+                        return candidate;
+                    }
+                }
+                const target = event ? event.target : null;
+                return target && target.nodeType === Node.ELEMENT_NODE &&
+                    !isRuntimeElement(target)
+                    ? target
+                    : null;
+            }
+
+            function suppressMarkingEvent(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === "function") {
+                    event.stopImmediatePropagation();
+                }
+            }
+
+            function isActivationEvent(event) {
+                return event.type === "pointerup" ||
+                    event.type === "touchend" ||
+                    event.type === "mouseup" ||
+                    event.type === "click";
+            }
+
+            function addManagedEventListener(target, type, handler, capture) {
+                target.addEventListener(type, handler, capture);
+                state.eventHandlers.push({
+                    target: target,
+                    type: type,
+                    handler: handler,
+                    capture: capture
+                });
             }
 
             function removeHighlight() {
@@ -434,20 +674,25 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
             }
 
             function restorePreview() {
-                const element = state.selectedElement;
-                if (!state.previewing || !element) {
+                if (!state.previewing) {
                     state.previewing = false;
                     return;
                 }
-                if (state.previewDisplayValue) {
-                    element.style.setProperty(
-                        "display",
-                        state.previewDisplayValue,
-                        state.previewDisplayPriority
-                    );
-                } else {
-                    element.style.removeProperty("display");
-                }
+                state.previewedElements.forEach(function(item) {
+                    if (!item.element || !item.element.style) {
+                        return;
+                    }
+                    if (item.displayValue) {
+                        item.element.style.setProperty(
+                            "display",
+                            item.displayValue,
+                            item.displayPriority
+                        );
+                    } else {
+                        item.element.style.removeProperty("display");
+                    }
+                });
+                state.previewedElements = [];
                 state.previewing = false;
             }
 
@@ -491,17 +736,38 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                 return selectElement(target, 0, 0);
             }
 
+            function previewRule(selector, notifyNative) {
+                const elements = elementsForRule(selector);
+                if (elements.length === 0) {
+                    return false;
+                }
+                restorePreview();
+                state.previewedElements = elements.map(function(element) {
+                    const original = {
+                        element: element,
+                        displayValue: element.style.getPropertyValue("display"),
+                        displayPriority: element.style.getPropertyPriority("display")
+                    };
+                    element.style.setProperty("display", "none", "important");
+                    return original;
+                });
+                state.previewing = true;
+                updateHighlight();
+                if (notifyNative !== false) {
+                    notifySelection(0, 0);
+                }
+                return true;
+            }
+
             function setPreview(enabled) {
                 const element = state.selectedElement;
                 if (!element) {
                     return false;
                 }
-                if (enabled && !state.previewing) {
-                    state.previewDisplayValue = element.style.getPropertyValue("display");
-                    state.previewDisplayPriority = element.style.getPropertyPriority("display");
-                    element.style.setProperty("display", "none", "important");
-                    state.previewing = true;
-                } else if (!enabled && state.previewing) {
+                if (enabled) {
+                    return previewRule(selectorFor(element), true);
+                }
+                if (state.previewing) {
                     restorePreview();
                 }
                 updateHighlight();
@@ -520,43 +786,147 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                 }
             }
 
-            function finish() {
+            function finish(removeListeners) {
                 restorePreview();
                 state.marking = false;
                 state.contextElement = null;
                 state.selectedElement = null;
-                state.navigationPolicy = "block";
+                if (removeListeners) {
+                    state.eventHandlers.forEach(function(binding) {
+                        binding.target.removeEventListener(
+                            binding.type,
+                            binding.handler,
+                            binding.capture
+                        );
+                    });
+                    state.eventHandlers = [];
+                }
                 removeHighlight();
             }
 
-            document.addEventListener("click", function(event) {
-                if (!state.marking || isRuntimeElement(event.target)) {
+            function handleMarkingEvent(event) {
+                if (!state.marking) {
                     return;
                 }
-                const linkUrl = navigationUrlFor(event.target);
-                if (linkUrl && state.navigationPolicy === "allow") {
+                const element = elementFromEvent(event);
+                if (!element) {
                     return;
                 }
-                if (linkUrl && state.navigationPolicy === "ask") {
-                    selectElement(event.target, event.clientX, event.clientY);
-                    event.preventDefault();
-                    event.stopPropagation();
+                suppressMarkingEvent(event);
+                const now = Date.now();
+                if (
+                    state.selectedElement !== element ||
+                    now - state.lastSelectionAt >= 160
+                ) {
+                    state.lastSelectionAt = now;
+                    selectElement(element, event.clientX, event.clientY);
+                }
+            }
+
+            function sameHostFamily(left, right) {
+                if (!left || !right) {
+                    return true;
+                }
+                return left === right ||
+                    left.endsWith("." + right) ||
+                    right.endsWith("." + left);
+            }
+
+            function isExternalNavigation(url) {
+                try {
+                    const current = new URL(String(location.href || ""));
+                    const target = new URL(String(url || ""), document.baseURI);
+                    if (
+                        (target.protocol !== "http:" && target.protocol !== "https:") ||
+                        (current.protocol !== "http:" && current.protocol !== "https:")
+                    ) {
+                        return false;
+                    }
+                    return !sameHostFamily(
+                        String(current.hostname || "").toLowerCase(),
+                        String(target.hostname || "").toLowerCase()
+                    );
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            function handleNormalNavigationEvent(event) {
+                if (state.marking || state.navigationPolicy === "allow") {
+                    return;
+                }
+                const element = elementFromEvent(event);
+                const linkUrl = navigationUrlFor(element);
+                if (!linkUrl || !isExternalNavigation(linkUrl)) {
+                    return;
+                }
+                suppressMarkingEvent(event);
+                if (
+                    state.navigationPolicy === "ask" &&
+                    isActivationEvent(event)
+                ) {
+                    const now = Date.now();
+                    if (
+                        state.lastNavigationUrl === linkUrl &&
+                        now - state.lastNavigationAt < 700
+                    ) {
+                        return;
+                    }
+                    state.lastNavigationUrl = linkUrl;
+                    state.lastNavigationAt = now;
                     window.OperitWebElementBridge.requestNavigation(
                         JSON.stringify({
                             url: linkUrl,
-                            text: stringValue(event.target.innerText || event.target.textContent || "", 160)
+                            text: stringValue(
+                                element.innerText || element.textContent || "",
+                                160
+                            )
                         })
                     );
-                    return;
                 }
-                if (selectElement(event.target, event.clientX, event.clientY)) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-            }, true);
+            }
 
-            window.addEventListener("scroll", updateHighlight, true);
-            window.addEventListener("resize", updateHighlight, true);
+            function handleInteractionEvent(event) {
+                if (state.marking) {
+                    handleMarkingEvent(event);
+                } else {
+                    handleNormalNavigationEvent(event);
+                }
+            }
+
+            function selectAtViewPoint(x, y) {
+                if (!state.marking) {
+                    return false;
+                }
+                const viewX = Number(x);
+                const viewY = Number(y);
+                const pixelRatio = Number(window.devicePixelRatio);
+                if (
+                    !Number.isFinite(viewX) ||
+                    !Number.isFinite(viewY) ||
+                    !Number.isFinite(pixelRatio) ||
+                    pixelRatio <= 0
+                ) {
+                    return false;
+                }
+                const clientX = viewX / pixelRatio;
+                const clientY = viewY / pixelRatio;
+                return selectElement(document.elementFromPoint(clientX, clientY), clientX, clientY);
+            }
+
+            [
+                "pointerdown",
+                "pointerup",
+                "touchstart",
+                "touchend",
+                "mousedown",
+                "mouseup",
+                "click"
+            ].forEach(function(type) {
+                addManagedEventListener(document, type, handleInteractionEvent, true);
+            });
+            addManagedEventListener(window, "scroll", updateHighlight, true);
+            addManagedEventListener(window, "resize", updateHighlight, true);
 
             window.__kiyoriElementActions = {
                 handleLongPress: function(x, y) {
@@ -571,7 +941,18 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                 },
                 startMarking: startMarking,
                 moveSelection: moveSelection,
+                selectAtViewPoint: selectAtViewPoint,
                 setPreview: setPreview,
+                previewSelector: function(selector) {
+                    return previewRule(selector, false);
+                },
+                clearPreview: function() {
+                    if (state.previewing) {
+                        restorePreview();
+                    }
+                    updateHighlight();
+                    return true;
+                },
                 setNavigationPolicy: function(policy) {
                     state.navigationPolicy =
                         policy === "allow"
@@ -588,7 +969,12 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(w
                         window.__operitTextSelection.selectAtPoint(x, y);
                     }
                 },
-                finish: finish
+                finish: function() {
+                    finish(false);
+                },
+                destroy: function() {
+                    finish(true);
+                }
             };
         })();
         """.trimIndent(),

@@ -11,6 +11,30 @@ internal enum class BrowserNetworkRequestCategory {
     OTHER,
 }
 
+internal enum class BrowserExternalNavigationDecision {
+    ALLOW,
+    ASK,
+    BLOCK,
+}
+
+internal fun resolveBrowserExternalNavigationDecision(
+    policy: BrowserAdMarkingNavigationPolicy,
+    pageUrl: String,
+    targetUrl: String,
+): BrowserExternalNavigationDecision {
+    if (
+        policy == BrowserAdMarkingNavigationPolicy.DEFAULT ||
+            !isThirdPartyBrowserNetworkRequest(pageUrl, targetUrl)
+    ) {
+        return BrowserExternalNavigationDecision.ALLOW
+    }
+    return when (policy) {
+        BrowserAdMarkingNavigationPolicy.DEFAULT -> BrowserExternalNavigationDecision.ALLOW
+        BrowserAdMarkingNavigationPolicy.ASK -> BrowserExternalNavigationDecision.ASK
+        BrowserAdMarkingNavigationPolicy.BLOCK -> BrowserExternalNavigationDecision.BLOCK
+    }
+}
+
 internal fun classifyBrowserNetworkRequest(
     url: String,
     acceptHeader: String?,
@@ -53,7 +77,8 @@ internal fun filterBrowserNetworkLogEntries(
                     entry.url.contains(normalizedQuery, ignoreCase = true) ||
                     entry.method.contains(normalizedQuery, ignoreCase = true) ||
                     entry.blockingRule?.contains(normalizedQuery, ignoreCase = true) == true ||
-                    entry.blockingSourceName?.contains(normalizedQuery, ignoreCase = true) == true
+                    entry.blockingSourceName?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    entry.elementSelector?.contains(normalizedQuery, ignoreCase = true) == true
                 )
     }
 }

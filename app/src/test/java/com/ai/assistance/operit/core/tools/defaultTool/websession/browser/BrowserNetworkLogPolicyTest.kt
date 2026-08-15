@@ -117,6 +117,108 @@ class BrowserNetworkLogPolicyTest {
     }
 
     @Test
+    fun `element interception entries participate in blocked and selector filtering`() {
+        val elementEntry =
+            WebSessionBrowserNetworkEntry(
+                method = "DOM",
+                url = "https://news.example.org/article",
+                isMainFrame = true,
+                isStatic = false,
+                category = BrowserNetworkRequestCategory.OTHER,
+                timestamp = 5L,
+                kind = BrowserNetworkLogEntryKind.ELEMENT,
+                blocked = true,
+                blockingRule = "video.ad",
+                blockingSourceName = "自定义元素规则",
+                elementSelector = "video.ad",
+            )
+
+        assertEquals(
+            listOf(5L),
+            filterBrowserNetworkLogEntries(
+                entries = listOf(elementEntry),
+                category = null,
+                query = "",
+                blockedOnly = true,
+            ).map { it.timestamp },
+        )
+        assertEquals(
+            listOf(5L),
+            filterBrowserNetworkLogEntries(
+                entries = listOf(elementEntry),
+                category = null,
+                query = "video.ad",
+            ).map { it.timestamp },
+        )
+    }
+
+    @Test
+    fun `ad marking navigation policy exposes three distinct user choices`() {
+        assertEquals(
+            listOf(
+                BrowserAdMarkingNavigationPolicy.DEFAULT,
+                BrowserAdMarkingNavigationPolicy.ASK,
+                BrowserAdMarkingNavigationPolicy.BLOCK,
+            ),
+            browserAdMarkingSelectablePolicies(),
+        )
+        assertEquals(
+            "allow",
+            BrowserAdMarkingNavigationPolicy.DEFAULT.toJavascriptValue(),
+        )
+        assertEquals(
+            "ask",
+            BrowserAdMarkingNavigationPolicy.ASK.toJavascriptValue(),
+        )
+        assertEquals(
+            "block",
+            BrowserAdMarkingNavigationPolicy.BLOCK.toJavascriptValue(),
+        )
+    }
+
+    @Test
+    fun `normal browsing navigation policy only acts on cross domain targets`() {
+        val currentPage = "https://www.example.com/article"
+        val sameDomain = "https://example.com/next"
+        val otherDomain = "https://outside.test/landing"
+
+        BrowserAdMarkingNavigationPolicy.entries.forEach { policy ->
+            assertEquals(
+                BrowserExternalNavigationDecision.ALLOW,
+                resolveBrowserExternalNavigationDecision(
+                    policy = policy,
+                    pageUrl = currentPage,
+                    targetUrl = sameDomain,
+                ),
+            )
+        }
+        assertEquals(
+            BrowserExternalNavigationDecision.ALLOW,
+            resolveBrowserExternalNavigationDecision(
+                policy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+                pageUrl = currentPage,
+                targetUrl = otherDomain,
+            ),
+        )
+        assertEquals(
+            BrowserExternalNavigationDecision.ASK,
+            resolveBrowserExternalNavigationDecision(
+                policy = BrowserAdMarkingNavigationPolicy.ASK,
+                pageUrl = currentPage,
+                targetUrl = otherDomain,
+            ),
+        )
+        assertEquals(
+            BrowserExternalNavigationDecision.BLOCK,
+            resolveBrowserExternalNavigationDecision(
+                policy = BrowserAdMarkingNavigationPolicy.BLOCK,
+                pageUrl = currentPage,
+                targetUrl = otherDomain,
+            ),
+        )
+    }
+
+    @Test
     fun `third party comparison keeps exact hosts and subdomains together`() {
         assertFalse(
             isThirdPartyBrowserNetworkRequest(

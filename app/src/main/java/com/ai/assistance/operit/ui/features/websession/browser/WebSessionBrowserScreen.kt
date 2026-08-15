@@ -243,14 +243,15 @@ internal fun WebSessionBrowserScreen(
     onDismissTextSelection: () -> Unit,
     onStartAdMarking: () -> Unit,
     onStartAdMarkingFromCurrentElement: () -> Unit,
-    onChooseAdMarkingNode: () -> Unit,
     onMoveAdMarking: (BrowserAdMarkingMove) -> Unit,
     onSetAdMarkingPreview: (Boolean) -> Unit,
     onSaveAdMarking: () -> Unit,
     onResetAdMarking: () -> Unit,
     onExitAdMarking: () -> Unit,
     onOpenAdMarkingRuleEditor: () -> Unit,
+    onOpenAdMarkingHtmlEditor: () -> Unit,
     onUpdateAdMarkingRuleDraft: (String) -> Unit,
+    onPreviewAdMarkingRuleDraft: () -> Unit,
     onConfirmAdMarkingRuleEdit: () -> Unit,
     onDismissAdMarkingOverlay: () -> Unit,
     onOpenClearAdMarkingConfirmation: () -> Unit,
@@ -672,13 +673,13 @@ internal fun WebSessionBrowserScreen(
             if (hostState.adMarking.active) {
                 WebSessionAdMarkingWorkbench(
                     state = hostState.adMarking,
-                    onChooseNode = onChooseAdMarkingNode,
                     onMove = onMoveAdMarking,
                     onSetPreview = onSetAdMarkingPreview,
                     onSave = onSaveAdMarking,
                     onReset = onResetAdMarking,
                     onExit = onExitAdMarking,
                     onEditRule = onOpenAdMarkingRuleEditor,
+                    onOpenHtmlEditor = onOpenAdMarkingHtmlEditor,
                     onClearIntercept = onOpenClearAdMarkingConfirmation,
                     onOpenNavigationPolicy = onOpenAdMarkingNavigationPolicy,
                     modifier = Modifier.fillMaxWidth(),
@@ -1193,10 +1194,12 @@ internal fun WebSessionBrowserScreen(
                     ruleDraft = hostState.adMarking.ruleDraft,
                     onRuleDraftChange = onUpdateAdMarkingRuleDraft,
                     onDismiss = onDismissAdMarkingOverlay,
+                    onPreview = onPreviewAdMarkingRuleDraft,
                     onConfirm = onConfirmAdMarkingRuleEdit,
                 )
             WebSessionAdMarkingOverlay.CLEAR_CONFIRM ->
                 WebSessionAdMarkingClearConfirmation(
+                    domain = hostState.adMarking.domain,
                     onDismiss = onDismissAdMarkingOverlay,
                     onConfirm = onConfirmClearAdMarking,
                 )

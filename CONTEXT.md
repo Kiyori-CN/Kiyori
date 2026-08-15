@@ -21,15 +21,65 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - Kiyori has never had a user-facing release. The inherited Operit navigation drawer is not a published Kiyori interface, so the product-shell migration removes that design instead of maintaining a parallel legacy route.
 - The current Browser tool contract is shared by Browser Home and Operit AI through the one `StandardBrowserSessionTools` / WebSession / real WebView runtime. A requested viewport is a per-session CSS layout contract; only the Host boundary converts it by Android display density into physical View dimensions, and the page's DOM viewport metrics are the evidence returned to the caller. Fixed `1×1` background-anchor wording in older presentation history is not current behavior. Real link clicks retain click semantics and report navigation settlement separately. Page console messages exclude userscript bridge/runtime diagnostics.
 - Browser ad blocking is owned by one `BrowserAdBlockStore`. It persists the master switch, allowlisted
-  domains, custom URL rules, custom element selectors, explicit subscriptions and parsed subscription
-  statistics. `shouldInterceptRequest` consumes an immutable matcher snapshot on the WebView request
-  thread; DOM selectors are injected into the same WebSession WebView after page settlement. Network-log
-  `blocked` is a Kiyori client decision with rule/source evidence, not a guessed server response. The
-  settings page, network-log “拦截” filter, element long-press actions and “标记广告” workbench never
-  create a second Browser Runtime or rule owner. The ad-marking workbench is a fixed-height sibling
-  below the live WebView rather than an overlay on top of page content. Its rule, node, HTML,
-  parent/sibling/child, preview, edit, clear and navigation-policy actions remain Host-owned; entering
-  marking mode blocks link navigation until the user explicitly selects another navigation policy.
+  domains, custom URL rules, custom element selectors and subscription metadata in schema-v2 state;
+  raw subscription text is stored separately in atomic app-private
+  `browser_ad_block_subscriptions/<subscription-id>.txt` payloads. Five stable built-ins are enabled by
+  default and shown as “广告拦截器 Pro” (My AdFilters, AdGuard 中文过滤器, AdRules Lite) and
+  “Adblock Plus” (EasyList China + EasyList, 可接受广告例外规则). Missing built-in payloads synchronize
+  on first use or immediately when a subscription is enabled; later process starts check enabled built-ins
+  against their fixed update interval when automatic updates are enabled. Subscription downloads use a
+  bounded chunk reader, so a normal EOF is accepted while the 32 MiB payload limit remains enforced.
+  The settings page distinguishes enabled subscriptions from ready local payloads and exposes batch progress,
+  per-subscription status, expanded details and readable update errors. Custom subscriptions remain explicit
+  user-managed entries and a newly added or re-addressed enabled entry starts its first synchronization from
+  the settings flow.
+  Subscription parsing executes only the WebView-evidenced ABP/AdGuard subset: anchored, wildcard and
+  regular-expression network rules, exceptions, domain/party/resource constraints, `important`,
+  cross-enabled-subscription `badfilter`, page exceptions and standard `##/#@#` cosmetic rules.
+  Unsupported action modifiers and extended cosmetic syntax are counted as ignored instead of being
+  widened into ordinary blocking rules. `shouldInterceptRequest` supplies page URL, request URL,
+  main-frame evidence, headers and inferred resource type to an immutable matcher snapshot on the WebView
+  request thread; main documents are never directly blocked. Store construction never reads or compiles
+  subscription payloads on its caller: settings metadata and local rules load on one IO lifecycle with
+  explicit reading, compiling, ready and failed states, then publish one complete matcher atomically.
+  While that lifecycle is incomplete, WebView requests continue without waiting for its lock or parsing
+  work. The ready runtime keeps one aggregate token/host index for subscription rules and one small index
+  for user-authored rules, then combines both inside the same immutable matcher and one global candidate
+  decision. This preserves cross-source exceptions and `important` priority while a manual-rule edit only
+  rebuilds the small custom partition instead of scanning every subscription rule. Each request is normalized
+  once; page policy and registrable-domain facts use bounded caches whose first miss is computed once even
+  when WebView emits concurrent subresource requests. Blocked-count publication and per-session network-log
+  UI refresh are coalesced instead of emitting one Compose update per subresource, including a final
+  race-safe blocked-count publication after traffic becomes idle.
+  DOM selectors are indexed and cached by page, assembled into bounded CSS chunks off the main thread and
+  injected into the same WebSession WebView at most once per document token and `ruleRevision`. Hiker-style
+  selectors retain their dedicated mutation observer; ordinary CSS selectors do not run through it.
+  Runtime-relevant changes advance one `ruleRevision`, whose single observer reapplies DOM rules to every
+  existing WebSession. Network-log entries distinguish `REQUEST` from `ELEMENT`: request entries record
+  WebView request decisions, while element entries record only user-created element rules for the current
+  page as Kiyori client decisions. Subscription cosmetic selectors remain stylesheet inputs and are not
+  fabricated into thousands of request-log entries. Both kinds participate in the network-log `blocked`
+  filter, but element entries are never presented as HTTP requests or guessed server responses. The
+  settings page, network-log “拦截” filter,
+  element long-press actions and “标记广告” workbench never create a second Browser Runtime or rule
+  owner. The ad-marking workbench is a fixed-height sibling below the live WebView rather than an
+  overlay on top of page content. The live page keeps the remaining measured height, so scrolling to
+  the document end aligns the page bottom with the workbench top instead of hiding the last elements
+  behind the workbench. Its rule, node, HTML, parent/sibling/child, preview, edit, domain clear and
+  navigation-policy actions remain Host-owned. Marking mode owns the native WebView touch stream:
+  a tap selects at its release point, while a vertical drag and system-threshold fling scroll the same
+  WebView. Neither gesture enters the DOM, and every frame, scheme and popup navigation is consumed;
+  the selected element is resolved from the touch point even when a media layer or cross-origin iframe
+  prevents top-document event bubbling. The workbench footer uses the browser bottom bar's shared
+  50dp content-height contract with 40dp text-only actions. The
+  `Default allow / Ask before navigation / Block navigation` policy applies only after marking mode
+  exits: normal browsing keeps current-host navigation available and applies the selected decision to
+  cross-host main-frame and popup targets.
+  Domain clear removes user-created element rules and explicitly domain-targeted URL rules for the
+  normalized current host; subscription and unscoped global rules remain intact. The marking script
+  captures pointer/touch/mouse/click activation, uses composed paths and immediate propagation
+  suppression, and extracts image/video/source/iframe/object/embed and background-image resources;
+  cross-origin iframe internals remain outside the readable top-document DOM boundary.
 - Public `browser:fill_form` fields contain a string, number, or boolean `value` plus exactly one of `ref` or `selector`; `name` is optional diagnostic text, and caller-supplied control `type` is not part of the contract. The real DOM selects the shared fill, checked-state, or option-selection operation. Checkbox and radio values are boolean. `browser_run_code` accepts a JavaScript function source and injects it directly into the current WebView without `eval` or a dynamic function constructor. Its Page subset is `title`, `url`, `evaluate`, `waitForTimeout`, `setContent`, dialog `on/once/off/removeListener`, and locator/getByRole `click/hover/fill/selectOption/textContent`. Locator input and `keyboard.press` use the same `__operitPw` runtime as package-level input operations. Keyboard supports one character, `Enter`, `Backspace`, and `Delete`; `page.dialog`, unknown keyboard/locator members, and keys without an implemented behavior return a structured `Unsupported Playwright API`. Trusted file-chooser activation remains owned by the public real-click path followed by `browser:upload`.
 - `browser:close` and `browser:tabs action=close` commit and report the in-memory tab/session state change before observing the newly active page. Open-tab count, closed session, and active session are state evidence; page state and snapshot are separate observations whose failure cannot reverse a completed close.
 

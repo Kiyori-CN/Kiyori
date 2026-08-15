@@ -47,6 +47,15 @@ class WebSessionBrowserBackPolicyTest {
             ),
         )
         assertEquals(
+            WebSessionBrowserBackAction.CLOSE_SHEET,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    sheetRoute = WebSessionBrowserSheetRoute.PAGE_SOURCE,
+                    adMarking = WebSessionAdMarkingState(active = true),
+                ),
+            ),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.EXIT_AD_MARKING,
             resolveWebSessionBrowserBackAction(
                 base.copy(
@@ -247,9 +256,8 @@ class WebSessionBrowserBackPolicyTest {
     }
 
     @Test
-    fun `ad-marking navigation policy keeps the default safe`() {
-        assertEquals("block", BrowserAdMarkingNavigationPolicy.DEFAULT.toJavascriptValue())
-        assertEquals("allow", BrowserAdMarkingNavigationPolicy.ALLOW.toJavascriptValue())
+    fun `ad-marking navigation policy defaults normal browsing to allow`() {
+        assertEquals("allow", BrowserAdMarkingNavigationPolicy.DEFAULT.toJavascriptValue())
         assertEquals("ask", BrowserAdMarkingNavigationPolicy.ASK.toJavascriptValue())
         assertEquals("block", BrowserAdMarkingNavigationPolicy.BLOCK.toJavascriptValue())
     }

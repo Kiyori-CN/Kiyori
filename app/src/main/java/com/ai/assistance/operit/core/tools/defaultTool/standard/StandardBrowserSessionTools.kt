@@ -61,6 +61,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,7 +69,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
@@ -191,6 +194,14 @@ class StandardBrowserSessionTools private constructor(
             profileManager.initialize()
         }
         initializeBrowserDownloadSupport()
+        ioScope.launch {
+            adBlockStore.state
+                .map { state -> state.ruleRevision }
+                .distinctUntilChanged()
+                .collect {
+                    applyBrowserAdBlockRulesToAllSessionsOnMain()
+                }
+        }
     }
 
     internal fun publishBrowserWindowCount(count: Int) {
@@ -215,6 +226,10 @@ class StandardBrowserSessionTools private constructor(
         @Volatile
         var browserHomeNavigationState: BrowserHomeNavigationState =
             BrowserHomeNavigationState()
+        @Volatile
+        var externalNavigationPolicy: BrowserAdMarkingNavigationPolicy =
+            BrowserAdMarkingNavigationPolicy.DEFAULT
+        @Volatile var adMarkingActive: Boolean = false
         @Volatile var hasSslError: Boolean = false
         @Volatile var pendingFileChooserCallback: ValueCallback<Array<Uri>>? = null
         @Volatile var lastFileChooserRequestAt: Long = 0L
@@ -226,6 +241,10 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var usesDesktopUserAgentLayout: Boolean = false
         @Volatile var appliedUserAgent: String = ""
         @Volatile var credentialDocumentToken: String = UUID.randomUUID().toString()
+        @Volatile var pendingAdBlockDocumentToken: String? = null
+        @Volatile var pendingAdBlockRuleRevision: Long = -1L
+        @Volatile var appliedAdBlockDocumentToken: String? = null
+        @Volatile var appliedAdBlockRuleRevision: Long = -1L
         @Volatile var returnWithoutReloadOriginalCacheMode: Int? = null
         @Volatile var lastSnapshot: BrowserSnapshot? = null
         @Volatile var thumbnail: Bitmap? = null
@@ -236,6 +255,7 @@ class StandardBrowserSessionTools private constructor(
         @Volatile var stateVersion: Long = 0L
         val consoleEntries: MutableList<BrowserConsoleEntry> = mutableListOf()
         val networkEntries: MutableList<BrowserNetworkRequestEntry> = mutableListOf()
+        val networkRefreshScheduled = AtomicBoolean(false)
         val mediaCandidates: MutableList<BrowserMediaCandidate> = mutableListOf()
     }
 

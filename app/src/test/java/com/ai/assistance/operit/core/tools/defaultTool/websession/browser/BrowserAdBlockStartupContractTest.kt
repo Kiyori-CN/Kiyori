@@ -1,0 +1,64 @@
+package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
+
+import java.io.File
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class BrowserAdBlockStartupContractTest {
+    @Test
+    fun `store construction never parses subscription payloads on the caller thread`() {
+        val source =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserAdBlockStore.kt",
+            ).readText()
+
+        assertFalse(source.contains("private val initialSnapshot = readInitialSnapshot()"))
+        assertTrue(source.contains("private var matcher = BrowserAdBlockMatcher.EMPTY"))
+        assertTrue(source.contains("init {"))
+        assertTrue(source.contains("ioScope.launch {"))
+        assertTrue(source.contains("initializeRuntime()"))
+        assertTrue(source.contains("phase = BrowserAdBlockRuntimePhase.COMPILING_RULES"))
+        assertTrue(source.contains("matcher = compileMatcher(revisionedState, compiledEngine)"))
+        assertTrue(source.contains("private var customRuntimeEngine"))
+        assertTrue(source.contains("private var subscriptionRuntimeEngine"))
+        assertTrue(source.contains("combineRuntimeEngines("))
+    }
+
+    @Test
+    fun `settings and WebView surfaces consume asynchronous runtime state`() {
+        val settingsSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/main/shell/KiyoriAdBlockSettingsPage.kt",
+            ).readText()
+        val webViewSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserWebViewSupport.kt",
+            ).readText()
+        val networkSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserToolSupport.kt",
+            ).readText()
+
+        assertTrue(settingsSource.contains("store.runtimeStatus.collectAsState()"))
+        assertTrue(settingsSource.contains("enabled = runtimeStatus.ready"))
+        assertTrue(webViewSource.contains("buildBrowserAdBlockElementInjectionPayload"))
+        assertTrue(webViewSource.contains("ioScope.launch"))
+        assertTrue(webViewSource.contains("data-kiyori-adblock-style"))
+        assertTrue(networkSource.contains("scheduleNetworkStateRefresh(session)"))
+        assertTrue(networkSource.contains("postDelayed"))
+    }
+
+    private fun repositoryFile(relativePath: String): File {
+        var current: File? =
+            File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(4) {
+            val candidate = current?.let { directory -> File(directory, relativePath) }
+            if (candidate?.isFile == true) {
+                return candidate
+            }
+            current = current?.parentFile
+        }
+        throw AssertionError("Repository file not found: $relativePath")
+    }
+}

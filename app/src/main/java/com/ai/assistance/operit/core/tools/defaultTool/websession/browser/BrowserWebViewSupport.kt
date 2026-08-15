@@ -15,7 +15,9 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
@@ -42,11 +44,16 @@ import java.io.ByteArrayInputStream
 import java.util.LinkedHashSet
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONArray
+import org.json.JSONObject
 
 private const val WEBVIEW_SUPPORT_TAG = "BrowserSessionTools"
 private const val TAB_THUMBNAIL_MIN_REFRESH_MS = 1_000L
+private const val BROWSER_AD_BLOCK_CSS_CHUNK_CHAR_LIMIT = 64 * 1024
 
 internal enum class BrowserSessionBackResult {
     WEB_HISTORY,
@@ -134,6 +141,16 @@ internal fun StandardBrowserSessionTools.configureWebView(
     applySessionUserAgent(session, resolvedUserAgent)
     configureCookiePolicy(session)
 
+    val adMarkingViewConfiguration = ViewConfiguration.get(session.webView.context)
+    val adMarkingTouchTracker =
+        BrowserAdMarkingTouchTracker(
+            touchSlopPx = adMarkingViewConfiguration.scaledTouchSlop.toFloat(),
+        )
+    var adMarkingVelocityTracker: VelocityTracker? = null
+    fun recycleAdMarkingVelocityTracker() {
+        adMarkingVelocityTracker?.recycle()
+        adMarkingVelocityTracker = null
+    }
     session.webView.apply {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         isFocusable = true
@@ -143,25 +160,114 @@ internal fun StandardBrowserSessionTools.configureWebView(
         isHapticFeedbackEnabled = false
         contentDescription = context.getString(R.string.web_session_accessibility_web_content)
         setOnTouchListener { view, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(true)
-                    view.isLongClickable = false
-                    view.isHapticFeedbackEnabled = false
-                    if (!view.hasFocus()) {
-                        view.requestFocus()
+            if (session.adMarkingActive) {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                        if (!view.hasFocus()) {
+                            view.requestFocus()
+                        }
+                        adMarkingTouchTracker.onDown(event.x, event.y)
+                        recycleAdMarkingVelocityTracker()
+                        adMarkingVelocityTracker =
+                            VelocityTracker.obtain().also { tracker ->
+                                tracker.addMovement(event)
+                            }
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        adMarkingVelocityTracker?.addMovement(event)
+                        when (val action = adMarkingTouchTracker.onMove(event.x, event.y)) {
+                            is BrowserAdMarkingTouchAction.ScrollBy -> {
+                                val deltaYPx = action.deltaYPx.roundToInt()
+                                if (deltaYPx != 0) {
+                                    view.scrollBy(0, deltaYPx)
+                                }
+                            }
+                            BrowserAdMarkingTouchAction.None,
+                            BrowserAdMarkingTouchAction.EndScroll,
+                            BrowserAdMarkingTouchAction.EndGesture,
+                            is BrowserAdMarkingTouchAction.Select,
+                            -> Unit
+                        }
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        adMarkingVelocityTracker?.addMovement(event)
+                        when (val action = adMarkingTouchTracker.onUp(event.x, event.y)) {
+                            is BrowserAdMarkingTouchAction.Select ->
+                                session.webView.evaluateJavascript(
+                                    """
+                                    (function() {
+                                        if (window.__kiyoriElementActions) {
+                                            return window.__kiyoriElementActions.selectAtViewPoint(${action.xPx}, ${action.yPx});
+                                        }
+                                        return false;
+                                    })();
+                                    """.trimIndent(),
+                                    null,
+                                )
+                            BrowserAdMarkingTouchAction.EndScroll -> {
+                                val velocityTracker = adMarkingVelocityTracker
+                                if (velocityTracker != null) {
+                                    velocityTracker.computeCurrentVelocity(
+                                        1_000,
+                                        adMarkingViewConfiguration.scaledMaximumFlingVelocity.toFloat(),
+                                    )
+                                    val pointerId = event.getPointerId(event.actionIndex)
+                                    val velocityYPxPerSecond = velocityTracker.getYVelocity(pointerId)
+                                    if (
+                                        abs(velocityYPxPerSecond) >=
+                                            adMarkingViewConfiguration.scaledMinimumFlingVelocity
+                                    ) {
+                                        session.webView.flingScroll(
+                                            0,
+                                            (-velocityYPxPerSecond).roundToInt(),
+                                        )
+                                    }
+                                }
+                            }
+                            BrowserAdMarkingTouchAction.EndGesture,
+                            BrowserAdMarkingTouchAction.None,
+                            is BrowserAdMarkingTouchAction.ScrollBy,
+                            -> Unit
+                        }
+                        recycleAdMarkingVelocityTracker()
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        adMarkingTouchTracker.cancel()
+                        recycleAdMarkingVelocityTracker()
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
                     }
                 }
+                // 标记模式由原生层区分轻点和纵向拖动：轻点在抬手时选择，拖动直接滚动
+                // 唯一 WebView。整个手势始终不进入 DOM，广告无法在 pointer/touch 阶段跳转。
+                true
+            } else {
+                adMarkingTouchTracker.cancel()
+                recycleAdMarkingVelocityTracker()
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                        view.isLongClickable = false
+                        view.isHapticFeedbackEnabled = false
+                        if (!view.hasFocus()) {
+                            view.requestFocus()
+                        }
+                    }
 
-                MotionEvent.ACTION_UP -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
-                }
+                    MotionEvent.ACTION_UP -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
 
-                MotionEvent.ACTION_CANCEL -> {
-                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    MotionEvent.ACTION_CANCEL -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
                 }
+                false
             }
-            false
         }
         addJavascriptInterface(BrowserWebDownloadBridge(this@configureWebView, session), "OperitWebDownloadBridge")
         addJavascriptInterface(BrowserAsyncBridge(), "OperitAsyncBridge")
@@ -194,6 +300,42 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 isUserGesture: Boolean,
                 resultMsg: android.os.Message?
             ): Boolean {
+                if (session.adMarkingActive) {
+                    // 标记元素期间禁止网页创建第二窗口；否则 _blank、window.open 或广告 SDK
+                    // 可以绕过当前 WebView 的主框架导航拦截。
+                    return false
+                }
+                if (
+                    session.externalNavigationPolicy !=
+                        BrowserAdMarkingNavigationPolicy.DEFAULT
+                ) {
+                    val popupUrl = view?.hitTestResult?.extra.orEmpty().trim()
+                    if (popupUrl.isBlank()) {
+                        // 无法确认目标域名的弹窗不能绕过“询问/拦截”策略静默创建新标签。
+                        return false
+                    }
+                    when (
+                        resolveBrowserExternalNavigationDecision(
+                            policy = session.externalNavigationPolicy,
+                            pageUrl = session.currentUrl,
+                            targetUrl = popupUrl,
+                        )
+                    ) {
+                        BrowserExternalNavigationDecision.ALLOW -> Unit
+                        BrowserExternalNavigationDecision.ASK -> {
+                            browserHost?.showAdMarkingNavigationRequest(
+                                sessionId = session.id,
+                                payload =
+                                    JSONObject()
+                                        .put("url", popupUrl)
+                                        .put("text", "")
+                                        .toString(),
+                            )
+                            return false
+                        }
+                        BrowserExternalNavigationDecision.BLOCK -> return false
+                    }
+                }
                 val message = resultMsg ?: return false
                 val transport = message.obj as? WebView.WebViewTransport ?: return false
                 val popupSession = runCatching { createPopupSessionOnMain(session) }.getOrNull() ?: return false
@@ -345,6 +487,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 // subresources inherit the previous page's site-specific identity.
                 applySessionUserAgent(session, resolveSessionUserAgent(session, url))
                 session.currentUrl = url
+                session.adMarkingActive = false
                 session.credentialDocumentToken = UUID.randomUUID().toString()
                 session.pageLoaded = false
                 session.isLoading = true
@@ -356,6 +499,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 clearEventLogs(session)
                 clearMediaCandidates(session)
                 session.pendingDialog = null
+                injectBrowserElementInteractionHelper(view, session.externalNavigationPolicy)
                 notifySessionStateChanged(session)
                 userscriptManager.onPageChanged(session.id, url, forceReset = true)
                 syncNavigationStateUi(session)
@@ -385,7 +529,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 applyBrowserDisplaySettingsOnPage(session)
                 refreshNavigationStateFromWebView(view, session)
                 injectDownloadHelper(view)
-                injectBrowserElementInteractionHelper(view)
+                injectBrowserElementInteractionHelper(view, session.externalNavigationPolicy)
                 injectTextSelectionHelper(view)
                 injectBrowserAdBlockElementRules(session)
                 injectBrowserCredentialSupport(session)
@@ -424,7 +568,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                         resolveSessionUserAgent(session, uri.toString()),
                     )
                 }
-                return handleNavigationOverrideOnMain(request)
+                return handleNavigationOverrideOnMain(request, session)
             }
 
             override fun shouldInterceptRequest(
@@ -433,8 +577,12 @@ internal fun StandardBrowserSessionTools.configureWebView(
             ): android.webkit.WebResourceResponse? {
                 val blockDecision =
                     adBlockStore.decide(
-                        pageUrl = session.currentUrl,
-                        requestUrl = request.url?.toString().orEmpty(),
+                        browserAdBlockRequestContext(
+                            pageUrl = session.currentUrl,
+                            requestUrl = request.url?.toString().orEmpty(),
+                            requestHeaders = request.requestHeaders,
+                            isMainFrame = request.isForMainFrame,
+                        ),
                     )
                 recordNetworkRequest(session, request, blockDecision)
                 if (blockDecision != null) {
@@ -804,7 +952,6 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     id = null,
                     rule = suggestBrowserAdBlockNetworkRule(url),
                 )
-                applyBrowserAdBlockRulesToAllSessionsOnMain()
                 showToast("网址过滤规则已添加")
             } catch (error: Exception) {
                 AppLogger.e(
@@ -822,31 +969,42 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 domain = domain,
                 selector = selector,
             )
-            applyBrowserAdBlockRulesToAllSessionsOnMain()
         }
 
-        override fun onRemoveElementBlockRule(domain: String, selector: String): Boolean =
+        override fun onSetExternalNavigationPolicy(
+            policy: BrowserAdMarkingNavigationPolicy,
+        ) {
+            getActiveSessionOnMain()?.let { session ->
+                session.externalNavigationPolicy = policy
+                session.webView.evaluateJavascript(
+                    """
+                    (function() {
+                        if (window.__kiyoriElementActions) {
+                            window.__kiyoriElementActions.setNavigationPolicy("${policy.toJavascriptValue()}");
+                        }
+                    })();
+                    """.trimIndent(),
+                    null,
+                )
+            }
+        }
+
+        override fun onSetAdMarkingActive(active: Boolean) {
+            getActiveSessionOnMain()?.adMarkingActive = active
+        }
+
+        override fun onClearAdBlockRulesForDomain(
+            domain: String,
+        ): BrowserAdBlockDomainClearResult =
             try {
-                val target =
-                    adBlockStore.current.customElementRules.singleOrNull { rule ->
-                        rule.domain == domain && rule.selector == selector.trim()
-                    }
-                if (target == null) {
-                    showToast("当前网页元素规则尚未保存")
-                    false
-                } else {
-                    adBlockStore.removeElementRule(target.id)
-                    applyBrowserAdBlockRulesToAllSessionsOnMain()
-                    true
-                }
+                adBlockStore.clearCustomRulesForDomain(domain)
             } catch (error: Exception) {
                 AppLogger.e(
                     WEBVIEW_SUPPORT_TAG,
-                    "Failed to remove web-element ad-block rule",
+                    "Failed to clear domain ad-block rules",
                     error,
                 )
-                showToast("网页元素拦截规则删除失败")
-                false
+                throw error
             }
 
         override fun onSelectUserAgentMode(mode: WebSessionUserAgentMode) {
@@ -1006,7 +1164,10 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                 applyViewportOverride(session)
                 refreshNavigationStateFromWebView(session.webView, session)
                 injectDownloadHelper(session.webView)
-                injectBrowserElementInteractionHelper(session.webView)
+                injectBrowserElementInteractionHelper(
+                    session.webView,
+                    session.externalNavigationPolicy,
+                )
                 injectTextSelectionHelper(session.webView)
                 injectBrowserAdBlockElementRules(session)
                 injectMediaCandidateObserver(session.webView)
@@ -1721,6 +1882,9 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         incognitoAvailability = profileManager.incognitoAvailability,
         pageTitle = activeSession?.pageTitle.orEmpty(),
         currentUrl = activeSession?.currentUrl?.ifBlank { "about:blank" } ?: "about:blank",
+        externalNavigationPolicy =
+            activeSession?.externalNavigationPolicy
+                ?: BrowserAdMarkingNavigationPolicy.DEFAULT,
         canGoBack = activeSession?.canGoBack == true,
         canReturnToHome = activeSession != null && !activeSessionIsAtHome,
         canGoForward = activeSession?.canGoForward == true,
@@ -1776,6 +1940,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                             isStatic = entry.isStatic,
                             category = entry.category,
                             timestamp = entry.timestamp,
+                            kind = entry.kind,
                             mediaCandidateId =
                                 findDirectMediaCandidateIdForNetworkEntry(
                                     activeMediaCandidates,
@@ -1784,6 +1949,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                             blocked = entry.blocked,
                             blockingRule = entry.blockingRule,
                             blockingSourceName = entry.blockingSourceName,
+                            elementSelector = entry.elementSelector,
                         )
                     }
                 }
@@ -2004,34 +2170,297 @@ internal fun StandardBrowserSessionTools.applyViewportOverride(session: BrowserT
 internal fun StandardBrowserSessionTools.injectBrowserAdBlockElementRules(
     session: BrowserToolSession,
 ) {
-    val selectors = adBlockStore.selectorsForPage(session.currentUrl)
-    val encodedSelectors = JSONArray(selectors).toString()
+    val pageUrl = session.currentUrl
+    val documentToken = session.credentialDocumentToken
+    val ruleRevision = adBlockStore.current.ruleRevision
+    if (
+        (
+            session.appliedAdBlockDocumentToken == documentToken &&
+                session.appliedAdBlockRuleRevision == ruleRevision
+            ) ||
+            (
+                session.pendingAdBlockDocumentToken == documentToken &&
+                    session.pendingAdBlockRuleRevision == ruleRevision
+                )
+    ) {
+        return
+    }
+    session.pendingAdBlockDocumentToken = documentToken
+    session.pendingAdBlockRuleRevision = ruleRevision
+    // 元素规则决策、去重和大型 CSS 文本组装不能占用 WebView 主线程；Hiker 同样把
+    // 当前页面的 element-hiding stylesheet 放在独立线程生成。
+    ioScope.launch {
+        try {
+            val payload =
+                buildBrowserAdBlockElementInjectionPayload(
+                    adBlockStore.elementDecisionsForPage(pageUrl),
+                )
+            StandardBrowserSessionTools.mainHandler.post {
+                if (
+                    session.pendingAdBlockDocumentToken != documentToken ||
+                        session.pendingAdBlockRuleRevision != ruleRevision ||
+                        session.credentialDocumentToken != documentToken ||
+                        session.currentUrl != pageUrl ||
+                        adBlockStore.current.ruleRevision != ruleRevision
+                ) {
+                    return@post
+                }
+                applyBrowserAdBlockElementRulesOnMain(
+                    session = session,
+                    pageUrl = pageUrl,
+                    documentToken = documentToken,
+                    ruleRevision = ruleRevision,
+                    payload = payload,
+                )
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            AppLogger.e(
+                WEBVIEW_SUPPORT_TAG,
+                "Failed to prepare browser ad-block element rules",
+                error,
+            )
+            StandardBrowserSessionTools.mainHandler.post {
+                if (
+                    session.pendingAdBlockDocumentToken == documentToken &&
+                        session.pendingAdBlockRuleRevision == ruleRevision
+                ) {
+                    session.pendingAdBlockDocumentToken = null
+                    session.pendingAdBlockRuleRevision = -1L
+                }
+            }
+        }
+    }
+}
+
+private data class BrowserAdBlockElementInjectionPayload(
+    val decisions: List<BrowserAdBlockElementDecision>,
+    val encodedCssChunks: String,
+    val encodedHikerSelectors: String,
+)
+
+private fun buildBrowserAdBlockElementInjectionPayload(
+    decisions: List<BrowserAdBlockElementDecision>,
+): BrowserAdBlockElementInjectionPayload {
+    val cssChunks = mutableListOf<String>()
+    val hikerSelectors = mutableListOf<String>()
+    var css = StringBuilder()
+    decisions.forEach { decision ->
+        val selector = decision.selector
+        if (selector.contains("&&")) {
+            hikerSelectors += selector
+        } else {
+            val rule = "$selector { display: none !important; }\n"
+            if (
+                css.isNotEmpty() &&
+                    css.length + rule.length > BROWSER_AD_BLOCK_CSS_CHUNK_CHAR_LIMIT
+            ) {
+                cssChunks += css.toString()
+                css = StringBuilder()
+            }
+            css.append(rule)
+        }
+    }
+    if (css.isNotEmpty()) {
+        cssChunks += css.toString()
+    }
+    return BrowserAdBlockElementInjectionPayload(
+        decisions = decisions,
+        encodedCssChunks = JSONArray(cssChunks).toString(),
+        encodedHikerSelectors = JSONArray(hikerSelectors).toString(),
+    )
+}
+
+private fun StandardBrowserSessionTools.applyBrowserAdBlockElementRulesOnMain(
+    session: BrowserToolSession,
+    pageUrl: String,
+    documentToken: String,
+    ruleRevision: Long,
+    payload: BrowserAdBlockElementInjectionPayload,
+) {
+    replaceElementBlockLogEntries(
+        session = session,
+        pageUrl = pageUrl,
+        decisions = payload.decisions,
+    )
     session.webView.evaluateJavascript(
         """
-        (function(selectors) {
-            const styleId = "kiyori-adblock-style";
-            let style = document.getElementById(styleId);
-            if (!Array.isArray(selectors) || selectors.length === 0) {
-                if (style && style.parentNode) {
+        (function(cssChunks, hikerSelectors) {
+            const styleSelector = "style[data-kiyori-adblock-style]";
+            if (
+                window.__kiyoriAdBlockRuntime &&
+                typeof window.__kiyoriAdBlockRuntime.destroy === "function"
+            ) {
+                window.__kiyoriAdBlockRuntime.destroy();
+            }
+            document.querySelectorAll(styleSelector).forEach(function(style) {
+                if (style.parentNode) {
                     style.parentNode.removeChild(style);
                 }
-                return;
+            });
+            if (!Array.isArray(cssChunks)) {
+                cssChunks = [];
             }
-            if (!style) {
-                style = document.createElement("style");
-                style.id = styleId;
+            if (!Array.isArray(hikerSelectors)) {
+                hikerSelectors = [];
+            }
+            cssChunks.forEach(function(cssText) {
+                const style = document.createElement("style");
                 style.setAttribute("data-kiyori-runtime-ui", "adblock");
+                style.setAttribute("data-kiyori-adblock-style", "true");
+                style.textContent = String(cssText || "");
                 (document.head || document.documentElement).appendChild(style);
+            });
+
+            const changedElements = new Map();
+
+            function parseIndexedPart(part) {
+                const separator = part.lastIndexOf(",");
+                if (separator <= 0) {
+                    return null;
+                }
+                const index = Number(part.slice(separator + 1));
+                if (!Number.isInteger(index) || index < 0) {
+                    return null;
+                }
+                return {
+                    token: part.slice(0, separator),
+                    index: index
+                };
             }
-            style.textContent = selectors
-                .map(function(selector) {
-                    return selector + " { display: none !important; }";
-                })
-                .join("\n");
-        })($encodedSelectors);
+
+            function matchingChildren(parent, token) {
+                const children = Array.from(parent.children || []).filter(function(child) {
+                    const tag = String(child.localName || "").toLowerCase();
+                    return tag !== "script" && tag !== "style";
+                });
+                if (token.startsWith(".")) {
+                    const className = token.slice(1);
+                    return children.filter(function(child) {
+                        return child.classList && child.classList.contains(className);
+                    });
+                }
+                return children.filter(function(child) {
+                    return String(child.localName || "").toLowerCase() === token.toLowerCase();
+                });
+            }
+
+            function resolveHikerSelector(selector) {
+                const parts = String(selector || "")
+                    .split("&&")
+                    .map(function(part) {
+                        return part.trim();
+                    })
+                    .filter(Boolean);
+                if (parts.length === 0) {
+                    return null;
+                }
+                let current = null;
+                for (let index = 0; index < parts.length; index += 1) {
+                    const part = parts[index];
+                    if (part.startsWith("#")) {
+                        const identified = document.getElementById(part.slice(1));
+                        if (!identified) {
+                            return null;
+                        }
+                        if (current && identified.parentElement !== current) {
+                            return null;
+                        }
+                        current = identified;
+                        continue;
+                    }
+                    if (part === "body") {
+                        if (index !== 0 || !document.body) {
+                            return null;
+                        }
+                        current = document.body;
+                        continue;
+                    }
+                    const parsed = parseIndexedPart(part);
+                    if (!parsed) {
+                        return null;
+                    }
+                    if (!current) {
+                        const rootMatches =
+                            parsed.token.startsWith(".")
+                                ? Array.from(document.getElementsByClassName(parsed.token.slice(1)))
+                                : Array.from(document.getElementsByTagName(parsed.token));
+                        current = rootMatches[parsed.index] || null;
+                    } else {
+                        current = matchingChildren(current, parsed.token)[parsed.index] || null;
+                    }
+                    if (!current) {
+                        return null;
+                    }
+                }
+                return current;
+            }
+
+            function hideElement(element) {
+                if (!element || changedElements.has(element)) {
+                    return;
+                }
+                changedElements.set(element, {
+                    value: element.style.getPropertyValue("display"),
+                    priority: element.style.getPropertyPriority("display")
+                });
+                element.style.setProperty("display", "none", "important");
+            }
+
+            function applyHikerRules() {
+                hikerSelectors.forEach(function(selector) {
+                    hideElement(resolveHikerSelector(selector));
+                });
+            }
+
+            const observer =
+                hikerSelectors.length > 0
+                    ? new MutationObserver(applyHikerRules)
+                    : null;
+            if (observer && document.documentElement) {
+                observer.observe(document.documentElement, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            applyHikerRules();
+
+            window.__kiyoriAdBlockRuntime = {
+                destroy: function() {
+                    if (observer) {
+                        observer.disconnect();
+                    }
+                    changedElements.forEach(function(original, element) {
+                        if (!element || !element.style) {
+                            return;
+                        }
+                        if (original.value) {
+                            element.style.setProperty(
+                                "display",
+                                original.value,
+                                original.priority
+                            );
+                        } else {
+                            element.style.removeProperty("display");
+                        }
+                    });
+                    changedElements.clear();
+                    document.querySelectorAll(styleSelector).forEach(function(style) {
+                        if (style.parentNode) {
+                            style.parentNode.removeChild(style);
+                        }
+                    });
+                }
+            };
+        })(${payload.encodedCssChunks}, ${payload.encodedHikerSelectors});
         """.trimIndent(),
         null,
     )
+    session.pendingAdBlockDocumentToken = null
+    session.pendingAdBlockRuleRevision = -1L
+    session.appliedAdBlockDocumentToken = documentToken
+    session.appliedAdBlockRuleRevision = ruleRevision
 }
 
 internal fun StandardBrowserSessionTools.applyBrowserAdBlockRulesToAllSessionsOnMain() {
@@ -2088,11 +2517,40 @@ internal fun StandardBrowserSessionTools.findSessionByWebView(
 ): BrowserToolSession? = StandardBrowserSessionTools.sessions.values.firstOrNull { it.webView === webView }
 
 internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
-    request: WebResourceRequest
+    request: WebResourceRequest,
+    session: BrowserToolSession,
 ): Boolean {
     val uri = request.url
     val rawUrl = uri.toString()
     val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return false
+    if (session.adMarkingActive) {
+        // 标记模式必须先于任何 scheme、iframe 或弹窗导航分支完成硬锁定。原生触摸层负责
+        // 把点击转换为元素选择，这里消费页面脚本和媒体组件仍可能直接发起的导航。
+        return true
+    }
+    if (request.isForMainFrame && (scheme == "http" || scheme == "https")) {
+        when (
+            resolveBrowserExternalNavigationDecision(
+                policy = session.externalNavigationPolicy,
+                pageUrl = session.currentUrl,
+                targetUrl = rawUrl,
+            )
+        ) {
+            BrowserExternalNavigationDecision.ALLOW -> Unit
+            BrowserExternalNavigationDecision.ASK -> {
+                browserHost?.showAdMarkingNavigationRequest(
+                    sessionId = session.id,
+                    payload =
+                        JSONObject()
+                            .put("url", rawUrl)
+                            .put("text", "")
+                            .toString(),
+                )
+                return true
+            }
+            BrowserExternalNavigationDecision.BLOCK -> return true
+        }
+    }
     if (
         scheme != "http" &&
             scheme != "https" &&

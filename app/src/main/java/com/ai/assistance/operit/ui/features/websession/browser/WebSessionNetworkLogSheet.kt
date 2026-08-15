@@ -68,6 +68,7 @@ import androidx.core.net.toUri
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkLogEntryKind
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkRequestCategory
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserNetworkHost
@@ -228,7 +229,9 @@ internal fun WebSessionBrowserNetworkLog(
             ) {
                 itemsIndexed(
                     items = filteredEntries,
-                    key = { index, entry -> "${entry.timestamp}_${entry.method}_${entry.url}_$index" },
+                    key = { index, entry ->
+                        "${entry.timestamp}_${entry.kind}_${entry.method}_${entry.url}_${entry.elementSelector}_$index"
+                    },
                 ) { _, entry ->
                     BrowserNetworkLogRow(
                         entry = entry,
@@ -400,6 +403,7 @@ private fun BrowserNetworkLogRow(
     currentPageUrl: String,
     onClick: () -> Unit,
 ) {
+    val isElementEntry = entry.kind == BrowserNetworkLogEntryKind.ELEMENT
     val thirdParty = isThirdPartyBrowserNetworkRequest(currentPageUrl, entry.url)
     val thirdPartyColors = KiyoriSemanticTone.ORANGE.resolveColors()
     val host = browserNetworkHost(entry.url).ifBlank { entry.url.substringBefore(':') }
@@ -470,6 +474,27 @@ private fun BrowserNetworkLogRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 6.dp),
             )
+            if (isElementEntry) {
+                val selector = checkNotNull(entry.elementSelector) {
+                    "Element network-log entry is missing its interception rule"
+                }
+                Text(
+                    text = "网页元素 · 拦截规则",
+                    color = KiyoriSemanticTone.RED.resolveColors().icon,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    text = selector,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
             if (entry.blocked) {
                 Text(
                     text =
@@ -494,10 +519,12 @@ private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
             KiyoriSemanticTone.RED.resolveColors()
         } else {
             browserNetworkTone(entry.category).resolveColors()
-        }
+    }
     val extension = browserNetworkUrlExtension(entry.url)
     val label =
-        if (entry.blocked) {
+        if (entry.kind == BrowserNetworkLogEntryKind.ELEMENT) {
+            "DOM"
+        } else if (entry.blocked) {
             "BLOCK"
         } else {
             extension.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
@@ -536,6 +563,7 @@ private fun BrowserNetworkLogActionDialog(
     onBlock: () -> Unit,
     onViewDetails: () -> Unit,
 ) {
+    val isElementEntry = entry.kind == BrowserNetworkLogEntryKind.ELEMENT
     val networkUrl = entry.url.startsWith("http://", true) || entry.url.startsWith("https://", true)
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
         WebSessionBrowserDialogSurface(
@@ -558,7 +586,7 @@ private fun BrowserNetworkLogActionDialog(
                     onClick = onPlay,
                 )
             }
-            if (networkUrl) {
+            if (!isElementEntry && networkUrl) {
                 BrowserNetworkLogActionRow(
                     icon = Icons.Filled.Download,
                     title = stringResource(R.string.web_session_network_log_download_resource),
@@ -673,6 +701,18 @@ private fun BrowserNetworkLogDetailsDialog(
                     stringResource(R.string.web_session_network_log_detail_url),
                     entry.url,
                 )
+                if (entry.kind == BrowserNetworkLogEntryKind.ELEMENT) {
+                    BrowserNetworkLogDetailRow(
+                        "网页元素",
+                        "DOM",
+                    )
+                    BrowserNetworkLogDetailRow(
+                        "拦截规则",
+                        checkNotNull(entry.elementSelector) {
+                            "Element network-log entry is missing its interception rule"
+                        },
+                    )
+                }
                 BrowserNetworkLogDetailRow(
                     stringResource(R.string.web_session_network_log_detail_result),
                     stringResource(

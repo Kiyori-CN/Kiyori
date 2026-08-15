@@ -80,7 +80,9 @@ internal class WebSessionBrowserHost(
         fun onClearNetworkLog()
         fun onAddNetworkBlockRule(url: String)
         fun onAddElementBlockRule(domain: String, selector: String)
-        fun onRemoveElementBlockRule(domain: String, selector: String): Boolean
+        fun onSetExternalNavigationPolicy(policy: BrowserAdMarkingNavigationPolicy)
+        fun onSetAdMarkingActive(active: Boolean)
+        fun onClearAdBlockRulesForDomain(domain: String): BrowserAdBlockDomainClearResult
         fun onSelectUserAgentMode(mode: WebSessionUserAgentMode)
         fun onSaveCustomGlobalUserAgent(userAgent: String)
         fun onSaveSiteUserAgentRule(domain: String, userAgent: String)
@@ -350,14 +352,15 @@ internal class WebSessionBrowserHost(
             onDismissTextSelection = ::dismissTextSelectionActions,
              onStartAdMarking = ::startAdMarking,
              onStartAdMarkingFromCurrentElement = ::startAdMarkingFromCurrentElement,
-             onChooseAdMarkingNode = ::chooseAdMarkingNode,
              onMoveAdMarking = ::moveAdMarking,
              onSetAdMarkingPreview = ::setAdMarkingPreview,
              onSaveAdMarking = ::saveAdMarking,
              onResetAdMarking = ::resetAdMarking,
              onExitAdMarking = ::exitAdMarking,
              onOpenAdMarkingRuleEditor = ::openAdMarkingRuleEditor,
+             onOpenAdMarkingHtmlEditor = ::beginAdMarkingHtmlEditor,
              onUpdateAdMarkingRuleDraft = ::updateAdMarkingRuleDraft,
+             onPreviewAdMarkingRuleDraft = ::previewAdMarkingRuleDraft,
              onConfirmAdMarkingRuleEdit = ::confirmAdMarkingRuleEdit,
              onDismissAdMarkingOverlay = ::dismissAdMarkingOverlay,
              onOpenClearAdMarkingConfirmation = ::openClearAdMarkingConfirmation,
@@ -627,6 +630,7 @@ internal class WebSessionBrowserHost(
         // transient UI, and WebView history cannot diverge.
         if (
             hostState.sheetRoute == WebSessionBrowserSheetRoute.PAGE_SOURCE &&
+                hostState.pageSource.applySupported &&
                 hostState.pageSource.hasChanges &&
                 !hostState.pageSource.exitPromptVisible
         ) {
@@ -820,14 +824,69 @@ internal class WebSessionBrowserHost(
         }
         val draft = hostState.adMarking.ruleDraft.trim()
         if (!isValidBrowserAdBlockSelector(draft)) {
-            Toast.makeText(appContext, "请输入有效的 CSS 元素规则", Toast.LENGTH_SHORT).show()
+            Toast.makeText(appContext, "请输入有效的元素拦截规则", Toast.LENGTH_SHORT).show()
             return
+        }
+        if (hostState.adMarking.previewing) {
+            activeWebView?.evaluateJavascript(
+                """
+                (function() {
+                    if (window.__kiyoriElementActions) {
+                        window.__kiyoriElementActions.clearPreview();
+                    }
+                })();
+                """.trimIndent(),
+                null,
+            )
         }
         updateHostState {
             it.copy(
                 adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
-                adMarking = it.adMarking.copy(selector = draft, ruleDraft = draft),
+                adMarking =
+                    it.adMarking.copy(
+                        selector = draft,
+                        ruleDraft = draft,
+                        previewing = false,
+                    ),
             )
+        }
+    }
+
+    fun previewAdMarkingRuleDraft() {
+        if (hostState.adMarkingOverlay != WebSessionAdMarkingOverlay.EDIT_RULE) {
+            return
+        }
+        val draft = hostState.adMarking.ruleDraft.trim()
+        if (!isValidBrowserAdBlockSelector(draft)) {
+            Toast.makeText(appContext, "请输入有效的元素拦截规则", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val webView = activeWebView ?: return
+        webView.evaluateJavascript(
+            """
+            (function() {
+                if (!window.__kiyoriElementActions) {
+                    return false;
+                }
+                return window.__kiyoriElementActions.previewSelector(${JSONObject.quote(draft)});
+            })();
+            """.trimIndent(),
+        ) { result ->
+            if (result == "true") {
+                updateHostState {
+                    it.copy(
+                        adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
+                        adMarking =
+                            it.adMarking.copy(
+                                selector = draft,
+                                ruleDraft = draft,
+                                previewing = true,
+                            ),
+                    )
+                }
+            } else {
+                Toast.makeText(appContext, "当前页面没有匹配此规则的元素", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -844,21 +903,18 @@ internal class WebSessionBrowserHost(
             return
         }
         val state = hostState.adMarking
-        if (state.domain.isBlank() || state.selector.isBlank()) {
-            Toast.makeText(appContext, "当前没有可清除的拦截规则", Toast.LENGTH_SHORT).show()
+        if (state.domain.isBlank()) {
+            Toast.makeText(appContext, "未识别当前网页域名", Toast.LENGTH_SHORT).show()
             dismissAdMarkingOverlay()
             return
         }
         try {
-            if (!callbacks.onRemoveElementBlockRule(state.domain, state.selector)) {
-                dismissAdMarkingOverlay()
-                return
-            }
+            val result = callbacks.onClearAdBlockRulesForDomain(state.domain)
             activeWebView?.evaluateJavascript(
                 """
                 (function() {
                     if (window.__kiyoriElementActions) {
-                        window.__kiyoriElementActions.setPreview(false);
+                        window.__kiyoriElementActions.clearPreview();
                     }
                 })();
                 """.trimIndent(),
@@ -867,13 +923,27 @@ internal class WebSessionBrowserHost(
             updateHostState {
                 it.copy(
                     adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
-                    adMarking = it.adMarking.copy(previewing = false),
+                    adMarking =
+                        it.adMarking.copy(
+                            tagName = "",
+                            text = "",
+                            selector = "",
+                            html = "",
+                            previewing = false,
+                            ruleDraft = "",
+                        ),
                 )
             }
-            Toast.makeText(appContext, "当前网页元素拦截已清除", Toast.LENGTH_SHORT).show()
+            val message =
+                if (result.removedRuleCount == 0) {
+                    "当前域名没有可清除的自定义广告规则"
+                } else {
+                    "已清除当前域名的 ${result.removedRuleCount} 条自定义广告规则"
+                }
+            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
         } catch (error: Exception) {
-            AppLogger.e("WebSessionBrowserHost", "Failed to clear web-element ad-block rule", error)
-            Toast.makeText(appContext, "清除网页元素拦截失败", Toast.LENGTH_SHORT).show()
+            AppLogger.e("WebSessionBrowserHost", "Failed to clear domain ad-block rules", error)
+            Toast.makeText(appContext, "清除当前域名广告规则失败", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -893,8 +963,10 @@ internal class WebSessionBrowserHost(
             it.copy(
                 adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
                 adMarking = it.adMarking.copy(navigationPolicy = policy),
+                browserState = it.browserState.copy(externalNavigationPolicy = policy),
             )
         }
+        callbacks.onSetExternalNavigationPolicy(policy)
         val javascriptPolicy = policy.toJavascriptValue()
         activeWebView?.evaluateJavascript(
             """
@@ -908,48 +980,20 @@ internal class WebSessionBrowserHost(
         )
     }
 
-    fun chooseAdMarkingNode() {
-        val current = hostState.adMarking
-        if (!current.active || activeWebView == null) {
-            return
-        }
-        val javascriptPolicy = current.navigationPolicy.toJavascriptValue()
-        activeWebView?.evaluateJavascript(
-            """
-            (function() {
-                if (window.__kiyoriElementActions) {
-                    window.__kiyoriElementActions.startMarking(false);
-                    window.__kiyoriElementActions.setNavigationPolicy("$javascriptPolicy");
-                }
-            })();
-            """.trimIndent(),
-            null,
-        )
-        updateHostState {
-            it.copy(
-                adMarking =
-                    it.adMarking.copy(
-                        tagName = "",
-                        text = "",
-                        selector = "",
-                        html = "",
-                        previewing = false,
-                        ruleDraft = "",
-                    ),
-                adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
-                adMarkingNavigationRequest = null,
-            )
-        }
-    }
-
     fun showAdMarkingNavigationRequest(
         sessionId: String,
         payload: String,
     ) {
-        if (!hostState.adMarking.active ||
-            hostState.adMarking.sessionId != sessionId ||
-            hostState.adMarking.navigationPolicy != BrowserAdMarkingNavigationPolicy.ASK
-        ) {
+        if (hostState.browserState.activeSessionId != sessionId) {
+            return
+        }
+        val effectivePolicy =
+            if (hostState.adMarking.active && hostState.adMarking.sessionId == sessionId) {
+                hostState.adMarking.navigationPolicy
+            } else {
+                hostState.browserState.externalNavigationPolicy
+            }
+        if (effectivePolicy != BrowserAdMarkingNavigationPolicy.ASK) {
             return
         }
         val json =
@@ -981,7 +1025,9 @@ internal class WebSessionBrowserHost(
     fun allowAdMarkingNavigationRequest() {
         val request = hostState.adMarkingNavigationRequest ?: return
         updateHostState { it.copy(adMarkingNavigationRequest = null) }
-        exitAdMarking()
+        if (hostState.adMarking.active) {
+            exitAdMarking()
+        }
         callbacks.onNavigate(request.url)
     }
 
@@ -1037,16 +1083,19 @@ internal class WebSessionBrowserHost(
                         sessionId = sessionId,
                         pageUrl = pageUrl,
                         domain = normalizeBrowserAdBlockDomain(pageUrl),
-                        navigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+                        navigationPolicy = hostState.browserState.externalNavigationPolicy,
                     ),
             )
         }
+        callbacks.onSetAdMarkingActive(true)
         webView.evaluateJavascript(
             """
             (function() {
                 if (window.__kiyoriElementActions) {
                     window.__kiyoriElementActions.startMarking(false);
-                    window.__kiyoriElementActions.setNavigationPolicy("block");
+                    window.__kiyoriElementActions.setNavigationPolicy(
+                        "${hostState.browserState.externalNavigationPolicy.toJavascriptValue()}"
+                    );
                 }
             })();
             """.trimIndent(),
@@ -1084,16 +1133,19 @@ internal class WebSessionBrowserHost(
                         selector = action.selector,
                         html = action.html,
                         ruleDraft = action.selector,
-                        navigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+                        navigationPolicy = hostState.browserState.externalNavigationPolicy,
                     ),
             )
         }
+        callbacks.onSetAdMarkingActive(true)
         webView.evaluateJavascript(
             """
             (function() {
                 if (window.__kiyoriElementActions) {
                     window.__kiyoriElementActions.startMarking(true);
-                    window.__kiyoriElementActions.setNavigationPolicy("block");
+                    window.__kiyoriElementActions.setNavigationPolicy(
+                        "${hostState.browserState.externalNavigationPolicy.toJavascriptValue()}"
+                    );
                 }
             })();
             """.trimIndent(),
@@ -1203,6 +1255,7 @@ internal class WebSessionBrowserHost(
     }
 
     fun exitAdMarking() {
+        callbacks.onSetAdMarkingActive(false)
         if (hostState.adMarking.active || hostState.webElementAction != null) {
             activeWebView?.evaluateJavascript(
                 """
@@ -1273,6 +1326,9 @@ internal class WebSessionBrowserHost(
     }
 
     private fun clearWebElementTransientState() {
+        if (hostState.adMarking.active) {
+            callbacks.onSetAdMarkingActive(false)
+        }
         if (hostState.adMarking.active || hostState.webElementAction != null) {
             activeWebView?.evaluateJavascript(
                 """
@@ -1518,6 +1574,28 @@ internal class WebSessionBrowserHost(
         }
     }
 
+    fun beginAdMarkingHtmlEditor() {
+        val marking = hostState.adMarking
+        if (!marking.active || marking.sessionId == null || marking.html.isBlank()) {
+            return
+        }
+        updateHostState { current ->
+            current.copy(
+                sheetRoute = WebSessionBrowserSheetRoute.PAGE_SOURCE,
+                pageSource =
+                    WebSessionPageSourceState(
+                        sessionId = marking.sessionId,
+                        pageUrl = marking.pageUrl,
+                        pageTitle = "HTML · <${marking.tagName.ifBlank { "node" }}>",
+                        applySupported = false,
+                        baselineContent = marking.html,
+                        content = marking.html,
+                        statusMessage = "当前编辑的是选中节点 HTML 副本，不会替换整个网页。",
+                    ),
+            )
+        }
+    }
+
     fun updatePageSourceBuffer(
         source: String,
     ) {
@@ -1536,6 +1614,10 @@ internal class WebSessionBrowserHost(
 
     fun applyPageSource() {
         val state = hostState.pageSource
+        if (!state.applySupported) {
+            updatePageSourceError("选中节点 HTML 副本不能应用为整个网页。")
+            return
+        }
         val source = state.content
         val sessionId = state.sessionId
         val expectedToken = state.documentToken

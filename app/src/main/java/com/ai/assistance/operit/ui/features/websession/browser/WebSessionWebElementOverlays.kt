@@ -3,10 +3,10 @@ package com.ai.assistance.operit.ui.features.websession.browser
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,15 +33,10 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,13 +58,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingMove
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingNavigationPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionAdMarkingState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionAdMarkingNavigationRequest
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebElementActionState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserAdMarkingSelectablePolicies
+import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP
+
+internal const val WEB_SESSION_AD_MARKING_WORKBENCH_HEIGHT_DP = 300
+internal const val WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP = 40
+internal const val WEB_SESSION_AD_MARKING_FOOTER_VERTICAL_PADDING_DP =
+    (WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP -
+        WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP) / 2
 
 @Composable
 internal fun WebSessionWebElementActionDialog(
@@ -277,13 +282,13 @@ private fun WebElementActionRow(
 @Composable
 internal fun WebSessionAdMarkingWorkbench(
     state: WebSessionAdMarkingState,
-    onChooseNode: () -> Unit,
     onMove: (BrowserAdMarkingMove) -> Unit,
     onSetPreview: (Boolean) -> Unit,
     onSave: () -> Unit,
     onReset: () -> Unit,
     onExit: () -> Unit,
     onEditRule: () -> Unit,
+    onOpenHtmlEditor: () -> Unit,
     onClearIntercept: () -> Unit,
     onOpenNavigationPolicy: () -> Unit,
     modifier: Modifier = Modifier,
@@ -291,7 +296,10 @@ internal fun WebSessionAdMarkingWorkbench(
     var infoTab by remember(state.sessionId, state.pageUrl) { mutableStateOf(AdMarkingInfoTab.RULE) }
     val outlineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
     Surface(
-        modifier = modifier.fillMaxWidth().height(320.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(WEB_SESSION_AD_MARKING_WORKBENCH_HEIGHT_DP.dp),
         shape = RoundedCornerShape(0.dp),
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -301,61 +309,62 @@ internal fun WebSessionAdMarkingWorkbench(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier.height(46.dp).fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .height(44.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
             ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .horizontalScroll(rememberScrollState()),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AdMarkingTopButton(
-                        label = "拦截规则",
-                        selected = infoTab == AdMarkingInfoTab.RULE,
-                        onClick = { infoTab = AdMarkingInfoTab.RULE },
-                    )
-                    AdMarkingTopButton(
-                        label = "节点",
-                        selected = infoTab == AdMarkingInfoTab.NODE,
-                        onClick = {
-                            infoTab = AdMarkingInfoTab.NODE
-                            onChooseNode()
-                        },
-                    )
-                    AdMarkingTopButton(
-                        label = "HTML",
-                        enabled = state.html.isNotBlank(),
-                        selected = infoTab == AdMarkingInfoTab.HTML,
-                        onClick = { infoTab = AdMarkingInfoTab.HTML },
-                    )
-                    AdMarkingTopButton(
-                        label = "父",
-                        enabled = state.selector.isNotBlank(),
-                        onClick = { onMove(BrowserAdMarkingMove.PARENT) },
-                    )
-                    AdMarkingTopButton(
-                        label = "兄",
-                        enabled = state.selector.isNotBlank(),
-                        onClick = { onMove(BrowserAdMarkingMove.PREVIOUS_SIBLING) },
-                    )
-                    AdMarkingTopButton(
-                        label = "弟",
-                        enabled = state.selector.isNotBlank(),
-                        onClick = { onMove(BrowserAdMarkingMove.NEXT_SIBLING) },
-                    )
-                    AdMarkingTopButton(
-                        label = "子",
-                        enabled = state.selector.isNotBlank(),
-                        onClick = { onMove(BrowserAdMarkingMove.FIRST_CHILD) },
-                    )
-                }
-                IconButton(onClick = onExit) {
+                AdMarkingTopButton(
+                    label = "拦截规则",
+                    selected = infoTab == AdMarkingInfoTab.RULE,
+                    onClick = { infoTab = AdMarkingInfoTab.RULE },
+                    modifier = Modifier.weight(1.7f),
+                )
+                AdMarkingTopButton(
+                    label = "节点",
+                    selected = infoTab == AdMarkingInfoTab.NODE,
+                    onClick = { infoTab = AdMarkingInfoTab.NODE },
+                    modifier = Modifier.weight(1f),
+                )
+                AdMarkingTopButton(
+                    label = "HTML",
+                    enabled = state.html.isNotBlank(),
+                    onClick = onOpenHtmlEditor,
+                    modifier = Modifier.weight(1.15f),
+                )
+                AdMarkingTopButton(
+                    label = "父",
+                    enabled = state.selector.isNotBlank(),
+                    onClick = { onMove(BrowserAdMarkingMove.PARENT) },
+                    modifier = Modifier.weight(0.78f),
+                )
+                AdMarkingTopButton(
+                    label = "兄",
+                    enabled = state.selector.isNotBlank(),
+                    onClick = { onMove(BrowserAdMarkingMove.PREVIOUS_SIBLING) },
+                    modifier = Modifier.weight(0.78f),
+                )
+                AdMarkingTopButton(
+                    label = "弟",
+                    enabled = state.selector.isNotBlank(),
+                    onClick = { onMove(BrowserAdMarkingMove.NEXT_SIBLING) },
+                    modifier = Modifier.weight(0.78f),
+                )
+                AdMarkingTopButton(
+                    label = "子",
+                    enabled = state.selector.isNotBlank(),
+                    onClick = { onMove(BrowserAdMarkingMove.FIRST_CHILD) },
+                    modifier = Modifier.weight(0.78f),
+                )
+                IconButton(onClick = onExit, modifier = Modifier.size(38.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "关闭标记广告",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -372,10 +381,10 @@ internal fun WebSessionAdMarkingWorkbench(
                 Text(
                     text = when (infoTab) {
                         AdMarkingInfoTab.RULE -> "拦截规则"
-                        AdMarkingInfoTab.NODE -> "节点信息"
-                        AdMarkingInfoTab.HTML -> "HTML"
+                        AdMarkingInfoTab.NODE ->
+                            "节点 HTML · <${state.tagName.ifBlank { "node" }}>"
                     },
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 SelectionContainer {
@@ -383,32 +392,12 @@ internal fun WebSessionAdMarkingWorkbench(
                         text =
                             when (infoTab) {
                                 AdMarkingInfoTab.RULE ->
-                                    state.selector.ifBlank { "尚未选择网页元素" }
+                                    state.selector.ifBlank { "点击网页中的任意元素开始标记" }
                                 AdMarkingInfoTab.NODE ->
-                                    buildString {
-                                        append("<")
-                                        append(state.tagName.ifBlank { "node" })
-                                        append(">")
-                                        if (state.text.isNotBlank()) {
-                                            append("\n")
-                                            append(state.text)
-                                        }
-                                    }
-                                AdMarkingInfoTab.HTML ->
                                     state.html.ifBlank { "尚未捕获当前节点 HTML" }
                             },
-                        style =
-                            if (infoTab == AdMarkingInfoTab.HTML) {
-                                MaterialTheme.typography.bodySmall
-                            } else {
-                                MaterialTheme.typography.bodyLarge
-                            },
-                        fontFamily =
-                            if (infoTab == AdMarkingInfoTab.NODE) {
-                                MaterialTheme.typography.bodyLarge.fontFamily
-                            } else {
-                                FontFamily.Monospace
-                            },
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
+                        fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
@@ -422,56 +411,60 @@ internal fun WebSessionAdMarkingWorkbench(
                     )
                 }
             }
-            HorizontalDivider(color = outlineColor)
-            Row(
-                modifier =
-                    Modifier
-                        .height(58.dp)
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AdMarkingFooterButton(
-                    label = "保存规则",
-                    icon = Icons.Filled.Save,
-                    enabled = state.selector.isNotBlank() && state.domain.isNotBlank(),
-                    emphasized = true,
-                    onClick = onSave,
-                )
-                AdMarkingFooterButton(
-                    label = "编辑规则",
-                    icon = Icons.Filled.Code,
-                    enabled = state.selector.isNotBlank(),
-                    onClick = onEditRule,
-                )
-                AdMarkingFooterButton(
-                    label = if (state.previewing) "恢复" else "预览",
-                    icon = if (state.previewing) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    enabled = state.selector.isNotBlank(),
-                    selected = state.previewing,
-                    onClick = { onSetPreview(!state.previewing) },
-                )
-                AdMarkingFooterButton(
-                    label = "重置",
-                    icon = Icons.Filled.RestartAlt,
-                    onClick = onReset,
-                )
-                AdMarkingFooterButton(
-                    label = "清除拦截",
-                    icon = Icons.Filled.Block,
-                    enabled = state.selector.isNotBlank() && state.domain.isNotBlank(),
-                    onClick = onClearIntercept,
-                )
-                AdMarkingFooterButton(
-                    label = "拦截网站跳转",
-                    icon = Icons.Filled.LinkOff,
-                    selected =
-                        state.navigationPolicy == BrowserAdMarkingNavigationPolicy.BLOCK ||
-                            state.navigationPolicy == BrowserAdMarkingNavigationPolicy.DEFAULT,
-                    onClick = onOpenNavigationPolicy,
-                )
+            if (infoTab == AdMarkingInfoTab.RULE) {
+                HorizontalDivider(color = outlineColor)
+                Row(
+                    modifier =
+                        Modifier
+                            .height(WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP.dp)
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = 4.dp,
+                                vertical = WEB_SESSION_AD_MARKING_FOOTER_VERTICAL_PADDING_DP.dp,
+                            ),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AdMarkingFooterButton(
+                        label = "保存规则",
+                        enabled = state.selector.isNotBlank() && state.domain.isNotBlank(),
+                        emphasized = true,
+                        onClick = onSave,
+                        modifier = Modifier.weight(1.05f),
+                    )
+                    AdMarkingFooterButton(
+                        label = "编辑规则",
+                        enabled = state.selector.isNotBlank(),
+                        onClick = onEditRule,
+                        modifier = Modifier.weight(1.05f),
+                    )
+                    AdMarkingFooterButton(
+                        label = if (state.previewing) "恢复" else "预览",
+                        enabled = state.selector.isNotBlank(),
+                        selected = state.previewing,
+                        onClick = { onSetPreview(!state.previewing) },
+                        modifier = Modifier.weight(0.72f),
+                    )
+                    AdMarkingFooterButton(
+                        label = "重置",
+                        onClick = onReset,
+                        modifier = Modifier.weight(0.72f),
+                    )
+                    AdMarkingFooterButton(
+                        label = "清除拦截",
+                        enabled = state.domain.isNotBlank(),
+                        onClick = onClearIntercept,
+                        modifier = Modifier.weight(1.18f),
+                    )
+                    AdMarkingFooterButton(
+                        label = "拦截网站跳转",
+                        selected =
+                            state.navigationPolicy !=
+                                BrowserAdMarkingNavigationPolicy.DEFAULT,
+                        onClick = onOpenNavigationPolicy,
+                        modifier = Modifier.weight(1.68f),
+                    )
+                }
             }
         }
     }
@@ -483,66 +476,104 @@ private fun AdMarkingTopButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
     selected: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
-    TextButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.height(46.dp),
+    val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
+    Surface(
+        modifier = modifier.height(38.dp).clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(9.dp),
+        color =
+            if (selected) {
+                toneColors.container
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        contentColor =
+            if (selected) {
+                toneColors.icon
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+        tonalElevation = 0.dp,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color =
-                if (selected) {
-                    WebSessionBrowserMenuTone.AD_MARKING.resolveColors().icon
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-            maxLines = 1,
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color =
+                    if (enabled) {
+                        androidx.compose.ui.graphics.Color.Unspecified
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    },
+                maxLines = 1,
+            )
+        }
     }
 }
 
 @Composable
 private fun AdMarkingFooterButton(
     label: String,
-    icon: ImageVector,
     onClick: () -> Unit,
     enabled: Boolean = true,
     selected: Boolean = false,
     emphasized: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
-    val contentColor =
-        if (selected || emphasized) toneColors.icon else MaterialTheme.colorScheme.onSurface
+    val active = selected || emphasized
     Surface(
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = contentColor,
+        modifier =
+            modifier
+                .height(WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP.dp)
+                .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color =
+            if (active) {
+                toneColors.container
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f)
+            },
+        contentColor =
+            if (active) {
+                toneColors.icon
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         border =
             BorderStroke(
-                1.dp,
+                0.6.dp,
                 if (enabled) {
-                    MaterialTheme.colorScheme.outline
+                    if (active) {
+                        toneColors.icon.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    }
                 } else {
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 },
             ),
         tonalElevation = 0.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        Box(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 2.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(imageVector = icon, contentDescription = label, modifier = Modifier.size(17.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelLarge,
+                fontSize = 10.5.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                lineHeight = 12.sp,
+                color =
+                    if (enabled) {
+                        androidx.compose.ui.graphics.Color.Unspecified
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
+                    },
             )
         }
     }
@@ -551,7 +582,6 @@ private fun AdMarkingFooterButton(
 private enum class AdMarkingInfoTab {
     RULE,
     NODE,
-    HTML,
 }
 
 @Composable
@@ -559,6 +589,7 @@ internal fun WebSessionAdMarkingRuleEditor(
     ruleDraft: String,
     onRuleDraftChange: (String) -> Unit,
     onDismiss: () -> Unit,
+    onPreview: () -> Unit,
     onConfirm: () -> Unit,
 ) {
     WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
@@ -573,7 +604,7 @@ internal fun WebSessionAdMarkingRuleEditor(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    text = "修改当前网页元素的 CSS selector，确认后回到工作台，点击“保存规则”才会写入浏览器规则。",
+                    text = "支持 hiker 路径规则和标准 CSS selector。预览或保存只更新当前工作台，仍需点击“保存规则”才会持久化。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -584,14 +615,31 @@ internal fun WebSessionAdMarkingRuleEditor(
                     minLines = 3,
                     maxLines = 8,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                    label = { Text("CSS selector") },
+                    label = { Text("拦截规则") },
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    TextButton(onClick = onDismiss) { Text("取消") }
-                    Button(onClick = onConfirm) { Text("确认") }
+                    TextButton(
+                        onClick = onPreview,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 11.dp),
+                    ) {
+                        Text("预览")
+                    }
+                    TextButton(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 11.dp),
+                    ) {
+                        Text(
+                            "保存",
+                            color = WebSessionBrowserMenuTone.AD_MARKING.resolveColors().icon,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
         }
@@ -600,24 +648,79 @@ internal fun WebSessionAdMarkingRuleEditor(
 
 @Composable
 internal fun WebSessionAdMarkingClearConfirmation(
+    domain: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("清除拦截") },
-        text = {
-            Text("将删除当前站点当前 selector 对应的网页元素规则，并立即恢复当前页面的元素。确定继续吗？")
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("清除拦截", color = MaterialTheme.colorScheme.error)
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.Block,
+            tone = WebSessionBrowserMenuTone.AD_MARKING,
+            title = "温馨提示",
+            modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text =
+                        "确定要清除 ${domain.ifBlank { "当前网站" }} 下的所有自定义广告拦截规则吗？",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(10.dp),
+                            )
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
+                        text = "当前网页域名",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = domain.ifBlank { "未识别当前网站域名" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+                Text(
+                    "确认后将立即删除该域名下由你添加的元素规则和明确指向该域名的网址规则，原来标记的广告会重新显示。订阅规则和无域名范围的全局规则不受影响。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 11.dp),
+                    ) {
+                        Text("取消")
+                    }
+                    TextButton(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 11.dp),
+                    ) {
+                        Text(
+                            "确定",
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
             }
-        },
-    )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -637,18 +740,18 @@ internal fun WebSessionAdMarkingNavigationPolicySheet(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                text = "跳转外部网站策略",
+                text = "拦截网站跳转",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
             Text(
-                text = "标记模式中的网页点击默认不会跳转；只有显式选择“允许跳转”才会改变这一行为。",
+                text = "退出“标记广告”后，仅处理当前网页发起的跨域跳转；站内链接仍正常打开。标记模式本身始终禁止任何跳转。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
             )
-            BrowserAdMarkingNavigationPolicy.values().forEach { policy ->
+            browserAdMarkingSelectablePolicies().forEach { policy ->
                 Row(
                     modifier =
                         Modifier
@@ -658,12 +761,6 @@ internal fun WebSessionAdMarkingNavigationPolicySheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(
-                        text = if (policy == selectedPolicy) "✓" else "",
-                        modifier = Modifier.size(20.dp),
-                        color = WebSessionBrowserMenuTone.AD_MARKING.resolveColors().icon,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = navigationPolicyLabel(policy),
@@ -676,6 +773,13 @@ internal fun WebSessionAdMarkingNavigationPolicySheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    Text(
+                        text = if (policy == selectedPolicy) "✓" else "",
+                        modifier = Modifier.size(22.dp),
+                        color = WebSessionBrowserMenuTone.AD_MARKING.resolveColors().icon,
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
             TextButton(
@@ -729,8 +833,7 @@ internal fun WebSessionAdMarkingNavigationRequestDialog(
 
 private fun navigationPolicyLabel(policy: BrowserAdMarkingNavigationPolicy): String =
     when (policy) {
-        BrowserAdMarkingNavigationPolicy.DEFAULT -> "默认"
-        BrowserAdMarkingNavigationPolicy.ALLOW -> "允许跳转"
+        BrowserAdMarkingNavigationPolicy.DEFAULT -> "默认允许"
         BrowserAdMarkingNavigationPolicy.ASK -> "跳转前询问"
         BrowserAdMarkingNavigationPolicy.BLOCK -> "拦截跳转"
     }
@@ -738,11 +841,9 @@ private fun navigationPolicyLabel(policy: BrowserAdMarkingNavigationPolicy): Str
 private fun navigationPolicyDescription(policy: BrowserAdMarkingNavigationPolicy): String =
     when (policy) {
         BrowserAdMarkingNavigationPolicy.DEFAULT ->
-            "进入标记广告后锁定网页点击，保证选择元素时不误跳转"
-        BrowserAdMarkingNavigationPolicy.ALLOW ->
-            "允许网页链接按正常浏览器行为跳转"
+            "正常浏览时允许站内与跨域链接按网页原有行为跳转"
         BrowserAdMarkingNavigationPolicy.ASK ->
-            "点击网页链接时先显示确认弹窗"
+            "正常浏览点击跨域链接时先显示确认弹窗"
         BrowserAdMarkingNavigationPolicy.BLOCK ->
-            "阻止网页链接跳转，只在当前页面选择元素"
+            "正常浏览时阻止跨域链接，点击后不执行任何跳转"
     }

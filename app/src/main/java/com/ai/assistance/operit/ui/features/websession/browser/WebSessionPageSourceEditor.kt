@@ -151,6 +151,7 @@ internal fun WebSessionPageSourceEditor(
                         !state.isApplying,
                 overflowExpanded = overflowExpanded,
                 canFormat = content != null && content.length <= BROWSER_PAGE_SOURCE_FORMAT_MAX_CHARS,
+                reloadSupported = state.applySupported,
                 onBack = onRequestBack,
                 onSearch = { searchVisible = !searchVisible },
                 onOverflowExpandedChange = { overflowExpanded = it },
@@ -314,10 +315,14 @@ internal fun WebSessionPageSourceEditor(
                         },
                         modifier = Modifier.weight(1f),
                     )
-                    if (!imeVisible) {
+                    if (!imeVisible && state.applySupported) {
                         PageSourceEditorFooter(
                             canReview = state.baselineContent != null,
-                            canApply = state.hasChanges && !state.isApplying,
+                            canApply =
+                                state.applySupported &&
+                                    state.hasChanges &&
+                                    !state.isApplying,
+                            showApply = state.applySupported,
                             isApplying = state.isApplying,
                             onOpenAiDialogue = onOpenAiDialogue,
                             onReview = { reviewVisible = true },
@@ -471,6 +476,7 @@ private fun PageSourceEditorHeader(
     editingEnabled: Boolean,
     overflowExpanded: Boolean,
     canFormat: Boolean,
+    reloadSupported: Boolean,
     onBack: () -> Unit,
     onSearch: () -> Unit,
     onOverflowExpandedChange: (Boolean) -> Unit,
@@ -566,14 +572,16 @@ private fun PageSourceEditorHeader(
                         },
                         enabled = editingEnabled,
                     )
-                    WebSessionBrowserDropdownItem(
-                        title = stringResource(R.string.web_session_source_reload),
-                        onClick = {
-                            onOverflowExpandedChange(false)
-                            onReload()
-                        },
-                        enabled = editingEnabled,
-                    )
+                    if (reloadSupported) {
+                        WebSessionBrowserDropdownItem(
+                            title = stringResource(R.string.web_session_source_reload),
+                            onClick = {
+                                onOverflowExpandedChange(false)
+                                onReload()
+                            },
+                            enabled = editingEnabled,
+                        )
+                    }
                 }
             }
         }
@@ -814,6 +822,7 @@ private fun PageSourceCommandChip(
 private fun PageSourceEditorFooter(
     canReview: Boolean,
     canApply: Boolean,
+    showApply: Boolean,
     isApplying: Boolean,
     onOpenAiDialogue: () -> Unit,
     onReview: () -> Unit,
@@ -846,18 +855,20 @@ private fun PageSourceEditorFooter(
                 onClick = onReview,
                 modifier = Modifier.weight(1f),
             )
-            PageSourceFooterAction(
-                label =
-                    if (isApplying) {
-                        stringResource(R.string.web_session_source_applying)
-                    } else {
-                        stringResource(R.string.web_session_source_apply)
-                    },
-                tone = KiyoriSemanticTone.GREEN,
-                enabled = canApply,
-                onClick = onApply,
-                modifier = Modifier.weight(1f),
-            )
+            if (showApply) {
+                PageSourceFooterAction(
+                    label =
+                        if (isApplying) {
+                            stringResource(R.string.web_session_source_applying)
+                        } else {
+                            stringResource(R.string.web_session_source_apply)
+                        },
+                    tone = KiyoriSemanticTone.GREEN,
+                    enabled = canApply,
+                    onClick = onApply,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

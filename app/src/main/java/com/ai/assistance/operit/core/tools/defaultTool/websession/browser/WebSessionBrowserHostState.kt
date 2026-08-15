@@ -81,10 +81,12 @@ internal data class WebSessionBrowserNetworkEntry(
     val isStatic: Boolean,
     val category: BrowserNetworkRequestCategory,
     val timestamp: Long,
+    val kind: BrowserNetworkLogEntryKind = BrowserNetworkLogEntryKind.REQUEST,
     val mediaCandidateId: String? = null,
     val blocked: Boolean = false,
     val blockingRule: String? = null,
     val blockingSourceName: String? = null,
+    val elementSelector: String? = null,
 )
 
 @Immutable
@@ -134,6 +136,7 @@ internal data class WebSessionPageSourceState(
     val pageUrl: String = "",
     val pageTitle: String = "",
     val documentToken: String? = null,
+    val applySupported: Boolean = true,
     val isLoading: Boolean = false,
     val isApplying: Boolean = false,
     val baselineContent: String? = null,
@@ -183,17 +186,22 @@ internal enum class WebSessionAdMarkingOverlay {
 
 internal enum class BrowserAdMarkingNavigationPolicy {
     DEFAULT,
-    ALLOW,
     ASK,
     BLOCK,
 }
 
+internal fun browserAdMarkingSelectablePolicies(): List<BrowserAdMarkingNavigationPolicy> =
+    listOf(
+        BrowserAdMarkingNavigationPolicy.DEFAULT,
+        BrowserAdMarkingNavigationPolicy.ASK,
+        BrowserAdMarkingNavigationPolicy.BLOCK,
+    )
+
 internal fun BrowserAdMarkingNavigationPolicy.toJavascriptValue(): String =
     when (this) {
-        BrowserAdMarkingNavigationPolicy.ALLOW -> "allow"
+        BrowserAdMarkingNavigationPolicy.DEFAULT -> "allow"
         BrowserAdMarkingNavigationPolicy.ASK -> "ask"
-        BrowserAdMarkingNavigationPolicy.BLOCK,
-        BrowserAdMarkingNavigationPolicy.DEFAULT -> "block"
+        BrowserAdMarkingNavigationPolicy.BLOCK -> "block"
     }
 
 @Immutable
@@ -326,6 +334,8 @@ internal data class WebSessionBrowserState(
         WebSessionIncognitoAvailability.UNSUPPORTED,
     val pageTitle: String = "",
     val currentUrl: String = "about:blank",
+    val externalNavigationPolicy: BrowserAdMarkingNavigationPolicy =
+        BrowserAdMarkingNavigationPolicy.DEFAULT,
     val canGoBack: Boolean = false,
     val canReturnToHome: Boolean = false,
     val canGoForward: Boolean = false,
@@ -445,6 +455,10 @@ internal fun resolveWebSessionBrowserBackAction(
     when {
         state.adMarkingNavigationRequest != null ->
             WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST
+        state.pageSource.exitPromptVisible ->
+            WebSessionBrowserBackAction.DISMISS_PAGE_SOURCE_EXIT_PROMPT
+        state.sheetRoute == WebSessionBrowserSheetRoute.PAGE_SOURCE ->
+            WebSessionBrowserBackAction.CLOSE_SHEET
         state.adMarkingOverlay != WebSessionAdMarkingOverlay.NONE ->
             WebSessionBrowserBackAction.DISMISS_AD_MARKING_OVERLAY
         state.adMarking.active ->
@@ -457,8 +471,6 @@ internal fun resolveWebSessionBrowserBackAction(
             WebSessionBrowserBackAction.DISMISS_PENDING_DIALOG
         state.downloadPrompt != null ->
             WebSessionBrowserBackAction.CANCEL_DOWNLOAD_PROMPT
-        state.pageSource.exitPromptVisible ->
-            WebSessionBrowserBackAction.DISMISS_PAGE_SOURCE_EXIT_PROMPT
         state.pluginEditorExitPromptDraftId != null ->
             WebSessionBrowserBackAction.DISMISS_PLUGIN_EDITOR_EXIT_PROMPT
         state.sheetRoute == WebSessionBrowserSheetRoute.PLUGINS &&
