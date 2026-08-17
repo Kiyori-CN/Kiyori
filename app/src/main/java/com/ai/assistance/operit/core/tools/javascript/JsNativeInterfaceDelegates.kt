@@ -827,10 +827,8 @@ internal object JsNativeInterfaceDelegates {
         return try {
             val parsed = parseToolCall(toolType, toolName, paramsJson)
             val result = toolHandler.executeTool(parsed.aiTool)
-            if (!result.success) {
-                AppLogger.e(TAG, "[Sync] Tool execution failed: ${result.error}")
-            }
-
+            // A normal ToolResult failure is serialized once for the caller. Logging it again here
+            // duplicates the owning tool/runtime diagnostic and the ToolPkg terminal error.
             serializeToolExecutionResult(
                 result = result,
                 binaryDataRegistry = binaryDataRegistry,
@@ -870,11 +868,8 @@ internal object JsNativeInterfaceDelegates {
         Thread {
             try {
                 val result = toolHandler.executeTool(parsed.aiTool)
-
-                if (!result.success) {
-                    AppLogger.e(TAG, "[Async] Tool execution failed: ${result.error}")
-                }
-
+                // Expected tool failures are data, not bridge exceptions. The serialized error is
+                // the single user-facing record; this layer logs only preparation/execution faults.
                 val resultJson =
                     serializeToolExecutionResult(
                         result = result,

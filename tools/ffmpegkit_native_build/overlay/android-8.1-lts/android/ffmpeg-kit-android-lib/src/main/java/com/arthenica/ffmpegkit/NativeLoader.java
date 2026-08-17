@@ -85,7 +85,7 @@ public class NativeLoader {
     }
 
     static String loadVersion() {
-        final String version = "8.1.7-kiyori-n9.0.1-r4";
+        final String version = "8.1.7-kiyori-n9.0.1-r6";
 
         if (isTestModeDisabled()) {
             return FFmpegKitConfig.getVersion();

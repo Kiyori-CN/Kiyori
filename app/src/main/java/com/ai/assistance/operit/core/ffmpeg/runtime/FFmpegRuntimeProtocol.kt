@@ -24,11 +24,43 @@ internal fun boundFfmpegRuntimeDiagnostic(value: String?): String? =
 internal fun ffmpegRuntimeLogDirectory(cacheDir: File): File =
     File(cacheDir, FFMPEG_RUNTIME_LOG_DIRECTORY_NAME)
 
+internal fun ffmpegRuntimeProbeDirectory(cacheDir: File): File =
+    File(cacheDir, FFMPEG_RUNTIME_PROBE_DIRECTORY_NAME)
+
 internal fun ffmpegRuntimeLogFile(cacheDir: File, requestId: String): File {
     require(FFMPEG_RUNTIME_REQUEST_ID_PATTERN.matches(requestId)) {
         "Invalid FFmpeg runtime request ID"
     }
     return File(ffmpegRuntimeLogDirectory(cacheDir), "$requestId.log")
+}
+
+internal fun ffmpegRuntimeProbeFile(cacheDir: File, requestId: String): File {
+    require(FFMPEG_RUNTIME_REQUEST_ID_PATTERN.matches(requestId)) {
+        "Invalid FFmpeg runtime request ID"
+    }
+    return File(ffmpegRuntimeProbeDirectory(cacheDir), "$requestId.json")
+}
+
+internal fun pruneFfmpegRuntimeProbeFiles(cacheDir: File): Int {
+    val directory = ffmpegRuntimeProbeDirectory(cacheDir)
+    if (!directory.isDirectory) {
+        return 0
+    }
+    var deleted = 0
+    directory.listFiles()
+        .orEmpty()
+        .filter { file ->
+            file.isFile && FFMPEG_RUNTIME_PROBE_FILE_NAME_PATTERN.matches(file.name)
+        }
+        .forEach { file ->
+            if (file.delete()) {
+                deleted += 1
+            }
+        }
+    if (directory.list().isNullOrEmpty()) {
+        directory.delete()
+    }
+    return deleted
 }
 
 internal fun resolveFfmpegRuntimeLogFile(cacheDir: File, outputLogPath: String): File {
@@ -144,6 +176,7 @@ internal class FFmpegRuntimeEventCursor(private val runtimeGeneration: Long) {
 internal const val FFMPEG_RUNTIME_SUCCESS_RETURN_CODE = 0
 internal const val FFMPEG_RUNTIME_CANCEL_RETURN_CODE = 255
 internal const val FFMPEG_RUNTIME_LOG_DIRECTORY_NAME = "ffmpeg-runtime"
+internal const val FFMPEG_RUNTIME_PROBE_DIRECTORY_NAME = "ffmpeg-runtime-probes"
 internal const val FFMPEG_RUNTIME_MAX_DIAGNOSTIC_CHARS = 16_384
 internal const val FFMPEG_RUNTIME_MAX_LOG_BYTES = 4 * 1024 * 1024
 internal const val FFMPEG_RUNTIME_LOG_MAX_FILES = 32
@@ -152,3 +185,4 @@ internal const val FFMPEG_RUNTIME_LOG_MAX_AGE_MILLIS = 48L * 60L * 60L * 1_000L
 internal const val FFMPEG_RUNTIME_LOG_TRUNCATION_MARKER =
     "\n[Kiyori] FFmpeg runtime log truncated at 4194304 UTF-8 bytes.\n"
 internal val FFMPEG_RUNTIME_LOG_FILE_NAME_PATTERN = Regex("[0-9a-f]{32}\\.log")
+internal val FFMPEG_RUNTIME_PROBE_FILE_NAME_PATTERN = Regex("[0-9a-f]{32}\\.json")

@@ -5,18 +5,17 @@ import android.content.Intent
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Build
 import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import com.arthenica.ffmpegkit.FFmpegKitConfig
 import com.arthenica.ffmpegkit.FFmpegSession
+import com.arthenica.ffmpegkit.FFprobeSession
 import com.arthenica.ffmpegkit.LogCallback
-import com.arthenica.ffmpegkit.MediaInformation
-import com.arthenica.ffmpegkit.MediaInformationSession
 import com.arthenica.ffmpegkit.Session
 import com.arthenica.ffmpegkit.Statistics
 import com.arthenica.ffmpegkit.StatisticsCallback
-import com.arthenica.ffmpegkit.StreamInformation
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -89,6 +88,10 @@ internal class FFmpegRuntimeService : Service() {
         val retention = pruneFfmpegRuntimeLogs(cacheDir)
         if (retention.deletedFiles > 0) {
             Log.i(TAG, "Pruned ${retention.deletedFiles} stale FFmpeg runtime logs")
+        }
+        val deletedProbeFiles = pruneFfmpegRuntimeProbeFiles(cacheDir)
+        if (deletedProbeFiles > 0) {
+            Log.i(TAG, "Pruned $deletedProbeFiles stale FFmpeg runtime probe files")
         }
         executor =
             Executors.newSingleThreadExecutor { runnable ->
@@ -378,15 +381,22 @@ internal class FFmpegRuntimeService : Service() {
                         inputPath = requireNotNull(request.inputPath),
                     )
                 FFmpegRuntimeOperation.RUNTIME_INFO -> {
+                    val section = request.informationSection
                     active.runtimeInformation =
                         FFmpegRuntimeInformation(
+                            sectionWireValue = section.wireValue,
+                            executionPlane = EXECUTION_PLANE,
+                            processName = "$packageName:ffmpeg",
+                            abi = Build.SUPPORTED_ABIS.firstOrNull() ?: Build.UNKNOWN,
+                            androidApi = Build.VERSION.SDK_INT,
+                            qualifiedProfile = QUALIFIED_CONVERSION_PROFILE,
                             wrapperVersion = FFmpegKitConfig.getVersion(),
                             ffmpegVersion = FFmpegKitConfig.getFFmpegVersion(),
                             buildDate = FFmpegKitConfig.getBuildDate(),
                         )
                     executeFfmpegSession(
                         active = active,
-                        arguments = arrayOf("-codecs"),
+                        arguments = section.arguments.toTypedArray(),
                     )
                 }
             }
@@ -427,6 +437,8 @@ internal class FFmpegRuntimeService : Service() {
         active: ActiveFFmpegRuntimeRequest,
         inputPath: String,
     ) {
+        val probeFile = createProbeFile(active.request.requestId)
+        active.probeOutputFile.set(probeFile)
         val arguments =
             arrayOf(
                 "-v",
@@ -436,28 +448,35 @@ internal class FFmpegRuntimeService : Service() {
                 "json",
                 "-show_format",
                 "-show_streams",
-                "-show_chapters",
+                "-show_entries",
+                FFMPEG_RUNTIME_PROBE_SHOW_ENTRIES,
+                "-o",
+                probeFile.absolutePath,
                 "-i",
                 inputPath,
             )
         val session =
-            MediaInformationSession.create(
+            FFprobeSession.create(
                 arguments,
                 null,
                 LogCallback { log ->
                     active.logWriter.append(log.message)
                 },
             )
-        if (!startSession(active, session)) {
-            return
+        try {
+            if (!startSession(active, session)) {
+                return
+            }
+            executeNativeSession(active, session) {
+                FFmpegKitConfig.ffprobeExecute(session)
+            }
+            completeMediaInformationRequest(active, session, probeFile)
+        } finally {
+            active.probeOutputFile.compareAndSet(probeFile, null)
+            if (probeFile.exists() && !probeFile.delete()) {
+                Log.w(TAG, "Unable to delete private FFprobe output ${probeFile.name}")
+            }
         }
-        executeNativeSession(active, session) {
-            FFmpegKitConfig.getMediaInformationExecute(
-                session,
-                MEDIA_INFORMATION_LOG_DRAIN_TIMEOUT_MILLIS,
-            )
-        }
-        completeMediaInformationRequest(active, session)
     }
 
     private fun executeNativeSession(
@@ -550,12 +569,46 @@ internal class FFmpegRuntimeService : Service() {
 
     private fun completeMediaInformationRequest(
         active: ActiveFFmpegRuntimeRequest,
-        session: MediaInformationSession,
+        session: FFprobeSession,
+        probeFile: File,
     ) {
+        val returnCode =
+            session.returnCode?.value
+                ?: run {
+                    failActiveRequest(
+                        active = active,
+                        failureCode = FFmpegRuntimeFailureCode.NATIVE_RETURN_CODE_MISSING,
+                        message = "Android FFprobe completed without a native return code",
+                    )
+                    return
+                }
+        val mediaInformation =
+            if (resolveFfmpegRuntimeTerminalState(returnCode) == FFmpegRuntimeTerminalState.SUCCEEDED) {
+                try {
+                    FFmpegRuntimeMediaInformationParser.parse(probeFile)
+                } catch (error: Exception) {
+                    val diagnostic =
+                        error.message?.take(MAX_FAILURE_MESSAGE_CHARS)
+                            ?: error.javaClass.simpleName
+                    active.logWriter.append(
+                        "\n[Kiyori] Android FFprobe metadata validation failed: $diagnostic\n",
+                    )
+                    failActiveRequest(
+                        active = active,
+                        failureCode = FFmpegRuntimeFailureCode.MEDIA_INFORMATION_INVALID,
+                        message =
+                            "Android FFprobe native execution succeeded, but its private JSON " +
+                                "metadata was invalid: $diagnostic",
+                    )
+                    return
+                }
+            } else {
+                null
+            }
         completeRequest(
             active = active,
             session = session,
-            mediaInformation = session.mediaInformation?.toRuntimeMediaInformation(),
+            mediaInformation = mediaInformation,
         )
     }
 
@@ -564,6 +617,16 @@ internal class FFmpegRuntimeService : Service() {
         session: Session,
         mediaInformation: FFmpegRuntimeMediaInformation?,
     ) {
+        val returnCode =
+            session.returnCode?.value
+                ?: run {
+                    failActiveRequest(
+                        active = active,
+                        failureCode = FFmpegRuntimeFailureCode.NATIVE_RETURN_CODE_MISSING,
+                        message = "Android FFmpeg completed without a native return code",
+                    )
+                    return
+                }
         synchronized(active.lifecycleLock) {
             if (!active.terminal.compareAndSet(false, true)) {
                 return
@@ -571,7 +634,6 @@ internal class FFmpegRuntimeService : Service() {
             activeRequests.remove(active.request.requestId, active)
             reservedRequestIds.remove(active.request.requestId)
             active.logWriter.close()
-            val returnCode = session.returnCode?.value ?: UNKNOWN_RETURN_CODE
             val result =
                 FFmpegRuntimeResult(
                     requestId = active.request.requestId,
@@ -757,15 +819,25 @@ internal class FFmpegRuntimeService : Service() {
         return file
     }
 
+    private fun createProbeFile(requestId: String): File {
+        val directory = ffmpegRuntimeProbeDirectory(cacheDir)
+        require(directory.exists() || directory.mkdirs()) {
+            "Unable to create FFmpeg runtime probe directory"
+        }
+        val file = ffmpegRuntimeProbeFile(cacheDir, requestId)
+        require(!file.exists()) { "FFmpeg runtime probe output already exists" }
+        return file
+    }
+
     private companion object {
         const val TAG = "FFmpegRuntimeService"
         const val RUNTIME_THREAD_PREFIX = "KiyoriFFmpegRuntime"
         const val CALLBACK_THREAD_NAME = "KiyoriFFmpegCallback"
-        const val MEDIA_INFORMATION_LOG_DRAIN_TIMEOUT_MILLIS = 5_000
         const val CALLBACK_DRAIN_TIMEOUT_MILLIS = 5_000L
         const val CALLBACK_DRAIN_POLL_MILLIS = 10L
-        const val UNKNOWN_RETURN_CODE = Int.MIN_VALUE
         const val MAX_FAILURE_MESSAGE_CHARS = 4_096
+        const val EXECUTION_PLANE = "android_ffmpegkit"
+        const val QUALIFIED_CONVERSION_PROFILE = "h264_aac_mp4"
         val RUNTIME_THREAD_COUNTER = AtomicLong(0L)
     }
 }
@@ -778,6 +850,7 @@ private class ActiveFFmpegRuntimeRequest(
     val lifecycleLock = Any()
     val session = AtomicReference<Session?>(null)
     val statistics = AtomicReference<FFmpegRuntimeStatistics?>(null)
+    val probeOutputFile = AtomicReference<File?>(null)
     val cancelRequested = AtomicBoolean(false)
     val terminal = AtomicBoolean(false)
 
@@ -787,6 +860,9 @@ private class ActiveFFmpegRuntimeRequest(
     fun cancel() {
         cancelRequested.set(true)
         session.get()?.cancel()
+        probeOutputFile.get()?.let { file ->
+            runCatching { file.delete() }
+        }
     }
 
     fun cancelSessionIfRequested() {
@@ -891,26 +967,4 @@ private fun Statistics.toRuntimeStatistics(): FFmpegRuntimeStatistics =
         timeMillis = time,
         bitrateKbitsPerSecond = bitrate,
         speed = speed,
-    )
-
-private fun MediaInformation.toRuntimeMediaInformation(): FFmpegRuntimeMediaInformation =
-    FFmpegRuntimeMediaInformation(
-        format = format,
-        duration = duration,
-        bitrate = bitrate,
-        streams = streams.orEmpty().map(StreamInformation::toRuntimeStreamInformation),
-    )
-
-private fun StreamInformation.toRuntimeStreamInformation(): FFmpegRuntimeStreamInformation =
-    FFmpegRuntimeStreamInformation(
-        index = index?.toInt() ?: 0,
-        type = type,
-        codec = codec,
-        profile = getStringProperty("profile"),
-        pixelFormat = format,
-        width = width?.toInt(),
-        height = height?.toInt(),
-        realFrameRate = realFrameRate,
-        sampleRate = sampleRate,
-        channels = getNumberProperty("channels")?.toInt(),
     )

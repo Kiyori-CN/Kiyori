@@ -30,7 +30,7 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 | Android 标识 | `com.kiyori` |
 | 支持系统 | Android 8.0 及以上（`minSdk 26`） |
 | 当前 APK ABI | `arm64-v8a` |
-| 媒体 native closure | mpv `2339eb727` + FFmpeg `n9.0.1` + Mbed TLS `3.6.7`；FFmpegKit `8.1.7-kiyori-n9.0.1-r4` + FFmpeg `n9.0.1` + OpenH264 `v2.6.0` |
+| 媒体 native closure | mpv `2339eb727` + FFmpeg `n9.0.1` + Mbed TLS `3.6.7`；FFmpegKit `8.1.7-kiyori-n9.0.1-r6` + FFmpeg `n9.0.1` + OpenH264 `v2.6.0` + GPL/HarfBuzz/`drawtext`/`eq`/`boxblur` |
 | 持续开发分支 | `main` |
 | 正式发行 | 尚未开放 |
 | 许可证 | GNU GPL v3 或更高版本 |

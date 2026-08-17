@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -111,7 +112,11 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
         self.assertIn("newSingleThreadExecutor", service)
         self.assertIn("executor.execute", service)
         self.assertIn("FFmpegKitConfig.ffmpegExecute(session)", service)
-        self.assertIn("FFmpegKitConfig.getMediaInformationExecute(", service)
+        self.assertIn("FFprobeSession.create(", service)
+        self.assertIn("FFmpegKitConfig.ffprobeExecute(session)", service)
+        self.assertIn("FFmpegRuntimeMediaInformationParser.parse(probeFile)", service)
+        self.assertIn('"-o",', service)
+        self.assertNotIn("FFmpegKitConfig.getMediaInformationExecute(", service)
         self.assertNotIn("asyncFFmpegExecute", service)
         self.assertNotIn("asyncGetMediaInformationExecute", service)
         self.assertIn("FFmpegKitConfig.enableLogCallback(", service)
@@ -169,10 +174,25 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
             / "standard"
             / "StandardFFmpegTool.kt"
         ).read_text(encoding="utf-8")
+        probe = (
+            APP_MAIN
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "tools"
+            / "defaultTool"
+            / "standard"
+            / "StandardFFmpegProbeTool.kt"
+        ).read_text(encoding="utf-8")
 
         self.assertGreaterEqual(toolbox.count("withContext(Dispatchers.IO)"), 2)
         self.assertEqual(standard.count("withContext(Dispatchers.IO) { invoke(tool) }"), 3)
+        self.assertEqual(probe.count("withContext(Dispatchers.IO) { invoke(tool) }"), 1)
         self.assertNotIn("com.arthenica.ffmpegkit", standard)
+        self.assertNotIn("com.arthenica.ffmpegkit", probe)
 
     def test_ffmpeg_execute_prompt_is_not_described_as_a_shell(self) -> None:
         prompts = (
@@ -193,6 +213,11 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
         for source in (prompts, package):
             self.assertIn("not a shell", source)
             self.assertIn("管道、重定向或命令链", source)
+            self.assertIn("com.kiyori:ffmpeg", source)
+            self.assertIn("Ubuntu", source)
+        self.assertIn('"ffmpeg_probe"', package)
+        self.assertIn('name = "ffmpeg_probe"', prompts)
+        self.assertIn('name = "section"', prompts)
 
     def test_media_pool_uses_one_duration_plan_and_one_explicit_encoder_command(self) -> None:
         media_pool = MEDIA_POOL_MANAGER.read_text(encoding="utf-8")
@@ -265,9 +290,13 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
         definitions = (
             REPO_ROOT / "examples" / "types" / "ffmpeg.d.ts"
         ).read_text(encoding="utf-8")
+        result_definitions = (
+            REPO_ROOT / "examples" / "types" / "results.d.ts"
+        ).read_text(encoding="utf-8")
 
         self.assertIn("executeArgumentsBlocking(arguments)", standard)
         self.assertNotIn("executeBlocking(command)", standard[standard.index("class StandardFFmpegConvertToolExecutor"):])
+        self.assertIn("validateRawFfmpegCommand(", standard)
         self.assertIn('H264_AAC_MP4("h264_aac_mp4")', contract)
         self.assertIn('"libopenh264"', contract)
         self.assertIn('"constrained_baseline"', contract)
@@ -278,7 +307,68 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
             self.assertIn("video_bitrate", text)
             self.assertNotIn("video_codec", text)
             self.assertNotIn("audio_codec", text)
+        for text in (source_package, generated_package, asset_package):
+            self.assertIn("ffmpeg_probe", text)
+            self.assertIn("data: result", text)
+            self.assertNotIn("data: result.output", text)
+            self.assertIn("isToolExecutionError(error)", text)
+            self.assertNotIn("error instanceof Error", text)
+            self.assertIn("Shell syntax is rejected", text)
+        self.assertIn('name = "ffmpeg_probe"', prompts)
+        self.assertIn("function probe(inputPath: string)", definitions)
+        self.assertIn("channels?: number;", result_definitions)
+        self.assertNotIn("channels?: 1 | 2 | 4 | 6 | 8;", result_definitions)
         self.assertEqual(generated_package, asset_package)
+
+    def test_ffmpegkit_overlay_wrapper_identity_matches_manifest(self) -> None:
+        manifest = json.loads(
+            (
+                REPO_ROOT
+                / "tools"
+                / "ffmpegkit_native_build"
+                / "closure_manifest.json"
+            ).read_text(encoding="utf-8")
+        )
+        expected_version = manifest["framework"]["wrapper_version"]
+        overlay = (
+            REPO_ROOT
+            / "tools"
+            / "ffmpegkit_native_build"
+            / "overlay"
+            / "android-8.1-lts"
+        )
+        identity_files = {
+            "native header": (
+                overlay
+                / "android"
+                / "ffmpeg-kit-android-lib"
+                / "src"
+                / "main"
+                / "cpp"
+                / "ffmpegkit.h"
+            ),
+            "Java loader": (
+                overlay
+                / "android"
+                / "ffmpeg-kit-android-lib"
+                / "src"
+                / "main"
+                / "java"
+                / "com"
+                / "arthenica"
+                / "ffmpegkit"
+                / "NativeLoader.java"
+            ),
+            "source identity": overlay / "tools" / "source" / "SOURCE",
+            "Android build": overlay / "tools" / "android" / "build.gradle",
+        }
+
+        for label, path in identity_files.items():
+            with self.subTest(label=label):
+                self.assertIn(
+                    expected_version,
+                    path.read_text(encoding="utf-8"),
+                )
 
     def test_runtime_bounds_logs_and_cancels_queued_work_without_retry(self) -> None:
         service = (RUNTIME_ROOT / "FFmpegRuntimeService.kt").read_text(encoding="utf-8")
@@ -289,12 +379,18 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
         self.assertIn("FFMPEG_RUNTIME_MAX_COMMAND_CHARS", models)
         self.assertIn("FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS", models)
         self.assertIn("FFMPEG_RUNTIME_MAX_PATH_CHARS", models)
+        self.assertIn("FFmpegRuntimeInformationSection", models)
         self.assertIn("pruneFfmpegRuntimeLogs(", service)
+        self.assertIn("pruneFfmpegRuntimeProbeFiles(cacheDir)", service)
+        self.assertIn("FFMPEG_RUNTIME_PROBE_SHOW_ENTRIES", service)
         self.assertIn("FFMPEG_RUNTIME_MAX_LOG_BYTES", service)
         self.assertIn("sessionId = 0L", service)
         self.assertIn("cancelled before native session creation", service)
         self.assertIn("discardTerminalLog(", client)
         self.assertIn("protectedLogPaths = setOf(diagnosticLogPath)", client)
+        self.assertIn("processId = pending.processId.takeIf", client)
+        self.assertIn("sessionId = pending.sessionId.takeIf", client)
+        self.assertNotIn("UNKNOWN_RETURN_CODE", service)
         self.assertIn("FFMPEG_RUNTIME_LOG_MAX_TOTAL_BYTES", protocol)
         self.assertNotIn("repeat(", client[client.index("private suspend fun submit("):client.index("private suspend fun awaitConnectedRuntime(")])
 

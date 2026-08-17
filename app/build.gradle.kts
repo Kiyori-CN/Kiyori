@@ -53,7 +53,7 @@ val playerFfmpegSourceIdentity =
         "FFmpeg@n9.0.1/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa + " +
         "OpenH264@v2.6.0/652bdb7719f30b52b08e506645a7322ff1b2cc6f"
 val playerFfmpegArm64Sha256 =
-    "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7"
+    "7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394"
 val playerMpvThinSha256 =
     "f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4"
 val playerMpvFfmpegNamespace =
@@ -88,8 +88,10 @@ val playerMpvFfmpegVersionNamespaces =
 val playerFfmpegRequiredBuildMarkers =
     listOf(
         "n9.0.1",
+        "--enable-gpl",
         "--enable-libfontconfig",
         "--enable-libfreetype",
+        "--enable-libharfbuzz",
         "--enable-libfribidi",
         "--enable-libmp3lame",
         "--enable-libass",
@@ -111,7 +113,8 @@ val playerFfmpegQualifiedMp4Markers =
         "libavformat/movenc.c",
         "mov/mp4/tgp/psp/tg2/ipod/ismv/f4v muxer",
     )
-val playerFfmpegKitWrapperMarker = "8.1.7-kiyori-n9.0.1-r4"
+val playerFfmpegRequiredFilterMarkers = listOf("drawtext", "eq", "boxblur")
+val playerFfmpegKitWrapperMarker = "8.1.7-kiyori-n9.0.1-r6"
 val playerFfmpegKitLibraryNames =
     setOf(
         "libavcodec.so",
@@ -1225,8 +1228,10 @@ val verifyPlayerNativeInputs =
         description = "Verifies the fixed FFmpegKit and namespaced HTTPS-capable libmpv inputs."
         val mpvThinAar = layout.projectDirectory.file("libs/mpv-player-arm64.aar")
         val ffmpegArm64Aar = layout.projectDirectory.file("libs/ffmpeg-kit-player-arm64.aar")
+        val gplv3License = rootProject.layout.projectDirectory.file("LICENSE")
         inputs.file(mpvThinAar)
         inputs.file(ffmpegArm64Aar)
+        inputs.file(gplv3License)
         doLast {
             val mpvAar = mpvThinAar.asFile
             check(mpvAar.isFile) {
@@ -1377,6 +1382,15 @@ val verifyPlayerNativeInputs =
                     "jni/arm64-v8a/$library"
                 }
             ZipFile(ffmpegAar).use { archive ->
+                val packagedGplv3License =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("res/raw/license_gplv3.txt")) {
+                            "FFmpegKit AAR is missing res/raw/license_gplv3.txt"
+                        },
+                    ).use { stream -> stream.readBytes() }
+                check(packagedGplv3License.contentEquals(gplv3License.asFile.readBytes())) {
+                    "FFmpegKit GPLv3 license resource differs from the repository LICENSE"
+                }
                 val nativeMembers =
                     archive.entries().asSequence()
                         .map { it.name }
@@ -1420,6 +1434,13 @@ val verifyPlayerNativeInputs =
                 playerFfmpegQualifiedMp4Markers.forEach { marker ->
                     check(ffmpegAvformatPayload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
                         "FFmpegKit libavformat lacks qualified h264_aac_mp4 marker $marker"
+                    }
+                }
+                val ffmpegAvfilterPayload =
+                    requireNotNull(ffmpegNativePayloads["jni/arm64-v8a/libavfilter.so"])
+                playerFfmpegRequiredFilterMarkers.forEach { marker ->
+                    check(ffmpegAvfilterPayload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "FFmpegKit libavfilter lacks required filter marker $marker"
                     }
                 }
                 val ffmpegkitPayload =
@@ -1545,6 +1566,15 @@ val verifyDebugPlayerRuntimePackaging =
                 playerFfmpegQualifiedMp4Markers.forEach { marker ->
                     check(apkFfmpegAvformat.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
                         "Debug APK FFmpegKit libavformat lacks qualified h264_aac_mp4 marker $marker"
+                    }
+                }
+                val apkFfmpegAvfilter =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libavfilter.so")),
+                    ).use { stream -> stream.readBytes() }
+                playerFfmpegRequiredFilterMarkers.forEach { marker ->
+                    check(apkFfmpegAvfilter.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK FFmpegKit libavfilter lacks required filter marker $marker"
                     }
                 }
                 val apkFfmpegKit =

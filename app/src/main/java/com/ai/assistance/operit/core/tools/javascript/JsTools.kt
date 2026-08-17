@@ -1396,7 +1396,10 @@ fun getJsToolsDefinition(): String {
                 execute: (command) => toolCall("ffmpeg_execute", { command }),
                 
                 // 获取FFmpeg系统信息
-                info: () => toolCall("ffmpeg_info"),
+                info: (section = "summary") => toolCall("ffmpeg_info", { section }),
+
+                // 使用同一 Android :ffmpeg 执行面的 FFprobe 探测媒体
+                probe: (inputPath) => toolCall("ffmpeg_probe", { input_path: inputPath }),
                 
                 // 转换视频文件
                 convert: (inputPath, outputPath, options = {}) => {

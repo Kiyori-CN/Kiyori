@@ -4550,7 +4550,8 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="toolreg_press_key_desc">Tecla pressionada: %1$s</string>
     <string name="toolreg_swipe_desc">Slide: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
     <string name="toolreg_ffmpeg_execute_desc">Execute o comando FFmpeg: %1$s</string>
-    <string name="toolreg_ffmpeg_info_desc">Obtenha informações do FFmpeg</string>
+    <string name="toolreg_ffmpeg_info_desc">Obter informações do FFmpeg para Android: %1$s</string>
+    <string name="toolreg_ffmpeg_probe_desc">Inspecionar mídia com o FFprobe para Android: %1$s</string>
     <string name="toolreg_ffmpeg_convert_desc">Converter vídeo: %1$s → %2$s</string>
     <string name="screen_ocr_capture_failed">Falha na captura de tela</string>
     <string name="screen_ocr_load_failed">Não foi possível carregar a captura de tela</string>

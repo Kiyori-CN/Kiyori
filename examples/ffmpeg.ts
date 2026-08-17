@@ -7,27 +7,36 @@
         "en": "FFmpeg Toolkit"
     },
     "description": {
-        "zh": "提供FFmpeg工具，用于处理多媒体内容。",
-        "en": "FFmpeg utilities for processing multimedia content."
+        "zh": "调用 Android com.kiyori:ffmpeg 中的 FFmpegKit/FFprobe；不调用 Ubuntu 或播放器 FFmpeg。",
+        "en": "Use FFmpegKit and FFprobe in Android com.kiyori:ffmpeg; never invoke Ubuntu or player FFmpeg."
     },
     "enabledByDefault": true,
     "category": "Media",
     "tools": [
         {
             "name": "ffmpeg_execute",
-            "description": { "zh": "执行自定义 FFmpeg 参数；这不是 Shell，不支持管道、重定向或命令链，也不要包含前缀 ffmpeg。", "en": "Execute custom FFmpeg arguments. This is not a shell: pipes, redirection, and command chains are unsupported; do not include the leading ffmpeg." },
+            "description": { "zh": "在 Android com.kiyori:ffmpeg 中原样执行 FFmpeg 参数；不是 Shell，拒绝管道、重定向或命令链，不调用 Ubuntu/播放器 FFmpeg；drawtext 需绝对 fontfile。", "en": "Execute raw FFmpeg arguments in Android com.kiyori:ffmpeg. This is not a shell. Shell syntax is rejected, Ubuntu/player FFmpeg is never invoked, and drawtext needs an absolute fontfile." },
             "parameters": [
                 { "name": "command", "description": { "zh": "要执行的 FFmpeg 参数（不要包含前缀 ffmpeg 或 Shell 语法）", "en": "FFmpeg arguments to execute (do not include the leading ffmpeg or shell syntax)" }, "type": "string", "required": true }
             ]
         },
         {
             "name": "ffmpeg_info",
-            "description": { "zh": "获取FFmpeg系统信息，包括版本、构建配置和支持的编解码器。", "en": "Get FFmpeg system info, including version, build config, and supported codecs." },
-            "parameters": []
+            "description": { "zh": "查询 Android FFmpegKit 的指定能力分区，不需要 Shell 管道。", "en": "Query one Android FFmpegKit capability section without shell pipes." },
+            "parameters": [
+                { "name": "section", "description": { "zh": "可选：summary/codecs/encoders/decoders/filters/formats/muxers/demuxers/protocols/hwaccels/buildconf", "en": "Optional: summary/codecs/encoders/decoders/filters/formats/muxers/demuxers/protocols/hwaccels/buildconf" }, "type": "string", "required": false }
+            ]
+        },
+        {
+            "name": "ffmpeg_probe",
+            "description": { "zh": "使用 Android com.kiyori:ffmpeg 中的 FFprobe 探测媒体并返回结构化信息。", "en": "Probe media with FFprobe in Android com.kiyori:ffmpeg and return structured metadata." },
+            "parameters": [
+                { "name": "input_path", "description": { "zh": "存在且非空的媒体文件绝对路径", "en": "Absolute path to an existing non-empty media file" }, "type": "string", "required": true }
+            ]
         },
         {
             "name": "ffmpeg_convert",
-            "description": { "zh": "使用简化参数转换视频文件。", "en": "Convert a video file using simplified parameters." },
+            "description": { "zh": "使用 Android 资格化转换管线转码，并由同一执行面的 FFprobe 验证后原子提交。", "en": "Transcode with the qualified Android pipeline, verify with same-plane FFprobe, then commit atomically." },
             "parameters": [
                 { "name": "input_path", "description": { "zh": "源视频文件路径", "en": "Input video file path" }, "type": "string", "required": true },
                 { "name": "output_path", "description": { "zh": "目标 MP4 文件的绝对路径；文件必须不存在", "en": "Absolute destination MP4 path; the file must not already exist" }, "type": "string", "required": true },
@@ -42,13 +51,30 @@
 const FFmpegTools = (function () {
 
     type FFmpegConversionProfile = 'h264_aac_mp4';
+    type FFmpegInformationSection =
+        | 'summary'
+        | 'codecs'
+        | 'encoders'
+        | 'decoders'
+        | 'filters'
+        | 'formats'
+        | 'muxers'
+        | 'demuxers'
+        | 'protocols'
+        | 'hwaccels'
+        | 'buildconf';
     type FFmpegResolution = '1280x720' | '1920x1080' | '3840x2160' | '7680x4320' | `${number}x${number}`;
     type FFmpegVideoBitrate = '500k' | '1000k' | '2000k' | '4000k' | '8000k' | `${number}k` | `${number}M`;
+    type FFmpegToolData = Awaited<ReturnType<typeof Tools.FFmpeg.execute>>;
 
     interface ToolResponse {
         success: boolean;
         message: string;
-        data?: any;
+        data?: FFmpegToolData;
+    }
+
+    interface ToolExecutionError extends Error {
+        data?: FFmpegToolData;
     }
 
     async function ffmpeg_execute(params: { command: string }): Promise<ToolResponse> {
@@ -56,16 +82,25 @@ const FFmpegTools = (function () {
         return {
             success: result.returnCode === 0,
             message: result.returnCode === 0 ? "FFmpeg command executed successfully." : `FFmpeg command failed with return code ${result.returnCode}.`,
-            data: result.output
+            data: result
         };
     }
 
-    async function ffmpeg_info(): Promise<ToolResponse> {
-        const result = await Tools.FFmpeg.info();
+    async function ffmpeg_info(params: { section?: FFmpegInformationSection }): Promise<ToolResponse> {
+        const result = await Tools.FFmpeg.info(params.section);
         return {
             success: result.returnCode === 0,
             message: result.returnCode === 0 ? "FFmpeg info retrieved successfully." : "Failed to retrieve FFmpeg info.",
-            data: result.output
+            data: result
+        };
+    }
+
+    async function ffmpeg_probe(params: { input_path: string }): Promise<ToolResponse> {
+        const result = await Tools.FFmpeg.probe(params.input_path);
+        return {
+            success: result.returnCode === 0,
+            message: result.returnCode === 0 ? "Android FFprobe completed successfully." : `Android FFprobe failed with return code ${result.returnCode}.`,
+            data: result
         };
     }
 
@@ -84,19 +119,38 @@ const FFmpegTools = (function () {
         return {
             success: result.returnCode === 0,
             message: result.returnCode === 0 ? "FFmpeg conversion completed successfully." : `FFmpeg conversion failed with return code ${result.returnCode}.`,
-            data: result.output
+            data: result
         };
+    }
+
+    function isToolExecutionError(error: object): error is ToolExecutionError {
+        return (
+            'message' in error &&
+            typeof error.message === 'string'
+        );
     }
 
     async function wrapToolExecution<P>(func: (params: P) => Promise<ToolResponse>, params: P) {
         try {
             const result = await func(params);
             complete(result);
-        } catch (error: any) {
-            console.error(`Tool ${func.name} failed unexpectedly`, error);
+        } catch (error) {
+            let message: string;
+            let data: FFmpegToolData | undefined;
+            if (typeof error === 'object' && error !== null && isToolExecutionError(error)) {
+                message = error.message;
+                data = error.data;
+            } else {
+                message = typeof error === 'string'
+                    ? error
+                    : "FFmpeg tool execution failed without a structured error.";
+                data = undefined;
+            }
+            console.error(`Tool ${func.name} failed: ${message}`);
             complete({
                 success: false,
-                message: `工具执行时发生意外错误: ${error.message}`,
+                message,
+                data,
             });
         }
     }
@@ -104,15 +158,17 @@ const FFmpegTools = (function () {
     async function main() {
         console.log("--- FFmpeg Tools Test ---");
 
-        console.log("\n[1/3] Testing ffmpeg_info...");
-        const infoResult = await ffmpeg_info();
+        console.log("\n[1/4] Testing ffmpeg_info...");
+        const infoResult = await ffmpeg_info({ section: 'summary' });
         console.log(JSON.stringify(infoResult, null, 2));
 
-        console.log("\n[2/3] Testing ffmpeg_execute (example: getting help for a decoder)...");
+        console.log("\n[2/4] Testing ffmpeg_execute (example: getting help for a decoder)...");
         const executeResult = await ffmpeg_execute({ command: '-h decoder=h264' });
         console.log(JSON.stringify(executeResult, null, 2));
 
-        console.log("\n[3/3] Testing ffmpeg_convert (example)...");
+        console.log("\n[3/4] Testing ffmpeg_probe requires an input file and is skipped.");
+
+        console.log("\n[4/4] Testing ffmpeg_convert (example)...");
         console.log("Skipping ffmpeg_convert test as it requires input files.");
 
         complete({ success: true, message: "Test finished." });
@@ -120,7 +176,8 @@ const FFmpegTools = (function () {
 
     return {
         ffmpeg_execute: (params: { command: string }) => wrapToolExecution(ffmpeg_execute, params),
-        ffmpeg_info: (params: {}) => wrapToolExecution(ffmpeg_info, params),
+        ffmpeg_info: (params: { section?: FFmpegInformationSection }) => wrapToolExecution(ffmpeg_info, params),
+        ffmpeg_probe: (params: { input_path: string }) => wrapToolExecution(ffmpeg_probe, params),
         ffmpeg_convert: (params: {
             input_path: string,
             output_path: string,
@@ -134,5 +191,6 @@ const FFmpegTools = (function () {
 
 exports.ffmpeg_execute = FFmpegTools.ffmpeg_execute;
 exports.ffmpeg_info = FFmpegTools.ffmpeg_info;
+exports.ffmpeg_probe = FFmpegTools.ffmpeg_probe;
 exports.ffmpeg_convert = FFmpegTools.ffmpeg_convert;
 exports.main = FFmpegTools.main;

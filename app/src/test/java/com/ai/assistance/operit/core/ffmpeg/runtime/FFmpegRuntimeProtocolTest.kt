@@ -92,6 +92,23 @@ class FFmpegRuntimeProtocolTest {
         assertEquals(4, FFmpegRuntimeFailureCode.CALLBACK_REPLACED.wireValue)
         assertEquals(5, FFmpegRuntimeFailureCode.CALLBACK_DISCONNECTED.wireValue)
         assertEquals(6, FFmpegRuntimeFailureCode.SERVICE_DESTROYED.wireValue)
+        assertEquals(7, FFmpegRuntimeFailureCode.MEDIA_INFORMATION_INVALID.wireValue)
+        assertEquals(8, FFmpegRuntimeFailureCode.NATIVE_RETURN_CODE_MISSING.wireValue)
+        assertEquals(
+            FFmpegRuntimeInformationSection.entries.size,
+            FFmpegRuntimeInformationSection.entries
+                .map { section -> section.wireValue }
+                .toSet()
+                .size,
+        )
+        assertEquals(
+            FFmpegRuntimeInformationSection.SUMMARY,
+            FFmpegRuntimeInformationSection.parse(null),
+        )
+        assertEquals(
+            listOf("-encoders"),
+            FFmpegRuntimeInformationSection.parse("ENCODERS").arguments,
+        )
     }
 
     @Test
@@ -217,6 +234,25 @@ class FFmpegRuntimeProtocolTest {
             assertEquals(2, retention.deletedFiles)
             assertEquals(1, retention.retainedFiles)
             assertTrue(root.resolve("unrelated.txt").isFile)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun runtimeProbeFilesStayPrivateAndArePrunedOnServiceRecreation() {
+        val root = Files.createTempDirectory("ffmpeg-runtime-probe-retention").toFile()
+        try {
+            val requestId = "8".repeat(32)
+            val probe = ffmpegRuntimeProbeFile(root, requestId)
+            val directory = requireNotNull(probe.parentFile)
+            assertTrue(directory.mkdirs())
+            probe.writeText("""{"format":{},"streams":[]}""", Charsets.UTF_8)
+            root.resolve("unrelated.json").writeText("{}")
+
+            assertEquals(1, pruneFfmpegRuntimeProbeFiles(root))
+            assertFalse(probe.exists())
+            assertTrue(root.resolve("unrelated.json").isFile)
         } finally {
             root.deleteRecursively()
         }

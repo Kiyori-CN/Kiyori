@@ -216,7 +216,7 @@ internal data class FFmpegConversionRequest(
         require(video.codec.equals("h264", ignoreCase = true)) {
             "Conversion output video codec is ${video.codec ?: "unknown"}, expected h264"
         }
-        require(video.profile.normalizedFfmpegToken() == "constrainedbaseline") {
+        require(video.profile.isConstrainedBaselineProfile()) {
             "Conversion output video profile is ${video.profile ?: "unknown"}, " +
                 "expected constrained baseline"
         }
@@ -274,6 +274,14 @@ private fun File.canonicalFileForConversion(label: String): File =
     } catch (error: SecurityException) {
         throw IllegalArgumentException("$label path cannot be accessed: $path", error)
     }
+
+private fun String?.isConstrainedBaselineProfile(): Boolean {
+    val token = normalizedFfmpegToken()
+    // FFmpeg represents AV_PROFILE_H264_CONSTRAINED_BASELINE as 66 | 512 = 578.
+    // The numeric value is semantically the same profile as the human-readable
+    // "Constrained Baseline" emitted by other FFprobe builds.
+    return token == "constrainedbaseline" || token == "578"
+}
 
 private fun String?.normalizedFfmpegToken(): String =
     this

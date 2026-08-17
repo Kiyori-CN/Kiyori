@@ -69,6 +69,10 @@ void ffmpegkit_log_dispatch_callback(void *ptr,
                                      int level,
                                      const char *format,
                                      va_list vargs);
+void ffmpegkit_log_callback_function(void *ptr,
+                                     int level,
+                                     const char *format,
+                                     va_list vargs);
 
 int ffmpegkit_cancel_requested(const void *opaque);
 void cancel_operation(long session_id);

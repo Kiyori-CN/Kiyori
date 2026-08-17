@@ -16,8 +16,8 @@ overwrite, an application-layer media proxy, and a second player runtime are not
 | --- | --- | --- |
 | Player M9 source AAR | `mpvlibAndroid@168e0a5e43b37c85509050cddcb5eaddc2e313c0`; mpv `2339eb72767517fc5a113283939f59076946fbc1`; FFmpeg `n9.0.1` / `bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa`; Mbed TLS `3.6.7` / `068ff080b369adfac81509f9b57b2afabaf82dc5` | `7CB0B25DC15F21278992243CE2597193B7A54E1A488933555B572982203E2BC0` |
 | Player selected aligned AAR | The preceding source closure transformed to the `libmp*.so` namespace with deterministic 16 KiB ZIP alignment | `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4` |
-| FFmpegKit r4 source AAR | maintained framework `62b07bf097baf26b416c815aea514e05c9ad6d63`; wrapper `8.1.7-kiyori-n9.0.1-r4`; FFmpeg `n9.0.1` / `bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa`; OpenH264 `v2.6.0` / `652bdb7719f30b52b08e506645a7322ff1b2cc6f`; Android Binder threadpool preservation patch | `DF332D8F2FECA7508541A2F20EDB348A3BFBC2AD5AE6EEFDEDF2889D679C96CC` |
-| FFmpegKit r4 selected aligned AAR | The preceding full tools closure without a second `libc++_shared.so`, retaining Java/JNI, SAF, resources and notices | `86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7` |
+| FFmpegKit r6 source AAR | maintained framework `62b07bf097baf26b416c815aea514e05c9ad6d63`; wrapper `8.1.7-kiyori-n9.0.1-r6`; FFmpeg `n9.0.1` / `bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa`; OpenH264 `v2.6.0` / `652bdb7719f30b52b08e506645a7322ff1b2cc6f`; Android Binder threadpool preservation, capability stdout bridge, GPL/HarfBuzz and `drawtext`/`eq`/`boxblur` | `0BD7ADDAE2D17960DB940A17A3E2450ACB83EECB46BE0D3800D051BB2075C1CE` |
+| FFmpegKit r6 selected aligned AAR | The preceding full tools closure without a second `libc++_shared.so`, retaining Java/JNI, SAF, resources, GPLv3 text and notices | `7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394` |
 
 `ci/script/build_player_native_closure.py` builds the complete player M9 source AAR in an isolated profile workspace.
 `ci/script/audit_player_native_closure.py` verifies the source AAR before it can be copied to the stable `work/`
@@ -63,10 +63,12 @@ identity while excluding it from mpv `http-header-fields`; mpv/FFmpeg alone owns
 
 `app/libs/ffmpeg-kit-player-arm64.aar` retains the compatible Java API, proguard metadata, resources, licenses and
 source notices from the fixed maintained framework. Its native set is exactly the nine arm64 FFmpegKit/FFmpeg
-libraries; the source AAR's `libc++_shared.so` is omitted. The deterministic selected output is `30,133,322` bytes
-with SHA-256 `86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`. All nine native payloads are
+libraries; the source AAR's `libc++_shared.so` is omitted. The deterministic selected output is `30,486,441` bytes
+with SHA-256 `7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`. All nine native payloads are
 ELF64/AArch64, use the FFmpeg `.63/.63/.12/.63/.61/.7/.10` symbol majors, have no `RPATH`/`RUNPATH`, satisfy
-`PT_LOAD >= 0x4000`, and start at 16 KiB-aligned ZIP payload offsets.
+`PT_LOAD >= 0x4000`, and start at 16 KiB-aligned ZIP payload offsets. The selected r6 closure records
+`--enable-gpl`/`--enable-libharfbuzz` in `libavutil.so`, exact `drawtext`/`eq`/`boxblur` in
+`libavfilter.so`, and a byte-exact `res/raw/license_gplv3.txt`.
 
 Existing private dependency archives can still contain the retired `app/libs/ffmpeg-kit-local.aar` and manual
 `jniLibs` runtimes; `prepare_android_dependencies.py` removes those retired owners and then validates the two selected
@@ -105,9 +107,12 @@ SONAME/`DT_NEEDED`, zero `RPATH`/`RUNPATH`, `PT_LOAD >= 0x4000`, FFmpeg version 
 symbol closure, float/double `__from_chars_floating_point`, the fixed mpv commit, Mbed TLS `3.6.7`, RSA-PSS,
 HTTPS, curl-disabled markers, libplacebo, shaderc, and 16 KiB native ZIP payload offsets.
 
-The paired promotion contract accepts only the fixed `m9_ffmpeg_major_candidate` and the exact selected player and
-FFmpegKit hashes. It audits both candidates, both `app/libs`-directory temporary files, and both final products before
-returning success. One stack cannot be promoted independently, and M8 cannot be selected through this path.
+The major-upgrade paired promotion contract accepts only the fixed `m9_ffmpeg_major_candidate` and the exact selected
+player and FFmpegKit hashes. It audits both candidates, both `app/libs`-directory temporary files, and both final
+products before returning success. A patch-level FFmpegKit rebuild may use
+`--promote-m9-ffmpegkit-patch-candidate`; that path requires the selected mpv AAR to retain its fixed hash, audits the
+mpv closure before and after, audits the FFmpegKit candidate/temporary/final product against that unchanged
+`libc++_shared.so` owner, and never rewrites the mpv product. M8 cannot be selected through either path.
 
 The M9 source AAR is `23,380,329` bytes with SHA-256
 `7CB0B25DC15F21278992243CE2597193B7A54E1A488933555B572982203E2BC0`; its deterministic aligned thin/product
@@ -118,21 +123,25 @@ The selected FFmpeg
 namespace is `libavcodec.so.63`, `libavdevice.so.63`, `libavfilter.so.12`, `libavformat.so.63`,
 `libavutil.so.61`, `libswresample.so.7`, and `libswscale.so.10`.
 
-The FFmpegKit r4 source AAR is `17,101,059` bytes with SHA-256
-`DF332D8F2FECA7508541A2F20EDB348A3BFBC2AD5AE6EEFDEDF2889D679C96CC`; its deterministic aligned
-thin/product AAR is `30,133,322` bytes with SHA-256
-`86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`. The fixed 33-file overlay keeps the
+The FFmpegKit r6 source AAR is `39,632,341` bytes with SHA-256
+`0BD7ADDAE2D17960DB940A17A3E2450ACB83EECB46BE0D3800D051BB2075C1CE`; its deterministic aligned
+thin/product AAR is `30,486,441` bytes with SHA-256
+`7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`. The fixed 33-file overlay keeps the
 FFmpeg 9 command layer execution-local for session state, logging, reports, hardware devices, graph prefixes and
 vstats while preserving the existing Java/JNI and SAF interfaces. The fixed source patches map FFmpeg's constrained
 baseline value to OpenH264's baseline enum, skip an empty `BsFlush` word, and preserve an Android application's
-already-started Binder threadpool before transcode. Framework patches make the bounded job count effective and
+already-started Binder threadpool before transcode. r5 added HarfBuzz/private FFprobe JSON; r6 additionally routes
+help/capability stdout into the FFmpegKit log callback, enables GPL plus `eq/boxblur`, requires
+`CONFIG_LIBHARFBUZZ=1`, `CONFIG_DRAWTEXT_FILTER=1`, `CONFIG_EQ_FILTER=1` and
+`CONFIG_BOXBLUR_FILTER=1`, locks their binary markers, and packages the repository GPLv3 text. Framework patches make
+the bounded job count effective and
 reapply the OpenH264 patch after the Android helper's source reset. The `:ffmpeg` service uses one FIFO top-level
 native owner while retaining independent request/session/result state and FFmpeg's internal worker threads; terminal
 delivery drains the active session and session `0` callback queues. `libffmpegkit.so` does not import `exit`, `_exit`
 or `quick_exit`.
 
 OpenH264 `v2.6.0` predates the upstream `BsFlush` guard commit
-`40555ec684ec0fede3948c8f272c04d88d05189d`, so r4 retains the locked empty-word patch instead of deleting it.
+`40555ec684ec0fede3948c8f272c04d88d05189d`, so r6 retains the locked empty-word patch instead of deleting it.
 The matching FFmpeg profile patch is also retained. The patched OpenH264 v2.6.0 and FFmpeg n9.0.1 host
 ASan/UBSan matrix completed `20/20` encodes and full audio/video decode reads.
 
@@ -227,11 +236,23 @@ After both candidates pass their independent auditors, promote the exact pair:
   --source-closure-profile m9_ffmpeg_major_candidate `
   --native-readelf <windows-host-ndk-llvm-readelf.exe> `
   --expected-mpv-sha256 f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4 `
-  --expected-ffmpegkit-sha256 86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7
+  --expected-ffmpegkit-sha256 7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394
 ```
 
-The promotion command audits both candidates, both product-directory temporary files and both final product AARs.
-It does not expose M8 or single-stack promotion modes.
+When only the FFmpegKit patch-level closure changes and the selected mpv product must remain byte-identical:
+
+```powershell
+.\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py `
+  --repository . `
+  --promote-m9-ffmpegkit-patch-candidate <m9-ffmpegkit-thin-candidate> `
+  --source-closure-profile m9_ffmpeg_major_candidate `
+  --native-readelf <windows-host-ndk-llvm-readelf.exe> `
+  --expected-ffmpegkit-sha256 7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394
+```
+
+The paired command audits both candidates, both product-directory temporary files and both final product AARs. The
+patch command verifies the fixed mpv hash before and after, audits its thin closure twice, and audits the FFmpegKit
+candidate/temporary/final product against that unchanged C++ owner. Neither path exposes M8 selection.
 
 ## Required APK audit
 
@@ -258,19 +279,19 @@ target hardware.
   `7CB0B25DC15F21278992243CE2597193B7A54E1A488933555B572982203E2BC0`
 - Player product AAR: `50,926,119` bytes, SHA-256
   `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4`
-- FFmpegKit r4 source AAR: `17,101,059` bytes, SHA-256
-  `DF332D8F2FECA7508541A2F20EDB348A3BFBC2AD5AE6EEFDEDF2889D679C96CC`
-- FFmpegKit r4 product AAR: `30,133,322` bytes, SHA-256
-  `86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`
+- FFmpegKit r6 source AAR: `39,632,341` bytes, SHA-256
+  `0BD7ADDAE2D17960DB940A17A3E2450ACB83EECB46BE0D3800D051BB2075C1CE`
+- FFmpegKit r6 product AAR: `30,486,441` bytes, SHA-256
+  `7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`
 - Both products are byte-identical to their aligned thin candidates; all 19 native payload offsets are
   `0 mod 0x4000`
 - `libmpv.so` embeds `mpv v0.41.0-774-g2339eb727`, matching fixed commit `2339eb727`; the manifest's
   source-identity label remains `v0.41.0-dev-g2339eb727`. Namespaced and normal `libavutil` report FFmpeg
-  `n9.0.1` with `LIBAVUTIL_61`; the FFmpegKit wrapper reports `8.1.7-kiyori-n9.0.1-r4`
+  `n9.0.1` with `LIBAVUTIL_61`; the FFmpegKit wrapper reports `8.1.7-kiyori-n9.0.1-r6`
 - Both namespaces use FFmpeg majors `.63/.63/.12/.63/.61/.7/.10`; all selected ELF files are
   ELF64/AArch64, have no `RPATH`/`RUNPATH`, and satisfy `PT_LOAD >= 0x4000`
 - The selected player supplies the only `libc++_shared.so`; normal and namespaced native basenames have zero overlap
-- Current Debug APK with FFmpegKit r4: written `2026-08-17 19:48:41 +08:00`,
+- Historical Debug APK with FFmpegKit r4, before the r5 promotion: written `2026-08-17 19:48:41 +08:00`,
   `486,200,460` bytes, SHA-256
   `14CBE55B2BF1FC11B769D9E14267F474E41C3EF40FC115210E7A7A0CB6CC28C6`; the prescribed build
   revalidated it as `BUILD SUCCESSFUL in 59s` with 232 tasks, 19 executed and 213 up-to-date.
@@ -281,8 +302,10 @@ target hardware.
   ELF64/AArch64; 153 `PT_LOAD` entries are `0x4000 × 151` and `0x10000 × 2`
 - All ten player and nine FFmpegKit native members are byte-identical to their selected AAR entries. The 19 related
   ELF files have zero `RPATH`/`RUNPATH`; normal/namespaced cross-dependencies and FFmpeg 8 markers are zero
-- The 44 DEX files contain the FFmpeg runtime service and required player/runtime/cache/media-identity descriptors;
-  `libffmpegkit.so` contains the r4 wrapper and `ABinderProcess_isThreadPoolStarted` patch markers
+- The selected r6 `libffmpegkit.so` contains the wrapper, capability-output bridge and
+  `ABinderProcess_isThreadPoolStarted` patch markers; `libavutil.so` contains
+  `--enable-gpl`/`--enable-libharfbuzz`, `libavfilter.so` contains exact `drawtext`/`eq`/`boxblur`, and the
+  AAR contains the byte-exact GPLv3 resource
 - The full APK audit also observes `RPATH/RUNPATH` in unrelated owners `libonnxruntime.so` and
   `libsherpa-mnn-jni.so`; they are outside the 19 player/FFmpegKit closure ELF files and are not modified by this
   native-stack stage

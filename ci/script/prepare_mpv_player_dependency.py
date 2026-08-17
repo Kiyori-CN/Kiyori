@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import json
 import shutil
 import struct
 import subprocess
@@ -42,8 +43,10 @@ PLAYER_CLOSURE_PROFILES = (
     "m8_security_refresh",
     "m9_ffmpeg_major_candidate",
 )
-FFMPEG_OUTPUT_SHA256 = "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7"
 FFMPEG_OUTPUT_RELATIVE_PATH = Path("app/libs/ffmpeg-kit-player-arm64.aar")
+FFMPEGKIT_CLOSURE_MANIFEST_RELATIVE_PATH = Path(
+    "tools/ffmpegkit_native_build/closure_manifest.json"
+)
 MPV_PASSTHROUGH_MEMBERS = (
     "R.txt",
     "AndroidManifest.xml",
@@ -134,6 +137,7 @@ FFMPEG_REQUIRED_MEMBERS = {
     "classes.jar",
     "proguard.txt",
     "res/raw/license.txt",
+    "res/raw/license_gplv3.txt",
     "res/raw/source.txt",
     "META-INF/com/android/build/gradle/aar-metadata.properties",
 }
@@ -181,6 +185,61 @@ def normalize_sha256(value: str) -> str:
     ):
         raise ValueError(f"expected a 64-character SHA-256, got {value!r}")
     return normalized
+
+
+def load_ffmpeg_output_contract(repository: Path) -> tuple[Path, str, int]:
+    """Load the selected FFmpegKit product from the native closure manifest."""
+    repository = repository.resolve()
+    manifest_path = repository / FFMPEGKIT_CLOSURE_MANIFEST_RELATIVE_PATH
+    with manifest_path.open(encoding="utf-8") as stream:
+        manifest = json.load(stream)
+    if manifest.get("schema") != 1:
+        raise ValueError(
+            "unsupported FFmpegKit closure manifest schema: "
+            f"{manifest.get('schema')!r}"
+        )
+
+    selected = manifest.get("selected_product")
+    qualified = manifest.get("qualified_artifacts", {}).get("thin_candidate")
+    if not isinstance(selected, dict) or not isinstance(qualified, dict):
+        raise ValueError(
+            "FFmpegKit closure manifest must define selected_product and "
+            "qualified_artifacts.thin_candidate"
+        )
+
+    relative_path = Path(str(selected.get("path", "")))
+    if relative_path != FFMPEG_OUTPUT_RELATIVE_PATH:
+        raise ValueError(
+            "FFmpegKit selected product path differs from the Android dependency "
+            f"owner: expected {FFMPEG_OUTPUT_RELATIVE_PATH}, got {relative_path}"
+        )
+    selected_sha256 = normalize_sha256(str(selected.get("sha256", "")))
+    try:
+        selected_size = int(selected["size"])
+        selected_native_count = int(selected["native_count"])
+        qualified_size = int(qualified["size"])
+        qualified_native_count = int(qualified["native_count"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError(
+            "FFmpegKit closure manifest contains invalid selected artifact metadata"
+        ) from error
+    if selected_size <= 0 or selected_native_count != len(FFMPEG_NATIVE_LIBRARY_NAMES):
+        raise ValueError(
+            "FFmpegKit selected product size/native count is inconsistent: "
+            f"size={selected_size}, native_count={selected_native_count}"
+        )
+
+    qualified_sha256 = normalize_sha256(str(qualified.get("sha256", "")))
+    if (
+        qualified_sha256 != selected_sha256
+        or qualified_size != selected_size
+        or qualified_native_count != selected_native_count
+    ):
+        raise ValueError(
+            "FFmpegKit selected product must exactly match the qualified thin "
+            "candidate contract"
+        )
+    return relative_path, selected_sha256, selected_size
 
 
 def deterministic_zip_info(name: str) -> zipfile.ZipInfo:
@@ -453,10 +512,11 @@ def promote_m9_closure_pair(
             "mpv promotion SHA-256 differs from the selected M9 contract: "
             f"expected {MPV_OUTPUT_SHA256}, got {expected_mpv}"
         )
-    if expected_ffmpegkit != FFMPEG_OUTPUT_SHA256:
+    _, selected_ffmpeg_sha256, _ = load_ffmpeg_output_contract(repository)
+    if expected_ffmpegkit != selected_ffmpeg_sha256:
         raise ValueError(
             "FFmpegKit promotion SHA-256 differs from the selected M9 contract: "
-            f"expected {FFMPEG_OUTPUT_SHA256}, got {expected_ffmpegkit}"
+            f"expected {selected_ffmpeg_sha256}, got {expected_ffmpegkit}"
         )
     require_sha256(mpv_candidate_aar, expected_mpv)
     require_sha256(ffmpegkit_candidate_aar, expected_ffmpegkit)
@@ -535,6 +595,90 @@ def promote_m9_closure_pair(
         readelf,
     )
     return mpv_output, ffmpegkit_output
+
+
+def promote_m9_ffmpegkit_patch_candidate(
+    repository: Path,
+    ffmpegkit_candidate_aar: Path,
+    profile: str,
+    readelf: Path,
+    expected_ffmpegkit_sha256: str,
+) -> Path:
+    repository = repository.resolve()
+    ffmpegkit_candidate_aar = ffmpegkit_candidate_aar.resolve()
+    readelf = readelf.resolve()
+    expected_ffmpegkit = normalize_sha256(expected_ffmpegkit_sha256)
+    if profile != MPV_SELECTED_SOURCE_CLOSURE_PROFILE:
+        raise ValueError(
+            "FFmpegKit patch promotion only accepts the selected M9 source "
+            f"closure; got {profile}"
+        )
+    _, selected_ffmpeg_sha256, _ = load_ffmpeg_output_contract(repository)
+    if expected_ffmpegkit != selected_ffmpeg_sha256:
+        raise ValueError(
+            "FFmpegKit patch promotion SHA-256 differs from the selected "
+            f"contract: expected {selected_ffmpeg_sha256}, got {expected_ffmpegkit}"
+        )
+    require_sha256(ffmpegkit_candidate_aar, expected_ffmpegkit)
+
+    mpv_output = repository / MPV_OUTPUT_RELATIVE_PATH
+    ffmpegkit_output = repository / FFMPEG_OUTPUT_RELATIVE_PATH
+    require_sha256(mpv_output, MPV_OUTPUT_SHA256)
+    audit_source_closure(
+        repository,
+        mpv_output,
+        profile,
+        "thin",
+        readelf,
+    )
+    audit_ffmpegkit_closure(
+        repository,
+        ffmpegkit_candidate_aar,
+        mpv_output,
+        readelf,
+    )
+
+    remove_retired_player_native_owners(repository)
+    ffmpegkit_output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{ffmpegkit_output.name}.",
+        suffix=".patch-promotion",
+        dir=ffmpegkit_output.parent,
+        delete=False,
+    ) as ffmpegkit_temporary:
+        ffmpegkit_temporary_path = Path(ffmpegkit_temporary.name)
+    try:
+        shutil.copyfile(
+            ffmpegkit_candidate_aar,
+            ffmpegkit_temporary_path,
+        )
+        require_sha256(ffmpegkit_temporary_path, expected_ffmpegkit)
+        audit_ffmpegkit_closure(
+            repository,
+            ffmpegkit_temporary_path,
+            mpv_output,
+            readelf,
+        )
+        ffmpegkit_temporary_path.replace(ffmpegkit_output)
+    finally:
+        ffmpegkit_temporary_path.unlink(missing_ok=True)
+
+    require_sha256(mpv_output, MPV_OUTPUT_SHA256)
+    require_sha256(ffmpegkit_output, expected_ffmpegkit)
+    audit_source_closure(
+        repository,
+        mpv_output,
+        profile,
+        "thin",
+        readelf,
+    )
+    audit_ffmpegkit_closure(
+        repository,
+        ffmpegkit_output,
+        mpv_output,
+        readelf,
+    )
+    return ffmpegkit_output
 
 
 def validate_thin_aar(path: Path) -> None:
@@ -740,14 +884,22 @@ def materialize_mpv_player_dependency(repository: Path) -> Path:
 
 def materialize_ffmpeg_player_dependency(repository: Path) -> Path:
     repository = repository.resolve()
-    output_aar = repository / FFMPEG_OUTPUT_RELATIVE_PATH
+    output_relative_path, expected_sha256, expected_size = (
+        load_ffmpeg_output_contract(repository)
+    )
+    output_aar = repository / output_relative_path
     if not output_aar.is_file():
         raise FileNotFoundError(
             "selected FFmpegKit M9 closure AAR is missing: "
             f"{output_aar}; promote the audited M9 pair"
         )
     validate_ffmpeg_player_aar(output_aar)
-    require_sha256(output_aar, FFMPEG_OUTPUT_SHA256)
+    require_sha256(output_aar, expected_sha256)
+    if output_aar.stat().st_size != expected_size:
+        raise ValueError(
+            "selected FFmpegKit M9 closure AAR size differs from the manifest: "
+            f"expected {expected_size}, got {output_aar.stat().st_size}"
+        )
     return output_aar
 
 
@@ -767,6 +919,7 @@ def main() -> int:
     parser.add_argument("--source-closure-aar", type=Path)
     parser.add_argument("--promote-m9-mpv-candidate", type=Path)
     parser.add_argument("--promote-m9-ffmpegkit-candidate", type=Path)
+    parser.add_argument("--promote-m9-ffmpegkit-patch-candidate", type=Path)
     parser.add_argument(
         "--source-closure-profile",
         choices=PLAYER_CLOSURE_PROFILES,
@@ -780,6 +933,7 @@ def main() -> int:
     promotion_requested = (
         args.promote_m9_mpv_candidate is not None
         or args.promote_m9_ffmpegkit_candidate is not None
+        or args.promote_m9_ffmpegkit_patch_candidate is not None
     )
     if args.source_closure_aar is not None or promotion_requested:
         if args.mpv_input_aar is not None:
@@ -794,13 +948,13 @@ def main() -> int:
         if args.source_closure_aar is not None:
             if promotion_requested:
                 parser.error(
-                    "candidate generation cannot be combined with paired promotion"
+                    "candidate generation cannot be combined with promotion"
                 )
             if (
                 args.expected_mpv_sha256 is not None
                 or args.expected_ffmpegkit_sha256 is not None
             ):
-                parser.error("expected promotion hashes require paired promotion")
+                parser.error("expected promotion hashes require promotion mode")
             candidate = build_source_closure_candidate(
                 args.repository,
                 args.source_closure_aar,
@@ -815,6 +969,36 @@ def main() -> int:
             return 0
         if args.candidate_output is not None:
             parser.error("--candidate-output is only valid when building a candidate")
+        if args.promote_m9_ffmpegkit_patch_candidate is not None:
+            if (
+                args.promote_m9_mpv_candidate is not None
+                or args.promote_m9_ffmpegkit_candidate is not None
+            ):
+                parser.error(
+                    "FFmpegKit patch promotion cannot be combined with paired promotion"
+                )
+            if args.expected_mpv_sha256 is not None:
+                parser.error(
+                    "FFmpegKit patch promotion validates the selected mpv product "
+                    "against its fixed hash; do not pass --expected-mpv-sha256"
+                )
+            if args.expected_ffmpegkit_sha256 is None:
+                parser.error(
+                    "FFmpegKit patch promotion requires "
+                    "--expected-ffmpegkit-sha256"
+                )
+            ffmpegkit_output = promote_m9_ffmpegkit_patch_candidate(
+                args.repository,
+                args.promote_m9_ffmpegkit_patch_candidate,
+                args.source_closure_profile,
+                args.native_readelf,
+                args.expected_ffmpegkit_sha256,
+            )
+            print(
+                f"Promoted M9 FFmpegKit patch closure to {ffmpegkit_output}; "
+                f"sha256={sha256_file(ffmpegkit_output)}; selected mpv product unchanged"
+            )
+            return 0
         if (
             args.promote_m9_mpv_candidate is None
             or args.promote_m9_ffmpegkit_candidate is None
@@ -852,7 +1036,7 @@ def main() -> int:
         or args.expected_ffmpegkit_sha256 is not None
     ):
         parser.error(
-            "source closure options require candidate generation or paired promotion"
+            "source closure options require candidate generation or promotion"
         )
 
     if args.mpv_input_aar is not None:

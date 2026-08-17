@@ -5763,7 +5763,8 @@
     <string name="toolreg_press_key_desc">按下按键: %1$s</string>
     <string name="toolreg_swipe_desc">滑动: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
     <string name="toolreg_ffmpeg_execute_desc">执行FFmpeg命令: %1$s</string>
-    <string name="toolreg_ffmpeg_info_desc">获取FFmpeg信息</string>
+    <string name="toolreg_ffmpeg_info_desc">获取 Android FFmpeg 信息：%1$s</string>
+    <string name="toolreg_ffmpeg_probe_desc">使用 Android FFprobe 探测媒体：%1$s</string>
     <string name="toolreg_ffmpeg_convert_desc">转换视频: %1$s → %2$s</string>
 
     <string name="screen_ocr_capture_failed">截图失败</string>

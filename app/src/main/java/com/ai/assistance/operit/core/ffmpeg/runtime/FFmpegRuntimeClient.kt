@@ -156,11 +156,14 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
             ),
         )
 
-    suspend fun queryRuntimeInfo(): FFmpegRuntimeResponse =
+    suspend fun queryRuntimeInfo(
+        section: FFmpegRuntimeInformationSection = FFmpegRuntimeInformationSection.default,
+    ): FFmpegRuntimeResponse =
         submit(
             FFmpegRuntimeRequest(
                 requestId = newRequestId(),
                 operationWireValue = FFmpegRuntimeOperation.RUNTIME_INFO.wireValue,
+                informationSectionWireValue = section.wireValue,
             ),
         )
 
@@ -179,9 +182,11 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
         return runBlocking { probeMedia(inputPath) }
     }
 
-    fun queryRuntimeInfoBlocking(): FFmpegRuntimeResponse {
+    fun queryRuntimeInfoBlocking(
+        section: FFmpegRuntimeInformationSection = FFmpegRuntimeInformationSection.default,
+    ): FFmpegRuntimeResponse {
         requireBackgroundThread()
-        return runBlocking { queryRuntimeInfo() }
+        return runBlocking { queryRuntimeInfo(section) }
     }
 
     private suspend fun submit(request: FFmpegRuntimeRequest): FFmpegRuntimeResponse =
@@ -245,6 +250,8 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
                             requestId = request.requestId,
                             partialOutput = partialOutput,
                             diagnosticLogPath = diagnosticLogPath,
+                            processId = pending.processId.takeIf { value -> value > 0 },
+                            sessionId = pending.sessionId.takeIf { value -> value > 0L },
                         )
                     }
                 }

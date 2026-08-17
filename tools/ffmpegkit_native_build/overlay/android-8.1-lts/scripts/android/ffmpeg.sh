@@ -104,6 +104,11 @@ for library in {0..61}; do
       LDFLAGS+=" $(pkg-config --libs --static freetype2 2>>"${BASEDIR}"/build.log)"
       CONFIGURE_POSTFIX+=" --enable-libfreetype"
       ;;
+    harfbuzz)
+      CFLAGS+=" $(pkg-config --cflags harfbuzz 2>>"${BASEDIR}"/build.log)"
+      LDFLAGS+=" $(pkg-config --libs --static harfbuzz 2>>"${BASEDIR}"/build.log)"
+      CONFIGURE_POSTFIX+=" --enable-libharfbuzz"
+      ;;
     fribidi)
       CFLAGS+=" $(pkg-config --cflags fribidi 2>>"${BASEDIR}"/build.log)"
       LDFLAGS+=" $(pkg-config --libs --static fribidi 2>>"${BASEDIR}"/build.log)"
@@ -319,6 +324,12 @@ for library in {0..61}; do
     fi
   fi
 done
+
+# The Kiyori product is GPLv3. FFmpeg marks eq and boxblur as GPL-gated
+# filters, so --enable-small alone cannot retain them. Keep the license mode
+# and the filter component enables in the FFmpeg configure command rather than
+# passing them to android.sh's library-option parser.
+CONFIGURE_POSTFIX+=" --enable-gpl --enable-filter=eq --enable-filter=boxblur"
 
 # SET CONFIGURE OPTIONS FOR CUSTOM LIBRARIES
 for custom_library_index in "${CUSTOM_LIBRARIES[@]}"; do

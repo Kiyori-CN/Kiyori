@@ -772,11 +772,20 @@ export interface FFmpegStreamInfo {
     /** Stream index in the media file (0-based) */
     index: number;
 
-    /** Stream type: "video" or "audio" */
-    type: 'video' | 'audio';
+    /** Stream type reported by FFprobe, normally "video" or "audio" */
+    codecType: string;
 
     /** Codec name used for this stream */
-    codec: string;
+    codecName: string;
+
+    /** Codec profile reported by FFprobe */
+    profile?: string;
+
+    /** Pixel format reported by FFprobe */
+    pixelFormat?: string;
+
+    /** Video resolution such as "1920x1080" */
+    resolution?: `${number}x${number}`;
 
     /** Frame rate for video streams (e.g., "30/1", "29.97") */
     frameRate?: `${number}/${number}` | `${number}`;
@@ -784,11 +793,9 @@ export interface FFmpegStreamInfo {
     /** Sample rate for audio streams in Hz (e.g., "44100") */
     sampleRate?: `${number}`;
 
-    /** Number of audio channels (e.g., 2 for stereo) */
-    channels?: 1 | 2 | 4 | 6 | 8;
+    /** Non-negative audio channel count reported by FFprobe (bounded by the Android parser) */
+    channels?: number;
 
-    /** Returns a formatted string representation of the stream info */
-    toString(): string;
 }
 
 /**
@@ -799,8 +806,8 @@ export interface FFmpegResultData {
     /** The complete FFmpeg command that was executed */
     command: string;
 
-    /** FFmpeg return code (0 indicates success) */
-    returnCode: number;
+    /** Signed native FFmpeg AVERROR value, or null when no native return code exists */
+    returnCode: number | null;
 
     /** Complete output from the FFmpeg command execution */
     output: string;
@@ -808,14 +815,41 @@ export interface FFmpegResultData {
     /** Execution duration in milliseconds */
     duration: number;
 
-    /** Array of video stream information */
-    videoStreams: FFmpegStreamInfo[];
+    /** Final output path after a successful conversion */
+    outputFile?: string;
 
-    /** Array of audio stream information */
-    audioStreams: FFmpegStreamInfo[];
+    /** Structured media information returned by Android FFprobe */
+    mediaInfo?: {
+        format: string;
+        duration: string;
+        bitrate: string;
+        videoStreams: FFmpegStreamInfo[];
+        audioStreams: FFmpegStreamInfo[];
+    };
 
-    /** Returns a formatted string representation of the result */
-    toString(): string;
+    /** Stable execution-plane identifier */
+    executionPlane: 'android_ffmpegkit';
+
+    /** succeeded, failed, cancelled, protocol_failure, or process_died */
+    terminalState?: string;
+
+    /** Always signed_ffmpeg_averror for this execution plane */
+    returnCodeSemantics: 'signed_ffmpeg_averror';
+
+    /** Android :ffmpeg process ID when available */
+    processId?: number;
+
+    /** FFmpegKit session ID when available */
+    sessionId?: number;
+
+    /** Pipeline stage associated with the result or failure */
+    pipelineStage?: string;
+
+    /** Structured runtime failure code when no native return code exists */
+    failureCode?: string;
+
+    /** Retained private runtime log path after an Android :ffmpeg process death */
+    diagnosticLogPath?: string;
 }
 
 // ============================================================================

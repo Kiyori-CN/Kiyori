@@ -9,11 +9,19 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 
 ## 2026-08-17 FFmpeg 运行时、API 与 native closure 完善
 
-状态：API/runtime/内部调用方实现、完整 Python 与九模块 Gradle 矩阵、Lint 根因清理、
-WebChat、ToolPkg、formal/fresh-clone/architecture 门禁及 FFmpegKit/mpv AAR closure 审计已完成；
-Debug APK 构建、签名、16 KiB、ABI、native payload、Markdown 和最终 Git 候选树审计已完成；
-提交/推送状态必须在交付时通过实时 Git 对账。vivo Android 16 上的 FFmpegKit r4 实际转码、
-取消、process death 和播放器矩阵仍保持 `verification_pending`。
+状态：r5 安装包的真实 AI/设备复测已确认 Android FFmpeg 核心媒体链可完成流复制、软件与
+MediaCodec H.264/HEVC、VP8/VP9/AV1/Theora/MPEG-2、14 类视频滤镜、音频、截图/GIF、拼接、
+循环和 metadata/faststart；同时确认 `ffmpeg_convert` 把 constrained baseline 数值 `578`
+误判、能力列表 stdout 丢失、`eq/boxblur` 受 GPL gate 缺失、`drawtext` 需要绝对 `fontfile`，
+以及 Shell 管道被误传给 `ffmpeg_execute`。当前已完成 r6：profile 合同、能力 stdout bridge、
+Shell token 校验、私有 FFprobe JSON、公开 `ffmpeg_probe`、分区 `ffmpeg_info`、signed AVERROR、
+ToolPkg 结构化错误，以及 GPL/HarfBuzz/`drawtext`/`eq`/`boxblur` closure 和 GPLv3 资源；
+source/thin/product promotion、native audit、52 项 FFmpeg 定向 Python、完整 Python
+`218/218`、Gradle/JVM/AndroidTest/Lint `431` tasks、WebChat、ToolPkg、formal readiness、
+fresh clone、architecture `phase=m03`、串行 Debug APK 构建和独立 APK 审计均已通过。最终
+APK 为 `494168730` bytes，SHA-256
+`5C12152E9F180B1454AFAF8FD72F370840B409E8703902E9BEDE6A434250285E`。r6 目标设备未重新
+安装验收，保持 `verification_pending`。
 
 详细目标、三执行面边界、缺陷清单、设计合同、验证矩阵、风险和后续优先级见
 [`ffmpeg_runtime_completion/index.md`](ffmpeg_runtime_completion/index.md)；长期架构权威见

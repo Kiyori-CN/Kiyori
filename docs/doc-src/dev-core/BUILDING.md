@@ -286,7 +286,18 @@ Selected dual M9 native source closure qualification:
   --source-closure-profile m9_ffmpeg_major_candidate `
   --native-readelf <windows-host-ndk-llvm-readelf.exe> `
   --expected-mpv-sha256 f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4 `
-  --expected-ffmpegkit-sha256 86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7
+  --expected-ffmpegkit-sha256 7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394
+```
+
+若 mpv 产品 AAR 保持固定哈希、只晋级经过审计的 FFmpegKit patch-level closure：
+
+```powershell
+.\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py `
+  --repository . `
+  --promote-m9-ffmpegkit-patch-candidate <m9-ffmpegkit-thin-candidate> `
+  --source-closure-profile m9_ffmpeg_major_candidate `
+  --native-readelf <windows-host-ndk-llvm-readelf.exe> `
+  --expected-ffmpegkit-sha256 7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394
 ```
 
 The default prepare command only validates the selected product AAR and fixed FFmpegKit AAR. It does not download

@@ -62,10 +62,12 @@ from prepare_mpv_player_dependency import (  # noqa: E402
     build_ffmpeg_player_aar,
     build_source_closure_candidate,
     build_thin_aar,
+    load_ffmpeg_output_contract,
     materialize_legacy_mpv_baseline_candidate,
     namespace_mpv_native_payload,
     native_zip_data_offsets,
     normalize_sha256,
+    promote_m9_ffmpegkit_patch_candidate,
     promote_m9_closure_pair,
     remove_retired_player_native_owners,
     validate_ffmpeg_player_aar,
@@ -106,6 +108,41 @@ def write_synthetic_mpv_source(path: Path) -> None:
                     payload += b"".join(MPV_REQUIRED_TLS_MARKERS)
             stream.writestr(source_name, payload)
         stream.writestr("jni/x86_64/libc++_shared.so", b"other-abi-libcxx")
+
+
+def write_ffmpegkit_output_contract(
+    repository: Path,
+    sha256: str,
+    size: int,
+) -> None:
+    manifest_path = (
+        repository
+        / player_dependency.FFMPEGKIT_CLOSURE_MANIFEST_RELATIVE_PATH
+    )
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema": 1,
+                "qualified_artifacts": {
+                    "thin_candidate": {
+                        "sha256": sha256,
+                        "size": size,
+                        "native_count": len(FFMPEG_NATIVE_LIBRARY_NAMES),
+                    }
+                },
+                "selected_product": {
+                    "path": str(
+                        player_dependency.FFMPEG_OUTPUT_RELATIVE_PATH
+                    ).replace("\\", "/"),
+                    "sha256": sha256,
+                    "size": size,
+                    "native_count": len(FFMPEG_NATIVE_LIBRARY_NAMES),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 class AndroidDependencyArchiveTest(unittest.TestCase):
@@ -323,7 +360,7 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                     "m8_security_refresh",
                     readelf,
                     player_dependency.MPV_OUTPUT_SHA256,
-                    player_dependency.FFMPEG_OUTPUT_SHA256,
+                    "0" * 64,
                 )
             with self.assertRaisesRegex(
                 ValueError,
@@ -336,8 +373,26 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                     "m9_ffmpeg_major_candidate",
                     readelf,
                     "0" * 64,
-                    player_dependency.FFMPEG_OUTPUT_SHA256,
+                    "0" * 64,
                 )
+
+    def test_ffmpeg_output_contract_rejects_qualified_selected_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            write_ffmpegkit_output_contract(repository, "1" * 64, 123)
+            manifest_path = (
+                repository
+                / player_dependency.FFMPEGKIT_CLOSURE_MANIFEST_RELATIVE_PATH
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["qualified_artifacts"]["thin_candidate"]["size"] = 122
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "must exactly match the qualified thin candidate",
+            ):
+                load_ffmpeg_output_contract(repository)
 
     def test_paired_promotion_copies_both_exact_candidates(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -359,17 +414,17 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
             ffmpegkit_sha256 = hashlib.sha256(
                 ffmpegkit_candidate.read_bytes()
             ).hexdigest()
+            write_ffmpegkit_output_contract(
+                repository,
+                ffmpegkit_sha256,
+                ffmpegkit_candidate.stat().st_size,
+            )
 
             with (
                 mock.patch.object(
                     player_dependency,
                     "MPV_OUTPUT_SHA256",
                     mpv_sha256,
-                ),
-                mock.patch.object(
-                    player_dependency,
-                    "FFMPEG_OUTPUT_SHA256",
-                    ffmpegkit_sha256,
                 ),
                 mock.patch.object(
                     player_dependency,
@@ -399,6 +454,60 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 ffmpegkit_candidate.read_bytes(),
             )
             self.assertEqual(mpv_audit.call_count, 3)
+            self.assertEqual(ffmpegkit_audit.call_count, 3)
+
+    def test_ffmpegkit_patch_promotion_preserves_selected_mpv(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            ffmpegkit_candidate = repository / "ffmpegkit-candidate.aar"
+            readelf = repository / "llvm-readelf.exe"
+            mpv_product = repository / player_dependency.MPV_OUTPUT_RELATIVE_PATH
+            ffmpeg_product = repository / player_dependency.FFMPEG_OUTPUT_RELATIVE_PATH
+            ffmpeg_product.parent.mkdir(parents=True)
+            mpv_product.write_bytes(b"selected-mpv-m9")
+            ffmpeg_product.write_bytes(b"selected-ffmpeg-kit")
+            ffmpegkit_candidate.write_bytes(b"audited-ffmpegkit-patch-candidate")
+            readelf.write_bytes(b"readelf")
+            mpv_sha256 = hashlib.sha256(mpv_product.read_bytes()).hexdigest()
+            ffmpegkit_sha256 = hashlib.sha256(
+                ffmpegkit_candidate.read_bytes()
+            ).hexdigest()
+            original_mpv = mpv_product.read_bytes()
+            write_ffmpegkit_output_contract(
+                repository,
+                ffmpegkit_sha256,
+                ffmpegkit_candidate.stat().st_size,
+            )
+
+            with (
+                mock.patch.object(
+                    player_dependency,
+                    "MPV_OUTPUT_SHA256",
+                    mpv_sha256,
+                ),
+                mock.patch.object(
+                    player_dependency,
+                    "audit_source_closure",
+                ) as mpv_audit,
+                mock.patch.object(
+                    player_dependency,
+                    "audit_ffmpegkit_closure",
+                ) as ffmpegkit_audit,
+            ):
+                promoted_ffmpegkit = promote_m9_ffmpegkit_patch_candidate(
+                    repository,
+                    ffmpegkit_candidate,
+                    "m9_ffmpeg_major_candidate",
+                    readelf,
+                    ffmpegkit_sha256,
+                )
+
+            self.assertEqual(mpv_product.read_bytes(), original_mpv)
+            self.assertEqual(
+                promoted_ffmpegkit.read_bytes(),
+                ffmpegkit_candidate.read_bytes(),
+            )
+            self.assertEqual(mpv_audit.call_count, 2)
             self.assertEqual(ffmpegkit_audit.call_count, 3)
 
     def test_mpv_namespace_rewrite_preserves_payload_size(self) -> None:
@@ -736,7 +845,7 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
         )
         self.assertEqual(
             manifest["framework"]["wrapper_version"],
-            "8.1.7-kiyori-n9.0.1-r4",
+            "8.1.7-kiyori-n9.0.1-r6",
         )
         self.assertEqual(manifest["ffmpeg"]["tag"], "n9.0.1")
         self.assertEqual(
@@ -751,8 +860,8 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
             ),
             (
                 33,
-                1_091_143,
-                "d527ad2a8710461e89fd125b6b6cb202e743c3cc127d54f50ee51ed7dea9bf95",
+                1_092_823,
+                "c550972c8e5e9a1937958a81bd4361519584315a082902d030fc6ca15b33b098",
             ),
         )
         validated_patches = validate_source_patches(REPO_ROOT, manifest)
@@ -806,6 +915,54 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 "--rebuild-ffmpeg",
             ],
         )
+        self.assertIn(
+            "--enable-harfbuzz",
+            manifest["build_contract"]["build_arguments"],
+        )
+        self.assertIn(
+            "--enable-libharfbuzz",
+            manifest["build_contract"]["required_configure_flags"],
+        )
+        self.assertIn(
+            "--enable-gpl",
+            manifest["build_contract"]["required_configure_flags"],
+        )
+        self.assertNotIn(
+            "--enable-gpl",
+            manifest["build_contract"]["forbidden_configure_flags"],
+        )
+        self.assertIn(
+            "--enable-filter=eq",
+            manifest["build_contract"]["required_configure_flags"],
+        )
+        self.assertIn(
+            "--enable-filter=boxblur",
+            manifest["build_contract"]["required_configure_flags"],
+        )
+        self.assertNotIn(
+            "--enable-filter=eq",
+            manifest["build_contract"]["build_arguments"],
+        )
+        self.assertNotIn(
+            "--enable-filter=boxblur",
+            manifest["build_contract"]["build_arguments"],
+        )
+        self.assertEqual(
+            {"libavfilter.so": ["drawtext", "eq", "boxblur"]},
+            manifest["build_contract"]["required_binary_markers"],
+        )
+        self.assertEqual(
+            manifest["build_contract"]["gpl_license_resource"]["resource_path"],
+            "res/raw/license_gplv3.txt",
+        )
+        self.assertEqual(
+            manifest["build_contract"]["gpl_license_resource"]["source_path"],
+            "LICENSE",
+        )
+        self.assertEqual(
+            manifest["build_contract"]["gpl_license_resource"]["sha256"],
+            "71ebd932ffa82ef1ed27738e7236cfc290925b20a0a4970cbc61b11c939d0569",
+        )
         source_lock = load_ffmpegkit_source_lock()
         openh264 = next(
             source
@@ -835,8 +992,8 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 manifest["qualified_artifacts"]["source_aar"]["size"],
             ),
             (
-                "df332d8f2feca7508541a2f20edb348a3bfbc2ad5ae6eefdedf2889d679c96cc",
-                17_101_059,
+                "0bd7addae2d17960db940a17a3e2450acb83eecb46be0d3800d051bb2075c1ce",
+                39_632_341,
             ),
         )
         self.assertEqual(
@@ -845,21 +1002,21 @@ class AndroidDependencyArchiveTest(unittest.TestCase):
                 manifest["qualified_artifacts"]["thin_candidate"]["size"],
             ),
             (
-                "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7",
-                30_133_322,
+                "7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394",
+                30_486_441,
             ),
         )
         self.assertEqual(
             manifest["status"],
-            "ffmpeg_n9_0_1_android_binder_r4_selected_locally",
+            "ffmpeg_n9_0_1_android_ffprobe_drawtext_capability_output_r6_selected_locally",
         )
         self.assertEqual(
             manifest["qualified_artifacts"]["thin_candidate"]["sha256"],
-            player_dependency.FFMPEG_OUTPUT_SHA256,
+            load_ffmpeg_output_contract(REPO_ROOT)[1],
         )
         self.assertEqual(
             manifest["selected_product"]["sha256"],
-            player_dependency.FFMPEG_OUTPUT_SHA256,
+            load_ffmpeg_output_contract(REPO_ROOT)[1],
         )
         self.assertEqual(
             manifest["selected_product"]["native_zip_alignment"],

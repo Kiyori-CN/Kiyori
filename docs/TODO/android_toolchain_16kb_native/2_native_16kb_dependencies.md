@@ -37,11 +37,13 @@ AArch64 ELF64，全部 `PT_LOAD` 最小对齐至少为 `0x4000`。launcher 为 `
 Mbed TLS `3.6.7` 的七个 FFmpeg `n9.0.1` ELF；准备脚本通过等长字符串替换把它们隔离为
 `libmp*.so`，并同步改写全部 SONAME / `DT_NEEDED`。FFmpegKit AAR 由固定 maintained framework
 `62b07bf097baf26b416c815aea514e05c9ad6d63` 和 FFmpeg `n9.0.1` 完整重建，wrapper 为
-`8.1.7-kiyori-n9.0.1-r4`，OpenH264 固定为
+`8.1.7-kiyori-n9.0.1-r6`，OpenH264 固定为
 `v2.6.0@652bdb7719f30b52b08e506645a7322ff1b2cc6f`，持有 Java/资源/许可证与九个正常名称 native 库，只由非导出
 `:ffmpeg` 进程加载；主进程通过 Binder 调用。`:ffmpeg` 与 `:player` 不共享 FFmpeg 状态或
-播放器 owner。r4 的 FFmpeg Android 兼容层保留应用已经启动的 Binder threadpool；服务层由一个
-FIFO worker 持有顶层 native execution，终态前排空当前 session 与 session `0` 的 callback。
+播放器 owner。r6 保留 r4 的 FFmpeg Android Binder threadpool 修复和 r5 的 FFprobe 私有 JSON；
+服务层由一个 FIFO worker 持有顶层 native execution，终态前排空当前 session 与 session `0`
+的 callback。当前 closure 还包含 capability stdout bridge、GPL/HarfBuzz、
+`drawtext/eq/boxblur` 与 byte-exact GPLv3 resource 合同。
 
 当前 mpv AAR 为 `50926119` 字节，SHA-256
 `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4`；七个上游 FFmpeg ELF、
@@ -49,14 +51,15 @@ FIFO worker 持有顶层 native execution，终态前排空当前 session 与 se
 且 `RPATH` / `RUNPATH` 均不存在。`libmpformat.so` 的固定编译配置包含 `--enable-mbedtls`，
 二进制版本为 FFmpeg `n9.0.1` 与 Mbed TLS `3.6.7`，RSA-PSS enabled，curl disabled。
 
-当前 FFmpegKit r4 AAR 为 `30133322` 字节，SHA-256
-`86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`。九个 normal-name native
+当前 FFmpegKit r6 AAR 为 `30486441` 字节，SHA-256
+`7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`。九个 normal-name native
 ELF 与十个播放器 native ELF 均为 AArch64，FFmpeg majors 为 `.63/.63/.12/.63/.61/.7/.10`，
 `PT_LOAD` 均不低于 `0x4000`，不含 `RPATH/RUNPATH`。两个 AAR 的全部 native payload ZIP offset
 均为 `0 mod 0x4000`，且 normal/namespaced basename 零交集。
 
-两份产品 AAR 已通过 exact-hash 成对 promotion，并与最终 aligned thin candidate 逐字节一致。
-r4 Python 合同 `46/46`、Gradle `verifyPlayerNativeInputs`、定向 JVM 与 AndroidTest Kotlin 编译已通过。
+播放器产品保持原 exact hash；FFmpegKit r6 已通过 patch-level exact-hash promotion，并与最终
+aligned thin candidate 逐字节一致。FFmpeg/native 定向 Python `52/52`、Gradle
+`verifyPlayerNativeInputs` 与定向 JVM 已通过；完整 AndroidTest/Lint/APK 门禁仍按本轮专项收尾。
 当前 r4 双 M9 Debug APK 为 `486200460` bytes，SHA-256
 `14CBE55B2BF1FC11B769D9E14267F474E41C3EF40FC115210E7A7A0CB6CC28C6`；规定构建重新验证为
 `BUILD SUCCESSFUL in 59s`，`232` 个任务中 `19` 个 executed、`213` 个 up-to-date。
@@ -66,14 +69,17 @@ launcher 共 52 个 ELF64/AArch64，153 个 `PT_LOAD` 为 `0x4000 × 151` 与 `0
 播放器 10 个与
 FFmpegKit 9 个 native payload 均与产品 AAR 逐字节一致；两套 FFmpeg 均为 `n9.0.1`，
 FFmpeg 8 markers/majors、normal/namespaced 交叉依赖和相关 19 个 ELF 的 `RPATH/RUNPATH` 均为 0；
-`44` 个 DEX 包含 FFmpeg runtime service；`libffmpegkit.so` 包含 r4 wrapper 与
-`ABinderProcess_isThreadPoolStarted` patch marker。
+`libffmpegkit.so` 包含 r6 wrapper、capability output bridge 与
+`ABinderProcess_isThreadPoolStarted` patch marker；`libavutil.so` 包含
+`--enable-gpl`/`--enable-libharfbuzz`，`libavfilter.so` 包含 exact
+`drawtext/eq/boxblur`，AAR 含 byte-exact GPLv3 resource。
 
-r4 继续使用的 OpenH264 `v2.6.0` 发布点早于上游 `BsFlush` empty-word 修复
+r6 继续使用的 OpenH264 `v2.6.0` 发布点早于上游 `BsFlush` empty-word 修复
 `40555ec684ec0fede3948c8f272c04d88d05189d`，因此继续保留锁定的 OpenH264 patch、FFmpeg
 constrained-baseline 映射 patch 与 framework 重应用 patch。host ASan/UBSan 编码/回读矩阵为
-`20/20 PASS`。当前 r4 APK 的独立审计确认 `19/19` AAR payload 字节一致、r4 wrapper/Binder
-patch marker、arm64-only、相关 19 个 closure ELF 的 `RPATH/RUNPATH=0` 与上述 PT_LOAD 分布。
+`20/20 PASS`。当前最终 r6 APK 尚待本轮构建；最近 r4 APK 的独立历史审计确认 `19/19` AAR
+payload 字节一致、r4 wrapper/Binder patch marker、arm64-only、相关 19 个 closure ELF 的
+`RPATH/RUNPATH=0` 与上述 PT_LOAD 分布。
 全 APK 扫描另观察到两个其它 native owner `libonnxruntime.so`、`libsherpa-mnn-jni.so` 带
 `RPATH/RUNPATH`，不属于本阶段播放器/FFmpegKit closure。
 

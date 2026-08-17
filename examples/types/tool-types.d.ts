@@ -157,6 +157,7 @@ export interface ToolResultMap {
     // FFmpeg operations
     'ffmpeg_execute': FFmpegResultData;
     'ffmpeg_info': FFmpegResultData;
+    'ffmpeg_probe': FFmpegResultData;
     'ffmpeg_convert': FFmpegResultData;
 
     // ADB operations

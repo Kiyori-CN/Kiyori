@@ -127,7 +127,7 @@ class PlayerAssetsTest(unittest.TestCase):
             build_script,
         )
         self.assertIn(
-            "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7",
+            "7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394",
             build_script,
         )
         self.assertNotIn(
@@ -149,7 +149,14 @@ class PlayerAssetsTest(unittest.TestCase):
             "OpenH264@v2.6.0/652bdb7719f30b52b08e506645a7322ff1b2cc6f",
             build_script,
         )
-        self.assertIn("8.1.7-kiyori-n9.0.1-r4", build_script)
+        self.assertIn("8.1.7-kiyori-n9.0.1-r6", build_script)
+        self.assertIn("--enable-libharfbuzz", build_script)
+        self.assertIn("--enable-gpl", build_script)
+        self.assertIn("res/raw/license_gplv3.txt", build_script)
+        self.assertIn(
+            'playerFfmpegRequiredFilterMarkers = listOf("drawtext", "eq", "boxblur")',
+            build_script,
+        )
         self.assertIn('implementation(files("libs/mpv-player-arm64.aar"))', build_script)
         self.assertIn(
             'implementation(files("libs/ffmpeg-kit-player-arm64.aar"))',

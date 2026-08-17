@@ -63,6 +63,14 @@
 #include "libswresample/swresample.h"
 #include "libswresample/version.h"
 
+/*
+ * FFmpeg's capability commands use printf directly for their stdout payload.
+ * The embedded :ffmpeg process has no stdout reader, so send those payloads
+ * through FFmpegKit's log callback. This keeps raw command execution intact
+ * while making the explicit ffmpeg_info sections observable to the caller.
+ */
+#define printf(...) av_log(NULL, AV_LOG_INFO, __VA_ARGS__)
+
 
 enum show_muxdemuxers {
     SHOW_DEFAULT,

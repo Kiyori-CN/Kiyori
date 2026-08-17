@@ -2939,7 +2939,7 @@ object SystemToolPromptsInternal {
                     listOf(
                         ToolPrompt(
                             name = "ffmpeg_execute",
-                            description = "Execute an FFmpeg command (arguments only; do not include the leading ffmpeg). This invokes FFmpeg directly, not a shell, so do not use pipes, redirections, or command chains.",
+                            description = "Execute raw arguments in the Android com.kiyori:ffmpeg FFmpegKit runtime. Do not include the leading ffmpeg. This is not a shell: pipes, redirections, and command chains are rejected. It never invokes Ubuntu /usr/bin/ffmpeg or the :player FFmpeg closure, and it does not rewrite, retry, or switch encoders. Negative return codes are signed FFmpeg AVERROR values, not wrapped shell exit statuses. Android drawtext must use an absolute fontfile such as /system/fonts/Roboto-Regular.ttf.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(
@@ -2952,12 +2952,34 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "ffmpeg_info",
-                            description = "Get FFmpeg information.",
-                            parametersStructured = listOf()
+                            description = "Query one capability section from the Android com.kiyori:ffmpeg runtime. Use this instead of shell pipes or Ubuntu commands when checking Android codecs, encoders, filters, protocols, or hardware acceleration.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "section",
+                                        type = "string",
+                                        description = "optional; summary, codecs, encoders, decoders, filters, formats, muxers, demuxers, protocols, hwaccels, or buildconf",
+                                        required = false,
+                                        default = "summary"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "ffmpeg_probe",
+                            description = "Inspect one existing non-empty media file with Android FFprobe in com.kiyori:ffmpeg. The result is structured media metadata from the same execution plane used to verify ffmpeg_convert output; it does not call Ubuntu ffprobe.",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "input_path",
+                                        type = "string",
+                                        description = "absolute path to an existing non-empty media file",
+                                        required = true
+                                    )
+                                )
                         ),
                         ToolPrompt(
                             name = "ffmpeg_convert",
-                            description = "Convert a video file using FFmpeg.",
+                            description = "Run the qualified Android com.kiyori:ffmpeg h264_aac_mp4 conversion pipeline, validate the staged output with Android FFprobe, and atomically commit it. This never switches to Ubuntu, retries, overwrites the destination, or changes the requested profile.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(
@@ -5929,7 +5951,7 @@ object SystemToolPromptsInternal {
                     listOf(
                         ToolPrompt(
                             name = "ffmpeg_execute",
-                            description = "执行 FFmpeg 命令（仅填写参数，不要包含前缀 ffmpeg）。该工具直接调用 FFmpeg，不是 Shell，不能使用管道、重定向或命令链。",
+                            description = "在 Android com.kiyori:ffmpeg 的 FFmpegKit 运行时中原样执行参数，不要包含前缀 ffmpeg。它不是 Shell，管道、重定向或命令链会被拒绝；不会调用 Ubuntu /usr/bin/ffmpeg 或 :player 播放器 FFmpeg，也不会改写参数、重试或切换编码器。负返回码是有符号 FFmpeg AVERROR，不是被封装的 Shell 退出码。Android drawtext 必须显式使用绝对 fontfile，例如 /system/fonts/Roboto-Regular.ttf。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(
@@ -5942,12 +5964,34 @@ object SystemToolPromptsInternal {
                         ),
                         ToolPrompt(
                             name = "ffmpeg_info",
-                            description = "获取 FFmpeg 信息。",
-                            parametersStructured = listOf()
+                            description = "查询 Android com.kiyori:ffmpeg 运行时的一个能力分区。检查 Android codec、encoder、filter、protocol 或硬件加速时应使用本工具，不要使用 Shell 管道或 Ubuntu 命令。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "section",
+                                        type = "string",
+                                        description = "可选：summary、codecs、encoders、decoders、filters、formats、muxers、demuxers、protocols、hwaccels 或 buildconf",
+                                        required = false,
+                                        default = "summary"
+                                    )
+                                )
+                        ),
+                        ToolPrompt(
+                            name = "ffmpeg_probe",
+                            description = "使用 Android com.kiyori:ffmpeg 中的 FFprobe 探测一个存在且非空的媒体文件。返回与 ffmpeg_convert 输出验证相同执行面的结构化媒体信息，不调用 Ubuntu ffprobe。",
+                            parametersStructured =
+                                listOf(
+                                    ToolParameterSchema(
+                                        name = "input_path",
+                                        type = "string",
+                                        description = "存在且非空的媒体文件绝对路径",
+                                        required = true
+                                    )
+                                )
                         ),
                         ToolPrompt(
                             name = "ffmpeg_convert",
-                            description = "使用 FFmpeg 转换视频文件。",
+                            description = "执行 Android com.kiyori:ffmpeg 的资格化 h264_aac_mp4 转换管线，使用 Android FFprobe 验证临时输出后再原子提交。不会切换 Ubuntu、重试、覆盖目标或改变请求的 profile。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(

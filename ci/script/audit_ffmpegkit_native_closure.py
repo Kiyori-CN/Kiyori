@@ -264,6 +264,13 @@ def audit_closure(
         for member in manifest["license_resources"]:
             if not archive.read(member):
                 raise ValueError(f"FFmpegKit license resource is empty: {member}")
+        gpl_license = manifest["build_contract"]["gpl_license_resource"]
+        gpl_payload = archive.read(gpl_license["resource_path"])
+        if sha256_bytes(gpl_payload) != str(gpl_license["sha256"]).lower():
+            raise ValueError(
+                "FFmpegKit GPL license resource differs from the repository "
+                f"contract: {gpl_license['resource_path']}"
+            )
         source_text = archive.read("res/raw/source.txt").decode("utf-8")
         for marker in source_identity_markers(manifest, source_lock):
             if marker not in source_text:
@@ -533,6 +540,22 @@ def audit_closure(
                         f"Qualified FFmpeg profile {profile_id} is missing marker "
                         f"{marker!r} in {library_name}"
                     )
+
+    for library_name, markers in manifest["build_contract"].get(
+        "required_binary_markers",
+        {},
+    ).items():
+        library_payload = payloads.get(library_name)
+        if library_payload is None:
+            raise ValueError(
+                f"FFmpegKit closure marker contract references missing {library_name}"
+            )
+        for marker in markers:
+            if marker.encode("ascii") not in library_payload:
+                raise ValueError(
+                    f"FFmpegKit closure is missing marker {marker!r} "
+                    f"in {library_name}"
+                )
 
     result["members"] = members
     result["classes"] = sorted(REQUIRED_CLASS_MEMBERS)

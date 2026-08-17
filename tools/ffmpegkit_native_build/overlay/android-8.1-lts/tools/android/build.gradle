@@ -12,7 +12,7 @@ android {
         minSdk 24
         targetSdk 35
         versionCode 240901
-        versionName "8.1.7-kiyori-n9.0.1-r4"
+        versionName "8.1.7-kiyori-n9.0.1-r6"
         project.archivesBaseName = "ffmpeg-kit"
         consumerProguardFiles "consumer-rules.pro"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -57,7 +57,7 @@ android {
 // files on Gumroad, not via this task, so this block being present is
 // harmless for them.
 mavenPublishing {
-    coordinates("dev.ffmpegkit-maintained", "ffmpeg", "8.1.7-kiyori-n9.0.1-r4")
+        coordinates("dev.ffmpegkit-maintained", "ffmpeg", "8.1.7-kiyori-n9.0.1-r6")
 
     signAllPublications()
     publishToMavenCentral(true)

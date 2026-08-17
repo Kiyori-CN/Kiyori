@@ -4896,7 +4896,8 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="toolreg_press_key_desc">Tekan kekunci: %1$s</string>
     <string name="toolreg_swipe_desc">Leret: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
     <string name="toolreg_ffmpeg_execute_desc">Laksanakan arahan FFmpeg: %1$s</string>
-    <string name="toolreg_ffmpeg_info_desc">Dapatkan maklumat FFmpeg</string>
+    <string name="toolreg_ffmpeg_info_desc">Dapatkan maklumat FFmpeg Android: %1$s</string>
+    <string name="toolreg_ffmpeg_probe_desc">Periksa media dengan FFprobe Android: %1$s</string>
     <string name="toolreg_ffmpeg_convert_desc">Tukar video: %1$s → %2$s</string>
     <string name="screen_ocr_capture_failed">Tangkapan skrin gagal</string>
     <string name="screen_ocr_load_failed">Tidak dapat memuatkan tangkapan skrin</string>

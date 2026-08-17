@@ -10,6 +10,8 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
+import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -586,6 +588,117 @@ def apply_overlay(
             raise RuntimeError(f"overlay copy verification failed: {destination}")
 
 
+def read_gpl_license_payload(
+    repository: Path,
+    manifest: dict[str, Any],
+) -> bytes:
+    contract = manifest["build_contract"]["gpl_license_resource"]
+    source = (repository / contract["source_path"]).resolve()
+    repository = repository.resolve()
+    if not source.is_relative_to(repository):
+        raise RuntimeError(f"GPL license source escapes repository root: {source}")
+    if not source.is_file():
+        raise FileNotFoundError(f"GPL license source is missing: {source}")
+
+    expected_sha256 = str(contract["sha256"]).lower()
+    actual_sha256 = sha256_file(source)
+    if actual_sha256 != expected_sha256:
+        raise RuntimeError(
+            "GPL license source identity mismatch: "
+            f"expected={expected_sha256} got={actual_sha256}"
+        )
+    return source.read_bytes()
+
+
+def install_gpl_license_resource(
+    repository: Path,
+    framework_root: Path,
+    manifest: dict[str, Any],
+) -> None:
+    contract = manifest["build_contract"]["gpl_license_resource"]
+    payload = read_gpl_license_payload(repository, manifest)
+
+    resource = PurePosixPath(contract["resource_path"])
+    if resource.is_absolute() or ".." in resource.parts:
+        raise ValueError(
+            f"GPL license resource must stay relative to src/main: {resource}"
+        )
+    destination = (
+        framework_root
+        / "android"
+        / "ffmpeg-kit-android-lib"
+        / "src"
+        / "main"
+    ).joinpath(*resource.parts)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(payload)
+    if sha256_file(destination) != str(contract["sha256"]).lower():
+        raise RuntimeError(
+            f"GPL license resource copy verification failed: {destination}"
+        )
+
+
+def inject_aar_resource(
+    aar: Path,
+    resource_path: str,
+    payload: bytes,
+) -> None:
+    resource = PurePosixPath(resource_path)
+    if resource.is_absolute() or ".." in resource.parts:
+        raise ValueError(f"AAR resource path must be relative: {resource}")
+    with zipfile.ZipFile(aar, "r") as source:
+        names = source.namelist()
+        if resource_path in names:
+            if source.read(resource_path) != payload:
+                raise RuntimeError(
+                    f"AAR resource already exists with different content: {resource_path}"
+                )
+            return
+        entries = [
+            (
+                entry,
+                source.read(entry.filename),
+            )
+            for entry in source.infolist()
+        ]
+
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{aar.name}.",
+        suffix=".resource",
+        dir=aar.parent,
+        delete=False,
+    ) as temporary:
+        temporary_path = Path(temporary.name)
+    try:
+        with zipfile.ZipFile(
+            temporary_path,
+            mode="w",
+            compression=zipfile.ZIP_STORED,
+        ) as target:
+            for entry, entry_payload in entries:
+                info = zipfile.ZipInfo(
+                    entry.filename,
+                    date_time=entry.date_time,
+                )
+                info.compress_type = zipfile.ZIP_STORED
+                info.create_system = entry.create_system
+                info.external_attr = entry.external_attr
+                info.comment = entry.comment
+                info.extra = entry.extra
+                target.writestr(info, entry_payload)
+            info = zipfile.ZipInfo(
+                resource_path,
+                date_time=(1980, 1, 1, 0, 0, 0),
+            )
+            info.compress_type = zipfile.ZIP_STORED
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
+            target.writestr(info, payload)
+        temporary_path.replace(aar)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
 def prepare_workspace(
     repository: Path,
     distribution: str,
@@ -653,6 +766,7 @@ def prepare_workspace(
     )
     target = safe_replace_fftools_tree(framework_unc, ffmpeg_unc)
     apply_overlay(overlay, framework_unc)
+    install_gpl_license_resource(repository, framework_unc, manifest)
     if not (target / "ffmpegkit_bridge.c").is_file():
         raise RuntimeError("FFmpegKit overlay did not provide fftools9 bridge")
     return framework_path, framework_unc
@@ -768,6 +882,11 @@ def build_closure(
     source_output = repository / source_contract["path"]
     source_output.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(built_aar, source_output)
+    inject_aar_resource(
+        source_output,
+        manifest["build_contract"]["gpl_license_resource"]["resource_path"],
+        read_gpl_license_payload(repository, manifest),
+    )
     audit_closure(
         source_output,
         native_readelf,

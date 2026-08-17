@@ -1171,11 +1171,19 @@ data class FindFilesResultData(
 @Serializable
 data class FFmpegResultData(
         val command: String,
-        val returnCode: Int,
+        val returnCode: Int?,
         val output: String,
         val duration: Long,
         val outputFile: String? = null,
-        val mediaInfo: MediaInfo? = null
+        val mediaInfo: MediaInfo? = null,
+        val executionPlane: String = "android_ffmpegkit",
+        val terminalState: String? = null,
+        val returnCodeSemantics: String = "signed_ffmpeg_averror",
+        val processId: Int? = null,
+        val sessionId: Long? = null,
+        val pipelineStage: String? = null,
+        val failureCode: String? = null,
+        val diagnosticLogPath: String? = null
 ) : ToolResultData() {
     @Serializable
     data class MediaInfo(
@@ -1191,6 +1199,8 @@ data class FFmpegResultData(
             val index: Int,
             val codecType: String,
             val codecName: String,
+            val profile: String? = null,
+            val pixelFormat: String? = null,
             val resolution: String? = null,
             val frameRate: String? = null,
             val sampleRate: String? = null,
@@ -1201,7 +1211,18 @@ data class FFmpegResultData(
         val sb = StringBuilder()
         sb.appendLine("FFmpeg Execution Result:")
         sb.appendLine("Command: $command")
-        sb.appendLine("Return Code: $returnCode")
+        sb.appendLine("Execution Plane: $executionPlane")
+        terminalState?.let { sb.appendLine("Terminal State: $it") }
+        sb.appendLine(
+                "Return Code: ${returnCode ?: "unavailable"} " +
+                        "(signed FFmpeg AVERROR value; not a shell exit status)"
+        )
+        sb.appendLine("Return Code Semantics: $returnCodeSemantics")
+        processId?.let { sb.appendLine("Process ID: $it") }
+        sessionId?.let { sb.appendLine("Session ID: $it") }
+        pipelineStage?.let { sb.appendLine("Pipeline Stage: $it") }
+        failureCode?.let { sb.appendLine("Failure Code: $it") }
+        diagnosticLogPath?.let { sb.appendLine("Diagnostic Log: $it") }
         sb.appendLine("Execution Time: ${duration}ms")
 
         outputFile?.let { sb.appendLine("Output File: $it") }
@@ -1217,6 +1238,8 @@ data class FFmpegResultData(
                 info.videoStreams.forEach { stream ->
                     sb.appendLine("  Index: ${stream.index}")
                     sb.appendLine("  Codec: ${stream.codecName}")
+                    stream.profile?.let { sb.appendLine("  Profile: $it") }
+                    stream.pixelFormat?.let { sb.appendLine("  Pixel Format: $it") }
                     stream.resolution?.let { sb.appendLine("  Resolution: $it") }
                     stream.frameRate?.let { sb.appendLine("  Frame Rate: $it") }
                     sb.appendLine()

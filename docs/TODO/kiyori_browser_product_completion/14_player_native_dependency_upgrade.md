@@ -34,10 +34,11 @@ app/libs/mpv-player-arm64.aar
   SHA-256  = F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4
 
 app/libs/ffmpeg-kit-player-arm64.aar
-  wrapper  = 8.1.7-kiyori-n9.0.1-r4
+  wrapper  = 8.1.7-kiyori-n9.0.1-r6
   FFmpeg   = n9.0.1
   OpenH264 = v2.6.0@652bdb7719f30b52b08e506645a7322ff1b2cc6f + locked runtime patches
-  SHA-256  = 86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7
+  GPL / HarfBuzz / drawtext / eq / boxblur = enabled
+  SHA-256  = 7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394
 ```
 
 播放器 M9 的 source 与最终 16 KiB-aligned thin/product 证据为：
@@ -50,8 +51,8 @@ thin AAR SHA-256   = F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8D
 FFmpegKit M9 的 source 与最终 16 KiB-aligned thin/product 证据为：
 
 ```text
-source AAR SHA-256 = DF332D8F2FECA7508541A2F20EDB348A3BFBC2AD5AE6EEFDEDF2889D679C96CC
-thin AAR SHA-256   = 86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7
+source AAR SHA-256 = 0BD7ADDAE2D17960DB940A17A3E2450ACB83EECB46BE0D3800D051BB2075C1CE
+thin AAR SHA-256   = 7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394
 ```
 
 当前产品让两套 closure 都报告 FFmpeg `n9.0.1`，且保持：
@@ -211,7 +212,8 @@ M9 不在 M8 上替换单个 `.so`。它已经从源码完整重建：
 
 - 本轮开始时 `app/libs/ffmpeg-kit-player-arm64.aar` 是 wrapper `8.1.7-kiyori-n9.0.1-r3`、
   FFmpeg `n9.0.1`、OpenH264 `v2.6.0`；现场问题不是 FFmpeg major 或编码器缺失。当前选入产品已是
-  r4，同一 FFmpeg/OpenH264 closure 仅增加 Binder 根因补丁与 wrapper/runtime 合同修复。
+  r6：r4 增加 Binder 根因补丁，r5 继续增加 FFprobe 私有 JSON、HarfBuzz/`drawtext`，r6 增加
+  capability stdout、profile `578`、Shell 词法校验、GPL/`eq`/`boxblur` 和精确 GPLv3 notice。
 - 工具箱使用 Compose `rememberCoroutineScope()` 直接调用同步 `AIToolHandler.executeTool()`，
   最终进入 `FFmpegKit.execute()` 同步 JNI；这是界面卡死的确定性调用链。
 - 原实现中 AI、MNN、媒体信息和浏览器 M3U8 合并即使从后台线程进入，仍在主进程加载 normal-name
@@ -223,7 +225,8 @@ M9 不在 M8 上替换单个 `.so`。它已经从源码完整重建：
 - 原始日志中的 `-1414549496` 对应把 shell 管道错误传入 `ffmpeg_execute` 后产生的
   `Unrecognized option 'iE'`，不是进程死亡码；真正的进程死亡没有 FFmpeg return code，而是
   `FFmpegRuntimeProcessDiedException`。`ffmpeg_execute` 接收 FFmpeg 参数，不是 shell；工具提示现已
-  明确禁止管道、重定向和命令链，但不按单个字符拦截合法滤镜表达式。
+  拒绝未被引号或反斜杠保护的管道、重定向和命令链；合法滤镜值中的 `|`、`;` 必须正确引用或
+  转义，原始参数不会被改写。
 - `+pgo/+bolt/+lto/+mlgo` 来自 Android Clang 身份字符串；固定 FFmpeg 配置只明确包含
   `--enable-lto`。当前没有证据支持 BOLT/MLGO/PGO 组合、NEON 汇编或 wrapper 结构体不兼容是本次
   首包前进程死亡根因，也不通过禁用优化、回退 FFmpeg 核心或切换 Ubuntu 执行通道规避问题。

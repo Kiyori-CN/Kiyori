@@ -7,6 +7,20 @@ import { FFmpegResultData } from './results';
 /** Qualified deterministic conversion profiles. */
 export type FFmpegConversionProfile = 'h264_aac_mp4';
 
+/** Android FFmpegKit capability sections exposed without shell parsing. */
+export type FFmpegInformationSection =
+    | 'summary'
+    | 'codecs'
+    | 'encoders'
+    | 'decoders'
+    | 'filters'
+    | 'formats'
+    | 'muxers'
+    | 'demuxers'
+    | 'protocols'
+    | 'hwaccels'
+    | 'buildconf';
+
 export type FFmpegResolution =
     | '1280x720'   // HD
     | '1920x1080'  // Full HD
@@ -28,18 +42,25 @@ export type FFmpegVideoBitrate =
  */
 export namespace FFmpeg {
     /**
-     * Execute a custom FFmpeg command
-     * @param command - FFmpeg command arguments only (do not include the leading ffmpeg)
+     * Execute raw arguments in the Android com.kiyori:ffmpeg FFmpegKit runtime.
+     * This is not a shell and never invokes Ubuntu /usr/bin/ffmpeg or the player FFmpeg closure.
+     * @param command - FFmpeg arguments only; do not include the leading ffmpeg or shell syntax
      * @returns Promise resolving to FFmpegResultData containing execution details
      * @throws Error if the command execution fails
      */
     function execute(command: string): Promise<FFmpegResultData>;
 
     /**
-     * Get FFmpeg system information
-     * @returns Promise resolving to FFmpegResultData containing system information
+     * Query one Android FFmpegKit capability section.
+     * @param section - Defaults to summary
      */
-    function info(): Promise<FFmpegResultData>;
+    function info(section?: FFmpegInformationSection): Promise<FFmpegResultData>;
+
+    /**
+     * Probe an existing non-empty media file with Android FFprobe in com.kiyori:ffmpeg.
+     * @param inputPath - Absolute path to the media file
+     */
+    function probe(inputPath: string): Promise<FFmpegResultData>;
 
     /**
      * Convert video file with simplified parameters

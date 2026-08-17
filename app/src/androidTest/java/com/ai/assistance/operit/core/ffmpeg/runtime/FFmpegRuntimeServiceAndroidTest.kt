@@ -97,6 +97,8 @@ class FFmpegRuntimeServiceAndroidTest {
                     FFmpegRuntimeRequest(
                         requestId = INFO_REQUEST_ID,
                         operationWireValue = FFmpegRuntimeOperation.RUNTIME_INFO.wireValue,
+                        informationSectionWireValue =
+                            FFmpegRuntimeInformationSection.SUMMARY.wireValue,
                     ),
                 ),
             )
@@ -111,7 +113,7 @@ class FFmpegRuntimeServiceAndroidTest {
             assertTrue(
                 requireNotNull(completedResult.runtimeInformation)
                     .wrapperVersion
-                    .contains("8.1.7-kiyori-n9.0.1-r4"),
+                    .contains("8.1.7-kiyori-n9.0.1-r6"),
             )
             assertTrue(
                 requireNotNull(completedResult.runtimeInformation)
@@ -120,7 +122,7 @@ class FFmpegRuntimeServiceAndroidTest {
             )
             val outputFile = File(completedResult.outputLogPath)
             assertTrue(outputFile.canonicalFile.parentFile == ffmpegRuntimeLogDirectory(context.cacheDir).canonicalFile)
-            assertTrue(outputFile.readText().contains("Codecs:"))
+            assertTrue(outputFile.readText().contains("ffmpeg version", ignoreCase = true))
             outputFile.delete()
         } finally {
             context.unbindService(connection)

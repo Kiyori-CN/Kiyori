@@ -27,7 +27,7 @@ Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态�
 
 ### 2026-08-16 阶段 14：播放器原生依赖升级
 
-状态：`R4 LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。阶段 13 的播放器行为、Surface、缓存、网络诊断和现有 native packaging
+状态：`R6 LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。阶段 13 的播放器行为、Surface、缓存、网络诊断和现有 native packaging
 合同继续有效；阶段 14 专门处理 native source/build closure 与 `:ffmpeg` 运行时，不把依赖版本变化
 混入播放器状态机或网络回退逻辑。
 
@@ -36,14 +36,13 @@ Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态�
 - 双 M9：`:player` 的 namespaced mpv closure 与 `:ffmpeg` 的 normal-name FFmpegKit closure 均已固定
   FFmpeg `n9.0.1@bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa` 并成对 promotion；产品 AAR
   SHA-256 分别为 `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4` 和
-  `86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`。`:ffmpeg` 当前 wrapper 为
-  `8.1.7-kiyori-n9.0.1-r4`，OpenH264 为 `v2.6.0`；r4 保留已启动的应用 Binder threadpool，并以
-  单一 FIFO worker 持有顶层 native execution
-- r4 source/thin qualified audit、exact-hash paired promotion、Python `46/46`、native input、
-  定向 JVM、AndroidTest Kotlin、formal readiness、规定 Debug 构建和独立静态审计已通过；r4 APK
-  为 `486200460` bytes，SHA-256
-  `14CBE55B2BF1FC11B769D9E14267F474E41C3EF40FC115210E7A7A0CB6CC28C6`。目标设备/真实媒体矩阵仍
-  保持 `verification_pending`
+  `7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`。`:ffmpeg` 当前 wrapper 为
+  `8.1.7-kiyori-n9.0.1-r6`，OpenH264 为 `v2.6.0`，并启用 GPL/HarfBuzz 与
+  `drawtext`/`eq`/`boxblur`；r6 保留 r4 的 Binder threadpool 修复和 r5 的私有 JSON FFprobe，
+  增加 capability stdout 与 AI 工具/profile 合同修复
+- r6 source/thin/product qualified audit、patch-level exact-hash promotion、native input 和定向
+  JVM 已通过；r5 安装包的核心真实媒体矩阵已经通过，但 r6 增量、最终 Debug APK 和全量门禁仍以
+  FFmpeg 专项状态文档为准，目标设备状态保持 `verification_pending`
 - 权威方案：[播放器原生依赖升级与 closure 迁移](14_player_native_dependency_upgrade.md)
 
 ## 用户目标

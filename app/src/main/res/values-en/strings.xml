@@ -5368,7 +5368,8 @@
     <string name="toolreg_press_key_desc">Press key: %1$s</string>
     <string name="toolreg_swipe_desc">Swipe: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
     <string name="toolreg_ffmpeg_execute_desc">Execute FFmpeg command: %1$s</string>
-    <string name="toolreg_ffmpeg_info_desc">Get FFmpeg info</string>
+    <string name="toolreg_ffmpeg_info_desc">Get Android FFmpeg info: %1$s</string>
+    <string name="toolreg_ffmpeg_probe_desc">Probe media with Android FFprobe: %1$s</string>
     <string name="toolreg_ffmpeg_convert_desc">Convert video: %1$s → %2$s</string>
 
     <!-- AutoGLM One-Click Configuration -->

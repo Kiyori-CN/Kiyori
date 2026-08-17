@@ -2,6 +2,7 @@ package com.ai.assistance.operit.core.ffmpeg.runtime
 
 import android.os.Parcelable
 import java.io.File
+import java.util.Locale
 import kotlinx.parcelize.Parcelize
 
 internal enum class FFmpegRuntimeOperation(val wireValue: Int) {
@@ -37,12 +38,54 @@ internal enum class FFmpegRuntimeFailureCode(val wireValue: Int) {
     DISPATCH_FAILURE(3),
     CALLBACK_REPLACED(4),
     CALLBACK_DISCONNECTED(5),
-    SERVICE_DESTROYED(6);
+    SERVICE_DESTROYED(6),
+    MEDIA_INFORMATION_INVALID(7),
+    NATIVE_RETURN_CODE_MISSING(8);
 
     companion object {
         fun fromWireValue(value: Int): FFmpegRuntimeFailureCode =
             requireNotNull(entries.singleOrNull { code -> code.wireValue == value }) {
                 "Unsupported FFmpeg runtime failure code: $value"
+            }
+    }
+}
+
+internal enum class FFmpegRuntimeInformationSection(
+    val wireValue: String,
+    val arguments: List<String>,
+) {
+    SUMMARY("summary", listOf("-version")),
+    CODECS("codecs", listOf("-codecs")),
+    ENCODERS("encoders", listOf("-encoders")),
+    DECODERS("decoders", listOf("-decoders")),
+    FILTERS("filters", listOf("-filters")),
+    FORMATS("formats", listOf("-formats")),
+    MUXERS("muxers", listOf("-muxers")),
+    DEMUXERS("demuxers", listOf("-demuxers")),
+    PROTOCOLS("protocols", listOf("-protocols")),
+    HWACCELS("hwaccels", listOf("-hwaccels")),
+    BUILDCONF("buildconf", listOf("-buildconf"));
+
+    companion object {
+        val default: FFmpegRuntimeInformationSection = SUMMARY
+
+        fun parse(value: String?): FFmpegRuntimeInformationSection {
+            if (value == null) {
+                return default
+            }
+            require(value.isNotBlank()) { "FFmpeg information section cannot be blank" }
+            return requireNotNull(
+                entries.singleOrNull { section ->
+                    section.wireValue == value.lowercase(Locale.ROOT)
+                },
+            ) {
+                "Unsupported FFmpeg information section: $value"
+            }
+        }
+
+        fun fromWireValue(value: String): FFmpegRuntimeInformationSection =
+            requireNotNull(entries.singleOrNull { section -> section.wireValue == value }) {
+                "Unsupported FFmpeg information section: $value"
             }
     }
 }
@@ -54,6 +97,7 @@ internal data class FFmpegRuntimeRequest(
     val command: String? = null,
     val arguments: List<String> = emptyList(),
     val inputPath: String? = null,
+    val informationSectionWireValue: String? = null,
 ) : Parcelable {
     init {
         require(FFMPEG_RUNTIME_REQUEST_ID_PATTERN.matches(requestId)) {
@@ -65,7 +109,7 @@ internal data class FFmpegRuntimeRequest(
                 require(command.length <= FFMPEG_RUNTIME_MAX_COMMAND_CHARS) {
                     "FFmpeg command exceeds $FFMPEG_RUNTIME_MAX_COMMAND_CHARS characters"
                 }
-                require(arguments.isEmpty() && inputPath == null) {
+                require(arguments.isEmpty() && inputPath == null && informationSectionWireValue == null) {
                     "FFmpeg command request contains unrelated payload"
                 }
             }
@@ -82,7 +126,7 @@ internal data class FFmpegRuntimeRequest(
                 require(arguments.sumOf(String::length) <= FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS) {
                     "FFmpeg argument request exceeds $FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS characters"
                 }
-                require(command == null && inputPath == null) {
+                require(command == null && inputPath == null && informationSectionWireValue == null) {
                     "FFmpeg argument request contains unrelated payload"
                 }
             }
@@ -93,11 +137,20 @@ internal data class FFmpegRuntimeRequest(
                 require(inputPath.length <= FFMPEG_RUNTIME_MAX_PATH_CHARS) {
                     "FFprobe input path exceeds $FFMPEG_RUNTIME_MAX_PATH_CHARS characters"
                 }
-                require(command == null && arguments.isEmpty()) {
+                require(
+                    command == null &&
+                        arguments.isEmpty() &&
+                        informationSectionWireValue == null,
+                ) {
                     "FFprobe request contains unrelated payload"
                 }
             }
             FFmpegRuntimeOperation.RUNTIME_INFO -> {
+                FFmpegRuntimeInformationSection.fromWireValue(
+                    requireNotNull(informationSectionWireValue) {
+                        "FFmpeg runtime info section is missing"
+                    },
+                )
                 require(command == null && arguments.isEmpty() && inputPath == null) {
                     "FFmpeg runtime info request contains payload"
                 }
@@ -107,6 +160,16 @@ internal data class FFmpegRuntimeRequest(
 
     val operation: FFmpegRuntimeOperation
         get() = FFmpegRuntimeOperation.fromWireValue(operationWireValue)
+
+    val informationSection: FFmpegRuntimeInformationSection
+        get() {
+            check(operation == FFmpegRuntimeOperation.RUNTIME_INFO) {
+                "FFmpeg request is not a runtime information request"
+            }
+            return FFmpegRuntimeInformationSection.fromWireValue(
+                requireNotNull(informationSectionWireValue),
+            )
+        }
 }
 
 @Parcelize
@@ -144,10 +207,28 @@ internal data class FFmpegRuntimeMediaInformation(
 
 @Parcelize
 internal data class FFmpegRuntimeInformation(
+    val sectionWireValue: String,
+    val executionPlane: String,
+    val processName: String,
+    val abi: String,
+    val androidApi: Int,
+    val qualifiedProfile: String,
     val wrapperVersion: String,
     val ffmpegVersion: String,
     val buildDate: String,
-) : Parcelable
+) : Parcelable {
+    init {
+        FFmpegRuntimeInformationSection.fromWireValue(sectionWireValue)
+        require(executionPlane.isNotBlank()) { "FFmpeg execution plane is blank" }
+        require(processName.isNotBlank()) { "FFmpeg process name is blank" }
+        require(abi.isNotBlank()) { "FFmpeg ABI is blank" }
+        require(androidApi > 0) { "FFmpeg Android API is invalid" }
+        require(qualifiedProfile.isNotBlank()) { "FFmpeg qualified profile is blank" }
+    }
+
+    val section: FFmpegRuntimeInformationSection
+        get() = FFmpegRuntimeInformationSection.fromWireValue(sectionWireValue)
+}
 
 @Parcelize
 internal data class FFmpegRuntimeResult(
@@ -246,6 +327,8 @@ internal class FFmpegRuntimeProcessDiedException(
     val requestId: String,
     val partialOutput: String,
     val diagnosticLogPath: String,
+    val processId: Int?,
+    val sessionId: Long?,
 ) : FFmpegRuntimeException(
         buildString {
             append("FFmpeg 运行时进程已终止，当前命令未完成")

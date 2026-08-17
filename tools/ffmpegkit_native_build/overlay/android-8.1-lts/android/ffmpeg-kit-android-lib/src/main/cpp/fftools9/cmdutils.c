@@ -46,6 +46,7 @@
 #include "libavutil/dict.h"
 #include "libavutil/opt.h"
 #include "cmdutils.h"
+#include "ffmpegkit_bridge.h"
 #include "fopen_utf8.h"
 #include "opt_common.h"
 #ifdef _WIN32
@@ -69,7 +70,12 @@ void uninit_opts(void)
 
 void log_callback_help(void *ptr, int level, const char *fmt, va_list vl)
 {
-    vfprintf(stdout, fmt, vl);
+    /*
+     * Embedded FFmpeg has no process stdout consumer. Route help/version/list
+     * output through the same bounded FFmpegKit log channel as AV_LOG_STDERR,
+     * otherwise -encoders/-filters appear successful while returning no data.
+     */
+    ffmpegkit_log_callback_function(ptr, level, fmt, vl);
 }
 
 void init_dynload(void)

@@ -4967,7 +4967,8 @@
     <string name="toolreg_press_key_desc">키 누르기: %1$s</string>
     <string name="toolreg_swipe_desc">스와이프: (%1$s,%2$s) -&gt; (%3$s,%4$s)</string>
     <string name="toolreg_ffmpeg_execute_desc">FFmpeg 명령 실행: %1$s</string>
-    <string name="toolreg_ffmpeg_info_desc">FFmpeg 정보 가져오기</string>
+    <string name="toolreg_ffmpeg_info_desc">Android FFmpeg 정보 가져오기: %1$s</string>
+    <string name="toolreg_ffmpeg_probe_desc">Android FFprobe로 미디어 검사: %1$s</string>
     <string name="toolreg_ffmpeg_convert_desc">비디오 변환: %1$s → %2$s</string>
     <string name="screen_ocr_capture_failed">스크린샷 캡처 실패</string>
     <string name="screen_ocr_load_failed">스크린샷을 로드할 수 없습니다.</string>

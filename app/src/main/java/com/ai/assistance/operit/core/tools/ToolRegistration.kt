@@ -2729,8 +2729,21 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
     // FFmpeg信息工具 - 获取FFmpeg信息
     handler.registerTool(
             name = "ffmpeg_info",
-            descriptionGenerator = { _ -> s(R.string.toolreg_ffmpeg_info_desc) },
+            descriptionGenerator = { tool ->
+                val section = tool.parameters.find { it.name == "section" }?.value ?: "summary"
+                s(R.string.toolreg_ffmpeg_info_desc, section)
+            },
             executor = ToolGetter.getFFmpegInfoToolExecutor(context)
+    )
+
+    // Android FFprobe工具 - 使用与转换验证相同的 :ffmpeg 执行面探测媒体
+    handler.registerTool(
+            name = "ffmpeg_probe",
+            descriptionGenerator = { tool ->
+                val inputPath = tool.parameters.find { it.name == "input_path" }?.value ?: ""
+                s(R.string.toolreg_ffmpeg_probe_desc, inputPath)
+            },
+            executor = ToolGetter.getFFmpegProbeToolExecutor(context)
     )
 
     // FFmpeg视频转换工具 - 简化的视频转换接口

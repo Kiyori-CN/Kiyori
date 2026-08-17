@@ -27,7 +27,7 @@
 #include "libavutil/ffversion.h"
 
 /** Library version string */
-#define FFMPEG_KIT_VERSION "8.1.7-kiyori-n9.0.1-r4"
+#define FFMPEG_KIT_VERSION "8.1.7-kiyori-n9.0.1-r6"
 
 /** Defines tag used for Android logging. */
 #define LIB_NAME "ffmpeg-kit"

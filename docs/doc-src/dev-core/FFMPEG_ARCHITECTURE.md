@@ -16,7 +16,7 @@ last_verified: 2026-08-17
 - AI、应用内部媒体处理和播放器是否走到正确的执行面；
 - Android 两套 FFmpeg native closure 为什么必须隔离；
 - Ubuntu `/usr/bin/ffmpeg` 为什么不是 Android 产品运行时；
-- FFmpegKit r3 的现场进程死亡如何归因，r4 修复了什么；
+- FFmpegKit r3 的现场进程死亡如何归因，r4/r5 修复了什么，r6 如何修复真实 AI 使用合同；
 - 新增 codec、修改工具 API、升级 FFmpeg 或调整播放器时应经过哪些门禁。
 
 本文覆盖：
@@ -24,7 +24,7 @@ last_verified: 2026-08-17
 1. Ubuntu/proot 终端 FFmpeg；
 2. Android `:ffmpeg` 进程中的 FFmpegKit normal-name closure；
 3. Android `:player` 进程中的 mpv namespaced FFmpeg closure；
-4. AI `ffmpeg_execute`、`ffmpeg_info`、`ffmpeg_convert`；
+4. AI `ffmpeg_execute`、`ffmpeg_info`、`ffmpeg_probe`、`ffmpeg_convert`；
 5. 工具箱、MNN、MediaPool、媒体信息与浏览器 M3U8 合并；
 6. Binder 请求、日志、线程、取消、终态和进程死亡；
 7. native 构建、审计、成对 promotion、APK 与设备验收。
@@ -59,7 +59,7 @@ Kiyori 当前不是“Ubuntu 一个 FFmpeg、Android 一个 FFmpeg”，而是�
 | 执行面 | 运行位置 | 主要调用者 | 主要用途 | 当前版本与状态 |
 | --- | --- | --- | --- | --- |
 | Ubuntu 终端 FFmpeg | Ubuntu/proot rootfs | AI 显式调用 `super_admin:terminal` | Shell CLI、开发诊断、通用媒体命令 | `/usr/bin/ffmpeg 6.1.1`；现场功能测试正常 |
-| Android FFmpegKit | 非导出 `com.kiyori:ffmpeg` | AI FFmpeg 工具、工具箱、MNN、MediaPool、媒体信息、浏览器 M3U8 合并 | 命令执行、转码、探测、remux | FFmpeg `n9.0.1`，wrapper `8.1.7-kiyori-n9.0.1-r4`；本地修复与打包完成，目标设备转码待验证 |
+| Android FFmpegKit | 非导出 `com.kiyori:ffmpeg` | AI FFmpeg 工具、工具箱、MNN、MediaPool、媒体信息、浏览器 M3U8 合并 | 命令执行、转码、探测、remux | FFmpeg `n9.0.1`，wrapper `8.1.7-kiyori-n9.0.1-r6`；r5 核心媒体矩阵已真机通过，r6 stdout/profile/GPL-filter 增量本地闭环完成、目标设备待验证 |
 | Android mpv FFmpeg | 非导出 `com.kiyori:player` | `PlayerSession`、浏览器/悬浮/全屏播放器 | 播放器解封装、解码、网络读取、滤镜 | mpv `2339eb727` + FFmpeg `n9.0.1`；独立设备播放矩阵待验证 |
 
 版本策略必须区分三件事：
@@ -97,12 +97,12 @@ flowchart TD
     Internal["MNN / MediaPool / 文件媒体信息 / 浏览器 M3U8"]
     BrowserUI["浏览器 / 悬浮播放器 / 全屏播放器"]
 
-    AI -->|"ffmpeg_execute / info / convert"| StandardTool["StandardFFmpegTool"]
+    AI -->|"ffmpeg_execute / info / probe / convert"| StandardTool["Standard FFmpeg tools"]
     Toolbox --> RuntimeClient["FFmpegRuntimeClient"]
     StandardTool --> RuntimeClient
     Internal --> RuntimeClient
     RuntimeClient -->|"Binder request/callback"| FFmpegProcess["com.kiyori:ffmpeg"]
-    FFmpegProcess --> KitJNI["FFmpegKit Java/JNI r4"]
+    FFmpegProcess --> KitJNI["FFmpegKit Java/JNI r6"]
     KitJNI --> NormalClosure["FFmpeg n9.0.1 normal libav*.so"]
 
     AI -->|"仅在 super_admin:terminal 中显式执行"| UbuntuShell["Ubuntu/proot Shell"]
@@ -131,7 +131,8 @@ flowchart TD
 | `FFmpegRuntimeClient` | 主进程 | 否 | Binder 连接、请求挂起、取消、进程死亡、日志读取 |
 | `FFmpegRuntimeService` | `:ffmpeg` | 是，normal-name FFmpegKit | FIFO 调度、session、日志、statistics、唯一终态 |
 | `StandardFFmpegToolExecutor` | 主进程后台线程 | 否 | AI 原始 FFmpeg 参数执行 |
-| `StandardFFmpegInfoToolExecutor` | 主进程后台线程 | 否 | 查询 Android `:ffmpeg` wrapper/FFmpeg/build 信息和 `-codecs` |
+| `StandardFFmpegInfoToolExecutor` | 主进程后台线程 | 否 | 查询 Android `:ffmpeg` wrapper/FFmpeg/build 信息和固定能力分区 |
+| `StandardFFmpegProbeToolExecutor` | 主进程后台线程 | 否 | 使用同一 Android `:ffmpeg` FFprobe 投影结构化媒体信息 |
 | `StandardFFmpegConvertToolExecutor` | 主进程后台线程 | 否 | `h264_aac_mp4` 确定性转换、FFprobe 回读和原子非覆盖提交 |
 | `PlayerSession` | 主进程 | 否 | 唯一播放器会话、URI/header/位置/Surface 状态 |
 | `PlayerRuntimeService` / `MpvPlayerEngine` | `:player` | 是，mpv namespaced closure | 播放、解码、网络、Surface、播放器诊断 |
@@ -237,7 +238,7 @@ AI / ToolPkg / Toolbox / internal consumer
   -> IFFmpegRuntime Binder
   -> com.kiyori:ffmpeg
   -> FFmpegRuntimeService
-  -> FFmpegKitConfig.ffmpegExecute / getMediaInformationExecute
+  -> FFmpegKitConfig.ffmpegExecute / ffprobeExecute
   -> libffmpegkit.so
   -> normal-name FFmpeg n9.0.1 libav*.so
 ```
@@ -246,9 +247,9 @@ AI / ToolPkg / Toolbox / internal consumer
 
 ```text
 app/libs/ffmpeg-kit-player-arm64.aar
-wrapper = 8.1.7-kiyori-n9.0.1-r4
-size    = 30,133,322 bytes
-SHA-256 = 86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7
+wrapper = 8.1.7-kiyori-n9.0.1-r6
+size    = 30,486,441 bytes
+SHA-256 = 7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394
 ```
 
 native 成员：
@@ -273,7 +274,8 @@ FFprobe 命令层由 FFmpegKit JNI 在 `libffmpegkit.so` 内调用。
 | 消费者 | 操作 | 目标语义 |
 | --- | --- | --- |
 | AI `ffmpeg_execute` | `EXECUTE_COMMAND` | 接受 FFmpeg 参数字符串，不接受 Shell |
-| AI `ffmpeg_info` | `RUNTIME_INFO` | 返回 Android `:ffmpeg` wrapper/FFmpeg/build 和 `-codecs` 输出 |
+| AI `ffmpeg_info` | `RUNTIME_INFO` | 按固定 section 返回 Android `:ffmpeg` 版本、构建或能力文本 |
+| AI `ffmpeg_probe` | `PROBE_MEDIA` | 由 Android FFprobe 写私有 JSON，返回受控结构化媒体信息 |
 | AI `ffmpeg_convert` | `EXECUTE_ARGUMENTS` + `PROBE_MEDIA` | 唯一 `h264_aac_mp4` profile、临时输出、回读和原子提交 |
 | FFmpeg 工具箱 | FFmpeg runtime | 后台等待结果，不阻塞 Compose 主线程 |
 | `FFmpegUtil` | command/arguments/probe | 应用内部统一适配层 |
@@ -292,6 +294,8 @@ FFmpegKitConfig.getMediaInformationExecute(...)
 ```
 
 所有产品调用必须经过 `FFmpegRuntimeClient`，保证 native 只在 `:ffmpeg` 进程加载。
+`PROBE_MEDIA` 直接创建 `FFprobeSession` 并调用 `FFmpegKitConfig.ffprobeExecute(session)`；它不再
+依赖 FFmpegKit 8.1.7 从日志重建 media-information JSON。
 
 ## 8. Android `:player` 与 mpv FFmpeg 执行面
 
@@ -375,26 +379,51 @@ ffmpeg -i input.mp4 output.mp4
 - 不带 `ffmpeg` 前缀；
 - 不使用管道、重定向、命令链或外部程序；
 - 字符串由 FFmpegKit 参数解析器处理，不由 Shell 处理；
+- 工具边界拒绝未被引号或反斜杠保护的 Shell operator、重定向和前缀 executable，但不改写合法参数；
 - 路径中的空格需要正确引号；
+- Android `drawtext` 必须显式使用绝对 `fontfile`，例如
+  `/system/fonts/Roboto-Regular.ttf`；
 - 内部 Kotlin 调用应使用 `executeArguments(List<String>)`，避免二次字符串解析。
 
 历史现场中的 `Unrecognized option 'iE'` 是 `grep -iE` 被错误传给 FFmpeg 后产生的普通参数错误。
 相关 `-1414549496` 不是 `:ffmpeg` 进程死亡码；真正的进程死亡没有 FFmpeg return code，由 Binder
 death 转换为 `FFmpegRuntimeProcessDiedException`。
 
-### 9.2 `ffmpeg_info`
+### 9.2 `ffmpeg_info(section)`
 
 `ffmpeg_info` 查询的是 Android `:ffmpeg`，不是 Ubuntu `/usr/bin/ffmpeg`。当前返回：
 
-- FFmpegKit wrapper version；
-- FFmpeg version；
-- build date；
-- `-codecs` 输出。
+- `summary`：执行面、进程、ABI/API、FFmpegKit wrapper、FFmpeg、build date、资格化 profile
+  和工具路由规则；
+- `codecs/encoders/decoders/filters/formats/muxers/demuxers/protocols/hwaccels/buildconf`：
+  各自固定映射为一个 FFmpeg 信息参数，不使用 Shell。
 
-`-codecs` 是 codec 能力概览，不等于已验证 encoder 合同。后续需要把可供 AI 使用的 encoder
-capability 作为结构化、可测试的数据提供，不能从 codec 名称推断 `-c:v` 的 encoder 名称。
+能力文本不等于已验证 encoder/profile 合同。AI 检查 Android encoder 或 filter 时应选择对应
+section，不应把 `| grep` 传给 `ffmpeg_execute`，也不能从 codec family 推断 `-c:v` encoder。
 
-### 9.3 `ffmpeg_convert`
+### 9.3 `ffmpeg_probe`
+
+`ffmpeg_probe(input_path)` 使用与 `ffmpeg_convert` 输出验证相同的 Android `:ffmpeg` 执行面。
+输入必须是存在、非空、绝对路径的普通文件。
+
+FFmpeg n9.0.1 的 FFprobe 通过 `AVTextWriter` 写 stdout；FFmpegKit 8.1.7 的
+`getMediaInformationExecute()` 只收集 `AV_LOG_STDERR`，因此 native return code 可以为 `0`，
+但 wrapper 仍得到 `mediaInformation=null`。r5 冻结实现为：
+
+1. 使用 FFprobe 官方 `-o` 写入 `cacheDir/ffmpeg-runtime-probes/<request-id>.json`；
+2. `-show_entries` 只生成合同字段，不输出 tags、side data 等无关元数据；
+3. 文件最大 `1 MiB`、最多 `128` 条流、单字符串最多 `4096` 字符，并使用严格 UTF-8；
+4. 只投影 format name、duration、bitrate，以及 stream index/type/codec/profile/pixel format/
+   width/height/frame rate/sample rate/channels；
+5. JSON 不进入 Binder，不进入公共存储；
+6. 成功、失败、取消和 service 重建路径均清理该文件；
+7. native 成功但 JSON 缺失、超限或格式错误时，返回
+   `MEDIA_INFORMATION_INVALID` protocol failure，不伪造 FFmpeg return code。
+
+profile 字段允许 FFprobe 输出 string 或 integer；H.264 constrained baseline 的数值 `578`
+统一投影为字符串，供转换合同精确判断。
+
+### 9.4 `ffmpeg_convert`
 
 Kiyori 尚未发布，因此本轮直接删除了旧的 `video_codec`、`audio_codec`、`format` 和 `bitrate`
 简化参数，不保留旧枚举、兼容分支或转换失败后的替代路径。当前公开参数为：
@@ -418,6 +447,9 @@ audio encoder    = aac
 container        = mp4
 movflags         = +faststart
 ```
+
+输出合同接受 `Constrained Baseline` 和语义等价的数值 `578`；普通 baseline `66` 不含 constrained
+flag，继续拒绝。
 
 参数与文件合同：
 
@@ -570,6 +602,12 @@ return code 合同：
 其它 -> FAILED
 ```
 
+上述值是 FFmpegKit 暴露的 signed native FFmpeg return value，不是 Shell 对外压缩后的
+`0..255` exit status。负数原样保留，`returnCodeSemantics` 固定为
+`signed_ffmpeg_averror`。native session 如果异常地没有 return code，runtime 返回
+`NATIVE_RETURN_CODE_MISSING` protocol failure，工具层 `returnCode=null`，不得用
+`Int.MIN_VALUE` 或其它占位数冒充 AVERROR。
+
 ### 11.4 超时
 
 当前有以下有界等待：
@@ -577,7 +615,6 @@ return code 合同：
 | 项目 | 当前值 | 含义 |
 | --- | --- | --- |
 | Binder 连接 | `10,000 ms` | 等待 `:ffmpeg` 连接和 callback 注册 |
-| media information log drain | `5,000 ms` | native FFprobe 返回后等待异步日志排空；不是 probe 执行超时 |
 | native callback drain | `5,000 ms` | 终态前等待 session 与 session `0` 回调排空 |
 | drain poll | `10 ms` | callback 队列轮询间隔 |
 
@@ -634,7 +671,8 @@ FFmpeg 内部线程可能产生 `sessionId=0` 日志。因为顶层 native owner
 
 正常完成/失败日志由客户端读取后删除；coroutine 取消后的迟到终态日志异步删除；Binder process
 death 的完整有界日志保留用于诊断，但异常消息只携带 `16,384` 字符摘录，文件继续受目录 retention
-控制。
+控制。若 process death 前已经收到 started 回调，结构化错误继续保留当时的 process ID、session
+ID 和 `diagnosticLogPath`；这三项用于关联 logcat/tombstone，不构成 native return code。
 
 诊断必须区分：
 
@@ -652,9 +690,9 @@ death 的完整有界日志保留用于诊断，但异常消息只携带 `16,384
 | --- | --- | --- | --- |
 | FFmpeg 参数/媒体失败 | Binder 存活，有 return code 和日志 | 命令失败，显示 return code 与输出 | 不标记为进程死亡 |
 | 取消 | return code `255` 或取消终态 | 命令已取消 | 不当作 codec failure |
-| runtime 请求失败 | `FFmpegRuntimeFailureCode` | 显示具体设置/回调/服务错误 | 不伪造 FFmpeg return code |
+| runtime 请求失败 | `FFmpegRuntimeFailureCode`，包括 media JSON 无效或 native return code 缺失 | 显示具体设置/回调/服务错误，`returnCode=null` | 不伪造 FFmpeg return code |
 | Binder 连接超时 | 10 秒内未完成连接 | 连接运行时超时 | 不宣称命令已执行 |
-| Binder process death | death recipient、`DeadObjectException`、`RemoteException` | `FFmpeg 运行时进程已终止，当前命令未完成` | 不自动重试当前命令 |
+| Binder process death | death recipient、`DeadObjectException`、`RemoteException` | `FFmpeg 运行时进程已终止，当前命令未完成`，并保留可用的 PID/session/log path | 不自动重试当前命令 |
 | callback drain timeout | 日志中 Kiyori warning | 尾部诊断可能不完整 | 不改写正常终态 |
 | Android native fatal | logcat/tombstone/backtrace | 记录进程、signal/fatal、库和栈 | 不以猜测替代栈证据 |
 
@@ -725,13 +763,15 @@ libc++_shared.so
 
 ```text
 FFmpegKit framework = 62b07bf097baf26b416c815aea514e05c9ad6d63
-wrapper             = 8.1.7-kiyori-n9.0.1-r4
+wrapper             = 8.1.7-kiyori-n9.0.1-r6
 FFmpeg              = n9.0.1@bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa
 OpenH264            = v2.6.0@652bdb7719f30b52b08e506645a7322ff1b2cc6f
 ABI                 = arm64-v8a
 Android API         = 24+
 NDK                 = 29.0.14206865
 PT_LOAD minimum     = 0x4000
+source AAR SHA-256  = 0BD7ADDAE2D17960DB940A17A3E2450ACB83EECB46BE0D3800D051BB2075C1CE
+product SHA-256     = 7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394
 ```
 
 关键 configure 能力包括：
@@ -742,8 +782,12 @@ PT_LOAD minimum     = 0x4000
 --enable-shared
 --disable-static
 --disable-programs
+--enable-gpl
 --enable-mediacodec
 --enable-zlib
+--enable-libharfbuzz
+--enable-filter=eq
+--enable-filter=boxblur
 --enable-libopenh264
 --enable-libkvazaar
 --enable-libvpx
@@ -753,13 +797,17 @@ PT_LOAD minimum     = 0x4000
 --enable-libass
 ```
 
+`libavfilter.so` 还必须包含 exact `drawtext`、`eq`、`boxblur` marker。manifest、source AAR、
+aligned thin candidate、`app/libs` 产品 AAR、Gradle native input gate 和 Debug APK gate 都检查
+这些能力。AAR 必须携带与仓库 `LICENSE` 字节一致的 `res/raw/license_gplv3.txt`；仅有源码、
+configure 文本或普通 LGPL wrapper notice 不能证明 GPL closure 的分发合同完整。
+
 明确禁止：
 
 ```text
 --enable-openssl
 --enable-libx264
 --enable-libx265
---enable-gpl
 ```
 
 编译器身份字符串中的 `+pgo/+bolt/+lto/+mlgo` 不能替代 manifest。只有 manifest 和实际二进制
@@ -832,7 +880,9 @@ ffmpeg_execute()
 
 这些因素仍可能在其它独立故障中出现，但不能替代本次已收敛的 Binder 根因。
 
-## 17. r4 Binder 修复
+## 17. r4/r5 修复与 r6 真实 AI 使用合同升级
+
+### 17.1 r4 Binder 修复
 
 r4 固定 FFmpeg 源补丁：
 
@@ -861,6 +911,66 @@ r4 固定 FFmpeg 源补丁：
 - vivo V2507A / Android 16 上的 r4 实际 transcode 仍待验证。
 
 因此状态是“根因修复已实现，本地验证完成到当前层级，目标设备运行待验证”，不是“真机已经根治”。
+
+### 17.2 r5 FFprobe 与 `drawtext`
+
+2026-08-17 的真实 AI 使用复测表明 r4 已能完成软件/MediaCodec 转码、流复制、音频、GIF、滤镜和
+纯解码，说明 r3 的统一首包前 Binder death 不再是当前唯一故障。复测同时稳定暴露两个独立问题：
+
+1. `ffmpeg_convert` 的 FFmpeg 转码已经成功并生成隐藏 `.partial.mp4`，但旧 media-information
+   helper 因 FFmpeg n9 stdout/FFmpegKit stderr 合同失配得到 `mediaInformation=null`；
+2. r4 已启用 ASS/subtitles，但 `CONFIG_LIBHARFBUZZ=0` 导致 `drawtext` 未编译。
+
+r5 的冻结修复：
+
+- `PROBE_MEDIA` 使用 `FFprobeSession + ffprobeExecute + -o private.json`；
+- Kiyori 自有有界 parser 取代 wrapper 日志 JSON 重建；
+- 新增 AI `ffmpeg_probe(input_path)`；
+- `ffmpeg_info(section)` 提供固定能力分区；
+- `FFmpegResultData` 保留 execution plane、terminal state、signed AVERROR 语义、PID/session、
+  pipeline stage、failure code 和 process-death 日志路径；
+- ToolPkg 成功与失败都保留完整结构化结果，普通 tool failure 只记录一条用户语义；
+- native build 显式启用 `--enable-harfbuzz` 与 FFmpeg `--enable-libharfbuzz`；
+- r5 `config.h` 为 `CONFIG_LIBHARFBUZZ=1`，`config_components.h` 为
+  `CONFIG_DRAWTEXT_FILTER=1`，产品 `libavfilter.so` 含 exact `drawtext` marker；
+- r5 source/thin/product AAR 已通过 exact-hash、成员、symbol、SONAME/`DT_NEEDED`、version
+  namespace、RPATH/RUNPATH、16 KiB ELF 与 ZIP offset 审计。
+
+后续 vivo V2507A / Android 16 真实复测确认 r5 的 FFprobe、`drawtext`、软硬编解码、滤镜、
+音频、截图/GIF、拼接和流复制均可工作；取消和 process-death 矩阵仍未完整验收。
+
+### 17.3 r6 profile、stdout 与 GPL filter 修复
+
+r5 真实 AI 使用继续暴露四项独立问题：
+
+1. `ffmpeg_convert` 的 native 转码与 FFprobe 均成功，但 profile 数值 `578` 被旧文本合同拒绝；
+2. `-encoders/-filters/-formats` 等命令成功但输出为空，因为 FFmpeg n9 直接向 stdout 写能力列表；
+3. `eq/boxblur` 被 configure 明确因 `gpl` 依赖禁用；
+4. AI 仍可能把 `| grep` 或重定向传给 raw `ffmpeg_execute`。
+
+r6 冻结修复：
+
+- Kotlin profile 合同接受 `Constrained Baseline` 与 `578`，继续拒绝 `66`；
+- FFprobe parser 接受 profile 的 JSON string/integer；
+- `cmdutils` help callback 和 `opt_common.c` capability `printf` 输出进入 FFmpegKit log callback；
+- `ffmpeg_execute` 在 native 前拒绝未被引号或反斜杠保护的 Shell operator、重定向与前缀
+  executable；滤镜中的字面 `|`、`;` 必须正确引用或转义，原始参数不被改写；
+- FFmpeg configure 显式启用 `--enable-gpl --enable-filter=eq --enable-filter=boxblur`；
+- native gate 要求 `drawtext/eq/boxblur` binary marker；
+- source/thin/product AAR 携带 SHA-256
+  `71EBD932FFA82EF1ED27738E7236CFC290925B20A0A4970CBC61B11C939D0569`
+  的 `res/raw/license_gplv3.txt`；
+- promotion script 从 `closure_manifest.json` 读取 FFmpegKit selected-product 合同，不再维护旧
+  r5 hash 常量；
+- r6 source `39,632,341` bytes /
+  `0BD7ADDAE2D17960DB940A17A3E2450ACB83EECB46BE0D3800D051BB2075C1CE`，
+  thin/product `30,486,441` bytes /
+  `7E6B4C20A93DFB3B90BC7F3C5D724CF657B70E2469EA4F2B1110396A8D345394`；
+- mpv product 保持
+  `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4`，
+  patch-level promotion 前后均通过双 closure 审计。
+
+这些是本地源码、native、JVM 和 Python 证据。r6 仍需在目标设备重新安装验证。
 
 ## 18. OpenH264 独立缺陷
 
@@ -914,7 +1024,8 @@ host ASan/UBSan 的 `320x240 / 1280x720 × default/1/2/4 threads` 共 `20/20` �
 15. 简化转换不覆盖最终目标，临时输出与最终目标位于同一目录并以原子移动提交；
 16. Binder payload、单日志和日志目录都必须有显式上限；
 17. source AAR、candidate、product AAR 和 APK 之间可追溯；
-18. Android 两套 FFmpeg major/source promotion 成对执行；
+18. Android 两套 FFmpeg major/source upgrade 成对 promotion；FFmpegKit patch-level promotion 必须验证
+    mpv product 固定哈希不变并重跑双 closure 审计；
 19. 设备验收不能由宿主、静态、构建或另一个执行面替代。
 
 ## 20. 构建、审计与 promotion
@@ -941,9 +1052,9 @@ tools/ffmpegkit_native_build/closure_manifest.json
 tools/ffmpegkit_native_build/source_lock.json
 ```
 
-### 20.3 成对 promotion
+### 20.3 promotion
 
-promotion 必须：
+major/source upgrade 的成对 promotion 必须：
 
 1. 独立审计 player candidate；
 2. 独立审计 FFmpegKit candidate；
@@ -954,7 +1065,11 @@ promotion 必须：
 7. 再审计最终 product；
 8. 任一阶段失败均不形成混合 closure。
 
-禁止单栈 promotion、单 `.so` 替换、手工压缩 AAR 或运行时版本选择。
+FFmpegKit patch-level promotion 仅在 mpv 的 source profile、product hash、C++ owner 和 namespaced
+closure 完全不变时允许。专用命令会在替换 FFmpegKit 前后验证 mpv exact hash，审计 mpv closure
+两次，并审计 FFmpegKit candidate、同目录临时文件和最终 product 三次。
+
+禁止未经该专用路径的单栈 promotion、单 `.so` 替换、手工压缩 AAR 或运行时版本选择。
 
 ### 20.4 Gradle 与 APK 门禁
 
@@ -965,6 +1080,7 @@ Gradle 必须验证：
 - native basename owner；
 - FFmpeg version/major marker；
 - wrapper marker；
+- HarfBuzz configure marker 与 `drawtext` filter marker；
 - machine-readable `qualified_conversion_profiles`；
 - `h264_aac_mp4` 所需 `libopenh264`、AAC encoder 和 MP4 muxer binary marker；
 - C++ owner；
@@ -1057,24 +1173,28 @@ audit_ffmpegkit_native_closure.py
 
 目标设备最低矩阵：
 
-1. `ffmpeg_info`；
-2. `-encoders`，不带 Shell 管道；
-3. FFprobe 媒体探测；
-4. 纯 lavfi `testsrc -> null`；
-5. 生成 1 秒 H.264/AAC 素材；
-6. 实际文件解码到 null；
-7. `-t 1 -c copy`；
-8. 完整 `-c copy`；
-9. `-vn -c:a libmp3lame`；
-10. `1280x720 libopenh264` 转码；
-11. `ffmpeg_convert(profile=h264_aac_mp4)` 的确定性映射、非覆盖提交和输出回读；
-12. 两请求 FIFO started 顺序；
-13. 取消排队请求和活动请求；
-14. callback replacement/disconnect；
-15. 人工触发或测试桩验证 Binder death；
-16. 长时间编码；
-17. 输出文件非零；
-18. FFprobe 回读 duration、codec、resolution、audio streams。
+1. `ffmpeg_info(summary)`；
+2. `ffmpeg_info(encoders/filters/formats/hwaccels)` 输出非空，不带 Shell 管道；
+3. `ffmpeg_execute` 拒绝 `|`、重定向和前缀 `ffmpeg`；
+4. FFprobe 媒体探测；
+5. 纯 lavfi `testsrc -> null`；
+6. 生成 1 秒 H.264/AAC 素材；
+7. 实际文件解码到 null；
+8. `-t 1 -c copy`；
+9. 完整 `-c copy`；
+10. `-vn -c:a libmp3lame`；
+11. `1280x720 libopenh264` 转码；
+12. `drawtext` 使用绝对 `fontfile`；
+13. `eq` 与 `boxblur`；
+14. `ffmpeg_convert(profile=h264_aac_mp4)` 接受 profile `578`、非覆盖提交和输出回读；
+15. 最终 APK/AAR 存在 byte-exact GPLv3 notice；
+16. 两请求 FIFO started 顺序；
+17. 取消排队请求和活动请求；
+18. callback replacement/disconnect；
+19. 人工触发或测试桩验证 Binder death；
+20. 长时间编码；
+21. 输出文件非零；
+22. FFprobe 回读 duration、codec、profile、pixel format、resolution、audio streams。
 
 每个用例必须保留：
 
@@ -1194,15 +1314,15 @@ Ubuntu 测试结果只属于 Ubuntu 执行面。
 flowchart TD
     Start["FFmpeg 功能失败"] --> Info{"ffmpeg_info 能否完成"}
     Info -->|"否"| Bind["检查 :ffmpeg service、Binder 注册、AAR/JNI、wrapper marker"]
-    Info -->|"是"| Probe{"FFprobe 能否完成"}
-    Probe -->|"否"| ProbePath["检查绝对路径、权限、输入格式、FFprobe 执行状态和日志排空"]
+    Info -->|"是"| Probe{"ffmpeg_probe 能否完成"}
+    Probe -->|"否"| ProbePath["检查绝对路径、权限、native return code、私有 JSON 和 parser failure code"]
     Probe -->|"是"| Command{"真实 command 是否返回 FFmpeg return code"}
     Command -->|"是"| NormalFailure["按参数/encoder/muxer/filter/媒体错误处理"]
     Command -->|"否"| Died{"是否收到 Binder process death"}
     Died -->|"是"| NativeEvidence["采集 logcat、tombstone、native backtrace、request/session/process ID"]
     Died -->|"否"| Waiting["检查连接、callback generation/sequence、取消与 service lifecycle"]
     NativeEvidence --> Boundary{"是否只在真实 transcode、首包前发生"}
-    Boundary -->|"是"| BinderPath["核对 Android Binder 初始化与 r4 marker/patch"]
+    Boundary -->|"是"| BinderPath["核对 Android Binder 初始化、r6 wrapper marker 与 Binder patch"]
     Boundary -->|"否"| StackPath["按崩溃栈定位 codec/filter/muxer/JNI/系统库"]
 ```
 
@@ -1210,10 +1330,14 @@ flowchart TD
 
 | 现象 | 首要检查 |
 | --- | --- |
-| `Unrecognized option 'iE'` | 是否把 Shell `grep -iE` 传给 `ffmpeg_execute` |
+| `Unrecognized option 'iE'` | 是否仍在旧包中把 Shell `grep -iE` 传给 `ffmpeg_execute`；r6 应在 native 前拒绝 |
 | Unknown encoder | 工具元数据是否把 codec family 当成 encoder；实际 `-encoders` 是否存在 |
 | 0 字节输出 + FFmpeg return code | 查看 muxer/encoder/filter 日志，不直接判进程死亡 |
-| 0 字节输出 + Binder death | 采集 native fatal；核对 r4 AAR/marker/Binder patch |
+| transcode 成功但 probe stage 失败 | 查看 Android FFprobe return code、私有 JSON validation 和 `MEDIA_INFORMATION_INVALID` |
+| `ffmpeg_info(encoders/filters)` 成功但 output 为空 | 核对 r6 stdout bridge 与 `opt_common`/help callback marker |
+| `filters` 没有 `drawtext/eq/boxblur` | 核对 r6、GPL/HarfBuzz configure、产品 binary marker 和 GPLv3 notice |
+| `ffmpeg_convert` 拒绝 profile `578` | 核对 r6 Kotlin profile contract；`66` 仍应拒绝 |
+| 0 字节输出 + Binder death | 采集 native fatal；核对 r6 AAR/marker/Binder patch |
 | UI 卡死 | 是否在主线程调用 blocking API |
 | 日志尾部缺失 | callback drain warning、session `0` 归属和队列状态 |
 | 播放 HTTPS 失败 | 检查播放器 namespaced TLS closure，不检查 FFmpegKit OpenSSL |
@@ -1235,12 +1359,18 @@ flowchart TD
 4. 转换使用同目录临时文件、FFprobe 回读和原子非覆盖提交；
 5. Binder payload、排队取消、重复 request ID、日志字节上限、目录 retention 和迟到终态清理闭环；
 6. AAR/APK 门禁检查 OpenH264、AAC 和 MP4 muxer marker；
-7. 单元测试、AndroidTest 编译与 Python 合同测试覆盖以上行为。
+7. FFprobe 私有 JSON、公开 probe、分区 info、signed AVERROR、ToolPkg 结构化错误和 process-death
+   诊断闭环；
+8. r6 GPL/HarfBuzz/`drawtext`/`eq`/`boxblur` source/thin/product AAR 构建、promotion 与
+   exact-hash/license 审计；
+9. 单元测试、AndroidTest 编译与 Python 合同测试覆盖以上行为。
 
-### P0：目标设备 FFmpegKit r4
+### P0：目标设备 FFmpegKit r6
 
-在 vivo V2507A / Android 16 上运行第 23 节矩阵，确认 r3 的首包前 Binder death 不再出现。发生
-native death 时必须取得 logcat/tombstone/backtrace。
+在 vivo V2507A / Android 16 上运行第 23 节矩阵，确认 capability stdout、profile `578`、
+Shell validation、FFprobe 私有 JSON、`drawtext/eq/boxblur`、GPL notice、`ffmpeg_convert`
+和 r3 首包前 Binder death 修复的真实表现。发生 native death 时必须取得
+logcat/tombstone/backtrace。
 
 ### P0：目标设备播放器
 
@@ -1269,8 +1399,8 @@ native death 时必须取得 logcat/tombstone/backtrace。
 - r3 现场 fatal logcat 原文；
 - r3 tombstone；
 - r3 native backtrace；
-- r4 vivo Android 16 实际转码结果；
-- r4 完整目标设备取消/排队/死亡矩阵；
+- r6 vivo Android 16 实际 capability stdout、profile `578`、`eq/boxblur` 与转换结果；
+- r6 完整目标设备取消/排队/死亡矩阵；
 - mpv 完整目标设备播放矩阵；
 - Ubuntu n9.0.1 可复现 `.deb` 与 rootfs 回归。
 

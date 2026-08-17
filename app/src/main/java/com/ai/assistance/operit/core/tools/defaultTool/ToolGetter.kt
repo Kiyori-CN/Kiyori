@@ -176,6 +176,14 @@ object ToolGetter {
     }
 
     /**
+     * 获取 Android FFprobe 工具执行器
+     * @return FFprobe 工具执行器实现（只有标准版本）
+     */
+    fun getFFmpegProbeToolExecutor(context: Context): StandardFFmpegProbeToolExecutor {
+        return StandardFFmpegProbeToolExecutor(context)
+    }
+
+    /**
      * 获取FFmpeg转换工具执行器
      * @param context 应用上下文
      * @return FFmpeg转换工具执行器实现（只有标准版本）

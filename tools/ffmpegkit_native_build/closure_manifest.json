@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "status": "ffmpeg_n9_0_1_android_binder_r4_selected_locally",
+  "status": "ffmpeg_n9_0_1_android_ffprobe_drawtext_capability_output_r6_selected_locally",
   "framework": {
     "repository": "https://github.com/ffmpegkit-maintained/ffmpeg.git",
     "commit": "62b07bf097baf26b416c815aea514e05c9ad6d63",
-    "wrapper_version": "8.1.7-kiyori-n9.0.1-r4"
+    "wrapper_version": "8.1.7-kiyori-n9.0.1-r6"
   },
   "ffmpeg": {
     "canonical_repository": "https://github.com/FFmpeg/FFmpeg.git",
@@ -16,8 +16,8 @@
   "overlay": {
     "path": "tools/ffmpegkit_native_build/overlay",
     "file_count": 33,
-    "size": 1091143,
-    "tree_sha256": "d527ad2a8710461e89fd125b6b6cb202e743c3cc127d54f50ee51ed7dea9bf95"
+    "size": 1092823,
+    "tree_sha256": "c550972c8e5e9a1937958a81bd4361519584315a082902d030fc6ca15b33b098"
   },
   "source_patches": [
     {
@@ -68,6 +68,7 @@
       "--disable-x86-64",
       "--enable-fontconfig",
       "--enable-freetype",
+      "--enable-harfbuzz",
       "--enable-fribidi",
       "--enable-lame",
       "--enable-libass",
@@ -96,6 +97,7 @@
     ],
     "required_configure_flags": [
       "--enable-version3",
+      "--enable-gpl",
       "--enable-jni",
       "--enable-lto",
       "--enable-shared",
@@ -103,6 +105,7 @@
       "--disable-programs",
       "--enable-libfontconfig",
       "--enable-libfreetype",
+      "--enable-libharfbuzz",
       "--enable-libfribidi",
       "--enable-libmp3lame",
       "--enable-libass",
@@ -128,14 +131,22 @@
       "--enable-libzimg",
       "--disable-openssl",
       "--enable-zlib",
-      "--enable-mediacodec"
+      "--enable-mediacodec",
+      "--enable-filter=eq",
+      "--enable-filter=boxblur"
     ],
     "forbidden_configure_flags": [
       "--enable-openssl",
       "--enable-libx264",
-      "--enable-libx265",
-      "--enable-gpl"
+      "--enable-libx265"
     ],
+    "required_binary_markers": {
+      "libavfilter.so": [
+        "drawtext",
+        "eq",
+        "boxblur"
+      ]
+    },
     "system_needed_allowlist": [
       "libGLESv1_CM.so",
       "libGLESv2.so",
@@ -147,7 +158,12 @@
       "libm.so",
       "libmediandk.so",
       "libz.so"
-    ]
+    ],
+    "gpl_license_resource": {
+      "source_path": "LICENSE",
+      "resource_path": "res/raw/license_gplv3.txt",
+      "sha256": "71ebd932ffa82ef1ed27738e7236cfc290925b20a0a4970cbc61b11c939d0569"
+    }
   },
   "ffmpeg_majors": {
     "libavcodec.so": "LIBAVCODEC_63",
@@ -185,6 +201,7 @@
   },
   "license_resources": [
     "res/raw/license.txt",
+    "res/raw/license_gplv3.txt",
     "res/raw/license_cpu_features.txt",
     "res/raw/license_dav1d.txt",
     "res/raw/license_expat.txt",
@@ -241,22 +258,22 @@
   ],
   "qualified_artifacts": {
     "source_aar": {
-      "path": "work/ffmpegkit-native-outputs/ffmpeg_n9.0.1_r4/ffmpeg-kit-player-source.aar",
-      "sha256": "df332d8f2feca7508541a2f20edb348a3bfbc2ad5ae6eefdedf2889d679c96cc",
-      "size": 17101059,
+      "path": "work/ffmpegkit-native-outputs/ffmpeg_n9.0.1_r6/ffmpeg-kit-player-source.aar",
+      "sha256": "0bd7addae2d17960db940a17a3e2450acb83eecb46be0d3800d051bb2075c1ce",
+      "size": 39632341,
       "native_count": 10
     },
     "thin_candidate": {
-      "path": "work/ffmpegkit-native-outputs/ffmpeg_n9.0.1_r4/ffmpeg-kit-player-thin-candidate.aar",
-      "sha256": "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7",
-      "size": 30133322,
+      "path": "work/ffmpegkit-native-outputs/ffmpeg_n9.0.1_r6/ffmpeg-kit-player-thin-candidate.aar",
+      "sha256": "7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394",
+      "size": 30486441,
       "native_count": 9
     }
   },
   "selected_product": {
     "path": "app/libs/ffmpeg-kit-player-arm64.aar",
-    "sha256": "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7",
-    "size": 30133322,
+    "sha256": "7e6b4c20a93dfb3b90bc7f3c5d724cf657b70e2469ea4f2b1110396a8d345394",
+    "size": 30486441,
     "native_count": 9,
     "native_zip_alignment": "0x4000"
   }
