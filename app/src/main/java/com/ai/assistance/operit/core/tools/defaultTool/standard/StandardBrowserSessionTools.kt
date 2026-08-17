@@ -115,6 +115,8 @@ class StandardBrowserSessionTools private constructor(
 
     @Volatile
     internal var browserHost: WebSessionBrowserHost? = null
+    @Volatile
+    internal var browserWorkspaceClosedListener: (() -> Unit)? = null
 
     internal val historyStore by lazy { WebSessionHistoryStore.getInstance(context.applicationContext) }
     internal val browserSettingsStore by lazy {
@@ -126,10 +128,19 @@ class StandardBrowserSessionTools private constructor(
     internal val browserCredentialVault by lazy {
         BrowserCredentialVault.getInstance(context.applicationContext)
     }
+    internal val browserSessionRecoveryStore by lazy {
+        BrowserSessionRecoveryStore.getInstance(context.applicationContext)
+    }
     internal val profileManager = WebSessionProfileManager()
     private val _browserWindowCount = MutableStateFlow(0)
     internal val browserWindowCount: StateFlow<Int> = _browserWindowCount.asStateFlow()
     @Volatile internal var defaultSessionProfile: WebSessionProfile = WebSessionProfile.NORMAL
+    internal val browserRecoveryRevision = AtomicLong(0L)
+    internal val browserRecoveryWriterRunning = AtomicBoolean(false)
+    @Volatile internal var browserRecoverySnapshotId: String = UUID.randomUUID().toString()
+    @Volatile
+    internal var browserLaunchRestorationState: BrowserLaunchRestorationState =
+        BrowserLaunchRestorationState.Uninitialized
     private val userscriptRepository by lazy { UserscriptRepository.getInstance(context.applicationContext) }
     internal val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val userscriptManager by lazy {
@@ -214,11 +225,16 @@ class StandardBrowserSessionTools private constructor(
         val cookieManager: CookieManager,
         val sessionName: String?,
         val profile: WebSessionProfile,
+        val creationReason: BrowserWindowCreationReason,
+        val openerHomeSessionId: String? = null,
         val customUserAgent: String? = null,
         val createdAt: Long = System.currentTimeMillis()
     ) {
         @Volatile var currentUrl: String = "about:blank"
         @Volatile var pageTitle: String = ""
+        @Volatile var lastActivatedAt: Long = createdAt
+        @Volatile var lastSearchRecovery: BrowserSessionSearchRecovery? = null
+        @Volatile var searchRecoveryPending: Boolean = false
         @Volatile var pageLoaded: Boolean = false
         @Volatile var isLoading: Boolean = false
         @Volatile var canGoBack: Boolean = false
@@ -337,7 +353,12 @@ class StandardBrowserSessionTools private constructor(
         val headers = parseHeaders(param(tool, "headers"))
         val session =
             runOnMainSync {
-                getSession(null) ?: createSessionTabOnMain(context.applicationContext, "about:blank")
+                getSession(null)
+                    ?: createSessionTabOnMain(
+                        appContext = context.applicationContext,
+                        initialUrl = "about:blank",
+                        creationReason = BrowserWindowCreationReason.AI_EXPLICIT_CREATE,
+                    )
             }
         val markers = captureActionMarkers(session)
 
@@ -1201,6 +1222,8 @@ class StandardBrowserSessionTools private constructor(
                 BrowserSessionBackResult.WEB_HISTORY -> "await page.goBack();"
                 BrowserSessionBackResult.BROWSER_HOME ->
                     "await page.goto(${quoteJsCode(homeUrl)});"
+                BrowserSessionBackResult.OPENER_HOME ->
+                    "await page.goBack();"
                 BrowserSessionBackResult.NONE -> "await page.goBack();"
             }
         val result =
@@ -1208,12 +1231,20 @@ class StandardBrowserSessionTools private constructor(
                 BrowserSessionBackResult.WEB_HISTORY -> "Navigated back."
                 BrowserSessionBackResult.BROWSER_HOME ->
                     "Navigated to the configured browser home."
+                BrowserSessionBackResult.OPENER_HOME ->
+                    "Closed the automatic child window and returned to its browser-home opener."
                 BrowserSessionBackResult.NONE ->
                     "No back history entry or browser-home transition was available."
         }
+        val settlementSession =
+            if (backResult == BrowserSessionBackResult.OPENER_HOME) {
+                getSession(null) ?: session
+            } else {
+                session
+            }
         val settlement =
             settleBrowserAction(
-                initialSession = session,
+                initialSession = settlementSession,
                 markers = markers,
                 policy =
                     BrowserActionSettlementPolicy(
@@ -1674,7 +1705,12 @@ class StandardBrowserSessionTools private constructor(
 
         val session =
             runOnMainSync {
-                getSession(null) ?: createSessionTabOnMain(context.applicationContext, "about:blank")
+                getSession(null)
+                    ?: createSessionTabOnMain(
+                        appContext = context.applicationContext,
+                        initialUrl = "about:blank",
+                        creationReason = BrowserWindowCreationReason.AI_EXPLICIT_CREATE,
+                    )
             }
         runOnMainSync<Unit> {
             ensureSessionAttachedOnMain(session.id)
@@ -1829,6 +1865,7 @@ class StandardBrowserSessionTools private constructor(
                             appContext = context.applicationContext,
                             initialUrl = browserSettingsStore.current.homeUrl,
                             profile = profile,
+                            creationReason = BrowserWindowCreationReason.AI_EXPLICIT_CREATE,
                         )
                     }
                 val settlement = settleBrowserAction(session, captureActionMarkers(session))

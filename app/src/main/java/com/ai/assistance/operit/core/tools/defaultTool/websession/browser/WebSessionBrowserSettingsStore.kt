@@ -19,6 +19,10 @@ internal data class WebSessionBrowserSettings(
     val automaticFloatingPlaybackEnabled: Boolean = true,
     val automaticFloatingMinimumDurationMillis: Long =
         DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS,
+    val swipeHistoryNavigationEnabled: Boolean = false,
+    val restoreLastSearchResultEnabled: Boolean = false,
+    val askBeforeRestoringPagesEnabled: Boolean = false,
+    val retainMultipleWindowsEnabled: Boolean = false,
     val userAgentMode: WebSessionUserAgentMode = WebSessionUserAgentMode.ANDROID,
     val customGlobalUserAgent: String = "",
     val siteUserAgentRules: List<WebSessionSiteUserAgentRule> = emptyList(),
@@ -102,6 +106,26 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         }
         _state.value =
             _state.value.copy(automaticFloatingMinimumDurationMillis = durationMillis)
+    }
+
+    fun setSwipeHistoryNavigationEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_SWIPE_HISTORY_NAVIGATION, enabled) }
+        _state.value = _state.value.copy(swipeHistoryNavigationEnabled = enabled)
+    }
+
+    fun setRestoreLastSearchResultEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_RESTORE_LAST_SEARCH_RESULT, enabled) }
+        _state.value = _state.value.copy(restoreLastSearchResultEnabled = enabled)
+    }
+
+    fun setAskBeforeRestoringPagesEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_ASK_BEFORE_RESTORING_PAGES, enabled) }
+        _state.value = _state.value.copy(askBeforeRestoringPagesEnabled = enabled)
+    }
+
+    fun setRetainMultipleWindowsEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_RETAIN_MULTIPLE_WINDOWS, enabled) }
+        _state.value = _state.value.copy(retainMultipleWindowsEnabled = enabled)
     }
 
     fun setUserAgentMode(mode: WebSessionUserAgentMode) {
@@ -217,6 +241,14 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                             "Invalid automatic floating minimum duration: $durationMillis"
                         }
                     },
+            swipeHistoryNavigationEnabled =
+                preferences.getBoolean(KEY_SWIPE_HISTORY_NAVIGATION, false),
+            restoreLastSearchResultEnabled =
+                preferences.getBoolean(KEY_RESTORE_LAST_SEARCH_RESULT, false),
+            askBeforeRestoringPagesEnabled =
+                preferences.getBoolean(KEY_ASK_BEFORE_RESTORING_PAGES, false),
+            retainMultipleWindowsEnabled =
+                preferences.getBoolean(KEY_RETAIN_MULTIPLE_WINDOWS, false),
             userAgentMode = userAgentMode,
             customGlobalUserAgent = customGlobalUserAgent,
             siteUserAgentRules = decodeSiteUserAgentRules(preferences.getString(KEY_SITE_USER_AGENTS, "")),
@@ -270,6 +302,10 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_AUTOMATIC_FLOATING_PLAYBACK = "automatic_floating_playback"
         private const val KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION =
             "automatic_floating_minimum_duration"
+        private const val KEY_SWIPE_HISTORY_NAVIGATION = "swipe_history_navigation"
+        private const val KEY_RESTORE_LAST_SEARCH_RESULT = "restore_last_search_result"
+        private const val KEY_ASK_BEFORE_RESTORING_PAGES = "ask_before_restoring_pages"
+        private const val KEY_RETAIN_MULTIPLE_WINDOWS = "retain_multiple_windows"
         private const val KEY_USER_AGENT_MODE = "user_agent_mode"
         private const val KEY_CUSTOM_GLOBAL_USER_AGENT = "custom_global_user_agent"
         private const val KEY_SITE_USER_AGENTS = "site_user_agents"

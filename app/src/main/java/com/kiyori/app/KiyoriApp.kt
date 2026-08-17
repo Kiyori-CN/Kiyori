@@ -57,12 +57,17 @@ import com.kiyori.app.shell.KiyoriShellChild
 import com.kiyori.app.shell.KiyoriShellExternalDestination
 import com.kiyori.app.shell.KiyoriShellState
 import com.kiyori.app.shell.KiyoriShellStateSaver
+import com.kiyori.app.shell.KiyoriSettingsOrigin
+import com.kiyori.app.shell.KiyoriSettingsPresentation
+import com.kiyori.app.shell.BrowserWorkspaceReturnToken
 import com.kiyori.app.shell.PrimaryDestination
 import com.kiyori.app.shell.SoftwareHomePage
-import com.kiyori.app.shell.openExternalChild
 import com.kiyori.app.shell.openExternalDestination
 import com.kiyori.app.shell.resolveKiyoriWebSearchRequest
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
+import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.integration.operit.navigation.AiDrawerSelectionEffect
 import com.kiyori.integration.operit.navigation.AiTopBarMode
 import com.kiyori.integration.operit.navigation.OperitNavigationIntegrationEffects
@@ -131,6 +136,9 @@ fun KiyoriApp(
         mutableStateOf(KiyoriShellState())
     }
     var pendingForegroundBrowserUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var browserWorkspaceReturnToken by remember {
+        mutableStateOf<BrowserWorkspaceReturnToken?>(null)
+    }
     val updateShellState: (KiyoriShellState) -> Unit = { nextState ->
         shellState = nextState
     }
@@ -294,6 +302,7 @@ fun KiyoriApp(
         newScreen: Screen,
         source: RouteEntrySource = RouteEntrySource.DEFAULT,
         forceNewInstance: Boolean = false,
+        navigationContextId: String? = null,
     ) {
         isNavigatingBack = false
         val nextEntry =
@@ -313,6 +322,7 @@ fun KiyoriApp(
             routeId = nextEntry.routeId,
             args = nextEntry.args,
             source = nextEntry.source,
+            navigationContextId = navigationContextId,
             routeSpec =
                 if (forceNewInstance) {
                     requireNotNull(routeSpec) {
@@ -376,14 +386,15 @@ fun KiyoriApp(
         screen: Screen,
         rootId: String,
     ) {
-        if (shellState.child == KiyoriShellChild.SETTINGS_HOME) {
-            // 覆盖式设置首页必须保留来源 AI 栈；把详情压入当前栈，返回时才能先回设置首页，
-            // 再由设置首页返回浏览器或原 AI 页面。
+        val settingsNavigation = shellState.settingsNavigation
+        if (settingsNavigation != null) {
             navigateTo(
                 newScreen = screen,
                 source = RouteEntrySource.KIYORI_SETTINGS,
                 forceNewInstance = true,
+                navigationContextId = settingsNavigation.sessionId,
             )
+            updateShellState(shellState.showSettingsOperitRoute())
             return
         }
         saveCurrentAiPrimaryStack()
@@ -399,23 +410,37 @@ fun KiyoriApp(
                 ),
         )
         updateShellState(
-            shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
+            shellState
+                .openSettings(
+                    origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                ).showSettingsOperitRoute(),
         )
     }
 
     fun performGoBack() {
         if (routerState.canPop) {
             isNavigatingBack = true
+            val returningFromKiyoriSettings =
+                currentRouteEntry.source == RouteEntrySource.KIYORI_SETTINGS &&
+                    currentRouteEntry.navigationContextId ==
+                    shellState.settingsNavigation?.sessionId
             routerState.pop()
+            if (returningFromKiyoriSettings) {
+                updateShellState(
+                    shellState.settingsNavigation
+                        ?.let { shellState.restoreSettingsAfterOperitRoute() }
+                        ?: shellState,
+                )
+            }
         } else if (currentScreen !is Screen.AiChat) {
             isNavigatingBack = true
             val rootSource = routerState.backStack.first().source
             if (rootSource == RouteEntrySource.KIYORI_SETTINGS) {
-                saveCurrentAiPrimaryStack()
-                routerState.resetTo(
-                    aiChatDrawerEntry.toAiPrimaryRouteEntry(RouteEntrySource.DEFAULT),
+                updateShellState(
+                    shellState.settingsNavigation
+                        ?.let { shellState.restoreSettingsAfterOperitRoute() }
+                        ?: shellState,
                 )
-                updateShellState(shellState.returnFromKiyoriAiSettings())
             } else {
                 replaceAiPrimary(aiChatDrawerEntry, RouteEntrySource.DEFAULT)
                 updateShellState(
@@ -502,7 +527,7 @@ fun KiyoriApp(
         }
         if (entry.entryId == aiSettingsDrawerEntry.entryId) {
             updateShellState(
-                shellState.openChild(KiyoriShellChild.SETTINGS_HOME),
+                shellState.openSettings(origin = KiyoriSettingsOrigin.AI_HOST),
             )
             return
         }
@@ -516,19 +541,70 @@ fun KiyoriApp(
 
     fun submitWebSearch(request: KiyoriWebSearchRequest) {
         val createdSessionId =
-            browserCoordinator.openUrlInNewSession(
+            browserCoordinator.openSearchResultInNewSession(
                 url = request.targetUrl,
                 profile = request.profile,
+                query = request.query,
+                engineId = request.engineId,
+                source = request.source,
             )
         if (createdSessionId != null) {
             if (request.profile.shouldPersistBrowserHistory) {
                 scope.launch {
-                    browserHistoryStore.addSearchHistory(request.query, request.targetUrl)
+                    browserHistoryStore.addSearchHistory(
+                        query = request.query,
+                        targetUrl = request.targetUrl,
+                        engineId = request.engineId,
+                        source = request.source,
+                    )
                 }
             }
             updateShellState(
                 shellState.openBrowser(KiyoriBrowserReturnTarget.SOFTWARE_HOME),
             )
+        }
+    }
+
+    fun openBrowserWorkspaceFromSettings(route: KiyoriBrowserWorkspaceRoute) {
+        val settingsNavigation = shellState.settingsNavigation ?: return
+        val pluginRouteId = route.stableId
+        val token =
+            BrowserWorkspaceReturnToken(
+                settingsSessionId = settingsNavigation.sessionId,
+                settingsRoutes = settingsNavigation.routes,
+                sourceBrowserSessionId = browserCoordinator.activeSessionId(),
+                initialPluginRouteId = pluginRouteId,
+            )
+        browserWorkspaceReturnToken = token
+        updateShellState(shellState.suspendSettingsForBrowserWorkspace())
+        browserCoordinator.openBrowserWorkspace(route) {
+            val currentToken = browserWorkspaceReturnToken
+            if (
+                currentToken != null &&
+                    shellState.settingsNavigation?.sessionId == currentToken.settingsSessionId
+            ) {
+                val suspendedNavigation =
+                    checkNotNull(shellState.settingsNavigation) {
+                        "Browser workspace return requires the suspended settings session."
+                    }
+                check(
+                    suspendedNavigation.presentation ==
+                        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
+                ) {
+                    "Browser workspace return requires a suspended settings presentation."
+                }
+                check(suspendedNavigation.routes == currentToken.settingsRoutes) {
+                    "Browser workspace changed the suspended settings route stack."
+                }
+                check(currentToken.initialPluginRouteId == pluginRouteId) {
+                    "Browser workspace closed with a mismatched route token."
+                }
+                browserCoordinator.restoreBrowserWorkspaceSourceSession(
+                    currentToken.sourceBrowserSessionId,
+                )
+                browserWorkspaceReturnToken = null
+                updateShellState(shellState.restoreSettingsFromBrowserWorkspace())
+            }
         }
     }
 
@@ -643,6 +719,7 @@ fun KiyoriApp(
                                 rawQuery = resources.getString(R.string.kiyori_home_weather_query, city),
                                 searchEngine = browserHistoryStore.searchEngineFlow.first(),
                                 profile = browserCoordinator.newSessionProfileState().defaultProfile,
+                                source = KiyoriBrowserSearchSource.SOFTWARE_HOME,
                             )
                         request?.let(::submitWebSearch)
                     }
@@ -664,19 +741,22 @@ fun KiyoriApp(
                     )
                 },
                 onOpenAiAssistantFromKiyoriSettings = {
-                    if (shellState.child == KiyoriShellChild.SETTINGS_HOME) {
+                    val settingsNavigation = shellState.settingsNavigation
+                    if (settingsNavigation != null) {
                         navigateTo(
                             newScreen = Screen.Settings,
                             source = RouteEntrySource.KIYORI_SETTINGS,
                             forceNewInstance = true,
+                            navigationContextId = settingsNavigation.sessionId,
                         )
+                        updateShellState(shellState.showSettingsOperitRoute())
                     } else {
                         replaceAiPrimary(
                             aiSettingsDrawerEntry,
                             RouteEntrySource.KIYORI_SETTINGS,
                         )
                         updateShellState(
-                            shellState.selectPrimary(PrimaryDestination.SETTINGS_HOME),
+                            shellState.openSettings(origin = KiyoriSettingsOrigin.AI_HOST)
                         )
                     }
                 },
@@ -688,7 +768,14 @@ fun KiyoriApp(
                 },
                 onOpenBrowserSettingsFromKiyoriSettings = {
                     updateShellState(
-                        shellState.openChild(KiyoriShellChild.BROWSER_SETTINGS),
+                        if (shellState.settingsNavigation != null) {
+                            shellState.openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+                        } else {
+                            shellState.openSettings(
+                                origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                                initialRoute = KiyoriSettingsRoute.BROWSER,
+                            )
+                        },
                     )
                 },
                 onOpenAppearanceSettingsFromKiyoriSettings = {
@@ -703,6 +790,7 @@ fun KiyoriApp(
                         rootId = "data_management",
                     )
                 },
+                onOpenBrowserWorkspace = ::openBrowserWorkspaceFromSettings,
                 onSubmitWebSearch = ::submitWebSearch,
                 onRequestExit = {
                     val now = System.currentTimeMillis()
@@ -729,12 +817,17 @@ fun KiyoriApp(
                         },
                         onOpenSettingsHome = {
                             updateShellState(
-                                shellState.openChild(KiyoriShellChild.SETTINGS_HOME),
+                                shellState.openSettings(
+                                    origin = KiyoriSettingsOrigin.BROWSER_HOME,
+                                ),
                             )
                         },
                         onOpenDownloadSettings = {
                             updateShellState(
-                                shellState.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
+                                shellState.openSettings(
+                                    origin = KiyoriSettingsOrigin.BROWSER_HOME,
+                                    initialRoute = KiyoriSettingsRoute.DOWNLOAD,
+                                ),
                             )
                         },
                         onCloseBrowser = {

@@ -586,7 +586,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings expose only verified capabilities`() {
         assertEquals(
-            listOf(4, 2, 2, 4, 3),
+            listOf(4, 3, 3, 2, 4, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -597,6 +597,10 @@ class KiyoriSettingsPagesTest {
                 "脚本诊断与日志",
                 "网页主页自定义",
                 "返回不重载",
+                "滑屏前进后退",
+                "恢复上次的搜索结果",
+                "询问是否恢复页面",
+                "保留多窗口",
                 "强制页面缩放",
                 "网页文字大小",
                 "允许网页打开应用",
@@ -625,6 +629,14 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.OPEN_HOME_CUSTOMIZATION,
                 "返回不重载" to
                     KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
+                "滑屏前进后退" to
+                    KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
+                "恢复上次的搜索结果" to
+                    KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT,
+                "询问是否恢复页面" to
+                    KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES,
+                "保留多窗口" to
+                    KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS,
                 "强制页面缩放" to
                     KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
                 "网页文字大小" to
@@ -653,6 +665,7 @@ class KiyoriSettingsPagesTest {
             listOf(
                 "网页插件与脚本",
                 "主页与导航",
+                "启动与窗口",
                 "网页显示",
                 "网站权限与数据",
                 "音视频嗅探",
@@ -670,10 +683,32 @@ class KiyoriSettingsPagesTest {
         assertTrue(initialBrowserSettings.returnWithoutReloadEnabled)
         assertTrue(initialBrowserSettings.forcePageZoomEnabled)
         assertTrue(initialBrowserSettings.websitePasswordSavingEnabled)
+        assertFalse(initialBrowserSettings.swipeHistoryNavigationEnabled)
+        assertFalse(initialBrowserSettings.restoreLastSearchResultEnabled)
+        assertFalse(initialBrowserSettings.askBeforeRestoringPagesEnabled)
+        assertFalse(initialBrowserSettings.retainMultipleWindowsEnabled)
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(15, entries.size)
+        assertEquals(19, entries.size)
+        assertEquals(
+            listOf(4, 3, 3, 2, 4, 3),
+            kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
+        )
+        listOf(
+            "滑屏前进后退",
+            "恢复上次的搜索结果",
+            "询问是否恢复页面",
+            "保留多窗口",
+        ).forEach { title ->
+            assertFalse(
+                browserSettingToggleValue(
+                    entry = entries.single { entry -> entry.title == title },
+                    settings = browserSettings,
+                    userscriptState = WebSessionUserscriptUiState(),
+                ),
+            )
+        }
         assertEquals(
             "https://example.com/home",
             browserSettingValue(
@@ -783,21 +818,6 @@ class KiyoriSettingsPagesTest {
         assertEquals("默认 · 100%", formatWebTextZoomPercent(100))
         assertEquals("135%", formatWebTextZoomPercent(135))
         assertEquals("空白页", formatBrowserHomeUrl("about:blank"))
-    }
-
-    @Test
-    fun `browser plugin routes close settings before opening the current tab drawer`() {
-        val events = mutableListOf<String>()
-
-        runBrowserPluginRouteFromSettings(
-            onCloseSettings = { events += "close-settings" },
-            onOpenRoute = { events += "open-browser-route" },
-        )
-
-        assertEquals(
-            listOf("close-settings", "open-browser-route"),
-            events,
-        )
     }
 
     @Test

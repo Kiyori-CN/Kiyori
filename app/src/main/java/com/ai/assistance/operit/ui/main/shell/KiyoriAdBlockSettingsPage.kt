@@ -1,7 +1,6 @@
 package com.ai.assistance.operit.ui.main.shell
 
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +65,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browse
 import com.ai.assistance.operit.util.AppLogger
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.LocalKiyoriSettingsColors
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import java.text.DateFormat
 import java.text.NumberFormat
 import java.util.Date
@@ -126,7 +126,9 @@ private sealed interface KiyoriAdBlockDeleteRequest {
 
 @Composable
 internal fun KiyoriAdBlockSettingsPage(
+    route: KiyoriSettingsRoute,
     onBack: () -> Unit,
+    onNavigate: (KiyoriSettingsRoute) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -137,8 +139,17 @@ internal fun KiyoriAdBlockSettingsPage(
     val refreshingSubscriptionIds by store.refreshingSubscriptionIds.collectAsState()
     val subscriptionRefreshProgress by store.subscriptionRefreshProgress.collectAsState()
     val scope = rememberCoroutineScope()
-    var section by remember { mutableStateOf(KiyoriAdBlockSettingsSection.OVERVIEW) }
-    var searchQuery by remember(section) { mutableStateOf("") }
+    val section =
+        when (route) {
+            KiyoriSettingsRoute.AD_BLOCK_OVERVIEW -> KiyoriAdBlockSettingsSection.OVERVIEW
+            KiyoriSettingsRoute.AD_BLOCK_URL_RULES -> KiyoriAdBlockSettingsSection.NETWORK_RULES
+            KiyoriSettingsRoute.AD_BLOCK_ELEMENT_RULES -> KiyoriAdBlockSettingsSection.ELEMENT_RULES
+            KiyoriSettingsRoute.AD_BLOCK_ALLOW_LIST -> KiyoriAdBlockSettingsSection.ALLOWLIST
+            KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS ->
+                KiyoriAdBlockSettingsSection.SUBSCRIPTIONS
+            else -> error("Unsupported route for ad-block settings: $route")
+        }
+    var searchQuery by remember(route) { mutableStateOf("") }
     var editorRequest by remember { mutableStateOf<KiyoriAdBlockEditorRequest?>(null) }
     var deleteRequest by remember { mutableStateOf<KiyoriAdBlockDeleteRequest?>(null) }
     var expandedElementDomains by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -242,22 +253,12 @@ internal fun KiyoriAdBlockSettingsPage(
         }
     }
 
-    val requestBack = {
-        if (section == KiyoriAdBlockSettingsSection.OVERVIEW) {
-            onBack()
-        } else {
-            section = KiyoriAdBlockSettingsSection.OVERVIEW
-        }
-    }
-    BackHandler(enabled = section != KiyoriAdBlockSettingsSection.OVERVIEW) {
-        section = KiyoriAdBlockSettingsSection.OVERVIEW
-    }
     val subscriptionBatchActionsEnabled =
         runtimeStatus.ready && subscriptionRefreshProgress == null
 
     KiyoriCollapsingSettingsPage(
         title = section.title,
-        onBack = requestBack,
+        onBack = onBack,
         modifier = modifier,
     ) {
         when (section) {
@@ -286,7 +287,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             iconTone = KiyoriSemanticTone.RED,
                             value = state.customNetworkRules.size.toString(),
                             onClick = {
-                                section = KiyoriAdBlockSettingsSection.NETWORK_RULES
+                                onNavigate(KiyoriSettingsRoute.AD_BLOCK_URL_RULES)
                             },
                         )
                         KiyoriSettingsDivider()
@@ -298,7 +299,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             iconTone = KiyoriSemanticTone.PURPLE,
                             value = state.customElementRules.size.toString(),
                             onClick = {
-                                section = KiyoriAdBlockSettingsSection.ELEMENT_RULES
+                                onNavigate(KiyoriSettingsRoute.AD_BLOCK_ELEMENT_RULES)
                             },
                         )
                         KiyoriSettingsDivider()
@@ -310,7 +311,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             iconTone = KiyoriSemanticTone.GREEN,
                             value = state.allowlistedDomains.size.toString(),
                             onClick = {
-                                section = KiyoriAdBlockSettingsSection.ALLOWLIST
+                                onNavigate(KiyoriSettingsRoute.AD_BLOCK_ALLOW_LIST)
                             },
                         )
                     }
@@ -336,7 +337,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             iconTone = KiyoriSemanticTone.BLUE,
                             value = subscriptionGroupSummary(proSubscriptions),
                             onClick = {
-                                section = KiyoriAdBlockSettingsSection.SUBSCRIPTIONS
+                                onNavigate(KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS)
                             },
                         )
                         KiyoriSettingsDivider()
@@ -348,7 +349,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             iconTone = KiyoriSemanticTone.GREEN,
                             value = subscriptionGroupSummary(adblockPlusSubscriptions),
                             onClick = {
-                                section = KiyoriAdBlockSettingsSection.SUBSCRIPTIONS
+                                onNavigate(KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS)
                             },
                         )
                         KiyoriSettingsDivider()
@@ -360,7 +361,7 @@ internal fun KiyoriAdBlockSettingsPage(
                             iconTone = KiyoriSemanticTone.PURPLE,
                             value = state.subscriptions.size.toString(),
                             onClick = {
-                                section = KiyoriAdBlockSettingsSection.SUBSCRIPTIONS
+                                onNavigate(KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS)
                             },
                         )
                     }

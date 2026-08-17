@@ -59,6 +59,7 @@ data class RouteEntry(
     val args: Map<String, Any?> = emptyMap(),
     val source: RouteEntrySource = RouteEntrySource.DEFAULT,
     val navigationRootEntryId: String? = null,
+    val navigationContextId: String? = null,
 )
 
 @Immutable
@@ -115,6 +116,7 @@ class AppRouterState(initialEntry: RouteEntry) {
         routeId: String,
         args: Map<String, Any?> = emptyMap(),
         source: RouteEntrySource = RouteEntrySource.DEFAULT,
+        navigationContextId: String? = null,
         routeSpec: RouteSpec? = null
     ): RouteEntry {
         val current = currentEntry
@@ -125,7 +127,13 @@ class AppRouterState(initialEntry: RouteEntry) {
         ) {
             return current
         }
-        val nextEntry = RouteEntry(routeId = routeId, args = args, source = source)
+        val nextEntry =
+            RouteEntry(
+                routeId = routeId,
+                args = args,
+                source = source,
+                navigationContextId = navigationContextId,
+            )
         stack.add(nextEntry)
         currentEntry = nextEntry
         return nextEntry

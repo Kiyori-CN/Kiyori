@@ -6,3 +6,4 @@ com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionPro
 com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
 com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
+com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource

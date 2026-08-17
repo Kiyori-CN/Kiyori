@@ -164,6 +164,9 @@ M04B_BROWSER_SEARCH_HASH_SNAPSHOT = (
 M04B_BROWSER_SEARCH_OPERIT_IMPORT_SNAPSHOT = (
     "m04b-browser-search-operit-imports.txt"
 )
+M04B_BROWSER_SEARCH_CAPABILITY_IMPORT = (
+    "com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource"
+)
 M04C_OLD_ROUTE_CATALOG_PATH = (
     "app/src/main/java/com/ai/assistance/operit/ui/main/navigation/"
     "AppRouteCatalog.kt"
@@ -1140,6 +1143,7 @@ def source_files(
         )
     return sorted(paths)
 PERSISTENCE_CALL_SPECS = {
+    "DataStoreFactory.create": ("named", "produceFile"),
     "preferencesDataStore": ("named", "name"),
     "getSharedPreferences": ("index", 0),
     "Room.databaseBuilder": ("index", 2),
@@ -1165,7 +1169,6 @@ PERSISTENCE_BYPASS_IMPORT_PATTERN = re.compile(
 UNREVIEWED_PERSISTENCE_CALL_PATTERN = re.compile(
     r"(?<![A-Za-z0-9_])(?:"
     r"PreferenceManager\.getDefaultSharedPreferences"
-    r"|DataStoreFactory\.create"
     r"|PreferenceDataStoreFactory\.create"
     r"|Room\.inMemoryDatabaseBuilder"
     r"|SQLiteDatabase\.openDatabase"
@@ -2742,6 +2745,7 @@ def check_m04b_shell_state_owner(root: Path, errors: list[str]) -> None:
                 f"{M04B_BROWSER_EXIT_CONTRACT_PACKAGE}."
                 "KiyoriBrowserExitPresentation"
             ): 1,
+            "com.kiyori.capability.settings.navigation.KiyoriSettingsRoute": 1,
         }
     )
     actual_state_imports = Counter(
@@ -2841,14 +2845,16 @@ def check_m04b_shell_state_owner(root: Path, errors: list[str]) -> None:
     root_path = root / M04_ROOT_PATH
     if root_path.is_file():
         expected_root_imports = {
+            "com.kiyori.app.shell.BrowserWorkspaceReturnToken",
             "com.kiyori.app.shell.KiyoriBrowserReturnTarget",
+            "com.kiyori.app.shell.KiyoriSettingsOrigin",
+            "com.kiyori.app.shell.KiyoriSettingsPresentation",
             "com.kiyori.app.shell.KiyoriShellChild",
             "com.kiyori.app.shell.KiyoriShellExternalDestination",
             "com.kiyori.app.shell.KiyoriShellState",
             "com.kiyori.app.shell.KiyoriShellStateSaver",
             "com.kiyori.app.shell.PrimaryDestination",
             "com.kiyori.app.shell.SoftwareHomePage",
-            "com.kiyori.app.shell.openExternalChild",
             "com.kiyori.app.shell.openExternalDestination",
         }
         if (root / M04B_APP_SHELL_PATH).is_file():
@@ -3659,7 +3665,10 @@ def check_m04b_browser_search_owner(root: Path, errors: list[str]) -> None:
     if len(expected_import_entries) != len(set(expected_import_entries)):
         raise ValueError("duplicate M-04B Browser Search import snapshot entry")
     if any(
-        not import_matches_root(imported, "com.ai.assistance.operit")
+        not (
+            import_matches_root(imported, "com.ai.assistance.operit")
+            or imported == M04B_BROWSER_SEARCH_CAPABILITY_IMPORT
+        )
         for imported in expected_import_entries
     ):
         raise ValueError("invalid non-Operit Browser Search import snapshot entry")

@@ -9,5 +9,7 @@ com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
 com.ai.assistance.operit.ui.main.shell.KiyoriPlayerSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
+com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
+com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 com.kiyori.design.theme.KiyoriBrowserTheme
 com.kiyori.design.theme.KiyoriSettingsTheme

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import java.lang.ref.WeakReference
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * 接收 Android lifecycle facts 后执行产品集成。
@@ -91,6 +92,7 @@ internal class KiyoriActivityLifecycleFacts {
  */
 object KiyoriActivityLifecycle : Application.ActivityLifecycleCallbacks {
     private val facts = KiyoriActivityLifecycleFacts()
+    private val activityStoppedListeners = CopyOnWriteArrayList<(Activity) -> Unit>()
     private lateinit var observer: KiyoriActivityLifecycleObserver
 
     internal fun initialize(
@@ -104,6 +106,21 @@ object KiyoriActivityLifecycle : Application.ActivityLifecycleCallbacks {
     fun getCurrentActivity(): Activity? = facts.getCurrentActivity()
 
     fun isAppInForeground(): Boolean = facts.isAppInForeground()
+
+    /**
+     * 注册只读的 Activity stopped 事实订阅者。
+     *
+     * Android callback 只能由这个 platform owner 注册；业务能力通过订阅事实接入，
+     * 避免每个能力再次向 Application 注册第二个 lifecycle owner。
+     */
+    internal fun registerActivityStoppedListener(
+        listener: (Activity) -> Unit,
+    ): () -> Unit {
+        activityStoppedListeners += listener
+        return {
+            activityStoppedListeners -= listener
+        }
+    }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
         observer.onActivityCreated(activity, facts.onActivityCreated())
@@ -125,6 +142,9 @@ object KiyoriActivityLifecycle : Application.ActivityLifecycleCallbacks {
 
     override fun onActivityStopped(activity: Activity) {
         observer.onActivityStopped(activity, facts.onActivityStopped())
+        activityStoppedListeners.forEach { listener ->
+            listener(activity)
+        }
     }
 
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {

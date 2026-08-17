@@ -30,6 +30,7 @@ from check_architecture_boundaries import (  # noqa: E402
     M04B_APP_SHELL_PATH,
     M04B_AI_DRAWER_PATH,
     M04B_BROWSER_SEARCH_PATH,
+    M04B_BROWSER_SEARCH_CAPABILITY_IMPORT,
     M04B_PRIMARY_NAVIGATION_PATH,
     M04B_SOFTWARE_HOME_PATH,
     M04C_NAVIGATION_INTEGRATION_PATH,
@@ -450,6 +451,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         shell_state.write_text(
             "package com.kiyori.app.shell\n"
             "import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation\n"
+            "import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute\n"
             "enum class PrimaryDestination { SOFTWARE_HOME }\n"
             "enum class KiyoriBrowserReturnTarget { SOFTWARE_HOME }\n"
             "enum class SoftwareHomePage { HOME }\n"
@@ -473,14 +475,16 @@ class ArchitectureBoundaryTest(unittest.TestCase):
         files = {
             M04_ROOT_PATH: (
                 "package com.kiyori.app\n"
+                "import com.kiyori.app.shell.BrowserWorkspaceReturnToken\n"
                 "import com.kiyori.app.shell.KiyoriBrowserReturnTarget\n"
                 "import com.kiyori.app.shell.KiyoriShellChild\n"
                 "import com.kiyori.app.shell.KiyoriShellExternalDestination\n"
                 "import com.kiyori.app.shell.KiyoriShellState\n"
                 "import com.kiyori.app.shell.KiyoriShellStateSaver\n"
+                "import com.kiyori.app.shell.KiyoriSettingsOrigin\n"
+                "import com.kiyori.app.shell.KiyoriSettingsPresentation\n"
                 "import com.kiyori.app.shell.PrimaryDestination\n"
                 "import com.kiyori.app.shell.SoftwareHomePage\n"
-                "import com.kiyori.app.shell.openExternalChild\n"
                 "import com.kiyori.app.shell.openExternalDestination\n"
                 "import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation\n"
             ),
@@ -550,6 +554,8 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "com.ai.assistance.operit.ui.main.shell.KiyoriPrimaryRootPage",
             "com.ai.assistance.operit.ui.main.shell.KiyoriSoftwareHomePage",
             "com.ai.assistance.operit.ui.main.shell.KiyoriWebSearchRequest",
+            "com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute",
+            "com.kiyori.capability.settings.navigation.KiyoriSettingsRoute",
             "com.kiyori.design.theme.KiyoriBrowserTheme",
             "com.kiyori.design.theme.KiyoriSettingsTheme",
         )
@@ -887,6 +893,7 @@ class ArchitectureBoundaryTest(unittest.TestCase):
             "com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine",
             "com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite",
             "com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen",
+            M04B_BROWSER_SEARCH_CAPABILITY_IMPORT,
         )
         browser_search.write_text(
             "package com.kiyori.app.shell\n\n"
@@ -7706,6 +7713,52 @@ class KiyoriPathsTest {
                 "app/src/main/java/com/example/Store.kt"
                 '\tpreferencesDataStore\t"stable_store"',
             )
+
+    def test_data_store_factory_contract_is_extracted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/java/com/example/Store.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "val store = DataStoreFactory.create(\n"
+                "    serializer = Serializer,\n"
+                "    scope = scope,\n"
+                "    produceFile = browserSessionRecoveryFileProducer,\n"
+                ")\n",
+                encoding="utf-8",
+            )
+            git(root, "add", "app/src/main/java/com/example/Store.kt")
+            self.assertEqual(
+                persistence_api_records(root),
+                Counter(
+                    {
+                        "app/src/main/java/com/example/Store.kt"
+                        "\tDataStoreFactory.create\tbrowserSessionRecoveryFileProducer": 1,
+                    },
+                ),
+            )
+
+    def test_unregistered_data_store_factory_contract_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git(root, "init", "-b", "main")
+            source = root / "app/src/main/java/com/example/Store.kt"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "val store = DataStoreFactory.create(\n"
+                "    produceFile = browserSessionRecoveryFileProducer,\n"
+                ")\n",
+                encoding="utf-8",
+            )
+            git(root, "add", "app/src/main/java/com/example/Store.kt")
+            snapshot = root / "persistence-api-calls.txt"
+            snapshot.write_text("", encoding="utf-8")
+            errors: list[str] = []
+            check_persistence_api_calls(root, snapshot, errors)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("unexpected persistence API contract", errors[0])
+            self.assertIn("DataStoreFactory.create", errors[0])
 
     def test_persistence_api_import_alias_cannot_bypass_scanner(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

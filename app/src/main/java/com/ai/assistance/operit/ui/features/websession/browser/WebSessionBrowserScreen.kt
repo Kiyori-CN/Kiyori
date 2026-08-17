@@ -2,7 +2,6 @@ package com.ai.assistance.operit.ui.features.websession.browser
 
 import android.net.Uri
 import android.text.format.Formatter
-import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -93,6 +92,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchRecord
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserAgentMode
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserGestureNavigationFrameLayout
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.areBrowserHomeUrlsEquivalent
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildWebSessionBookmarkFolderTree
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.automaticFloatingCandidateStabilityDelayMillis
@@ -238,6 +238,7 @@ internal fun WebSessionBrowserScreen(
     showMediaCandidateBadge: Boolean,
     automaticFloatingPlaybackEnabled: Boolean,
     automaticFloatingMinimumDurationMillis: Long,
+    swipeHistoryNavigationEnabled: Boolean,
     onCopyTextSelection: () -> Unit,
     onSelectAllTextSelection: () -> Unit,
     onDismissTextSelection: () -> Unit,
@@ -562,15 +563,47 @@ internal fun WebSessionBrowserScreen(
                                 .background(MaterialTheme.colorScheme.background),
                         contentAlignment = Alignment.Center
                     ) {
+                        val isGestureNavigationBlocked =
+                            hostState.sheetRoute != WebSessionBrowserSheetRoute.NONE ||
+                                hostState.isSearchVisible ||
+                                hostState.isSearchEnginePanelVisible ||
+                                hostState.pageSource.exitPromptVisible ||
+                                hostState.textSelectionActions != null ||
+                                hostState.webElementAction != null ||
+                                hostState.adMarking.active ||
+                                hostState.adMarkingOverlay != WebSessionAdMarkingOverlay.NONE ||
+                                hostState.adMarkingNavigationRequest != null ||
+                                hostState.downloadPrompt != null ||
+                                browserState.pendingDialog != null
                         AndroidView(
                             factory = { context ->
-                                FrameLayout(context).apply {
+                                BrowserGestureNavigationFrameLayout(context).apply {
                                     setBackgroundColor(browserHostBackgroundColor)
+                                    gestureNavigationEnabled =
+                                        swipeHistoryNavigationEnabled
+                                    gestureNavigationBlocked =
+                                        isGestureNavigationBlocked
+                                    canNavigateBack =
+                                        browserState.canGoBack ||
+                                            browserState.canReturnToHome
+                                    canNavigateForward = browserState.canGoForward
+                                    onNavigateBack = onBack
+                                    onNavigateForward = onForward
                                     webViewHost.attachContainer(this)
                                 }
                             },
                             update = { container ->
                                 container.setBackgroundColor(browserHostBackgroundColor)
+                                container.gestureNavigationEnabled =
+                                    swipeHistoryNavigationEnabled
+                                container.gestureNavigationBlocked =
+                                    isGestureNavigationBlocked
+                                container.canNavigateBack =
+                                    browserState.canGoBack ||
+                                        browserState.canReturnToHome
+                                container.canNavigateForward = browserState.canGoForward
+                                container.onNavigateBack = onBack
+                                container.onNavigateForward = onForward
                                 webViewHost.attachContainer(container)
                             },
                             onRelease = { container ->

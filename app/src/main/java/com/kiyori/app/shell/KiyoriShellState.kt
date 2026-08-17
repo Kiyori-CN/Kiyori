@@ -1,6 +1,7 @@
 package com.kiyori.app.shell
 
 import androidx.compose.runtime.saveable.listSaver
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
 
 enum class PrimaryDestination {
@@ -34,11 +35,6 @@ enum class SoftwareHomePage(val pagerIndex: Int) {
 
 enum class KiyoriShellChild {
     FULL_SCREEN_WEB_SEARCH,
-    SETTINGS_HOME,
-    BROWSER_SETTINGS,
-    DOWNLOAD_SETTINGS,
-    PLAYER_SETTINGS,
-    AD_BLOCKER_SETTINGS,
 }
 
 enum class KiyoriShellExternalDestination {
@@ -63,7 +59,7 @@ data class KiyoriShellState(
     val primaryDestination: PrimaryDestination = PrimaryDestination.SOFTWARE_HOME,
     val softwareHomePage: SoftwareHomePage = SoftwareHomePage.HOME,
     val child: KiyoriShellChild? = null,
-    val childBackTarget: KiyoriShellChild? = null,
+    val settingsNavigation: KiyoriSettingsNavigationState? = null,
     val isAiDrawerOpen: Boolean = false,
     val isBookmarkDrawerOpen: Boolean = false,
     val isHistoryDrawerOpen: Boolean = false,
@@ -88,9 +84,16 @@ data class KiyoriShellState(
                     SoftwareHomePage.HOME
                 } else {
                     softwareHomePage
-                },
+            },
             child = null,
-            childBackTarget = null,
+            settingsNavigation =
+                if (destination == PrimaryDestination.SETTINGS_HOME) {
+                    KiyoriSettingsNavigationState.start(
+                        origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                    )
+                } else {
+                    null
+                },
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -106,7 +109,7 @@ data class KiyoriShellState(
         copy(
             primaryDestination = PrimaryDestination.BROWSER_HOME,
             child = null,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -145,7 +148,7 @@ data class KiyoriShellState(
             primaryDestination = targetPrimaryDestination,
             softwareHomePage = targetSoftwareHomePage,
             child = null,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -160,7 +163,7 @@ data class KiyoriShellState(
             primaryDestination = PrimaryDestination.SOFTWARE_HOME,
             softwareHomePage = page,
             child = null,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -172,32 +175,130 @@ data class KiyoriShellState(
     fun openChild(destination: KiyoriShellChild): KiyoriShellState =
         copy(
             child = destination,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
         )
 
-    fun openNestedChild(destination: KiyoriShellChild): KiyoriShellState {
-        val currentChild = requireNotNull(child) { "A nested child requires an active parent child." }
-        require(currentChild != destination) { "A child cannot use itself as its Back target." }
-        return copy(
-            child = destination,
-            childBackTarget = currentChild,
+    fun closeChild(): KiyoriShellState =
+        copy(child = null)
+
+    fun openSettings(
+        origin: KiyoriSettingsOrigin,
+        initialRoute: KiyoriSettingsRoute = KiyoriSettingsRoute.HOME,
+    ): KiyoriShellState =
+        copy(
+            primaryDestination =
+                if (origin == KiyoriSettingsOrigin.BOTTOM_NAVIGATION) {
+                    PrimaryDestination.SETTINGS_HOME
+                } else {
+                    primaryDestination
+                },
+            child = null,
+            settingsNavigation =
+                KiyoriSettingsNavigationState.start(
+                    origin = origin,
+                    initialRoute = initialRoute,
+                ),
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
             isDownloadDrawerOpen = false,
+        )
+
+    fun openSettingsRoute(route: KiyoriSettingsRoute): KiyoriShellState =
+        copy(
+            settingsNavigation =
+                checkNotNull(settingsNavigation) {
+                    "Settings route requires an active settings session."
+                }.push(route),
+        )
+
+    fun showSettingsOperitRoute(): KiyoriShellState =
+        copy(
+            settingsNavigation =
+                checkNotNull(settingsNavigation) {
+                    "Operit settings detail requires an active settings session."
+                }.showOperitRoute(),
+        )
+
+    fun restoreSettingsAfterOperitRoute(): KiyoriShellState =
+        copy(
+            settingsNavigation =
+                checkNotNull(settingsNavigation) {
+                    "Restoring an Operit settings route requires an active settings session."
+                }.restoreSettingsPresentation(),
+        )
+
+    fun suspendSettingsForBrowserWorkspace(): KiyoriShellState =
+        copy(
+            settingsNavigation =
+                checkNotNull(settingsNavigation) {
+                    "Browser workspace requires an active settings session."
+                }.suspendForBrowserWorkspace(),
+            primaryDestination = PrimaryDestination.BROWSER_HOME,
+            browserReturnTarget =
+                browserReturnTarget
+                    ?: when (settingsNavigation.origin) {
+                        KiyoriSettingsOrigin.BOTTOM_NAVIGATION ->
+                            KiyoriBrowserReturnTarget.SETTINGS_HOME
+                        KiyoriSettingsOrigin.BROWSER_HOME,
+                        KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
+                        -> KiyoriBrowserReturnTarget.SOFTWARE_HOME
+                        KiyoriSettingsOrigin.AI_HOST -> KiyoriBrowserReturnTarget.AI_HOME
+                    },
+        )
+
+    fun restoreSettingsFromBrowserWorkspace(): KiyoriShellState {
+        val navigation =
+            checkNotNull(settingsNavigation) {
+                "Restoring a settings workspace requires an active settings session."
+            }
+        val restoredPrimary =
+            when (navigation.origin) {
+                KiyoriSettingsOrigin.BOTTOM_NAVIGATION -> PrimaryDestination.SETTINGS_HOME
+                KiyoriSettingsOrigin.BROWSER_HOME,
+                KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
+                -> PrimaryDestination.BROWSER_HOME
+                KiyoriSettingsOrigin.AI_HOST -> PrimaryDestination.SOFTWARE_HOME
+            }
+        return copy(
+            primaryDestination = restoredPrimary,
+            softwareHomePage =
+                if (navigation.origin == KiyoriSettingsOrigin.AI_HOST) {
+                    SoftwareHomePage.AI_HOME
+                } else {
+                    softwareHomePage
+                },
+            settingsNavigation = navigation.restoreSettingsPresentation(),
+            browserReturnTarget =
+                if (restoredPrimary == PrimaryDestination.BROWSER_HOME) {
+                    browserReturnTarget
+                } else {
+                    null
+                },
         )
     }
 
-    fun closeChild(): KiyoriShellState =
-        if (childBackTarget == null) {
-            copy(child = null)
-        } else {
-            copy(child = childBackTarget, childBackTarget = null)
+    fun closeSettingsRoute(): KiyoriShellState {
+        val navigation =
+            checkNotNull(settingsNavigation) {
+                "Closing a settings route requires an active settings session."
+            }
+        if (navigation.canPopRoute) {
+            return copy(settingsNavigation = navigation.popRoute())
         }
+        return when (navigation.origin) {
+            KiyoriSettingsOrigin.BOTTOM_NAVIGATION ->
+                showSoftwareHomePage(SoftwareHomePage.HOME)
+            KiyoriSettingsOrigin.BROWSER_HOME,
+            KiyoriSettingsOrigin.AI_HOST,
+            KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
+            -> copy(settingsNavigation = null)
+        }
+    }
 
     fun openAiDrawer(): KiyoriShellState =
         copy(
@@ -212,7 +313,7 @@ data class KiyoriShellState(
     fun openBookmarkDrawer(): KiyoriShellState =
         copy(
             child = null,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = true,
             isHistoryDrawerOpen = false,
@@ -224,7 +325,7 @@ data class KiyoriShellState(
     fun openHistoryDrawer(): KiyoriShellState =
         copy(
             child = null,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = true,
@@ -236,7 +337,7 @@ data class KiyoriShellState(
     fun openDownloadDrawer(): KiyoriShellState =
         copy(
             child = null,
-            childBackTarget = null,
+            settingsNavigation = null,
             isAiDrawerOpen = false,
             isBookmarkDrawerOpen = false,
             isHistoryDrawerOpen = false,
@@ -244,9 +345,6 @@ data class KiyoriShellState(
         )
 
     fun closeDownloadDrawer(): KiyoriShellState = copy(isDownloadDrawerOpen = false)
-
-    fun returnFromKiyoriAiSettings(): KiyoriShellState =
-        selectPrimary(PrimaryDestination.SETTINGS_HOME)
 
     fun handleBack(): KiyoriShellBackTransition =
         when {
@@ -273,6 +371,15 @@ data class KiyoriShellState(
             child != null ->
                 KiyoriShellBackTransition(
                     state = closeChild(),
+                    result = KiyoriShellBackResult.CONSUMED,
+                )
+            settingsNavigation != null &&
+                settingsNavigation.presentation !=
+                    KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL &&
+                settingsNavigation.presentation !=
+                    KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE ->
+                KiyoriShellBackTransition(
+                    state = closeSettingsRoute(),
                     result = KiyoriShellBackResult.CONSUMED,
                 )
             primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
@@ -305,13 +412,16 @@ internal fun KiyoriShellState.toKiyoriShellSaveableValues(): List<Any> =
         primaryDestination.name,
         softwareHomePage.name,
         child?.name.orEmpty(),
-        childBackTarget?.name.orEmpty(),
         isAiDrawerOpen,
         isBookmarkDrawerOpen,
         isHistoryDrawerOpen,
         isDownloadDrawerOpen,
         browserReturnTarget?.name.orEmpty(),
         browserExitPresentation.name,
+        settingsNavigation?.sessionId.orEmpty(),
+        settingsNavigation?.origin?.name.orEmpty(),
+        settingsNavigation?.routes?.joinToString(ROUTE_SEPARATOR) { route -> route.name }.orEmpty(),
+        settingsNavigation?.presentation?.name.orEmpty(),
     )
 
 internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
@@ -322,20 +432,34 @@ internal fun restoreKiyoriShellState(values: List<Any>): KiyoriShellState =
             (values[2] as String)
                 .takeIf { name -> name.isNotEmpty() }
                 ?.let(KiyoriShellChild::valueOf),
-        childBackTarget =
-            (values[3] as String)
-                .takeIf { name -> name.isNotEmpty() }
-                ?.let(KiyoriShellChild::valueOf),
-        isAiDrawerOpen = values[4] as Boolean,
-        isBookmarkDrawerOpen = values[5] as Boolean,
-        isHistoryDrawerOpen = values[6] as Boolean,
-        isDownloadDrawerOpen = values[7] as Boolean,
+        isAiDrawerOpen = values[3] as Boolean,
+        isBookmarkDrawerOpen = values[4] as Boolean,
+        isHistoryDrawerOpen = values[5] as Boolean,
+        isDownloadDrawerOpen = values[6] as Boolean,
         browserReturnTarget =
-            (values[8] as String)
+            (values[7] as String)
                 .takeIf { name -> name.isNotEmpty() }
                 ?.let(KiyoriBrowserReturnTarget::valueOf),
         browserExitPresentation =
-            KiyoriBrowserExitPresentation.valueOf(values[9] as String),
+            KiyoriBrowserExitPresentation.valueOf(values[8] as String),
+        settingsNavigation =
+            (values[9] as String)
+                .takeIf { it.isNotEmpty() }
+                ?.let { sessionId ->
+                    val origin = KiyoriSettingsOrigin.valueOf(values[10] as String)
+                    val routes =
+                        (values[11] as String)
+                            .split(ROUTE_SEPARATOR)
+                            .filter(String::isNotEmpty)
+                            .map(KiyoriSettingsRoute::valueOf)
+                    KiyoriSettingsNavigationState(
+                        sessionId = sessionId,
+                        origin = origin,
+                        routes = routes,
+                        presentation =
+                            KiyoriSettingsPresentation.valueOf(values[12] as String),
+                    )
+                },
     )
 
 internal val KiyoriShellStateSaver =
@@ -350,12 +474,6 @@ internal fun KiyoriShellState.openExternalChild(
     val owner =
         when (destination) {
             KiyoriShellChild.FULL_SCREEN_WEB_SEARCH -> PrimaryDestination.SOFTWARE_HOME
-            KiyoriShellChild.SETTINGS_HOME ->
-                error("Settings Home overlay must preserve its current primary owner.")
-            KiyoriShellChild.BROWSER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
-            KiyoriShellChild.DOWNLOAD_SETTINGS -> PrimaryDestination.SETTINGS_HOME
-            KiyoriShellChild.PLAYER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
-            KiyoriShellChild.AD_BLOCKER_SETTINGS -> PrimaryDestination.SETTINGS_HOME
         }
     return selectPrimary(owner).openChild(destination)
 }
@@ -377,9 +495,21 @@ internal fun KiyoriShellState.openExternalDestination(
         KiyoriShellExternalDestination.DOWNLOADS ->
             openDownloadDrawer()
         KiyoriShellExternalDestination.BROWSER_SETTINGS ->
-            openExternalChild(KiyoriShellChild.BROWSER_SETTINGS)
+            openBrowser(
+                returnTarget = resolveExternalBrowserReturnTarget(),
+                exitPresentation = resolveExternalBrowserExitPresentation(),
+            ).openSettings(
+                    origin = KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
+                    initialRoute = KiyoriSettingsRoute.BROWSER,
+                )
         KiyoriShellExternalDestination.DOWNLOAD_SETTINGS ->
-            openExternalChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+            openBrowser(
+                returnTarget = resolveExternalBrowserReturnTarget(),
+                exitPresentation = resolveExternalBrowserExitPresentation(),
+            ).openSettings(
+                    origin = KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
+                    initialRoute = KiyoriSettingsRoute.DOWNLOAD,
+                )
     }
 
 internal fun KiyoriShellState.resolveExternalBrowserExitPresentation():
@@ -427,3 +557,5 @@ internal fun calculateKiyoriAiDrawerWidthDp(
         minOf(contractWidth, leftPhysicalRegionWidth)
     }
 }
+
+private const val ROUTE_SEPARATOR = "\u001F"

@@ -41,6 +41,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserS
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptInstallSourceType
 import com.ai.assistance.operit.ui.main.MainActivity
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import java.io.ByteArrayInputStream
 import java.util.LinkedHashSet
 import java.util.Locale
@@ -59,6 +60,7 @@ private const val BROWSER_AD_BLOCK_CSS_CHUNK_CHAR_LIMIT = 64 * 1024
 internal enum class BrowserSessionBackResult {
     WEB_HISTORY,
     BROWSER_HOME,
+    OPENER_HOME,
     NONE,
 }
 
@@ -68,6 +70,9 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
     sessionName: String?,
     customUserAgent: String?,
     profile: WebSessionProfile,
+    createdAt: Long = System.currentTimeMillis(),
+    creationReason: BrowserWindowCreationReason,
+    openerHomeSessionId: String? = null,
 ): BrowserToolSession {
     // Profile binding must precede settings, bridges, userscripts, and navigation. Binding later
     // would let the new WebView touch the default profile before an incognito session is isolated.
@@ -86,7 +91,10 @@ internal fun StandardBrowserSessionTools.createSessionOnMain(
             cookieManager = profileManager.cookieManagerFor(webView, profile),
             sessionName = sessionName,
             profile = profile,
-            customUserAgent = customUserAgent
+            creationReason = creationReason,
+            openerHomeSessionId = openerHomeSessionId,
+            customUserAgent = customUserAgent,
+            createdAt = createdAt,
         )
     configureWebView(
         session = session,
@@ -119,7 +127,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
         javaScriptEnabled = true
         domStorageEnabled = true
         setSupportMultipleWindows(true)
-        javaScriptCanOpenWindowsAutomatically = true
+        // Popup requests remain observable through onCreateWindow, but automatic scripts do not
+        // receive a product window. The temporary target resolver below only promotes a stable
+        // HTTP(S) target after WebView reports a real user gesture.
+        javaScriptCanOpenWindowsAutomatically = false
         setSupportZoom(true)
         builtInZoomControls = true
         displayZoomControls = false
@@ -303,43 +314,21 @@ internal fun StandardBrowserSessionTools.configureWebView(
                     // 可以绕过当前 WebView 的主框架导航拦截。
                     return false
                 }
-                if (
-                    session.externalNavigationPolicy !=
-                        BrowserAdMarkingNavigationPolicy.DEFAULT
-                ) {
-                    val popupUrl = view?.hitTestResult?.extra.orEmpty().trim()
-                    if (popupUrl.isBlank()) {
-                        // 无法确认目标域名的弹窗不能绕过“询问/拦截”策略静默创建新标签。
-                        return false
-                    }
-                    when (
-                        resolveBrowserExternalNavigationDecision(
-                            policy = session.externalNavigationPolicy,
-                            pageUrl = session.currentUrl,
-                            targetUrl = popupUrl,
-                        )
-                    ) {
-                        BrowserExternalNavigationDecision.ALLOW -> Unit
-                        BrowserExternalNavigationDecision.ASK -> {
-                            browserHost?.showAdMarkingNavigationRequest(
-                                sessionId = session.id,
-                                payload =
-                                    JSONObject()
-                                        .put("url", popupUrl)
-                                        .put("text", "")
-                                        .toString(),
-                            )
-                            return false
-                        }
-                        BrowserExternalNavigationDecision.BLOCK -> return false
-                    }
+                if (!isUserGesture || isDialog) {
+                    return false
                 }
                 val message = resultMsg ?: return false
                 val transport = message.obj as? WebView.WebViewTransport ?: return false
-                val popupSession = runCatching { createPopupSessionOnMain(session) }.getOrNull() ?: return false
-                transport.webView = popupSession.webView
+                val resolver =
+                    runCatching {
+                        BrowserPopupTargetResolver(
+                            tools = this@configureWebView,
+                            parentSession = session,
+                        )
+                    }.getOrNull() ?: return false
+                transport.webView = resolver.webView
                 message.sendToTarget()
-                refreshSessionUiOnMain(popupSession.id)
+                resolver.start()
                 return true
             }
 
@@ -348,6 +337,8 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 val popupSession = window?.let(::findSessionByWebView)
                 if (popupSession != null) {
                     closeSession(popupSession.id)
+                } else {
+                    window?.destroy()
                 }
             }
 
@@ -355,6 +346,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 super.onReceivedTitle(view, title)
                 session.pageTitle = title.orEmpty()
                 refreshSessionUiOnMain(session.id)
+                scheduleBrowserRecoverySnapshotWrite()
                 if (session.profile.shouldPersistBrowserHistory) {
                     ioScope.launch {
                         historyStore.updateTitle(session.currentUrl, session.pageTitle)
@@ -484,6 +476,17 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 // Redirects do not pass through navigateSessionOnMain; update before their
                 // subresources inherit the previous page's site-specific identity.
                 applySessionUserAgent(session, resolveSessionUserAgent(session, url))
+                if (
+                    shouldClearBrowserSearchRecoveryOnNavigation(
+                        pageLoaded = session.pageLoaded,
+                        searchRecoveryPending = session.searchRecoveryPending,
+                        resolvedResultUrl = session.lastSearchRecovery?.resolvedResultUrl,
+                        targetUrl = url,
+                    )
+                ) {
+                    session.lastSearchRecovery = null
+                    scheduleBrowserRecoverySnapshotWrite()
+                }
                 session.currentUrl = url
                 session.adMarkingActive = false
                 session.credentialDocumentToken = UUID.randomUUID().toString()
@@ -516,6 +519,12 @@ internal fun StandardBrowserSessionTools.configureWebView(
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 session.currentUrl = url
+                if (session.searchRecoveryPending) {
+                    session.lastSearchRecovery =
+                        session.lastSearchRecovery?.copy(resolvedResultUrl = url)
+                    session.searchRecoveryPending = false
+                    scheduleBrowserRecoverySnapshotWrite()
+                }
                 restoreReturnWithoutReloadOnMain(session)
                 userscriptManager.onPageChanged(session.id, url)
                 session.pageTitle = view.title ?: ""
@@ -767,6 +776,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                         appContext = appContext,
                         initialUrl = browserSettingsStore.current.homeUrl,
                         profile = profile,
+                        creationReason = BrowserWindowCreationReason.MANUAL_NEW_WINDOW,
                     )
                 } catch (error: IllegalStateException) {
                     if (profile != WebSessionProfile.INCOGNITO) {
@@ -875,6 +885,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     appContext = appContext,
                     initialUrl = url,
                     profile = sourceSession.profile,
+                    creationReason = BrowserWindowCreationReason.OPEN_IN_NEW_WINDOW,
                 )
                 if (!active) {
                     activateSessionOnMain(sourceSessionId)
@@ -1071,7 +1082,12 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     runCatching {
                         historyStore.setSearchEngine(engine)
                         if (profile.shouldPersistBrowserHistory) {
-                            historyStore.addSearchHistory(normalizedQuery, targetUrl)
+                            historyStore.addSearchHistory(
+                                query = normalizedQuery,
+                                targetUrl = targetUrl,
+                                engineId = engine.id,
+                                source = KiyoriBrowserSearchSource.BROWSER_HOME,
+                            )
                         }
                     }.onFailure { error ->
                         AppLogger.e(WEBVIEW_SUPPORT_TAG, "Failed to persist browser search history", error)
@@ -1086,23 +1102,57 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                     }
                 }
             }
-            openSearchTarget(targetUrl, profile)
+            openSearchTarget(
+                targetUrl = targetUrl,
+                profile = profile,
+                searchRecovery =
+                    if (targetUrl == engine.buildSearchUrl(normalizedQuery)) {
+                        BrowserSessionSearchRecovery(
+                            query = normalizedQuery,
+                            engineId = engine.id,
+                            source = KiyoriBrowserSearchSource.BROWSER_HOME,
+                            requestedUrl = targetUrl,
+                            resolvedResultUrl = targetUrl,
+                            submittedAt = System.currentTimeMillis(),
+                        )
+                    } else {
+                        null
+                    },
+            )
         }
 
         override fun onOpenSearchRecord(
             record: WebSessionSearchRecord,
             profile: WebSessionProfile,
         ) {
-            openSearchTarget(record.targetUrl, profile)
+            openSearchTarget(
+                targetUrl = record.targetUrl,
+                profile = profile,
+                searchRecovery =
+                    BrowserSessionSearchRecovery(
+                        query = record.query,
+                        engineId = record.engineId,
+                        source = KiyoriBrowserSearchSource.SEARCH_HISTORY,
+                        requestedUrl = record.targetUrl,
+                        resolvedResultUrl = record.targetUrl,
+                        submittedAt = record.createdAt,
+                    ),
+            )
         }
 
         private fun openSearchTarget(
             targetUrl: String,
             profile: WebSessionProfile,
+            searchRecovery: BrowserSessionSearchRecovery?,
         ) {
             runOnMainSync<Unit> {
                 val activeSession = getActiveSessionOnMain()
                 if (!shouldCreateSessionForSearch(activeSession?.profile, profile)) {
+                    activeSession?.let { session ->
+                        session.lastSearchRecovery = searchRecovery
+                        session.searchRecoveryPending = searchRecovery != null
+                        scheduleBrowserRecoverySnapshotWrite()
+                    }
                     openUrlOnMain(appContext, targetUrl)
                     return@runOnMainSync
                 }
@@ -1111,7 +1161,18 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
                         appContext = appContext,
                         initialUrl = targetUrl,
                         profile = profile,
+                        creationReason =
+                            if (activeSession?.profile == profile) {
+                                BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH
+                            } else {
+                                BrowserWindowCreationReason.PROFILE_BOUNDARY_SEARCH
+                            },
                     )
+                    sessionById(StandardBrowserSessionTools.activeSessionId.orEmpty())?.let { session ->
+                        session.lastSearchRecovery = searchRecovery
+                        session.searchRecoveryPending = searchRecovery != null
+                        scheduleBrowserRecoverySnapshotWrite()
+                    }
                 } catch (error: IllegalStateException) {
                     AppLogger.e(
                         WEBVIEW_SUPPORT_TAG,
@@ -1629,22 +1690,38 @@ internal fun StandardBrowserSessionTools.openUserscriptDetailOnMain(scriptId: Lo
 internal fun StandardBrowserSessionTools.createSessionTabOnMain(
     appContext: Context,
     initialUrl: String,
+    sessionId: String = UUID.randomUUID().toString(),
     sessionName: String? = null,
     customUserAgent: String? = null,
     profile: WebSessionProfile = defaultSessionProfile,
+    createdAt: Long = System.currentTimeMillis(),
+    creationReason: BrowserWindowCreationReason,
+    openerHomeSessionId: String? = null,
 ): BrowserToolSession {
     StandardBrowserSessionTools.activeSessionId
         ?.let(::sessionById)
         ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
-    val sessionId = UUID.randomUUID().toString()
+    require(sessionById(sessionId) == null) {
+        "Browser session id is already active: $sessionId"
+    }
     val session =
-        createSessionOnMain(appContext, sessionId, sessionName, customUserAgent, profile)
+        createSessionOnMain(
+            appContext = appContext,
+            sessionId = sessionId,
+            sessionName = sessionName,
+            customUserAgent = customUserAgent,
+            profile = profile,
+            createdAt = createdAt,
+            creationReason = creationReason,
+            openerHomeSessionId = openerHomeSessionId,
+        )
     StandardBrowserSessionTools.sessions[sessionId] = session
     addSessionOrder(sessionId)
     StandardBrowserSessionTools.activeSessionId = sessionId
     ensureBrowserPresentationOnMain(appContext)
     navigateSessionOnMain(session, initialUrl)
     ensureSessionAttachedOnMain(sessionId)
+    scheduleBrowserRecoverySnapshotWrite()
     return session
 }
 
@@ -1661,6 +1738,7 @@ internal fun StandardBrowserSessionTools.openUserscriptTabOnMain(
             appContext = appContext,
             initialUrl = url,
             profile = sourceSession.profile,
+            creationReason = BrowserWindowCreationReason.OPEN_IN_NEW_WINDOW,
         )
     if (!active && !previousActiveId.isNullOrBlank() && previousActiveId != newSession.id) {
         activateSessionOnMain(previousActiveId)
@@ -1696,6 +1774,7 @@ internal fun StandardBrowserSessionTools.navigateSessionOnMain(
         session.webView.loadUrl(targetUrl)
     }
     refreshNavigationStateAsync(session)
+    scheduleBrowserRecoverySnapshotWrite()
 }
 
 internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
@@ -1703,6 +1782,7 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
 ): BrowserSessionBackResult {
     ensureSessionAttachedOnMain(session.id)
     updateNavigationState(session)
+    var shouldRefreshNavigation = true
     val result =
         when {
             session.canGoBack -> {
@@ -1721,15 +1801,44 @@ internal fun StandardBrowserSessionTools.navigateSessionBackOnMain(
                 configuredHomeUrl = browserSettingsStore.current.homeUrl,
                 navigationState = session.browserHomeNavigationState,
             ) -> {
-                navigateSessionOnMain(
-                    session = session,
-                    targetUrl = browserSettingsStore.current.homeUrl,
-                )
-                BrowserSessionBackResult.BROWSER_HOME
+                val opener = session.openerHomeSessionId?.let(::sessionById)
+                when (
+                    resolveBrowserSessionRootBackAction(
+                        creationReason = session.creationReason,
+                        openerHomeSessionExists = opener != null,
+                        openerProfileMatches = opener?.profile == session.profile,
+                        openerStillAtConfiguredHome =
+                            opener?.let { openerSession ->
+                                isAtConfiguredBrowserHome(
+                                    currentUrl = openerSession.currentUrl,
+                                    configuredHomeUrl = browserSettingsStore.current.homeUrl,
+                                    navigationState = openerSession.browserHomeNavigationState,
+                                )
+                            } == true,
+                    )
+                ) {
+                    BrowserSessionRootBackAction.CLOSE_AND_ACTIVATE_OPENER_HOME -> {
+                        closeSession(session.id)
+                        checkNotNull(opener).let { openerSession ->
+                            activateSessionOnMain(openerSession.id)
+                        }
+                        shouldRefreshNavigation = false
+                        BrowserSessionBackResult.OPENER_HOME
+                    }
+                    BrowserSessionRootBackAction.NAVIGATE_TO_CONFIGURED_HOME -> {
+                        navigateSessionOnMain(
+                            session = session,
+                            targetUrl = browserSettingsStore.current.homeUrl,
+                        )
+                        BrowserSessionBackResult.BROWSER_HOME
+                    }
+                }
             }
             else -> BrowserSessionBackResult.NONE
         }
-    refreshNavigationStateAsync(session)
+    if (shouldRefreshNavigation) {
+        refreshNavigationStateAsync(session)
+    }
     return result
 }
 
@@ -1765,7 +1874,13 @@ private fun StandardBrowserSessionTools.completeBrowserHomeNavigationOnMain(
 
 internal fun StandardBrowserSessionTools.openUrlOnMain(appContext: Context, url: String) {
     val existingSession = getActiveSessionOnMain()
-    val session = existingSession ?: createSessionTabOnMain(appContext, initialUrl = url)
+    val session =
+        existingSession
+            ?: createSessionTabOnMain(
+                appContext = appContext,
+                initialUrl = url,
+                creationReason = BrowserWindowCreationReason.MANUAL_NEW_WINDOW,
+            )
     if (existingSession != null) {
         navigateSessionOnMain(session, url)
     }
@@ -1801,8 +1916,10 @@ internal fun StandardBrowserSessionTools.activateSessionOnMain(sessionId: String
         ?.let(::sessionById)
         ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
     StandardBrowserSessionTools.activeSessionId = sessionId
+    session.lastActivatedAt = System.currentTimeMillis()
     updateNavigationState(session)
     syncProjectedBrowserStateOnMain()
+    scheduleBrowserRecoverySnapshotWrite()
 }
 
 internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: String) {
@@ -1820,6 +1937,7 @@ internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: 
         ?.let(::sessionById)
         ?.let { previous -> requestSessionThumbnailOnMain(previous, force = false) }
     StandardBrowserSessionTools.activeSessionId = sessionId
+    session.lastActivatedAt = System.currentTimeMillis()
     runCatching {
         session.webView.onResume()
         session.webView.resumeTimers()
@@ -1828,6 +1946,7 @@ internal fun StandardBrowserSessionTools.ensureSessionAttachedOnMain(sessionId: 
     }
     updateNavigationState(session)
     syncProjectedBrowserStateOnMain()
+    scheduleBrowserRecoverySnapshotWrite()
 }
 
 internal fun StandardBrowserSessionTools.refreshSessionUiOnMain(sessionId: String? = null) {
@@ -2519,24 +2638,152 @@ internal fun StandardBrowserSessionTools.configureCookiePolicy(session: BrowserT
     }
 }
 
-internal fun StandardBrowserSessionTools.createPopupSessionOnMain(
-    parentSession: BrowserToolSession
-): BrowserToolSession {
-    val popupSession =
-        createSessionOnMain(
-            appContext = parentSession.webView.context ?: context.applicationContext,
-            sessionId = UUID.randomUUID().toString(),
-            sessionName = parentSession.sessionName,
-            customUserAgent = parentSession.customUserAgent,
-            profile = parentSession.profile,
+private class BrowserPopupTargetResolver(
+    private val tools: StandardBrowserSessionTools,
+    private val parentSession: BrowserToolSession,
+) {
+    private var settled = false
+    private val timeoutRunnable = Runnable { finish() }
+    val webView: WebView =
+        WebView(tools.resolveWebViewContext(parentSession.webView.context)).also { target ->
+            tools.profileManager.requireProfileAvailable(parentSession.profile)
+            tools.profileManager.bindProfileBeforeConfiguration(target, parentSession.profile)
+            // 解析器只接收 Chromium 提交的主框架目标。执行弹窗页面脚本会在站点策略完成
+            // 判定前扩大不受控代码执行面，因此保持 WebView 默认禁用 JavaScript。
+            target.settings.domStorageEnabled = false
+            target.settings.setSupportMultipleWindows(false)
+            target.settings.javaScriptCanOpenWindowsAutomatically = false
+            target.settings.allowFileAccess = false
+            target.settings.allowContentAccess = false
+            target.webViewClient =
+                object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                    ): Boolean {
+                        val url = request?.url?.toString().orEmpty()
+                        if (request?.isForMainFrame == true) {
+                            resolveTarget(url)
+                        }
+                        return false
+                    }
+
+                    override fun onPageStarted(
+                        view: WebView?,
+                        url: String?,
+                        favicon: android.graphics.Bitmap?,
+                    ) {
+                        super.onPageStarted(view, url, favicon)
+                        resolveTarget(url.orEmpty())
+                    }
+                }
+        }
+
+    fun start() {
+        StandardBrowserSessionTools.mainHandler.postDelayed(
+            timeoutRunnable,
+            POPUP_TARGET_RESOLUTION_TIMEOUT_MILLIS,
         )
-    StandardBrowserSessionTools.sessions[popupSession.id] = popupSession
-    addSessionOrder(popupSession.id)
-    StandardBrowserSessionTools.activeSessionId = popupSession.id
-    ensureBrowserPresentationOnMain(context.applicationContext)
-    syncProjectedBrowserStateOnMain()
-    return popupSession
+    }
+
+    private fun resolveTarget(rawUrl: String) {
+        if (settled) {
+            return
+        }
+        val targetUrl = rawUrl.trim()
+        if (browserSiteIdentity(targetUrl) == null) {
+            return
+        }
+        if (tools.isUserscriptInstallUri(targetUrl.toUri())) {
+            tools.userscriptManager.beginUrlInstall(
+                targetUrl,
+                UserscriptInstallSourceType.PAGE_LINK,
+            )
+            tools.openUserscriptManagerOnMain()
+            finish()
+            return
+        }
+        if (
+            parentSession.externalNavigationPolicy !=
+                BrowserAdMarkingNavigationPolicy.DEFAULT
+        ) {
+            when (
+                resolveBrowserExternalNavigationDecision(
+                    policy = parentSession.externalNavigationPolicy,
+                    pageUrl = parentSession.currentUrl,
+                    targetUrl = targetUrl,
+                )
+            ) {
+                BrowserExternalNavigationDecision.ALLOW -> Unit
+                BrowserExternalNavigationDecision.ASK -> {
+                    tools.browserHost?.showAdMarkingNavigationRequest(
+                        sessionId = parentSession.id,
+                        payload =
+                            JSONObject()
+                                .put("url", targetUrl)
+                                .put("text", "")
+                                .toString(),
+                    )
+                    finish()
+                    return
+                }
+                BrowserExternalNavigationDecision.BLOCK -> {
+                    finish()
+                    return
+                }
+            }
+        }
+        val sourceAtConfiguredHome =
+            isAtConfiguredBrowserHome(
+                currentUrl = parentSession.currentUrl,
+                configuredHomeUrl = tools.browserSettingsStore.current.homeUrl,
+                navigationState = parentSession.browserHomeNavigationState,
+            )
+        when (
+            resolveBrowserWindowNavigationDecision(
+                BrowserWindowNavigationRequest(
+                    sourceUrl = parentSession.currentUrl,
+                    targetUrl = targetUrl,
+                    isMainFrame = true,
+                    hasUserGesture = true,
+                    isPopup = true,
+                    sourceAtConfiguredHome = sourceAtConfiguredHome,
+                ),
+            )
+        ) {
+            BrowserWindowNavigationDecision.CURRENT_SESSION -> {
+                tools.navigateSessionOnMain(parentSession, targetUrl)
+                tools.ensureSessionAttachedOnMain(parentSession.id)
+            }
+            BrowserWindowNavigationDecision.CREATE_CHILD_SESSION -> {
+                tools.createSessionTabOnMain(
+                    appContext = parentSession.webView.context ?: tools.context.applicationContext,
+                    initialUrl = targetUrl,
+                    sessionName = parentSession.sessionName,
+                    customUserAgent = parentSession.customUserAgent,
+                    profile = parentSession.profile,
+                    creationReason =
+                        BrowserWindowCreationReason.HOME_CROSS_SITE_USER_NAVIGATION,
+                    openerHomeSessionId = parentSession.id,
+                )
+            }
+            BrowserWindowNavigationDecision.REJECT -> Unit
+        }
+        finish()
+    }
+
+    private fun finish() {
+        if (settled) {
+            return
+        }
+        settled = true
+        StandardBrowserSessionTools.mainHandler.removeCallbacks(timeoutRunnable)
+        webView.stopLoading()
+        webView.destroy()
+    }
 }
+
+private const val POPUP_TARGET_RESOLUTION_TIMEOUT_MILLIS = 2_000L
 
 internal fun StandardBrowserSessionTools.findSessionByWebView(
     webView: WebView
@@ -2606,6 +2853,41 @@ internal fun StandardBrowserSessionTools.handleNavigationOverrideOnMain(
                 userscriptManager.beginUrlInstall(rawUrl, UserscriptInstallSourceType.PAGE_LINK)
                 openUserscriptManagerOnMain()
                 true
+            } else if (request.isForMainFrame) {
+                val decision =
+                    resolveBrowserWindowNavigationDecision(
+                        BrowserWindowNavigationRequest(
+                            sourceUrl = session.currentUrl,
+                            targetUrl = rawUrl,
+                            isMainFrame = true,
+                            hasUserGesture = request.hasGesture(),
+                            isPopup = false,
+                            sourceAtConfiguredHome =
+                                isAtConfiguredBrowserHome(
+                                    currentUrl = session.currentUrl,
+                                    configuredHomeUrl = browserSettingsStore.current.homeUrl,
+                                    navigationState = session.browserHomeNavigationState,
+                                ),
+                        ),
+                    )
+                when (decision) {
+                    BrowserWindowNavigationDecision.CURRENT_SESSION -> false
+                    BrowserWindowNavigationDecision.REJECT -> true
+                    BrowserWindowNavigationDecision.CREATE_CHILD_SESSION -> {
+                        createSessionTabOnMain(
+                            appContext = session.webView.context ?: context.applicationContext,
+                            initialUrl = rawUrl,
+                            sessionName = session.sessionName,
+                            customUserAgent = session.customUserAgent,
+                            profile = session.profile,
+                            creationReason =
+                                BrowserWindowCreationReason
+                                    .HOME_CROSS_SITE_USER_NAVIGATION,
+                            openerHomeSessionId = session.id,
+                        )
+                        true
+                    }
+                }
             } else {
                 false
             }
@@ -2895,6 +3177,7 @@ internal fun StandardBrowserSessionTools.closeSession(sessionId: String): Boolea
         refreshSessionUiOnMain()
     }
 
+    scheduleBrowserRecoverySnapshotWrite()
     return true
 }
 

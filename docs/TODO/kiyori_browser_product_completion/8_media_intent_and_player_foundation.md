@@ -98,7 +98,7 @@ native 命名空间：
 - 全屏返回行为：来自浏览器的 session 返回悬浮或关闭
 - Anime4K 模式：关、A、B、C、A+、B+、C+，分别约束锁定的 Balanced/M shader 链
 
-设置首页“视频播放器”进入 `KiyoriShellChild.PLAYER_SETTINGS`。页面复用
+设置首页“视频播放器”进入活动设置会话的 `KiyoriSettingsRoute.PLAYER`。页面复用
 `KiyoriCollapsingSettingsPage`、`KiyoriSettingsGroupCard` 及浏览器/下载设置已有行组件、卡片间距和折叠
 标题，不建立新设计系统。
 

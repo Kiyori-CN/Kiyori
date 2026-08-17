@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-07-22
-updated: 2026-08-14
+updated: 2026-08-17
 supersedes: 0002_product_shell_and_ai_center_navigation.md
 ---
 
@@ -26,8 +26,8 @@ supersedes: 0002_product_shell_and_ai_center_navigation.md
 - AI 一级页面保留各自的页面状态与子栈。一级页面显示三横线，深层页面显示返回箭头；一级页面 Back 返回 AI 首页，深层页面 Back 返回所属一级页面。
 - 原生一级根使用稳定实例。ToolPkg 一级根每次进入生成新路由实例，只有对应路由声明 `keepAlive=true` 时才恢复组合状态和保存子栈。
 - AI 一级根在路由条目上显式保存注册入口 ID。宿主入口按 route ID 匹配，ToolPkg 插件入口按 route ID 和注册参数匹配；不得通过 route args、返回栈深度或 instance ID 前缀猜测根归属。启动、快捷方式、raw route 与 `AppRouterGateway` 共用这一规则。
-- 抽屉底部“设置”打开来源保持型 `KiyoriShellChild.SETTINGS_HOME`，不替换当前 AI 一级路由或子栈；设置首页隐藏软件首页底部五入口，Back 关闭该子层并回到原 AI 页面。
-- AI 助手设置保持单一页面、表单与持久状态，由设置首页进入。底部设置主目的地进入时使用既有 Kiyori Settings 根返回；来源保持型设置首页进入时把 AI 助手页压入当前 AI 栈，Back 先回设置首页，再回原浏览器或 AI 页面。
+- 抽屉底部“设置”启动 `KiyoriSettingsOrigin.AI_HOST` 的来源保持型设置会话，不替换当前 AI 一级路由或子栈；设置首页隐藏软件首页底部五入口，设置详情按 capability-level `KiyoriSettingsRoute` 栈逐级返回，关闭设置首页后回到原 AI 页面。
+- AI 助手设置保持单一页面、表单与持久状态，由设置首页进入。Operit 设置 route 携带活动设置 `sessionId`，返回时恢复同一设置 route stack；底部设置、Browser Menu 和 AI 左抽屉不再用 `KiyoriShellChild` 表达设置层级。
 - 包管理、ToolPkg、脚本包和插件市场继续属于 AI 抽屉及其独立目的地，不得经由设置首页为底部小程序产品域保留的“小程序管理”空入口打开。
 - `Screen.ShizukuCommands`、Kiyori 权限总览和 `ToolPermissionSystem` 继续是三个不同的页面与状态 owner，不互相复制。
 - AI Home 保持单一、稳定的组合宿主。打开或关闭抽屉、切换 AI 一级页面都不能暂停、取消、销毁或重建其流式回答、思考、工具调用、附件、草稿、会话和滚动状态。

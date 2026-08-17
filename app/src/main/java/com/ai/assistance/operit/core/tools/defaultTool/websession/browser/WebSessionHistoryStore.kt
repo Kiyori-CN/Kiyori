@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 
 import android.content.Context
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -230,10 +231,20 @@ internal class WebSessionHistoryStore private constructor(private val context: C
         }
     }
 
-    suspend fun addSearchHistory(query: String, targetUrl: String) {
+    suspend fun addSearchHistory(
+        query: String,
+        targetUrl: String,
+        engineId: String,
+        source: KiyoriBrowserSearchSource,
+    ) {
         val normalizedQuery = query.trim()
         val normalizedTargetUrl = targetUrl.trim()
-        if (normalizedQuery.isBlank() || normalizedTargetUrl.isBlank()) {
+        val normalizedEngineId = engineId.trim()
+        if (
+            normalizedQuery.isBlank() ||
+                normalizedTargetUrl.isBlank() ||
+                normalizedEngineId.isBlank()
+        ) {
             return
         }
 
@@ -247,6 +258,8 @@ internal class WebSessionHistoryStore private constructor(private val context: C
                         query = normalizedQuery,
                         targetUrl = normalizedTargetUrl,
                         createdAt = now,
+                        engineId = normalizedEngineId,
+                        source = source,
                     )
                 )
                 addAll(

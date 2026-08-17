@@ -87,7 +87,7 @@ kiyori_browser_product_completion/
 4. 成功构建 Debug APK，核对时间、大小、SHA-256、包名、版本和签名
 5. 记录任务日记和 APK 证据后才进入下一编号
 
-提交和推送不是里程碑默认动作。只有用户在当前任务中另行明确授权时，才审计 staged allowlist、提交到唯一 `main` 并核对远端 SHA；当前 Goal 未授权提交或推送。
+提交和推送不是里程碑默认动作。只有用户在当前任务中另行明确授权时，才审计 staged allowlist、提交到唯一 `main` 并核对远端 SHA；未获授权的历史里程碑状态不能替代当前任务权限。
 
 任何构建仍在运行时不得启动第二个 Gradle 构建。Release、部署、APK 安装、ADB、MuMu 和设备自动化不在本计划授权范围内。
 
@@ -101,6 +101,8 @@ kiyori_browser_product_completion/
 | 历史、书签和搜索记录 | `WebSessionHistoryStore` | 浏览器与负一屏共享抽屉，全屏搜索复用搜索记录 | 浏览器工具不复制存储 |
 | 下载任务 | `BrowserDownloadManager` | 浏览器抽屉和全屏下载中心复用 | 下载事件进入浏览器结果 |
 | 浏览器运行偏好 | 搜索与历史由 `WebSessionHistoryStore` 持有；Profile 由 Browser Runtime 持有；UA 与浏览器通用设置由 `WebSessionBrowserSettingsStore` 持有 | 浏览器主流程直接使用唯一 owner | 只通过明确能力读取或修改 |
+| 设置导航 | `KiyoriSettingsNavigationState` + capability-level `KiyoriSettingsRoute` | 底部设置、Browser Menu 与 AI 左抽屉共用同一来源保持 route stack | Operit 设置 route 只携带同一 settings session context |
+| 普通窗口启动恢复 | `BrowserSessionRecoveryStore` + Browser Runtime 的最小普通窗口投影 | 按三个启动恢复开关自动恢复或询问 | AI 不从磁盘导入旧页面，只操作当前 live runtime |
 | 播放会话 | 唯一 `PlayerSession` / mpv core | 全屏、悬浮和浏览器共用同一媒体与 Surface owner 状态 | 后续 capability adapter 只能调用该 owner |
 
 ## 全局交互合同
@@ -112,6 +114,17 @@ kiyori_browser_product_completion/
   先关闭文本选择、网页弹窗、下载确认、菜单或子抽屉、搜索引擎面板和全屏搜索，再执行当前窗口
   主页根之后的 WebView 历史后退；历史耗尽且当前窗口尚未位于自定义主页时先进入主页并建立新的
   历史根，只有已经位于主页根时才按本次入口的离开方式退出 Browser Home
+- 普通网页的同站、跨站、用户 `_blank` 和用户 `window.open()` 都在当前 WebSession 中导航；
+  popup 只使用不注册到窗口列表的同 Profile 临时解析 WebView。只有配置主页根上的真实用户跨站
+  跳转会创建同 Profile 子窗口并保留 opener 主页；子窗口历史耗尽后关闭并回到仍有效的主页窗口
+- 底部设置、Browser Menu 与 AI 左抽屉共用 `KiyoriSettingsNavigationState`。详情按
+  `KiyoriSettingsRoute` 栈逐级返回，Browser/AI 来源在设置首页关闭后恢复原 Browser Home/WebSession
+  或原 AI 页面/路由栈；插件中心和脚本工作台通过一次性 return token 恢复同一设置会话
+- “滑屏前进后退”默认关闭，开启后只从左右边缘请求当前窗口 Back/Forward，并在抽屉、搜索、
+  文本选择、广告标记、对话框和无障碍触摸探索等冲突状态下停用
+- 普通窗口启动恢复只保存最小 URL 级投影。`保留多窗口`、`恢复上次的搜索结果` 和
+  `询问是否恢复页面` 按多窗口、搜索候选、活动普通页的顺序组合；无痕窗口及 Cookie、请求头、
+  DOM、表单、正文、截图和密码始终不落盘。搜索结果窗口离开已加载结果页后立即失去搜索恢复资格
 - 系统层最小 indicator 单击时通过专用恢复 action 打开 Browser Home，长按时消费进入动作并创建球体右上角外围的透明 `28dp` 临时关闭窗口，其中只绘制 `16dp` 红色叉号。该窗口按住期间不可触摸，松手后保留 3 秒，随拖动同步且不越出屏幕，点击复用菜单 `onExitBrowser`；后台 anchor 不处理浏览器 Back、IME、cutout 或完整 chrome
 - 软件首页全屏搜索创建新窗口；浏览器顶栏搜索继续导航当前窗口，两者不混用
 - 普通窗口和无痕窗口不能互相转换；关闭窗口后其 Profile 语义不改变
@@ -124,7 +137,7 @@ kiyori_browser_product_completion/
 1. [DONE] P0：悬浮浏览器系统 Back、状态栏背景和人工窗口 AI 接管；本地实现、定向测试与 Debug APK 已完成，真机验收待用户执行
 2. [DONE] P0：软件首页与全屏搜索已接入共享 Browser Runtime；2026-07-28 完成搜索引擎图标、覆盖式淡蓝引擎面板、标题/网址双行操作区、自适应历史标签和显式删除提交，并按浏览器菜单基准压缩尺寸、补齐面板周围收起与当前网页区返回。历史清空现使用底部确认框且确认后立即执行，标签叉号仍由“完成”提交；此前本地定向测试、formal readiness、Kotlin 编译与 Debug APK 已验证。最新历史区放大与复制/编辑图标缩小按用户要求未运行 Gradle 或 APK 构建，真机视觉、输入法和无痕 Profile 交互继续待验收
 3. [DONE] P1：真无痕 Profile、窗口逻辑与网页缩略图；本地实现、定向测试与 Debug APK 已完成，真机 WebView Multi-Profile、缩略图和交互待用户验收
-4. [LOCAL DONE] P1：网页浏览器设置按 `4/2/2/4/3` 重排为“网页插件与脚本 / 主页与导航 / 网页显示 / 网站权限与数据 / 音视频嗅探”五组 15 行。自定义主页、返回不重载、强制页面缩放、网页文字大小、网站密码自动保存、搜索栏嗅探入口、自动悬浮播放、网页外部应用和网页定位接入唯一 `WebSessionBrowserSettingsStore`；凭据由普通 Profile 专属、Android Keystore AES-GCM 加密且不参与备份的唯一 `BrowserCredentialVault` 持有。定向 JVM `22/22`、本轮相关 CI Python `115/115`、formal readiness、AAPT、零可见 Lint、Debug APK 构建及产物签名/对齐核验均已通过；真实网页 Back、动态 viewport、双指缩放、站点字体和登录表单仍保持设备 `verification_pending`
+4. [LOCAL DONE / VERIFICATION PENDING] P1：网页浏览器设置当前为 `4/3/3/2/4/3` 六组 19 行：“网页插件与脚本 / 主页与导航 / 启动与窗口 / 网页显示 / 网站权限与数据 / 音视频嗅探”。新增“滑屏前进后退 / 恢复上次的搜索结果 / 询问是否恢复页面 / 保留多窗口”，四项默认关闭并继续由唯一 `WebSessionBrowserSettingsStore` 持有。设置导航已改为来源保持 route stack；普通网页默认当前窗口，popup 使用保持 JavaScript 默认关闭的临时解析器，配置主页真实用户跨站是唯一自动保留主页窗口的例外；普通窗口恢复只保存最小 URL 级投影且彻底排除无痕。项目 Python `220/220`、完整 JVM `229 suites / 1362 tests`、AndroidTest Kotlin/Java 编译、formal readiness、architecture `phase=m03` 和完整 Lint 已通过；最终 Lint 为 23 条依赖版本/既有 UseKtx 提示，未新增 suppress 或扩大 baseline。Debug APK 为 `494168730` bytes，SHA-256 `1A03F576811C482F4F1CB366532564B340553DCA2267CAB394B86F5067630E2F`，身份、唯一 launcher、Debug V2 单签名、16 KB ZIP、arm64-only 与 `52/52` 个 ELF64/AArch64 审计通过。目标设备返回、手势、popup、冷启动和普通/无痕现场矩阵保持 `verification_pending`
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；设置页已按播放器标准重排为 `5/2/3/1` 四组 11 行，“默认保存位置”统一选择应用目录、公开目录或 SAF 自定义目录，继续复用唯一 `BrowserDownloadSettingsStore` 和 `BrowserDownloadManager`；系统下载器生效时内置引擎专属项目明确禁用。仍待下载中心双筛选/批量操作复刻及真机综合验收
 6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成。2026-07-30 已完成统一历史抽屉：扩展现有 `WebSessionHistoryStore`，普通网页访问与唯一 `PlayerSession` 分别写入网页/视频记录，视频区分在线与本地，浏览器菜单与负一屏共享搜索、六分类和分时段删除抽屉；定向测试、Debug APK 和新版历史界面用户验收已通过，完整设备场景仍按第六阶段清单继续验证
 7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与 native 边界，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏入口均已完成本地实现；2026-07-28 又完成精确视频格式、被动时长、推荐排序、动态格式筛选、双开关与结果动作弹窗。人工播放固定进入横向全屏，自动推荐才进入悬浮；该里程碑保留为嗅探入口完成记录，后续在线播放 native 修复见阶段 8、10、11 的 `2026-07-29` 补充证据

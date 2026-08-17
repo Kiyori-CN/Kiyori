@@ -3,6 +3,7 @@ package com.ai.assistance.operit.core.tools.defaultTool.websession.browser
 import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageMenuCommand
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import java.net.URI
 import java.util.Locale
 import kotlinx.serialization.Serializable
@@ -135,6 +136,8 @@ internal data class WebSessionSearchRecord(
     val query: String,
     val targetUrl: String,
     val createdAt: Long,
+    val engineId: String = WebSessionSearchEngine.DEFAULT.id,
+    val source: KiyoriBrowserSearchSource = KiyoriBrowserSearchSource.BROWSER_HOME,
 )
 
 @Immutable

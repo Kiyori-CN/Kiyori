@@ -1,11 +1,48 @@
 # 网页浏览器设置复刻
 
-> 2026-08-14 当前合同：设置首页“广告拦截器”进入唯一 `KiyoriShellChild.AD_BLOCKER_SETTINGS`；
-> 浏览器菜单第四行第三项显示通用“设置”，打开保留 Browser Home
-> 状态的 `KiyoriShellChild.SETTINGS_HOME`；设置首页中的“网页浏览器”再进入唯一 Browser
-> Settings owner，顶部标题固定为同名“网页浏览器”。Back 先回设置首页，再回原 Browser Home。
+> 2026-08-17 当前合同：底部设置、Browser Menu 和 AI 左抽屉共用
+> `KiyoriSettingsNavigationState` 与 capability-level `KiyoriSettingsRoute`。设置详情逐级返回到
+> 设置首页，Browser/AI 来源再恢复原 Browser Home/WebSession 或原 AI 页面/路由栈。网页浏览器
+> 设置当前为 `4/3/3/2/4/3` 六组 19 行；下方早期章节中的 `KiyoriShellChild`、旧分组数量和
+> “当前”字样均是对应日期的历史观察，不再代表现行导航与设置合同。
 
-## 2026-08-14 广告拦截器设置页
+## 2026-08-17 设置路由、窗口、滑屏与普通窗口恢复
+
+[LOCAL IMPLEMENTED / DEVICE VERIFICATION PENDING]
+
+- `KiyoriSettingsNavigationState` 持有稳定 `sessionId`、来源、完整 route stack 和 presentation；
+  `KiyoriShellChild` 只剩非设置的全屏网页搜索，`childBackTarget`、`openNestedChild()`、
+  浏览器设置 `subPageName` 和旧 AI 设置返回特例已经从业务路径删除
+- 浏览器设置当前六组为 `4/3/3/2/4/3`：网页插件与脚本、主页与导航、启动与窗口、网页显示、
+  网站权限与数据、音视频嗅探，总计 19 项
+- 新增“滑屏前进后退 / 恢复上次的搜索结果 / 询问是否恢复页面 / 保留多窗口”，新安装均默认关闭；
+  三个恢复开关变化立即重写或清除普通窗口最小恢复投影
+- 普通网页同站、跨站、用户 `_blank` 和用户 `window.open()` 默认在当前窗口导航。popup 由同
+  Profile 临时目标解析 WebView 捕获首个稳定 HTTP(S) 目标；解析器不注册为产品窗口，也不安装
+  Kiyori bridge、用户脚本、下载器或凭据能力
+- 唯一自动保留原窗口的例外是配置主页根上的真实用户跨站跳转：创建同 Profile 子窗口并记录
+  opener 主页。子窗口历史耗尽后关闭并激活仍有效的 opener；其他窗口回当前配置主页
+- 边缘手势使用 `48dp` 边缘、`72dp` 提交距离、`1.5` 水平/垂直比例和 `800dp/s` 快速滑动阈值；
+  左边缘向右为 Back，右边缘向左为 Forward。抽屉、搜索、源码确认、文本选择、网页元素动作、
+  广告标记、下载确认、JavaScript 对话框和无障碍触摸探索期间停用
+- 普通窗口恢复文件为 `noBackupFilesDir/kiyori/browser_session_recovery.json`，只保存窗口顺序、
+  活动窗口、URL/标题、创建/活动时间、创建原因、有效 opener 关系和明确搜索来源；不保存无痕、
+  Cookie、请求头、DOM、表单、正文、截图、密码或网络日志
+- 恢复优先级为：保留多窗口 → 最近仍未关闭且仍停留在结果页的明确搜索结果 → 询问活动普通页
+  → 当前配置主页。“询问是否恢复页面”会把可用的多窗口或搜索自动恢复改为一次性确认
+- 打开插件中心、脚本诊断或脚本详情时，设置会话以 `BrowserWorkspaceReturnToken` 暂停；关闭工作台
+  后恢复同一设置 route stack。若底部设置或 AI 设置原本没有 Browser session，不会为工作台背后的
+  Browser Home 人为创建主页窗口
+- 项目 Python `220/220`、完整 JVM `229 suites / 1362 tests`、AndroidTest Kotlin/Java 编译、
+  formal readiness、architecture `phase=m03` 与完整 Lint 均通过。Lint 最终为 `23 warnings`，
+  popup 临时解析器保持 JavaScript 默认关闭后不再产生本轮安全诊断，未新增 suppress 或扩大 baseline
+- 最终 Debug APK 为 `494168730` bytes，SHA-256
+  `1A03F576811C482F4F1CB366532564B340553DCA2267CAB394B86F5067630E2F`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`、唯一 launcher、Android Debug V2 单 signer、
+  16 KB ZIP 对齐、arm64-only 与 `52/52` 个 ELF64/AArch64 审计通过。目标设备上的返回、
+  手势、真实 popup 和冷启动仍为 `verification_pending`
+
+## 2026-08-14 广告拦截器设置页（历史）
 
 [LOCAL IMPLEMENTED]
 

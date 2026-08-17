@@ -7,6 +7,35 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-17 设置返回、浏览器窗口与会话恢复
+
+状态：设置导航、普通网页窗口策略、popup 临时解析、配置主页跨站 opener、边缘滑屏和普通窗口
+启动恢复已经完成本地实现；目标设备与真实网页矩阵尚未执行，保持 `verification_pending`。
+
+当前冻结合同：
+
+- 底部设置、Browser Menu 与 AI 左抽屉共用一个 `KiyoriSettingsNavigationState`。分类和子页按
+  `KiyoriSettingsRoute` 逐级返回，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI
+  页面/路由栈
+- 普通网页同站、跨站、用户 `_blank` 和用户 `window.open()` 默认在当前窗口导航；自动 popup 和
+  无稳定 HTTP(S) 目标的 popup 被拒绝。配置主页根上的真实用户跨站跳转是唯一自动保留主页窗口的例外
+- “网页浏览器”设置为 `4/3/3/2/4/3` 六组 19 项，新增“滑屏前进后退 / 恢复上次的搜索结果 /
+  询问是否恢复页面 / 保留多窗口”，四项默认关闭
+- 普通窗口恢复只保存最小 URL 级投影；无痕窗口、Cookie、请求头、DOM、表单、正文、截图、密码和
+  网络日志不进入恢复文件。搜索窗口离开已加载结果页后立即失去搜索恢复资格
+- 项目 Python `220/220`、完整 JVM `229 suites / 1362 tests`、AndroidTest Kotlin/Java 编译、
+  formal readiness、architecture `phase=m03` 与完整 Lint 均通过。Lint 最终只显示
+  `GradleDependency 5 / NewerVersionAvailable 15 / UseKtx 3` 共 `23` 条既有范围诊断，
+  未新增 suppress 或扩大 baseline
+- 最终 Debug APK 为 `494168730` bytes，SHA-256
+  `1A03F576811C482F4F1CB366532564B340553DCA2267CAB394B86F5067630E2F`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`、唯一 launcher、Android Debug V2 单 signer、
+  16 KB ZIP 对齐、arm64-only 与 `52/52` 个 ELF64/AArch64 审计通过。提交和推送以本轮最终
+  Git 远端对账为准
+
+详细设计、实现对账、验证矩阵和设备验收边界见
+[`kiyori_browser_navigation_and_session_restoration/index.md`](kiyori_browser_navigation_and_session_restoration/index.md)。
+
 ## 2026-08-17 FFmpeg 运行时、API 与 native closure 完善
 
 状态：r5 安装包的真实 AI/设备复测已确认 Android FFmpeg 核心媒体链可完成流复制、软件与
@@ -355,7 +384,7 @@ Kiyori 现有设置、浏览器抽屉和模态体系。
   `zipalign -c -P 16 -v 4` 为 `Verification successful`
 - 未提交、未推送、未安装 APK，未执行 ADB、模拟器或真机操作
 
-## 2026-08-14 设置标题、主题菜单与来源保持导航
+## 2026-08-14 设置标题、主题菜单与来源保持导航（历史）
 
 状态：本地实现、自动验证和 Debug APK 构建已完成；浏览器菜单、AI 抽屉、主题菜单间距与返回交互
 仍待目标设备验收，保持 `verification_pending`。

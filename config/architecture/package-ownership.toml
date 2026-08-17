@@ -330,6 +330,16 @@ allowed_import_roots = [
 ]
 
 [[ownership]]
+id = "kiyori-capability-settings"
+path = "app/src/main/java/com/kiyori/capability/settings/**"
+owner = "kiyori-settings-contracts"
+sync_zone = "C"
+phase = "m06"
+allowed_import_roots = [
+  "com.kiyori.capability.settings",
+]
+
+[[ownership]]
 id = "kiyori-capability-player"
 path = "app/src/main/java/com/kiyori/capability/player/**"
 owner = "kiyori-player-contracts"

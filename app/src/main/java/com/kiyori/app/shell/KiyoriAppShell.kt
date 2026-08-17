@@ -46,6 +46,8 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
 import com.ai.assistance.operit.ui.main.shell.KiyoriPlayerSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
+import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.design.theme.KiyoriBrowserTheme
 import com.kiyori.design.theme.KiyoriSettingsTheme
 import kotlin.math.abs
@@ -55,13 +57,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 private fun KiyoriShellChildThemeBoundary(
-    child: KiyoriShellChild?,
+    settingsRoute: KiyoriSettingsRoute?,
     content: @Composable () -> Unit,
 ) {
     KiyoriBrowserTheme {
         // 设置页的选择面板与折叠列表是同级节点。主题边界必须包住完整子页，
         // 否则面板会在列表内部主题退出后读取不到 LocalKiyoriSettingsColors。
-        if (shouldProvideKiyoriSettingsTheme(child)) {
+        if (shouldProvideKiyoriSettingsTheme(settingsRoute)) {
             KiyoriSettingsTheme(content)
         } else {
             content()
@@ -95,6 +97,7 @@ internal fun KiyoriAppShell(
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onOpenAppearanceSettingsFromKiyoriSettings: () -> Unit,
     onOpenDataSettingsFromKiyoriSettings: () -> Unit,
+    onOpenBrowserWorkspace: (KiyoriBrowserWorkspaceRoute) -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
     browserHome: @Composable (Modifier) -> Unit,
@@ -190,6 +193,7 @@ internal fun KiyoriAppShell(
                 isBookmarkDrawerOpen = state.isBookmarkDrawerOpen,
                 isHistoryDrawerOpen = state.isHistoryDrawerOpen,
                 isDownloadDrawerOpen = state.isDownloadDrawerOpen,
+                isSettingsVisible = shouldPresentKiyoriSettingsOverlay(state),
             ),
     ) {
         val transition = latestState.handleBack()
@@ -288,13 +292,28 @@ internal fun KiyoriAppShell(
                     onOpenSpeechServices = onOpenSpeechServicesFromKiyoriSettings,
                     onOpenBrowserSettings = onOpenBrowserSettingsFromKiyoriSettings,
                     onOpenDownloadSettings = {
-                        onStateChange(state.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS))
+                        onStateChange(
+                            state.openSettings(
+                                origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                                initialRoute = KiyoriSettingsRoute.DOWNLOAD,
+                            ),
+                        )
                     },
                     onOpenPlayerSettings = {
-                        onStateChange(state.openChild(KiyoriShellChild.PLAYER_SETTINGS))
+                        onStateChange(
+                            state.openSettings(
+                                origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                                initialRoute = KiyoriSettingsRoute.PLAYER,
+                            ),
+                        )
                     },
                     onOpenAdBlockSettings = {
-                        onStateChange(state.openChild(KiyoriShellChild.AD_BLOCKER_SETTINGS))
+                        onStateChange(
+                            state.openSettings(
+                                origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                                initialRoute = KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+                            ),
+                        )
                     },
                     onOpenAppearanceSettings = onOpenAppearanceSettingsFromKiyoriSettings,
                     onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
@@ -345,12 +364,14 @@ internal fun KiyoriAppShell(
         }
 
         AnimatedVisibility(
-            visible = state.child != null && aiHostIsRoot,
+            visible = shouldPresentKiyoriSettingsOverlay(state),
             modifier = Modifier.fillMaxSize().zIndex(12f),
             enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
         ) {
-            KiyoriShellChildThemeBoundary(child = state.child) {
+            KiyoriShellChildThemeBoundary(
+                settingsRoute = state.settingsNavigation?.currentRoute,
+            ) {
                 when (state.child) {
                     KiyoriShellChild.FULL_SCREEN_WEB_SEARCH ->
                         KiyoriFullScreenWebSearchPage(
@@ -358,62 +379,83 @@ internal fun KiyoriAppShell(
                             onSubmitSearch = onSubmitWebSearch,
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.SETTINGS_HOME ->
+                    null -> Unit
+                }
+                when (state.settingsNavigation?.currentRoute) {
+                    KiyoriSettingsRoute.HOME ->
                         KiyoriSettingsHomePage(
                             onOpenAccountConnections =
                                 onOpenAccountConnectionsFromKiyoriSettings,
                             onOpenAiAssistant = onOpenAiAssistantFromKiyoriSettings,
                             onOpenSpeechServices = onOpenSpeechServicesFromKiyoriSettings,
-                            // 详情页压在来源保持型设置首页之上，Back 必须先回设置首页，
-                            // 否则会直接暴露浏览器或 AI 来源页并打断设置浏览路径。
                             onOpenBrowserSettings = {
-                                onStateChange(
-                                    state.openNestedChild(KiyoriShellChild.BROWSER_SETTINGS),
-                                )
+                                onStateChange(state.openSettingsRoute(KiyoriSettingsRoute.BROWSER))
                             },
                             onOpenDownloadSettings = {
-                                onStateChange(
-                                    state.openNestedChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
-                                )
+                                onStateChange(state.openSettingsRoute(KiyoriSettingsRoute.DOWNLOAD))
                             },
                             onOpenPlayerSettings = {
-                                onStateChange(
-                                    state.openNestedChild(KiyoriShellChild.PLAYER_SETTINGS),
-                                )
+                                onStateChange(state.openSettingsRoute(KiyoriSettingsRoute.PLAYER))
                             },
                             onOpenAdBlockSettings = {
                                 onStateChange(
-                                    state.openNestedChild(
-                                        KiyoriShellChild.AD_BLOCKER_SETTINGS,
+                                    state.openSettingsRoute(
+                                        KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
                                     ),
                                 )
                             },
                             onOpenAppearanceSettings =
                                 onOpenAppearanceSettingsFromKiyoriSettings,
                             onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
-                            onBack = { onStateChange(state.closeChild()) },
+                            onBack = { onStateChange(state.closeSettingsRoute()) },
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.BROWSER_SETTINGS ->
+                    KiyoriSettingsRoute.BROWSER ->
                         KiyoriBrowserSettingsPage(
-                            onBack = { onStateChange(state.closeChild()) },
+                            route = KiyoriSettingsRoute.BROWSER,
+                            onBack = { onStateChange(state.closeSettingsRoute()) },
+                            onNavigate = { route ->
+                                onStateChange(state.openSettingsRoute(route))
+                            },
+                            onOpenBrowserWorkspace = onOpenBrowserWorkspace,
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.DOWNLOAD_SETTINGS ->
+                    KiyoriSettingsRoute.DOWNLOAD ->
                         KiyoriDownloadSettingsPage(
-                            onBack = { onStateChange(state.closeChild()) },
+                            onBack = { onStateChange(state.closeSettingsRoute()) },
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.PLAYER_SETTINGS ->
+                    KiyoriSettingsRoute.PLAYER ->
                         KiyoriPlayerSettingsPage(
-                            onBack = { onStateChange(state.closeChild()) },
+                            onBack = { onStateChange(state.closeSettingsRoute()) },
                             modifier = Modifier.fillMaxSize(),
                         )
-                    KiyoriShellChild.AD_BLOCKER_SETTINGS ->
-                        KiyoriAdBlockSettingsPage(
-                            onBack = { onStateChange(state.closeChild()) },
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                    KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+                    KiyoriSettingsRoute.AD_BLOCK_URL_RULES,
+                    KiyoriSettingsRoute.AD_BLOCK_ELEMENT_RULES,
+                    KiyoriSettingsRoute.AD_BLOCK_ALLOW_LIST,
+                    KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS,
+                    -> KiyoriAdBlockSettingsPage(
+                        route = state.settingsNavigation.currentRoute,
+                        onBack = { onStateChange(state.closeSettingsRoute()) },
+                        onNavigate = { route ->
+                            onStateChange(state.openSettingsRoute(route))
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION,
+                    KiyoriSettingsRoute.BROWSER_PLUGIN_PERMISSIONS,
+                    KiyoriSettingsRoute.BROWSER_TEXT_SIZE,
+                    KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER,
+                    -> KiyoriBrowserSettingsPage(
+                        route = state.settingsNavigation.currentRoute,
+                        onBack = { onStateChange(state.closeSettingsRoute()) },
+                        onNavigate = { route ->
+                            onStateChange(state.openSettingsRoute(route))
+                        },
+                        onOpenBrowserWorkspace = onOpenBrowserWorkspace,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                     null -> Unit
                 }
             }
@@ -457,7 +499,10 @@ internal fun KiyoriAppShell(
                 latestOnStateChange(
                     latestState
                         .closeDownloadDrawer()
-                        .openChild(KiyoriShellChild.DOWNLOAD_SETTINGS),
+                        .openSettings(
+                            origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                            initialRoute = KiyoriSettingsRoute.DOWNLOAD,
+                        ),
                 )
             },
             modifier = Modifier.fillMaxSize().zIndex(30f),
@@ -545,18 +590,24 @@ internal fun shouldNotifyKiyoriAiHomeSettledForInitialPage(
     initialSettledPage == SoftwareHomePage.AI_HOME &&
         requestedPage == SoftwareHomePage.AI_HOME
 
-internal fun shouldProvideKiyoriSettingsTheme(child: KiyoriShellChild?): Boolean =
-    when (child) {
-        KiyoriShellChild.BROWSER_SETTINGS,
-        KiyoriShellChild.DOWNLOAD_SETTINGS,
-        KiyoriShellChild.PLAYER_SETTINGS,
-        KiyoriShellChild.AD_BLOCKER_SETTINGS,
-        -> true
-        KiyoriShellChild.SETTINGS_HOME,
-        KiyoriShellChild.FULL_SCREEN_WEB_SEARCH,
-        null,
-        -> false
+internal fun shouldProvideKiyoriSettingsTheme(route: KiyoriSettingsRoute?): Boolean =
+    route != null && route != KiyoriSettingsRoute.HOME
+
+internal fun shouldPresentKiyoriSettingsOverlay(state: KiyoriShellState): Boolean {
+    val navigation = state.settingsNavigation ?: return false
+    if (
+        navigation.presentation == KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL ||
+            navigation.presentation ==
+            KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE
+    ) {
+        return false
     }
+    return !(
+        navigation.origin == KiyoriSettingsOrigin.BOTTOM_NAVIGATION &&
+            navigation.presentation == KiyoriSettingsPresentation.PRIMARY_ROOT &&
+            navigation.currentRoute == KiyoriSettingsRoute.HOME
+    )
+}
 
 internal fun calculateKiyoriAiHostTranslation(
     pageOffset: Float,
@@ -591,10 +642,12 @@ internal fun shouldEnableKiyoriShellBackHandler(
     isBookmarkDrawerOpen: Boolean,
     isHistoryDrawerOpen: Boolean,
     isDownloadDrawerOpen: Boolean,
+    isSettingsVisible: Boolean,
 ): Boolean =
     isBookmarkDrawerOpen ||
         isHistoryDrawerOpen ||
         isDownloadDrawerOpen ||
+        isSettingsVisible ||
         (aiHostIsRoot && !isAiDrawerOpen)
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -611,6 +664,7 @@ internal fun resolveKiyoriBottomBarAlpha(
     when {
         !aiHostIsRoot ||
             state.child != null ||
+            state.settingsNavigation != null ||
             state.isAiDrawerOpen ||
             state.isBookmarkDrawerOpen ||
             state.isHistoryDrawerOpen ||

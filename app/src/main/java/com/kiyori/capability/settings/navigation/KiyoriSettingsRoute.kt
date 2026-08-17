@@ -1,0 +1,17 @@
+package com.kiyori.capability.settings.navigation
+
+enum class KiyoriSettingsRoute {
+    HOME,
+    BROWSER,
+    BROWSER_HOME_CUSTOMIZATION,
+    BROWSER_PLUGIN_PERMISSIONS,
+    BROWSER_TEXT_SIZE,
+    BROWSER_PASSWORD_MANAGER,
+    DOWNLOAD,
+    PLAYER,
+    AD_BLOCK_OVERVIEW,
+    AD_BLOCK_URL_RULES,
+    AD_BLOCK_ELEMENT_RULES,
+    AD_BLOCK_ALLOW_LIST,
+    AD_BLOCK_SUBSCRIPTIONS,
+}

@@ -49,8 +49,9 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.Use
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.UserscriptPageRuntimeState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.isUserscriptRuntimePermissionActionEnabled
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
-import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import kotlinx.coroutines.launch
 
 internal enum class KiyoriBrowserSettingsAction {
@@ -60,6 +61,10 @@ internal enum class KiyoriBrowserSettingsAction {
     OPEN_PLUGIN_DIAGNOSTICS,
     OPEN_HOME_CUSTOMIZATION,
     TOGGLE_RETURN_WITHOUT_RELOAD,
+    TOGGLE_SWIPE_HISTORY_NAVIGATION,
+    TOGGLE_RESTORE_LAST_SEARCH_RESULT,
+    TOGGLE_ASK_BEFORE_RESTORING_PAGES,
+    TOGGLE_RETAIN_MULTIPLE_WINDOWS,
     TOGGLE_FORCE_PAGE_ZOOM,
     OPEN_WEB_TEXT_SIZE,
     TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
@@ -117,7 +122,7 @@ internal val kiyoriBrowserSettingsGroups =
         ),
         KiyoriBrowserSettingsGroupSpec(
             title = "主页与导航",
-            description = "管理主页入口与网页历史返回时的加载方式",
+            description = "管理主页入口、网页历史返回方式和屏幕边缘前进后退手势",
             entries =
                 listOf(
                     browserNavigation(
@@ -129,6 +134,37 @@ internal val kiyoriBrowserSettingsGroups =
                         title = "返回不重载",
                         description = "网页后退时使用历史缓存，减少重新请求和页面状态丢失",
                         action = KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
+                    ),
+                    browserToggle(
+                        title = "滑屏前进后退",
+                        description = "开启后从屏幕左右边缘滑动可在当前网页历史中前进或后退",
+                        action =
+                            KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
+                    ),
+                ),
+        ),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "启动与窗口",
+            description = "控制浏览器冷启动恢复和普通窗口保留方式",
+            entries =
+                listOf(
+                    browserToggle(
+                        title = "恢复上次的搜索结果",
+                        description = "开启后打开浏览器会自动打开上次未关闭的搜索结果页",
+                        action =
+                            KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT,
+                    ),
+                    browserToggle(
+                        title = "询问是否恢复页面",
+                        description = "开启后打开浏览器会先询问是否打开上次未关闭的页面",
+                        action =
+                            KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES,
+                    ),
+                    browserToggle(
+                        title = "保留多窗口",
+                        description = "开启后保留上次未关闭的普通窗口；无痕窗口不会写入恢复记录",
+                        action =
+                            KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS,
                     ),
                 ),
         ),
@@ -227,16 +263,12 @@ private fun browserToggle(
         action = action,
     )
 
-private enum class KiyoriBrowserSettingsSubPage {
-    HOME_CUSTOMIZATION,
-    PLUGIN_PERMISSIONS,
-    WEB_TEXT_SIZE,
-    PASSWORD_MANAGER,
-}
-
 @Composable
 internal fun KiyoriBrowserSettingsPage(
+    route: KiyoriSettingsRoute,
     onBack: () -> Unit,
+    onNavigate: (KiyoriSettingsRoute) -> Unit,
+    onOpenBrowserWorkspace: (KiyoriBrowserWorkspaceRoute) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -252,60 +284,56 @@ internal fun KiyoriBrowserSettingsPage(
     val userscriptState by coordinator.userscriptState.collectAsState()
     val searchEngine by
         historyStore.searchEngineFlow.collectAsState(initial = WebSessionSearchEngine.DEFAULT)
-    var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
     var showClearCookieConfirm by rememberSaveable { mutableStateOf(false) }
     var settingsSelection by remember { mutableStateOf<KiyoriSettingsSelection?>(null) }
     var showCustomFloatingDurationDialog by rememberSaveable { mutableStateOf(false) }
     var customFloatingDurationSeconds by rememberSaveable { mutableStateOf("60") }
-    val subPage = subPageName?.let(KiyoriBrowserSettingsSubPage::valueOf)
-
-    fun closeCurrentPage() {
-        if (subPage == null) {
-            onBack()
-        } else {
-            subPageName = null
+    fun requestBack() {
+        when {
+            settingsSelection != null -> settingsSelection = null
+            showCustomFloatingDurationDialog -> showCustomFloatingDurationDialog = false
+            else -> onBack()
         }
     }
 
-    fun openBrowserPluginRoute(openRoute: () -> Unit) {
-        // Browser Settings 可能覆盖在仍挂载的 Browser Home 上。必须先关闭 Shell child，
-        // 否则插件路由只会在设置页背后切换，用户看不到当前标签页和目标抽屉。
-        runBrowserPluginRouteFromSettings(
-            onCloseSettings = onBack,
-            onOpenRoute = openRoute,
-        )
+    fun openBrowserPluginRoute(route: KiyoriBrowserWorkspaceRoute) {
+        onOpenBrowserWorkspace(route)
     }
 
-    BackHandler(onBack = ::closeCurrentPage)
+    BackHandler(onBack = ::requestBack)
 
-    when (subPage) {
-        null ->
+    when (route) {
+        KiyoriSettingsRoute.BROWSER ->
             KiyoriBrowserSettingsDetailPage(
                 settings = settings,
                 userscriptState = userscriptState,
-                onBack = ::closeCurrentPage,
+                onBack = ::requestBack,
                 onSetUserScriptsAllowed = coordinator::setUserScriptsAllowed,
                 onOpenPluginCenter = {
-                    openBrowserPluginRoute(coordinator::openPluginCenter)
+                    openBrowserPluginRoute(KiyoriBrowserWorkspaceRoute.Overview)
                 },
                 onOpenPluginPermissions = {
-                    subPageName = KiyoriBrowserSettingsSubPage.PLUGIN_PERMISSIONS.name
+                    onNavigate(KiyoriSettingsRoute.BROWSER_PLUGIN_PERMISSIONS)
                 },
                 onOpenPluginDiagnostics = {
-                    openBrowserPluginRoute {
-                        coordinator.openUserscriptManager(
-                            WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
-                        )
-                    }
+                    openBrowserPluginRoute(KiyoriBrowserWorkspaceRoute.Diagnostics)
                 },
                 onOpenHomeCustomization = {
-                    subPageName = KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION.name
+                    onNavigate(KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION)
                 },
                 onSetReturnWithoutReloadEnabled =
                     coordinator::setReturnWithoutReloadEnabled,
+                onSetSwipeHistoryNavigationEnabled =
+                    coordinator::setSwipeHistoryNavigationEnabled,
+                onSetRestoreLastSearchResultEnabled =
+                    coordinator::setRestoreLastSearchResultEnabled,
+                onSetAskBeforeRestoringPagesEnabled =
+                    coordinator::setAskBeforeRestoringPagesEnabled,
+                onSetRetainMultipleWindowsEnabled =
+                    coordinator::setRetainMultipleWindowsEnabled,
                 onSetForcePageZoomEnabled = coordinator::setForcePageZoomEnabled,
                 onOpenWebTextSize = {
-                    subPageName = KiyoriBrowserSettingsSubPage.WEB_TEXT_SIZE.name
+                    onNavigate(KiyoriSettingsRoute.BROWSER_TEXT_SIZE)
                 },
                 onSetShowMediaCandidateBadge = coordinator::setShowMediaCandidateBadge,
                 onSetAutomaticFloatingPlaybackEnabled =
@@ -326,16 +354,16 @@ internal fun KiyoriBrowserSettingsPage(
                 onSetAllowWebPageOpenApp = coordinator::setAllowWebPageOpenApp,
                 onSetAllowWebPageGeolocation = coordinator::setAllowWebPageGeolocation,
                 onOpenPasswordManager = {
-                    subPageName = KiyoriBrowserSettingsSubPage.PASSWORD_MANAGER.name
+                    onNavigate(KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER)
                 },
                 onClearCookies = { showClearCookieConfirm = true },
                 credentialVaultState = credentialVaultState,
                 modifier = modifier,
             )
-        KiyoriBrowserSettingsSubPage.HOME_CUSTOMIZATION ->
+        KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION ->
             KiyoriBrowserHomepageCustomizationPage(
                 currentHomeUrl = settings.homeUrl,
-                onBack = ::closeCurrentPage,
+                onBack = onBack,
                 onSave = { value ->
                     val resolvedUrl = BrowserAddressResolver.resolve(value, searchEngine)
                     if (!isSupportedBrowserHomeUrl(resolvedUrl)) {
@@ -364,30 +392,30 @@ internal fun KiyoriBrowserSettingsPage(
                 },
                 modifier = modifier,
             )
-        KiyoriBrowserSettingsSubPage.PLUGIN_PERMISSIONS ->
+        KiyoriSettingsRoute.BROWSER_PLUGIN_PERMISSIONS ->
             KiyoriBrowserPluginPermissionsPage(
                 state = userscriptState,
-                onBack = ::closeCurrentPage,
+                onBack = onBack,
                 onSetUserScriptsAllowed = coordinator::setUserScriptsAllowed,
                 onOpenUserscriptDetail = { scriptId ->
-                    openBrowserPluginRoute {
-                        coordinator.openUserscriptDetail(scriptId)
-                    }
+                    openBrowserPluginRoute(
+                        KiyoriBrowserWorkspaceRoute.UserscriptDetail(scriptId),
+                    )
                 },
                 modifier = modifier,
             )
-        KiyoriBrowserSettingsSubPage.WEB_TEXT_SIZE ->
+        KiyoriSettingsRoute.BROWSER_TEXT_SIZE ->
             KiyoriBrowserTextSizePage(
                 currentPercent = settings.webTextZoomPercent,
-                onBack = ::closeCurrentPage,
+                onBack = onBack,
                 onSetPercent = coordinator::setWebTextZoomPercent,
                 modifier = modifier,
             )
-        KiyoriBrowserSettingsSubPage.PASSWORD_MANAGER ->
+        KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER ->
             KiyoriBrowserPasswordManagerPage(
                 settings = settings,
                 vaultState = credentialVaultState,
-                onBack = ::closeCurrentPage,
+                onBack = onBack,
                 onSetPasswordSavingEnabled =
                     coordinator::setWebsitePasswordSavingEnabled,
                 onLoadCredential = coordinator::browserCredential,
@@ -395,6 +423,7 @@ internal fun KiyoriBrowserSettingsPage(
                 onDeleteCredential = coordinator::deleteBrowserCredential,
                 modifier = modifier,
             )
+        else -> Unit
     }
 
     if (showClearCookieConfirm) {
@@ -506,14 +535,6 @@ internal fun KiyoriBrowserSettingsPage(
     }
 }
 
-internal fun runBrowserPluginRouteFromSettings(
-    onCloseSettings: () -> Unit,
-    onOpenRoute: () -> Unit,
-) {
-    onCloseSettings()
-    onOpenRoute()
-}
-
 @Composable
 private fun KiyoriBrowserSettingsDetailPage(
     settings: WebSessionBrowserSettings,
@@ -525,6 +546,10 @@ private fun KiyoriBrowserSettingsDetailPage(
     onOpenPluginDiagnostics: () -> Unit,
     onOpenHomeCustomization: () -> Unit,
     onSetReturnWithoutReloadEnabled: (Boolean) -> Unit,
+    onSetSwipeHistoryNavigationEnabled: (Boolean) -> Unit,
+    onSetRestoreLastSearchResultEnabled: (Boolean) -> Unit,
+    onSetAskBeforeRestoringPagesEnabled: (Boolean) -> Unit,
+    onSetRetainMultipleWindowsEnabled: (Boolean) -> Unit,
     onSetForcePageZoomEnabled: (Boolean) -> Unit,
     onOpenWebTextSize: () -> Unit,
     onSetShowMediaCandidateBadge: (Boolean) -> Unit,
@@ -588,6 +613,14 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onOpenHomeCustomization()
                                 KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD ->
                                     onSetReturnWithoutReloadEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION ->
+                                    onSetSwipeHistoryNavigationEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT ->
+                                    onSetRestoreLastSearchResultEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES ->
+                                    onSetAskBeforeRestoringPagesEnabled(!checked)
+                                KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS ->
+                                    onSetRetainMultipleWindowsEnabled(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM ->
                                     onSetForcePageZoomEnabled(!checked)
                                 KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE ->
@@ -670,6 +703,10 @@ internal fun browserSettingValue(
             KiyoriBrowserSettingsAction.CLEAR_COOKIES -> null
             KiyoriBrowserSettingsAction.TOGGLE_USER_SCRIPTS_ALLOWED,
             KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD,
+            KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION,
+            KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT,
+            KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES,
+            KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS,
             KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
             KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
             KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
@@ -678,7 +715,7 @@ internal fun browserSettingValue(
         }
     }
 
-private fun browserSettingToggleValue(
+internal fun browserSettingToggleValue(
     entry: KiyoriBrowserSettingsEntrySpec,
     settings: WebSessionBrowserSettings,
     userscriptState: WebSessionUserscriptUiState,
@@ -688,6 +725,14 @@ private fun browserSettingToggleValue(
             userscriptState.userScriptsAllowed
         KiyoriBrowserSettingsAction.TOGGLE_RETURN_WITHOUT_RELOAD ->
             settings.returnWithoutReloadEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_SWIPE_HISTORY_NAVIGATION ->
+            settings.swipeHistoryNavigationEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_RESTORE_LAST_SEARCH_RESULT ->
+            settings.restoreLastSearchResultEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES ->
+            settings.askBeforeRestoringPagesEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS ->
+            settings.retainMultipleWindowsEnabled
         KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM ->
             settings.forcePageZoomEnabled
         KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->

@@ -20,13 +20,16 @@ import com.kiyori.app.shell.KiyoriShellBackTransition
 import com.kiyori.app.shell.KiyoriShellChild
 import com.kiyori.app.shell.KiyoriShellExternalDestination
 import com.kiyori.app.shell.KiyoriShellState
+import com.kiyori.app.shell.KiyoriSettingsNavigationState
+import com.kiyori.app.shell.KiyoriSettingsOrigin
+import com.kiyori.app.shell.KiyoriSettingsPresentation
+import com.kiyori.capability.settings.navigation.KiyoriSettingsRoute
 import com.kiyori.app.shell.PrimaryDestination
 import com.kiyori.app.shell.SoftwareHomePage
 import com.kiyori.app.shell.calculateKiyoriAiHostTranslation
 import com.kiyori.app.shell.calculateKiyoriAiDrawerWidthDp
 import com.kiyori.app.shell.calculateKiyoriPagerPageOffset
 import com.kiyori.app.shell.kiyoriStartupBeyondViewportPageCount
-import com.kiyori.app.shell.openExternalChild
 import com.kiyori.app.shell.openExternalDestination
 import com.kiyori.app.shell.resolveKiyoriAiDrawerTone
 import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedFinalScale
@@ -85,8 +88,12 @@ class KiyoriShellStateTest {
                 KiyoriShellState(
                     primaryDestination = PrimaryDestination.SETTINGS_HOME,
                     softwareHomePage = SoftwareHomePage.AI_HOME,
-                    child = KiyoriShellChild.DOWNLOAD_SETTINGS,
-                    childBackTarget = KiyoriShellChild.BROWSER_SETTINGS,
+                    settingsNavigation =
+                        KiyoriSettingsNavigationState
+                            .start(
+                                origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                                sessionId = "settings-save",
+                            ).push(KiyoriSettingsRoute.DOWNLOAD),
                     isAiDrawerOpen = true,
                     browserReturnTarget = KiyoriBrowserReturnTarget.AI_HOME,
                     browserExitPresentation =
@@ -356,18 +363,15 @@ class KiyoriShellStateTest {
     fun `settings child roots provide theme across page overlays`() {
         assertFalse(shouldProvideKiyoriSettingsTheme(null))
         assertFalse(
-            shouldProvideKiyoriSettingsTheme(KiyoriShellChild.FULL_SCREEN_WEB_SEARCH),
-        )
-        assertFalse(
-            shouldProvideKiyoriSettingsTheme(KiyoriShellChild.SETTINGS_HOME),
+            shouldProvideKiyoriSettingsTheme(KiyoriSettingsRoute.HOME),
         )
         listOf(
-            KiyoriShellChild.BROWSER_SETTINGS,
-            KiyoriShellChild.DOWNLOAD_SETTINGS,
-            KiyoriShellChild.PLAYER_SETTINGS,
-            KiyoriShellChild.AD_BLOCKER_SETTINGS,
-        ).forEach { child ->
-            assertTrue(shouldProvideKiyoriSettingsTheme(child))
+            KiyoriSettingsRoute.BROWSER,
+            KiyoriSettingsRoute.DOWNLOAD,
+            KiyoriSettingsRoute.PLAYER,
+            KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+        ).forEach { route ->
+            assertTrue(shouldProvideKiyoriSettingsTheme(route))
         }
     }
 
@@ -378,11 +382,17 @@ class KiyoriShellStateTest {
                 returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
                 exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
             )
-        val settingsState = browserState.openChild(KiyoriShellChild.BROWSER_SETTINGS)
+        val settingsState =
+            browserState.openSettings(
+                origin = KiyoriSettingsOrigin.BROWSER_HOME,
+                initialRoute = KiyoriSettingsRoute.BROWSER,
+            )
 
         assertEquals(PrimaryDestination.BROWSER_HOME, settingsState.primaryDestination)
-        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, settingsState.child)
-        assertEquals(browserState, settingsState.closeChild())
+        assertEquals(KiyoriSettingsRoute.BROWSER, settingsState.settingsNavigation?.currentRoute)
+        val settingsHome = settingsState.closeSettingsRoute()
+        assertEquals(KiyoriSettingsRoute.HOME, settingsHome.settingsNavigation?.currentRoute)
+        assertEquals(browserState, settingsHome.closeSettingsRoute())
     }
 
     @Test
@@ -392,12 +402,13 @@ class KiyoriShellStateTest {
                 returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
                 exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
             )
-        val settingsHome = browserState.openChild(KiyoriShellChild.SETTINGS_HOME)
+        val settingsHome =
+            browserState.openSettings(KiyoriSettingsOrigin.BROWSER_HOME)
 
         assertEquals(PrimaryDestination.BROWSER_HOME, settingsHome.primaryDestination)
-        assertEquals(KiyoriShellChild.SETTINGS_HOME, settingsHome.child)
+        assertEquals(KiyoriSettingsRoute.HOME, settingsHome.settingsNavigation?.currentRoute)
         assertFalse(settingsHome.showsBottomBar)
-        assertEquals(browserState, settingsHome.closeChild())
+        assertEquals(browserState, settingsHome.closeSettingsRoute())
     }
 
     @Test
@@ -407,14 +418,31 @@ class KiyoriShellStateTest {
                 primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                 softwareHomePage = SoftwareHomePage.AI_HOME,
             )
-        val settingsHome = aiOwner.openChild(KiyoriShellChild.SETTINGS_HOME)
+        val settingsHome = aiOwner.openSettings(KiyoriSettingsOrigin.AI_HOST)
         val browserSettings =
-            settingsHome.openNestedChild(KiyoriShellChild.BROWSER_SETTINGS)
+            settingsHome
+                .openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+                .openSettingsRoute(KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION)
 
-        assertEquals(KiyoriShellChild.BROWSER_SETTINGS, browserSettings.child)
-        assertEquals(KiyoriShellChild.SETTINGS_HOME, browserSettings.childBackTarget)
-        assertEquals(settingsHome, browserSettings.closeChild())
-        assertEquals(aiOwner, browserSettings.closeChild().closeChild())
+        assertEquals(
+            KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION,
+            browserSettings.settingsNavigation?.currentRoute,
+        )
+        assertEquals(
+            KiyoriSettingsRoute.BROWSER,
+            browserSettings.closeSettingsRoute().settingsNavigation?.currentRoute,
+        )
+        assertEquals(
+            settingsHome,
+            browserSettings.closeSettingsRoute().closeSettingsRoute(),
+        )
+        assertEquals(
+            aiOwner,
+            browserSettings
+                .closeSettingsRoute()
+                .closeSettingsRoute()
+                .closeSettingsRoute(),
+        )
     }
 
     @Test
@@ -424,28 +452,42 @@ class KiyoriShellStateTest {
                 primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                 softwareHomePage = SoftwareHomePage.HOME,
             )
-        val settingsHome = owner.openChild(KiyoriShellChild.SETTINGS_HOME)
+        val settingsHome = owner.openSettings(KiyoriSettingsOrigin.AI_HOST)
         val adBlockSettings =
-            settingsHome.openNestedChild(KiyoriShellChild.AD_BLOCKER_SETTINGS)
+            settingsHome
+                .openSettingsRoute(KiyoriSettingsRoute.AD_BLOCK_OVERVIEW)
+                .openSettingsRoute(KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS)
 
-        assertEquals(KiyoriShellChild.AD_BLOCKER_SETTINGS, adBlockSettings.child)
-        assertEquals(KiyoriShellChild.SETTINGS_HOME, adBlockSettings.childBackTarget)
-        assertEquals(settingsHome, adBlockSettings.closeChild())
-        assertEquals(owner, adBlockSettings.closeChild().closeChild())
+        assertEquals(
+            KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS,
+            adBlockSettings.settingsNavigation?.currentRoute,
+        )
+        assertEquals(
+            KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+            adBlockSettings.closeSettingsRoute().settingsNavigation?.currentRoute,
+        )
+        assertEquals(
+            settingsHome,
+            adBlockSettings.closeSettingsRoute().closeSettingsRoute(),
+        )
     }
 
     @Test
     fun `external browser settings request uses settings home owner`() {
-        assertEquals(
-            KiyoriShellState(
-                primaryDestination = PrimaryDestination.SETTINGS_HOME,
-                softwareHomePage = SoftwareHomePage.AI_HOME,
-                child = KiyoriShellChild.BROWSER_SETTINGS,
-            ),
+        val state =
             KiyoriShellState(
                 primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                 softwareHomePage = SoftwareHomePage.AI_HOME,
-            ).openExternalChild(KiyoriShellChild.BROWSER_SETTINGS),
+            ).openExternalDestination(KiyoriShellExternalDestination.BROWSER_SETTINGS)
+
+        assertEquals(PrimaryDestination.BROWSER_HOME, state.primaryDestination)
+        assertEquals(
+            KiyoriSettingsOrigin.EXTERNAL_BROWSER_PRESENTATION,
+            state.settingsNavigation?.origin,
+        )
+        assertEquals(
+            KiyoriSettingsRoute.BROWSER,
+            state.settingsNavigation?.currentRoute,
         )
     }
 
@@ -609,6 +651,7 @@ class KiyoriShellStateTest {
                 isBookmarkDrawerOpen = false,
                 isHistoryDrawerOpen = false,
                 isDownloadDrawerOpen = true,
+                isSettingsVisible = false,
             ),
         )
         assertTrue(
@@ -630,12 +673,11 @@ class KiyoriShellStateTest {
         val owner =
             KiyoriShellState(
                 primaryDestination = PrimaryDestination.SETTINGS_HOME,
-            )
-        val settings = owner.openChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+            ).openSettings(KiyoriSettingsOrigin.BOTTOM_NAVIGATION)
+        val settings = owner.openSettingsRoute(KiyoriSettingsRoute.DOWNLOAD)
 
-        assertEquals(KiyoriShellChild.DOWNLOAD_SETTINGS, settings.child)
-        assertEquals(null, settings.childBackTarget)
-        assertEquals(owner, settings.closeChild())
+        assertEquals(KiyoriSettingsRoute.DOWNLOAD, settings.settingsNavigation?.currentRoute)
+        assertEquals(owner, settings.closeSettingsRoute())
     }
 
     @Test
@@ -644,12 +686,11 @@ class KiyoriShellStateTest {
             KiyoriShellState(
                 primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                 softwareHomePage = SoftwareHomePage.AI_HOME,
-            ).openExternalChild(KiyoriShellChild.DOWNLOAD_SETTINGS)
+            ).openExternalDestination(KiyoriShellExternalDestination.DOWNLOAD_SETTINGS)
 
-        assertEquals(PrimaryDestination.SETTINGS_HOME, state.primaryDestination)
+        assertEquals(PrimaryDestination.BROWSER_HOME, state.primaryDestination)
         assertEquals(SoftwareHomePage.AI_HOME, state.softwareHomePage)
-        assertEquals(KiyoriShellChild.DOWNLOAD_SETTINGS, state.child)
-        assertEquals(null, state.childBackTarget)
+        assertEquals(KiyoriSettingsRoute.DOWNLOAD, state.settingsNavigation?.currentRoute)
     }
 
     @Test
@@ -870,20 +911,23 @@ class KiyoriShellStateTest {
     }
 
     @Test
-    fun `AI settings opened from Kiyori Settings returns to Settings Home`() {
+    fun `AI settings opened from Kiyori Settings restores the same settings session`() {
         val state =
             KiyoriShellState(
                 primaryDestination = PrimaryDestination.SOFTWARE_HOME,
                 softwareHomePage = SoftwareHomePage.AI_HOME,
                 isAiDrawerOpen = true,
-            )
+            ).openSettings(KiyoriSettingsOrigin.AI_HOST)
+                .openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+                .showSettingsOperitRoute()
 
         assertEquals(
-            KiyoriShellState(
-                primaryDestination = PrimaryDestination.SETTINGS_HOME,
-                softwareHomePage = SoftwareHomePage.AI_HOME,
-            ),
-            state.returnFromKiyoriAiSettings(),
+            KiyoriSettingsPresentation.SOURCE_OVERLAY,
+            state.restoreSettingsAfterOperitRoute().settingsNavigation?.presentation,
+        )
+        assertEquals(
+            KiyoriSettingsRoute.BROWSER,
+            state.restoreSettingsAfterOperitRoute().settingsNavigation?.currentRoute,
         )
     }
 

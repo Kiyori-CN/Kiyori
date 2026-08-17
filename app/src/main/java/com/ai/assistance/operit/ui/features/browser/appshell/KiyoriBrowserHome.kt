@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +75,11 @@ internal fun KiyoriBrowserHome(
     }
     val webViewHost = remember { WebSessionWebViewHost() }
     var presentationLease by remember { mutableStateOf<BrowserAppPresentationLease?>(null) }
+    var launchReady by remember { mutableStateOf(false) }
+    var launchPrompt by remember {
+        mutableStateOf<com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserLaunchRestorationPrompt?>(null)
+    }
+    var pendingRestoreDecision by remember { mutableStateOf<Boolean?>(null) }
 
     DisposableEffect(coordinator, webViewHost) {
         val acquired = coordinator.acquireAppPresentation(webViewHost)
@@ -82,7 +90,10 @@ internal fun KiyoriBrowserHome(
         }
     }
 
-    LaunchedEffect(presentationLease, pendingForegroundUrl) {
+    LaunchedEffect(presentationLease, pendingForegroundUrl, launchReady) {
+        if (!launchReady) {
+            return@LaunchedEffect
+        }
         val targetUrl = pendingForegroundUrl ?: return@LaunchedEffect
         // 负一屏 URL 必须等 Browser Home 获得前台 presentation lease 后再导航。
         // 若在 Shell 切页前调用 openUrl，协调器会先创建后台锚点并显示悬浮入口。
@@ -95,6 +106,26 @@ internal fun KiyoriBrowserHome(
             coordinator.openUrl(targetUrl)
             onPendingForegroundUrlHandled(targetUrl)
         }
+    }
+
+    LaunchedEffect(presentationLease) {
+        val lease = presentationLease ?: return@LaunchedEffect
+        if (lease.presentation.isBrowserWorkspaceVisible()) {
+            launchReady = true
+            return@LaunchedEffect
+        }
+        val prompt = coordinator.prepareHumanBrowserLaunch()
+        launchPrompt = prompt
+        launchReady = prompt == null
+    }
+
+    LaunchedEffect(launchPrompt, pendingRestoreDecision) {
+        val prompt = launchPrompt ?: return@LaunchedEffect
+        val decision = pendingRestoreDecision ?: return@LaunchedEffect
+        coordinator.resolveHumanBrowserLaunch(prompt.snapshotId, decision)
+        launchPrompt = null
+        pendingRestoreDecision = null
+        launchReady = true
     }
 
     fun finishPresentation(
@@ -139,26 +170,45 @@ internal fun KiyoriBrowserHome(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
     ) {
-        presentationLease?.presentation?.BrowserContent(
-            webViewHost = webViewHost,
-            onTopBarBack = {
-                handleBrowserBack(KiyoriBrowserHomeBackSource.TOP_BAR)
-            },
-            onOpenAiDialogue = {
-                finishPresentation(
-                    BrowserAppPresentationReleaseMode.MINIMIZE,
-                    onOpenAiDialogue,
-                )
-            },
-            onOpenSettingsHome = onOpenSettingsHome,
-            onOpenDownloadSettings = onOpenDownloadSettings,
-            onExitBrowser = {
-                finishPresentation(
-                    BrowserAppPresentationReleaseMode.DESTROY,
-                    onCloseBrowser,
-                )
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (launchReady) {
+            presentationLease?.presentation?.BrowserContent(
+                webViewHost = webViewHost,
+                onTopBarBack = {
+                    handleBrowserBack(KiyoriBrowserHomeBackSource.TOP_BAR)
+                },
+                onOpenAiDialogue = {
+                    finishPresentation(
+                        BrowserAppPresentationReleaseMode.MINIMIZE,
+                        onOpenAiDialogue,
+                    )
+                },
+                onOpenSettingsHome = onOpenSettingsHome,
+                onOpenDownloadSettings = onOpenDownloadSettings,
+                onExitBrowser = {
+                    finishPresentation(
+                        BrowserAppPresentationReleaseMode.DESTROY,
+                        onCloseBrowser,
+                    )
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        launchPrompt?.let { prompt ->
+            AlertDialog(
+                onDismissRequest = { pendingRestoreDecision = false },
+                title = { Text(prompt.title) },
+                text = { Text(prompt.summary) },
+                confirmButton = {
+                    TextButton(onClick = { pendingRestoreDecision = true }) {
+                        Text("恢复")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingRestoreDecision = false }) {
+                        Text("不恢复")
+                    }
+                },
+            )
+        }
     }
 }

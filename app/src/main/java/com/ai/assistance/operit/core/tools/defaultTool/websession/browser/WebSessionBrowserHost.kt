@@ -36,6 +36,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.player.PlayerSession
+import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiStateStore
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserScreen
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionFloatingTheme
@@ -207,6 +208,7 @@ internal class WebSessionBrowserHost(
         requestedPresentationTarget = BrowserPresentationTarget.DETACHED
         attachedPresentationTarget = BrowserPresentationTarget.DETACHED
         pendingPresentationTarget = null
+        notifyBrowserWorkspaceClosed()
     }
 
     @Composable
@@ -347,6 +349,8 @@ internal class WebSessionBrowserHost(
                 browserSettings.automaticFloatingPlaybackEnabled,
             automaticFloatingMinimumDurationMillis =
                 browserSettings.automaticFloatingMinimumDurationMillis,
+            swipeHistoryNavigationEnabled =
+                browserSettings.swipeHistoryNavigationEnabled,
             onCopyTextSelection = ::copyActiveWebViewSelection,
             onSelectAllTextSelection = ::selectAllActiveWebViewText,
             onDismissTextSelection = ::dismissTextSelectionActions,
@@ -1437,6 +1441,9 @@ internal class WebSessionBrowserHost(
         updateHostState { it.copy(sheetRoute = route) }
     }
 
+    fun isBrowserWorkspaceVisible(): Boolean =
+        hostState.sheetRoute == WebSessionBrowserSheetRoute.PLUGINS
+
     fun showPluginRoute(route: WebSessionBrowserPluginRoute) {
         updateHostState {
             it.copy(
@@ -1839,7 +1846,20 @@ internal class WebSessionBrowserHost(
         if (updated == hostState) {
             return
         }
+        val closedPluginWorkspace =
+            hostState.sheetRoute == WebSessionBrowserSheetRoute.PLUGINS &&
+                updated.sheetRoute != WebSessionBrowserSheetRoute.PLUGINS
         hostState = updated
+        if (closedPluginWorkspace) {
+            notifyBrowserWorkspaceClosed()
+        }
+    }
+
+    private fun notifyBrowserWorkspaceClosed() {
+        val tools = StandardBrowserSessionTools.getSharedInstance(appContext)
+        val listener = tools.browserWorkspaceClosedListener
+        tools.browserWorkspaceClosedListener = null
+        listener?.invoke()
     }
 
     private fun copyActiveWebViewSelection() {

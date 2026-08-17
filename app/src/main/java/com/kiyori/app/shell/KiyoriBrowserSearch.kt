@@ -29,6 +29,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSes
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.opposite
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionBrowserSearchScreen
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -86,7 +87,12 @@ internal fun KiyoriFullScreenWebSearchPage(
                     selectedProfile == WebSessionProfile.NORMAL ||
                         profileState.incognitoAvailability.isAvailable
                 ) {
-                    resolveKiyoriWebSearchRequest(query, searchEngine, selectedProfile)
+                    resolveKiyoriWebSearchRequest(
+                        rawQuery = query,
+                        searchEngine = searchEngine,
+                        profile = selectedProfile,
+                        source = KiyoriBrowserSearchSource.SOFTWARE_HOME,
+                    )
                         ?.let(onSubmitSearch)
                 }
             },
@@ -104,6 +110,8 @@ internal fun KiyoriFullScreenWebSearchPage(
                             query = record.query,
                             targetUrl = record.targetUrl,
                             profile = selectedProfile,
+                            engineId = record.engineId,
+                            source = KiyoriBrowserSearchSource.SEARCH_HISTORY,
                         ),
                     )
                 }
@@ -142,12 +150,15 @@ internal data class KiyoriWebSearchRequest(
     val query: String,
     val targetUrl: String,
     val profile: WebSessionProfile,
+    val engineId: String,
+    val source: KiyoriBrowserSearchSource,
 )
 
 internal fun resolveKiyoriWebSearchRequest(
     rawQuery: String,
     searchEngine: WebSessionSearchEngine,
     profile: WebSessionProfile,
+    source: KiyoriBrowserSearchSource,
 ): KiyoriWebSearchRequest? {
     val query = rawQuery.trim()
     if (query.isBlank()) {
@@ -157,5 +168,7 @@ internal fun resolveKiyoriWebSearchRequest(
         query = query,
         targetUrl = BrowserAddressResolver.resolve(query, searchEngine),
         profile = profile,
+        engineId = searchEngine.id,
+        source = source,
     )
 }

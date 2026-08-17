@@ -112,12 +112,12 @@ AndroidX/Sherpa/UUID 源码只允许保持自身包依赖，不得反向导入 K
 | `ARCH020` | M-04A2 根 Composable 路径、package、源码 SHA、Operit import 集合、唯一 owner、M-04D9 content host 或旧运行时符号漂移 | error |
 | `ARCH021` | M-04B Operit navigation policy 未由 integration 唯一拥有、Shell state 仍依赖 Operit navigation、源码 SHA/import 集合或 KiyoriApp 接线漂移 | error |
 | `ARCH022` | M-04B Browser exit presentation capability contract 的 package、源码 SHA、唯一 owner、固定消费者或旧 import 漂移 | error |
-| `ARCH023` | M-04B 纯 Shell state 路径/package/唯一 owner、项目 import、KiyoriApp 接线或当前 MainActivity 过渡桥接漂移 | error |
-| `ARCH024` | M-04B3 App Shell host 路径/package/规范化源码、精确 Operit import、唯一 helper owner、KiyoriApp host 或测试接线漂移 | error |
+| `ARCH023` | M-04B 纯 Shell state 路径/package/唯一 owner、Browser exit 与 Settings route capability import、KiyoriApp 接线或当前 MainActivity 过渡桥接漂移 | error |
+| `ARCH024` | M-04B3 App Shell host 路径/package/规范化源码、15 个精确项目 import、唯一 helper owner、KiyoriApp host 或测试接线漂移 | error |
 | `ARCH025` | M-04B4 AI Drawer host 路径/package/规范化源码、精确 Operit import、唯一 owner、App Shell host 或测试接线漂移 | error |
 | `ARCH026` | M-04B5 primary destination presentation 拆分后的源码 SHA、精确 import、唯一声明组、App Shell host 或测试接线漂移 | error |
 | `ARCH027` | M-04B6 Software Home 拆分后的路径/package、源码 SHA、9 个精确 Operit import、完整唯一声明组、App Shell host 或 27 个策略测试 import 漂移 | error |
-| `ARCH028` | M-04B7 residual Browser Search 旧路径、源码 SHA、8 个精确 Operit import、页面/request/resolver 唯一 owner、App Shell/KiyoriApp/test 接线漂移 | error |
+| `ARCH028` | M-04B7 residual Browser Search 旧路径、源码 SHA、8 个 Operit import 加 1 个 Browser search-source capability import、页面/request/resolver 唯一 owner、App Shell/KiyoriApp/test 接线漂移 | error |
 | `ARCH029` | M-04C route catalog 旧路径、新 catalog/runtime 源码 SHA 与精确 import、唯一 assembly owner、PackageManager/listener/gateway lifecycle、KiyoriApp/test 接线漂移 | error |
 | `ARCH030` | M-04D1 pending-request owner 缺失、package/源码 SHA/精确项目 import/唯一声明漂移，MainActivity 第二状态 owner、Activity/shared-content/content-host 组合边界中的消费 API 接线缺失、owner 吸收平台副作用或合同测试缺失 | error |
 | `ARCH031` | M-04D2 Intent decoder 缺失、package/源码 SHA/精确项目 import/唯一 symbol 漂移，decoder 吸收 host side effect、MainActivity 继续直接解析 payload、稳定常量桥接或合同测试漂移 | error |
@@ -171,9 +171,10 @@ permission/storage/repository/ViewModel。旧 preference resolver 只保留 snap
 
 M-05A1 实现后，ARCH024 的 App Shell import snapshot 继续表示完整项目 import 集合，而不是
 只允许 Operit 根。snapshot 条目必须全部属于 `com.ai.assistance.operit` 或 `com.kiyori`
-项目根、不得重复，并与源码的项目 import `Counter` 精确相等；因此两条批准的
-`com.kiyori.design.theme` import 不会放宽其余九条 Operit import，也不能掩盖新增、缺失或
-重复依赖。M-05A1 的 ARCH024/ARCH040 正反向测试与完整 architecture 已通过，最终封板仍以
+项目根、不得重复，并与源码的项目 import `Counter` 精确相等。当前集合为 11 个 Operit UI
+import、2 个 capability import（Browser workspace 与 Settings route）和 2 个
+`com.kiyori.design.theme` import；这些批准项不能掩盖新增、缺失或重复依赖。M-05A1 的
+ARCH024/ARCH040 正反向测试与完整 architecture 已通过，最终封板仍以
 全量测试、构建和 APK 审计为准。当前 M-05A1 已通过这些封板证据；后续 M-05A2 不得复用
 ARCH040 代替独立的 semantic design failure-first gate。
 
@@ -288,7 +289,9 @@ static-mock/formatter test 删除和过期 exception 回流。完整合同与非
 M-05C 使用 ARCH044 独立封板。`KiyoriActivityLifecycle.kt` 必须是唯一
 `Application.ActivityLifecycleCallbacks` 注册 owner，并由唯一
 `KiyoriActivityLifecycleFacts` 保存 current Activity 弱引用、activity/started count 与
-foreground boolean；platform 文件不得导入任何项目代码，也不得出现 ApiPreferences、
+foreground boolean。业务能力可以通过 `registerActivityStoppedListener()` 订阅只读的 stopped
+事实，但不能自行向 `Application` 注册第二个 callback，也不能把业务状态写回 platform owner；
+platform 文件不得导入任何项目代码，也不得出现 ApiPreferences、
 AppLogger、plugin、AI、Player、VirtualDisplay、Shower、WindowManager、CoroutineScope 或
 keep-screen-on 状态。
 
@@ -310,7 +313,9 @@ platform 反向依赖、第二注册、旧 consumer 丢失和测试断言删除�
 
 M-05C 已按该合同封板：ARCH044 failure-first、正反向 fixture、真实工作树与完整 architecture
 `phase=m03` 通过；三个生产 owner hash、13 个旧 FQCN consumer、完整旧 JVM ABI、唯一
-callback/facts owner、Operit side-effect owner 与 4 条 JVM facts test 均由门禁锁定。
+callback/facts owner、Operit side-effect owner、stopped 事实订阅边界与 4 条 JVM facts test
+均由门禁锁定。浏览器恢复协调器只订阅稳定 `MainActivity.onStop` 事实，并在
+`isChangingConfigurations=false` 时请求最新普通窗口投影；它不是第二 lifecycle owner。
 
 M-05D 使用 ARCH045 独立封板。`KiyoriNotificationPermissionCapability.kt` 必须是启动阶段
 `POST_NOTIFICATIONS` API 33 guard、system grant/rationale、`RequestPermission` launcher 与
@@ -418,11 +423,14 @@ process 和 permission 的重复次数，并保存完整 XML 语义树哈希；�
 直接核对 AIDL、Room schema/entity、ObjectBox model/目录映射、已持久化 WorkManager
 worker/scheduler 与备份/恢复实现
 经 CRLF-to-LF 规范化后的 SHA-256，确保 Windows/Linux checkout 一致。
-`persistence-api-calls.txt` 同时固定 65 个持久化 API 调用记录，扫描时忽略源码字符串、
+`persistence-api-calls.txt` 同时固定 71 个持久化 API 调用记录，扫描时忽略源码字符串、
 注释和排版差异，保存文件路径、API、目标参数与重复次数，防止只新增新名称而旧字面量
 计数不变时绕过 ARCH009；`preferencesDataStore` alias 和 `Room.databaseBuilder` 直接导入
-会被拒绝，避免改写调用名绕过扫描；尚未建模的 DataStore/default SharedPreferences/
-SQLite 创建 API 也会失败，必须先增加提取器和合同设计。
+会被拒绝，避免改写调用名绕过扫描。当前提取器已正式支持
+`DataStoreFactory.create(..., produceFile = <stable expression>)`，浏览器恢复 store 以
+`browserSessionRecoveryFileProducer` 登记；未登记的 DataStore 合同继续由 ARCH009 拒绝，
+`PreferenceDataStoreFactory.create` 仍属于未审查 API。其他尚未建模的 DataStore/default
+SharedPreferences/SQLite 创建 API 也会失败，必须先增加提取器和合同设计。
 
 snapshot 更新要求：
 

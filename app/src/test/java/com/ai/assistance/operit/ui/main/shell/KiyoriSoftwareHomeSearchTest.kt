@@ -3,6 +3,7 @@ package com.ai.assistance.operit.ui.main.shell
 import androidx.compose.ui.graphics.Color
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionSearchEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
 import com.kiyori.app.shell.KIYORI_HOME_ATTACHMENT_ICON_ALPHA
 import com.kiyori.app.shell.KIYORI_HOME_ATTACHMENT_ICON_SIZE_DP
 import com.kiyori.app.shell.KIYORI_HOME_BRAND_ICON_SIZE_DP
@@ -146,6 +147,7 @@ class KiyoriSoftwareHomeSearchTest {
                 "   ",
                 WebSessionSearchEngine.BING,
                 WebSessionProfile.NORMAL,
+                KiyoriBrowserSearchSource.SOFTWARE_HOME,
             )
         )
     }
@@ -157,11 +159,14 @@ class KiyoriSoftwareHomeSearchTest {
                 query = "example.com/docs",
                 targetUrl = "https://example.com/docs",
                 profile = WebSessionProfile.INCOGNITO,
+                engineId = WebSessionSearchEngine.BING.id,
+                source = KiyoriBrowserSearchSource.SOFTWARE_HOME,
             ),
             resolveKiyoriWebSearchRequest(
                 rawQuery = "  example.com/docs  ",
                 searchEngine = WebSessionSearchEngine.BING,
                 profile = WebSessionProfile.INCOGNITO,
+                source = KiyoriBrowserSearchSource.SOFTWARE_HOME,
             ),
         )
     }

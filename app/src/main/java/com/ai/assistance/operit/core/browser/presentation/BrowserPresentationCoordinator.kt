@@ -12,6 +12,13 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.Browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionIncognitoAvailability
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionProfile
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserSheetRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserPluginRoute
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWindowCreationReason
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserSessionSearchRecovery
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserLaunchRestorationPrompt
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.prepareBrowserHumanLaunch
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveBrowserHumanLaunch
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.scheduleBrowserRecoverySnapshotWrite
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.activateSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.applyBrowserDisplaySettingsOnMain
@@ -27,10 +34,14 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUs
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.openUserscriptManagerOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionUserscriptWorkbenchTab
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.refreshSessionUiOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.sessionById
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.showToast
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.destroyBrowserPresentationOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.userscript.ui.WebSessionUserscriptUiState
 import com.ai.assistance.operit.util.AppLogger
+import com.kiyori.capability.browser.presentation.KiyoriBrowserSearchSource
+import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
+import com.kiyori.platform.lifecycle.KiyoriActivityLifecycle
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,6 +56,16 @@ internal class BrowserPresentationReleaseGate {
         return true
     }
 }
+
+internal const val KIYORI_MAIN_ACTIVITY_CLASS_NAME =
+    "com.ai.assistance.operit.ui.main.MainActivity"
+
+internal fun shouldPersistBrowserRecoveryOnActivityStop(
+    activityClassName: String,
+    isChangingConfigurations: Boolean,
+): Boolean =
+    activityClassName == KIYORI_MAIN_ACTIVITY_CLASS_NAME &&
+        !isChangingConfigurations
 
 internal enum class BrowserAppPresentationReleaseMode {
     DETACH,
@@ -76,18 +97,28 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserCredentialVault.state
     val userscriptState: StateFlow<WebSessionUserscriptUiState> = tools.userscriptManager.uiStore.state
 
+    init {
+        KiyoriActivityLifecycle.registerActivityStoppedListener { activity ->
+            if (
+                shouldPersistBrowserRecoveryOnActivityStop(
+                    activityClassName = activity.javaClass.name,
+                    isChangingConfigurations = activity.isChangingConfigurations,
+                )
+            ) {
+                persistBrowserRecoverySnapshot()
+            }
+        }
+    }
+
     fun acquireAppPresentation(webViewHost: WebSessionWebViewHost): BrowserAppPresentationLease =
         tools.runOnMainSync {
             val presentation = tools.ensureBrowserPresentationOnMain(appContext)
             presentation.acquireAppPresentation(webViewHost)
 
-            val session = tools.getSession(null)
-                ?: tools.createSessionTabOnMain(
-                    appContext,
-                    initialUrl = tools.browserSettingsStore.current.homeUrl,
-                )
-            tools.ensureSessionAttachedOnMain(session.id)
-            tools.refreshSessionUiOnMain(session.id)
+            tools.getActiveSessionOnMain()?.let { session ->
+                tools.ensureSessionAttachedOnMain(session.id)
+                tools.refreshSessionUiOnMain(session.id)
+            } ?: tools.refreshSessionUiOnMain()
             BrowserAppPresentationLease(
                 presentation = presentation,
                 onRelease = { mode ->
@@ -140,6 +171,7 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                     appContext = appContext,
                     initialUrl = url,
                     profile = sourceSession?.profile ?: tools.defaultSessionProfile,
+                    creationReason = BrowserWindowCreationReason.OPEN_IN_NEW_WINDOW,
                 )
             if (!active && sourceSessionId != null) {
                 tools.activateSessionOnMain(sourceSessionId)
@@ -163,6 +195,21 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                 incognitoAvailability = tools.profileManager.incognitoAvailability,
             )
         }
+
+    fun activeSessionId(): String? =
+        tools.runOnMainSync {
+            tools.getActiveSessionOnMain()?.id
+        }
+
+    suspend fun prepareHumanBrowserLaunch(): BrowserLaunchRestorationPrompt? =
+        tools.prepareBrowserHumanLaunch()
+
+    suspend fun resolveHumanBrowserLaunch(
+        snapshotId: String,
+        restore: Boolean,
+    ) {
+        tools.resolveBrowserHumanLaunch(snapshotId, restore)
+    }
 
     fun setDefaultSessionProfile(profile: WebSessionProfile): Boolean =
         tools.runOnMainSync {
@@ -229,6 +276,29 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         tools.browserSettingsStore.setAutomaticFloatingMinimumDurationMillis(durationMillis)
     }
 
+    fun setSwipeHistoryNavigationEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setSwipeHistoryNavigationEnabled(enabled)
+    }
+
+    fun setRestoreLastSearchResultEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setRestoreLastSearchResultEnabled(enabled)
+        tools.scheduleBrowserRecoverySnapshotWrite()
+    }
+
+    fun setAskBeforeRestoringPagesEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setAskBeforeRestoringPagesEnabled(enabled)
+        tools.scheduleBrowserRecoverySnapshotWrite()
+    }
+
+    fun setRetainMultipleWindowsEnabled(enabled: Boolean) {
+        tools.browserSettingsStore.setRetainMultipleWindowsEnabled(enabled)
+        tools.scheduleBrowserRecoverySnapshotWrite()
+    }
+
+    fun persistBrowserRecoverySnapshot() {
+        tools.scheduleBrowserRecoverySnapshotWrite()
+    }
+
     suspend fun browserCredential(id: String): BrowserSavedCredential? =
         withContext(Dispatchers.IO) {
             tools.browserCredentialVault.credential(id)
@@ -263,6 +333,47 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         }
     }
 
+    fun openBrowserWorkspace(
+        route: KiyoriBrowserWorkspaceRoute,
+        onClosed: () -> Unit,
+    ) {
+        val pluginRoute =
+            when (route) {
+                KiyoriBrowserWorkspaceRoute.Overview ->
+                    WebSessionBrowserPluginRoute.Overview
+                KiyoriBrowserWorkspaceRoute.Diagnostics ->
+                    WebSessionBrowserPluginRoute.Userscripts(
+                        WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
+                    )
+                is KiyoriBrowserWorkspaceRoute.UserscriptDetail ->
+                    WebSessionBrowserPluginRoute.UserscriptDetail(route.scriptId)
+            }
+        tools.runOnMainSync<Unit> {
+            tools.browserWorkspaceClosedListener = onClosed
+            val host = tools.ensureBrowserPresentationOnMain(appContext)
+            host.showPluginRoute(pluginRoute)
+            tools.refreshSessionUiOnMain()
+        }
+    }
+
+    fun clearBrowserWorkspaceClosedListener() {
+        tools.runOnMainSync<Unit> {
+            tools.browserWorkspaceClosedListener = null
+        }
+    }
+
+    fun restoreBrowserWorkspaceSourceSession(sessionId: String?) {
+        if (sessionId == null) {
+            return
+        }
+        tools.runOnMainSync<Unit> {
+            check(tools.sessionById(sessionId) != null) {
+                "Browser workspace source session is no longer registered: $sessionId"
+            }
+            tools.activateSessionOnMain(sessionId)
+        }
+    }
+
     fun openUserscriptManager(
         initialTab: WebSessionUserscriptWorkbenchTab = WebSessionUserscriptWorkbenchTab.CURRENT_PAGE,
         initialSearchQuery: String = "",
@@ -278,11 +389,23 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
         }
     }
 
-    fun openUrlInNewSession(
+    fun openSearchResultInNewSession(
         url: String,
         profile: WebSessionProfile,
+        query: String,
+        engineId: String,
+        source: KiyoriBrowserSearchSource,
     ): String? =
         tools.runOnMainSync {
+            val searchRecovery =
+                BrowserSessionSearchRecovery(
+                    query = query,
+                    engineId = engineId,
+                    source = source,
+                    requestedUrl = url,
+                    resolvedResultUrl = url,
+                    submittedAt = System.currentTimeMillis(),
+                )
             try {
                 tools.ensureBrowserPresentationOnMain(appContext)
                 val session =
@@ -290,7 +413,11 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
                         appContext = appContext,
                         initialUrl = url,
                         profile = profile,
+                        creationReason = BrowserWindowCreationReason.SOFTWARE_HOME_SEARCH,
                     )
+                session.lastSearchRecovery = searchRecovery
+                session.searchRecoveryPending = true
+                tools.scheduleBrowserRecoverySnapshotWrite()
                 tools.refreshSessionUiOnMain(session.id)
                 session.id
             } catch (error: IllegalStateException) {

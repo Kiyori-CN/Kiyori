@@ -12,7 +12,7 @@ last_updated: 2026-08-14
 
 - Kiyori App Shell 已成为唯一顶层导航 owner，并持有五个根目的地、三页首页 Pager、底栏可见性与 Shell Back 状态
 - AI 对话作为稳定宿主挂入右侧 AI 首页；按钮触发的模态 AI 左抽屉已经取代全屏 AI Center
-- AI 一级根的显式身份、外部入口菜单/返回解析和全局透明状态栏已落地；模态 AI 抽屉底部“设置”与浏览器菜单进入同一个来源保持型设置首页，用户可见的“AI 助手”设置继续由设置首页进入
+- AI 一级根的显式身份、外部入口菜单/返回解析和全局透明状态栏已落地；模态 AI 抽屉底部“设置”、浏览器菜单与底部设置进入同一个显式设置会话，用户可见的“AI 助手”设置继续由设置首页进入
 - 旧手机抽屉、平板侧栏、边缘拖动、主内容透视变换、全局手势状态和抽屉专属主题设置已删除
 - 全屏网页搜索已经接入共享 Browser Runtime；负一屏、文件管理和设置根页面按固定旧版提交完成静态复刻，小程序根页面仍是接线骨架
 - 模态 AI 左抽屉、AI 一级路由替换和来源保持型设置首页已实现并通过自动验证；设置首页已经拆出账号、语音、界面和数据根页。全应用 `KiyoriSemanticTone` 已统一负一屏、AI 抽屉、浏览器内容抽屉、包管理、权限和工作流的图标与状态，工作流画布也已适配浅深主题；抽屉快捷入口状态徽标已实现且拥有独立布局区域，权限中心总览仍未完成，真机交互保持 `verification_pending`
@@ -97,7 +97,7 @@ Kiyori App Shell/
 └── 设置首页/（固定布局，账号 / AI / 语音 / 浏览器 / 播放器 / 下载 / 广告拦截 / 界面 / 数据已接入）
 ```
 
-模态 AI 抽屉底部“设置”进入来源保持型设置首页，不替换当前 AI 一级路由或子栈；Back 关闭设置首页后回到原 AI 页面。AI 助手设置由设置首页进入同一页面与持久状态：底部设置主目的地进入时返回该设置首页，来源保持型设置首页进入时压入当前 AI 栈，Back 先回设置首页再回原来源。
+模态 AI 抽屉底部“设置”进入来源保持型设置首页，不替换当前 AI 一级路由或子栈；设置详情按统一 route stack 逐级返回，关闭设置首页后回到原 AI 页面。AI 助手设置由设置首页进入同一页面与持久状态：Operit route 绑定活动设置 `sessionId`，route 耗尽后恢复同一设置会话，而不是改写底部主目的地。
 
 ## 顶层状态模型
 
@@ -105,6 +105,7 @@ Kiyori App Shell/
 
 - `PrimaryDestination`：软件首页、浏览器首页、小程序首页、文件管理首页、设置首页
 - `SoftwareHomePage`：负一屏、软件首页、AI 首页
+- `KiyoriSettingsNavigationState`：一次设置会话的 `sessionId`、来源、完整 `KiyoriSettingsRoute` 栈和展示状态
 
 `SoftwareHomePage` 只在 `PrimaryDestination` 为软件首页时有效。AI 首页不是第六个底部入口，负一屏也不是独立顶层目的地。
 
@@ -122,7 +123,7 @@ Kiyori App Shell/
   `ChatHistoryManager` 创建并选中一个真实空白对话；已有有效对话时仅由
   `startWithNewChat` 偏好决定是否在本次启动另建空白对话
 - 浏览器首页隐藏 Kiyori 底部五入口，改为后退、前进、主页、标签页和工具箱组成的浏览器专属底栏
-- 小程序首页、文件管理首页和作为主目的地显示的设置首页显示 Kiyori 底部五入口；浏览器菜单或 AI 抽屉打开的来源保持型设置首页隐藏底部五入口
+- 小程序首页、文件管理首页和作为主目的地显示的设置首页显示 Kiyori 底部五入口；浏览器菜单或 AI 抽屉打开的来源保持型设置会话隐藏底部五入口
 - 全屏网页搜索页、子页面和播放器、阅读器、网页内容等沉浸页面隐藏底部五入口
 - AI 首页应保持稳定挂载，左右切换不能销毁正在进行的对话、输入草稿或流式状态
 - 模态 AI 抽屉覆盖当前 AI 页面；AI Home 在抽屉开关和一级页面切换期间保持持续组合与同一个会话状态
@@ -178,7 +179,7 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
 
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
-软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openUrlInNewSession` 在唯一 Browser Runtime 中创建并激活新 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索框只显示选中引擎图标；左右动作和引擎按钮始终沿输入框垂直中心同步移动。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openSearchResultInNewSession` 在唯一 Browser Runtime 中创建并激活带明确搜索来源的 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession；两条路径都记录 `BROWSER_HOME` 来源，搜索历史重开记录 `SEARCH_HISTORY` 来源。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索框只显示选中引擎图标；左右动作和引擎按钮始终沿输入框垂直中心同步移动。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
 
 全屏搜索页主体继续遵循浏览器下拉抽屉菜单的紧凑基准。复制/编辑图标为 `16dp`，并向标签文字轻微
 靠近；历史垃圾桶为 `26dp`，标题行固定为 `34dp`，切换垃圾桶与“清空 / 完成”时标题不发生垂直位移。
@@ -314,8 +315,8 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 - 每个 AI 一级页面保留自己的滚动、筛选、表单和子页面栈
 - 宿主一级根使用稳定实例并保存子栈。ToolPkg 一级根每次进入创建新路由实例；只有对应 `RouteSpec.keepAlive=true` 时，`stableScreenKey` 和保存栈才跨抽屉切换保留
 - AI 一级页面 Back 返回 AI Home，深层页面 Back 返回所属一级页面
-- 抽屉底部“设置”打开 `KiyoriShellChild.SETTINGS_HOME`，不改变当前 AI 路由；该设置首页及其详情页隐藏底部五入口
-- AI 助手设置只有一份页面、表单和持久状态；底部设置主目的地使用 `RouteEntrySource.KIYORI_SETTINGS` 根返回，来源保持型设置首页把该页面压入当前 AI 栈
+- 抽屉底部“设置”启动 `KiyoriSettingsOrigin.AI_HOST` 的设置会话，不改变当前 AI 路由；该设置首页及其详情页隐藏底部五入口
+- AI 助手设置只有一份页面、表单和持久状态；`RouteEntrySource.KIYORI_SETTINGS` 同时携带活动设置 `navigationContextId`，返回时恢复同一设置 route stack
 - 窗口尺寸或折叠姿态变化只改变抽屉宽度，不创建新页面实例，也不重置当前页面状态
 
 ### 原版左抽屉映射
@@ -385,7 +386,7 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，其余按钮为空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。
 
-设置首页保留四个旧版 PNG 顶栏图标、四张 `16dp` 圆角卡片和 `4/4/4/4` 共 16 个入口的信息结构。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 16 个入口由设计层 `KiyoriSettingsHomeIconPalette` 分别提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。第一张卡固定为“账号连接 / AI助手 / 语音服务 / 小程序”，第二张卡固定为“网页浏览器 / 视频播放器 / 音乐播放器 / 文档阅读器”，第三张卡固定为“文件下载器 / 文件管理器 / 广告拦截器 / 日志记录器”，最后一张卡固定为“界面定制 / 数据备份 / 开发手册 / 更多功能”；16 个图标也必须互不重复。前三项进入现有真实设置根，“小程序”保持空动作，等待底部第三个小程序产品域建立自己的管理页，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。网页浏览器、视频播放器、文件下载器、广告拦截器、界面定制和数据备份也进入各自唯一 owner；广告拦截器设置页只消费 `BrowserAdBlockStore`，不创建第二规则源。主题快捷菜单固定为 `156dp`。主目的地设置首页显示底部五入口，浏览器菜单和 AI 抽屉打开的 `KiyoriShellChild.SETTINGS_HOME` 保留来源并隐藏底栏；其详情 child 先返回设置首页，再返回来源；其余入口和顶栏动作保持为空。
+设置首页保留四个旧版 PNG 顶栏图标、四张 `16dp` 圆角卡片和 `4/4/4/4` 共 16 个入口的信息结构。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 16 个入口由设计层 `KiyoriSettingsHomeIconPalette` 分别提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。第一张卡固定为“账号连接 / AI助手 / 语音服务 / 小程序”，第二张卡固定为“网页浏览器 / 视频播放器 / 音乐播放器 / 文档阅读器”，第三张卡固定为“文件下载器 / 文件管理器 / 广告拦截器 / 日志记录器”，最后一张卡固定为“界面定制 / 数据备份 / 开发手册 / 更多功能”；16 个图标也必须互不重复。前三项进入现有真实设置根，“小程序”保持空动作，等待底部第三个小程序产品域建立自己的管理页，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。网页浏览器、视频播放器、文件下载器、广告拦截器、界面定制和数据备份也进入各自唯一 owner；广告拦截器设置页只消费 `BrowserAdBlockStore`，不创建第二规则源。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。标题返回与系统 Back 共用同一 route-pop 语义，详情先回分类、再回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
 
 ## 设置所有权
 
@@ -449,6 +450,10 @@ Operit AI 通过 Kiyori Capability API 操作产品能力，不能直接依赖�
 浏览器、播放器、文件、下载、阅读器等领域分别拥有自己的合同。一个综合 AI 工具可以编排多个合同，但不越过各领域 owner 写入状态。
 
 浏览器只有一个完整可见宿主：`MainActivity` 中的 App Shell Browser Home。活动 WebView 只在 `APP_SHELL` 与 `BACKGROUND_ANCHOR` presentation owner 之间转挂；后者是系统层 1×1、不可见、不可触摸、不可聚焦的后台 attach 点，不组合浏览器 chrome、抽屉、文本选择操作条或播放器。标签、WebView、Cookie、历史、书签、下载和用户脚本始终只有一个领域 owner。Browser Home 持有一次性 App presentation lease，显式退出后 Compose disposal 的重复 release 不再执行。重复请求当前 owner 直接保持原挂载；真实跨 ViewRoot 切换必须从旧 parent 移除 WebView、移除旧 background window、确认 parent 为空，等待一个 `Choreographer` 渲染帧并确认旧 anchor ViewRoot 已脱离后，才把同一 View 挂入目标 host。Browser Home 活跃期间不保留空 anchor 窗口。整个事务禁止调用 `loadUrl`、`reload`、`destroy` 或创建状态副本。
+
+产品窗口创建由不可变 `BrowserWindowCreationReason` 约束。非主页普通网页的同站、跨站、`target="_blank"` 和用户 `window.open()` 都在当前 WebSession 中导航；自动 popup、dialog popup 和没有稳定 HTTP(S) 目标的请求明确拒绝。`onCreateWindow()` 只创建同 Profile 的临时目标解析 WebView，该解析器不进入窗口 registry，不安装 Kiyori bridge、用户脚本、下载器或凭据能力，捕获首个稳定目标后立即销毁。唯一自动保留原窗口的例外是已确认配置主页根上的真实用户跨站跳转：创建同 Profile 子窗口并记录 opener 主页。子窗口历史耗尽时关闭并激活仍有效的 opener；其他窗口回到最新配置主页。
+
+网页浏览器设置中的“滑屏前进后退”默认关闭，开启后左边缘向右请求 Back、右边缘向左请求 Forward，并在抽屉、搜索、源码确认、文本选择、网页元素动作、广告标记、下载确认、JavaScript 对话框和无障碍触摸探索期间停用。Browser Runtime 只为普通窗口维护最小启动恢复投影：`保留多窗口` 恢复全部普通窗口，`恢复上次的搜索结果` 恢复最近仍未关闭且仍停留在结果页的明确搜索窗口，`询问是否恢复页面` 把可用自动恢复改为一次性确认或单独询问活动普通页。恢复文件位于 `noBackupFilesDir/kiyori/browser_session_recovery.json`，不包含无痕 Profile/窗口、Cookie、请求头、DOM、表单、正文、截图、密码或网络日志；三个恢复开关全关时删除该文件。
 
 Browser Home 可见时，AI 浏览器工具直接操作当前共享标签，不依赖悬浮窗权限。Browser Home 不可见时，AI 仍操作同一 session 和 WebView：已有 overlay 权限时挂到后台 anchor；缺少权限时返回明确权限错误，不创建 headless WebView、第二个 session 或覆盖人工页面。最小 indicator 点击后通过显式 action 打开现有 Browser Home。关闭最后标签时，可见的 Browser Home 保留无标签页面；后台 anchor 和 indicator 不拥有会话状态。
 
