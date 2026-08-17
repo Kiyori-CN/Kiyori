@@ -244,8 +244,8 @@ internal fun KiyoriSettingsHomePage(
     onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
-    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     BackHandler(enabled = onBack != null) {
         onBack?.invoke()

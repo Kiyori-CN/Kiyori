@@ -1,8 +1,7 @@
 package com.ai.assistance.operit.util
 
 import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeClient
-import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeMediaInformation
-import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeTerminalState
+import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeResponse
 import com.kiyori.platform.android.ApplicationContextAccess
 
 /**
@@ -17,68 +16,48 @@ internal object FFmpegUtil {
      */
     fun scaleFilterMaxWidth(maxWidth: Int): String = "scale=min(${maxWidth}\\,iw):-2"
 
-    /**
-     * Execute an FFmpeg command and return if it was successful
-     */
-    fun executeCommand(command: String): Boolean {
+    fun executeArguments(arguments: List<String>): FFmpegRuntimeResponse {
         try {
-            AppLogger.d(TAG, "Executing FFmpeg command: $command")
-            val response =
-                FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
-                    .executeBlocking(command)
-            val result = response.result
-
-            if (result.terminalState == FFmpegRuntimeTerminalState.SUCCEEDED) {
-                AppLogger.d(TAG, "FFmpeg command executed successfully")
-                return true
-            } else {
-                AppLogger.e(
-                    TAG,
-                    "FFmpeg failed with return code: ${result.returnCode}, output: ${response.output}"
-                )
-                return false
-            }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Error executing FFmpeg command", e)
-            return false
-        }
-    }
-
-    fun executeArguments(arguments: List<String>): Boolean {
-        return try {
             AppLogger.d(TAG, "Executing FFmpeg arguments: ${arguments.joinToString(" ")}")
             val response =
                 FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
                     .executeArgumentsBlocking(arguments)
             val result = response.result
-            if (result.terminalState == FFmpegRuntimeTerminalState.SUCCEEDED) {
+            if (response.succeeded) {
                 AppLogger.d(TAG, "FFmpeg arguments executed successfully")
-                true
             } else {
                 AppLogger.e(
                     TAG,
-                    "FFmpeg failed with return code: ${result.returnCode}, output: ${response.output}",
+                    "FFmpeg failed with state=${result.terminalState}, " +
+                        "returnCode=${result.returnCode}, sessionId=${result.sessionId}, " +
+                        "processId=${result.processId}, output=${response.output}",
                 )
-                false
             }
+            return response
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error executing FFmpeg arguments", e)
-            false
+            throw e
         }
     }
 
-    /**
-     * Get media information for a file
-     */
-    fun getMediaInfo(filePath: String): FFmpegRuntimeMediaInformation? {
-        return try {
-            FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
+    fun probeMedia(filePath: String): FFmpegRuntimeResponse {
+        try {
+            val response =
+                FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
                 .probeMediaBlocking(filePath)
-                .result
-                .mediaInformation
+            if (!response.succeeded) {
+                val result = response.result
+                AppLogger.e(
+                    TAG,
+                    "FFprobe failed with state=${result.terminalState}, " +
+                        "returnCode=${result.returnCode}, sessionId=${result.sessionId}, " +
+                        "processId=${result.processId}, output=${response.output}",
+                )
+            }
+            return response
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error getting media info", e)
-            null
+            throw e
         }
     }
-} 
+}

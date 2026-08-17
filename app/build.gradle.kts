@@ -100,6 +100,17 @@ val playerFfmpegRequiredBuildMarkers =
         "--enable-zlib",
         "--enable-mediacodec",
     )
+val playerFfmpegQualifiedCodecMarkers =
+    listOf(
+        "libopenh264enc",
+        "AAC encoder",
+        "libavcodec/aacenc.c",
+    )
+val playerFfmpegQualifiedMp4Markers =
+    listOf(
+        "libavformat/movenc.c",
+        "mov/mp4/tgp/psp/tg2/ipod/ismv/f4v muxer",
+    )
 val playerFfmpegKitWrapperMarker = "8.1.7-kiyori-n9.0.1-r4"
 val playerFfmpegKitLibraryNames =
     setOf(
@@ -1397,6 +1408,20 @@ val verifyPlayerNativeInputs =
                 check(!ffmpegAvutilPayload.containsByteSequence("n8.1.2".toByteArray(Charsets.US_ASCII))) {
                     "FFmpegKit libavutil still contains FFmpeg n8.1.2"
                 }
+                val ffmpegAvcodecPayload =
+                    requireNotNull(ffmpegNativePayloads["jni/arm64-v8a/libavcodec.so"])
+                playerFfmpegQualifiedCodecMarkers.forEach { marker ->
+                    check(ffmpegAvcodecPayload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "FFmpegKit libavcodec lacks qualified h264_aac_mp4 marker $marker"
+                    }
+                }
+                val ffmpegAvformatPayload =
+                    requireNotNull(ffmpegNativePayloads["jni/arm64-v8a/libavformat.so"])
+                playerFfmpegQualifiedMp4Markers.forEach { marker ->
+                    check(ffmpegAvformatPayload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "FFmpegKit libavformat lacks qualified h264_aac_mp4 marker $marker"
+                    }
+                }
                 val ffmpegkitPayload =
                     requireNotNull(ffmpegNativePayloads["jni/arm64-v8a/libffmpegkit.so"])
                 check(
@@ -1503,6 +1528,24 @@ val verifyDebugPlayerRuntimePackaging =
                 }
                 check(!apkFfmpegAvutil.containsByteSequence("n8.1.2".toByteArray(Charsets.US_ASCII))) {
                     "Debug APK FFmpegKit libavutil still contains FFmpeg n8.1.2"
+                }
+                val apkFfmpegAvcodec =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libavcodec.so")),
+                    ).use { stream -> stream.readBytes() }
+                playerFfmpegQualifiedCodecMarkers.forEach { marker ->
+                    check(apkFfmpegAvcodec.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK FFmpegKit libavcodec lacks qualified h264_aac_mp4 marker $marker"
+                    }
+                }
+                val apkFfmpegAvformat =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libavformat.so")),
+                    ).use { stream -> stream.readBytes() }
+                playerFfmpegQualifiedMp4Markers.forEach { marker ->
+                    check(apkFfmpegAvformat.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK FFmpegKit libavformat lacks qualified h264_aac_mp4 marker $marker"
+                    }
                 }
                 val apkFfmpegKit =
                     archive.getInputStream(

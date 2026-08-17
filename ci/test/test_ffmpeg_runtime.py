@@ -199,7 +199,7 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
         mnn_provider = MNN_PROVIDER.read_text(encoding="utf-8")
 
         self.assertEqual(
-            media_pool.count("FFmpegUtil.getMediaInfo(source.absolutePath)"),
+            media_pool.count("FFmpegUtil.probeMedia(source.absolutePath)"),
             1,
         )
         self.assertEqual(media_pool.count("resolveMediaPoolTranscodePlan("), 2)
@@ -216,6 +216,87 @@ class FFmpegRuntimeContractTest(unittest.TestCase):
 
         self.assertIn("withContext(Dispatchers.IO)", mnn_provider)
         self.assertIn("preprocessMultimodalText", mnn_provider)
+        self.assertEqual(mnn_provider.count("FFmpegUtil.executeArguments("), 2)
+        self.assertNotIn("FFmpegUtil.executeCommand(", mnn_provider)
+
+    def test_conversion_contract_is_deterministic_across_host_and_toolpkg(self) -> None:
+        standard = (
+            APP_MAIN
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "tools"
+            / "defaultTool"
+            / "standard"
+            / "StandardFFmpegTool.kt"
+        ).read_text(encoding="utf-8")
+        contract = (
+            APP_MAIN
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "tools"
+            / "defaultTool"
+            / "standard"
+            / "FFmpegConversionContract.kt"
+        ).read_text(encoding="utf-8")
+        prompts = (
+            APP_MAIN
+            / "java"
+            / "com"
+            / "ai"
+            / "assistance"
+            / "operit"
+            / "core"
+            / "config"
+            / "SystemToolPromptsInternal.kt"
+        ).read_text(encoding="utf-8")
+        source_package = (REPO_ROOT / "examples" / "ffmpeg.ts").read_text(encoding="utf-8")
+        generated_package = (REPO_ROOT / "examples" / "ffmpeg.js").read_text(encoding="utf-8")
+        asset_package = (APP_MAIN / "assets" / "packages" / "ffmpeg.js").read_text(
+            encoding="utf-8"
+        )
+        definitions = (
+            REPO_ROOT / "examples" / "types" / "ffmpeg.d.ts"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("executeArgumentsBlocking(arguments)", standard)
+        self.assertNotIn("executeBlocking(command)", standard[standard.index("class StandardFFmpegConvertToolExecutor"):])
+        self.assertIn('H264_AAC_MP4("h264_aac_mp4")', contract)
+        self.assertIn('"libopenh264"', contract)
+        self.assertIn('"constrained_baseline"', contract)
+        self.assertIn('add("-n")', contract)
+        self.assertIn("commitFileAtomicallyWithoutReplacement", standard)
+        for text in (prompts, source_package, generated_package, asset_package, definitions):
+            self.assertIn("h264_aac_mp4", text)
+            self.assertIn("video_bitrate", text)
+            self.assertNotIn("video_codec", text)
+            self.assertNotIn("audio_codec", text)
+        self.assertEqual(generated_package, asset_package)
+
+    def test_runtime_bounds_logs_and_cancels_queued_work_without_retry(self) -> None:
+        service = (RUNTIME_ROOT / "FFmpegRuntimeService.kt").read_text(encoding="utf-8")
+        client = (RUNTIME_ROOT / "FFmpegRuntimeClient.kt").read_text(encoding="utf-8")
+        models = (RUNTIME_ROOT / "FFmpegRuntimeModels.kt").read_text(encoding="utf-8")
+        protocol = (RUNTIME_ROOT / "FFmpegRuntimeProtocol.kt").read_text(encoding="utf-8")
+
+        self.assertIn("FFMPEG_RUNTIME_MAX_COMMAND_CHARS", models)
+        self.assertIn("FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS", models)
+        self.assertIn("FFMPEG_RUNTIME_MAX_PATH_CHARS", models)
+        self.assertIn("pruneFfmpegRuntimeLogs(", service)
+        self.assertIn("FFMPEG_RUNTIME_MAX_LOG_BYTES", service)
+        self.assertIn("sessionId = 0L", service)
+        self.assertIn("cancelled before native session creation", service)
+        self.assertIn("discardTerminalLog(", client)
+        self.assertIn("protectedLogPaths = setOf(diagnosticLogPath)", client)
+        self.assertIn("FFMPEG_RUNTIME_LOG_MAX_TOTAL_BYTES", protocol)
+        self.assertNotIn("repeat(", client[client.index("private suspend fun submit("):client.index("private suspend fun awaitConnectedRuntime(")])
 
 
 if __name__ == "__main__":

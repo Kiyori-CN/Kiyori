@@ -15,9 +15,9 @@
     "tools": [
         {
             "name": "ffmpeg_execute",
-            "description": { "zh": "执行自定义FFmpeg命令（仅填写参数，不要包含前缀 ffmpeg）。", "en": "Execute a custom FFmpeg command (arguments only; do not include the leading ffmpeg)." },
+            "description": { "zh": "执行自定义 FFmpeg 参数；这不是 Shell，不支持管道、重定向或命令链，也不要包含前缀 ffmpeg。", "en": "Execute custom FFmpeg arguments. This is not a shell: pipes, redirection, and command chains are unsupported; do not include the leading ffmpeg." },
             "parameters": [
-                { "name": "command", "description": { "zh": "要执行的FFmpeg命令参数（不要包含前缀 ffmpeg）", "en": "FFmpeg command arguments to execute (do not include the leading ffmpeg)" }, "type": "string", "required": true }
+                { "name": "command", "description": { "zh": "要执行的 FFmpeg 参数（不要包含前缀 ffmpeg 或 Shell 语法）", "en": "FFmpeg arguments to execute (do not include the leading ffmpeg or shell syntax)" }, "type": "string", "required": true }
             ]
         },
         {
@@ -30,11 +30,10 @@
             "description": { "zh": "使用简化参数转换视频文件。", "en": "Convert a video file using simplified parameters." },
             "parameters": [
                 { "name": "input_path", "description": { "zh": "源视频文件路径", "en": "Input video file path" }, "type": "string", "required": true },
-                { "name": "output_path", "description": { "zh": "目标视频文件路径", "en": "Output video file path" }, "type": "string", "required": true },
-                { "name": "video_codec", "description": { "zh": "可选，要使用的视频编解码器。推荐使用 'h264'。支持的值: 'h264', 'hevc', 'vp8', 'vp9', 'av1', 'libx265', 'libvpx', 'libaom', 'mpeg4', 'mjpeg', 'prores'。", "en": "Optional. Video codec to use. Prefer 'h264'. Supported values: 'h264', 'hevc', 'vp8', 'vp9', 'av1', 'libx265', 'libvpx', 'libaom', 'mpeg4', 'mjpeg', 'prores'." }, "type": "string", "required": false },
-                { "name": "audio_codec", "description": { "zh": "可选，要使用的音频编解码器。支持的值: 'aac', 'mp3', 'opus', 'vorbis', 'flac', 'pcm', 'wav', 'ac3', 'eac3'。", "en": "Optional. Audio codec to use. Supported values: 'aac', 'mp3', 'opus', 'vorbis', 'flac', 'pcm', 'wav', 'ac3', 'eac3'." }, "type": "string", "required": false },
-                { "name": "resolution", "description": { "zh": "可选，输出分辨率，例如 '1280x720'。", "en": "Optional. Output resolution, e.g. '1280x720'." }, "type": "string", "required": false },
-                { "name": "bitrate", "description": { "zh": "可选，视频比特率，例如 '1000k'。", "en": "Optional. Video bitrate, e.g. '1000k'." }, "type": "string", "required": false }
+                { "name": "output_path", "description": { "zh": "目标 MP4 文件的绝对路径；文件必须不存在", "en": "Absolute destination MP4 path; the file must not already exist" }, "type": "string", "required": true },
+                { "name": "profile", "description": { "zh": "可选，确定性转换配置；当前仅支持 h264_aac_mp4", "en": "Optional deterministic conversion profile; currently only h264_aac_mp4" }, "type": "string", "required": false },
+                { "name": "resolution", "description": { "zh": "可选，16 到 8192 范围内的偶数宽高，例如 1280x720", "en": "Optional even dimensions from 16 to 8192, e.g. 1280x720" }, "type": "string", "required": false },
+                { "name": "video_bitrate", "description": { "zh": "可选，64k 到 100M 的视频比特率，例如 4000k 或 4M", "en": "Optional video bitrate from 64k to 100M, e.g. 4000k or 4M" }, "type": "string", "required": false }
             ]
         }
     ]
@@ -42,10 +41,9 @@
 
 const FFmpegTools = (function () {
 
-    type FFmpegVideoCodec = 'h264' | 'hevc' | 'vp8' | 'vp9' | 'av1' | 'libx265' | 'libvpx' | 'libaom' | 'mpeg4' | 'mjpeg' | 'prores';
-    type FFmpegAudioCodec = 'aac' | 'mp3' | 'opus' | 'vorbis' | 'flac' | 'pcm' | 'wav' | 'ac3' | 'eac3';
+    type FFmpegConversionProfile = 'h264_aac_mp4';
     type FFmpegResolution = '1280x720' | '1920x1080' | '3840x2160' | '7680x4320' | `${number}x${number}`;
-    type FFmpegBitrate = '500k' | '1000k' | '2000k' | '4000k' | '8000k' | `${number}k` | `${number}M`;
+    type FFmpegVideoBitrate = '500k' | '1000k' | '2000k' | '4000k' | '8000k' | `${number}k` | `${number}M`;
 
     interface ToolResponse {
         success: boolean;
@@ -74,16 +72,14 @@ const FFmpegTools = (function () {
     async function ffmpeg_convert(params: {
         input_path: string,
         output_path: string,
-        video_codec?: FFmpegVideoCodec,
-        audio_codec?: FFmpegAudioCodec,
+        profile?: FFmpegConversionProfile,
         resolution?: FFmpegResolution,
-        bitrate?: FFmpegBitrate
+        video_bitrate?: FFmpegVideoBitrate
     }): Promise<ToolResponse> {
         const result = await Tools.FFmpeg.convert(params.input_path, params.output_path, {
-            video_codec: params.video_codec,
-            audio_codec: params.audio_codec,
+            profile: params.profile,
             resolution: params.resolution,
-            bitrate: params.bitrate,
+            video_bitrate: params.video_bitrate,
         });
         return {
             success: result.returnCode === 0,
@@ -128,10 +124,9 @@ const FFmpegTools = (function () {
         ffmpeg_convert: (params: {
             input_path: string,
             output_path: string,
-            video_codec?: FFmpegVideoCodec,
-            audio_codec?: FFmpegAudioCodec,
+            profile?: FFmpegConversionProfile,
             resolution?: FFmpegResolution,
-            bitrate?: FFmpegBitrate
+            video_bitrate?: FFmpegVideoBitrate
         }) => wrapToolExecution(ffmpeg_convert, params),
         main,
     };
@@ -140,4 +135,4 @@ const FFmpegTools = (function () {
 exports.ffmpeg_execute = FFmpegTools.ffmpeg_execute;
 exports.ffmpeg_info = FFmpegTools.ffmpeg_info;
 exports.ffmpeg_convert = FFmpegTools.ffmpeg_convert;
-exports.main = FFmpegTools.main; 
+exports.main = FFmpegTools.main;

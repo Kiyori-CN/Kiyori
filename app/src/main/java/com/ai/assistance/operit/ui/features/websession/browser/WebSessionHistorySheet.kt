@@ -107,6 +107,11 @@ internal fun WebSessionHistorySheet(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val linkCopiedMessage = stringResource(R.string.web_session_history_link_copied)
+    val titleCopiedMessage = stringResource(R.string.web_session_history_title_copied)
+    val invalidBookmarkUrlMessage =
+        stringResource(R.string.web_session_history_invalid_bookmark_url)
+    val bookmarkSavedMessage = stringResource(R.string.web_session_history_bookmark_saved)
     var selectedFilter by rememberSaveable { mutableStateOf(WebSessionHistoryFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
     var showDeleteRangeSheet by remember { mutableStateOf(false) }
@@ -396,7 +401,7 @@ internal fun WebSessionHistorySheet(
                     copyHistoryText(context, entry.title, entry.url)
                     Toast.makeText(
                         context,
-                        context.getString(R.string.web_session_history_link_copied),
+                        linkCopiedMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                     actionEntry = null
@@ -405,7 +410,7 @@ internal fun WebSessionHistorySheet(
                     copyHistoryText(context, entry.title, entry.title)
                     Toast.makeText(
                         context,
-                        context.getString(R.string.web_session_history_title_copied),
+                        titleCopiedMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                     actionEntry = null
@@ -434,7 +439,7 @@ internal fun WebSessionHistorySheet(
                 if (normalizeWebSessionBookmarkUrl(confirmed.url) == null) {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.web_session_history_invalid_bookmark_url),
+                        invalidBookmarkUrlMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                 } else {
@@ -447,7 +452,7 @@ internal fun WebSessionHistorySheet(
                     bookmarkDraft = null
                     Toast.makeText(
                         context,
-                        context.getString(R.string.web_session_history_bookmark_saved),
+                        bookmarkSavedMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                 }

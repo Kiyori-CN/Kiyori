@@ -10,7 +10,7 @@ import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
 import com.ai.assistance.operit.util.AppLogger
-import java.io.File
+import com.ai.assistance.operit.util.commitFileAtomicallyWithoutReplacement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -162,165 +162,145 @@ class StandardFFmpegConvertToolExecutor(private val context: Context) : ToolExec
     }
 
     override fun invoke(tool: AITool): ToolResult {
-        val inputPath = tool.parameters.find { it.name == "input_path" }?.value ?: ""
-        val outputPath = tool.parameters.find { it.name == "output_path" }?.value ?: ""
-        val resolution = tool.parameters.find { it.name == "resolution" }?.value
-        val bitrate = tool.parameters.find { it.name == "bitrate" }?.value
-        val audioCodec = tool.parameters.find { it.name == "audio_codec" }?.value
-        val videoCodec = tool.parameters.find { it.name == "video_codec" }?.value
-
-        if (inputPath.isEmpty() || outputPath.isEmpty()) {
-            return ToolResult(
+        val request =
+            try {
+                FFmpegConversionRequest.parse(
+                    inputPath = tool.parameters.find { it.name == "input_path" }?.value,
+                    outputPath = tool.parameters.find { it.name == "output_path" }?.value,
+                    profile = tool.parameters.find { it.name == "profile" }?.value,
+                    resolution = tool.parameters.find { it.name == "resolution" }?.value,
+                    videoBitrate = tool.parameters.find { it.name == "video_bitrate" }?.value,
+                )
+            } catch (error: IllegalArgumentException) {
+                return ToolResult(
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Input path and output path cannot be empty"
-            )
-        }
-
-        val inputFile = File(inputPath)
-        if (!inputFile.exists()) {
-            return ToolResult(
-                    toolName = tool.name,
-                    success = false,
-                    result = StringResultData(""),
-                    error = "Input file does not exist: $inputPath"
-            )
-        }
-
-        // 构建FFmpeg命令
-        val commandBuilder = StringBuilder("-i \"$inputPath\"")
-
-        // 添加可选参数
-        if (!videoCodec.isNullOrEmpty()) {
-            commandBuilder.append(" -c:v $videoCodec")
-        }
-
-        if (!audioCodec.isNullOrEmpty()) {
-            commandBuilder.append(" -c:a $audioCodec")
-        }
-
-        if (!resolution.isNullOrEmpty()) {
-            commandBuilder.append(" -s $resolution")
-        }
-
-        if (!bitrate.isNullOrEmpty()) {
-            commandBuilder.append(" -b:v $bitrate")
-        }
-
-        // 添加输出文件
-        commandBuilder.append(" \"$outputPath\"")
-
-        val command = commandBuilder.toString()
+                    error = error.message ?: "Invalid FFmpeg conversion parameters",
+                )
+            }
+        val temporaryOutput = request.createTemporaryOutput()
+        val arguments = request.buildArguments(temporaryOutput)
+        val command = formatFfmpegArgumentsForDisplay(arguments)
 
         return try {
             val runtime = FFmpegRuntimeClient.getInstance(context)
-            val response = runtime.executeBlocking(command)
+            val response = runtime.executeArgumentsBlocking(arguments)
             val runtimeResult = response.result
             val output = response.output
             val duration = runtimeResult.durationMillis
 
             if (runtimeResult.terminalState == FFmpegRuntimeTerminalState.SUCCEEDED) {
-                val mediaInfo = runtime.probeMediaBlocking(outputPath).result.mediaInformation
+                require(temporaryOutput.isFile && temporaryOutput.length() > 0L) {
+                    "FFmpeg conversion completed without a non-empty output"
+                }
+                val probeResponse = runtime.probeMediaBlocking(temporaryOutput.absolutePath)
+                require(
+                    probeResponse.result.terminalState ==
+                        FFmpegRuntimeTerminalState.SUCCEEDED,
+                ) {
+                    "FFprobe validation failed: ${probeResponse.output}"
+                }
+                val mediaInfo =
+                    requireNotNull(probeResponse.result.mediaInformation) {
+                        "FFprobe did not return conversion output metadata"
+                    }
+                request.validateOutput(mediaInfo)
+                commitFileAtomicallyWithoutReplacement(
+                    stagedFile = temporaryOutput,
+                    targetFile = request.outputFile,
+                )
 
-                val ffmpegResult =
-                        if (mediaInfo != null) {
-                            val videoStreams =
-                                    mediaInfo
-                                            .streams
-                                            .filter { it.type.equals("video", ignoreCase = true) }
-                                            .map { stream ->
-                                                FFmpegResultData.StreamInfo(
-                                                        index = stream.index,
-                                                        codecType = stream.type ?: "unknown",
-                                                        codecName = stream.codec ?: "unknown",
-                                                        resolution =
-                                                                if (
-                                                                    stream.width != null &&
-                                                                        stream.height != null
-                                                                ) {
-                                                                    "${stream.width}x${stream.height}"
-                                                                } else {
-                                                                    null
-                                                                },
-                                                        frameRate = stream.realFrameRate
-                                                        )
-                                            }
-                                            .toList()
-
-                            val audioStreams =
-                                    mediaInfo
-                                            .streams
-                                            .filter { it.type.equals("audio", ignoreCase = true) }
-                                            .map { stream ->
-                                                FFmpegResultData.StreamInfo(
-                                                        index = stream.index,
-                                                        codecType = stream.type ?: "unknown",
-                                                        codecName = stream.codec ?: "unknown",
-                                                        sampleRate = stream.sampleRate,
-                                                        channels = stream.channels
-                                                        )
-                                            }
-                                            .toList()
-
-                            FFmpegResultData(
-                                    command = command,
-                                    returnCode = runtimeResult.returnCode,
-                                    output = output,
-                                    duration = duration,
-                                    outputFile = outputPath,
-                                    mediaInfo =
-                                            FFmpegResultData.MediaInfo(
-                                                    format = mediaInfo.format ?: "unknown",
-                                                    duration = mediaInfo.duration ?: "0",
-                                                    bitrate = mediaInfo.bitrate ?: "0",
-                                                    videoStreams = videoStreams,
-                                                    audioStreams = audioStreams
-                                            )
-                            )
-                        } else {
-                            FFmpegResultData(
-                                    command = command,
-                                    returnCode = runtimeResult.returnCode,
-                                    output = output,
-                                    duration = duration,
-                                    outputFile = outputPath
+                val videoStreams =
+                    mediaInfo.streams
+                        .filter { it.type.equals("video", ignoreCase = true) }
+                        .map { stream ->
+                            FFmpegResultData.StreamInfo(
+                                index = stream.index,
+                                codecType = stream.type ?: "unknown",
+                                codecName = stream.codec ?: "unknown",
+                                resolution =
+                                    if (stream.width != null && stream.height != null) {
+                                        "${stream.width}x${stream.height}"
+                                    } else {
+                                        null
+                                    },
+                                frameRate = stream.realFrameRate,
                             )
                         }
-
-                ToolResult(toolName = tool.name, success = true, result = ffmpegResult)
+                val audioStreams =
+                    mediaInfo.streams
+                        .filter { it.type.equals("audio", ignoreCase = true) }
+                        .map { stream ->
+                            FFmpegResultData.StreamInfo(
+                                index = stream.index,
+                                codecType = stream.type ?: "unknown",
+                                codecName = stream.codec ?: "unknown",
+                                sampleRate = stream.sampleRate,
+                                channels = stream.channels,
+                            )
+                        }
+                ToolResult(
+                    toolName = tool.name,
+                    success = true,
+                    result =
+                        FFmpegResultData(
+                            command = command,
+                            returnCode = runtimeResult.returnCode,
+                            output = output,
+                            duration = duration,
+                            outputFile = request.outputFile.absolutePath,
+                            mediaInfo =
+                                FFmpegResultData.MediaInfo(
+                                    format = mediaInfo.format ?: "unknown",
+                                    duration = mediaInfo.duration ?: "0",
+                                    bitrate = mediaInfo.bitrate ?: "0",
+                                    videoStreams = videoStreams,
+                                    audioStreams = audioStreams,
+                                ),
+                        ),
+                )
             } else {
                 ToolResult(
-                        toolName = tool.name,
-                        success = false,
-                        result = StringResultData(""),
-                        error = "Video conversion failed, return code: ${runtimeResult.returnCode}\nCommand: $command\nOutput:\n$output"
+                    toolName = tool.name,
+                    success = false,
+                    result = StringResultData(""),
+                    error =
+                        "Video conversion failed, state=${runtimeResult.terminalState}, " +
+                            "return code=${runtimeResult.returnCode}\nCommand: $command\nOutput:\n$output",
                 )
             }
         } catch (e: Exception) {
             AppLogger.e(TAG, "FFmpeg conversion failed", e)
             ToolResult(
-                    toolName = tool.name,
-                    success = false,
-                    result = StringResultData(""),
-                    error = "Video conversion exception: ${e.message}\nCommand: $command"
+                toolName = tool.name,
+                success = false,
+                result = StringResultData(""),
+                error = "Video conversion exception: ${e.message}\nCommand: $command",
             )
+        } finally {
+            if (temporaryOutput.exists() && !temporaryOutput.delete()) {
+                AppLogger.w(TAG, "Unable to delete FFmpeg temporary output: ${temporaryOutput.path}")
+            }
         }
     }
 
     override fun validateParameters(tool: AITool): ToolValidationResult {
-        val inputPath = tool.parameters.find { it.name == "input_path" }?.value
-        val outputPath = tool.parameters.find { it.name == "output_path" }?.value
-
-        if (inputPath.isNullOrEmpty()) {
-            return ToolValidationResult(valid = false, errorMessage = "Must provide input_path parameter")
+        return try {
+            FFmpegConversionRequest.parse(
+                inputPath = tool.parameters.find { it.name == "input_path" }?.value,
+                outputPath = tool.parameters.find { it.name == "output_path" }?.value,
+                profile = tool.parameters.find { it.name == "profile" }?.value,
+                resolution = tool.parameters.find { it.name == "resolution" }?.value,
+                videoBitrate = tool.parameters.find { it.name == "video_bitrate" }?.value,
+            )
+            ToolValidationResult(valid = true)
+        } catch (error: IllegalArgumentException) {
+            ToolValidationResult(
+                valid = false,
+                errorMessage = error.message ?: "Invalid FFmpeg conversion parameters",
+            )
         }
-
-        if (outputPath.isNullOrEmpty()) {
-            return ToolValidationResult(valid = false, errorMessage = "Must provide output_path parameter")
-        }
-
-        return ToolValidationResult(valid = true)
     }
 
     override fun invokeAndStream(tool: AITool): Flow<ToolResult> =

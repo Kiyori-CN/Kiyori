@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -248,8 +249,9 @@ internal fun WebSessionHistoryDeleteConfirmationDialog(
                 Text(
                     text =
                         if (entryTitle == null) {
-                            stringResource(
-                                R.string.web_session_history_batch_delete_confirm_message,
+                            pluralStringResource(
+                                R.plurals.web_session_history_batch_delete_confirm_message,
+                                selectedCount,
                                 selectedCount,
                             )
                         } else {

@@ -120,7 +120,7 @@ export { Net } from './network';
 export { System } from './system';
 export { SoftwareSettings } from './software_settings';
 export { UI, UINode } from './ui';
-export { FFmpegVideoCodec, FFmpegAudioCodec, FFmpegResolution, FFmpegBitrate } from './ffmpeg';
+export { FFmpegConversionProfile, FFmpegResolution, FFmpegVideoBitrate } from './ffmpeg';
 export { Tasker } from './tasker';
 export { Workflow } from './workflow';
 export { ToolPkg } from './toolpkg';

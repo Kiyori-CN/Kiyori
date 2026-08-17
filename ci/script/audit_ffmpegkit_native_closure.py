@@ -518,6 +518,22 @@ def audit_closure(
             "libffmpegkit.so does not contain the fixed wrapper version"
         )
 
+    qualified_profiles = manifest.get("qualified_conversion_profiles", [])
+    for profile in qualified_profiles:
+        profile_id = profile["id"]
+        for library_name, markers in profile["required_binary_markers"].items():
+            library_payload = payloads.get(library_name)
+            if library_payload is None:
+                raise ValueError(
+                    f"Qualified FFmpeg profile {profile_id} references missing {library_name}"
+                )
+            for marker in markers:
+                if marker.encode("ascii") not in library_payload:
+                    raise ValueError(
+                        f"Qualified FFmpeg profile {profile_id} is missing marker "
+                        f"{marker!r} in {library_name}"
+                    )
+
     result["members"] = members
     result["classes"] = sorted(REQUIRED_CLASS_MEMBERS)
     result["contract"] = {
@@ -527,6 +543,9 @@ def audit_closure(
         "android_api": manifest["build_contract"]["android_api"],
         "minimum_pt_load": hex(minimum_alignment),
         "native_zip_alignment": hex(zip_alignment),
+        "qualified_conversion_profiles": [
+            profile["id"] for profile in qualified_profiles
+        ],
     }
     return result
 

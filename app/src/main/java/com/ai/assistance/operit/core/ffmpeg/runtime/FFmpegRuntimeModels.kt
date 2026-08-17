@@ -62,6 +62,9 @@ internal data class FFmpegRuntimeRequest(
         when (FFmpegRuntimeOperation.fromWireValue(operationWireValue)) {
             FFmpegRuntimeOperation.EXECUTE_COMMAND -> {
                 require(!command.isNullOrBlank()) { "FFmpeg command is blank" }
+                require(command.length <= FFMPEG_RUNTIME_MAX_COMMAND_CHARS) {
+                    "FFmpeg command exceeds $FFMPEG_RUNTIME_MAX_COMMAND_CHARS characters"
+                }
                 require(arguments.isEmpty() && inputPath == null) {
                     "FFmpeg command request contains unrelated payload"
                 }
@@ -70,6 +73,15 @@ internal data class FFmpegRuntimeRequest(
                 require(arguments.isNotEmpty() && arguments.none(String::isBlank)) {
                     "FFmpeg argument request is empty or malformed"
                 }
+                require(arguments.size <= FFMPEG_RUNTIME_MAX_ARGUMENT_COUNT) {
+                    "FFmpeg argument request exceeds $FFMPEG_RUNTIME_MAX_ARGUMENT_COUNT entries"
+                }
+                require(arguments.all { argument -> argument.length <= FFMPEG_RUNTIME_MAX_ARGUMENT_CHARS }) {
+                    "FFmpeg argument exceeds $FFMPEG_RUNTIME_MAX_ARGUMENT_CHARS characters"
+                }
+                require(arguments.sumOf(String::length) <= FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS) {
+                    "FFmpeg argument request exceeds $FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS characters"
+                }
                 require(command == null && inputPath == null) {
                     "FFmpeg argument request contains unrelated payload"
                 }
@@ -77,6 +89,9 @@ internal data class FFmpegRuntimeRequest(
             FFmpegRuntimeOperation.PROBE_MEDIA -> {
                 require(!inputPath.isNullOrBlank() && File(inputPath).isAbsolute) {
                     "FFprobe input path must be absolute"
+                }
+                require(inputPath.length <= FFMPEG_RUNTIME_MAX_PATH_CHARS) {
+                    "FFprobe input path exceeds $FFMPEG_RUNTIME_MAX_PATH_CHARS characters"
                 }
                 require(command == null && arguments.isEmpty()) {
                     "FFprobe request contains unrelated payload"
@@ -110,6 +125,8 @@ internal data class FFmpegRuntimeStreamInformation(
     val index: Int,
     val type: String?,
     val codec: String?,
+    val profile: String?,
+    val pixelFormat: String?,
     val width: Int?,
     val height: Int?,
     val realFrameRate: String?,
@@ -152,10 +169,29 @@ internal data class FFmpegRuntimeResult(
             "Invalid FFmpeg runtime result request ID"
         }
         FFmpegRuntimeOperation.fromWireValue(operationWireValue)
-        FFmpegRuntimeTerminalState.fromWireValue(terminalStateWireValue)
+        val terminalState = FFmpegRuntimeTerminalState.fromWireValue(terminalStateWireValue)
         require(processId > 0) { "FFmpeg runtime process ID is invalid" }
-        require(sessionId > 0L) { "FFmpeg runtime session ID is invalid" }
+        require(terminalState == resolveFfmpegRuntimeTerminalState(returnCode)) {
+            "FFmpeg runtime terminal state $terminalState does not match return code $returnCode"
+        }
+        require(
+            sessionId > 0L ||
+                (sessionId == 0L && terminalState == FFmpegRuntimeTerminalState.CANCELLED),
+        ) {
+            "FFmpeg runtime session ID is invalid for terminal state $terminalState"
+        }
         require(durationMillis >= 0L) { "FFmpeg runtime duration is invalid" }
+        if (sessionId == 0L) {
+            require(
+                durationMillis == 0L &&
+                    failStackTrace == null &&
+                    statistics == null &&
+                    mediaInformation == null &&
+                    runtimeInformation == null,
+            ) {
+                "Queued FFmpeg cancellation must not contain native-session data"
+            }
+        }
         require(File(outputLogPath).isAbsolute) { "FFmpeg runtime log path must be absolute" }
     }
 
@@ -198,7 +234,10 @@ internal data class FFmpegRuntimeFailure(
 internal data class FFmpegRuntimeResponse(
     val result: FFmpegRuntimeResult,
     val output: String,
-)
+) {
+    val succeeded: Boolean
+        get() = result.terminalState == FFmpegRuntimeTerminalState.SUCCEEDED
+}
 
 internal open class FFmpegRuntimeException(message: String, cause: Throwable? = null) :
     IllegalStateException(message, cause)
@@ -206,6 +245,7 @@ internal open class FFmpegRuntimeException(message: String, cause: Throwable? = 
 internal class FFmpegRuntimeProcessDiedException(
     val requestId: String,
     val partialOutput: String,
+    val diagnosticLogPath: String,
 ) : FFmpegRuntimeException(
         buildString {
             append("FFmpeg 运行时进程已终止，当前命令未完成")
@@ -230,3 +270,8 @@ internal class FFmpegRuntimeRequestException(
     )
 
 internal val FFMPEG_RUNTIME_REQUEST_ID_PATTERN = Regex("[0-9a-f]{32}")
+internal const val FFMPEG_RUNTIME_MAX_COMMAND_CHARS = 65_536
+internal const val FFMPEG_RUNTIME_MAX_ARGUMENT_COUNT = 1_024
+internal const val FFMPEG_RUNTIME_MAX_ARGUMENT_CHARS = 16_384
+internal const val FFMPEG_RUNTIME_MAX_ARGUMENT_TOTAL_CHARS = 65_536
+internal const val FFMPEG_RUNTIME_MAX_PATH_CHARS = 4_096

@@ -7169,7 +7169,10 @@
     <string name="web_session_history_bookmark_saved">Bookmark saved</string>
     <string name="web_session_history_delete_entry_confirm_title">Delete this record?</string>
     <string name="web_session_history_batch_delete_confirm_title">Delete selected records?</string>
-    <string name="web_session_history_batch_delete_confirm_message">Delete the %1$d selected history records? This action cannot be undone.</string>
+    <plurals name="web_session_history_batch_delete_confirm_message">
+        <item quantity="one">Delete the %1$d selected history record? This action cannot be undone.</item>
+        <item quantity="other">Delete the %1$d selected history records? This action cannot be undone.</item>
+    </plurals>
     <string name="web_session_history_delete_entry_confirm_message">Delete “%1$s”? This action cannot be undone.</string>
     <string name="web_session_history_delete_confirm">Delete</string>
     <string name="web_session_history_selected">Selected</string>

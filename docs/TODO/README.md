@@ -7,6 +7,18 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-17 FFmpeg 运行时、API 与 native closure 完善
+
+状态：API/runtime/内部调用方实现、完整 Python 与九模块 Gradle 矩阵、Lint 根因清理、
+WebChat、ToolPkg、formal/fresh-clone/architecture 门禁及 FFmpegKit/mpv AAR closure 审计已完成；
+Debug APK 构建、签名、16 KiB、ABI、native payload、Markdown 和最终 Git 候选树审计已完成；
+提交/推送状态必须在交付时通过实时 Git 对账。vivo Android 16 上的 FFmpegKit r4 实际转码、
+取消、process death 和播放器矩阵仍保持 `verification_pending`。
+
+详细目标、三执行面边界、缺陷清单、设计合同、验证矩阵、风险和后续优先级见
+[`ffmpeg_runtime_completion/index.md`](ffmpeg_runtime_completion/index.md)；长期架构权威见
+[`FFMPEG_ARCHITECTURE.md`](../doc-src/dev-core/FFMPEG_ARCHITECTURE.md)。
+
 ## 2026-08-15 广告拦截器、标记广告与网页元素操作
 
 状态：本地实现、定向自动验证、正式门禁、Debug APK 构建与独立静态产物审计已完成；

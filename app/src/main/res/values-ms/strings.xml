@@ -7307,7 +7307,9 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_history_bookmark_saved">Penanda buku disimpan</string>
     <string name="web_session_history_delete_entry_confirm_title">Padam rekod ini?</string>
     <string name="web_session_history_batch_delete_confirm_title">Padam rekod yang dipilih?</string>
-    <string name="web_session_history_batch_delete_confirm_message">Padam %1$d rekod sejarah yang dipilih? Tindakan ini tidak boleh dibuat asal.</string>
+    <plurals name="web_session_history_batch_delete_confirm_message">
+        <item quantity="other">Padam %1$d rekod sejarah yang dipilih? Tindakan ini tidak boleh dibuat asal.</item>
+    </plurals>
     <string name="web_session_history_delete_entry_confirm_message">Padam “%1$s”? Tindakan ini tidak boleh dibuat asal.</string>
     <string name="web_session_history_delete_confirm">Padam</string>
     <string name="web_session_history_selected">Dipilih</string>

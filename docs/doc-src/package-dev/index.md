@@ -39,7 +39,7 @@
 - `SoftwareSettings`
 - `UI`
 - `UINode`
-- `FFmpegVideoCodec` / `FFmpegAudioCodec` / `FFmpegResolution` / `FFmpegBitrate`
+- `FFmpegConversionProfile` / `FFmpegResolution` / `FFmpegVideoBitrate`
 - `Tasker`
 - `Workflow`
 - `ToolPkg`

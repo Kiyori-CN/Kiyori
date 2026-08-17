@@ -764,8 +764,6 @@ export interface TerminalSessionScreenResultData {
 // FFmpeg Types
 // ============================================================================
 
-import { FFmpegVideoCodec, FFmpegAudioCodec } from './ffmpeg';
-
 /**
  * FFmpeg stream information
  * Represents detailed information about a video or audio stream in a media file
@@ -778,7 +776,7 @@ export interface FFmpegStreamInfo {
     type: 'video' | 'audio';
 
     /** Codec name used for this stream */
-    codec: FFmpegVideoCodec | FFmpegAudioCodec;
+    codec: string;
 
     /** Frame rate for video streams (e.g., "30/1", "29.97") */
     frameRate?: `${number}/${number}` | `${number}`;

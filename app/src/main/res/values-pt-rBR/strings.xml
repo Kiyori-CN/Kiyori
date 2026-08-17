@@ -7186,7 +7186,11 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="web_session_history_bookmark_saved">Favorito salvo</string>
     <string name="web_session_history_delete_entry_confirm_title">Excluir este registro?</string>
     <string name="web_session_history_batch_delete_confirm_title">Excluir os registros selecionados?</string>
-    <string name="web_session_history_batch_delete_confirm_message">Excluir os %1$d registros de histórico selecionados? Esta ação não pode ser desfeita.</string>
+    <plurals name="web_session_history_batch_delete_confirm_message">
+        <item quantity="one">Excluir o %1$d registro de histórico selecionado? Esta ação não pode ser desfeita.</item>
+        <item quantity="many">Excluir os %1$d registros de histórico selecionados? Esta ação não pode ser desfeita.</item>
+        <item quantity="other">Excluir os %1$d registros de histórico selecionados? Esta ação não pode ser desfeita.</item>
+    </plurals>
     <string name="web_session_history_delete_entry_confirm_message">Excluir “%1$s”? Esta ação não pode ser desfeita.</string>
     <string name="web_session_history_delete_confirm">Excluir</string>
     <string name="web_session_history_selected">Selecionado</string>

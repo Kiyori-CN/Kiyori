@@ -14,8 +14,11 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -42,6 +45,7 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val connectionLock = Any()
     private val pendingRequests = ConcurrentHashMap<String, PendingFFmpegRuntimeRequest>()
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var nextRuntimeGeneration = 0L
     private var bindingAttempt: FFmpegRuntimeBindingAttempt? = null
@@ -78,8 +82,12 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
                     val pending =
                         pendingRequests[result.requestId]
                             ?.takeIf { request -> request.runtimeGeneration == runtimeGeneration }
-                            ?: return@postEvent
+                    if (pending == null) {
+                        discardTerminalLog(result.outputLogPath)
+                        return@postEvent
+                    }
                     if (pending.request.operationWireValue != result.operationWireValue) {
+                        discardTerminalLog(result.outputLogPath)
                         pending.terminal.completeExceptionally(
                             FFmpegRuntimeException(
                                 "FFmpeg 运行时返回了不匹配的 operation",
@@ -103,8 +111,12 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
                     val pending =
                         pendingRequests[failure.requestId]
                             ?.takeIf { request -> request.runtimeGeneration == runtimeGeneration }
-                            ?: return@postEvent
+                    if (pending == null) {
+                        discardTerminalLog(failure.outputLogPath)
+                        return@postEvent
+                    }
                     if (pending.request.operationWireValue != failure.operationWireValue) {
+                        discardTerminalLog(failure.outputLogPath)
                         pending.terminal.completeExceptionally(
                             FFmpegRuntimeException(
                                 "FFmpeg 运行时返回了不匹配的 failure operation",
@@ -213,15 +225,27 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
                         throw FFmpegRuntimeRequestException(terminal.failure, output)
                     }
                     FFmpegRuntimeTerminal.ProcessDied -> {
-                        val partialOutput =
-                            readFfmpegRuntimeOutput(
+                        val diagnosticLogPath =
+                            ffmpegRuntimeLogFile(
                                 appContext.cacheDir,
-                                ffmpegRuntimeLogFile(
+                                request.requestId,
+                            ).absolutePath
+                        val partialOutput =
+                            boundFfmpegRuntimeDiagnostic(
+                                readFfmpegRuntimeOutput(
                                     appContext.cacheDir,
-                                    request.requestId,
-                                ).absolutePath,
-                            )
-                        throw FFmpegRuntimeProcessDiedException(request.requestId, partialOutput)
+                                    diagnosticLogPath,
+                                ),
+                            ).orEmpty()
+                        pruneFfmpegRuntimeLogs(
+                            cacheDir = appContext.cacheDir,
+                            protectedLogPaths = setOf(diagnosticLogPath),
+                        )
+                        throw FFmpegRuntimeProcessDiedException(
+                            requestId = request.requestId,
+                            partialOutput = partialOutput,
+                            diagnosticLogPath = diagnosticLogPath,
+                        )
                     }
                 }
             } finally {
@@ -464,6 +488,20 @@ internal class FFmpegRuntimeClient private constructor(context: Context) {
                     }
             }
         }
+
+    private fun discardTerminalLog(outputLogPath: String) {
+        cleanupScope.launch {
+            val outputFile =
+                runCatching {
+                    resolveFfmpegRuntimeLogFile(appContext.cacheDir, outputLogPath)
+                }.onFailure { error ->
+                    Log.w(TAG, "Rejected late FFmpeg runtime log path", error)
+                }.getOrNull() ?: return@launch
+            if (outputFile.exists() && !outputFile.delete()) {
+                Log.w(TAG, "Unable to delete late FFmpeg runtime log: ${outputFile.path}")
+            }
+        }
+    }
 
     private fun unbind(connection: ServiceConnection) {
         runCatching { appContext.unbindService(connection) }

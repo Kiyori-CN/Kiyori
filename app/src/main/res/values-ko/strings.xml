@@ -7158,7 +7158,9 @@
     <string name="web_session_history_bookmark_saved">북마크를 저장했습니다</string>
     <string name="web_session_history_delete_entry_confirm_title">이 기록을 삭제할까요?</string>
     <string name="web_session_history_batch_delete_confirm_title">선택한 기록을 삭제할까요?</string>
-    <string name="web_session_history_batch_delete_confirm_message">선택한 기록 %1$d개를 삭제할까요? 이 작업은 취소할 수 없습니다.</string>
+    <plurals name="web_session_history_batch_delete_confirm_message">
+        <item quantity="other">선택한 기록 %1$d개를 삭제할까요? 이 작업은 취소할 수 없습니다.</item>
+    </plurals>
     <string name="web_session_history_delete_entry_confirm_message">“%1$s”을(를) 삭제할까요? 이 작업은 취소할 수 없습니다.</string>
     <string name="web_session_history_delete_confirm">삭제</string>
     <string name="web_session_history_selected">선택됨</string>

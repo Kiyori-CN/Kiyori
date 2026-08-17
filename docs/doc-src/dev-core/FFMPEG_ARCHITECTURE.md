@@ -39,7 +39,9 @@ last_verified: 2026-08-17
   [`tools/ffmpegkit_native_build/closure_manifest.json`](../../../tools/ffmpegkit_native_build/closure_manifest.json)
   为机器可读最终权威；
 - ToolPkg/脚本调用方式以 [FFmpeg 包开发 API](../package-dev/ffmpeg.md) 为公开接口说明；
-- 当前阶段进度、历史构建证据和未完成验收以
+- FFmpeg API/runtime 当前阶段进度、验证证据和未完成验收以
+  [FFmpeg 运行时完善计划](../../TODO/ffmpeg_runtime_completion/index.md) 为状态权威；
+- 播放器 native closure 的历史迁移与设备验收继续以
   [阶段 14：播放器原生依赖升级与 closure 迁移](../../TODO/kiyori_browser_product_completion/14_player_native_dependency_upgrade.md)
   为状态权威。
 
@@ -130,7 +132,7 @@ flowchart TD
 | `FFmpegRuntimeService` | `:ffmpeg` | 是，normal-name FFmpegKit | FIFO 调度、session、日志、statistics、唯一终态 |
 | `StandardFFmpegToolExecutor` | 主进程后台线程 | 否 | AI 原始 FFmpeg 参数执行 |
 | `StandardFFmpegInfoToolExecutor` | 主进程后台线程 | 否 | 查询 Android `:ffmpeg` wrapper/FFmpeg/build 信息和 `-codecs` |
-| `StandardFFmpegConvertToolExecutor` | 主进程后台线程 | 否 | 当前简化转换封装；编码器合同尚未闭环 |
+| `StandardFFmpegConvertToolExecutor` | 主进程后台线程 | 否 | `h264_aac_mp4` 确定性转换、FFprobe 回读和原子非覆盖提交 |
 | `PlayerSession` | 主进程 | 否 | 唯一播放器会话、URI/header/位置/Surface 状态 |
 | `PlayerRuntimeService` / `MpvPlayerEngine` | `:player` | 是，mpv namespaced closure | 播放、解码、网络、Surface、播放器诊断 |
 | Ubuntu Shell | proot 进程空间 | 是，Linux CLI | Shell 管道、重定向、脚本化媒体处理和开发诊断 |
@@ -272,7 +274,7 @@ FFprobe 命令层由 FFmpegKit JNI 在 `libffmpegkit.so` 内调用。
 | --- | --- | --- |
 | AI `ffmpeg_execute` | `EXECUTE_COMMAND` | 接受 FFmpeg 参数字符串，不接受 Shell |
 | AI `ffmpeg_info` | `RUNTIME_INFO` | 返回 Android `:ffmpeg` wrapper/FFmpeg/build 和 `-codecs` 输出 |
-| AI `ffmpeg_convert` | 当前为 `EXECUTE_COMMAND` | 简化转换；后续改为结构化参数与确定性 encoder 合同 |
+| AI `ffmpeg_convert` | `EXECUTE_ARGUMENTS` + `PROBE_MEDIA` | 唯一 `h264_aac_mp4` profile、临时输出、回读和原子提交 |
 | FFmpeg 工具箱 | FFmpeg runtime | 后台等待结果，不阻塞 Compose 主线程 |
 | `FFmpegUtil` | command/arguments/probe | 应用内部统一适配层 |
 | `MediaPoolManager` | `EXECUTE_ARGUMENTS` | 媒体预处理和压缩，当前 H.264 路径使用 `libopenh264` |
@@ -394,49 +396,58 @@ capability 作为结构化、可测试的数据提供，不能从 codec 名称�
 
 ### 9.3 `ffmpeg_convert`
 
-当前代码存在已确认的合同缺口：
-
-1. JavaScript/TypeScript 元数据把 codec family 与 encoder 名称混在一起；
-2. Kotlin 直接生成 `-c:v <video_codec>` 和 `-c:a <audio_codec>`；
-3. `h264`、`hevc`、`vp9`、`av1` 是格式族，不自动等于当前构建的确定 encoder；
-4. `wav` 是容器语义，`pcm` 需要确定 sample format，不能作为一个无歧义 encoder；
-5. manifest 明确禁止 `libx265` 和 `libx264`，公开元数据却仍宣称 `libx265`；
-6. 当前用字符串拼接命令，没有复用结构化 `executeArguments()`；
-7. 输出已存在时没有固定 `-y` 或 `-n` 合同，嵌入式执行不应依赖交互式询问。
-
-当前内部已验证 H.264 路径使用：
+Kiyori 尚未发布，因此本轮直接删除了旧的 `video_codec`、`audio_codec`、`format` 和 `bitrate`
+简化参数，不保留旧枚举、兼容分支或转换失败后的替代路径。当前公开参数为：
 
 ```text
--c:v libopenh264
--profile:v constrained_baseline
--pix_fmt yuv420p
+input_path
+output_path
+profile?
+resolution?
+video_bitrate?
 ```
 
-后续实现必须采用以下目标合同：
+默认且唯一支持的 profile：
 
-1. 对外参数表达 codec family，不暴露未经验证的任意 encoder；
-2. 每个 family 只映射到一个固定、已通过构建能力检查和 smoke test 的 encoder；
-3. 不支持值在执行前返回参数错误；
-4. 执行失败后不尝试其它 encoder；
-5. 使用 `executeArguments(List<String>)`；
-6. 工具元数据、TypeScript 类型、Kotlin 校验、runtime capability 和 AndroidTest 共享同一份合同；
-7. 输出覆盖必须冻结一个明确策略，并在公开接口实现前确认当前接口是否已发布。
+```text
+profile          = h264_aac_mp4
+video encoder    = libopenh264
+video profile    = constrained_baseline
+pixel format     = yuv420p
+audio encoder    = aac
+container        = mp4
+movflags         = +faststart
+```
 
-建议的安全默认设计是拒绝覆盖已存在输出；需要覆盖的高级场景通过显式
-`ffmpeg_execute ... -y ...` 表达。该选择在实现前仍需按项目接口发布状态完成兼容性确认。
+参数与文件合同：
 
-候选映射必须通过当前 AAR 的 `-encoders` 和目标设备 smoke test 资格化，不能只根据库名推断：
+- 输入、输出必须是最多 `4096` 字符的绝对路径；
+- 输入必须是非空普通文件，输入输出 canonical path 不能相同；
+- 输出父目录必须已经存在；
+- 输出扩展名必须是 `.mp4`；
+- 最终输出必须不存在；
+- resolution 必须是 `16..8192` 内的偶数宽高；
+- video bitrate 必须是 `64k..100M`；
+- 不支持的 profile 在进入 Binder/native 前拒绝。
 
-| codec family | 当前证据 | 实施要求 |
-| --- | --- | --- |
-| H.264 | `libopenh264` 已用于 MediaPool 和 AndroidTest | 固定映射并验证 profile/pixel format/thread |
-| HEVC | manifest 启用 `libkvazaar` | 运行时 encoder inventory 与设备编码回读通过后开放 |
-| VP8/VP9 | manifest 启用 `libvpx` | 分别确认 encoder 名称、pixel format 和回读 |
-| AV1 | manifest 启用 `libaom` | 确认 encoder 名称、线程/内存上限和回读 |
-| MPEG-4/MJPEG/ProRes | FFmpeg 内建能力需单独核对 | 为每个 family 固定唯一 encoder 和输出容器合同 |
-| AAC/MP3/Opus/Vorbis/FLAC | external/native encoder 组合不同 | 固定唯一 encoder，禁止以容器名代替 encoder |
-| PCM | 需要 sample format | 暴露明确格式，如 `pcm_s16le`，不接受无格式 `pcm` |
-| WAV | 容器 | 移出 audio encoder 枚举，作为输出 format/extension 合同处理 |
+执行与提交合同：
+
+1. 使用 `executeArguments(List<String>)`，不拼接 Shell/命令字符串；
+2. 固定 `-nostdin -hide_banner -n`；
+3. 映射 `0:V:0` 和 `0:a:0?`，避免 attached picture 变成主视频；
+4. 在最终目录写唯一 `.partial.mp4`；
+5. 要求临时输出非空；
+6. 用 `PROBE_MEDIA` 回读正时长、MP4、唯一 H.264 视频流、Constrained Baseline、
+   `yuv420p`、请求分辨率，以及最多一条 AAC 音频流；
+7. 只有回读通过才使用同目录 `ATOMIC_MOVE` 提交；
+8. 同一进程对相同目标串行提交，提交时再次拒绝已存在目标；
+9. 任意失败删除本次临时文件，不覆盖旧目标；
+10. 不重试、不换 encoder、不切换 Ubuntu 或播放器 closure。
+
+需要显式覆盖的高级命令仍由调用者使用 `ffmpeg_execute ... -y ...` 表达。
+
+其它 codec/profile 的开放条件不变：必须在 machine-readable manifest 中增加唯一映射和
+二进制 marker，通过 AAR/APK 门禁、输出回读和目标设备实际编码验证后再公开。
 
 ## 10. Binder 请求与回调合同
 
@@ -489,12 +500,17 @@ SERVICE_DESTROYED
 ### 10.2 请求不变量
 
 - request ID 必须匹配 `[0-9a-f]{32}`；
-- `EXECUTE_COMMAND` 只包含非空 `command`；
-- `EXECUTE_ARGUMENTS` 只包含非空、无空白项的 `arguments`；
-- `PROBE_MEDIA` 只接受绝对 `inputPath`；
+- `EXECUTE_COMMAND` 只包含非空 `command`，最多 `65,536` 字符；
+- `EXECUTE_ARGUMENTS` 只包含非空、无空白项的 `arguments`，最多 `1,024` 项；单项最多
+  `16,384` 字符，总字符数最多 `65,536`；
+- `PROBE_MEDIA` 只接受最多 `4,096` 字符的绝对 `inputPath`；
 - `RUNTIME_INFO` 不带 payload；
 - 不同 operation 的 payload 不能混用；
-- 返回结果必须包含有效 process ID、session ID、duration 和绝对日志路径。
+- 返回结果必须包含有效 process ID、duration 和绝对日志路径；
+- terminal state 必须与 return code 精确对应；
+- 普通终态的 session ID 必须大于零；
+- 只有在进入 worker 前取消的排队请求可以使用 `sessionId=0`，且必须是
+  `CANCELLED / returnCode=255 / duration=0`，不携带 native statistics、media 或 runtime data。
 
 ### 10.3 runtime generation 与 event sequence
 
@@ -536,8 +552,15 @@ requestId/result/failure
 
 ### 11.3 取消
 
-取消由 request ID 定位当前 session 并调用 FFmpegKit cancel。终态使用原子门限，完成、失败、取消、
-callback disconnect 和 service destroy 只能赢得一次。
+取消由 request ID 定位请求。终态使用原子门限，完成、失败、取消、callback disconnect 和
+service destroy 只能赢得一次。
+
+- 排队请求尚未建立 FFmpegKit session 时：从队列所有权中移除，不发送
+  `onRequestStarted`，不进入 native 执行，直接发送唯一 `CANCELLED` 终态；
+- 活动请求已有 session 时：调用 FFmpegKit cancel，保留真实 session ID，并由 session return
+  code 形成终态；
+- coroutine 已取消后到达的迟到 completed/failed 回调不会重新完成请求，其终态日志由客户端
+  IO scope 删除。
 
 return code 合同：
 
@@ -554,12 +577,12 @@ return code 合同：
 | 项目 | 当前值 | 含义 |
 | --- | --- | --- |
 | Binder 连接 | `10,000 ms` | 等待 `:ffmpeg` 连接和 callback 注册 |
-| FFprobe media information | `5,000 ms` | media information probe timeout |
+| media information log drain | `5,000 ms` | native FFprobe 返回后等待异步日志排空；不是 probe 执行超时 |
 | native callback drain | `5,000 ms` | 终态前等待 session 与 session `0` 回调排空 |
 | drain poll | `10 ms` | callback 队列轮询间隔 |
 
-普通 FFmpeg command **没有默认执行超时**。因此 r3 现场“所有命令被一个极短默认超时取消”的推断与
-当前代码不符。
+普通 FFmpeg command 和 FFprobe **都没有默认执行超时**。因此 r3 现场“所有命令被一个极短默认
+超时取消”的推断与当前代码不符。
 
 callback drain 超时只说明尾部诊断可能不完整；它会写入警告，不把已经得到的 FFmpeg return code
 改写成进程死亡。
@@ -591,10 +614,27 @@ Binder 只传：
 ```text
 diagnostic maximum = 16,384 characters
 failure message    = 4,096 characters
+one request log    = 4 MiB UTF-8 bytes, including truncation marker
 ```
+
+日志目录保留策略：
+
+```text
+maximum age        = 48 hours
+maximum file count = 32
+maximum total size = 32 MiB
+```
+
+服务启动和新请求建日志前都会清理。只处理 `[0-9a-f]{32}.log`，活动请求及已经预留但尚未登记的
+请求日志路径受保护；无关文件不参与清理。日志达到字节上限后只写一次截断标记，后续 callback
+不再追加。日志文件使用独占创建，重复或历史 request ID 不会截断已有诊断。
 
 FFmpeg 内部线程可能产生 `sessionId=0` 日志。因为顶层 native owner 唯一，服务可以把 session `0`
 日志归属当前请求，并在终态前同时等待当前 session 与 session `0` callback 排空。
+
+正常完成/失败日志由客户端读取后删除；coroutine 取消后的迟到终态日志异步删除；Binder process
+death 的完整有界日志保留用于诊断，但异常消息只携带 `16,384` 字符摘录，文件继续受目录 retention
+控制。
 
 诊断必须区分：
 
@@ -870,9 +910,12 @@ host ASan/UBSan 的 `320x240 / 1280x720 × default/1/2/4 threads` 共 `20/20` �
 11. codec family 与 encoder name 分离；
 12. 每个公开 family 只映射一个 qualified encoder；
 13. 不在执行失败后改变 encoder、执行通道或命令；
-14. source AAR、candidate、product AAR 和 APK 之间可追溯；
-15. Android 两套 FFmpeg major/source promotion 成对执行；
-16. 设备验收不能由宿主、静态、构建或另一个执行面替代。
+14. 简化转换只提交通过 FFprobe profile、pixel format、container、stream 和分辨率回读的输出；
+15. 简化转换不覆盖最终目标，临时输出与最终目标位于同一目录并以原子移动提交；
+16. Binder payload、单日志和日志目录都必须有显式上限；
+17. source AAR、candidate、product AAR 和 APK 之间可追溯；
+18. Android 两套 FFmpeg major/source promotion 成对执行；
+19. 设备验收不能由宿主、静态、构建或另一个执行面替代。
 
 ## 20. 构建、审计与 promotion
 
@@ -922,6 +965,8 @@ Gradle 必须验证：
 - native basename owner；
 - FFmpeg version/major marker；
 - wrapper marker；
+- machine-readable `qualified_conversion_profiles`；
+- `h264_aac_mp4` 所需 `libopenh264`、AAC encoder 和 MP4 muxer binary marker；
 - C++ owner；
 - normal/namespaced 交叉依赖；
 - FFmpeg/C++ symbol closure；
@@ -951,7 +996,9 @@ Android native 兼容不仅是 APK ZIP 对齐：
 
 ```powershell
 git diff --check
-.\.venv\Scripts\python.exe -B ci\script\check_markdown_links.py --repository .
+.\.venv\Scripts\python.exe -B ci\script\check_markdown_links.py `
+  --base <base-commit> `
+  --candidate <candidate-commit>
 .\.venv\Scripts\python.exe -B ci\script\check_formal_readiness.py --repository . --require-main
 .\.venv\Scripts\python.exe -B ci\script\check_architecture_boundaries.py --repository . --require-main
 ```
@@ -979,10 +1026,12 @@ audit_ffmpegkit_native_closure.py
 - callback replacement/disconnect；
 - cancel 竞争；
 - FIFO started 顺序；
-- log path；
+- Binder payload limits；
+- queued cancel 的 `sessionId=0`、无 started 和唯一终态；
+- log path、4 MiB UTF-8 截断与 48h/32 files/32 MiB retention；
 - callback drain；
 - MediaPool 参数；
-- `ffmpeg_convert` 映射和输出策略；
+- `ffmpeg_convert` 映射、参数拒绝、profile/pixel format/container 回读和原子非覆盖提交；
 - AndroidTest smoke matrix 的编译。
 
 ### 22.4 Debug APK
@@ -1018,7 +1067,7 @@ audit_ffmpegkit_native_closure.py
 8. 完整 `-c copy`；
 9. `-vn -c:a libmp3lame`；
 10. `1280x720 libopenh264` 转码；
-11. `ffmpeg_convert(video_codec=h264)` 的确定性映射；
+11. `ffmpeg_convert(profile=h264_aac_mp4)` 的确定性映射、非覆盖提交和输出回读；
 12. 两请求 FIFO started 顺序；
 13. 取消排队请求和活动请求；
 14. callback replacement/disconnect；
@@ -1146,7 +1195,7 @@ flowchart TD
     Start["FFmpeg 功能失败"] --> Info{"ffmpeg_info 能否完成"}
     Info -->|"否"| Bind["检查 :ffmpeg service、Binder 注册、AAR/JNI、wrapper marker"]
     Info -->|"是"| Probe{"FFprobe 能否完成"}
-    Probe -->|"否"| ProbePath["检查绝对路径、权限、输入格式、probe timeout 和日志"]
+    Probe -->|"否"| ProbePath["检查绝对路径、权限、输入格式、FFprobe 执行状态和日志排空"]
     Probe -->|"是"| Command{"真实 command 是否返回 FFmpeg return code"}
     Command -->|"是"| NormalFailure["按参数/encoder/muxer/filter/媒体错误处理"]
     Command -->|"否"| Died{"是否收到 Binder process death"}
@@ -1175,12 +1224,18 @@ flowchart TD
 
 ### P0：产品合同与本地收口
 
-1. 完成本文及交叉引用；
-2. 修正 `ffmpeg_convert` 的 codec/encoder/container 合同；
-3. 使用 `executeArguments(List<String>)`；
-4. 确认公开接口发布状态并冻结输出覆盖策略；
-5. 添加 convert 单元与 AndroidTest；
-6. 重新运行本地门禁、Debug APK 和完整 ELF 审计。
+状态：实现与定向本地验证已完成，完整仓库门禁、最终 Debug APK/native 审计和 Git 交付按
+[FFmpeg 运行时完善计划](../../TODO/ffmpeg_runtime_completion/index.md) 收尾。
+
+已完成：
+
+1. 公开合同收敛为唯一 `h264_aac_mp4` profile；
+2. ToolPkg、双语 prompt、TypeScript、Kotlin 和 native manifest 同步；
+3. 内部调用统一为结构化 `FFmpegRuntimeResponse`，不再吞 return code、terminal state 或日志；
+4. 转换使用同目录临时文件、FFprobe 回读和原子非覆盖提交；
+5. Binder payload、排队取消、重复 request ID、日志字节上限、目录 retention 和迟到终态清理闭环；
+6. AAR/APK 门禁检查 OpenH264、AAC 和 MP4 muxer marker；
+7. 单元测试、AndroidTest 编译与 Python 合同测试覆盖以上行为。
 
 ### P0：目标设备 FFmpegKit r4
 
@@ -1233,11 +1288,21 @@ native death 时必须取得 logcat/tombstone/backtrace。
 ### AI 与内部消费者
 
 - `app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/StandardFFmpegTool.kt`
+- `app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/standard/FFmpegConversionContract.kt`
 - `app/src/main/assets/packages/ffmpeg.js`
 - `app/src/main/java/com/ai/assistance/operit/util/FFmpegUtil.kt`
+- `app/src/main/java/com/ai/assistance/operit/util/AtomicFileCommit.kt`
 - `app/src/main/java/com/ai/assistance/operit/util/MediaPoolManager.kt`
 - `app/src/main/java/com/ai/assistance/operit/api/chat/llmprovider/MNNProvider.kt`
 - `app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserDownloadSupport.kt`
+
+### 自动测试与阶段状态
+
+- `app/src/test/java/com/ai/assistance/operit/core/ffmpeg/runtime/FFmpegRuntimeProtocolTest.kt`
+- `app/src/test/java/com/ai/assistance/operit/core/tools/defaultTool/standard/FFmpegConversionContractTest.kt`
+- `app/src/test/java/com/ai/assistance/operit/util/AtomicFileCommitTest.kt`
+- `ci/test/test_ffmpeg_runtime.py`
+- [FFmpeg 运行时完善计划](../../TODO/ffmpeg_runtime_completion/index.md)
 
 ### 播放器
 

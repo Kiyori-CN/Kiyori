@@ -4,32 +4,8 @@
 
 import { FFmpegResultData } from './results';
 
-/**
- * FFmpeg codec types
- */
-export type FFmpegVideoCodec =
-    | 'h264'       // H.264/AVC
-    | 'hevc'       // H.265/HEVC
-    | 'vp8'        // VP8
-    | 'vp9'        // VP9
-    | 'av1'        // AV1
-    | 'libx265'    // H.265/HEVC encoder variant
-    | 'libvpx'     // VP8/VP9 encoder variant
-    | 'libaom'     // AV1 encoder variant
-    | 'mpeg4'      // MPEG-4
-    | 'mjpeg'      // Motion JPEG
-    | 'prores';    // ProRes
-
-export type FFmpegAudioCodec =
-    | 'aac'        // Advanced Audio Coding
-    | 'mp3'        // MPEG Audio Layer III
-    | 'opus'       // Opus
-    | 'vorbis'     // Vorbis
-    | 'flac'       // Free Lossless Audio Codec
-    | 'pcm'        // Pulse Code Modulation
-    | 'wav'        // Waveform Audio File Format
-    | 'ac3'        // Dolby Digital
-    | 'eac3';      // Enhanced AC-3
+/** Qualified deterministic conversion profiles. */
+export type FFmpegConversionProfile = 'h264_aac_mp4';
 
 export type FFmpegResolution =
     | '1280x720'   // HD
@@ -38,7 +14,7 @@ export type FFmpegResolution =
     | '7680x4320'  // 8K
     | `${number}x${number}`;  // Custom resolution
 
-export type FFmpegBitrate =
+export type FFmpegVideoBitrate =
     | '500k'       // 500 kbps
     | '1000k'      // 1000 kbps
     | '2000k'      // 2000 kbps
@@ -75,10 +51,9 @@ export namespace FFmpeg {
         inputPath: string,
         outputPath: string,
         options?: {
-            video_codec?: FFmpegVideoCodec;
-            audio_codec?: FFmpegAudioCodec;
+            profile?: FFmpegConversionProfile;
             resolution?: FFmpegResolution;
-            bitrate?: FFmpegBitrate;
+            video_bitrate?: FFmpegVideoBitrate;
         }
     ): Promise<FFmpegResultData>;
-} 
+}

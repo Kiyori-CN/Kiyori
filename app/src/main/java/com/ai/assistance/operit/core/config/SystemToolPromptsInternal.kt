@@ -2973,9 +2973,9 @@ object SystemToolPromptsInternal {
                                         required = true
                                     ),
                                     ToolParameterSchema(
-                                        name = "format",
+                                        name = "profile",
                                         type = "string",
-                                        description = "optional",
+                                        description = "optional; currently only h264_aac_mp4",
                                         required = false
                                     ),
                                     ToolParameterSchema(
@@ -2985,21 +2985,9 @@ object SystemToolPromptsInternal {
                                         required = false
                                     ),
                                     ToolParameterSchema(
-                                        name = "bitrate",
+                                        name = "video_bitrate",
                                         type = "string",
-                                        description = "optional, e.g. 1000k",
-                                        required = false
-                                    ),
-                                    ToolParameterSchema(
-                                        name = "audio_codec",
-                                        type = "string",
-                                        description = "optional",
-                                        required = false
-                                    ),
-                                    ToolParameterSchema(
-                                        name = "video_codec",
-                                        type = "string",
-                                        description = "optional, use h264 for H.264 encoding",
+                                        description = "optional, 64k..100M, e.g. 4000k or 4M",
                                         required = false
                                     )
                                 )
@@ -5975,9 +5963,9 @@ object SystemToolPromptsInternal {
                                         required = true
                                     ),
                                     ToolParameterSchema(
-                                        name = "format",
+                                        name = "profile",
                                         type = "string",
-                                        description = "可选",
+                                        description = "可选；当前仅支持 h264_aac_mp4",
                                         required = false
                                     ),
                                     ToolParameterSchema(
@@ -5987,21 +5975,9 @@ object SystemToolPromptsInternal {
                                         required = false
                                     ),
                                     ToolParameterSchema(
-                                        name = "bitrate",
+                                        name = "video_bitrate",
                                         type = "string",
-                                        description = "可选，例如 1000k",
-                                        required = false
-                                    ),
-                                    ToolParameterSchema(
-                                        name = "audio_codec",
-                                        type = "string",
-                                        description = "可选",
-                                        required = false
-                                    ),
-                                    ToolParameterSchema(
-                                        name = "video_codec",
-                                        type = "string",
-                                        description = "可选，H.264 编码请使用 h264",
+                                        description = "可选，范围 64k..100M，例如 4000k 或 4M",
                                         required = false
                                     )
                                 )

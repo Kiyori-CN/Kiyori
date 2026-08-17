@@ -7413,7 +7413,11 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_history_bookmark_saved">Marcador guardado</string>
     <string name="web_session_history_delete_entry_confirm_title">¿Eliminar este registro?</string>
     <string name="web_session_history_batch_delete_confirm_title">¿Eliminar los registros seleccionados?</string>
-    <string name="web_session_history_batch_delete_confirm_message">¿Eliminar los %1$d registros de historial seleccionados? Esta acción no se puede deshacer.</string>
+    <plurals name="web_session_history_batch_delete_confirm_message">
+        <item quantity="one">¿Eliminar el %1$d registro de historial seleccionado? Esta acción no se puede deshacer.</item>
+        <item quantity="many">¿Eliminar los %1$d registros de historial seleccionados? Esta acción no se puede deshacer.</item>
+        <item quantity="other">¿Eliminar los %1$d registros de historial seleccionados? Esta acción no se puede deshacer.</item>
+    </plurals>
     <string name="web_session_history_delete_entry_confirm_message">¿Eliminar «%1$s»? Esta acción no se puede deshacer.</string>
     <string name="web_session_history_delete_confirm">Eliminar</string>
     <string name="web_session_history_selected">Seleccionado</string>

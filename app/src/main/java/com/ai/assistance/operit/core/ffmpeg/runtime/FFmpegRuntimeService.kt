@@ -17,7 +17,7 @@ import com.arthenica.ffmpegkit.Session
 import com.arthenica.ffmpegkit.Statistics
 import com.arthenica.ffmpegkit.StatisticsCallback
 import com.arthenica.ffmpegkit.StreamInformation
-import java.io.BufferedWriter
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -33,6 +33,7 @@ internal class FFmpegRuntimeService : Service() {
     private lateinit var callbackHandler: Handler
     private val registrationLock = Any()
     private val activeRequests = ConcurrentHashMap<String, ActiveFFmpegRuntimeRequest>()
+    private val reservedRequestIds = ConcurrentHashMap.newKeySet<String>()
     private val activeNativeRequest = AtomicReference<ActiveFFmpegRuntimeRequest?>(null)
 
     @Volatile
@@ -79,13 +80,16 @@ internal class FFmpegRuntimeService : Service() {
                             ?.takeIf { request -> request.registration === registration }
                             ?: return false
                     }
-                active.cancel()
-                return true
+                return cancelRequest(active)
             }
         }
 
     override fun onCreate() {
         super.onCreate()
+        val retention = pruneFfmpegRuntimeLogs(cacheDir)
+        if (retention.deletedFiles > 0) {
+            Log.i(TAG, "Pruned ${retention.deletedFiles} stale FFmpeg runtime logs")
+        }
         executor =
             Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, "$RUNTIME_THREAD_PREFIX-${RUNTIME_THREAD_COUNTER.incrementAndGet()}")
@@ -130,6 +134,7 @@ internal class FFmpegRuntimeService : Service() {
             )
         }
         activeRequests.clear()
+        reservedRequestIds.clear()
         executor.shutdownNow()
         FFmpegKitConfig.enableLogCallback(null)
         callbackThread.quitSafely()
@@ -289,10 +294,17 @@ internal class FFmpegRuntimeService : Service() {
                         current.runtimeGeneration == runtimeGeneration
                     }
             } ?: return false
+        if (!reservedRequestIds.add(request.requestId)) {
+            return false
+        }
         val logFile =
             try {
                 createLogFile(request.requestId)
+            } catch (_: FFmpegRuntimeLogCollisionException) {
+                reservedRequestIds.remove(request.requestId)
+                return false
             } catch (error: Exception) {
+                reservedRequestIds.remove(request.requestId)
                 emitSetupFailure(
                     registration = registration,
                     request = request,
@@ -309,29 +321,20 @@ internal class FFmpegRuntimeService : Service() {
                 request = request,
                 logWriter = FFmpegRuntimeLogWriter(logFile),
             )
-        var duplicate = false
         val accepted =
             synchronized(registrationLock) {
                 if (callbackRegistration !== registration) {
                     false
                 } else {
-                    duplicate = activeRequests.putIfAbsent(request.requestId, active) != null
-                    !duplicate
+                    check(activeRequests.putIfAbsent(request.requestId, active) == null) {
+                        "Reserved FFmpeg request ID was already active"
+                    }
+                    true
                 }
             }
         if (!accepted) {
             active.logWriter.close()
-            if (duplicate) {
-                emitSetupFailure(
-                    registration = registration,
-                    request = request,
-                    sessionId = 0L,
-                    failureCode = FFmpegRuntimeFailureCode.DUPLICATE_REQUEST,
-                    message = "FFmpeg 运行时拒绝重复 request ID",
-                    outputLogPath = logFile.absolutePath,
-                )
-                return true
-            }
+            reservedRequestIds.remove(request.requestId)
             runCatching { logFile.delete() }
             return false
         }
@@ -451,7 +454,7 @@ internal class FFmpegRuntimeService : Service() {
         executeNativeSession(active, session) {
             FFmpegKitConfig.getMediaInformationExecute(
                 session,
-                MEDIA_INFORMATION_TIMEOUT_MILLIS,
+                MEDIA_INFORMATION_LOG_DRAIN_TIMEOUT_MILLIS,
             )
         }
         completeMediaInformationRequest(active, session)
@@ -566,6 +569,7 @@ internal class FFmpegRuntimeService : Service() {
                 return
             }
             activeRequests.remove(active.request.requestId, active)
+            reservedRequestIds.remove(active.request.requestId)
             active.logWriter.close()
             val returnCode = session.returnCode?.value ?: UNKNOWN_RETURN_CODE
             val result =
@@ -600,6 +604,7 @@ internal class FFmpegRuntimeService : Service() {
                 return
             }
             activeRequests.remove(active.request.requestId, active)
+            reservedRequestIds.remove(active.request.requestId)
             active.logWriter.close()
             emitSetupFailure(
                 registration = active.registration,
@@ -623,6 +628,7 @@ internal class FFmpegRuntimeService : Service() {
                 return
             }
             activeRequests.remove(active.request.requestId, active)
+            reservedRequestIds.remove(active.request.requestId)
             active.cancel()
             active.logWriter.close()
             if (emitFailure) {
@@ -637,6 +643,47 @@ internal class FFmpegRuntimeService : Service() {
             }
         }
     }
+
+    private fun cancelRequest(active: ActiveFFmpegRuntimeRequest): Boolean =
+        synchronized(active.lifecycleLock) {
+            if (active.terminal.get()) {
+                return@synchronized false
+            }
+            active.cancelRequested.set(true)
+            val session = active.session.get()
+            if (session != null) {
+                session.cancel()
+                return@synchronized true
+            }
+            if (!active.terminal.compareAndSet(false, true)) {
+                return@synchronized false
+            }
+            activeRequests.remove(active.request.requestId, active)
+            reservedRequestIds.remove(active.request.requestId)
+            active.logWriter.append(
+                "[Kiyori] FFmpeg request was cancelled before native session creation.\n",
+            )
+            active.logWriter.close()
+            val result =
+                FFmpegRuntimeResult(
+                    requestId = active.request.requestId,
+                    operationWireValue = active.request.operationWireValue,
+                    processId = Process.myPid(),
+                    sessionId = 0L,
+                    terminalStateWireValue = FFmpegRuntimeTerminalState.CANCELLED.wireValue,
+                    returnCode = FFMPEG_RUNTIME_CANCEL_RETURN_CODE,
+                    durationMillis = 0L,
+                    outputLogPath = active.logWriter.file.absolutePath,
+                    failStackTrace = null,
+                    statistics = null,
+                    mediaInformation = null,
+                    runtimeInformation = null,
+                )
+            emit(active.registration) { currentCallback, generation, sequence ->
+                currentCallback.onRequestCompleted(generation, sequence, result)
+            }
+            true
+        }
 
     private fun emitSetupFailure(
         registration: FFmpegRuntimeCallbackRegistration,
@@ -681,22 +728,40 @@ internal class FFmpegRuntimeService : Service() {
     }
 
     private fun createLogFile(requestId: String): File {
+        val protectedLogPaths =
+            activeRequests.values
+                .mapTo(mutableSetOf()) { active -> active.logWriter.file.absolutePath }
+        reservedRequestIds.forEach { reservedRequestId ->
+            protectedLogPaths += ffmpegRuntimeLogFile(cacheDir, reservedRequestId).absolutePath
+        }
+        pruneFfmpegRuntimeLogs(
+            cacheDir = cacheDir,
+            protectedLogPaths = protectedLogPaths,
+        )
         val directory = ffmpegRuntimeLogDirectory(cacheDir)
         require(directory.exists() || directory.mkdirs()) {
             "Unable to create FFmpeg runtime log directory"
         }
-        return ffmpegRuntimeLogFile(cacheDir, requestId).also { file ->
-            FileOutputStream(file, false).use { output ->
+        val file = ffmpegRuntimeLogFile(cacheDir, requestId)
+        if (!file.createNewFile()) {
+            throw FFmpegRuntimeLogCollisionException()
+        }
+        try {
+            FileOutputStream(file, true).use { output ->
                 output.fd.sync()
             }
+        } catch (error: Exception) {
+            runCatching { file.delete() }
+            throw error
         }
+        return file
     }
 
     private companion object {
         const val TAG = "FFmpegRuntimeService"
         const val RUNTIME_THREAD_PREFIX = "KiyoriFFmpegRuntime"
         const val CALLBACK_THREAD_NAME = "KiyoriFFmpegCallback"
-        const val MEDIA_INFORMATION_TIMEOUT_MILLIS = 5_000
+        const val MEDIA_INFORMATION_LOG_DRAIN_TIMEOUT_MILLIS = 5_000
         const val CALLBACK_DRAIN_TIMEOUT_MILLIS = 5_000L
         const val CALLBACK_DRAIN_POLL_MILLIS = 10L
         const val UNKNOWN_RETURN_CODE = Int.MIN_VALUE
@@ -745,18 +810,59 @@ private data class DetachedFFmpegRuntimeRegistration(
     val activeRequests: List<ActiveFFmpegRuntimeRequest>,
 )
 
-private class FFmpegRuntimeLogWriter(val file: File) {
+private class FFmpegRuntimeLogCollisionException : IllegalStateException()
+
+internal class FFmpegRuntimeLogWriter(val file: File) {
     private val lock = Any()
-    private var writer: BufferedWriter? =
-        FileOutputStream(file, true).bufferedWriter(Charsets.UTF_8)
+    private val truncationMarkerBytes =
+        FFMPEG_RUNTIME_LOG_TRUNCATION_MARKER.toByteArray(Charsets.UTF_8)
+    private val contentByteLimit =
+        FFMPEG_RUNTIME_MAX_LOG_BYTES - truncationMarkerBytes.size
+    private var writer: BufferedOutputStream? =
+        FileOutputStream(file, true).buffered()
+    private var writtenBytes = file.length().toInt()
+    private var truncated = false
+
+    init {
+        require(contentByteLimit > 0) { "FFmpeg runtime log marker exceeds the log limit" }
+        require(writtenBytes in 0..contentByteLimit) {
+            "FFmpeg runtime log file is not empty or already exceeds its limit"
+        }
+    }
 
     fun append(message: String?) {
-        if (message.isNullOrEmpty()) {
+        if (message.isNullOrEmpty() || truncated) {
             return
         }
         synchronized(lock) {
             val currentWriter = writer ?: return
-            currentWriter.write(message)
+            if (truncated) {
+                return
+            }
+            val messageBytes = message.toByteArray(Charsets.UTF_8)
+            val remainingContentBytes = contentByteLimit - writtenBytes
+            if (messageBytes.size <= remainingContentBytes) {
+                currentWriter.write(messageBytes)
+                writtenBytes += messageBytes.size
+            } else {
+                var acceptedBytes = remainingContentBytes.coerceAtLeast(0)
+                if (acceptedBytes in 1 until messageBytes.size) {
+                    while (
+                        acceptedBytes > 0 &&
+                            (messageBytes[acceptedBytes].toInt() and UTF8_CONTINUATION_MASK) ==
+                            UTF8_CONTINUATION_PREFIX
+                    ) {
+                        acceptedBytes -= 1
+                    }
+                }
+                if (acceptedBytes > 0) {
+                    currentWriter.write(messageBytes, 0, acceptedBytes)
+                    writtenBytes += acceptedBytes
+                }
+                currentWriter.write(truncationMarkerBytes)
+                writtenBytes += truncationMarkerBytes.size
+                truncated = true
+            }
             // A native fatal signal can terminate the process without Java cleanup. Flushing each
             // callback preserves the latest attributable output for the main-process death report.
             currentWriter.flush()
@@ -768,6 +874,11 @@ private class FFmpegRuntimeLogWriter(val file: File) {
             writer?.close()
             writer = null
         }
+    }
+
+    private companion object {
+        const val UTF8_CONTINUATION_MASK = 0xC0
+        const val UTF8_CONTINUATION_PREFIX = 0x80
     }
 }
 
@@ -795,6 +906,8 @@ private fun StreamInformation.toRuntimeStreamInformation(): FFmpegRuntimeStreamI
         index = index?.toInt() ?: 0,
         type = type,
         codec = codec,
+        profile = getStringProperty("profile"),
+        pixelFormat = format,
         width = width?.toInt(),
         height = height?.toInt(),
         realFrameRate = realFrameRate,

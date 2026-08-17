@@ -215,6 +215,111 @@ class FFmpegRuntimeServiceAndroidTest {
     }
 
     @Test
+    fun queuedCancellationCompletesWithoutStartingANativeSession() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val connected = CountDownLatch(1)
+        val blockerStarted = CountDownLatch(1)
+        val cancelledTerminal = CountDownLatch(1)
+        val cancelledStartedCount = AtomicInteger(0)
+        var runtime: IFFmpegRuntime? = null
+        var cancelledResult: FFmpegRuntimeResult? = null
+
+        val callback =
+            object : IFFmpegRuntimeCallback.Stub() {
+                override fun onRequestStarted(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    requestId: String?,
+                    sessionId: Long,
+                    processId: Int,
+                ) {
+                    when (requestId) {
+                        QUEUE_BLOCKER_REQUEST_ID -> blockerStarted.countDown()
+                        QUEUED_CANCEL_REQUEST_ID -> cancelledStartedCount.incrementAndGet()
+                    }
+                }
+
+                override fun onRequestCompleted(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    result: FFmpegRuntimeResult?,
+                ) {
+                    if (result?.requestId == QUEUED_CANCEL_REQUEST_ID) {
+                        cancelledResult = result
+                        cancelledTerminal.countDown()
+                    }
+                }
+
+                override fun onRequestFailed(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    failure: FFmpegRuntimeFailure?,
+                ) = Unit
+            }
+        val connection =
+            object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                    runtime = IFFmpegRuntime.Stub.asInterface(service)
+                    connected.countDown()
+                }
+
+                override fun onServiceDisconnected(name: ComponentName?) = Unit
+            }
+
+        assertTrue(
+            context.bindService(
+                Intent(context, FFmpegRuntimeService::class.java),
+                connection,
+                Context.BIND_AUTO_CREATE,
+            ),
+        )
+        try {
+            assertTrue(connected.await(10, TimeUnit.SECONDS))
+            val activeRuntime = requireNotNull(runtime)
+            assertTrue(activeRuntime.registerCallback(RUNTIME_GENERATION, callback))
+            assertTrue(
+                activeRuntime.submit(
+                    RUNTIME_GENERATION,
+                    argumentRequest(
+                        QUEUE_BLOCKER_REQUEST_ID,
+                        listOf(
+                            "-re",
+                            "-f",
+                            "lavfi",
+                            "-i",
+                            "testsrc=size=16x16:rate=1",
+                            "-t",
+                            "30",
+                            "-f",
+                            "null",
+                            "-",
+                        ),
+                    ),
+                ),
+            )
+            assertTrue(blockerStarted.await(10, TimeUnit.SECONDS))
+            assertTrue(
+                activeRuntime.submit(
+                    RUNTIME_GENERATION,
+                    commandRequest(QUEUED_CANCEL_REQUEST_ID, "-version"),
+                ),
+            )
+            assertTrue(activeRuntime.cancel(RUNTIME_GENERATION, QUEUED_CANCEL_REQUEST_ID))
+
+            assertTrue(cancelledTerminal.await(10, TimeUnit.SECONDS))
+            val result = requireNotNull(cancelledResult)
+            assertEquals(0, cancelledStartedCount.get())
+            assertEquals(0L, result.sessionId)
+            assertEquals(FFmpegRuntimeTerminalState.CANCELLED, result.terminalState)
+            assertEquals(FFMPEG_RUNTIME_CANCEL_RETURN_CODE, result.returnCode)
+            File(result.outputLogPath).delete()
+            activeRuntime.cancel(RUNTIME_GENERATION, QUEUE_BLOCKER_REQUEST_ID)
+        } finally {
+            context.unbindService(connection)
+        }
+    }
+
+    @Test
     fun transcodeSmokeMatrixCoversLavfiDecodeCopyAudioAnd720pInFifoOrder() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val connected = CountDownLatch(1)
@@ -580,6 +685,8 @@ class FFmpegRuntimeServiceAndroidTest {
         const val REPLACEMENT_GENERATION = 2L
         const val INFO_REQUEST_ID = "11111111111111111111111111111111"
         const val REPLACED_REQUEST_ID = "44444444444444444444444444444444"
+        const val QUEUE_BLOCKER_REQUEST_ID = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        const val QUEUED_CANCEL_REQUEST_ID = "cccccccccccccccccccccccccccccccc"
         val CONCURRENT_REQUEST_IDS =
             listOf(
                 "22222222222222222222222222222222",

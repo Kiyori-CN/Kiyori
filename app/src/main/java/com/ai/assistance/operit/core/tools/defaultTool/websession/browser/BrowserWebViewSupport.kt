@@ -33,6 +33,7 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withTranslation
+import androidx.core.net.toUri
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.browser.navigation.BrowserAddressResolver
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
@@ -147,10 +148,6 @@ internal fun StandardBrowserSessionTools.configureWebView(
             touchSlopPx = adMarkingViewConfiguration.scaledTouchSlop.toFloat(),
         )
     var adMarkingVelocityTracker: VelocityTracker? = null
-    fun recycleAdMarkingVelocityTracker() {
-        adMarkingVelocityTracker?.recycle()
-        adMarkingVelocityTracker = null
-    }
     session.webView.apply {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         isFocusable = true
@@ -168,11 +165,9 @@ internal fun StandardBrowserSessionTools.configureWebView(
                             view.requestFocus()
                         }
                         adMarkingTouchTracker.onDown(event.x, event.y)
-                        recycleAdMarkingVelocityTracker()
-                        adMarkingVelocityTracker =
-                            VelocityTracker.obtain().also { tracker ->
-                                tracker.addMovement(event)
-                            }
+                        adMarkingVelocityTracker?.recycle()
+                        adMarkingVelocityTracker = VelocityTracker.obtain()
+                        adMarkingVelocityTracker?.addMovement(event)
                     }
 
                     MotionEvent.ACTION_MOVE -> {
@@ -232,13 +227,15 @@ internal fun StandardBrowserSessionTools.configureWebView(
                             is BrowserAdMarkingTouchAction.ScrollBy,
                             -> Unit
                         }
-                        recycleAdMarkingVelocityTracker()
+                        adMarkingVelocityTracker?.recycle()
+                        adMarkingVelocityTracker = null
                         view.parent?.requestDisallowInterceptTouchEvent(false)
                     }
 
                     MotionEvent.ACTION_CANCEL -> {
                         adMarkingTouchTracker.cancel()
-                        recycleAdMarkingVelocityTracker()
+                        adMarkingVelocityTracker?.recycle()
+                        adMarkingVelocityTracker = null
                         view.parent?.requestDisallowInterceptTouchEvent(false)
                     }
                 }
@@ -247,7 +244,8 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 true
             } else {
                 adMarkingTouchTracker.cancel()
-                recycleAdMarkingVelocityTracker()
+                adMarkingVelocityTracker?.recycle()
+                adMarkingVelocityTracker = null
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         view.parent?.requestDisallowInterceptTouchEvent(true)
@@ -893,7 +891,7 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
         override fun onOpenExternalUrl(url: String) {
             runOnMainSync<Unit> {
                 val uri =
-                    runCatching { Uri.parse(url.trim()) }.getOrNull()
+                    runCatching { url.trim().toUri() }.getOrNull()
                         ?: run {
                             showToast(context.getString(R.string.web_session_external_open_failed, url))
                             return@runOnMainSync

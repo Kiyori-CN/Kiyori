@@ -474,9 +474,9 @@ internal fun WebSessionAdMarkingWorkbench(
 private fun AdMarkingTopButton(
     label: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selected: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
     Surface(
@@ -517,10 +517,10 @@ private fun AdMarkingTopButton(
 private fun AdMarkingFooterButton(
     label: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     selected: Boolean = false,
     emphasized: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
     val active = selected || emphasized

@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -298,11 +299,35 @@ class MNNProvider(
 
     private fun transcodeToWav16kMono(input: File): File? {
         val dir = ensureMultimodalWorkDir()
-        val out = File(dir, "audio_${System.currentTimeMillis()}_${kotlin.random.Random.nextInt(0, Int.MAX_VALUE)}.wav")
-        val inPath = "\"" + input.absolutePath.replace("\"", "\\\"") + "\""
-        val outPath = "\"" + out.absolutePath.replace("\"", "\\\"") + "\""
-        val ok = FFmpegUtil.executeCommand("-y -i $inPath -vn -ac 1 -ar 16000 -f wav $outPath")
-        if (!ok || !out.exists() || out.length() <= 0) {
+        val out = File(dir, "audio_${UUID.randomUUID()}.wav")
+        val execution =
+            try {
+                FFmpegUtil.executeArguments(
+                    listOf(
+                        "-n",
+                        "-i",
+                        input.absolutePath,
+                        "-vn",
+                        "-ac",
+                        "1",
+                        "-ar",
+                        "16000",
+                        "-f",
+                        "wav",
+                        out.absolutePath,
+                    ),
+                )
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "多模态音频预处理失败: ${input.absolutePath}", error)
+                runCatching { out.delete() }
+                return null
+            }
+        if (!execution.succeeded || !out.isFile || out.length() <= 0L) {
+            AppLogger.e(
+                TAG,
+                "多模态音频预处理未生成有效输出: state=${execution.result.terminalState}, " +
+                    "returnCode=${execution.result.returnCode}, output=${execution.output}",
+            )
             runCatching { out.delete() }
             return null
         }
@@ -311,13 +336,32 @@ class MNNProvider(
 
     private fun extractVideoFrame(input: File): File? {
         val dir = ensureMultimodalWorkDir()
-        val out = File(dir, "frame_${System.currentTimeMillis()}_${kotlin.random.Random.nextInt(0, Int.MAX_VALUE)}.jpg")
-        val inPath = "\"" + input.absolutePath.replace("\"", "\\\"") + "\""
-        val outPath = "\"" + out.absolutePath.replace("\"", "\\\"") + "\""
-        val ok = FFmpegUtil.executeCommand(
-            "-y -i $inPath -frames:v 1 -vf ${FFmpegUtil.scaleFilterMaxWidth(640)} $outPath"
-        )
-        if (!ok || !out.exists() || out.length() <= 0) {
+        val out = File(dir, "frame_${UUID.randomUUID()}.jpg")
+        val execution =
+            try {
+                FFmpegUtil.executeArguments(
+                    listOf(
+                        "-n",
+                        "-i",
+                        input.absolutePath,
+                        "-frames:v",
+                        "1",
+                        "-vf",
+                        FFmpegUtil.scaleFilterMaxWidth(640),
+                        out.absolutePath,
+                    ),
+                )
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "多模态视频抽帧失败: ${input.absolutePath}", error)
+                runCatching { out.delete() }
+                return null
+            }
+        if (!execution.succeeded || !out.isFile || out.length() <= 0L) {
+            AppLogger.e(
+                TAG,
+                "多模态视频抽帧未生成有效输出: state=${execution.result.terminalState}, " +
+                    "returnCode=${execution.result.returnCode}, output=${execution.output}",
+            )
             runCatching { out.delete() }
             return null
         }

@@ -30,8 +30,23 @@ object MediaPoolManager {
 
         fun ok(out: File): Boolean = out.exists() && out.isFile && out.length() in 1..targetBytes
 
+        val probeResponse =
+            try {
+                FFmpegUtil.probeMedia(source.absolutePath)
+            } catch (error: Exception) {
+                AppLogger.e(TAG, "媒体探测失败: ${source.absolutePath}", error)
+                return null
+            }
+        if (!probeResponse.succeeded) {
+            AppLogger.e(
+                TAG,
+                "媒体探测返回失败: state=${probeResponse.result.terminalState}, " +
+                    "returnCode=${probeResponse.result.returnCode}, output=${probeResponse.output}",
+            )
+            return null
+        }
         val durationSeconds =
-            FFmpegUtil.getMediaInfo(source.absolutePath)
+            probeResponse.result.mediaInformation
                 ?.duration
                 ?.toDoubleOrNull()
                 ?.takeIf { duration -> duration.isFinite() && duration > 0.0 }
@@ -54,7 +69,7 @@ object MediaPoolManager {
             val out = File(dir, "${UUID.randomUUID()}.mp3")
             val arguments =
                 listOf(
-                    "-y",
+                    "-n",
                     "-i",
                     source.absolutePath,
                     "-map",
@@ -72,13 +87,23 @@ object MediaPoolManager {
                     "${plan.audioBitrateKbps}k",
                     out.absolutePath,
                 )
-            val succeeded = FFmpegUtil.executeArguments(arguments)
+            val execution =
+                try {
+                    FFmpegUtil.executeArguments(arguments)
+                } catch (error: Exception) {
+                    AppLogger.e(TAG, "音频单次转码执行失败", error)
+                    runCatching { out.delete() }
+                    return null
+                }
+            val succeeded = execution.succeeded
             if (succeeded && ok(out)) {
                 return TranscodedMedia(out, "audio/mpeg")
             }
             AppLogger.e(
                 TAG,
-                "音频单次转码未满足容量合同: success=$succeeded, bytes=${out.length()}, target=$targetBytes",
+                "音频单次转码未满足容量合同: state=${execution.result.terminalState}, " +
+                    "returnCode=${execution.result.returnCode}, bytes=${out.length()}, " +
+                    "target=$targetBytes, output=${execution.output}",
             )
             runCatching { out.delete() }
             return null
@@ -99,7 +124,7 @@ object MediaPoolManager {
             val out = File(dir, "${UUID.randomUUID()}.mp4")
             val arguments =
                 listOf(
-                    "-y",
+                    "-n",
                     "-i",
                     source.absolutePath,
                     "-map",
@@ -130,13 +155,23 @@ object MediaPoolManager {
                     "+faststart",
                     out.absolutePath,
                 )
-            val succeeded = FFmpegUtil.executeArguments(arguments)
+            val execution =
+                try {
+                    FFmpegUtil.executeArguments(arguments)
+                } catch (error: Exception) {
+                    AppLogger.e(TAG, "视频单次转码执行失败", error)
+                    runCatching { out.delete() }
+                    return null
+                }
+            val succeeded = execution.succeeded
             if (succeeded && ok(out)) {
                 return TranscodedMedia(out, "video/mp4")
             }
             AppLogger.e(
                 TAG,
-                "视频单次转码未满足容量合同: success=$succeeded, bytes=${out.length()}, target=$targetBytes",
+                "视频单次转码未满足容量合同: state=${execution.result.terminalState}, " +
+                    "returnCode=${execution.result.returnCode}, bytes=${out.length()}, " +
+                    "target=$targetBytes, output=${execution.output}",
             )
             runCatching { out.delete() }
             return null

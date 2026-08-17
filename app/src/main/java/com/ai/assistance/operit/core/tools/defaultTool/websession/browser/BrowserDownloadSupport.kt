@@ -20,6 +20,7 @@ import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
 import com.ai.assistance.operit.util.AppLogger
+import com.ai.assistance.operit.util.commitFileAtomicallyWithoutReplacement
 import com.kiyori.platform.storage.KiyoriPaths
 import java.io.File
 import java.io.FileNotFoundException
@@ -1340,7 +1341,7 @@ internal class BrowserDownloadManager private constructor(
                 val response =
                     FFmpegRuntimeClient.getInstance(appContext).executeArguments(
                         listOf(
-                            "-y",
+                            "-n",
                             "-protocol_whitelist",
                             "file,crypto,data",
                             "-allowed_extensions",
@@ -1372,7 +1373,10 @@ internal class BrowserDownloadManager private constructor(
                 require(completedTemporaryOutput.isFile && completedTemporaryOutput.length() > 0L) {
                     "M3U8合并未生成有效MP4文件"
                 }
-                require(completedTemporaryOutput.renameTo(outputFile)) { "MP4文件写入失败" }
+                commitFileAtomicallyWithoutReplacement(
+                    stagedFile = completedTemporaryOutput,
+                    targetFile = outputFile,
+                )
                 completedOutput = outputFile
                 // The task-record switch is the commit point. The source package must remain
                 // untouched until the generated MP4 is durable and owned by the task; otherwise

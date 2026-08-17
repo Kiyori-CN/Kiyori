@@ -7693,7 +7693,10 @@
     <string name="web_session_history_bookmark_saved">书签已保存</string>
     <string name="web_session_history_delete_entry_confirm_title">删除这条记录？</string>
     <string name="web_session_history_batch_delete_confirm_title">删除所选记录？</string>
-    <string name="web_session_history_batch_delete_confirm_message">确定删除所选的 %1$d 条历史记录吗？此操作无法撤销。</string>
+    <plurals name="web_session_history_batch_delete_confirm_message">
+        <item quantity="one">确定删除所选的 %1$d 条历史记录吗？此操作无法撤销。</item>
+        <item quantity="other">确定删除所选的 %1$d 条历史记录吗？此操作无法撤销。</item>
+    </plurals>
     <string name="web_session_history_delete_entry_confirm_message">确定删除“%1$s”吗？此操作无法撤销。</string>
     <string name="web_session_history_delete_confirm">删除</string>
     <string name="web_session_history_selected">已选择</string>
