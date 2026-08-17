@@ -171,8 +171,8 @@ object ToolGetter {
      * 获取FFmpeg信息工具执行器
      * @return FFmpeg信息工具执行器实现（只有标准版本）
      */
-    fun getFFmpegInfoToolExecutor(): StandardFFmpegInfoToolExecutor {
-        return StandardFFmpegInfoToolExecutor()
+    fun getFFmpegInfoToolExecutor(context: Context): StandardFFmpegInfoToolExecutor {
+        return StandardFFmpegInfoToolExecutor(context)
     }
 
     /**

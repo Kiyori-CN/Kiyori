@@ -7015,6 +7015,10 @@
     <string name="web_session_network_log_filter_audio">오디오</string>
     <string name="web_session_network_log_filter_image">이미지</string>
     <string name="web_session_network_log_filter_web">웹</string>
+    <string name="web_session_network_log_filter_script">스크립트</string>
+    <string name="web_session_network_log_filter_style">스타일</string>
+    <string name="web_session_network_log_filter_data">데이터/텍스트</string>
+    <string name="web_session_network_log_filter_font">글꼴</string>
     <string name="web_session_network_log_filter_other">기타</string>
     <string name="web_session_network_log_filter_blocked">차단</string>
     <string name="web_session_network_log_third_party_hint">“서드파티”는 요청 도메인이 현재 페이지 도메인과 다르다는 뜻이며 광고 또는 실패를 의미하지 않습니다.</string>
@@ -7027,11 +7031,14 @@
     <string name="web_session_network_log_block_rule_saved">URL 차단 규칙을 저장했습니다</string>
     <string name="web_session_network_log_blocked_by_custom">사용자 지정 차단 규칙</string>
     <string name="web_session_network_log_view_details">세부정보 보기</string>
+    <string name="web_session_network_log_view_page_source">현재 페이지 소스 보기</string>
     <string name="web_session_network_log_details_title">요청 세부정보</string>
     <string name="web_session_network_log_detail_method">요청 메서드</string>
     <string name="web_session_network_log_detail_type">리소스 분류</string>
     <string name="web_session_network_log_detail_frame">요청 위치</string>
-    <string name="web_session_network_log_detail_time">캡처 시간</string>
+    <string name="web_session_network_log_detail_first_seen">최초 발견</string>
+    <string name="web_session_network_log_detail_last_seen">마지막 발견</string>
+    <string name="web_session_network_log_detail_request_count">페이지 내 요청 횟수</string>
     <string name="web_session_network_log_detail_url">전체 링크</string>
     <string name="web_session_network_log_detail_result">처리 결과</string>
     <string name="web_session_network_log_result_blocked">차단됨</string>

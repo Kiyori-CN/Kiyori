@@ -52,6 +52,16 @@ internal interface PlayerRuntimeConnectionListener {
         tracks: PlayerRuntimeTrackSnapshot,
     )
 
+    fun onMediaIdentityChanged(
+        runtimeGeneration: Long,
+        loadCommandId: Long,
+        identity: PlayerRuntimeMediaIdentitySnapshot,
+    )
+
+    fun onSeek(runtimeGeneration: Long, loadCommandId: Long)
+
+    fun onPlaybackRestart(runtimeGeneration: Long, loadCommandId: Long)
+
     fun onNaturalEnd(runtimeGeneration: Long)
 
     fun onRuntimeError(runtimeGeneration: Long, message: String)
@@ -199,6 +209,42 @@ internal class PlayerRuntimeConnection(
                 if (tracks == null) return
                 postEvent(runtimeGeneration, eventSequence) {
                     listener.onFileLoaded(runtimeGeneration, loadCommandId, tracks)
+                }
+            }
+
+            override fun onMediaIdentityChanged(
+                runtimeGeneration: Long,
+                eventSequence: Long,
+                loadCommandId: Long,
+                identity: PlayerRuntimeMediaIdentitySnapshot?,
+            ) {
+                if (identity == null) return
+                postEvent(runtimeGeneration, eventSequence) {
+                    listener.onMediaIdentityChanged(
+                        runtimeGeneration,
+                        loadCommandId,
+                        identity,
+                    )
+                }
+            }
+
+            override fun onSeek(
+                runtimeGeneration: Long,
+                eventSequence: Long,
+                loadCommandId: Long,
+            ) {
+                postEvent(runtimeGeneration, eventSequence) {
+                    listener.onSeek(runtimeGeneration, loadCommandId)
+                }
+            }
+
+            override fun onPlaybackRestart(
+                runtimeGeneration: Long,
+                eventSequence: Long,
+                loadCommandId: Long,
+            ) {
+                postEvent(runtimeGeneration, eventSequence) {
+                    listener.onPlaybackRestart(runtimeGeneration, loadCommandId)
                 }
             }
 

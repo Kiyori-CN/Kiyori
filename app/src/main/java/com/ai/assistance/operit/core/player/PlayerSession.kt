@@ -11,8 +11,12 @@ import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConfig
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnection
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeConnectionListener
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeLoadRequest
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeMediaIdentitySnapshot
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimePlaybackSnapshot
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeTrackSnapshot
+import com.ai.assistance.operit.core.player.runtime.PlayerSeekLifecycleEvent
+import com.ai.assistance.operit.core.player.runtime.isPlayerUserSeekEvent
+import com.ai.assistance.operit.core.player.runtime.reducePlayerSeeking
 import com.ai.assistance.operit.core.player.runtime.toPlayerChapter
 import com.ai.assistance.operit.core.player.runtime.toPlayerTrack
 import com.ai.assistance.operit.core.player.runtime.toRuntimeConfig
@@ -52,6 +56,7 @@ internal class PlayerSession private constructor(context: Context) {
     private var activeSurfaceLease: SurfaceParcel? = null
     private var pendingMediaLoad: PendingMediaLoad? = null
     private var lastLoadCommandId: Long? = null
+    private var pendingUserSeekLoadCommandId: Long? = null
     private var closeCommandId: Long? = null
     private var closeRequested = false
     private var failedSession: FailedPlayerSession? = null
@@ -277,6 +282,16 @@ internal class PlayerSession private constructor(context: Context) {
                                 ?: current.speed,
                         networkSpeedBytesPerSecond =
                             snapshot.networkSpeedBytesPerSecond.coerceAtLeast(0L),
+                        fullVideoCacheActive = snapshot.fullVideoCacheActive,
+                        fullVideoCacheComplete = snapshot.fullVideoCacheComplete,
+                        fullVideoCacheStartSeconds = snapshot.fullVideoCacheStartSeconds,
+                        fullVideoCacheEndSeconds = snapshot.fullVideoCacheEndSeconds,
+                        fullVideoCachePhase = snapshot.fullVideoCachePhase,
+                        fullVideoCacheReason = snapshot.fullVideoCacheReason,
+                        fullVideoCacheStateEvidence =
+                            snapshot.fullVideoCacheStateEvidence,
+                        fullVideoCacheFileBytes = snapshot.fullVideoCacheFileBytes,
+                        fullVideoCacheExpectedBytes = snapshot.fullVideoCacheExpectedBytes,
                     )
             }
 
@@ -296,8 +311,6 @@ internal class PlayerSession private constructor(context: Context) {
                 val chapters = tracks.chapters.map { chapter -> chapter.toPlayerChapter() }
                 _state.value =
                     _state.value.copy(
-                        loading = false,
-                        buffering = false,
                         error = null,
                         audioTracks = audioTracks,
                         subtitleTracks = subtitleTracks,
@@ -305,6 +318,13 @@ internal class PlayerSession private constructor(context: Context) {
                         selectedSubtitleTrackId =
                             subtitleTracks.singleOrNull { it.selected }?.id,
                         chapters = chapters,
+                        mediaContainer = tracks.fileFormat,
+                        videoCodec = tracks.videoCodec,
+                        audioCodec = tracks.audioCodec,
+                        videoTrackCount = tracks.videoTrackCount,
+                        activeHardwareDecoder = tracks.activeHardwareDecoder,
+                        videoPixelFormat = tracks.videoPixelFormat,
+                        videoCodecProfile = tracks.videoCodecProfile,
                     )
                 pendingRestartSeekSeconds?.let { position ->
                     pendingRestartSeekSeconds = null
@@ -314,7 +334,128 @@ internal class PlayerSession private constructor(context: Context) {
                     TAG,
                     "媒体文件加载完成 command=$loadCommandId " +
                         "audioTracks=${audioTracks.size} subtitleTracks=${subtitleTracks.size} " +
+                        "videoTracks=${tracks.videoTrackCount} " +
+                        "container=${tracks.fileFormat ?: "unknown"} " +
+                        "videoCodec=${tracks.videoCodec ?: "none"} " +
+                        "audioCodec=${tracks.audioCodec ?: "none"} " +
+                        "hwdec=${tracks.activeHardwareDecoder ?: "none"} " +
+                        "pixelFormat=${tracks.videoPixelFormat ?: "unknown"} " +
+                        "codecProfile=${tracks.videoCodecProfile ?: "unknown"} " +
                         "chapters=${chapters.size}",
+                )
+            }
+
+            override fun onMediaIdentityChanged(
+                runtimeGeneration: Long,
+                loadCommandId: Long,
+                identity: PlayerRuntimeMediaIdentitySnapshot,
+            ) {
+                if (
+                    !isCurrentRuntime(runtimeGeneration) ||
+                        lastLoadCommandId != loadCommandId
+                ) {
+                    return
+                }
+                _state.value =
+                    _state.value.copy(
+                        mediaContainer = identity.fileFormat,
+                        videoCodec = identity.videoCodec,
+                        audioCodec = identity.audioCodec,
+                        videoTrackCount = identity.videoTrackCount,
+                        activeHardwareDecoder = identity.activeHardwareDecoder,
+                        videoPixelFormat = identity.videoPixelFormat,
+                        videoCodecProfile = identity.videoCodecProfile,
+                    )
+                PlayerDebugLogBuffer.append(
+                    PlayerDebugLogLevel.DEBUG,
+                    TAG,
+                    "媒体身份更新 command=$loadCommandId " +
+                        "container=${identity.fileFormat ?: "unknown"} " +
+                        "videoCodec=${identity.videoCodec ?: "none"} " +
+                        "audioCodec=${identity.audioCodec ?: "none"} " +
+                        "hwdec=${identity.activeHardwareDecoder ?: "none"} " +
+                        "pixelFormat=${identity.videoPixelFormat ?: "unknown"} " +
+                        "codecProfile=${identity.videoCodecProfile ?: "unknown"}",
+                )
+            }
+
+            override fun onSeek(
+                runtimeGeneration: Long,
+                loadCommandId: Long,
+            ) {
+                if (
+                    !isCurrentRuntime(runtimeGeneration) ||
+                        lastLoadCommandId != loadCommandId
+                ) {
+                    return
+                }
+                if (
+                    !isPlayerUserSeekEvent(
+                        pendingUserSeekLoadCommandId = pendingUserSeekLoadCommandId,
+                        eventLoadCommandId = loadCommandId,
+                    )
+                ) {
+                    PlayerDebugLogBuffer.append(
+                        PlayerDebugLogLevel.DEBUG,
+                        TAG,
+                        "记录播放器内部 seek loadCommand=$loadCommandId " +
+                            "surfacePhase=${_state.value.surfaceLease.phase}",
+                    )
+                    return
+                }
+                val current = _state.value
+                _state.value =
+                    current.copy(
+                        seeking =
+                            reducePlayerSeeking(
+                                currentSeeking = current.seeking,
+                                event = PlayerSeekLifecycleEvent.MPV_SEEK,
+                            ),
+                    )
+                PlayerDebugLogBuffer.append(
+                    TAG,
+                    "媒体跳转开始 loadCommand=$loadCommandId",
+                )
+            }
+
+            override fun onPlaybackRestart(
+                runtimeGeneration: Long,
+                loadCommandId: Long,
+            ) {
+                if (
+                    !isCurrentRuntime(runtimeGeneration) ||
+                        lastLoadCommandId != loadCommandId
+                ) {
+                    return
+                }
+                val current = _state.value
+                val completedSeek =
+                    current.seeking &&
+                        isPlayerUserSeekEvent(
+                            pendingUserSeekLoadCommandId = pendingUserSeekLoadCommandId,
+                            eventLoadCommandId = loadCommandId,
+                        )
+                if (completedSeek) {
+                    pendingUserSeekLoadCommandId = null
+                }
+                _state.value =
+                    current.copy(
+                        loading = false,
+                        buffering = false,
+                        seeking =
+                            reducePlayerSeeking(
+                                currentSeeking = current.seeking,
+                                event = PlayerSeekLifecycleEvent.MPV_PLAYBACK_RESTART,
+                            ),
+                        error = null,
+                    )
+                PlayerDebugLogBuffer.append(
+                    TAG,
+                    if (completedSeek) {
+                        "媒体跳转完成 loadCommand=$loadCommandId"
+                    } else {
+                        "媒体已恢复输出 loadCommand=$loadCommandId"
+                    },
                 )
             }
 
@@ -444,7 +585,8 @@ internal class PlayerSession private constructor(context: Context) {
                     }
                     _state.value =
                         _state.value.copy(
-                            decoderPreset = settings.decoderPreset,
+                            decoderBackend = settings.decoderBackend,
+                            renderingProfile = settings.renderingProfile,
                             anime4KMode = anime4KMode,
                             activeShaderFiles = shaderFiles,
                             error = null,
@@ -516,7 +658,8 @@ internal class PlayerSession private constructor(context: Context) {
         PlayerDebugLogBuffer.append(
             TAG,
             "打开媒体 request=${shortPlayerDiagnosticId(request.requestId)} source=${request.source} " +
-                "decoder=${settings.decoderPreset.persistedId} " +
+                "decoderBackend=${settings.decoderBackend.persistedId} " +
+                "renderingProfile=${settings.renderingProfile.persistedId} " +
                 "media=${describePlayerMediaUriForDiagnostics(request.uri)} " +
                 "headerCount=${request.headers.size}",
         )
@@ -532,6 +675,7 @@ internal class PlayerSession private constructor(context: Context) {
         }
         prepareSurfaceLeaseForPresentation(presentation)
         pendingMediaLoad = null
+        pendingUserSeekLoadCommandId = null
         pendingThumbnailCommandId = null
         try {
             val shaderFiles = shaderManager.resolveShaderFiles(transition.state.anime4KMode)
@@ -824,9 +968,9 @@ internal class PlayerSession private constructor(context: Context) {
                 positionSeconds.coerceIn(0.0, duration)
             } else {
                 positionSeconds.coerceAtLeast(0.0)
-            }
+        }
         if (runtimeConnection.seekTo(target, settingsStore.current.preciseSeeking) != null) {
-            _state.value = _state.value.copy(positionSeconds = target)
+            pendingUserSeekLoadCommandId = lastLoadCommandId
             PlayerDebugLogBuffer.append(
                 PlayerDebugLogLevel.DEBUG,
                 TAG,
@@ -1096,11 +1240,14 @@ internal class PlayerSession private constructor(context: Context) {
         requireMainThread()
         val snapshot = _state.value
         val loadCommandId = lastLoadCommandId ?: return
+        val requestUri = snapshot.request?.uri.orEmpty()
         if (
             !settingsStore.current.seekbarThumbnailEnabled ||
                 !snapshot.hasMedia ||
                 !snapshot.runtimeState.acceptsCommands() ||
-                snapshot.durationSeconds <= 0.0
+                snapshot.durationSeconds <= 0.0 ||
+                requestUri.startsWith("http://", ignoreCase = true) ||
+                requestUri.startsWith("https://", ignoreCase = true)
         ) {
             return
         }
@@ -1190,6 +1337,7 @@ internal class PlayerSession private constructor(context: Context) {
         closeCommandId = null
         pendingMediaLoad = null
         lastLoadCommandId = null
+        pendingUserSeekLoadCommandId = null
         pendingThumbnailCommandId = null
         failAllScreenshots(IllegalStateException("播放器已关闭"))
         val previousRuntimeState = snapshot.runtimeState
@@ -1209,6 +1357,7 @@ internal class PlayerSession private constructor(context: Context) {
                 runtimeState = PlayerRuntimeState.CLOSING,
                 loading = false,
                 buffering = false,
+                seeking = false,
             )
         if (
             previousRuntimeState == PlayerRuntimeState.STOPPED ||
@@ -1491,6 +1640,7 @@ internal class PlayerSession private constructor(context: Context) {
         activeSurfaceLease = null
         pendingMediaLoad = null
         lastLoadCommandId = null
+        pendingUserSeekLoadCommandId = null
         pendingThumbnailCommandId = null
         activeLongPressSpeedBoost = null
         closeCommandId = null
@@ -1552,9 +1702,11 @@ internal class PlayerSession private constructor(context: Context) {
                 runtimeState = PlayerRuntimeState.DEAD,
                 loading = false,
                 buffering = false,
+                seeking = false,
                 paused = true,
                 error = message,
             )
+        pendingUserSeekLoadCommandId = null
         PlayerDebugLogBuffer.append(PlayerDebugLogLevel.ERROR, TAG, message)
     }
 
@@ -1751,7 +1903,14 @@ internal class PlayerSession private constructor(context: Context) {
             TAG,
             "$message cause=${error.javaClass.simpleName}: ${error.message.orEmpty()}",
         )
-        _state.value = _state.value.copy(loading = false, buffering = false, error = message)
+        _state.value =
+            _state.value.copy(
+                loading = false,
+                buffering = false,
+                seeking = false,
+                error = message,
+            )
+        pendingUserSeekLoadCommandId = null
     }
 
     private fun handleNaturalEndOfFile() {

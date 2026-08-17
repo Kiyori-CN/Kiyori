@@ -2939,13 +2939,13 @@ object SystemToolPromptsInternal {
                     listOf(
                         ToolPrompt(
                             name = "ffmpeg_execute",
-                            description = "Execute an FFmpeg command (arguments only; do not include the leading ffmpeg).",
+                            description = "Execute an FFmpeg command (arguments only; do not include the leading ffmpeg). This invokes FFmpeg directly, not a shell, so do not use pipes, redirections, or command chains.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(
                                         name = "command",
                                         type = "string",
-                                        description = "FFmpeg command arguments only, without the leading ffmpeg",
+                                        description = "FFmpeg arguments only, without the leading ffmpeg or shell pipes, redirections, and command chains",
                                         required = true
                                     )
                                 )
@@ -5941,13 +5941,13 @@ object SystemToolPromptsInternal {
                     listOf(
                         ToolPrompt(
                             name = "ffmpeg_execute",
-                            description = "执行 FFmpeg 命令（仅填写参数，不要包含前缀 ffmpeg）。",
+                            description = "执行 FFmpeg 命令（仅填写参数，不要包含前缀 ffmpeg）。该工具直接调用 FFmpeg，不是 Shell，不能使用管道、重定向或命令链。",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(
                                         name = "command",
                                         type = "string",
-                                        description = "仅填写 FFmpeg 命令参数，不要包含前缀 ffmpeg",
+                                        description = "仅填写 FFmpeg 参数，不要包含前缀 ffmpeg，也不要传入 Shell 管道、重定向或命令链",
                                         required = true
                                     )
                                 )

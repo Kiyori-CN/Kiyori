@@ -7,6 +7,9 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
@@ -44,15 +48,22 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
@@ -65,6 +76,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
@@ -76,6 +91,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browse
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.compactBrowserNetworkLogUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filterBrowserNetworkLogEntries
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isThirdPartyBrowserNetworkRequest
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeBrowserResourceIdentityUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveManualBrowserDownloadFileName
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
@@ -84,6 +100,7 @@ import com.ai.assistance.operit.util.AppLogger
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import okhttp3.Headers
 
 private const val NETWORK_LOG_TAG = "WebSessionNetworkLog"
 
@@ -96,6 +113,10 @@ private enum class BrowserNetworkLogFilter(
     AUDIO(BrowserNetworkRequestCategory.AUDIO),
     IMAGE(BrowserNetworkRequestCategory.IMAGE),
     WEB(BrowserNetworkRequestCategory.WEB),
+    SCRIPT(BrowserNetworkRequestCategory.SCRIPT),
+    STYLE(BrowserNetworkRequestCategory.STYLE),
+    DATA(BrowserNetworkRequestCategory.DATA),
+    FONT(BrowserNetworkRequestCategory.FONT),
     OTHER(BrowserNetworkRequestCategory.OTHER),
     BLOCKED(null, blockedOnly = true),
 }
@@ -109,6 +130,7 @@ internal fun WebSessionBrowserNetworkLog(
     onStartDownload: (String, String, String, BrowserDownloadEngine) -> Boolean,
     onPlayMediaCandidate: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
+    onOpenPageSource: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -118,6 +140,7 @@ internal fun WebSessionBrowserNetworkLog(
     var query by rememberSaveable { mutableStateOf("") }
     var actionEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
     var detailEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
+    var imagePreviewEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
     val filteredEntries =
         remember(entries, selectedFilter, query) {
             filterBrowserNetworkLogEntries(
@@ -229,8 +252,8 @@ internal fun WebSessionBrowserNetworkLog(
             ) {
                 itemsIndexed(
                     items = filteredEntries,
-                    key = { index, entry ->
-                        "${entry.timestamp}_${entry.kind}_${entry.method}_${entry.url}_${entry.elementSelector}_$index"
+                    key = { _, entry ->
+                        "${entry.documentToken}_${entry.kind}_${entry.resourceIdentity}_${entry.elementSelector}"
                     },
                 ) { _, entry ->
                     BrowserNetworkLogRow(
@@ -244,8 +267,15 @@ internal fun WebSessionBrowserNetworkLog(
     }
 
     actionEntry?.let { entry ->
+        val canViewCurrentPageSource =
+            entry.kind == BrowserNetworkLogEntryKind.REQUEST &&
+                entry.isMainFrame &&
+                entry.category == BrowserNetworkRequestCategory.WEB &&
+                normalizeBrowserResourceIdentityUrl(entry.url) ==
+                normalizeBrowserResourceIdentityUrl(currentPageUrl)
         BrowserNetworkLogActionDialog(
             entry = entry,
+            canViewCurrentPageSource = canViewCurrentPageSource,
             onDismiss = { actionEntry = null },
             onCopy = {
                 copyNetworkLogUrl(context, entry.url)
@@ -275,6 +305,14 @@ internal fun WebSessionBrowserNetworkLog(
                 entry.mediaCandidateId?.let(onPlayMediaCandidate)
                 actionEntry = null
             },
+            onViewImage = {
+                imagePreviewEntry = entry
+                actionEntry = null
+            },
+            onViewPageSource = {
+                actionEntry = null
+                onOpenPageSource()
+            },
             onOpenExternal = {
                 openNetworkLogUrlExternally(context, entry.url, externalOpenFailedMessage)
                 actionEntry = null
@@ -303,6 +341,13 @@ internal fun WebSessionBrowserNetworkLog(
                 copyNetworkLogUrl(context, entry.url)
                 Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
             },
+        )
+    }
+
+    imagePreviewEntry?.let { entry ->
+        BrowserNetworkImageViewer(
+            entry = entry,
+            onDismiss = { imagePreviewEntry = null },
         )
     }
 }
@@ -414,8 +459,16 @@ private fun BrowserNetworkLogRow(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (entry.category == BrowserNetworkRequestCategory.IMAGE && !isElementEntry) {
+                BrowserNetworkImageThumbnail(entry)
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                 BrowserNetworkTypeBadge(entry)
                 Text(
                     text = entry.method,
@@ -460,11 +513,14 @@ private fun BrowserNetworkLogRow(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                 }
-                Text(
-                    text = formatNetworkLogTime(entry.timestamp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 9.sp,
-                )
+                if (entry.requestCount > 1) {
+                    Text(
+                        text = "×${entry.requestCount}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
             }
             Text(
                 text = compactBrowserNetworkLogUrl(entry.url),
@@ -508,8 +564,54 @@ private fun BrowserNetworkLogRow(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
+            }
         }
     }
+}
+
+@Composable
+private fun BrowserNetworkImageThumbnail(
+    entry: WebSessionBrowserNetworkEntry,
+) {
+    val context = LocalContext.current
+    val request =
+        remember(entry.resourceIdentity, entry.requestHeaders) {
+            buildBrowserResourceImageRequest(
+                context = context,
+                entry = entry,
+                thumbnail = true,
+            )
+        }
+    SubcomposeAsyncImage(
+        model = request,
+        contentDescription = null,
+        modifier =
+            Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer),
+        contentScale = ContentScale.Crop,
+        loading = {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "IMG",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        },
+        error = {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = browserNetworkUrlExtension(entry.url).uppercase(Locale.ROOT).ifBlank { "IMG" },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -533,6 +635,10 @@ private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
                 BrowserNetworkRequestCategory.AUDIO -> "AUDIO"
                 BrowserNetworkRequestCategory.IMAGE -> "IMG"
                 BrowserNetworkRequestCategory.WEB -> "WEB"
+                BrowserNetworkRequestCategory.SCRIPT -> "JS"
+                BrowserNetworkRequestCategory.STYLE -> "CSS"
+                BrowserNetworkRequestCategory.DATA -> "DATA"
+                BrowserNetworkRequestCategory.FONT -> "FONT"
                 BrowserNetworkRequestCategory.OTHER -> "REQ"
             }
         }
@@ -555,9 +661,12 @@ private fun BrowserNetworkTypeBadge(entry: WebSessionBrowserNetworkEntry) {
 @Composable
 private fun BrowserNetworkLogActionDialog(
     entry: WebSessionBrowserNetworkEntry,
+    canViewCurrentPageSource: Boolean,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
     onPlay: () -> Unit,
+    onViewImage: () -> Unit,
+    onViewPageSource: () -> Unit,
     onDownload: () -> Unit,
     onOpenExternal: () -> Unit,
     onBlock: () -> Unit,
@@ -578,12 +687,36 @@ private fun BrowserNetworkLogActionDialog(
                 tone = KiyoriSemanticTone.PURPLE,
                 onClick = onCopy,
             )
-            if (entry.mediaCandidateId != null) {
+            if (
+                entry.mediaCandidateId != null &&
+                    entry.category == BrowserNetworkRequestCategory.VIDEO
+            ) {
                 BrowserNetworkLogActionRow(
                     icon = Icons.Filled.PlayArrow,
-                    title = "在线播放",
+                    title = "播放视频",
                     tone = KiyoriSemanticTone.BLUE,
                     onClick = onPlay,
+                )
+            } else if (entry.category == BrowserNetworkRequestCategory.AUDIO) {
+                BrowserNetworkUnavailableActionRow(
+                    title = "播放音乐",
+                    description = "内置音乐播放器尚未实现",
+                )
+            }
+            if (entry.category == BrowserNetworkRequestCategory.IMAGE) {
+                BrowserNetworkLogActionRow(
+                    icon = Icons.Filled.Info,
+                    title = "查看图片",
+                    tone = KiyoriSemanticTone.PINK,
+                    onClick = onViewImage,
+                )
+            }
+            if (canViewCurrentPageSource) {
+                BrowserNetworkLogActionRow(
+                    icon = Icons.Filled.Code,
+                    title = stringResource(R.string.web_session_network_log_view_page_source),
+                    tone = KiyoriSemanticTone.CYAN,
+                    onClick = onViewPageSource,
                 )
             }
             if (!isElementEntry && networkUrl) {
@@ -617,6 +750,29 @@ private fun BrowserNetworkLogActionDialog(
             )
         }
     }
+}
+
+@Composable
+private fun BrowserNetworkUnavailableActionRow(
+    title: String,
+    description: String,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 14.sp,
+        )
+        Text(
+            text = description,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            fontSize = 11.sp,
+        )
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
 }
 
 @Composable
@@ -693,9 +849,18 @@ private fun BrowserNetworkLogDetailsDialog(
                     ),
                 )
                 BrowserNetworkLogDetailRow(
-                    stringResource(R.string.web_session_network_log_detail_time),
+                    stringResource(R.string.web_session_network_log_detail_first_seen),
                     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
-                        .format(Date(entry.timestamp)),
+                        .format(Date(entry.firstSeenAt)),
+                )
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_last_seen),
+                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
+                        .format(Date(entry.lastSeenAt)),
+                )
+                BrowserNetworkLogDetailRow(
+                    stringResource(R.string.web_session_network_log_detail_request_count),
+                    entry.requestCount.toString(),
                 )
                 BrowserNetworkLogDetailRow(
                     stringResource(R.string.web_session_network_log_detail_url),
@@ -774,6 +939,10 @@ private fun browserNetworkTone(category: BrowserNetworkRequestCategory): KiyoriS
         BrowserNetworkRequestCategory.AUDIO -> KiyoriSemanticTone.PURPLE
         BrowserNetworkRequestCategory.IMAGE -> KiyoriSemanticTone.PINK
         BrowserNetworkRequestCategory.WEB -> KiyoriSemanticTone.BLUE
+        BrowserNetworkRequestCategory.SCRIPT -> KiyoriSemanticTone.PURPLE
+        BrowserNetworkRequestCategory.STYLE -> KiyoriSemanticTone.CYAN
+        BrowserNetworkRequestCategory.DATA -> KiyoriSemanticTone.GREEN
+        BrowserNetworkRequestCategory.FONT -> KiyoriSemanticTone.ORANGE
         BrowserNetworkRequestCategory.OTHER -> KiyoriSemanticTone.ORANGE
     }
 
@@ -803,6 +972,10 @@ private fun browserNetworkLogFilterLabel(filter: BrowserNetworkLogFilter): Strin
             BrowserNetworkLogFilter.AUDIO -> R.string.web_session_network_log_filter_audio
             BrowserNetworkLogFilter.IMAGE -> R.string.web_session_network_log_filter_image
             BrowserNetworkLogFilter.WEB -> R.string.web_session_network_log_filter_web
+            BrowserNetworkLogFilter.SCRIPT -> R.string.web_session_network_log_filter_script
+            BrowserNetworkLogFilter.STYLE -> R.string.web_session_network_log_filter_style
+            BrowserNetworkLogFilter.DATA -> R.string.web_session_network_log_filter_data
+            BrowserNetworkLogFilter.FONT -> R.string.web_session_network_log_filter_font
             BrowserNetworkLogFilter.OTHER -> R.string.web_session_network_log_filter_other
             BrowserNetworkLogFilter.BLOCKED -> R.string.web_session_network_log_filter_blocked
         },
@@ -816,12 +989,155 @@ private fun browserNetworkCategoryLabel(category: BrowserNetworkRequestCategory)
             BrowserNetworkRequestCategory.AUDIO -> R.string.web_session_network_log_filter_audio
             BrowserNetworkRequestCategory.IMAGE -> R.string.web_session_network_log_filter_image
             BrowserNetworkRequestCategory.WEB -> R.string.web_session_network_log_filter_web
+            BrowserNetworkRequestCategory.SCRIPT -> R.string.web_session_network_log_filter_script
+            BrowserNetworkRequestCategory.STYLE -> R.string.web_session_network_log_filter_style
+            BrowserNetworkRequestCategory.DATA -> R.string.web_session_network_log_filter_data
+            BrowserNetworkRequestCategory.FONT -> R.string.web_session_network_log_filter_font
             BrowserNetworkRequestCategory.OTHER -> R.string.web_session_network_log_filter_other
         },
     )
 
-private fun formatNetworkLogTime(timestamp: Long): String =
-    DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(timestamp))
+@Composable
+private fun BrowserNetworkImageViewer(
+    entry: WebSessionBrowserNetworkEntry,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val request =
+        remember(entry.resourceIdentity, entry.requestHeaders) {
+            buildBrowserResourceImageRequest(
+                context = context,
+                entry = entry,
+                thumbnail = false,
+            )
+        }
+    val painter = rememberAsyncImagePainter(request)
+    var scale by remember(entry.resourceIdentity) { mutableFloatStateOf(1f) }
+    var offset by remember(entry.resourceIdentity) { mutableStateOf(Offset.Zero) }
+
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Black,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clipToBounds()
+                        .pointerInput(entry.resourceIdentity) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val nextScale = (scale * zoom).coerceIn(1f, 5f)
+                                scale = nextScale
+                                offset =
+                                    if (nextScale == 1f) {
+                                        Offset.Zero
+                                    } else {
+                                        offset + pan
+                                    }
+                            }
+                        }
+                        .pointerInput(entry.resourceIdentity) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    if (scale > 1f) {
+                                        scale = 1f
+                                        offset = Offset.Zero
+                                    } else {
+                                        scale = 2.5f
+                                    }
+                                },
+                            )
+                        },
+                contentAlignment = Alignment.Center,
+            ) {
+                when (painter.state) {
+                    is AsyncImagePainter.State.Error ->
+                        Text(
+                            text = "图片加载失败",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                        )
+                    AsyncImagePainter.State.Empty,
+                    is AsyncImagePainter.State.Loading ->
+                        Text(
+                            text = "正在加载图片",
+                            color = Color.White.copy(alpha = 0.76f),
+                            fontSize = 14.sp,
+                        )
+                    else ->
+                        Image(
+                            painter = painter,
+                            contentDescription = null,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        translationX = offset.x
+                                        translationY = offset.y
+                                    },
+                            contentScale = ContentScale.Fit,
+                        )
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                            .background(Color.Black.copy(alpha = 0.56f), RoundedCornerShape(20.dp)),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.close),
+                        tint = Color.White,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun buildBrowserResourceImageRequest(
+    context: Context,
+    entry: WebSessionBrowserNetworkEntry,
+    thumbnail: Boolean,
+): ImageRequest {
+    val headers = Headers.Builder()
+    entry.requestHeaders.forEach { (name, value) ->
+        if (
+            BrowserImageRequestHeaderNames.any { allowed ->
+                allowed.equals(name, ignoreCase = true)
+            } &&
+                value.isNotBlank() &&
+                '\r' !in value &&
+                '\n' !in value
+        ) {
+            headers.set(name, value)
+        }
+    }
+    return ImageRequest.Builder(context)
+        .data(entry.url)
+        .headers(headers.build())
+        .apply {
+            if (thumbnail) {
+                size(160, 160)
+            }
+        }
+        .crossfade(false)
+        .build()
+}
+
+private val BrowserImageRequestHeaderNames =
+    setOf(
+        "Accept",
+        "Cookie",
+        "Origin",
+        "Referer",
+        "User-Agent",
+    )
 
 private fun copyNetworkLogUrl(context: Context, url: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

@@ -1,5 +1,6 @@
 # Format: expected occurrence count<TAB>exact literal.
-6	package com.ai.assistance.operit.core.player.runtime;
+9	package com.ai.assistance.operit.core.ffmpeg.runtime;
+7	package com.ai.assistance.operit.core.player.runtime;
 2	package com.ai.assistance.operit.provider;
 8	Java_com_ai_assistance_operit_
 1	Java_com_ai_assistance_operit_util_streamnative_NativeXmlSplitter_nativeSplitXmlSegments
@@ -10,7 +11,8 @@
 1	Java_com_ai_assistance_operit_util_ToolPkgWasmNative_load
 1	Java_com_ai_assistance_operit_util_ToolPkgWasmNative_call
 1	Java_com_ai_assistance_operit_util_ToolPkgWasmNative_close
-8	System.loadLibrary(
+9	System.loadLibrary(
+1	System.loadLibrary(libraryName)
 1	System.loadLibrary("sherpa-ncnn-jni")
 3	System.loadLibrary("sherpa-mnn-jni")
 2	System.loadLibrary("streamnative")

@@ -21,7 +21,7 @@ class BrowserMediaCandidatePolicyTest {
     }
 
     @Test
-    fun responseMimeDoesNotTurnAnApiUrlIntoADirectVideoFile() {
+    fun responseMimeCanIdentifyAnOpaqueDirectVideoResource() {
         val candidate =
             candidate(
                 observation(
@@ -33,8 +33,36 @@ class BrowserMediaCandidatePolicyTest {
 
         assertEquals("video/mp4", candidate.responseMimeType)
         assertEquals(BrowserMediaCandidateUrlEvidence.NONE, candidate.urlEvidence)
-        assertFalse(candidate.directPlaybackReady)
-        assertFalse(candidate.downloadReady)
+        assertTrue(candidate.directPlaybackReady)
+        assertTrue(candidate.downloadReady)
+    }
+
+    @Test
+    fun contentDispositionCanIdentifyOpaqueVideoAndAudioResources() {
+        val video =
+            candidate(
+                observation(
+                    url = "https://media.example/resource?id=video",
+                    source = BrowserMediaCandidateDiscoverySource.INTERCEPTED_RESPONSE,
+                    responseMimeType = "application/octet-stream",
+                    contentDisposition = "attachment; filename*=UTF-8''episode%2001.mp4",
+                ),
+            )
+        val audio =
+            candidate(
+                observation(
+                    url = "https://media.example/resource?id=audio",
+                    source = BrowserMediaCandidateDiscoverySource.INTERCEPTED_RESPONSE,
+                    responseMimeType = "application/octet-stream",
+                    contentDisposition = "attachment; filename=\"theme song.flac\"",
+                ),
+            )
+
+        assertEquals(BrowserMediaKind.VIDEO, video.mediaKind)
+        assertEquals(BrowserMediaCandidateVideoFormat.MP4, video.videoFormat)
+        assertTrue(video.isActionableVideo)
+        assertEquals(BrowserMediaKind.AUDIO, audio.mediaKind)
+        assertTrue(audio.isActionableAudio)
     }
 
     @Test
@@ -61,17 +89,46 @@ class BrowserMediaCandidatePolicyTest {
                 ),
             ).videoFormat,
         )
-        assertNull(
-            mergeBrowserMediaCandidate(
-                current = null,
-                observation =
-                    observation(
-                        url = "https://media.example/audio.mp3",
-                        source = BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC,
-                        declaredMimeType = "audio/mpeg",
-                    ),
-                newCandidateId = "audio",
-            ),
+        val audio =
+            requireNotNull(
+                mergeBrowserMediaCandidate(
+                    current = null,
+                    observation =
+                        observation(
+                            url = "https://media.example/audio.mp3",
+                            source = BrowserMediaCandidateDiscoverySource.DOM_AUDIO_CURRENT_SRC,
+                            declaredMimeType = "audio/mpeg",
+                        ),
+                    newCandidateId = "audio",
+                ),
+            )
+        assertEquals(BrowserMediaKind.AUDIO, audio.mediaKind)
+        assertTrue(audio.isActionableAudio)
+    }
+
+    @Test
+    fun mp3SuffixCannotOverrideVideoDomEvidence() {
+        val disguisedVideo =
+            candidate(
+                observation(
+                    url = "https://media.example/disguised.mp3?token=exact",
+                    source = BrowserMediaCandidateDiscoverySource.DOM_CURRENT_SRC,
+                    declaredMimeType = "audio/mpeg",
+                ),
+            )
+
+        assertEquals(BrowserMediaKind.VIDEO, disguisedVideo.mediaKind)
+        assertEquals(BrowserMediaCandidateVideoFormat.OTHER_VIDEO, disguisedVideo.videoFormat)
+        assertTrue(disguisedVideo.isActionableVideo)
+        assertEquals(
+            disguisedVideo.url,
+            com.ai.assistance.operit.core.player.PlayerMediaRequest(
+                requestId = disguisedVideo.id,
+                uri = disguisedVideo.url,
+                title = "disguised",
+                source = PlayerMediaSource.BROWSER_CANDIDATE,
+                sourceSessionId = "session",
+            ).uri,
         )
     }
 
@@ -604,7 +661,10 @@ class BrowserMediaCandidatePolicyTest {
                 "https://media.example/movie.mp4?token=changed",
             ),
         )
-        assertNull(findDirectMediaCandidateIdForNetworkEntry(listOf(direct, mimeOnly), mimeOnly.url))
+        assertEquals(
+            mimeOnly.id,
+            findDirectMediaCandidateIdForNetworkEntry(listOf(direct, mimeOnly), mimeOnly.url),
+        )
     }
 
     @Test
@@ -627,6 +687,7 @@ class BrowserMediaCandidatePolicyTest {
         source: BrowserMediaCandidateDiscoverySource = BrowserMediaCandidateDiscoverySource.NETWORK_REQUEST,
         responseMimeType: String? = null,
         declaredMimeType: String? = null,
+        contentDisposition: String? = null,
         durationMillis: Long? = null,
         isLive: Boolean = false,
         videoWidth: Int? = null,
@@ -649,6 +710,7 @@ class BrowserMediaCandidatePolicyTest {
             source = source,
             responseMimeType = responseMimeType,
             declaredMimeType = declaredMimeType,
+            contentDisposition = contentDisposition,
             durationMillis = durationMillis,
             isLive = isLive,
             videoWidth = videoWidth,

@@ -1,0 +1,242 @@
+{
+  "schema": 1,
+  "status": "ffmpeg_n9_0_1_android_binder_r4_selected_locally",
+  "framework": {
+    "repository": "https://github.com/ffmpegkit-maintained/ffmpeg.git",
+    "commit": "62b07bf097baf26b416c815aea514e05c9ad6d63",
+    "wrapper_version": "8.1.7-kiyori-n9.0.1-r4"
+  },
+  "ffmpeg": {
+    "canonical_repository": "https://github.com/FFmpeg/FFmpeg.git",
+    "build_repository": "https://github.com/arthenica/FFmpeg",
+    "tag": "n9.0.1",
+    "commit": "bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
+    "version": "n9.0.1"
+  },
+  "overlay": {
+    "path": "tools/ffmpegkit_native_build/overlay",
+    "file_count": 33,
+    "size": 1091143,
+    "tree_sha256": "d527ad2a8710461e89fd125b6b6cb202e743c3cc127d54f50ee51ed7dea9bf95"
+  },
+  "source_patches": [
+    {
+      "source": "framework",
+      "path": "tools/ffmpegkit_native_build/patches/framework/0001-respect-explicit-build-job-count.patch",
+      "sha256": "657a4597a83f310a51c0a8e52f88f4cb9fa81525c3ff9c1e4708497e62a88294"
+    },
+    {
+      "source": "framework",
+      "path": "tools/ffmpegkit_native_build/patches/framework/0002-reapply-openh264-patch-after-android-reset.patch",
+      "sha256": "31caacd61531bbcbb9d133cc282089fa04f8ed64a3a13825f715311cd5bb1e5e"
+    },
+    {
+      "source": "ffmpeg",
+      "path": "tools/ffmpegkit_native_build/patches/ffmpeg/0001-libopenh264-map-constrained-baseline-profile.patch",
+      "sha256": "03ec5a6c770c7acb5303a996a1f824cde4105677be6a6fdefd497ef1d746a8ee"
+    },
+    {
+      "source": "ffmpeg",
+      "path": "tools/ffmpegkit_native_build/patches/ffmpeg/0002-android-binder-preserve-started-threadpool.patch",
+      "sha256": "6144819ab0aeb9fd2bb512c8b7dce10abee8182c1531c0fd1a48cd1af1745956"
+    },
+    {
+      "source": "openh264",
+      "path": "tools/ffmpegkit_native_build/patches/openh264/0001-BsFlush-skip-empty-word.patch",
+      "sha256": "cda83194b33e17b42a46286d1ebed302d4a6aa93c39563935c6005c74b9ccbb8"
+    }
+  ],
+  "source_lock": "tools/ffmpegkit_native_build/source_lock.json",
+  "build_contract": {
+    "abi": [
+      "arm64-v8a"
+    ],
+    "android_api": 24,
+    "android_ndk_revision": "29.0.14206865",
+    "elf_pt_load_minimum": "0x4000",
+    "native_zip_alignment": "0x4000",
+    "ffmpegkit_native_count": 9,
+    "libcxx_owner": "app/libs/mpv-player-arm64.aar",
+    "normal_and_namespaced_basename_overlap": 0,
+    "build_arguments": [
+      "--api-level=24",
+      "--rebuild-openh264",
+      "--rebuild-ffmpeg",
+      "--disable-arm-v7a",
+      "--disable-arm-v7a-neon",
+      "--disable-x86",
+      "--disable-x86-64",
+      "--enable-fontconfig",
+      "--enable-freetype",
+      "--enable-fribidi",
+      "--enable-lame",
+      "--enable-libass",
+      "--enable-libiconv",
+      "--enable-libtheora",
+      "--enable-libvorbis",
+      "--enable-libvpx",
+      "--enable-libxml2",
+      "--enable-opencore-amr",
+      "--enable-shine",
+      "--enable-speex",
+      "--enable-dav1d",
+      "--enable-kvazaar",
+      "--enable-libilbc",
+      "--enable-opus",
+      "--enable-snappy",
+      "--enable-soxr",
+      "--enable-libaom",
+      "--enable-twolame",
+      "--enable-sdl",
+      "--enable-openh264",
+      "--enable-vo-amrwbenc",
+      "--enable-zimg",
+      "--enable-android-media-codec",
+      "--enable-android-zlib"
+    ],
+    "required_configure_flags": [
+      "--enable-version3",
+      "--enable-jni",
+      "--enable-lto",
+      "--enable-shared",
+      "--disable-static",
+      "--disable-programs",
+      "--enable-libfontconfig",
+      "--enable-libfreetype",
+      "--enable-libfribidi",
+      "--enable-libmp3lame",
+      "--enable-libass",
+      "--enable-iconv",
+      "--enable-libtheora",
+      "--enable-libvorbis",
+      "--enable-libvpx",
+      "--enable-libxml2",
+      "--enable-libopencore-amrnb",
+      "--enable-libshine",
+      "--enable-libspeex",
+      "--enable-libdav1d",
+      "--enable-libkvazaar",
+      "--enable-libilbc",
+      "--enable-libopus",
+      "--enable-libsnappy",
+      "--enable-libsoxr",
+      "--enable-libaom",
+      "--enable-libtwolame",
+      "--enable-sdl2",
+      "--enable-libopenh264",
+      "--enable-libvo-amrwbenc",
+      "--enable-libzimg",
+      "--disable-openssl",
+      "--enable-zlib",
+      "--enable-mediacodec"
+    ],
+    "forbidden_configure_flags": [
+      "--enable-openssl",
+      "--enable-libx264",
+      "--enable-libx265",
+      "--enable-gpl"
+    ],
+    "system_needed_allowlist": [
+      "libGLESv1_CM.so",
+      "libGLESv2.so",
+      "libandroid.so",
+      "libc.so",
+      "libcamera2ndk.so",
+      "libdl.so",
+      "liblog.so",
+      "libm.so",
+      "libmediandk.so",
+      "libz.so"
+    ]
+  },
+  "ffmpeg_majors": {
+    "libavcodec.so": "LIBAVCODEC_63",
+    "libavdevice.so": "LIBAVDEVICE_63",
+    "libavfilter.so": "LIBAVFILTER_12",
+    "libavformat.so": "LIBAVFORMAT_63",
+    "libavutil.so": "LIBAVUTIL_61",
+    "libswresample.so": "LIBSWRESAMPLE_7",
+    "libswscale.so": "LIBSWSCALE_10"
+  },
+  "required_native_exports": {
+    "libavutil.so": [
+      "av_set_saf_close",
+      "av_set_saf_open"
+    ],
+    "libffmpegkit.so": [
+      "Java_com_arthenica_ffmpegkit_FFmpegKitConfig_nativeFFmpegExecute",
+      "Java_com_arthenica_ffmpegkit_FFmpegKitConfig_nativeFFprobeExecute",
+      "ffmpeg_execute",
+      "ffmpegkit_cancel_requested",
+      "ffmpegkit_execution_begin",
+      "ffmpegkit_execution_bind",
+      "ffmpegkit_execution_context",
+      "ffmpegkit_execution_end",
+      "ffmpegkit_execution_set_tool_state",
+      "ffmpegkit_forward_report",
+      "ffmpegkit_log_dispatch_callback",
+      "ffmpegkit_opt_common_reset",
+      "ffmpegkit_opt_common_uninit",
+      "ffmpegkit_restore_log_callback",
+      "ffprobe_execute",
+      "saf_close",
+      "saf_open"
+    ]
+  },
+  "license_resources": [
+    "res/raw/license.txt",
+    "res/raw/license_cpu_features.txt",
+    "res/raw/license_dav1d.txt",
+    "res/raw/license_expat.txt",
+    "res/raw/license_fontconfig.txt",
+    "res/raw/license_freetype.txt",
+    "res/raw/license_fribidi.txt",
+    "res/raw/license_harfbuzz.txt",
+    "res/raw/license_kvazaar.txt",
+    "res/raw/license_lame.txt",
+    "res/raw/license_libaom.txt",
+    "res/raw/license_libass.txt",
+    "res/raw/license_libiconv.txt",
+    "res/raw/license_libilbc.txt",
+    "res/raw/license_libogg.txt",
+    "res/raw/license_libpng.txt",
+    "res/raw/license_libsndfile.txt",
+    "res/raw/license_libtheora.txt",
+    "res/raw/license_libuuid.txt",
+    "res/raw/license_libvorbis.txt",
+    "res/raw/license_libvpx.txt",
+    "res/raw/license_libxml2.txt",
+    "res/raw/license_opencore_amr.txt",
+    "res/raw/license_openh264.txt",
+    "res/raw/license_opus.txt",
+    "res/raw/license_sdl.txt",
+    "res/raw/license_shine.txt",
+    "res/raw/license_snappy.txt",
+    "res/raw/license_soxr.txt",
+    "res/raw/license_speex.txt",
+    "res/raw/license_twolame.txt",
+    "res/raw/license_vo_amrwbenc.txt",
+    "res/raw/license_zimg.txt"
+  ],
+  "qualified_artifacts": {
+    "source_aar": {
+      "path": "work/ffmpegkit-native-outputs/ffmpeg_n9.0.1_r4/ffmpeg-kit-player-source.aar",
+      "sha256": "df332d8f2feca7508541a2f20edb348a3bfbc2ad5ae6eefdedf2889d679c96cc",
+      "size": 17101059,
+      "native_count": 10
+    },
+    "thin_candidate": {
+      "path": "work/ffmpegkit-native-outputs/ffmpeg_n9.0.1_r4/ffmpeg-kit-player-thin-candidate.aar",
+      "sha256": "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7",
+      "size": 30133322,
+      "native_count": 9
+    }
+  },
+  "selected_product": {
+    "path": "app/libs/ffmpeg-kit-player-arm64.aar",
+    "sha256": "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7",
+    "size": 30133322,
+    "native_count": 9,
+    "native_zip_alignment": "0x4000"
+  }
+}

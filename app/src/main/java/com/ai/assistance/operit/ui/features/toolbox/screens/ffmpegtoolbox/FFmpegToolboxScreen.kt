@@ -25,7 +25,9 @@ import com.ai.assistance.operit.core.tools.FFmpegResultData
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.model.ToolResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * FFmpeg工具箱主屏幕 - 直接提供自定义命令功能
@@ -135,7 +137,10 @@ fun FFmpegToolboxScreen(navController: NavController) {
                             )
 
                             try {
-                                val result = aiToolHandler.executeTool(tool)
+                                val result =
+                                    withContext(Dispatchers.IO) {
+                                        aiToolHandler.executeTool(tool)
+                                    }
                                 commandResult = result
                             } catch (e: Exception) {
                                 commandResult = ToolResult(
@@ -242,10 +247,15 @@ fun FFmpegToolboxScreen(navController: NavController) {
 
                 Button(
                     onClick = {
+                        isProcessing = true
+                        commandResult = null
                         scope.launch {
                             val tool = AITool(name = "ffmpeg_info", parameters = listOf())
                             try {
-                                val result = aiToolHandler.executeTool(tool)
+                                val result =
+                                    withContext(Dispatchers.IO) {
+                                        aiToolHandler.executeTool(tool)
+                                    }
                                 commandResult = result
                             } catch (e: Exception) {
                                 commandResult = ToolResult(
@@ -254,9 +264,12 @@ fun FFmpegToolboxScreen(navController: NavController) {
                                     result = com.ai.assistance.operit.core.tools.StringResultData(""),
                                     error = context.getString(R.string.ffmpeg_get_info_failed) + ": ${e.message}"
                                 )
+                            } finally {
+                                isProcessing = false
                             }
                         }
                     },
+                    enabled = !isProcessing,
                     modifier = Modifier.align(Alignment.End),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondary

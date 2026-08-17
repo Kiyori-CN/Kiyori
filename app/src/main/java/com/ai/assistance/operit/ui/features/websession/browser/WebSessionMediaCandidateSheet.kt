@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
@@ -62,13 +63,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserMediaCandidateVideoFormat
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserMediaKind
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserMediaCandidate
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
 import java.util.Locale
 
-private const val ALL_VIDEO_FORMATS = "ALL"
+private const val ALL_MEDIA_FORMATS = "ALL"
+private const val AUDIO_MEDIA_FORMAT = "AUDIO"
 
 @Composable
 internal fun WebSessionMediaCandidateSheet(
@@ -78,7 +81,7 @@ internal fun WebSessionMediaCandidateSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    var selectedFormat by rememberSaveable { mutableStateOf(ALL_VIDEO_FORMATS) }
+    var selectedFormat by rememberSaveable { mutableStateOf(ALL_MEDIA_FORMATS) }
     var orderedFormats by remember {
         mutableStateOf<List<BrowserMediaCandidateVideoFormat>>(emptyList())
     }
@@ -86,25 +89,34 @@ internal fun WebSessionMediaCandidateSheet(
     var linkCandidate by remember { mutableStateOf<WebSessionBrowserMediaCandidate?>(null) }
     val availableFormats =
         remember(candidates) {
-            candidates.map(WebSessionBrowserMediaCandidate::videoFormat).distinct()
+            candidates
+                .filter { it.mediaKind == BrowserMediaKind.VIDEO }
+                .map(WebSessionBrowserMediaCandidate::videoFormat)
+                .distinct()
         }
     LaunchedEffect(availableFormats) {
         orderedFormats =
             orderedFormats.filter { it in availableFormats } +
                 availableFormats.filterNot { it in orderedFormats }
         if (
-            selectedFormat != ALL_VIDEO_FORMATS &&
+            selectedFormat != ALL_MEDIA_FORMATS &&
+                selectedFormat != AUDIO_MEDIA_FORMAT &&
                 availableFormats.none { it.name == selectedFormat }
         ) {
-            selectedFormat = ALL_VIDEO_FORMATS
+            selectedFormat = ALL_MEDIA_FORMATS
         }
     }
     val visibleCandidates =
         remember(candidates, selectedFormat) {
-            if (selectedFormat == ALL_VIDEO_FORMATS) {
-                candidates
-            } else {
-                candidates.filter { it.videoFormat.name == selectedFormat }
+            when (selectedFormat) {
+                ALL_MEDIA_FORMATS -> candidates
+                AUDIO_MEDIA_FORMAT ->
+                    candidates.filter { it.mediaKind == BrowserMediaKind.AUDIO }
+                else ->
+                    candidates.filter {
+                        it.mediaKind == BrowserMediaKind.VIDEO &&
+                            it.videoFormat.name == selectedFormat
+                    }
             }
         }
 
@@ -151,6 +163,7 @@ internal fun WebSessionMediaCandidateSheet(
 
     actionCandidate?.let { candidate ->
         BrowserMediaCandidateActionDialog(
+            candidate = candidate,
             onDismiss = { actionCandidate = null },
             onPlay = {
                 onPlay(candidate.id)
@@ -186,10 +199,10 @@ private fun BrowserMediaCandidateHeader(
     onDismiss: () -> Unit,
 ) {
     WebSessionDrawerHeader(
-        title = "视频资源",
+        title = "资源嗅探",
         leadingIcon = Icons.Filled.VideoLibrary,
         tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
-        countText = "$candidateCount 个视频",
+        countText = "$candidateCount 个资源",
         actions = {
             IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                 Icon(
@@ -220,9 +233,18 @@ private fun BrowserMediaFormatFilters(
         BrowserMediaFormatChip(
             label = "全部",
             count = candidates.size,
-            selected = selectedFormat == ALL_VIDEO_FORMATS,
-            onClick = { onSelect(ALL_VIDEO_FORMATS) },
+            selected = selectedFormat == ALL_MEDIA_FORMATS,
+            onClick = { onSelect(ALL_MEDIA_FORMATS) },
         )
+        val audioCount = candidates.count { it.mediaKind == BrowserMediaKind.AUDIO }
+        if (audioCount > 0) {
+            BrowserMediaFormatChip(
+                label = "音频",
+                count = audioCount,
+                selected = selectedFormat == AUDIO_MEDIA_FORMAT,
+                onClick = { onSelect(AUDIO_MEDIA_FORMAT) },
+            )
+        }
         orderedFormats.forEach { format ->
             BrowserMediaFormatChip(
                 label = format.displayName,
@@ -305,7 +327,12 @@ private fun BrowserMediaCandidateCard(
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 BrowserMediaLabel(
-                    text = candidate.videoFormat.displayName,
+                    text =
+                        if (candidate.mediaKind == BrowserMediaKind.AUDIO) {
+                            "音频"
+                        } else {
+                            candidate.videoFormat.displayName
+                        },
                     foreground = cyanColors.icon,
                     background = cyanColors.container,
                 )
@@ -382,7 +409,15 @@ private fun BrowserMediaCandidateCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(5.dp))
-                    Text(text = "播放", fontSize = 12.sp)
+                    Text(
+                        text =
+                            if (candidate.mediaKind == BrowserMediaKind.AUDIO) {
+                                "暂无音乐播放器"
+                            } else {
+                                "播放"
+                            },
+                        fontSize = 12.sp,
+                    )
                 }
             }
         }
@@ -428,7 +463,7 @@ private fun BrowserMediaCandidateEmptyState() {
                 iconSize = 28.dp,
             )
             Text(
-                text = "当前网页暂未发现可播放视频",
+                text = "当前网页暂未发现可识别的音视频资源",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
                 lineHeight = 17.sp,
@@ -441,6 +476,7 @@ private fun BrowserMediaCandidateEmptyState() {
 
 @Composable
 private fun BrowserMediaCandidateActionDialog(
+    candidate: WebSessionBrowserMediaCandidate,
     onDismiss: () -> Unit,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
@@ -454,7 +490,20 @@ private fun BrowserMediaCandidateActionDialog(
             title = "资源操作",
             modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp),
         ) {
-            BrowserMediaActionRow(Icons.Filled.PlayArrow, "播放资源", KiyoriSemanticTone.BLUE, onPlay)
+            if (candidate.mediaKind == BrowserMediaKind.VIDEO) {
+                BrowserMediaActionRow(
+                    Icons.Filled.PlayArrow,
+                    "播放视频",
+                    KiyoriSemanticTone.BLUE,
+                    onPlay,
+                )
+            } else {
+                BrowserMediaUnavailableRow(
+                    icon = Icons.Filled.MusicNote,
+                    title = "播放音乐",
+                    description = "内置音乐播放器尚未实现",
+                )
+            }
             BrowserMediaActionRow(Icons.Filled.Download, "下载资源", KiyoriSemanticTone.GREEN, onDownload)
             BrowserMediaActionRow(Icons.Filled.ContentCopy, "复制链接", KiyoriSemanticTone.PURPLE, onCopy)
             BrowserMediaActionRow(
@@ -466,6 +515,40 @@ private fun BrowserMediaCandidateActionDialog(
             )
         }
     }
+}
+
+@Composable
+private fun BrowserMediaUnavailableRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        KiyoriSemanticIconBadge(
+            imageVector = icon,
+            tone = KiyoriSemanticTone.ORANGE,
+            contentDescription = null,
+            containerSize = 30.dp,
+            iconSize = 16.dp,
+            shape = RoundedCornerShape(9.dp),
+        )
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+            )
+            Text(
+                text = description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                fontSize = 11.sp,
+            )
+        }
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f))
 }
 
 @Composable
@@ -513,7 +596,7 @@ private fun BrowserMediaCandidateLinkDialog(
         WebSessionBrowserDialogSurface(
             icon = Icons.Filled.VideoLibrary,
             tone = WebSessionBrowserMenuTone.FLOATING_SNIFFER,
-            title = "视频链接",
+            title = "资源链接",
             modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).heightIn(max = 520.dp),
         ) {
             SelectionContainer(

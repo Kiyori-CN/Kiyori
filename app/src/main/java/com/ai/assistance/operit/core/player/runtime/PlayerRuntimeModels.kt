@@ -1,9 +1,10 @@
 package com.ai.assistance.operit.core.player.runtime
 
 import android.os.Parcelable
-import com.ai.assistance.operit.core.player.PlayerDecoderPreset
+import com.ai.assistance.operit.core.player.PlayerDecoderBackend
 import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
 import com.ai.assistance.operit.core.player.PlayerChapter
+import com.ai.assistance.operit.core.player.PlayerRenderingProfile
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerTrack
 import com.ai.assistance.operit.core.player.PlayerVideoFitMode
@@ -13,7 +14,8 @@ import kotlinx.parcelize.Parcelize
 
 @Parcelize
 internal data class PlayerRuntimeConfig(
-    val decoderPresetId: String,
+    val decoderBackendId: String,
+    val renderingProfileId: String,
     val gpuNextEnabled: Boolean,
     val vulkanEnabled: Boolean,
     val preciseSeeking: Boolean,
@@ -23,7 +25,8 @@ internal data class PlayerRuntimeConfig(
     val shaderFiles: List<String>,
 ) : Parcelable {
     init {
-        PlayerDecoderPreset.fromPersistedId(decoderPresetId)
+        PlayerDecoderBackend.fromPersistedId(decoderBackendId)
+        PlayerRenderingProfile.fromPersistedId(renderingProfileId)
         PlayerNetworkCachePolicy.fromPersistedId(networkCachePolicyId)
         require(subtitleScale.isFinite() && subtitleScale > 0.0) {
             "Player runtime subtitle scale is invalid"
@@ -71,6 +74,16 @@ internal data class PlayerRuntimePlaybackSnapshot(
     val buffering: Boolean?,
     val speed: Double?,
     val networkSpeedBytesPerSecond: Long,
+    val fullVideoCacheActive: Boolean = false,
+    val fullVideoCacheComplete: Boolean = false,
+    val fullVideoCacheStartSeconds: Double? = null,
+    val fullVideoCacheEndSeconds: Double? = null,
+    val fullVideoCachePhase: String = PlayerFullVideoCachePhase.DISABLED.name,
+    val fullVideoCacheReason: String? = null,
+    val fullVideoCacheStateEvidence: String =
+        PlayerFullVideoCacheStateEvidence.NOT_APPLICABLE.name,
+    val fullVideoCacheFileBytes: Long = 0L,
+    val fullVideoCacheExpectedBytes: Long? = null,
 ) : Parcelable
 
 @Parcelize
@@ -86,6 +99,24 @@ internal data class PlayerRuntimeTrackSnapshot(
     val audioTracks: List<PlayerRuntimeTrack>,
     val subtitleTracks: List<PlayerRuntimeTrack>,
     val chapters: List<PlayerRuntimeChapter>,
+    val fileFormat: String? = null,
+    val videoCodec: String? = null,
+    val audioCodec: String? = null,
+    val videoTrackCount: Int = 0,
+    val activeHardwareDecoder: String? = null,
+    val videoPixelFormat: String? = null,
+    val videoCodecProfile: String? = null,
+) : Parcelable
+
+@Parcelize
+internal data class PlayerRuntimeMediaIdentitySnapshot(
+    val fileFormat: String? = null,
+    val videoCodec: String? = null,
+    val audioCodec: String? = null,
+    val videoTrackCount: Int = 0,
+    val activeHardwareDecoder: String? = null,
+    val videoPixelFormat: String? = null,
+    val videoCodecProfile: String? = null,
 ) : Parcelable
 
 @Parcelize
@@ -103,7 +134,8 @@ internal data class PlayerRuntimeChapter(
 
 internal fun PlayerSettings.toRuntimeConfig(shaderFiles: List<String>): PlayerRuntimeConfig =
     PlayerRuntimeConfig(
-        decoderPresetId = decoderPreset.persistedId,
+        decoderBackendId = decoderBackend.persistedId,
+        renderingProfileId = renderingProfile.persistedId,
         gpuNextEnabled = gpuNextEnabled,
         vulkanEnabled = vulkanEnabled,
         preciseSeeking = preciseSeeking,
@@ -115,7 +147,8 @@ internal fun PlayerSettings.toRuntimeConfig(shaderFiles: List<String>): PlayerRu
 
 internal fun PlayerRuntimeConfig.toPlayerSettings(): PlayerSettings =
     PlayerSettings(
-        decoderPreset = PlayerDecoderPreset.fromPersistedId(decoderPresetId),
+        decoderBackend = PlayerDecoderBackend.fromPersistedId(decoderBackendId),
+        renderingProfile = PlayerRenderingProfile.fromPersistedId(renderingProfileId),
         gpuNextEnabled = gpuNextEnabled,
         vulkanEnabled = vulkanEnabled,
         preciseSeeking = preciseSeeking,

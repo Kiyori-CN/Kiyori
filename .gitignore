@@ -63,6 +63,7 @@ tools/string/chinese_strings_detailed.txt
 
 # Local scratch and task checkpoints
 /work/
+/classes.jar
 tmp/
 temp/
 .tmp/

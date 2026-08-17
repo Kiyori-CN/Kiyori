@@ -1002,6 +1002,7 @@ internal fun WebSessionBrowserScreen(
                             onInvokeUserscriptMenu = onInvokeUserscriptMenu,
                             onPlayMediaCandidate = onPlayMediaCandidate,
                             onDownloadMediaCandidate = onDownloadMediaCandidate,
+                            onOpenPageSource = onOpenPageSource,
                             onPauseDownload = onPauseDownload,
                             onResumeDownload = onResumeDownload,
                             onCancelDownload = onCancelDownload,
@@ -1426,6 +1427,7 @@ private fun WebSessionBrowserDrawerContent(
     onInvokeUserscriptMenu: (String) -> Unit,
     onPlayMediaCandidate: (String) -> Boolean,
     onDownloadMediaCandidate: (String) -> Boolean,
+    onOpenPageSource: () -> Unit,
     onPauseDownload: (String) -> Unit,
     onResumeDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
@@ -1568,6 +1570,10 @@ private fun WebSessionBrowserDrawerContent(
                 onStartDownload = onStartManualDownload,
                 onPlayMediaCandidate = onPlayMediaCandidate,
                 onDownloadMediaCandidate = onDownloadMediaCandidate,
+                onOpenPageSource = {
+                    onDismiss()
+                    onOpenPageSource()
+                },
                 modifier = Modifier.fillMaxSize(),
             )
 

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "status": "dual_m9_selected_locally",
+  "selected_profile": "m9_ffmpeg_major_candidate",
+  "selected_artifacts": {
+    "source_aar_sha256": "7cb0b25dc15f21278992243ce2597193b7a54e1a488933555b572982203e2bc0",
+    "product_aar_sha256": "f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4",
+    "product_aar_size": 50926119,
+    "native_zip_alignment": "0x4000",
+    "rpath_runpath": "absent"
+  },
+  "binding": {
+    "repository": "https://github.com/Riteshp2001/mpvlibAndroid.git",
+    "commit": "168e0a5e43b37c85509050cddcb5eaddc2e313c0",
+    "release_tag": "2026-06-25",
+    "jni_contract": "is.xyz.mpv MPVLib MPVNode Utils libplayer"
+  },
+  "common": {
+    "mpv": {
+      "repository": "https://github.com/mpv-player/mpv.git",
+      "commit": "2339eb72767517fc5a113283939f59076946fbc1",
+      "version": "v0.41.0-dev-g2339eb727"
+    },
+    "mbedtls": {
+      "repository": "https://github.com/Mbed-TLS/mbedtls.git",
+      "tag": "mbedtls-3.6.7",
+      "commit": "068ff080b369adfac81509f9b57b2afabaf82dc5",
+      "framework_submodule_commit": "dde0c4a0e448a0552f18817dcea633bb851fd288",
+      "version": "3.6.7",
+      "rsa_pss": "enabled"
+    },
+    "shaderc": {
+      "provider": "android-ndk",
+      "version": "v2022.3",
+      "ndk_source_path": "sources/third_party/shaderc",
+      "tree_sha256": "43837addaeefa7c0a1a542f2dd204363fef4d64b16f06ad90a8b0e910505f54a",
+      "windows_staged_tree_sha256": "54f42d1f79d3c9cff01d9537661620d868619f98f85036d5f663ab359b4f7572"
+    },
+    "build_contract": {
+      "abi": [
+        "arm64-v8a"
+      ],
+      "android_platform": 24,
+      "android_ndk_revision": "29.0.14206865",
+      "elf_pt_load_minimum": "0x4000",
+      "curl": "disabled",
+      "player_runtime_count": 1,
+      "selected_closure_count": 1,
+      "native_source_build_required": true
+    }
+  },
+  "profiles": {
+    "m8_security_refresh": {
+      "kind": "security_refresh",
+      "ffmpeg": {
+        "repository": "https://github.com/FFmpeg/FFmpeg.git",
+        "tag": "n8.1.2",
+        "commit": "38b88335f99e76ed89ff3c93f877fdefce736c13",
+        "version": "n8.1.2"
+      },
+      "product_selection": "historical_attribution_baseline_superseded_by_m9"
+    },
+    "m9_ffmpeg_major_candidate": {
+      "kind": "major_closure_candidate",
+      "ffmpeg": {
+        "repository": "https://github.com/FFmpeg/FFmpeg.git",
+        "tag": "n9.0.1",
+        "commit": "bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
+        "version": "n9.0.1"
+      },
+      "product_selection": "selected_locally_device_qualification_pending",
+      "qualification_artifacts": {
+        "source_aar_sha256": "7cb0b25dc15f21278992243ce2597193b7a54e1a488933555b572982203e2bc0",
+        "source_aar_size": 23380329,
+        "thin_candidate_sha256": "f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4",
+        "thin_candidate_size": 50926119,
+        "native_elf_count": 10,
+        "elf_pt_load_minimum": "0x4000",
+        "native_zip_alignment": "0x4000",
+        "rpath_runpath": "absent",
+        "ffmpeg_namespaces": [
+          "libavcodec.so.63",
+          "libavdevice.so.63",
+          "libavfilter.so.12",
+          "libavformat.so.63",
+          "libavutil.so.61",
+          "libswresample.so.7",
+          "libswscale.so.10"
+        ],
+        "status": "static_source_and_aligned_thin_audits_passed_paired_promotion_complete"
+      }
+    }
+  }
+}

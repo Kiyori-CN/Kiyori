@@ -3,6 +3,7 @@ package com.ai.assistance.operit.core.player
 import android.content.Context
 import android.os.Build
 import com.ai.assistance.operit.BuildConfig
+import com.ai.assistance.operit.core.player.runtime.capturePlayerNetworkSnapshot
 import java.time.Instant
 
 internal fun buildPlayerDebugLogReport(
@@ -13,6 +14,7 @@ internal fun buildPlayerDebugLogReport(
     val snapshot = PlayerDebugLogBuffer.snapshotState(filter)
     val request = state.request
     val surface = state.surfaceLease
+    val mainProcessNetwork = capturePlayerNetworkSnapshot(context)
     return buildString {
         appendLine("Kiyori Player Diagnostic Report")
         appendLine("Generated: ${Instant.now()}")
@@ -30,16 +32,38 @@ internal fun buildPlayerDebugLogReport(
                 "pid=${state.runtimeProcessId ?: "none"}",
         )
         appendLine(
-            "loading=${state.loading} buffering=${state.buffering} paused=${state.paused} " +
+            "loading=${state.loading} buffering=${state.buffering} seeking=${state.seeking} " +
+                "paused=${state.paused} " +
                 "position=${state.positionSeconds} duration=${state.durationSeconds} speed=${state.speed}",
         )
         appendLine(
-            "decoder=${state.decoderPreset.persistedId} anime4k=${state.anime4KMode.persistedId} " +
+            "decoderBackend=${state.decoderBackend.persistedId} " +
+                "renderingProfile=${state.renderingProfile.persistedId} " +
+                "anime4k=${state.anime4KMode.persistedId} " +
                 "videoFit=${state.videoFitMode} networkBytesPerSecond=${state.networkSpeedBytesPerSecond}",
         )
         appendLine(
             "tracks=audio:${state.audioTracks.size}/selected:${state.selectedAudioTrackId ?: "none"} " +
-                "subtitle:${state.subtitleTracks.size}/selected:${state.selectedSubtitleTrackId ?: "none"}",
+                "subtitle:${state.subtitleTracks.size}/selected:${state.selectedSubtitleTrackId ?: "none"} " +
+                "video:${state.videoTrackCount}",
+        )
+        appendLine(
+            "mediaIdentity=container:${state.mediaContainer ?: "unknown"} " +
+                "videoCodec:${state.videoCodec ?: "none"} audioCodec:${state.audioCodec ?: "none"} " +
+                "hwdec:${state.activeHardwareDecoder ?: "none"} " +
+                "pixelFormat:${state.videoPixelFormat ?: "unknown"} " +
+                "codecProfile:${state.videoCodecProfile ?: "unknown"}",
+        )
+        appendLine(
+            "fullVideoCache=active:${state.fullVideoCacheActive} " +
+                "complete:${state.fullVideoCacheComplete} " +
+                "phase:${state.fullVideoCachePhase} " +
+                "reason:${state.fullVideoCacheReason ?: "none"} " +
+                "stateEvidence:${state.fullVideoCacheStateEvidence} " +
+                "range:${state.fullVideoCacheStartSeconds ?: "none"}-" +
+                "${state.fullVideoCacheEndSeconds ?: "none"} " +
+                "fileBytes:${state.fullVideoCacheFileBytes} " +
+                "expectedBytes:${state.fullVideoCacheExpectedBytes ?: "unknown"}",
         )
         appendLine(
             "queue=index:${state.queueIndex}/size:${state.queueSize} " +
@@ -69,9 +93,14 @@ internal fun buildPlayerDebugLogReport(
             appendLine("requestHeaderValues=omitted count=${request.headers.size}")
         }
         appendLine()
+        appendLine("Network")
+        appendLine("mainProcess=${mainProcessNetwork.diagnosticSummary()}")
+        appendLine("playerProcess=see ordered PlayerNetwork log entries")
+        appendLine()
         appendLine("Privacy")
         appendLine(
-            "Request header values, Cookie, Authorization, URL query values, titles and private paths are omitted.",
+            "Request header values, Cookie, Authorization, URL query values, IP/DNS/proxy addresses, " +
+                "network handles, titles and private paths are omitted.",
         )
         appendLine()
         appendLine("Log filter=${filter.displayName}")

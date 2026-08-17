@@ -1,0 +1,39 @@
+This Android archive is Kiyori's arm64-v8a FFmpegKit closure.
+
+FFmpegKit framework:
+  repository: https://github.com/ffmpegkit-maintained/ffmpeg-kit.git
+  commit: 62b07bf097baf26b416c815aea514e05c9ad6d63
+  wrapper version: 8.1.7-kiyori-n9.0.1-r4
+
+FFmpeg:
+  repository: https://github.com/FFmpeg/FFmpeg.git
+  tag: n9.0.1
+  commit: bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa
+
+OpenH264:
+  repository: https://github.com/arthenica/openh264
+  tag: v2.6.0
+  commit: 652bdb7719f30b52b08e506645a7322ff1b2cc6f
+
+Fixed build and source patches:
+  Framework explicit build-job contract:
+    sha256: 657a4597a83f310a51c0a8e52f88f4cb9fa81525c3ff9c1e4708497e62a88294
+  Framework OpenH264 patch reapplication after the Android source reset:
+    sha256: 31caacd61531bbcbb9d133cc282089fa04f8ed64a3a13825f715311cd5bb1e5e
+  FFmpeg constrained-baseline to OpenH264 EProfileIdc mapping:
+    sha256: 03ec5a6c770c7acb5303a996a1f824cde4105677be6a6fdefd497ef1d746a8ee
+  FFmpeg Android Binder threadpool preservation for embedded app processes:
+    sha256: 6144819ab0aeb9fd2bb512c8b7dce10abee8182c1531c0fd1a48cd1af1745956
+  OpenH264 upstream BsFlush empty-word guard from commit 40555ec684ec0fede3948c8f272c04d88d05189d:
+    sha256: cda83194b33e17b42a46286d1ebed302d4a6aa93c39563935c6005c74b9ccbb8
+
+Build contract:
+  ABI: arm64-v8a
+  Android API: 24
+  Android NDK: 29.0.14206865
+  ELF PT_LOAD minimum alignment: 0x4000
+
+The matching license texts for FFmpegKit and every enabled external library
+are included beside this file under res/raw. Kiyori's source distribution
+also contains the fixed source lock, patch set, build script, and audit
+contract under tools/ffmpegkit_native_build.

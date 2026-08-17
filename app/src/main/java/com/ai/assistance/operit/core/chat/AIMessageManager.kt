@@ -209,9 +209,14 @@ object AIMessageManager {
         // 3. 构建附件标签
         val attachmentTagsStartTime = messageTimingNow()
         val attachmentTags = if (attachments.isNotEmpty()) {
-            attachments.joinToString(" ") { attachment ->
+            val renderedAttachments = ArrayList<String>(attachments.size)
+            for (attachment in attachments) {
                 // 如果启用直接图片处理且附件是图片，转换为link标签
-                if (enableDirectImageProcessing && attachment.mimeType.startsWith("image/", ignoreCase = true)) {
+                renderedAttachments +=
+                    if (
+                        enableDirectImageProcessing &&
+                            attachment.mimeType.startsWith("image/", ignoreCase = true)
+                    ) {
                     try {
                         val imageId = ImagePoolManager.addImage(attachment.filePath)
                         val attributes = buildString {
@@ -243,7 +248,10 @@ object AIMessageManager {
                         }
                         "<attachment $attributes>${attachment.content}</attachment>"
                     }
-                } else if (enableDirectAudioProcessing && attachment.mimeType.startsWith("audio/", ignoreCase = true)) {
+                } else if (
+                    enableDirectAudioProcessing &&
+                        attachment.mimeType.startsWith("audio/", ignoreCase = true)
+                ) {
                     try {
                         val audioId = MediaPoolManager.addMedia(attachment.filePath, attachment.mimeType)
                         if (audioId == "error") {
@@ -262,7 +270,10 @@ object AIMessageManager {
                         }
                         "<attachment $attributes>${attachment.content}</attachment>"
                     }
-                } else if (enableDirectVideoProcessing && attachment.mimeType.startsWith("video/", ignoreCase = true)) {
+                } else if (
+                    enableDirectVideoProcessing &&
+                        attachment.mimeType.startsWith("video/", ignoreCase = true)
+                ) {
                     try {
                         val videoId = MediaPoolManager.addMedia(attachment.filePath, attachment.mimeType)
                         if (videoId == "error") {
@@ -294,6 +305,7 @@ object AIMessageManager {
                     "<attachment $attributes>${attachment.content}</attachment>"
                 }
             }
+            renderedAttachments.joinToString(" ")
         } else ""
         logMessageTiming(
             stage = "buildUserMessageContent.attachmentTags",

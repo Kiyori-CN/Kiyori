@@ -8045,6 +8045,10 @@
     <string name="web_session_network_log_filter_audio">Audio</string>
     <string name="web_session_network_log_filter_image">Images</string>
     <string name="web_session_network_log_filter_web">Web</string>
+    <string name="web_session_network_log_filter_script">Script</string>
+    <string name="web_session_network_log_filter_style">Style</string>
+    <string name="web_session_network_log_filter_data">Data/Text</string>
+    <string name="web_session_network_log_filter_font">Font</string>
     <string name="web_session_network_log_filter_other">Other</string>
     <string name="web_session_network_log_filter_blocked">Blocked</string>
     <string name="web_session_network_log_third_party_hint">“Third-party” means the request domain differs from the current page domain. It does not mean the request is an ad or has failed.</string>
@@ -8057,11 +8061,14 @@
     <string name="web_session_network_log_block_rule_saved">URL blocking rule saved</string>
     <string name="web_session_network_log_blocked_by_custom">Custom blocking rule</string>
     <string name="web_session_network_log_view_details">View details</string>
+    <string name="web_session_network_log_view_page_source">View current page source</string>
     <string name="web_session_network_log_details_title">Request details</string>
     <string name="web_session_network_log_detail_method">Request method</string>
     <string name="web_session_network_log_detail_type">Resource category</string>
     <string name="web_session_network_log_detail_frame">Request location</string>
-    <string name="web_session_network_log_detail_time">Capture time</string>
+    <string name="web_session_network_log_detail_first_seen">First seen</string>
+    <string name="web_session_network_log_detail_last_seen">Last seen</string>
+    <string name="web_session_network_log_detail_request_count">Requests on page</string>
     <string name="web_session_network_log_detail_url">Full URL</string>
     <string name="web_session_network_log_detail_result">Result</string>
     <string name="web_session_network_log_result_blocked">Blocked</string>

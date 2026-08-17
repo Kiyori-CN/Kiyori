@@ -1,15 +1,14 @@
 package com.ai.assistance.operit.util
 
-import com.ai.assistance.operit.util.AppLogger
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.FFprobeKit
-import com.arthenica.ffmpegkit.MediaInformation
-import com.arthenica.ffmpegkit.ReturnCode
+import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeClient
+import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeMediaInformation
+import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeTerminalState
+import com.kiyori.platform.android.ApplicationContextAccess
 
 /**
  * Utility class for FFmpeg operations
  */
-object FFmpegUtil {
+internal object FFmpegUtil {
     private const val TAG = "FFmpegUtil"
 
     /**
@@ -24,16 +23,18 @@ object FFmpegUtil {
     fun executeCommand(command: String): Boolean {
         try {
             AppLogger.d(TAG, "Executing FFmpeg command: $command")
-            val session = FFmpegKit.execute(command)
-            val returnCode = session.returnCode
+            val response =
+                FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
+                    .executeBlocking(command)
+            val result = response.result
 
-            if (ReturnCode.isSuccess(returnCode)) {
+            if (result.terminalState == FFmpegRuntimeTerminalState.SUCCEEDED) {
                 AppLogger.d(TAG, "FFmpeg command executed successfully")
                 return true
             } else {
                 AppLogger.e(
                     TAG,
-                    "FFmpeg failed with return code: ${returnCode.value}, output: ${session.output}"
+                    "FFmpeg failed with return code: ${result.returnCode}, output: ${response.output}"
                 )
                 return false
             }
@@ -43,15 +44,40 @@ object FFmpegUtil {
         }
     }
 
+    fun executeArguments(arguments: List<String>): Boolean {
+        return try {
+            AppLogger.d(TAG, "Executing FFmpeg arguments: ${arguments.joinToString(" ")}")
+            val response =
+                FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
+                    .executeArgumentsBlocking(arguments)
+            val result = response.result
+            if (result.terminalState == FFmpegRuntimeTerminalState.SUCCEEDED) {
+                AppLogger.d(TAG, "FFmpeg arguments executed successfully")
+                true
+            } else {
+                AppLogger.e(
+                    TAG,
+                    "FFmpeg failed with return code: ${result.returnCode}, output: ${response.output}",
+                )
+                false
+            }
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Error executing FFmpeg arguments", e)
+            false
+        }
+    }
+
     /**
      * Get media information for a file
      */
-    fun getMediaInfo(filePath: String): MediaInformation? {
+    fun getMediaInfo(filePath: String): FFmpegRuntimeMediaInformation? {
         return try {
-            val mediaInfoSession = FFprobeKit.getMediaInformation(filePath)
-            mediaInfoSession.mediaInformation
+            FFmpegRuntimeClient.getInstance(ApplicationContextAccess.current)
+                .probeMediaBlocking(filePath)
+                .result
+                .mediaInformation
         } catch (e: Exception) {
-            AppLogger.e(TAG, "Error getting media info: ${e.message}")
+            AppLogger.e(TAG, "Error getting media info", e)
             null
         }
     }

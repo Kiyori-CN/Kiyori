@@ -5,6 +5,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.Locale
@@ -47,12 +48,14 @@ plugins {
     id("io.objectbox")
 }
 
-val playerFfmpegSourceCoordinate =
-    "dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7"
+val playerFfmpegSourceIdentity =
+    "ffmpegkit-maintained/ffmpeg@62b07bf097baf26b416c815aea514e05c9ad6d63 + " +
+        "FFmpeg@n9.0.1/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa + " +
+        "OpenH264@v2.6.0/652bdb7719f30b52b08e506645a7322ff1b2cc6f"
 val playerFfmpegArm64Sha256 =
-    "1a30a94226bf2157927ec6edbb20154f9a1c1c53580f59cf55efe46db87a5ab3"
+    "86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7"
 val playerMpvThinSha256 =
-    "fc983b7ed0c8b8be1938283fe94108dfdc593aa31608d55dd1ce119ae201c32c"
+    "f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4"
 val playerMpvFfmpegNamespace =
     linkedMapOf(
         "libavcodec.so" to "libmpcodec.so",
@@ -68,6 +71,36 @@ val playerMpvRequiredTlsMarkers =
         "--enable-mbedtls",
         "mbedtls_ssl_handshake",
     )
+val playerFfmpegVersionNamespaces =
+    linkedMapOf(
+        "libavcodec.so" to "LIBAVCODEC_63",
+        "libavdevice.so" to "LIBAVDEVICE_63",
+        "libavfilter.so" to "LIBAVFILTER_12",
+        "libavformat.so" to "LIBAVFORMAT_63",
+        "libavutil.so" to "LIBAVUTIL_61",
+        "libswresample.so" to "LIBSWRESAMPLE_7",
+        "libswscale.so" to "LIBSWSCALE_10",
+    )
+val playerMpvFfmpegVersionNamespaces =
+    playerFfmpegVersionNamespaces.mapKeys { (normalName, _) ->
+        requireNotNull(playerMpvFfmpegNamespace[normalName])
+    }
+val playerFfmpegRequiredBuildMarkers =
+    listOf(
+        "n9.0.1",
+        "--enable-libfontconfig",
+        "--enable-libfreetype",
+        "--enable-libfribidi",
+        "--enable-libmp3lame",
+        "--enable-libass",
+        "--enable-libdav1d",
+        "--enable-libaom",
+        "--enable-libopenh264",
+        "--disable-openssl",
+        "--enable-zlib",
+        "--enable-mediacodec",
+    )
+val playerFfmpegKitWrapperMarker = "8.1.7-kiyori-n9.0.1-r4"
 val playerFfmpegKitLibraryNames =
     setOf(
         "libavcodec.so",
@@ -92,6 +125,7 @@ val playerRequiredLibcxxSymbols =
         "_ZNSt6__ndk127__from_chars_floating_pointIfEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
         "_ZNSt6__ndk127__from_chars_floating_pointIdEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
     )
+val playerNativeZipAlignment = 16 * 1024L
 
 private fun File.sha256Hex(): String {
     val digest = MessageDigest.getInstance("SHA-256")
@@ -104,6 +138,88 @@ private fun File.sha256Hex(): String {
         }
     }
     return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+}
+
+private fun RandomAccessFile.readUnsignedShortLittleEndian(): Int {
+    val first = read()
+    val second = read()
+    check(first >= 0 && second >= 0) { "Truncated ZIP header in $this" }
+    return first or (second shl 8)
+}
+
+private fun RandomAccessFile.readUnsignedIntLittleEndian(): Long {
+    val first = read()
+    val second = read()
+    val third = read()
+    val fourth = read()
+    check(first >= 0 && second >= 0 && third >= 0 && fourth >= 0) {
+        "Truncated ZIP header in $this"
+    }
+    return first.toLong() or
+        (second.toLong() shl 8) or
+        (third.toLong() shl 16) or
+        (fourth.toLong() shl 24)
+}
+
+private fun File.nativeZipDataOffsets(): Map<String, Long> {
+    val offsets = linkedMapOf<String, Long>()
+    RandomAccessFile(this, "r").use { archive ->
+        var localHeaderOffset = 0L
+        scan@ while (localHeaderOffset + 4 <= archive.length()) {
+            archive.seek(localHeaderOffset)
+            when (val signature = archive.readUnsignedIntLittleEndian()) {
+                0x04034B50L -> {
+                    archive.readUnsignedShortLittleEndian()
+                    val flags = archive.readUnsignedShortLittleEndian()
+                    val compression = archive.readUnsignedShortLittleEndian()
+                    archive.readUnsignedShortLittleEndian()
+                    archive.readUnsignedShortLittleEndian()
+                    archive.readUnsignedIntLittleEndian()
+                    val compressedSize = archive.readUnsignedIntLittleEndian()
+                    archive.readUnsignedIntLittleEndian()
+                    val nameLength = archive.readUnsignedShortLittleEndian()
+                    val extraLength = archive.readUnsignedShortLittleEndian()
+                    check((flags and 0x08) == 0) {
+                        "ZIP data descriptors are forbidden in deterministic AAR $path"
+                    }
+                    val namePayload = ByteArray(nameLength)
+                    archive.readFully(namePayload)
+                    val name = String(namePayload, Charsets.US_ASCII)
+                    archive.seek(archive.filePointer + extraLength)
+                    val dataOffset = archive.filePointer
+                    if (name.startsWith("jni/") && name.endsWith(".so")) {
+                        check(compression == 0) {
+                            "Native AAR member must be stored: $name"
+                        }
+                        offsets[name] = dataOffset
+                    }
+                    localHeaderOffset = dataOffset + compressedSize
+                }
+                0x02014B50L,
+                0x06054B50L
+                -> break@scan
+                else -> error(
+                    "Unexpected ZIP signature 0x${signature.toString(16)} " +
+                        "at 0x${localHeaderOffset.toString(16)} in $path",
+                )
+            }
+        }
+    }
+    check(offsets.isNotEmpty()) { "AAR contains no native members: $path" }
+    return offsets
+}
+
+private fun File.requireNativeZipAlignment() {
+    val misaligned =
+        nativeZipDataOffsets().filterValues { offset ->
+            offset % playerNativeZipAlignment != 0L
+        }
+    check(misaligned.isEmpty()) {
+        "Native AAR members are not ${playerNativeZipAlignment.toInt()}-byte aligned: " +
+            misaligned.entries.joinToString { (name, offset) ->
+                "$name=0x${offset.toString(16)}"
+            }
+    }
 }
 
 private fun InputStream.containsByteSequence(needle: ByteArray): Boolean {
@@ -1109,6 +1225,7 @@ val verifyPlayerNativeInputs =
             check(mpvSha256 == playerMpvThinSha256) {
                 "Unexpected mpv thin AAR SHA-256: $mpvSha256"
             }
+            mpvAar.requireNativeZipAlignment()
             val expectedMpvMembers =
                 listOf(
                     "R.txt",
@@ -1203,6 +1320,21 @@ val verifyPlayerNativeInputs =
                         "namespaced mpv libavformat lacks TLS marker $marker"
                     }
                 }
+                playerMpvFfmpegVersionNamespaces.forEach { (libraryName, marker) ->
+                    val member = "jni/arm64-v8a/$libraryName"
+                    val payload = requireNotNull(mpvNativePayloads[member])
+                    check(payload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "$member lacks FFmpeg 9 namespace $marker"
+                    }
+                }
+                val mpvAvutilPayload =
+                    requireNotNull(mpvNativePayloads["jni/arm64-v8a/libmputil.so"])
+                check(mpvAvutilPayload.containsByteSequence("n9.0.1".toByteArray(Charsets.US_ASCII))) {
+                    "namespaced mpv libavutil does not report FFmpeg n9.0.1"
+                }
+                check(!mpvAvutilPayload.containsByteSequence("n8.1.2".toByteArray(Charsets.US_ASCII))) {
+                    "namespaced mpv libavutil still contains FFmpeg n8.1.2"
+                }
                 playerRequiredLibcxxSymbols.forEach { symbol ->
                     val needle = symbol.toByteArray(Charsets.US_ASCII)
                     val mpvNeedsSymbol = libmpvPayload.containsByteSequence(needle)
@@ -1218,12 +1350,16 @@ val verifyPlayerNativeInputs =
 
             val ffmpegAar = ffmpegArm64Aar.asFile
             check(ffmpegAar.isFile) {
-                "Missing ${ffmpegAar.path}, derived from $playerFfmpegSourceCoordinate; " +
+                "Missing ${ffmpegAar.path}, derived from $playerFfmpegSourceIdentity; " +
                     "run ci/script/prepare_mpv_player_dependency.py"
             }
             val ffmpegSha256 = ffmpegAar.sha256Hex()
             check(ffmpegSha256 == playerFfmpegArm64Sha256) {
                 "Unexpected player FFmpegKit AAR SHA-256: $ffmpegSha256"
+            }
+            ffmpegAar.requireNativeZipAlignment()
+            check(playerFfmpegKitLibraryNames.intersect(playerMpvNativeLibraryNames).isEmpty()) {
+                "FFmpegKit normal-name and mpv namespaced native owners overlap"
             }
             val expectedFfmpegMembers =
                 playerFfmpegKitLibraryNames.mapTo(mutableSetOf()) { library ->
@@ -1237,6 +1373,38 @@ val verifyPlayerNativeInputs =
                         .toSet()
                 check(nativeMembers == expectedFfmpegMembers) {
                     "Unexpected player FFmpegKit native member list: $nativeMembers"
+                }
+                val ffmpegNativePayloads =
+                    nativeMembers.associateWith { member ->
+                        archive.getInputStream(requireNotNull(archive.getEntry(member))).use { stream ->
+                            stream.readBytes()
+                        }
+                    }
+                playerFfmpegVersionNamespaces.forEach { (libraryName, marker) ->
+                    val member = "jni/arm64-v8a/$libraryName"
+                    val payload = requireNotNull(ffmpegNativePayloads[member])
+                    check(payload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "$member lacks FFmpeg 9 namespace $marker"
+                    }
+                }
+                val ffmpegAvutilPayload =
+                    requireNotNull(ffmpegNativePayloads["jni/arm64-v8a/libavutil.so"])
+                playerFfmpegRequiredBuildMarkers.forEach { marker ->
+                    check(ffmpegAvutilPayload.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "FFmpegKit libavutil lacks build marker $marker"
+                    }
+                }
+                check(!ffmpegAvutilPayload.containsByteSequence("n8.1.2".toByteArray(Charsets.US_ASCII))) {
+                    "FFmpegKit libavutil still contains FFmpeg n8.1.2"
+                }
+                val ffmpegkitPayload =
+                    requireNotNull(ffmpegNativePayloads["jni/arm64-v8a/libffmpegkit.so"])
+                check(
+                    ffmpegkitPayload.containsByteSequence(
+                        playerFfmpegKitWrapperMarker.toByteArray(Charsets.US_ASCII),
+                    ),
+                ) {
+                    "libffmpegkit.so lacks wrapper marker $playerFfmpegKitWrapperMarker"
                 }
             }
         }
@@ -1311,6 +1479,41 @@ val verifyDebugPlayerRuntimePackaging =
                     check(apkMpvAvformat.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
                         "Debug APK namespaced mpv libavformat lacks TLS marker $marker"
                     }
+                }
+                val apkMpvAvutil =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libmputil.so")),
+                    ).use { stream -> stream.readBytes() }
+                listOf("n9.0.1", "LIBAVUTIL_61").forEach { marker ->
+                    check(apkMpvAvutil.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK namespaced mpv libavutil lacks M9 marker $marker"
+                    }
+                }
+                check(!apkMpvAvutil.containsByteSequence("n8.1.2".toByteArray(Charsets.US_ASCII))) {
+                    "Debug APK namespaced mpv libavutil still contains FFmpeg n8.1.2"
+                }
+                val apkFfmpegAvutil =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libavutil.so")),
+                    ).use { stream -> stream.readBytes() }
+                listOf("n9.0.1", "LIBAVUTIL_61").forEach { marker ->
+                    check(apkFfmpegAvutil.containsByteSequence(marker.toByteArray(Charsets.US_ASCII))) {
+                        "Debug APK FFmpegKit libavutil lacks M9 marker $marker"
+                    }
+                }
+                check(!apkFfmpegAvutil.containsByteSequence("n8.1.2".toByteArray(Charsets.US_ASCII))) {
+                    "Debug APK FFmpegKit libavutil still contains FFmpeg n8.1.2"
+                }
+                val apkFfmpegKit =
+                    archive.getInputStream(
+                        requireNotNull(archive.getEntry("lib/arm64-v8a/libffmpegkit.so")),
+                    ).use { stream -> stream.readBytes() }
+                check(
+                    apkFfmpegKit.containsByteSequence(
+                        playerFfmpegKitWrapperMarker.toByteArray(Charsets.US_ASCII),
+                    ),
+                ) {
+                    "Debug APK libffmpegkit.so lacks wrapper marker $playerFfmpegKitWrapperMarker"
                 }
                 val libcxxEntries =
                     archive.entries().asSequence()

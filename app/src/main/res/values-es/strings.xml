@@ -7264,6 +7264,10 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_network_log_filter_audio">Audio</string>
     <string name="web_session_network_log_filter_image">Imágenes</string>
     <string name="web_session_network_log_filter_web">Web</string>
+    <string name="web_session_network_log_filter_script">Script</string>
+    <string name="web_session_network_log_filter_style">Estilo</string>
+    <string name="web_session_network_log_filter_data">Datos/texto</string>
+    <string name="web_session_network_log_filter_font">Fuente</string>
     <string name="web_session_network_log_filter_other">Otros</string>
     <string name="web_session_network_log_filter_blocked">Bloqueadas</string>
     <string name="web_session_network_log_third_party_hint">“De terceros” significa que el dominio de la solicitud es distinto al de la página actual; no significa que sea un anuncio ni que haya fallado.</string>
@@ -7276,11 +7280,14 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="web_session_network_log_block_rule_saved">Regla de bloqueo de URL guardada</string>
     <string name="web_session_network_log_blocked_by_custom">Regla de bloqueo personalizada</string>
     <string name="web_session_network_log_view_details">Ver detalles</string>
+    <string name="web_session_network_log_view_page_source">Ver el código fuente de la página actual</string>
     <string name="web_session_network_log_details_title">Detalles de la solicitud</string>
     <string name="web_session_network_log_detail_method">Método de solicitud</string>
     <string name="web_session_network_log_detail_type">Categoría del recurso</string>
     <string name="web_session_network_log_detail_frame">Ubicación de la solicitud</string>
-    <string name="web_session_network_log_detail_time">Hora de captura</string>
+    <string name="web_session_network_log_detail_first_seen">Primera detección</string>
+    <string name="web_session_network_log_detail_last_seen">Última detección</string>
+    <string name="web_session_network_log_detail_request_count">Solicitudes en la página</string>
     <string name="web_session_network_log_detail_url">URL completa</string>
     <string name="web_session_network_log_detail_result">Resultado</string>
     <string name="web_session_network_log_result_blocked">Bloqueada</string>

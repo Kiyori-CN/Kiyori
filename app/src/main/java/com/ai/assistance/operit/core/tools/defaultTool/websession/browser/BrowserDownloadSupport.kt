@@ -13,9 +13,9 @@ import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.ReturnCode
 import com.ai.assistance.operit.core.application.ActivityLifecycleManager
+import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeClient
+import com.ai.assistance.operit.core.ffmpeg.runtime.FFmpegRuntimeTerminalState
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.core.tools.defaultTool.ToolGetter
@@ -1337,9 +1337,9 @@ internal class BrowserDownloadManager private constructor(
                         outputFile.parentFile,
                         ".${outputFile.name}.${UUID.randomUUID()}.partial",
                     )
-                val session =
-                    FFmpegKit.executeWithArguments(
-                        arrayOf(
+                val response =
+                    FFmpegRuntimeClient.getInstance(appContext).executeArguments(
+                        listOf(
                             "-y",
                             "-protocol_whitelist",
                             "file,crypto,data",
@@ -1362,8 +1362,11 @@ internal class BrowserDownloadManager private constructor(
                             requireNotNull(temporaryOutput).absolutePath,
                         ),
                     )
-                require(ReturnCode.isSuccess(session.returnCode)) {
-                    "M3U8合并失败：${session.output}"
+                require(
+                    response.result.terminalState ==
+                        FFmpegRuntimeTerminalState.SUCCEEDED,
+                ) {
+                    "M3U8合并失败：${response.output}"
                 }
                 val completedTemporaryOutput = requireNotNull(temporaryOutput)
                 require(completedTemporaryOutput.isFile && completedTemporaryOutput.length() > 0L) {

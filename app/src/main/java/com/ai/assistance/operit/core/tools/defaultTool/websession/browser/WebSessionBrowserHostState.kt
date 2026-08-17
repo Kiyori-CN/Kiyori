@@ -87,6 +87,12 @@ internal data class WebSessionBrowserNetworkEntry(
     val blockingRule: String? = null,
     val blockingSourceName: String? = null,
     val elementSelector: String? = null,
+    val documentToken: String? = null,
+    val resourceIdentity: String = url,
+    val requestCount: Int = 1,
+    val firstSeenAt: Long = timestamp,
+    val lastSeenAt: Long = timestamp,
+    val requestHeaders: Map<String, String> = emptyMap(),
 )
 
 @Immutable
@@ -97,6 +103,7 @@ internal data class WebSessionBrowserMediaCandidate(
     val mimeType: String?,
     val urlEvidence: BrowserMediaCandidateUrlEvidence,
     val videoFormat: BrowserMediaCandidateVideoFormat,
+    val mediaKind: BrowserMediaKind = BrowserMediaKind.VIDEO,
     val discoverySources: Set<BrowserMediaCandidateDiscoverySource>,
     val firstDiscoveredAt: Long,
     val lastDiscoveredAt: Long,

@@ -51,6 +51,7 @@
 - [浏览器插件平台与插件中心架构](doc-src/architecture/browser_plugin_platform.md)
 - [统一模型能力与可恢复执行](doc-src/architecture/model_capability_and_resumable_execution.md)
 - [OpenAI Hosted Web Search](doc-src/architecture/openai_hosted_web_search.md)
+- [FFmpeg 架构与开发指南](doc-src/dev-core/FFMPEG_ARCHITECTURE.md)
 
 ## 文档维护
 

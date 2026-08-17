@@ -6,6 +6,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import com.ai.assistance.operit.core.tools.defaultTool.standard.StandardBrowserSessionTools
 import com.ai.assistance.operit.util.AppLogger
+import java.net.URLDecoder
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToLong
@@ -21,12 +22,21 @@ internal enum class BrowserMediaCandidateDiscoverySource(val wireName: String) {
     DOM_SRC("dom_src"),
     DOM_SOURCE("dom_source"),
     DOM_PLAY_EVENT("dom_play_event"),
+    DOM_AUDIO_CURRENT_SRC("dom_audio_current_src"),
+    DOM_AUDIO_SRC("dom_audio_src"),
+    DOM_AUDIO_SOURCE("dom_audio_source"),
     ;
 
     companion object {
         fun fromWireName(value: String): BrowserMediaCandidateDiscoverySource? =
             entries.singleOrNull { it.wireName == value }
     }
+}
+
+internal enum class BrowserMediaKind {
+    VIDEO,
+    AUDIO,
+    UNKNOWN_MEDIA,
 }
 
 internal enum class BrowserMediaCandidateUrlEvidence {
@@ -71,8 +81,10 @@ internal data class BrowserMediaCandidateObservation(
     val cookieScope: String,
     val cookieScopeUrl: String,
     val source: BrowserMediaCandidateDiscoverySource,
+    val documentToken: String = "",
     val responseMimeType: String? = null,
     val declaredMimeType: String? = null,
+    val contentDisposition: String? = null,
     val durationMillis: Long? = null,
     val isLive: Boolean = false,
     val videoWidth: Int? = null,
@@ -100,11 +112,13 @@ internal data class BrowserMediaCandidate(
     val pageTitle: String,
     val sourceSessionId: String,
     val sourceProfile: String,
+    val documentToken: String = "",
     val firstDiscoveredAt: Long,
     val lastDiscoveredAt: Long,
     val discoverySources: Set<BrowserMediaCandidateDiscoverySource>,
     val responseMimeType: String?,
     val declaredMimeType: String?,
+    val contentDisposition: String?,
     val durationMillis: Long?,
     val isLive: Boolean,
     val videoWidth: Int?,
@@ -117,6 +131,38 @@ internal data class BrowserMediaCandidate(
     val urlEvidence: BrowserMediaCandidateUrlEvidence
         get() = classifyBrowserMediaCandidateUrl(url)
 
+    val contentDispositionEvidence: BrowserMediaCandidateUrlEvidence
+        get() = classifyBrowserMediaContentDisposition(contentDisposition)
+
+    val hasVideoDomEvidence: Boolean
+        get() = hasBrowserVideoDomEvidence(discoverySources)
+
+    val hasAudioDomEvidence: Boolean
+        get() = hasBrowserAudioDomEvidence(discoverySources)
+
+    /**
+     * DOM element identity outranks a misleading URL suffix or response MIME. This is the
+     * important distinction for a video transported by a path ending in ".mp3".
+     */
+    val mediaKind: BrowserMediaKind
+        get() =
+            when {
+                hasVideoDomEvidence -> BrowserMediaKind.VIDEO
+                hasAudioDomEvidence -> BrowserMediaKind.AUDIO
+                isVideoOrManifestMime(responseMimeType) -> BrowserMediaKind.VIDEO
+                isAudioMime(responseMimeType) -> BrowserMediaKind.AUDIO
+                contentDispositionEvidence != BrowserMediaCandidateUrlEvidence.NONE ->
+                    BrowserMediaKind.VIDEO
+                browserMediaContentDispositionIsAudio(contentDisposition) ->
+                    BrowserMediaKind.AUDIO
+                isVideoOrManifestMime(declaredMimeType) ||
+                    isVideoOrManifestMime(accept) -> BrowserMediaKind.VIDEO
+                isAudioMime(declaredMimeType) || isAudioMime(accept) -> BrowserMediaKind.AUDIO
+                urlEvidence != BrowserMediaCandidateUrlEvidence.NONE -> BrowserMediaKind.VIDEO
+                isExplicitBrowserAudioResource(url) -> BrowserMediaKind.AUDIO
+                else -> BrowserMediaKind.UNKNOWN_MEDIA
+            }
+
     val isBlob: Boolean
         get() = url.startsWith("blob:", ignoreCase = true)
 
@@ -127,7 +173,8 @@ internal data class BrowserMediaCandidate(
                 responseMimeType = responseMimeType,
                 declaredMimeType = declaredMimeType,
                 accept = accept,
-                hasDomEvidence = hasBrowserMediaDomEvidence(discoverySources),
+                hasDomEvidence = hasVideoDomEvidence,
+                contentDisposition = contentDisposition,
             )
 
     val isLikelyMediaFragment: Boolean
@@ -136,19 +183,29 @@ internal data class BrowserMediaCandidate(
     val directPlaybackReady: Boolean
         get() {
             if (!isHttpMediaCandidateUrl(url)) return false
-            if (urlEvidence != BrowserMediaCandidateUrlEvidence.NONE) return true
-            return hasBrowserMediaDomEvidence(discoverySources)
+            return mediaKind != BrowserMediaKind.UNKNOWN_MEDIA
         }
 
     val isActionableVideo: Boolean
         get() =
             directPlaybackReady &&
                 !isBlob &&
+                mediaKind == BrowserMediaKind.VIDEO &&
                 videoFormat != null &&
                 !isLikelyMediaFragment
 
+    val isActionableAudio: Boolean
+        get() =
+            directPlaybackReady &&
+                !isBlob &&
+                mediaKind == BrowserMediaKind.AUDIO &&
+                !isLikelyMediaFragment
+
+    val isActionableMedia: Boolean
+        get() = isActionableVideo || isActionableAudio
+
     val downloadReady: Boolean
-        get() = isActionableVideo
+        get() = isActionableMedia
 
     val displayMimeType: String?
         get() = responseMimeType ?: declaredMimeType
@@ -170,8 +227,12 @@ internal fun mergeBrowserMediaCandidate(
     newCandidateId: String,
 ): BrowserMediaCandidate? {
     if (!isBrowserMediaCandidateObservation(observation)) return current
-    require(current == null || current.url == observation.url) {
-        "A media candidate can only merge observations for the exact original URL"
+    require(
+        current == null ||
+            normalizeBrowserResourceIdentityUrl(current.url) ==
+                normalizeBrowserResourceIdentityUrl(observation.url),
+    ) {
+        "A media candidate can only merge observations for the same resource identity"
     }
     val mergedHeaders = mergeCaseInsensitiveHeaders(current?.requestHeaders.orEmpty(), observation.requestHeaders)
     val firstDiscoveredAt = current?.firstDiscoveredAt?.coerceAtMost(observation.discoveredAt) ?: observation.discoveredAt
@@ -202,11 +263,13 @@ internal fun mergeBrowserMediaCandidate(
         pageTitle = observation.pageTitle.ifBlank { current?.pageTitle.orEmpty() },
         sourceSessionId = observation.sourceSessionId.ifBlank { current?.sourceSessionId.orEmpty() },
         sourceProfile = observation.sourceProfile.ifBlank { current?.sourceProfile.orEmpty() },
+        documentToken = observation.documentToken,
         firstDiscoveredAt = firstDiscoveredAt,
         lastDiscoveredAt = lastDiscoveredAt,
         discoverySources = current?.discoverySources.orEmpty() + observation.source,
         responseMimeType = observation.responseMimeType.nonBlankOr(current?.responseMimeType),
         declaredMimeType = observation.declaredMimeType.nonBlankOr(current?.declaredMimeType),
+        contentDisposition = observation.contentDisposition.nonBlankOr(current?.contentDisposition),
         durationMillis = durationMillis,
         isLive = isLive,
         videoWidth = maxPositive(current?.videoWidth, observation.videoWidth),
@@ -222,22 +285,24 @@ internal fun mergeBrowserMediaCandidate(
 
 internal fun isBrowserMediaCandidateObservation(observation: BrowserMediaCandidateObservation): Boolean {
     if (observation.url.isBlank()) return false
-    if (
-        isExplicitBrowserAudioResource(
-            url = observation.url,
-            responseMimeType = observation.responseMimeType,
-            declaredMimeType = observation.declaredMimeType,
-            accept = observation.requestHeaders.headerValue("Accept"),
-        )
-    ) {
-        return false
-    }
-    val domEvidence = hasBrowserMediaDomEvidence(setOf(observation.source))
-    if (domEvidence) return true
+    val hasVideoDomEvidence = hasBrowserVideoDomEvidence(setOf(observation.source))
+    val hasAudioDomEvidence = hasBrowserAudioDomEvidence(setOf(observation.source))
+    if (hasVideoDomEvidence || hasAudioDomEvidence) return true
     if (classifyBrowserMediaCandidateUrl(observation.url) != BrowserMediaCandidateUrlEvidence.NONE) return true
+    if (
+        classifyBrowserMediaContentDisposition(observation.contentDisposition) !=
+            BrowserMediaCandidateUrlEvidence.NONE
+    ) {
+        return true
+    }
     return isVideoOrManifestMime(observation.responseMimeType) ||
         isVideoOrManifestMime(observation.declaredMimeType) ||
-        isVideoOrManifestMime(observation.requestHeaders.headerValue("Accept"))
+        isVideoOrManifestMime(observation.requestHeaders.headerValue("Accept")) ||
+        isAudioMime(observation.responseMimeType) ||
+        isAudioMime(observation.declaredMimeType) ||
+        isAudioMime(observation.requestHeaders.headerValue("Accept")) ||
+        browserMediaContentDispositionIsAudio(observation.contentDisposition) ||
+        isExplicitBrowserAudioResource(observation.url)
 }
 
 internal fun StandardBrowserSessionTools.clearMediaCandidates(session: BrowserToolSession) {
@@ -267,16 +332,19 @@ internal fun findDirectMediaCandidateIdForNetworkEntry(
     networkUrl: String,
 ): String? =
     candidates.singleOrNull { candidate ->
-        candidate.url == networkUrl && candidate.isActionableVideo
+        normalizeBrowserResourceIdentityUrl(candidate.url) ==
+            normalizeBrowserResourceIdentityUrl(networkUrl) &&
+            candidate.isActionableMedia
     }?.id
 
 internal fun StandardBrowserSessionTools.recordRequestMediaCandidate(
     session: BrowserToolSession,
     request: WebResourceRequest,
+    documentToken: String = session.credentialDocumentToken,
 ) {
     recordMediaCandidate(
         session = session,
-        observation = buildRequestMediaObservation(session, request),
+        observation = buildRequestMediaObservation(session, request, documentToken),
     )
 }
 
@@ -284,13 +352,16 @@ internal fun StandardBrowserSessionTools.recordInterceptedResponseMediaCandidate
     session: BrowserToolSession,
     request: WebResourceRequest,
     response: WebResourceResponse,
+    documentToken: String = session.credentialDocumentToken,
 ) {
     recordMediaCandidate(
         session = session,
         observation =
-            buildRequestMediaObservation(session, request).copy(
+            buildRequestMediaObservation(session, request, documentToken).copy(
                 source = BrowserMediaCandidateDiscoverySource.INTERCEPTED_RESPONSE,
                 responseMimeType = response.mimeType,
+                contentDisposition =
+                    response.responseHeaders.orEmpty().headerValue("Content-Disposition"),
                 durationMillis =
                     extractBrowserMediaCandidateDurationMillis(
                         request.url?.toString().orEmpty(),
@@ -323,6 +394,7 @@ internal fun StandardBrowserSessionTools.recordDomMediaCandidate(
                 cookieScope = session.profile.wireName,
                 cookieScopeUrl = url,
                 source = source,
+                documentToken = session.credentialDocumentToken,
                 declaredMimeType = json.optString("mimeType").takeIf(String::isNotBlank),
                 durationMillis =
                     json.optLong("durationMillis")
@@ -360,6 +432,7 @@ internal class BrowserMediaCandidateBridge(
 private fun StandardBrowserSessionTools.buildRequestMediaObservation(
     session: BrowserToolSession,
     request: WebResourceRequest,
+    documentToken: String = session.credentialDocumentToken,
 ): BrowserMediaCandidateObservation {
     val url = request.url?.toString().orEmpty()
     val observedHeaders = request.requestHeaders?.filterKeys(String::isNotBlank).orEmpty()
@@ -373,6 +446,7 @@ private fun StandardBrowserSessionTools.buildRequestMediaObservation(
         cookieScope = session.profile.wireName,
         cookieScopeUrl = url,
         source = BrowserMediaCandidateDiscoverySource.NETWORK_REQUEST,
+        documentToken = documentToken,
     )
 }
 
@@ -414,8 +488,16 @@ private fun StandardBrowserSessionTools.recordMediaCandidate(
     observation: BrowserMediaCandidateObservation,
 ) {
     var changed = false
+    if (session.credentialDocumentToken != observation.documentToken) {
+        return
+    }
     synchronized(session.mediaCandidates) {
-        val index = session.mediaCandidates.indexOfFirst { it.url == observation.url }
+        val resourceIdentity = normalizeBrowserResourceIdentityUrl(observation.url)
+        val index =
+            session.mediaCandidates.indexOfFirst {
+                it.documentToken == observation.documentToken &&
+                    normalizeBrowserResourceIdentityUrl(it.url) == resourceIdentity
+            }
         val current = index.takeIf { it >= 0 }?.let(session.mediaCandidates::get)
         val merged = mergeBrowserMediaCandidate(current, observation, UUID.randomUUID().toString())
             ?: return@synchronized
@@ -475,7 +557,7 @@ private fun isVideoOrManifestMime(value: String?): Boolean {
         normalized.contains("application/dash+xml")
 }
 
-private fun hasBrowserMediaDomEvidence(
+private fun hasBrowserVideoDomEvidence(
     sources: Set<BrowserMediaCandidateDiscoverySource>,
 ): Boolean =
     sources.any { source ->
@@ -485,17 +567,34 @@ private fun hasBrowserMediaDomEvidence(
             source == BrowserMediaCandidateDiscoverySource.DOM_PLAY_EVENT
     }
 
+private fun hasBrowserAudioDomEvidence(
+    sources: Set<BrowserMediaCandidateDiscoverySource>,
+): Boolean =
+    sources.any { source ->
+        source == BrowserMediaCandidateDiscoverySource.DOM_AUDIO_CURRENT_SRC ||
+            source == BrowserMediaCandidateDiscoverySource.DOM_AUDIO_SRC ||
+            source == BrowserMediaCandidateDiscoverySource.DOM_AUDIO_SOURCE
+    }
+
 internal fun resolveBrowserMediaCandidateVideoFormat(
     url: String,
     responseMimeType: String? = null,
     declaredMimeType: String? = null,
     accept: String? = null,
     hasDomEvidence: Boolean = false,
+    contentDisposition: String? = null,
 ): BrowserMediaCandidateVideoFormat? {
     val path = url.substringBefore('#').substringBefore('?').lowercase(Locale.ROOT)
     VIDEO_FORMAT_EXTENSIONS.entries.firstOrNull { (_, extensions) ->
         extensions.any(path::endsWith)
     }?.key?.let { return it }
+    val contentDispositionFileName =
+        browserMediaContentDispositionFileName(contentDisposition)?.lowercase(Locale.ROOT)
+    if (contentDispositionFileName != null) {
+        VIDEO_FORMAT_EXTENSIONS.entries.firstOrNull { (_, extensions) ->
+            extensions.any(contentDispositionFileName::endsWith)
+        }?.key?.let { return it }
+    }
 
     sequenceOf(responseMimeType, declaredMimeType, accept)
         .mapNotNull { value -> value?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT) }
@@ -582,18 +681,71 @@ private fun parseBrowserMediaDurationMillis(
 private fun isReasonableBrowserMediaDurationMillis(value: Long): Boolean =
     value in 1L..MAX_REASONABLE_MEDIA_DURATION_MS
 
-private fun isExplicitBrowserAudioResource(
-    url: String,
-    responseMimeType: String?,
-    declaredMimeType: String?,
-    accept: String?,
-): Boolean {
+private fun isExplicitBrowserAudioResource(url: String): Boolean {
     val path = url.substringBefore('#').substringBefore('?').lowercase(Locale.ROOT)
-    if (AUDIO_FILE_EXTENSIONS.any(path::endsWith)) return true
-    return sequenceOf(responseMimeType, declaredMimeType, accept)
-        .filterNotNull()
-        .map { it.lowercase(Locale.ROOT) }
-        .any { value -> value.contains("audio/") && !value.contains("video/") }
+    return AUDIO_FILE_EXTENSIONS.any(path::endsWith)
+}
+
+private fun isAudioMime(value: String?): Boolean {
+    val normalized = value?.lowercase(Locale.ROOT).orEmpty()
+    return normalized.contains("audio/") && !normalized.contains("video/")
+}
+
+private fun browserMediaContentDispositionIsAudio(contentDisposition: String?): Boolean {
+    val contentDispositionFileName =
+        browserMediaContentDispositionFileName(contentDisposition)?.lowercase(Locale.ROOT)
+            ?: return false
+    return AUDIO_FILE_EXTENSIONS.any(contentDispositionFileName::endsWith)
+}
+
+private fun classifyBrowserMediaContentDisposition(
+    contentDisposition: String?,
+): BrowserMediaCandidateUrlEvidence {
+    val fileName =
+        browserMediaContentDispositionFileName(contentDisposition)?.lowercase(Locale.ROOT)
+            ?: return BrowserMediaCandidateUrlEvidence.NONE
+    return when {
+        VIDEO_FILE_EXTENSIONS.any(fileName::endsWith) ->
+            BrowserMediaCandidateUrlEvidence.VIDEO_FILE
+        HLS_MANIFEST_EXTENSIONS.any(fileName::endsWith) ->
+            BrowserMediaCandidateUrlEvidence.HLS_MANIFEST
+        DASH_MANIFEST_EXTENSIONS.any(fileName::endsWith) ->
+            BrowserMediaCandidateUrlEvidence.DASH_MANIFEST
+        else -> BrowserMediaCandidateUrlEvidence.NONE
+    }
+}
+
+private fun browserMediaContentDispositionFileName(contentDisposition: String?): String? {
+    val value = contentDisposition?.takeIf(String::isNotBlank) ?: return null
+    val parameters =
+        value
+            .split(';')
+            .asSequence()
+            .map(String::trim)
+            .toList()
+    val parameter =
+        parameters.firstOrNull { part -> part.startsWith("filename*=", ignoreCase = true) }
+            ?: parameters.firstOrNull { part -> part.startsWith("filename=", ignoreCase = true) }
+            ?: return null
+    val rawValue = parameter.substringAfter('=').trim().trim('"', '\'')
+    val encodedFileName =
+        if (parameter.startsWith("filename*=", ignoreCase = true)) {
+            val charsetEnd = rawValue.indexOf('\'')
+            val languageEnd =
+                rawValue.indexOf('\'', startIndex = charsetEnd + 1)
+            if (charsetEnd >= 0 && languageEnd > charsetEnd) {
+                rawValue.substring(languageEnd + 1)
+            } else {
+                rawValue
+            }
+        } else {
+            rawValue
+        }
+    return runCatching { URLDecoder.decode(encodedFileName, Charsets.UTF_8.name()) }
+        .getOrDefault(encodedFileName)
+        .substringAfterLast('/')
+        .substringAfterLast('\\')
+        .takeIf(String::isNotBlank)
 }
 
 private fun maxPositive(first: Int?, second: Int?): Int? =
@@ -660,7 +812,25 @@ private val VIDEO_FILE_EXTENSIONS =
 private val HLS_MANIFEST_EXTENSIONS = listOf(".m3u8")
 private val DASH_MANIFEST_EXTENSIONS = listOf(".mpd")
 private val AUDIO_FILE_EXTENSIONS =
-    listOf(".aac", ".aif", ".aiff", ".m4a", ".mp3", ".mpa", ".ogg", ".ra", ".wav", ".wma")
+    listOf(
+        ".aac",
+        ".ac3",
+        ".aif",
+        ".aiff",
+        ".amr",
+        ".ape",
+        ".dts",
+        ".flac",
+        ".m4a",
+        ".mka",
+        ".mp3",
+        ".mpa",
+        ".ogg",
+        ".opus",
+        ".ra",
+        ".wav",
+        ".wma",
+    )
 private val MEDIA_FRAGMENT_KEYWORDS =
     listOf("/segment/", "/segments/", "/chunk/", "/chunks/", "/fragment/", "/fragments/")
 private val DURATION_HEADER_NAMES =
@@ -694,49 +864,81 @@ internal val BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT =
     (function() {
       const bridge = window.OperitMediaCandidateBridge;
       if (!bridge || typeof bridge.observe !== 'function') return;
-      const stateKey = '__operitMediaCandidateObserverV1';
-      const report = function(video, url, source, mimeType) {
+      const stateKey = '__operitMediaCandidateObserverV2';
+      const report = function(media, url, source, mimeType, mediaKind) {
         if (!url) return;
-        const rect = video.getBoundingClientRect();
+        const rect = media.getBoundingClientRect();
         const viewportWidth = Math.max(window.innerWidth || 0, 1);
         const viewportHeight = Math.max(window.innerHeight || 0, 1);
         const visibleWidth = Math.max(0, Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0));
         const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
         const durationMillis =
-          Number.isFinite(video.duration) && video.duration > 0
-            ? Math.round(video.duration * 1000)
+          Number.isFinite(media.duration) && media.duration > 0
+            ? Math.round(media.duration * 1000)
             : null;
         bridge.observe(JSON.stringify({
           url: String(url),
           source: source,
           mimeType: mimeType ? String(mimeType) : '',
+          mediaKind: mediaKind,
           durationMillis: durationMillis,
-          isLive: video.duration === Infinity,
-          videoWidth: Number(video.videoWidth) || 0,
-          videoHeight: Number(video.videoHeight) || 0,
+          isLive: media.duration === Infinity,
+          videoWidth: mediaKind === 'video' ? (Number(media.videoWidth) || 0) : 0,
+          videoHeight: mediaKind === 'video' ? (Number(media.videoHeight) || 0) : 0,
           viewportAreaRatio: Math.min(1, (visibleWidth * visibleHeight) / (viewportWidth * viewportHeight)),
-          muted: Boolean(video.muted),
-          looping: Boolean(video.loop),
-          autoplay: Boolean(video.autoplay)
+          muted: Boolean(media.muted),
+          looping: Boolean(media.loop),
+          autoplay: Boolean(media.autoplay)
         }));
       };
-      const scanVideo = function(video, playEvent) {
-        if (!(video instanceof HTMLVideoElement)) return;
-        const currentSource = video.currentSrc || '';
+      const scanMedia = function(media, playEvent) {
+        const isVideo = media instanceof HTMLVideoElement;
+        const isAudio = media instanceof HTMLAudioElement;
+        if (!isVideo && !isAudio) return;
+        const mediaKind = isVideo ? 'video' : 'audio';
+        const currentSource = media.currentSrc || '';
         if (currentSource) {
-          report(video, currentSource, playEvent ? 'dom_play_event' : 'dom_current_src', video.type || '');
+          report(
+            media,
+            currentSource,
+            isVideo
+              ? (playEvent ? 'dom_play_event' : 'dom_current_src')
+              : 'dom_audio_current_src',
+            media.type || '',
+            mediaKind
+          );
         }
-        const attributeSource = video.getAttribute('src') || '';
-        if (attributeSource) report(video, video.src || attributeSource, 'dom_src', video.type || '');
-        video.querySelectorAll('source').forEach(function(source) {
+        const attributeSource = media.getAttribute('src') || '';
+        if (attributeSource) {
+          report(
+            media,
+            media.src || attributeSource,
+            isVideo ? 'dom_src' : 'dom_audio_src',
+            media.type || '',
+            mediaKind
+          );
+        }
+        media.querySelectorAll('source').forEach(function(source) {
           const sourceUrl = source.src || source.getAttribute('src') || '';
-          if (sourceUrl) report(video, sourceUrl, 'dom_source', source.type || '');
+          if (sourceUrl) {
+            report(
+              media,
+              sourceUrl,
+              isVideo ? 'dom_source' : 'dom_audio_source',
+              source.type || '',
+              mediaKind
+            );
+          }
         });
       };
       const scan = function(root) {
-        if (root instanceof HTMLVideoElement) scanVideo(root, false);
+        if (root instanceof HTMLVideoElement || root instanceof HTMLAudioElement) {
+          scanMedia(root, false);
+        }
         if (root && root.querySelectorAll) {
-          root.querySelectorAll('video').forEach(function(video) { scanVideo(video, false); });
+          root.querySelectorAll('video, audio').forEach(function(media) {
+            scanMedia(media, false);
+          });
         }
       };
       if (window[stateKey]) {
@@ -758,16 +960,16 @@ internal val BROWSER_MEDIA_CANDIDATE_OBSERVER_SCRIPT =
         attributeFilter: ['src', 'type']
       });
       document.addEventListener('play', function(event) {
-        scanVideo(event.target, true);
+        scanMedia(event.target, true);
       }, true);
       document.addEventListener('loadedmetadata', function(event) {
-        scanVideo(event.target, false);
+        scanMedia(event.target, false);
       }, true);
       document.addEventListener('durationchange', function(event) {
-        scanVideo(event.target, false);
+        scanMedia(event.target, false);
       }, true);
       document.addEventListener('resize', function(event) {
-        scanVideo(event.target, false);
+        scanMedia(event.target, false);
       }, true);
       window[stateKey] = { observer: observer, scan: scan };
       scan(document);

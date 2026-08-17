@@ -18,9 +18,14 @@ internal class PlayerSettingsStore private constructor(context: Context) {
     val current: PlayerSettings
         get() = _state.value
 
-    fun setDecoderPreset(value: PlayerDecoderPreset) {
-        preferences.edit { putString(KEY_DECODER_PRESET, value.persistedId) }
-        _state.value = _state.value.copy(decoderPreset = value)
+    fun setDecoderBackend(value: PlayerDecoderBackend) {
+        preferences.edit { putString(KEY_DECODER_BACKEND, value.persistedId) }
+        _state.value = _state.value.copy(decoderBackend = value)
+    }
+
+    fun setRenderingProfile(value: PlayerRenderingProfile) {
+        preferences.edit { putString(KEY_RENDERING_PROFILE, value.persistedId) }
+        _state.value = _state.value.copy(renderingProfile = value)
     }
 
     fun setGpuNextEnabled(enabled: Boolean) {
@@ -238,14 +243,23 @@ internal class PlayerSettingsStore private constructor(context: Context) {
             "Invalid persisted remembered player speed: $lastPlaybackSpeed"
         }
         return PlayerSettings(
-            decoderPreset =
-                PlayerDecoderPreset.fromPersistedId(
+            decoderBackend =
+                PlayerDecoderBackend.fromPersistedId(
                     requireNotNull(
                         preferences.getString(
-                            KEY_DECODER_PRESET,
-                            FRESH_INSTALL_PLAYER_SETTINGS.decoderPreset.persistedId,
+                            KEY_DECODER_BACKEND,
+                            FRESH_INSTALL_PLAYER_SETTINGS.decoderBackend.persistedId,
                         ),
-                    ) { "Player decoder preset preference is null" },
+                    ) { "Player decoder backend preference is null" },
+                ),
+            renderingProfile =
+                PlayerRenderingProfile.fromPersistedId(
+                    requireNotNull(
+                        preferences.getString(
+                            KEY_RENDERING_PROFILE,
+                            FRESH_INSTALL_PLAYER_SETTINGS.renderingProfile.persistedId,
+                        ),
+                    ) { "Player rendering profile preference is null" },
                 ),
             gpuNextEnabled = preferences.getBoolean(KEY_GPU_NEXT_ENABLED, false),
             vulkanEnabled = preferences.getBoolean(KEY_VULKAN_ENABLED, false),
@@ -282,7 +296,11 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                     FRESH_INSTALL_PLAYER_SETTINGS.rememberAnime4KMode,
                 ),
             volumeBoostEnabled = preferences.getBoolean(KEY_VOLUME_BOOST_ENABLED, false),
-            preciseSeeking = preferences.getBoolean(KEY_PRECISE_SEEKING, true),
+            preciseSeeking =
+                preferences.getBoolean(
+                    KEY_PRECISE_SEEKING,
+                    FRESH_INSTALL_PLAYER_SETTINGS.preciseSeeking,
+                ),
             seekStepSeconds =
                 preferences.getInt(KEY_SEEK_STEP_SECONDS, 10).also { value ->
                     require(value in PLAYER_SEEK_STEP_OPTIONS) {
@@ -311,7 +329,10 @@ internal class PlayerSettingsStore private constructor(context: Context) {
                 ),
             chapterBarEnabled = preferences.getBoolean(KEY_CHAPTER_BAR_ENABLED, true),
             seekbarThumbnailEnabled =
-                preferences.getBoolean(KEY_SEEKBAR_THUMBNAIL_ENABLED, true),
+                preferences.getBoolean(
+                    KEY_SEEKBAR_THUMBNAIL_ENABLED,
+                    FRESH_INSTALL_PLAYER_SETTINGS.seekbarThumbnailEnabled,
+                ),
             autoPlayNext = preferences.getBoolean(KEY_AUTO_PLAY_NEXT, true),
             queueEndBehavior =
                 PlayerQueueEndBehavior.fromPersistedId(
@@ -371,7 +392,8 @@ internal class PlayerSettingsStore private constructor(context: Context) {
 
     companion object {
         private const val PREFERENCES_NAME = "kiyori_player_settings"
-        private const val KEY_DECODER_PRESET = "decoder_preset"
+        private const val KEY_DECODER_BACKEND = "decoder_backend"
+        private const val KEY_RENDERING_PROFILE = "rendering_profile"
         private const val KEY_GPU_NEXT_ENABLED = "gpu_next_enabled"
         private const val KEY_VULKAN_ENABLED = "vulkan_enabled"
         private const val KEY_DEFAULT_SPEED_PERCENT = "default_speed_percent"

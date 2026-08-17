@@ -575,6 +575,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 view: WebView,
                 request: WebResourceRequest
             ): android.webkit.WebResourceResponse? {
+                val documentToken = session.credentialDocumentToken
                 val blockDecision =
                     adBlockStore.decide(
                         browserAdBlockRequestContext(
@@ -584,15 +585,20 @@ internal fun StandardBrowserSessionTools.configureWebView(
                             isMainFrame = request.isForMainFrame,
                         ),
                     )
-                recordNetworkRequest(session, request, blockDecision)
+                recordNetworkRequest(session, request, blockDecision, documentToken)
                 if (blockDecision != null) {
                     adBlockStore.recordBlockedRequest()
                     return browserAdBlockBlockedResponse()
                 }
-                recordRequestMediaCandidate(session, request)
+                recordRequestMediaCandidate(session, request, documentToken)
                 val interceptedResponse = userscriptManager.interceptWebRequest(session.id, request)
                 if (interceptedResponse != null) {
-                    recordInterceptedResponseMediaCandidate(session, request, interceptedResponse)
+                    recordInterceptedResponseMediaCandidate(
+                        session,
+                        request,
+                        interceptedResponse,
+                        documentToken,
+                    )
                     return interceptedResponse
                 }
                 return super.shouldInterceptRequest(view, request)
@@ -1932,30 +1938,50 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
         networkEntries =
             activeSession?.let { session ->
                 synchronized(session.networkEntries) {
-                    session.networkEntries.map { entry ->
+                    session.networkEntries
+                        .filter { entry ->
+                            entry.documentToken == null ||
+                                entry.documentToken == session.credentialDocumentToken
+                        }
+                        .map { entry ->
+                        val mediaCandidate =
+                            activeMediaCandidates.singleOrNull { candidate ->
+                                normalizeBrowserResourceIdentityUrl(candidate.url) ==
+                                    entry.resourceIdentity &&
+                                    candidate.isActionableMedia
+                            }
+                        val resolvedCategory =
+                            when (mediaCandidate?.mediaKind) {
+                                BrowserMediaKind.VIDEO -> BrowserNetworkRequestCategory.VIDEO
+                                BrowserMediaKind.AUDIO -> BrowserNetworkRequestCategory.AUDIO
+                                BrowserMediaKind.UNKNOWN_MEDIA,
+                                null -> entry.category
+                            }
                         WebSessionBrowserNetworkEntry(
                             method = entry.method,
                             url = entry.url,
                             isMainFrame = entry.isMainFrame,
                             isStatic = entry.isStatic,
-                            category = entry.category,
+                            category = resolvedCategory,
                             timestamp = entry.timestamp,
                             kind = entry.kind,
-                            mediaCandidateId =
-                                findDirectMediaCandidateIdForNetworkEntry(
-                                    activeMediaCandidates,
-                                    entry.url,
-                                ),
+                            mediaCandidateId = mediaCandidate?.id,
                             blocked = entry.blocked,
                             blockingRule = entry.blockingRule,
                             blockingSourceName = entry.blockingSourceName,
                             elementSelector = entry.elementSelector,
+                            documentToken = entry.documentToken,
+                            resourceIdentity = entry.resourceIdentity,
+                            requestCount = entry.requestCount,
+                            firstSeenAt = entry.firstSeenAt,
+                            lastSeenAt = entry.lastSeenAt,
+                            requestHeaders = entry.headers,
                         )
                     }
                 }
             } ?: emptyList(),
         mediaCandidates =
-            activeMediaCandidates.filter(BrowserMediaCandidate::isActionableVideo).map { candidate ->
+            activeMediaCandidates.filter(BrowserMediaCandidate::isActionableMedia).map { candidate ->
                 val ranking = rankBrowserMediaCandidate(candidate)
                 WebSessionBrowserMediaCandidate(
                     id = candidate.id,
@@ -1963,7 +1989,9 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     pageUrl = candidate.pageUrl,
                     mimeType = candidate.displayMimeType,
                     urlEvidence = candidate.urlEvidence,
-                    videoFormat = requireNotNull(candidate.videoFormat),
+                    videoFormat =
+                        candidate.videoFormat ?: BrowserMediaCandidateVideoFormat.OTHER_VIDEO,
+                    mediaKind = candidate.mediaKind,
                     discoverySources = candidate.discoverySources,
                     firstDiscoveredAt = candidate.firstDiscoveredAt,
                     lastDiscoveredAt = candidate.lastDiscoveredAt,
@@ -1975,7 +2003,7 @@ internal fun StandardBrowserSessionTools.buildBrowserState(
                     rankingSummary = ranking.summary,
                     isRecommended = ranking.isRecommended,
                     automaticFloatingEligible = ranking.automaticFloatingEligible,
-                    directPlaybackReady = candidate.directPlaybackReady,
+                    directPlaybackReady = candidate.isActionableVideo,
                     downloadReady = candidate.downloadReady,
                     isBlob = candidate.isBlob,
                 )

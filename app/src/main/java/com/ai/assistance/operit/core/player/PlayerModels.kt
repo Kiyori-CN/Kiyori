@@ -26,7 +26,44 @@ internal enum class PlayerMediaSource {
     HISTORY_REPLAY,
 }
 
-internal enum class PlayerDecoderPreset(
+internal enum class PlayerDecoderBackend(
+    val persistedId: String,
+    val displayName: String,
+    val description: String,
+    val mpvValue: String,
+) {
+    SOFTWARE(
+        "software",
+        "软件解码",
+        "由 FFmpeg 在 CPU 上解码；兼容性基线，不启用 MediaCodec",
+        "no",
+    ),
+    MEDIACODEC(
+        "mediacodec",
+        "MediaCodec 直通",
+        "直接使用 Android MediaCodec 硬件帧；适合明确验证过的设备与片源",
+        "mediacodec",
+    ),
+    MEDIACODEC_COPY(
+        "mediacodec-copy",
+        "MediaCodec Copy",
+        "使用 MediaCodec 解码后复制为普通视频帧，兼顾硬解与渲染链兼容性",
+        "mediacodec-copy",
+    ),
+    ;
+
+    val hardwareAccelerated: Boolean
+        get() = this != SOFTWARE
+
+    companion object {
+        fun fromPersistedId(value: String): PlayerDecoderBackend =
+            requireNotNull(entries.singleOrNull { it.persistedId == value }) {
+                "Unsupported player decoder backend: $value"
+            }
+    }
+}
+
+internal enum class PlayerRenderingProfile(
     val persistedId: String,
     val displayName: String,
     val description: String,
@@ -34,39 +71,34 @@ internal enum class PlayerDecoderPreset(
     FAST(
         "fast",
         "Fast",
-        "硬解 + bilinear 缩放，整体功耗最低（推荐）",
+        "低成本 bilinear 缩放，优先缩短首帧时间（推荐）",
     ),
     DEFAULT(
         "default",
         "Default",
-        "默认配置，平衡画质与性能",
+        "MPV 默认渲染参数，平衡画质与性能",
     ),
     HIGH_QUALITY(
         "high-quality",
         "High Quality",
         "高质量渲染，使用 ewa_lanczossharp 缩放",
     ),
-    GPU_HQ(
-        "gpu-hq",
-        "GPU HQ",
-        "GPU 高质量模式，开启去条带等后处理",
-    ),
     LOW_LATENCY(
         "low-latency",
         "Low Latency",
-        "低延迟模式，适合直播/在线流媒体",
+        "降低探测、缓存和同步延迟，适合直播或低延迟流",
     ),
     SW_FAST(
         "sw-fast",
         "SW Fast",
-        "强制软解，GPU 负载最低但 CPU 功耗最高",
+        "低成本软件缩放参数；解码方式仍由“解码方式”独立决定",
     ),
     ;
 
     companion object {
-        fun fromPersistedId(value: String): PlayerDecoderPreset =
+        fun fromPersistedId(value: String): PlayerRenderingProfile =
             requireNotNull(entries.singleOrNull { it.persistedId == value }) {
-                "Unsupported player decoder preset: $value"
+                "Unsupported player rendering profile: $value"
             }
     }
 }
@@ -102,10 +134,12 @@ internal enum class PlayerNetworkCachePolicy(
     val forwardBytes: Long,
     val backwardBytes: Long,
     val cacheSeconds: Int,
+    val usesSessionDiskCache: Boolean,
 ) {
-    COMPACT("compact", 64L * 1024L * 1024L, 32L * 1024L * 1024L, 60),
-    BALANCED("balanced", 128L * 1024L * 1024L, 64L * 1024L * 1024L, 180),
-    LARGE("large", 256L * 1024L * 1024L, 128L * 1024L * 1024L, 300),
+    COMPACT("compact", 64L * 1024L * 1024L, 32L * 1024L * 1024L, 60, false),
+    BALANCED("balanced", 128L * 1024L * 1024L, 64L * 1024L * 1024L, 180, false),
+    LARGE("large", 256L * 1024L * 1024L, 128L * 1024L * 1024L, 300, false),
+    FULL_VIDEO("full_video", 256L * 1024L * 1024L, 128L * 1024L * 1024L, 300, true),
     ;
 
     companion object {
@@ -299,7 +333,8 @@ internal data class LongPressSpeedBoostResult(
 
 @Immutable
 internal data class PlayerSettings(
-    val decoderPreset: PlayerDecoderPreset = PlayerDecoderPreset.FAST,
+    val decoderBackend: PlayerDecoderBackend = PlayerDecoderBackend.SOFTWARE,
+    val renderingProfile: PlayerRenderingProfile = PlayerRenderingProfile.FAST,
     val gpuNextEnabled: Boolean = false,
     val vulkanEnabled: Boolean = false,
     val defaultSpeed: Double = 1.0,
@@ -312,13 +347,13 @@ internal data class PlayerSettings(
     val anime4KMode: Anime4KMode = Anime4KMode.OFF,
     val rememberAnime4KMode: Boolean = false,
     val volumeBoostEnabled: Boolean = false,
-    val preciseSeeking: Boolean = true,
+    val preciseSeeking: Boolean = false,
     val seekStepSeconds: Int = 10,
     val doubleTapAction: PlayerDoubleTapAction = PlayerDoubleTapAction.PLAY_PAUSE,
     val doubleTapSeekSeconds: Int = 10,
     val longPressSpeedBoostEnabled: Boolean = false,
     val chapterBarEnabled: Boolean = true,
-    val seekbarThumbnailEnabled: Boolean = true,
+    val seekbarThumbnailEnabled: Boolean = false,
     val autoPlayNext: Boolean = true,
     val queueEndBehavior: PlayerQueueEndBehavior = PlayerQueueEndBehavior.CLOSE,
     val networkCachePolicy: PlayerNetworkCachePolicy = PlayerNetworkCachePolicy.BALANCED,
@@ -329,15 +364,7 @@ internal data class PlayerSettings(
     val videoDownloadDirectoryName: String = "",
 )
 
-internal val FRESH_INSTALL_PLAYER_SETTINGS =
-    PlayerSettings(
-        decoderPreset = PlayerDecoderPreset.HIGH_QUALITY,
-        rememberPlaybackSpeed = true,
-        anime4KMode = Anime4KMode.A_PLUS,
-        rememberAnime4KMode = true,
-        longPressSpeedBoostEnabled = true,
-        networkCachePolicy = PlayerNetworkCachePolicy.LARGE,
-    )
+internal val FRESH_INSTALL_PLAYER_SETTINGS = PlayerSettings()
 
 @Immutable
 internal data class PlayerMediaRequest(
@@ -405,6 +432,7 @@ internal data class PlayerSessionState(
     val speed: Double = 1.0,
     val loading: Boolean = false,
     val buffering: Boolean = false,
+    val seeking: Boolean = false,
     val error: String? = null,
     val audioTracks: List<PlayerTrack> = emptyList(),
     val subtitleTracks: List<PlayerTrack> = emptyList(),
@@ -412,9 +440,26 @@ internal data class PlayerSessionState(
     val selectedSubtitleTrackId: Int? = null,
     val chapters: List<PlayerChapter> = emptyList(),
     val seekPreview: PlayerSeekPreview? = null,
+    val mediaContainer: String? = null,
+    val videoCodec: String? = null,
+    val audioCodec: String? = null,
+    val videoTrackCount: Int = 0,
+    val fullVideoCacheActive: Boolean = false,
+    val fullVideoCacheComplete: Boolean = false,
+    val fullVideoCacheStartSeconds: Double? = null,
+    val fullVideoCacheEndSeconds: Double? = null,
+    val fullVideoCachePhase: String = "DISABLED",
+    val fullVideoCacheReason: String? = null,
+    val fullVideoCacheStateEvidence: String = "NOT_APPLICABLE",
+    val fullVideoCacheFileBytes: Long = 0L,
+    val fullVideoCacheExpectedBytes: Long? = null,
     val queueIndex: Int = 0,
     val queueSize: Int = 0,
-    val decoderPreset: PlayerDecoderPreset = PlayerDecoderPreset.FAST,
+    val decoderBackend: PlayerDecoderBackend = PlayerDecoderBackend.SOFTWARE,
+    val renderingProfile: PlayerRenderingProfile = PlayerRenderingProfile.FAST,
+    val activeHardwareDecoder: String? = null,
+    val videoPixelFormat: String? = null,
+    val videoCodecProfile: String? = null,
     val anime4KMode: Anime4KMode = Anime4KMode.OFF,
     val activeShaderFiles: List<String> = emptyList(),
     val networkSpeedBytesPerSecond: Long = 0L,
@@ -482,7 +527,8 @@ internal fun resolvePlayerOpenTransition(
                 paused = false,
                 speed = resolveInitialPlayerSpeed(settings),
                 loading = true,
-                decoderPreset = settings.decoderPreset,
+                decoderBackend = settings.decoderBackend,
+                renderingProfile = settings.renderingProfile,
                 anime4KMode = resolveInitialAnime4KMode(settings),
                 videoFitMode = PlayerVideoFitMode.FIT,
                 surfaceLease = current.surfaceLease,

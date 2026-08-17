@@ -25,6 +25,27 @@ Kiyori 从未发布。本轮被替代且无继续用途的旧 UI、占位状态�
 
 当前 Goal 只复刻 `kiyori-android@24a2dfa9` 已有的 UI 和真实运行时能力。旧项目没有消费者的入口保留空页面或不可交互状态，不在 Kiyori 另行发明实现；旧项目已有消费者的状态接入当前唯一 Browser Runtime、Download Manager 或后续唯一 PlayerSession。
 
+### 2026-08-16 阶段 14：播放器原生依赖升级
+
+状态：`R4 LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。阶段 13 的播放器行为、Surface、缓存、网络诊断和现有 native packaging
+合同继续有效；阶段 14 专门处理 native source/build closure 与 `:ffmpeg` 运行时，不把依赖版本变化
+混入播放器状态机或网络回退逻辑。
+
+- M8：固定 mpv `2339eb727` 与 FFmpeg `n8.1.2`，将 Mbed TLS `3.6.6` 刷新为 `3.6.7` 的安全
+  refresh 已完成并保留为历史可归因/构建链基线，不再是运行时选入 closure
+- 双 M9：`:player` 的 namespaced mpv closure 与 `:ffmpeg` 的 normal-name FFmpegKit closure 均已固定
+  FFmpeg `n9.0.1@bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa` 并成对 promotion；产品 AAR
+  SHA-256 分别为 `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4` 和
+  `86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`。`:ffmpeg` 当前 wrapper 为
+  `8.1.7-kiyori-n9.0.1-r4`，OpenH264 为 `v2.6.0`；r4 保留已启动的应用 Binder threadpool，并以
+  单一 FIFO worker 持有顶层 native execution
+- r4 source/thin qualified audit、exact-hash paired promotion、Python `46/46`、native input、
+  定向 JVM、AndroidTest Kotlin、formal readiness、规定 Debug 构建和独立静态审计已通过；r4 APK
+  为 `486200460` bytes，SHA-256
+  `14CBE55B2BF1FC11B769D9E14267F474E41C3EF40FC115210E7A7A0CB6CC28C6`。目标设备/真实媒体矩阵仍
+  保持 `verification_pending`
+- 权威方案：[播放器原生依赖升级与 closure 迁移](14_player_native_dependency_upgrade.md)
+
 ## 用户目标
 
 - 浏览器顶栏左侧返回直接回到打开 Browser Home 前的应用入口页；系统 Back 与底栏左下角返回负责
@@ -52,6 +73,7 @@ kiyori_browser_product_completion/
 	10_validation_build_git_and_device_acceptance.md
 	11_player_runtime_ui_and_browser_completion.md
 	12_player_process_crash_isolation.md
+	13_player_online_playback_reliability_and_compatibility.md
 ```
 
 实施顺序不可交换：播放器和嗅探依赖稳定的 session profile、窗口生命周期、设置 owner、下载 owner 和菜单路由；无痕必须先于缩略图和 AI tab 输出完成，以免后续再次更改窗口模型。
@@ -107,8 +129,9 @@ kiyori_browser_product_completion/
 5. [IN PROGRESS] P1：下载中心与文件下载器设置；设置页已按播放器标准重排为 `5/2/3/1` 四组 11 行，“默认保存位置”统一选择应用目录、公开目录或 SAF 自定义目录，继续复用唯一 `BrowserDownloadSettingsStore` 和 `BrowserDownloadManager`；系统下载器生效时内置引擎专属项目明确禁用。仍待下载中心双筛选/批量操作复刻及真机综合验收
 6. [IN PROGRESS] P1：负一屏与四行菜单真实能力；书签/下载共享抽屉和 UA 标识直达弹窗、全局模式、域名规则已完成。2026-07-30 已完成统一历史抽屉：扩展现有 `WebSessionHistoryStore`，普通网页访问与唯一 `PlayerSession` 分别写入网页/视频记录，视频区分在线与本地，浏览器菜单与负一屏共享搜索、六分类和分时段删除抽屉；定向测试、Debug APK 和新版历史界面用户验收已通过，完整设备场景仍按第六阶段清单继续验证
 7. [DONE] P2：阶段 8 媒体 Intent、唯一 PlayerSession、全屏播放器、设置页与 native 边界，以及阶段 9 candidate、浏览器嗅探、现有下载 owner、同会话悬浮/全屏入口均已完成本地实现；2026-07-28 又完成精确视频格式、被动时长、推荐排序、动态格式筛选、双开关与结果动作弹窗。人工播放固定进入横向全屏，自动推荐才进入悬浮；该里程碑保留为嗅探入口完成记录，后续在线播放 native 修复见阶段 8、10、11 的 `2026-07-29` 补充证据
-8. [DONE] P0：阶段 11 的运行时、设置、浏览器候选与 native 门禁已完成；全屏播放器保留现有横竖屏结构与播放器专用图标，并统一为深色圆角菜单、半透明按钮和现代加载/错误/手势反馈。浏览器悬浮播放器为内容区全宽、固定 `16:9`、零边距，并与全屏共用唯一 session 和快进快退设置。`2026-07-28 19:18:21 +08:00` 的必现闪退纠正了播放器启动契约；`2026-07-29 14:31 +08:00` 的用户报告进一步确认 HTTPS MP4 已能进入 `ACTIVE` 并持续播放。稳定 pointer detector 统一协调单击、双击、长按升档、seek、亮度、音量、弹窗、进度拖动、三秒自动隐藏与锁定解锁；亮度提示位于右侧，音量提示位于左侧。没有真实 owner 的弹幕显示为禁用，更多菜单保留真实自动旋转开关和查看日志；播放器设置页为 `4/7/5/2/2/4` 六组 24 项真实 `PlayerSettingsStore` 配置。Anime4K 严格使用 `mpv-android-anime4k@32f5f169` 的关/A/B/C/A+/B+/C+ Balanced/M 链，并校验资产、私有缓存和 MPV 属性。播放器日志汇总主进程和独立 runtime 的 MPV verbose、命令与错误，并使用屏幕内固定分区、最新在前结构化列表和 8 个单行横滑分类，关闭固定在标题栏，清空/复制/导出固定在底部。自动检查和 Debug APK 证据以阶段 11 最新记录为准；本地/在线视频的控制层真机交互、HLS 与更多站点仍保持 `verification_pending`
+8. [DONE] P0：阶段 11 的运行时、设置、浏览器候选与 native 门禁已完成；全屏播放器保留现有横竖屏结构与播放器专用图标，并统一为深色圆角菜单、半透明按钮和现代加载/错误/手势反馈。浏览器悬浮播放器为内容区全宽、固定 `16:9`、零边距，并与全屏共用唯一 session 和快进快退设置。`2026-07-28 19:18:21 +08:00` 的必现闪退纠正了播放器启动契约；`2026-07-29 14:31 +08:00` 的用户报告进一步确认 HTTPS MP4 已能进入 `ACTIVE` 并持续播放。稳定 pointer detector 统一协调单击、双击、长按升档、seek、亮度、音量、弹窗、进度拖动、三秒自动隐藏与锁定解锁；亮度提示位于右侧，音量提示位于左侧。没有真实 owner 的弹幕显示为禁用，更多菜单保留真实自动旋转开关和查看日志；阶段 11 当时的设置页为 `4/7/5/2/2/4` 六组 24 项，阶段 13 拆分“解码方式 / 渲染预设”并把在线播放缓存收敛为单一四档后当前为 `4/7/6/2/2/4` 六组 25 项真实 `PlayerSettingsStore` 配置。Anime4K 严格使用 `mpv-android-anime4k@32f5f169` 的关/A/B/C/A+/B+/C+ Balanced/M 链，并校验资产、私有缓存和 MPV 属性。播放器日志汇总主进程和独立 runtime 的有界 MPV/FFmpeg/demux、命令与错误，并使用屏幕内固定分区、最新在前结构化列表和 8 个单行横滑分类，关闭固定在标题栏，清空/复制/导出固定在底部。自动检查和 Debug APK 证据以阶段 11 最新记录为准；本地/在线视频的控制层真机交互、HLS 与更多站点仍保持 `verification_pending`
 9. [LOCAL DONE] P0：阶段 12 已完成结构化崩溃报告、唯一非导出 `:player` AIDL service、串行 MPV owner、Surface ACK、Binder death、退出证据、前后台 `:crash` 展示和用户明确重启。主进程 `PlayerSession` 不再构造 engine/resolver 或同步读取 MPV，death 路径不会自动 bind、load 或刷新 WebView。自动检查和各里程碑 Debug APK 构建通过；设备安装、真实进程终止和 vivo Android 16 验收未授权，最终状态保持 `verification_pending`。详细证据见 [播放器进程崩溃隔离与诊断页](12_player_process_crash_isolation.md)
+10. [LOCAL DONE / VERIFICATION PENDING] P0：阶段 13 已完成当前文档静态资源目录、图片缩略图/查看器、“资源嗅探”音视频统一、`.mp3` 伪装视频 DOM 证据、原始 URL/headers 唯一播放入口，以及在线播放快速启动、seek、header、四档缓存、横竖屏 Surface 拉伸、actual demux/track、bounded runtime capability、MediaCodec、结构化网络失败和 VPN/Private DNS/代理/IPv4/IPv6 active/effective network 观察。`2026-08-16` 六份后续 vivo Android 16 报告确认 capability 初始化修复、两条实际成功播放、VPN/静态代理下两条首次 TCP 443 refused，以及伪装 `.mp3` 的 MP4/HEVC 视频成功播放；同时证明完整缓存错误依赖固定 runtime 不保证的 `stream-start`，活动播放 Surface 转挂会产生内部 seek，媒体身份需要在稳定 `VIDEO_RECONFIG` 后刷新。最终实现把在线播放缓存收敛为唯一“省流模式 / 智能均衡 / 流畅优先 / 完整缓存”四档策略，删除未发布的独立完整缓存开关，闭环 cache-state evidence、direct VOD 资格、空间/文件门禁、会话目录清理、用户 seek 所有权和 `VIDEO_RECONFIG` 身份刷新，并保留固定 binding 生命周期。完整 App JVM `1310/1310`、项目 Python `186/186`、formal readiness、architecture、AndroidTest 编译、Debug APK 构建和播放器 packaging/native/签名/16 KiB 审计已通过；最终 APK SHA-256 为 `9A02093155A717EF5018CD6A41DE192A2497F810618F51D4F38DA8C14882CF2A`。完整 Lint 仍有无当前 diff 的 `WebSessionHistorySheet.kt:399/408/437/450` 四个既有错误，未扩 baseline 或 suppression。该阶段封板闭包为 mpv `2339eb727`、FFmpeg `n8.1.2` 和 Mbed TLS `3.6.6`；阶段 14 已把同一 mpv 快照、Mbed TLS `3.6.7` 的播放器 closure 与 FFmpegKit closure 成对升级到 FFmpeg `n9.0.1`，完成 `:ffmpeg` 进程隔离、r2 产品 promotion、最终本地 APK 构建与独立静态审计。真实缓存断网 seek、VPN 单变量、硬解和 Surface 视觉矩阵保持 `verification_pending`。详细设计与证据见 [在线播放可靠性、兼容性与快速启动方案](13_player_online_playback_reliability_and_compatibility.md)
 
 `2026-07-29` 在线播放修正已经把 `:player` 进程切换到固定 mpv 输入自带、启用 Mbed TLS 的
 `libmp*.so` FFmpeg 命名空间；主进程 FFmpegKit 工具栈保持不变。用户已于
@@ -250,7 +273,7 @@ kiyori_browser_product_completion/
 ### 2026-07-28 浏览器视频嗅探抽屉优化
 
 - 媒体候选 UI 只接收可执行视频，不展示音频、`blob:`/MSE、只有 MIME 的 API URL 或媒体分片
-- “搜索栏嗅探入口”和“自动悬浮播放”在浏览器设置的“音视频嗅探”组分别控制搜索框视频资源球
+- “搜索栏嗅探入口”和“自动悬浮播放”在浏览器设置的“音视频嗅探”组分别控制搜索框资源嗅探入口
   与推荐候选自动悬浮；候选抽屉本身不再显示设置开关
 - 横向筛选只显示“全部”和本页实际嗅探到的具体格式；每项展示原始链接、被动时长或直播/未知状态
 - 候选按网页播放状态、当前视频元素、主视口、格式、分辨率、时长、直播、多来源与噪声惩罚统一排序

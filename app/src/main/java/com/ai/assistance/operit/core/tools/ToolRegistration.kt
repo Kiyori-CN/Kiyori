@@ -2723,20 +2723,14 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val command = tool.parameters.find { it.name == "command" }?.value ?: ""
                 s(R.string.toolreg_ffmpeg_execute_desc, command)
             },
-            executor = { tool ->
-                val ffmpegTool = ToolGetter.getFFmpegToolExecutor(context)
-                ffmpegTool.invoke(tool)
-            }
+            executor = ToolGetter.getFFmpegToolExecutor(context)
     )
 
     // FFmpeg信息工具 - 获取FFmpeg信息
     handler.registerTool(
             name = "ffmpeg_info",
             descriptionGenerator = { _ -> s(R.string.toolreg_ffmpeg_info_desc) },
-            executor = { tool ->
-                val ffmpegInfoTool = ToolGetter.getFFmpegInfoToolExecutor()
-                ffmpegInfoTool.invoke(tool)
-            }
+            executor = ToolGetter.getFFmpegInfoToolExecutor(context)
     )
 
     // FFmpeg视频转换工具 - 简化的视频转换接口
@@ -2747,9 +2741,6 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
                 val outputPath = tool.parameters.find { it.name == "output_path" }?.value ?: ""
                 s(R.string.toolreg_ffmpeg_convert_desc, inputPath, outputPath)
             },
-            executor = { tool ->
-                val ffmpegConvertTool = ToolGetter.getFFmpegConvertToolExecutor(context)
-                ffmpegConvertTool.invoke(tool)
-            }
+            executor = ToolGetter.getFFmpegConvertToolExecutor(context)
     )
 }

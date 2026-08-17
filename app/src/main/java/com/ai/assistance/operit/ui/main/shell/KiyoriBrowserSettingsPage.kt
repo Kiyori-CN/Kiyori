@@ -178,12 +178,12 @@ internal val kiyoriBrowserSettingsGroups =
         ),
         KiyoriBrowserSettingsGroupSpec(
             title = "音视频嗅探",
-            description = "控制视频资源入口、自动悬浮播放和候选识别策略",
+            description = "控制资源嗅探入口、自动悬浮视频播放和音视频识别策略",
             entries =
                 listOf(
                     browserToggle(
                         title = "搜索栏嗅探入口",
-                        description = "发现可播放视频后，在搜索栏右侧显示视频资源球",
+                        description = "发现音视频资源后，在搜索栏右侧显示资源嗅探入口",
                         action = KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
                     ),
                     browserToggle(

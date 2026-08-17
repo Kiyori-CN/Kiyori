@@ -613,11 +613,16 @@ class MNNProvider(
             val modelDir = getModelDir(context, modelName)
             val maxAllTokens = cachedModelMaxAllTokens ?: readModelMaxAllTokens(modelDir).also { cachedModelMaxAllTokens = it }
 
-            val multimodalTurns = chatHistory.map { turn ->
-                val processed = preprocessMultimodalText(turn.content, modelDir)
-                requestTempFiles.addAll(processed.tempFiles)
-                turn.copy(content = processed.text)
-            }
+            val multimodalTurns =
+                withContext(Dispatchers.IO) {
+                    // 音频标准化和视频抽帧会同步等待独立 FFmpeg 进程；固定在 IO
+                    // dispatcher，避免调用方 Flow 在主线程收集时冻结界面。
+                    chatHistory.map { turn ->
+                        val processed = preprocessMultimodalText(turn.content, modelDir)
+                        requestTempFiles.addAll(processed.tempFiles)
+                        turn.copy(content = processed.text)
+                    }
+                }
 
             applyRequestJinjaContext(session, enableThinking, availableTools, useInternalToolCall)
 

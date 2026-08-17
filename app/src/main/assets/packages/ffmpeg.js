@@ -15,9 +15,9 @@
     "tools": [
         {
             "name": "ffmpeg_execute",
-            "description": { "zh": "执行自定义FFmpeg命令（仅填写参数，不要包含前缀 ffmpeg）。", "en": "Execute a custom FFmpeg command (arguments only; do not include the leading ffmpeg)." },
+            "description": { "zh": "执行自定义FFmpeg命令（仅填写参数，不要包含前缀 ffmpeg；该工具直接调用 FFmpeg，不是 Shell，不能使用管道、重定向或命令链）。", "en": "Execute a custom FFmpeg command (arguments only; do not include the leading ffmpeg; this invokes FFmpeg directly, not a shell, so do not use pipes, redirections, or command chains)." },
             "parameters": [
-                { "name": "command", "description": { "zh": "要执行的FFmpeg命令参数（不要包含前缀 ffmpeg）", "en": "FFmpeg command arguments to execute (do not include the leading ffmpeg)" }, "type": "string", "required": true }
+                { "name": "command", "description": { "zh": "要执行的 FFmpeg 参数；不要包含前缀 ffmpeg，也不要传入 Shell 管道、重定向或命令链", "en": "FFmpeg arguments to execute; omit the leading ffmpeg and do not pass shell pipes, redirections, or command chains" }, "type": "string", "required": true }
             ]
         },
         {

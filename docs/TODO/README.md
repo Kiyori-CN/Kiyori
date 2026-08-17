@@ -3370,6 +3370,205 @@ Debug APK 已经能够播放在线 MP4，`runtime=ACTIVE`、`paused=false`、Sur
 - 未安装 APK、未运行设备或模拟器；本轮真机触摸、视觉和设置生效验收保持
   `verification_pending`
 
+## 2026-08-15 浏览器静态资源目录、资源嗅探与在线播放可靠性
+
+状态：前一轮当前文档静态资源目录、图片缩略图/查看器、音视频资源嗅探、多证据媒体身份、在线播放
+启动/seek/header/cache/Surface/VPN 诊断的本地实现、自动验证、正式门禁、Debug APK 构建和
+静态产物审计已完成。`2026-08-16` 后续六份 vivo Android 16 报告确认 capability 修复和真实播放，
+并暴露完整缓存错误依赖 `stream-start`、Surface 内部 seek 被误当成用户 seek、媒体身份需要在
+`VIDEO_RECONFIG` 后刷新，以及独立完整缓存开关与普通缓存档位形成双 owner。最终优化设计已冻结，
+代码、自动检查、新 Debug APK 和静态产物审计已完成；目标设备、真实站点、VPN 单变量矩阵和
+native refresh 保持 `verification_pending`。继续使用
+[`13_player_online_playback_reliability_and_compatibility.md`](kiyori_browser_product_completion/13_player_online_playback_reliability_and_compatibility.md)
+作为设计与验收权威，不创建第二套 Browser Runtime、网络 owner、播放器、下载器或媒体数据库。
+
+本轮闭环：
+
+1. [DONE] 把“网络日志”改为当前 WebSession/文档的静态资源目录；按 document token 与规范化原始
+   URL 聚合，fragment 不参与 identity、query 保留，重复请求累计次数且每行不显示时间；独立上限
+   为 `2,000` 个资源 identity
+2. [DONE] 分类 `VIDEO / AUDIO / IMAGE / WEB / SCRIPT / STYLE / DATA / FONT / OTHER`；图片使用
+   当前捕获的有界 headers 显示 `52dp` 缩略图，并提供唯一内置适配/缩放/平移查看器
+3. [DONE] 将“悬浮嗅探”和“视频资源”统一为“资源嗅探”；DOM observer 同时观察 video/audio，
+   音频可识别和下载，但在没有音乐播放器 owner 时明确禁用播放
+4. [DONE] 媒体身份按 DOM、response MIME、`Content-Disposition`、declared/Accept、URL suffix
+   取证；`.mp3` 后缀被 `<video>` 使用时保持原始 URL/headers 进入唯一 `PlayerSession`，不改写、
+   不额外探测；mpv 加载后记录真实 container、codec 和 video-track count
+5. [DONE] 新安装默认使用 SOFTWARE + FAST、Anime4K OFF、BALANCED cache、普通 keyframe seek、
+   关闭在线 thumbnail 第二连接；`MPV_EVENT_SEEK -> PLAYBACK_RESTART` 形成有序 seeking 生命周期，
+   全屏和悬浮进度条拖动只在松手时提交一次 seek
+6. [DONE] mpv header 只保留端到端身份字段；Range、Accept-Encoding、hop-by-hop 与 Chromium-only
+   元数据由 FFmpeg/transport 持有；结构化识别 DNS、TCP refused/timeout、route、TLS 和 HTTP 错误
+7. [DONE] `:player` 在唯一 runtime Handler 上被动观察默认网络，initial 与 `250 ms` 合并后的
+   available/lost/capabilities/link-properties 变化只在脱敏事实变化时记录；每次 load 追加 request
+   起点快照，导出报告追加主进程当时快照。active/effective transport、VPN、Private DNS、proxy、
+   Data Saver、IPv4/IPv6 DNS/默认路由与 process binding 可见，不记录地址、名称或 network handle，
+   不绕过 VPN、不绑定物理网络、不自动重试
+8. [LOCAL DONE] 在线播放缓存收敛为唯一“省流模式 / 智能均衡 / 流畅优先 / 完整缓存”四档枚举，
+   删除未发布的独立 `fullVideoCacheEnabled` UI、持久化和 runtime 字段。“完整缓存”内建
+   256/128 MiB、300 秒基础缓冲，只对同一 mpv request 的有限、完整可 seek、大小已知
+   HTTP/HTTPS direct VOD 激活会话磁盘 cache；资格只依赖正式属性，不再要求 `stream-start`；
+   cache-state 证据、完成锁存、空间/文件上限与 verified session directory 清理已经闭环
+9. [DONE] “拉伸画面”按当前有效 Surface width/height 计算比例，区分横屏、竖屏、悬浮和自由窗口；
+   Surface resize/转挂不调用 `loadfile`
+10. [LOCAL DONE] mpv 初始化后只严格读取一次 version/protocol/demuxer/decoder；hwdec 从
+    `option-info/hwdec` Node map 读取可选 choices，投影固定目标三态、metadata evidence 与
+    capability digest。合法缺失 choices 不阻断 runtime，结构异常有 warning；实际文件加载后继续
+    记录 container/codec/video-track/hwdec/pixel format/codec profile。最终优化将 `no/none` 统一
+    为软件解码事实，从选中 video track 读取 codec profile，并在 `VIDEO_RECONFIG` 后去重刷新身份
+11. [LOCAL DONE] 保留固定 `2026-06-25` binding 的正式 VO/Surface 生命周期；主进程只把与显式
+    用户 seek 命令对应的 `MPV_EVENT_SEEK` 投影为 UI seeking，Surface 重配置 seek 只进入诊断
+12. [PENDING] 在目标 vivo Android 16 和至少一台其它 arm64 设备执行真实 VPN/无 VPN、Wi-Fi/蜂窝、
+    direct MP4、HLS/DASH、seek、完整缓存、横竖屏、floating/fullscreen 与硬解矩阵
+13. [DONE] 阶段 14 已完成 Mbed TLS `3.6.7` 安全刷新，并把播放器与主进程 FFmpegKit 两套
+    进程隔离 closure 成对升级到 FFmpeg `n9.0.1`；本段阶段 13 的 mpv `2339eb727`、
+    FFmpeg `n8.1.2`、Mbed TLS `3.6.6` 只保留为封板历史基线。Mbed TLS `4.2.0` 仍属于
+    单独 major 迁移，不就地混入当前 AAR；FFmpegKit 当前进一步升级为 wrapper r3 与
+    OpenH264 `v2.6.0`
+
+本次最终优化本地验证证据：
+
+- `ci.test.test_player_assets` 为 `6/6`；播放器策略/协议/设置定向 JVM 为 `61/61`；
+  完整 `:app:testDebugUnitTest` 为 `1310/1310`，失败、错误和跳过均为 `0`
+- `:app:compileDebugAndroidTestKotlin` 为 `BUILD SUCCESSFUL in 1m 33s`，`146` 个任务；
+  项目 Python `ci/test` 全量 `186/186`
+- formal readiness 为 `PASS`；architecture 为 `phase=m03 / errors=[]`；
+  工作树 Markdown `306/306`、localization `7/7`、repo hygiene `45/45` 均为零错误
+- 完整 App Lint 为 `4 errors / 29 warnings`；阶段 13 播放器文件没有 Lint 条目，剩余四个 error
+  全部位于无当前 diff 的
+  `WebSessionHistorySheet.kt:399/408/437/450`；未扩大 baseline、未增加 suppression
+- `git diff --check` 无 whitespace error；真实报告 URL/query/附件标识反向扫描为 `0`
+- `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 3m 54s`，
+  `232 actionable tasks: 23 executed, 209 up-to-date`；
+  独立 `:app:verifyDebugPlayerRuntimePackaging` 为 `BUILD SUCCESSFUL in 47s`
+- 当前 Debug APK 生成于 `2026-08-16 18:13:41 +08:00`，大小 `471063551` bytes，
+  SHA-256 `9A02093155A717EF5018CD6A41DE192A2497F810618F51D4F38DA8C14882CF2A`
+- APK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 `MainActivity` launcher，
+  Android Debug V2 单 signer，证书 SHA-256
+  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`，
+  16 KiB ZIP 对齐通过
+- APK 仅含 `arm64-v8a` 的 `51` 个 `.so`，无重复 basename；加
+  `assets/operit_shell_exec` 共 `52` 个 ELF64/AArch64，`160` 个 `PT_LOAD` 最小均为
+  `0x4000`，AAR/APK 播放器 native payload 差异为 `0`
+- `libmpv.so` / `libplayer.so` 的 `256` 个版本化 FFmpeg 导入并集和 `99` 个 C++ 导入并集
+  均缺失 `0`；44 个 DEX 包含新媒体身份 callback、四档完整缓存和 cache-state evidence
+  descriptor；该阶段封板闭包为 mpv `2339eb727`、FFmpeg `n8.1.2`、Mbed TLS `3.6.6`
+
+## 2026-08-16 播放器原生依赖升级与 closure 迁移
+
+状态：`R4 LOCAL DONE / TARGET DEVICE VERIFICATION PENDING`。
+最终产品目标已经冻结为两套互斥 native namespace 同时使用 FFmpeg `n9.0.1`：`:player` 使用
+namespaced mpv closure，`:ffmpeg` 使用 normal-name FFmpegKit closure；主进程只通过非导出 Binder
+runtime 使用 AI/工具箱、媒体预处理和浏览器下载合并能力。两套 M9 已完成源码构建、审计和 exact-hash
+成对 promotion；r2 运行时隔离、本地应用回归、Debug APK 与独立静态审计保留为历史基线。
+r3 产品 AAR、Python/JVM/native input、AndroidTest 编译、Debug APK 与独立静态审计均已通过，但新
+目标设备现场证明所有进入真实 transcode 的命令仍会终止 `:ffmpeg` 进程；r3 只保留为本次归因基线，
+不能再表述为运行时修复完成。当前产品已成对 promotion 到 FFmpegKit r4；source 为
+`17101059` bytes / `DF332D8F2FECA7508541A2F20EDB348A3BFBC2AD5AE6EEFDEDF2889D679C96CC`，
+thin/product 为
+`30133322` bytes / `86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`。
+
+- [DONE] 新增 `tools/player_native_build/closure_manifest.json`、源码构建器、source/thin 审计和
+  exact-hash promotion 基础合同，固定 mpv `2339eb727`、Mbed TLS `3.6.7`、RSA-PSS enabled、
+  curl disabled、arm64/API 24、NDK r29 与 `PT_LOAD >= 0x4000`
+- [DONE] 完成 M8 安全刷新基线并曾选入当时的本地产品；source SHA-256 为
+  `A13A3079BF9EC543C8C073C6B6D71D259C3002FA21E851DACD18E7E76254D006`，product SHA-256 为
+  `9A73F2A9F06161FB967DE47D8EAFDE3269E78F844E18F8F557E532378640CC5E`。该闭包只保留为可归因
+  安全刷新与构建链基线，不再是本阶段最终产品
+- [DONE] 完成播放器 M9 `n9.0.1` 全 closure 源码构建和静态审计；source SHA-256 为
+  `7CB0B25DC15F21278992243CE2597193B7A54E1A488933555B572982203E2BC0`，thin SHA-256 为
+  `F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4`
+- [DONE] 在 WSL2/Ubuntu-22.04 中固定
+  `ffmpegkit-maintained/ffmpeg@62b07bf097baf26b416c815aea514e05c9ad6d63`、FFmpeg
+  `n9.0.1@bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa`、NDK
+  `29.0.14206865`，完整同步 FFmpeg 9 `fftools`、SAF protocol patch、scheduler、graph、
+  textformat 和 resources，并保持现有 FFmpegKit Java/JNI、取消、统计和请求级多 session 语义；
+  顶层 native execution 由单一 FIFO worker 持有
+- [DONE] 把 FFmpegKit 9 的固定源码、完整外部库集合、构建脚本、source-lock、AAR member、
+  ELF、符号、版本、SAF、JNI、RPATH/RUNPATH 与 16 KiB 审计合同固化到仓库
+- [DONE] 先分别审计两套 M9 candidate，再以精确 SHA-256 同时更新
+  `app/libs/mpv-player-arm64.aar` 与 `app/libs/ffmpeg-kit-player-arm64.aar`；Gradle 和 APK 必须拒绝
+  FFmpeg 8 major、重复 basename、跨 namespace 依赖和混合 closure
+- [DONE] 运行 Python/JVM/AndroidTest/native packaging/formal readiness/fresh clone，
+  串行构建最终 Debug APK，并独立核验 AAR→APK 字节一致、ELF64/AArch64、`PT_LOAD >= 0x4000`、
+  `RPATH/RUNPATH=0`、arm64-only、Debug V2 单签名和 `zipalign -P 16`
+- [DONE] 包含 r2 运行时加固的历史 APK 为 `486199552` bytes，SHA-256
+  `98406C1F5F5914A1091F7BF65E3063386589259D2D86A818AD479A725A93C08E`；规定构建为
+  `BUILD SUCCESSFUL in 2m 43s`，`232` 个任务中 `30` 个 executed、`202` 个 up-to-date。
+  APK 含 `44` 个 DEX、51 个 `.so` basename 零重复，加 shell launcher 共 52 个
+  ELF64/AArch64，153 个 `PT_LOAD` 为 `0x4000 × 151` 与 `0x10000 × 2`。
+  播放器 10 个与 FFmpegKit 9 个 native payload 均与产品 AAR 逐字节一致；两套 FFmpeg 均为
+  `n9.0.1`，FFmpeg 8 markers/majors、normal/namespaced 交叉依赖和相关 ELF 的
+  `RPATH/RUNPATH` 均为 0
+- [PENDING] direct MP4、HLS/DASH、authenticated headers、redirect、seek/cache、Surface、
+  MediaCodec、Anime4K、crash isolation 和目标设备矩阵
+
+### 2026-08-17 FFmpegKit 卡死与崩溃扩散修复
+
+- [DONE] 确认本轮开始时产品 AAR 是 wrapper `8.1.7-kiyori-n9.0.1-r3` / FFmpeg `n9.0.1` /
+  OpenH264 `v2.6.0`，现场问题不是 FFmpeg major 或编码器缺失
+- [DONE] 确认工具箱从 Compose 主调度器同步进入 `FFmpegKit.execute()`，这是界面卡死的确定性根因
+- [DONE] 确认旧 normal-name FFmpegKit 由主进程直接加载；native fatal signal 会终止主界面
+- [DONE] 记录证据边界：尚无原始命令、session output、logcat、tombstone 或 native backtrace，
+  不把 `SIGSEGV`、OpenH264 唯一根因或 `0` 字节文件阶段写成已证实结论
+- [DONE] 新增非导出 `:ffmpeg` Binder runtime，按 request/session 维护日志、statistics、
+  取消与唯一终态；Binder death 显式失败全部 pending 请求，不重试当前命令
+- [DONE] 迁移 AI 三个 FFmpeg 工具、工具箱、MNN/MediaPool、文件媒体信息和浏览器 M3U8 合并，
+  并删除主进程直接 FFmpegKit/FFprobeKit/FFmpegKitConfig 调用
+- [DONE] host ASan/UBSan 已确认 constrained-baseline profile `578` 与 OpenH264 `EProfileIdc` 不兼容，
+  且 `v2.3.1` 的空 `BsFlush` 会执行 32 位移位；固定源码 patch 后 `20/20` 编码与回读通过
+- [DONE] 完整重建 r2 source/thin AAR，修复 framework 子目录 `git apply` no-op 假阳性，按精确
+  SHA-256 成对 promotion；产品 AAR 为 `30135977` bytes /
+  `8FF6A8604FAE1AF0FB5DA160FF191F8D1CBAFE226630E2C04AAE3E6C5B34ED67`，现作为根因修复历史基线
+- [DONE] 精确确认 OpenH264 `v2.6.0` 不包含 2026-07-10 的上游 BsFlush 修复，继续保留锁定 patch；
+  r3 host ASan/UBSan 矩阵 `20/20 PASS`，全新 Ubuntu-22.04 workspace 的 source AAR 为
+  `17101494` bytes / `48D7686C451363B2DCE936AC846D9A5F68CDF5BB5B96183143345A3CD16D5A7C`，
+  thin/product AAR 为
+  `30133939` bytes / `1E685258788D164209B2C5740F51A87E270E01A571E3428EA6BEE85EBCDF36F4`
+- [DONE] 修复 FFmpegKit 构建器的 host `llvm-readelf` 路径合同：Windows 审计明确拒绝 WSL
+  `/home/...` 二进制，并在任何 workspace 操作前失败
+- [DONE] r3 最终规定构建为 `BUILD SUCCESSFUL in 2m 32s`，`232` 个任务中 `28` executed、
+  `204` up-to-date；APK 为 `486200429` bytes /
+  `A6B3D11B47BB8B9A87F0A0B696C5129845C434E959CDE7EF8A0B0B98A3D4DBFF`
+- [DONE] 独立 APK 审计确认 Android Debug V2 单 signer、16 KiB zipalign、`44` DEX、`51` `.so`、
+  `52` AArch64 ELF、`19/19` AAR→APK 字节一致、`153` 个 PT_LOAD 与选定 closure
+  `RPATH/RUNPATH=0`
+- [DONE] 完成 JVM/AndroidTest、architecture、formal readiness、串行 Debug APK 和独立
+  DEX/ELF/AAR→APK/16 KiB 本地审计
+- [DONE] 新现场确认 `-codecs` 与 FFprobe 成功，而 `-c copy`、一秒流复制、音频提取和 720p
+  转码均在首包前终止独立进程。固定 FFmpeg 源码确认真实 transcode 在 API 35+ 调用
+  `ABinderProcess_setThreadPoolMaxThreadCount(1)`；Android 应用 Binder threadpool 已经启动，
+  AOSP 对缩小已启动线程池执行 fatal，完整吻合成功/失败边界、`0` 字节输出与 Binder death
+- [DONE] 用户补充报告明确现场设备为 vivo V2507A / Android 16 / arm64；原始日志同时确认
+  `-1414549496` 是 shell 管道损坏后的普通参数错误，不是进程死亡码。编译器身份中的
+  `+pgo/+bolt/+lto/+mlgo` 也不能当成 FFmpeg 产品配置；不采用 Ubuntu 替代通道、核心回退或
+  关闭优化规避 Binder 根因
+- [DONE] r3 host scheduler sanitizer 夹具的流复制、AAC 提取和 OpenH264 缩放转码为 `3/3 PASS`；
+  当前根因不再归到 scheduler TLS 复制本身。反向审查同时确认顶层 2–4 session 并发、嵌套 async
+  executor 和终态前未排空 callback 会造成状态与诊断可靠性缺口
+- [DONE] 构建 r4：FFmpeg Binder 初始化先查询 threadpool 是否已启动，已启动时保持应用既有
+  Binder owner；`:ffmpeg` 顶层命令改为 FIFO 串行 owner，在专用 worker 内同步执行；内部线程
+  `sessionId=0` 日志归属当前命令，并在终态前排空回调
+- [DONE] 全新 r4 WSL closure、qualified source/thin AAR、exact-hash paired promotion、
+  Python `46/46`、`verifyPlayerNativeInputs`、定向 JVM 与 AndroidTest Kotlin 编译通过
+- [DONE] 新增目标设备 smoke matrix：纯 lavfi、生成 H.264/AAC 素材、实际解码、流复制、MP3 提取、
+  720p OpenH264 转码和 FIFO started 顺序；本轮只完成 AndroidTest 编译，不操作设备
+- [DONE] 新增
+  [FFmpeg 架构与开发指南](../doc-src/dev-core/FFMPEG_ARCHITECTURE.md)，统一说明 Ubuntu、
+  `:ffmpeg`、`:player` 三执行面、AI/内部调用、双 native closure、r3/r4/OpenH264、失败语义、
+  验证矩阵和 Ubuntu `n9.0.1` 独立升级门禁
+- [DONE] 其余文档/架构哈希同步、formal readiness、规定 Debug 构建、签名/16 KiB 对齐、
+  product AAR closure 与独立 APK/ELF/AAR→APK 静态审计。r4 APK 为 `486200460` bytes /
+  `14CBE55B2BF1FC11B769D9E14267F474E41C3EF40FC115210E7A7A0CB6CC28C6`；`44` DEX、`51` `.so`、
+  `52` AArch64 ELF、`19/19` AAR→APK、`PT_LOAD = 0x4000 × 151 + 0x10000 × 2`、r4 wrapper/Binder
+  patch marker 与相关 19 个 ELF 的 `RPATH/RUNPATH=0` 均已核对
+- [PENDING] 在目标设备复测原始命令、取消、排队、进程死亡与用户可见错误路径；完成前保持
+  `verification_pending`
+
+权威设计与恢复入口为
+[`14_player_native_dependency_upgrade.md`](kiyori_browser_product_completion/14_player_native_dependency_upgrade.md)；
+不创建第二套播放器、第二个 runtime 或运行时双版本。
+
 ## 2026-07-29 播放器原生 HTTP/HTTPS 在线播放修复
 
 ### 第二份真机报告纠正与固定 Range 修复计划

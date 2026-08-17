@@ -1,0 +1,89 @@
+From 7a1f95562b98bd4a7cc67db24810934228c9fc61 Mon Sep 17 00:00:00 2001
+From: Kiyori Project <noreply@kiyori.local>
+Date: Mon, 17 Aug 2026 19:10:00 +0800
+Subject: [PATCH] android: preserve an already-started Binder threadpool
+
+Android application processes start their Binder threadpool before an
+embedded FFmpeg command can run. On Android 15 and newer, reducing the
+maximum thread count after that point is a fatal ProcessState contract
+violation.
+
+Query the NDK Binder state first. Existing application threadpools already
+satisfy MediaCodec's Binder requirement and must remain untouched. Only a
+native process without a started threadpool may set the one-thread limit and
+start it.
+---
+ compat/android/binder.c | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/compat/android/binder.c b/compat/android/binder.c
+index b10f6296f5..73cb85b9bb 100644
+--- a/compat/android/binder.c
++++ b/compat/android/binder.c
+@@ -23,6 +23,7 @@
+ #if defined(__ANDROID__)
+ 
+ #include <dlfcn.h>
++#include <stdbool.h>
+ #include <stdint.h>
+ #include <stdlib.h>
+ 
+@@ -52,9 +53,11 @@ static void android_binder_threadpool_init(void)
+ {
+     typedef int (*set_thread_pool_max_fn)(uint32_t);
+     typedef void (*start_thread_pool_fn)(void);
++    typedef bool (*is_thread_pool_started_fn)(void);
+ 
+     set_thread_pool_max_fn set_thread_pool_max = NULL;
+     start_thread_pool_fn start_thread_pool = NULL;
++    is_thread_pool_started_fn is_thread_pool_started = NULL;
+ 
+     void *h = dlopen_libbinder_ndk();
+     if (h == NULL)
+@@ -68,6 +71,9 @@ static void android_binder_threadpool_init(void)
+                                        "ABinderProcess_setThreadPoolMaxThreadCount");
+     start_thread_pool =
+         (start_thread_pool_fn) dlsym(h, "ABinderProcess_startThreadPool");
++    is_thread_pool_started =
++        (is_thread_pool_started_fn) dlsym(h,
++                                          "ABinderProcess_isThreadPoolStarted");
+ 
+     if (start_thread_pool == NULL) {
+         av_log(NULL, AV_LOG_WARNING,
+@@ -75,11 +81,34 @@ static void android_binder_threadpool_init(void)
+         return;
+     }
+ 
++    if (is_thread_pool_started == NULL) {
++        av_log(NULL, AV_LOG_ERROR,
++               "android/binder: ABinderProcess_isThreadPoolStarted not found; preserving the process Binder configuration\n");
++        return;
++    }
++
++    if (is_thread_pool_started()) {
++        /*
++         * Android application processes start Binder before an embedded
++         * FFmpeg command runs. ProcessState aborts when an already-started
++         * pool is reduced from the application default to THREAD_POOL_SIZE.
++         * The existing pool already satisfies MediaCodec's Binder needs.
++         */
++        av_log(NULL, AV_LOG_DEBUG,
++               "android/binder: threadpool already started; preserving the existing process configuration\n");
++        return;
++    }
++
+     if (set_thread_pool_max != NULL) {
+         int ok = set_thread_pool_max(thead_pool_size);
+         av_log(NULL, AV_LOG_DEBUG,
+                "android/binder: ABinderProcess_setThreadPoolMaxThreadCount(%u) => %s\n",
+                thead_pool_size, ok ? "ok" : "fail");
++        if (!ok) {
++            av_log(NULL, AV_LOG_ERROR,
++                   "android/binder: unable to set the Binder threadpool maximum; leaving the threadpool stopped\n");
++            return;
++        }
+     } else {
+         av_log(NULL, AV_LOG_DEBUG,
+                "android/binder: ABinderProcess_setThreadPoolMaxThreadCount is unavailable; using the library default\n");
+-- 
+2.51.0

@@ -339,6 +339,12 @@
             android:exported="false"
             android:process=":player" />
 
+        <service
+            android:name=".core.ffmpeg.runtime.FFmpegRuntimeService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":ffmpeg" />
+
         <activity
             android:name=".ui.recovery.DataRecoveryActivity"
             android:exported="true"

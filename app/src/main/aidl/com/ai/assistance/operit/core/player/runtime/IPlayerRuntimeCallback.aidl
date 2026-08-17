@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.core.player.runtime;
 
 import android.graphics.Bitmap;
+import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeMediaIdentitySnapshot;
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimePlaybackSnapshot;
 import com.ai.assistance.operit.core.player.runtime.PlayerRuntimeTrackSnapshot;
 
@@ -42,6 +43,14 @@ oneway interface IPlayerRuntimeCallback {
         long loadCommandId,
         in PlayerRuntimeTrackSnapshot tracks
     );
+    void onMediaIdentityChanged(
+        long runtimeGeneration,
+        long eventSequence,
+        long loadCommandId,
+        in PlayerRuntimeMediaIdentitySnapshot identity
+    );
+    void onSeek(long runtimeGeneration, long eventSequence, long loadCommandId);
+    void onPlaybackRestart(long runtimeGeneration, long eventSequence, long loadCommandId);
     void onNaturalEnd(long runtimeGeneration, long eventSequence);
     void onRuntimeError(long runtimeGeneration, long eventSequence, String message);
     void onDiagnosticLog(

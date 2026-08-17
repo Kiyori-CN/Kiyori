@@ -495,7 +495,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `player settings expose only capabilities owned by PlayerSettingsStore`() {
         assertEquals(
-            listOf(4, 7, 5, 2, 2, 4),
+            listOf(4, 7, 6, 2, 2, 4),
             kiyoriPlayerSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -513,7 +513,8 @@ class KiyoriSettingsPagesTest {
                 "进度条缩略图预览",
                 "记忆超分模式",
                 "默认超分模式",
-                "解码器预设",
+                "解码方式",
+                "渲染预设",
                 "GPU Next 渲染",
                 "Vulkan 渲染上下文",
                 "音量增强",
@@ -548,7 +549,8 @@ class KiyoriSettingsPagesTest {
                     KiyoriPlayerSettingsAction.TOGGLE_SEEKBAR_THUMBNAIL,
                 "记忆超分模式" to KiyoriPlayerSettingsAction.TOGGLE_REMEMBER_ANIME4K,
                 "默认超分模式" to KiyoriPlayerSettingsAction.SELECT_DEFAULT_ANIME4K,
-                "解码器预设" to KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET,
+                "解码方式" to KiyoriPlayerSettingsAction.SELECT_DECODER_BACKEND,
+                "渲染预设" to KiyoriPlayerSettingsAction.SELECT_RENDERING_PROFILE,
                 "GPU Next 渲染" to KiyoriPlayerSettingsAction.TOGGLE_GPU_NEXT,
                 "Vulkan 渲染上下文" to KiyoriPlayerSettingsAction.TOGGLE_VULKAN,
                 "音量增强" to KiyoriPlayerSettingsAction.TOGGLE_VOLUME_BOOST,

@@ -21,11 +21,12 @@ import com.ai.assistance.operit.core.player.PLAYER_SEEK_STEP_OPTIONS
 import com.ai.assistance.operit.core.player.PLAYER_SPEED_OPTIONS
 import com.ai.assistance.operit.core.player.PLAYER_SUBTITLE_SCALE_OPTIONS
 import com.ai.assistance.operit.core.player.PlayerBackgroundBehavior
-import com.ai.assistance.operit.core.player.PlayerDecoderPreset
+import com.ai.assistance.operit.core.player.PlayerDecoderBackend
 import com.ai.assistance.operit.core.player.PlayerDoubleTapAction
 import com.ai.assistance.operit.core.player.PlayerFullscreenExitBehavior
 import com.ai.assistance.operit.core.player.PlayerNetworkCachePolicy
 import com.ai.assistance.operit.core.player.PlayerQueueEndBehavior
+import com.ai.assistance.operit.core.player.PlayerRenderingProfile
 import com.ai.assistance.operit.core.player.PlayerSettings
 import com.ai.assistance.operit.core.player.PlayerSettingsStore
 import com.ai.assistance.operit.core.player.formatPlayerSpeedLabel
@@ -57,7 +58,8 @@ internal enum class KiyoriPlayerSettingsAction {
     TOGGLE_SEEKBAR_THUMBNAIL,
     TOGGLE_REMEMBER_ANIME4K,
     SELECT_DEFAULT_ANIME4K,
-    SELECT_DECODER_PRESET,
+    SELECT_DECODER_BACKEND,
+    SELECT_RENDERING_PROFILE,
     TOGGLE_GPU_NEXT,
     TOGGLE_VULKAN,
     TOGGLE_VOLUME_BOOST,
@@ -197,9 +199,14 @@ internal val kiyoriPlayerSettingsGroups =
                         KiyoriPlayerSettingsDependency.REMEMBER_ANIME4K,
                     ),
                     playerNavigationSpec(
-                        "解码器预设",
-                        "切换 MPV 解码和缩放 profile",
-                        KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET,
+                        "解码方式",
+                        "明确选择软件解码、MediaCodec 直通或 MediaCodec Copy；不会自动切换",
+                        KiyoriPlayerSettingsAction.SELECT_DECODER_BACKEND,
+                    ),
+                    playerNavigationSpec(
+                        "渲染预设",
+                        "只切换 MPV 缩放、画质或低延迟 profile，不改变解码方式",
+                        KiyoriPlayerSettingsAction.SELECT_RENDERING_PROFILE,
                     ),
                     playerToggleSpec(
                         "GPU Next 渲染",
@@ -269,7 +276,7 @@ internal val kiyoriPlayerSettingsGroups =
                     ),
                     playerNavigationSpec(
                         "在线播放缓存",
-                        "设置 MPV 前向、后向缓存大小与缓存时长",
+                        "选择省流、均衡、流畅优先或完整缓存策略；新视频生效",
                         KiyoriPlayerSettingsAction.SELECT_NETWORK_CACHE_POLICY,
                     ),
                 ),
@@ -461,7 +468,10 @@ private fun playerSettingValue(
         KiyoriPlayerSettingsAction.SELECT_SEEK_STEP -> "${settings.seekStepSeconds}s"
         KiyoriPlayerSettingsAction.SELECT_DEFAULT_ANIME4K ->
             formatAnime4KMode(settings.anime4KMode)
-        KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET -> settings.decoderPreset.displayName
+        KiyoriPlayerSettingsAction.SELECT_DECODER_BACKEND ->
+            settings.decoderBackend.displayName
+        KiyoriPlayerSettingsAction.SELECT_RENDERING_PROFILE ->
+            settings.renderingProfile.displayName
         KiyoriPlayerSettingsAction.SELECT_SUBTITLE_SCALE ->
             formatSubtitleScale(settings.subtitleScale)
         KiyoriPlayerSettingsAction.SELECT_SCREENSHOT_DIRECTORY ->
@@ -571,13 +581,21 @@ private fun playerSettingSelection(
                         selected = value == settings.anime4KMode,
                     ) { store.setAnime4KMode(value) }
                 }
-            KiyoriPlayerSettingsAction.SELECT_DECODER_PRESET ->
-                PlayerDecoderPreset.entries.map { value ->
+            KiyoriPlayerSettingsAction.SELECT_DECODER_BACKEND ->
+                PlayerDecoderBackend.entries.map { value ->
                     KiyoriSettingsSelectionOption(
                         label = value.displayName,
                         description = value.description,
-                        selected = value == settings.decoderPreset,
-                    ) { store.setDecoderPreset(value) }
+                        selected = value == settings.decoderBackend,
+                    ) { store.setDecoderBackend(value) }
+                }
+            KiyoriPlayerSettingsAction.SELECT_RENDERING_PROFILE ->
+                PlayerRenderingProfile.entries.map { value ->
+                    KiyoriSettingsSelectionOption(
+                        label = value.displayName,
+                        description = value.description,
+                        selected = value == settings.renderingProfile,
+                    ) { store.setRenderingProfile(value) }
                 }
             KiyoriPlayerSettingsAction.SELECT_SUBTITLE_SCALE ->
                 PLAYER_SUBTITLE_SCALE_OPTIONS.map { value ->
@@ -616,10 +634,7 @@ private fun playerSettingSelection(
                 PlayerNetworkCachePolicy.entries.map { value ->
                     KiyoriSettingsSelectionOption(
                         label = formatNetworkCachePolicy(value),
-                        description =
-                            "前向 ${value.forwardBytes / (1024L * 1024L)} MB / " +
-                                "后向 ${value.backwardBytes / (1024L * 1024L)} MB / " +
-                                "${value.cacheSeconds}s",
+                        description = networkCachePolicyDescription(value),
                         selected = value == settings.networkCachePolicy,
                     ) { store.setNetworkCachePolicy(value) }
                 }
@@ -735,9 +750,22 @@ private fun formatBackgroundBehavior(value: PlayerBackgroundBehavior): String =
 
 private fun formatNetworkCachePolicy(value: PlayerNetworkCachePolicy): String =
     when (value) {
-        PlayerNetworkCachePolicy.COMPACT -> "节省内存"
-        PlayerNetworkCachePolicy.BALANCED -> "均衡"
-        PlayerNetworkCachePolicy.LARGE -> "大缓存"
+        PlayerNetworkCachePolicy.COMPACT -> "省流模式"
+        PlayerNetworkCachePolicy.BALANCED -> "智能均衡"
+        PlayerNetworkCachePolicy.LARGE -> "流畅优先"
+        PlayerNetworkCachePolicy.FULL_VIDEO -> "完整缓存"
+    }
+
+private fun networkCachePolicyDescription(value: PlayerNetworkCachePolicy): String =
+    when (value) {
+        PlayerNetworkCachePolicy.COMPACT ->
+            "减少提前预读，适合流量受限场景；前向 64 MB / 后向 32 MB / 60s"
+        PlayerNetworkCachePolicy.BALANCED ->
+            "兼顾启动速度、拖动与流量；前向 128 MB / 后向 64 MB / 180s"
+        PlayerNetworkCachePolicy.LARGE ->
+            "扩大前后缓冲，优先弱网抗抖和长视频拖动；前向 256 MB / 后向 128 MB / 300s"
+        PlayerNetworkCachePolicy.FULL_VIDEO ->
+            "符合条件的 HTTP/HTTPS 直链点播会边播边缓存整个文件；占用较多内部存储，关闭播放器或切换视频后释放"
     }
 
 private fun formatSubtitleScale(value: Double): String = "${(value * 100).toInt()}%"

@@ -30,10 +30,12 @@ internal class PlayerRuntimeService : Service() {
     private var eventSequence: Long = 0L
     private var engine: MpvPlayerEngine? = null
     private var mediaResolver: PlayerMediaResolver? = null
+    private var networkSnapshotObserver: PlayerNetworkSnapshotObserver? = null
     private var remoteSurface: Surface? = null
     private var remoteSurfaceGeneration: Long? = null
     private var currentLoadCommandId: Long = 0L
     private var currentMediaSource: String? = null
+    private var lastMediaIdentitySnapshot: PlayerRuntimeMediaIdentitySnapshot? = null
     private var progressRunning = false
     private var thumbnailWorkerRunning = false
     private var pendingThumbnailRequest: PendingThumbnailRequest? = null
@@ -77,12 +79,27 @@ internal class PlayerRuntimeService : Service() {
                                         tracks.chapters.map { chapter ->
                                             chapter.toRuntimeChapter()
                                         },
+                                    fileFormat = tracks.fileFormat,
+                                    videoCodec = tracks.videoCodec,
+                                    audioCodec = tracks.audioCodec,
+                                    videoTrackCount = tracks.videoTrackCount,
+                                    activeHardwareDecoder = tracks.activeHardwareDecoder,
+                                    videoPixelFormat = tracks.videoPixelFormat,
+                                    videoCodecProfile = tracks.videoCodecProfile,
                                 )
+                            lastMediaIdentitySnapshot = snapshot.toMediaIdentitySnapshot()
                             emitDiagnostic(
                                 PlayerDebugLogLevel.INFO,
                                 TAG,
                                     "媒体文件加载完成 audioTracks=${snapshot.audioTracks.size} " +
                                     "subtitleTracks=${snapshot.subtitleTracks.size} " +
+                                    "videoTracks=${snapshot.videoTrackCount} " +
+                                    "container=${snapshot.fileFormat ?: "unknown"} " +
+                                    "videoCodec=${snapshot.videoCodec ?: "none"} " +
+                                    "audioCodec=${snapshot.audioCodec ?: "none"} " +
+                                    "hwdec=${snapshot.activeHardwareDecoder ?: "none"} " +
+                                    "pixelFormat=${snapshot.videoPixelFormat ?: "unknown"} " +
+                                    "codecProfile=${snapshot.videoCodecProfile ?: "unknown"} " +
                                     "chapters=${snapshot.chapters.size}",
                             )
                             emit { currentCallback, generation, sequence ->
@@ -99,6 +116,71 @@ internal class PlayerRuntimeService : Service() {
                                 "无法读取媒体轨道：${error.message ?: error.javaClass.simpleName}",
                             )
                         }
+                }
+            }
+
+            override fun onVideoReconfigured() {
+                runtimeHandler.post {
+                    val activeEngine = engine ?: return@post
+                    if (currentLoadCommandId <= 0L || lastMediaIdentitySnapshot == null) {
+                        return@post
+                    }
+                    try {
+                        val identity = activeEngine.readMediaIdentity().toRuntimeSnapshot()
+                        if (identity == lastMediaIdentitySnapshot) {
+                            return@post
+                        }
+                        lastMediaIdentitySnapshot = identity
+                        emitDiagnostic(
+                            PlayerDebugLogLevel.INFO,
+                            TAG,
+                            "媒体身份已刷新 videoTracks=${identity.videoTrackCount} " +
+                                "container=${identity.fileFormat ?: "unknown"} " +
+                                "videoCodec=${identity.videoCodec ?: "none"} " +
+                                "audioCodec=${identity.audioCodec ?: "none"} " +
+                                "hwdec=${identity.activeHardwareDecoder ?: "none"} " +
+                                "pixelFormat=${identity.videoPixelFormat ?: "unknown"} " +
+                                "codecProfile=${identity.videoCodecProfile ?: "unknown"}",
+                        )
+                        emit { currentCallback, generation, sequence ->
+                            currentCallback.onMediaIdentityChanged(
+                                generation,
+                                sequence,
+                                currentLoadCommandId,
+                                identity,
+                            )
+                        }
+                    } catch (error: Exception) {
+                        emitDiagnostic(
+                            PlayerDebugLogLevel.WARN,
+                            TAG,
+                            "媒体身份刷新失败：${error.message ?: error.javaClass.simpleName}",
+                        )
+                    }
+                }
+            }
+
+            override fun onSeek() {
+                runtimeHandler.post {
+                    emit { currentCallback, generation, sequence ->
+                        currentCallback.onSeek(
+                            generation,
+                            sequence,
+                            currentLoadCommandId,
+                        )
+                    }
+                }
+            }
+
+            override fun onPlaybackRestart() {
+                runtimeHandler.post {
+                    emit { currentCallback, generation, sequence ->
+                        currentCallback.onPlaybackRestart(
+                            generation,
+                            sequence,
+                            currentLoadCommandId,
+                        )
+                    }
                 }
             }
 
@@ -131,6 +213,16 @@ internal class PlayerRuntimeService : Service() {
                                 speed = progress.speed,
                                 networkSpeedBytesPerSecond =
                                     progress.networkSpeedBytesPerSecond,
+                                fullVideoCacheActive = progress.fullVideoCacheActive,
+                                fullVideoCacheComplete = progress.fullVideoCacheComplete,
+                                fullVideoCacheStartSeconds = progress.fullVideoCacheStartSeconds,
+                                fullVideoCacheEndSeconds = progress.fullVideoCacheEndSeconds,
+                                fullVideoCachePhase = progress.fullVideoCachePhase,
+                                fullVideoCacheReason = progress.fullVideoCacheReason,
+                                fullVideoCacheStateEvidence =
+                                    progress.fullVideoCacheStateEvidence,
+                                fullVideoCacheFileBytes = progress.fullVideoCacheFileBytes,
+                                fullVideoCacheExpectedBytes = progress.fullVideoCacheExpectedBytes,
                             )
                         emit { currentCallback, generation, sequence ->
                             currentCallback.onPlaybackSnapshot(
@@ -178,19 +270,32 @@ internal class PlayerRuntimeService : Service() {
                     execute(
                         commandId = commandId,
                         operation = "初始化播放器运行时",
+                        onFailure = { closeRuntimeResources() },
                         onSuccess = {
                             closeRuntimeResources()
                             emitDiagnostic(
                                 PlayerDebugLogLevel.INFO,
                                 TAG,
-                                "创建 mpv runtime decoder=${config.decoderPresetId} " +
+                                "创建 mpv runtime decoderBackend=${config.decoderBackendId} " +
+                                    "renderingProfile=${config.renderingProfileId} " +
                                     "gpuNext=${config.gpuNextEnabled} vulkan=${config.vulkanEnabled} " +
                                     "shaderCount=${config.shaderFiles.size}",
                             )
                             val created = MpvPlayerEngine(applicationContext, engineListener)
-                            created.initialize(config.toPlayerSettings())
                             engine = created
+                            created.initialize(config.toPlayerSettings())
                             mediaResolver = PlayerMediaResolver(applicationContext)
+                            networkSnapshotObserver =
+                                PlayerNetworkSnapshotObserver(
+                                    context = applicationContext,
+                                    handler = runtimeHandler,
+                                ) { reason, snapshot ->
+                                    emitDiagnostic(
+                                        PlayerDebugLogLevel.INFO,
+                                        NETWORK_TAG,
+                                        "播放器网络环境 reason=$reason ${snapshot.diagnosticSummary()}",
+                                    )
+                                }.also(PlayerNetworkSnapshotObserver::start)
                             PlayerRuntimeProcessState.update(
                                 applicationContext,
                                 phase = "READY",
@@ -229,6 +334,7 @@ internal class PlayerRuntimeService : Service() {
                     val target = resolver.resolve(request.uri)
                     currentLoadCommandId = commandId
                     currentMediaSource = target
+                    lastMediaIdentitySnapshot = null
                     pendingThumbnailRequest = null
                     thumbnailCache.evictAll()
                     PlayerRuntimeProcessState.update(
@@ -237,6 +343,7 @@ internal class PlayerRuntimeService : Service() {
                         runtimeGeneration = runtimeGeneration,
                     )
                     activeEngine.load(
+                        requestId = request.requestId,
                         target = target,
                         headers = request.headers,
                         settings = request.config.toPlayerSettings(),
@@ -428,9 +535,9 @@ internal class PlayerRuntimeService : Service() {
                 postCommand(runtimeGeneration, commandId, "应用播放器设置") {
                     val activeEngine = requireNotNull(engine) { "播放器运行时尚未初始化" }
                     val settings = config.toPlayerSettings()
-                    activeEngine.applyDecoderPreset(settings.decoderPreset)
+                    activeEngine.applyRenderingProfile(settings.renderingProfile)
+                    activeEngine.applyDecoderBackend(settings.decoderBackend)
                     activeEngine.applyPreciseSeeking(settings.preciseSeeking)
-                    activeEngine.applyNetworkCache(settings.networkCachePolicy)
                     activeEngine.applySubtitleScale(settings.subtitleScale)
                     activeEngine.applyVolumeBoost(settings.volumeBoostEnabled)
                     activeEngine.applyShaders(config.shaderFiles)
@@ -736,6 +843,8 @@ internal class PlayerRuntimeService : Service() {
         stopProgressEmitter()
         pendingThumbnailRequest = null
         thumbnailCache.evictAll()
+        networkSnapshotObserver?.stop()
+        networkSnapshotObserver = null
         val activeEngine = engine
         if (activeEngine != null) {
             if (remoteSurface != null) {
@@ -751,6 +860,7 @@ internal class PlayerRuntimeService : Service() {
         mediaResolver = null
         currentLoadCommandId = 0L
         currentMediaSource = null
+        lastMediaIdentitySnapshot = null
     }
 
     private fun startNextThumbnailRequest() {
@@ -841,6 +951,7 @@ internal class PlayerRuntimeService : Service() {
 
     private companion object {
         const val TAG = "PlayerRuntimeService"
+        const val NETWORK_TAG = "PlayerNetwork"
         const val RUNTIME_THREAD_NAME = "KiyoriPlayerRuntime"
         const val PROGRESS_INTERVAL_MS = 250L
         const val MAX_DIAGNOSTIC_STACK_FRAMES = 8
@@ -849,6 +960,28 @@ internal class PlayerRuntimeService : Service() {
         const val THUMBNAIL_BUCKETS_PER_SECOND = 2.0
     }
 }
+
+private fun PlayerRuntimeTrackSnapshot.toMediaIdentitySnapshot(): PlayerRuntimeMediaIdentitySnapshot =
+    PlayerRuntimeMediaIdentitySnapshot(
+        fileFormat = fileFormat,
+        videoCodec = videoCodec,
+        audioCodec = audioCodec,
+        videoTrackCount = videoTrackCount,
+        activeHardwareDecoder = activeHardwareDecoder,
+        videoPixelFormat = videoPixelFormat,
+        videoCodecProfile = videoCodecProfile,
+    )
+
+private fun MpvPlayerMediaIdentitySnapshot.toRuntimeSnapshot(): PlayerRuntimeMediaIdentitySnapshot =
+    PlayerRuntimeMediaIdentitySnapshot(
+        fileFormat = fileFormat,
+        videoCodec = videoCodec,
+        audioCodec = audioCodec,
+        videoTrackCount = videoTrackCount,
+        activeHardwareDecoder = activeHardwareDecoder,
+        videoPixelFormat = videoPixelFormat,
+        videoCodecProfile = videoCodecProfile,
+    )
 
 private data class PendingThumbnailRequest(
     val runtimeGeneration: Long,

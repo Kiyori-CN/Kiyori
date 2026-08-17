@@ -17,6 +17,10 @@
 *.webp binary
 *.zip binary
 
+# Unified diffs require a one-space prefix for blank context lines, and
+# format-patch signature separators intentionally end with one space.
+*.patch whitespace=-blank-at-eol
+
 # Anime4K assets are hash-locked third-party source files. Preserve their
 # upstream whitespace exactly instead of rewriting bytes that MPV consumes.
 app/src/main/assets/shaders/*.glsl -text !eol -whitespace

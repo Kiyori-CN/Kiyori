@@ -1,0 +1,41 @@
+diff --git a/codec/common/inc/golomb_common.h b/codec/common/inc/golomb_common.h
+index 04f87b00..2f6c060b 100644
+--- a/codec/common/inc/golomb_common.h
++++ b/codec/common/inc/golomb_common.h
+@@ -100,10 +100,12 @@ static inline int32_t BsWriteOneBit (PBitStringAux pBitString, const uint32_t ku
+ }
+ 
+ static inline int32_t BsFlush (PBitStringAux pBitString) {
+-  WRITE_BE_32 (pBitString->pCurBuf, pBitString->uiCurBits << pBitString->iLeftBits);
+-  pBitString->pCurBuf += 4 - pBitString->iLeftBits / 8;
+-  pBitString->iLeftBits = 32;
+-  pBitString->uiCurBits = 0;
++  if (pBitString->iLeftBits < 32) {
++    WRITE_BE_32 (pBitString->pCurBuf, pBitString->uiCurBits << pBitString->iLeftBits);
++    pBitString->pCurBuf += 4 - pBitString->iLeftBits / 8;
++    pBitString->iLeftBits = 32;
++    pBitString->uiCurBits = 0;
++  }
+   return 0;
+ }
+ 
+diff --git a/test/encoder/EncUT_ExpGolomb.cpp b/test/encoder/EncUT_ExpGolomb.cpp
+index 9fdbd578..9c5fc99d 100644
+--- a/test/encoder/EncUT_ExpGolomb.cpp
++++ b/test/encoder/EncUT_ExpGolomb.cpp
+@@ -39,3 +39,15 @@ TEST (UeExpGolombTest, TestBsSizeUeRangeFrom65535ToPlus256) {
+     EXPECT_EQ (uiActVal, uiExpVal);
+   }
+ }
++
++TEST (BsFlushTest, TestBsFlushUb) {
++  uint8_t buffer[16] = {0};
++  WelsCommon::SBitStringAux bs;
++  bs.pStartBuf = buffer;
++  bs.pEndBuf = buffer + 16;
++  bs.pCurBuf = buffer;
++  bs.uiCurBits = 123;
++  bs.iLeftBits = 32;
++
++  WelsCommon::BsFlush(&bs);
++}

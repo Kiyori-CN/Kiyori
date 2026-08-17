@@ -1,0 +1,28 @@
+From 2eb75e71f6c2c2dd6d0430181b6003510706734d Mon Sep 17 00:00:00 2001
+From: Kiyori Native Build <noreply@kiyori.local>
+Date: Mon, 17 Aug 2026 15:08:00 +0800
+Subject: [PATCH] build: respect explicit job count without global MAKEFLAGS
+
+Keep bootstrap and developer-file generation serial while allowing normal
+library compile commands to use the closure builder's bounded job count.
+---
+ scripts/function.sh | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/scripts/function.sh b/scripts/function.sh
+--- a/scripts/function.sh
++++ b/scripts/function.sh
+@@ -2251,6 +2251,11 @@ is_gnu_config_files_up_to_date() {
+ }
+ 
+ get_cpu_count() {
++  if [[ -n "${FFMPEG_KIT_BUILD_JOBS:-}" ]]; then
++    echo "${FFMPEG_KIT_BUILD_JOBS}"
++    return
++  fi
++
+   if [ "$(uname)" == "Darwin" ]; then
+     echo $(sysctl -n hw.logicalcpu)
+   else
+-- 
+2.43.0

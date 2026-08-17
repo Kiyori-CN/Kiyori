@@ -56,7 +56,12 @@ internal data class BrowserNetworkRequestEntry(
     val blockingRule: String? = null,
     val blockingSourceName: String? = null,
     val elementSelector: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val documentToken: String? = null,
+    val resourceIdentity: String = normalizeBrowserResourceIdentityUrl(url),
+    val requestCount: Int = 1,
+    val firstSeenAt: Long = timestamp,
+    val lastSeenAt: Long = timestamp,
 )
 
 internal data class PendingDialog(
@@ -251,13 +256,18 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
     session: BrowserToolSession,
     request: WebResourceRequest,
     blockDecision: BrowserAdBlockDecision? = null,
+    documentToken: String = session.credentialDocumentToken,
 ) {
     val url = request.url?.toString().orEmpty()
     if (url.isBlank()) {
         return
     }
+    if (session.credentialDocumentToken != documentToken) {
+        return
+    }
     val headers = request.requestHeaders?.mapKeys { it.key ?: "" } ?: emptyMap()
     val acceptHeader = headers.entries.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value
+    val now = System.currentTimeMillis()
     val entry =
         com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkRequestEntry(
             method = request.method.orEmpty().ifBlank { "GET" },
@@ -274,10 +284,29 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
             blocked = blockDecision?.blocked == true,
             blockingRule = blockDecision?.rule,
             blockingSourceName = blockDecision?.sourceName,
+            timestamp = now,
+            documentToken = documentToken,
+            firstSeenAt = now,
+            lastSeenAt = now,
         )
     synchronized(session.networkEntries) {
-        session.networkEntries += entry
-        if (session.networkEntries.size > StandardBrowserSessionTools.MAX_EVENT_LOG_ENTRIES) {
+        if (session.credentialDocumentToken != documentToken) {
+            return
+        }
+        val existingIndex =
+            session.networkEntries.indexOfFirst { existing ->
+                existing.kind == BrowserNetworkLogEntryKind.REQUEST &&
+                    existing.documentToken == documentToken &&
+                    existing.resourceIdentity == entry.resourceIdentity
+            }
+        if (existingIndex >= 0) {
+            val existing = session.networkEntries[existingIndex]
+            session.networkEntries[existingIndex] =
+                mergeBrowserNetworkResourceEntry(existing, entry)
+        } else {
+            session.networkEntries += entry
+        }
+        if (session.networkEntries.size > MAX_BROWSER_RESOURCE_DIRECTORY_ENTRIES) {
             session.networkEntries.removeAt(0)
         }
     }
@@ -299,7 +328,7 @@ internal fun StandardBrowserSessionTools.replaceElementBlockLogEntries(
             // 用户明确创建并可在设置页管理的元素规则，避免虚构数万条“已拦截请求”。
             .filter { decision -> decision.source == BrowserAdBlockRuleSource.CUSTOM }
             .distinctBy(BrowserAdBlockElementDecision::selector)
-            .take(StandardBrowserSessionTools.MAX_EVENT_LOG_ENTRIES)
+            .take(MAX_BROWSER_RESOURCE_DIRECTORY_ENTRIES)
             .map { decision ->
                 BrowserNetworkRequestEntry(
                     method = "DOM",
@@ -312,6 +341,9 @@ internal fun StandardBrowserSessionTools.replaceElementBlockLogEntries(
                     blockingRule = decision.selector,
                     blockingSourceName = decision.sourceName,
                     elementSelector = decision.selector,
+                    documentToken = session.credentialDocumentToken,
+                    resourceIdentity =
+                        normalizeBrowserResourceIdentityUrl(pageUrl) + "|dom|" + decision.selector,
                 )
             }
             .toList()
@@ -321,7 +353,7 @@ internal fun StandardBrowserSessionTools.replaceElementBlockLogEntries(
                 entry.url == pageUrl
         }
         session.networkEntries += entries
-        while (session.networkEntries.size > StandardBrowserSessionTools.MAX_EVENT_LOG_ENTRIES) {
+        while (session.networkEntries.size > MAX_BROWSER_RESOURCE_DIRECTORY_ENTRIES) {
             session.networkEntries.removeAt(0)
         }
     }
@@ -356,7 +388,44 @@ internal fun StandardBrowserSessionTools.notifySessionStateChanged(session: Brow
     }
 }
 
+internal fun mergeBrowserNetworkResourceEntry(
+    current: BrowserNetworkRequestEntry,
+    observed: BrowserNetworkRequestEntry,
+): BrowserNetworkRequestEntry {
+    require(current.kind == BrowserNetworkLogEntryKind.REQUEST)
+    require(observed.kind == BrowserNetworkLogEntryKind.REQUEST)
+    require(current.documentToken == observed.documentToken)
+    require(current.resourceIdentity == observed.resourceIdentity)
+    return current.copy(
+        category = mergeBrowserNetworkRequestCategory(current.category, observed.category),
+        headers = mergeBrowserNetworkHeaders(current.headers, observed.headers),
+        isMainFrame = current.isMainFrame || observed.isMainFrame,
+        isStatic = current.isStatic && observed.isStatic,
+        blocked = current.blocked || observed.blocked,
+        blockingRule = observed.blockingRule ?: current.blockingRule,
+        blockingSourceName = observed.blockingSourceName ?: current.blockingSourceName,
+        requestCount = current.requestCount + observed.requestCount,
+        firstSeenAt = minOf(current.firstSeenAt, observed.firstSeenAt),
+        lastSeenAt = maxOf(current.lastSeenAt, observed.lastSeenAt),
+        timestamp = maxOf(current.timestamp, observed.timestamp),
+    )
+}
+
+private fun mergeBrowserNetworkHeaders(
+    current: Map<String, String>,
+    observed: Map<String, String>,
+): Map<String, String> {
+    val merged = LinkedHashMap(current)
+    observed.forEach { (name, value) ->
+        if (name.isBlank()) return@forEach
+        merged.keys.firstOrNull { it.equals(name, ignoreCase = true) }?.let(merged::remove)
+        merged[name] = value
+    }
+    return merged.toMap()
+}
+
 private const val BROWSER_NETWORK_REFRESH_INTERVAL_MILLIS = 100L
+private const val MAX_BROWSER_RESOURCE_DIRECTORY_ENTRIES = 2_000
 
 internal fun StandardBrowserSessionTools.awaitSessionStateChange(
     session: BrowserToolSession,

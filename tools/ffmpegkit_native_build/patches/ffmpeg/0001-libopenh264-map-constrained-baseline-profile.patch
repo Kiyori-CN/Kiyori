@@ -1,0 +1,36 @@
+diff --git a/libavcodec/libopenh264enc.c b/libavcodec/libopenh264enc.c
+--- a/libavcodec/libopenh264enc.c
++++ b/libavcodec/libopenh264enc.c
+@@ -110,6 +110,7 @@ static av_cold int svc_encode_init(AVCodecContext *avctx)
+ {
+     SVCContext *s = avctx->priv_data;
+     SEncParamExt param = { 0 };
++    EProfileIdc openh264_profile = PRO_BASELINE;
+     int log_level;
+     WelsTraceCallback callback_function;
+     AVCPBProperties *props;
+@@ -191,10 +192,12 @@ static av_cold int svc_encode_init(AVCodecContext *avctx)
+     switch (s->profile) {
+     case AV_PROFILE_H264_HIGH:
++        openh264_profile = PRO_HIGH;
+         av_log(avctx, AV_LOG_VERBOSE, "Using %s, "
+                 "select EProfileIdc PRO_HIGH in libopenh264.\n",
+                 param.iEntropyCodingModeFlag ? "CABAC" : "CAVLC");
+         break;
+     case AV_PROFILE_H264_MAIN:
++        openh264_profile = PRO_MAIN;
+         av_log(avctx, AV_LOG_VERBOSE, "Using %s, "
+                 "select EProfileIdc PRO_MAIN in libopenh264.\n",
+                 param.iEntropyCodingModeFlag ? "CABAC" : "CAVLC");
+@@ -220,7 +223,10 @@ static av_cold int svc_encode_init(AVCodecContext *avctx)
+     param.sSpatialLayers[0].fFrameRate          = param.fMaxFrameRate;
+     param.sSpatialLayers[0].iSpatialBitrate     = param.iTargetBitrate;
+     param.sSpatialLayers[0].iMaxSpatialBitrate  = param.iMaxBitrate;
+-    param.sSpatialLayers[0].uiProfileIdc        = s->profile;
++    // FFmpeg profile values may include constraint flags such as
++    // AV_PROFILE_H264_CONSTRAINED. OpenH264 accepts only its bare
++    // EProfileIdc values, so pass the explicit mapping selected above.
++    param.sSpatialLayers[0].uiProfileIdc        = openh264_profile;
+ 
+ #if OPENH264_VER_AT_LEAST(1, 7)
+     if (avctx->sample_aspect_ratio.num && avctx->sample_aspect_ratio.den) {

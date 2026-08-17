@@ -39,6 +39,26 @@ internal fun sortBrowserMediaCandidates(
 internal fun rankBrowserMediaCandidate(
     candidate: BrowserMediaCandidate,
 ): BrowserMediaCandidateRanking {
+    if (candidate.isActionableAudio) {
+        val reasons = mutableListOf("网页音频资源")
+        var score = 90
+        if (BrowserMediaCandidateDiscoverySource.DOM_AUDIO_CURRENT_SRC in candidate.discoverySources) {
+            score += 260
+            reasons.add(0, "网页当前音频")
+        }
+        if (BrowserMediaCandidateDiscoverySource.INTERCEPTED_RESPONSE in candidate.discoverySources) {
+            score += 60
+            reasons += "响应类型已确认"
+        }
+        return BrowserMediaCandidateRanking(
+            score = score,
+            isRecommended = false,
+            automaticFloatingEligible = false,
+            qualityHeight = null,
+            qualityLabel = null,
+            summary = reasons.joinToString(" · "),
+        )
+    }
     if (!candidate.isActionableVideo) {
         return BrowserMediaCandidateRanking(
             score = Int.MIN_VALUE,
@@ -46,7 +66,7 @@ internal fun rankBrowserMediaCandidate(
             automaticFloatingEligible = false,
             qualityHeight = null,
             qualityLabel = null,
-            summary = "不可执行的视频线索",
+            summary = "不可执行的媒体线索",
         )
     }
 

@@ -41,7 +41,7 @@ class BrowserNetworkLogPolicyTest {
             ),
         )
         assertEquals(
-            BrowserNetworkRequestCategory.WEB,
+            BrowserNetworkRequestCategory.STYLE,
             classifyBrowserNetworkRequest(
                 url = "https://cdn.example.com/app.css?v=3",
                 acceptHeader = "*/*",
@@ -59,7 +59,7 @@ class BrowserNetworkLogPolicyTest {
     }
 
     @Test
-    fun `filter returns newest first and searches URL or method`() {
+    fun `filter groups the static resource directory and searches URL or method`() {
         val entries =
             listOf(
                 entry("GET", "https://example.com/index.html", BrowserNetworkRequestCategory.WEB, 1L),
@@ -68,7 +68,7 @@ class BrowserNetworkLogPolicyTest {
             )
 
         assertEquals(
-            listOf(3L, 2L, 1L),
+            listOf(2L, 3L, 1L),
             filterBrowserNetworkLogEntries(entries, category = null, query = "").map { it.timestamp },
         )
         assertEquals(
@@ -114,6 +114,62 @@ class BrowserNetworkLogPolicyTest {
                 query = "filters",
             ).map { it.timestamp },
         )
+    }
+
+    @Test
+    fun `resource identity removes fragment but preserves signed query variants`() {
+        assertEquals(
+            "https://example.com/media.mp4?token=one",
+            normalizeBrowserResourceIdentityUrl(
+                "HTTPS://EXAMPLE.COM:443/media.mp4?token=one#preview",
+            ),
+        )
+        assertTrue(
+            normalizeBrowserResourceIdentityUrl(
+                "https://example.com/media.mp4?token=one",
+            ) !=
+                normalizeBrowserResourceIdentityUrl(
+                    "https://example.com/media.mp4?token=two",
+                ),
+        )
+    }
+
+    @Test
+    fun `same document resource merges into one stable directory entry`() {
+        val first =
+            BrowserNetworkRequestEntry(
+                method = "GET",
+                url = "https://cdn.example.com/file.bin#first",
+                isMainFrame = false,
+                isStatic = true,
+                category = BrowserNetworkRequestCategory.OTHER,
+                headers = mapOf("Accept" to "*/*"),
+                documentToken = "document-1",
+                timestamp = 10L,
+                firstSeenAt = 10L,
+                lastSeenAt = 10L,
+            )
+        val second =
+            BrowserNetworkRequestEntry(
+                method = "GET",
+                url = "https://cdn.example.com/file.bin#second",
+                isMainFrame = false,
+                isStatic = true,
+                category = BrowserNetworkRequestCategory.VIDEO,
+                headers = mapOf("Accept" to "video/mp4", "Referer" to "https://example.com/"),
+                documentToken = "document-1",
+                timestamp = 20L,
+                firstSeenAt = 20L,
+                lastSeenAt = 20L,
+            )
+
+        val merged = mergeBrowserNetworkResourceEntry(first, second)
+        assertEquals(2, merged.requestCount)
+        assertEquals(BrowserNetworkRequestCategory.VIDEO, merged.category)
+        assertEquals(10L, merged.firstSeenAt)
+        assertEquals(20L, merged.lastSeenAt)
+        assertEquals("video/mp4", merged.headers["Accept"])
+        assertEquals("https://example.com/", merged.headers["Referer"])
     }
 
     @Test

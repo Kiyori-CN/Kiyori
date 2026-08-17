@@ -8,6 +8,10 @@ internal enum class BrowserNetworkRequestCategory {
     AUDIO,
     IMAGE,
     WEB,
+    SCRIPT,
+    STYLE,
+    DATA,
+    FONT,
     OTHER,
 }
 
@@ -52,12 +56,20 @@ internal fun classifyBrowserNetworkRequest(
             BrowserNetworkRequestCategory.AUDIO
         accept.contains("image/") || extension in BrowserNetworkImageExtensions ->
             BrowserNetworkRequestCategory.IMAGE
-        accept.contains("text/") ||
-            accept.contains("javascript") ||
-            accept.contains("json") ||
-            accept.contains("xml") ||
-            accept.contains("font/") ||
-            extension in BrowserNetworkWebExtensions -> BrowserNetworkRequestCategory.WEB
+        accept.contains("javascript") || extension in BrowserNetworkScriptExtensions ->
+            BrowserNetworkRequestCategory.SCRIPT
+        accept.contains("text/css") || extension in BrowserNetworkStyleExtensions ->
+            BrowserNetworkRequestCategory.STYLE
+        accept.contains("font/") || extension in BrowserNetworkFontExtensions ->
+            BrowserNetworkRequestCategory.FONT
+        accept.contains("application/json") ||
+            accept.contains("application/xml") ||
+            accept.contains("text/xml") ||
+            accept.contains("text/plain") ||
+            extension in BrowserNetworkDataExtensions -> BrowserNetworkRequestCategory.DATA
+        accept.contains("text/html") ||
+            accept.contains("application/xhtml") ||
+            extension in BrowserNetworkDocumentExtensions -> BrowserNetworkRequestCategory.WEB
         else -> BrowserNetworkRequestCategory.OTHER
     }
 }
@@ -69,18 +81,26 @@ internal fun filterBrowserNetworkLogEntries(
     blockedOnly: Boolean = false,
 ): List<WebSessionBrowserNetworkEntry> {
     val normalizedQuery = query.trim()
-    return entries.asReversed().filter { entry ->
-        (category == null || entry.category == category) &&
-            (!blockedOnly || entry.blocked) &&
-            (
-                normalizedQuery.isBlank() ||
-                    entry.url.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.method.contains(normalizedQuery, ignoreCase = true) ||
-                    entry.blockingRule?.contains(normalizedQuery, ignoreCase = true) == true ||
-                    entry.blockingSourceName?.contains(normalizedQuery, ignoreCase = true) == true ||
-                    entry.elementSelector?.contains(normalizedQuery, ignoreCase = true) == true
-                )
-    }
+    return entries
+        .sortedWith(
+            compareBy<WebSessionBrowserNetworkEntry>(
+                { entry -> entry.category.ordinal },
+                { entry -> browserNetworkHost(entry.url) },
+                { entry -> entry.url },
+            ),
+        )
+        .filter { entry ->
+            (category == null || entry.category == category) &&
+                (!blockedOnly || entry.blocked) &&
+                (
+                    normalizedQuery.isBlank() ||
+                        entry.url.contains(normalizedQuery, ignoreCase = true) ||
+                        entry.method.contains(normalizedQuery, ignoreCase = true) ||
+                        entry.blockingRule?.contains(normalizedQuery, ignoreCase = true) == true ||
+                        entry.blockingSourceName?.contains(normalizedQuery, ignoreCase = true) == true ||
+                        entry.elementSelector?.contains(normalizedQuery, ignoreCase = true) == true
+                    )
+        }
 }
 
 internal fun isThirdPartyBrowserNetworkRequest(
@@ -125,6 +145,69 @@ internal fun browserNetworkHost(url: String): String =
     runCatching { URI(url).host.orEmpty().lowercase(Locale.ROOT).trimEnd('.') }
         .getOrDefault("")
 
+/**
+ * The static resource directory keeps query parameters because signed URLs and CDN variants can
+ * address different bytes. Only the fragment is presentation metadata and is excluded.
+ */
+internal fun normalizeBrowserResourceIdentityUrl(url: String): String {
+    val trimmed = url.trim()
+    if (trimmed.isBlank()) return ""
+    return runCatching {
+        val uri = URI(trimmed)
+        val scheme = uri.scheme?.lowercase(Locale.ROOT)
+        val host = uri.host?.lowercase(Locale.ROOT)
+        if (scheme == null || host == null) {
+            return@runCatching trimmed.substringBefore('#')
+        }
+        val port =
+            if (
+                (scheme == "http" && uri.port == 80) ||
+                    (scheme == "https" && uri.port == 443)
+            ) {
+                -1
+            } else {
+                uri.port
+            }
+        URI(
+                scheme,
+                uri.userInfo,
+                host,
+                port,
+                uri.rawPath.orEmpty().ifBlank { "/" },
+                uri.rawQuery,
+                null,
+            )
+            .toASCIIString()
+    }.getOrElse {
+        trimmed.substringBefore('#')
+    }
+}
+
+internal fun browserNetworkCategoryPriority(
+    category: BrowserNetworkRequestCategory,
+): Int =
+    when (category) {
+        BrowserNetworkRequestCategory.VIDEO -> 100
+        BrowserNetworkRequestCategory.AUDIO -> 95
+        BrowserNetworkRequestCategory.IMAGE -> 90
+        BrowserNetworkRequestCategory.WEB -> 70
+        BrowserNetworkRequestCategory.SCRIPT -> 60
+        BrowserNetworkRequestCategory.STYLE -> 55
+        BrowserNetworkRequestCategory.DATA -> 50
+        BrowserNetworkRequestCategory.FONT -> 45
+        BrowserNetworkRequestCategory.OTHER -> 0
+    }
+
+internal fun mergeBrowserNetworkRequestCategory(
+    current: BrowserNetworkRequestCategory,
+    observed: BrowserNetworkRequestCategory,
+): BrowserNetworkRequestCategory =
+    if (browserNetworkCategoryPriority(observed) > browserNetworkCategoryPriority(current)) {
+        observed
+    } else {
+        current
+    }
+
 private val BrowserNetworkVideoExtensions =
     setOf("m3u8", "mpd", "mp4", "m4v", "mkv", "webm", "flv", "mov", "avi", "ts")
 
@@ -134,5 +217,17 @@ private val BrowserNetworkAudioExtensions =
 private val BrowserNetworkImageExtensions =
     setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "ico", "avif", "heic")
 
-private val BrowserNetworkWebExtensions =
-    setOf("html", "htm", "xhtml", "css", "js", "mjs", "json", "xml", "woff", "woff2", "ttf", "otf")
+private val BrowserNetworkDocumentExtensions =
+    setOf("html", "htm", "xhtml")
+
+private val BrowserNetworkScriptExtensions =
+    setOf("js", "mjs", "jsx", "ts", "tsx")
+
+private val BrowserNetworkStyleExtensions =
+    setOf("css", "scss", "less")
+
+private val BrowserNetworkDataExtensions =
+    setOf("json", "xml", "txt", "csv", "yaml", "yml")
+
+private val BrowserNetworkFontExtensions =
+    setOf("woff", "woff2", "ttf", "otf")

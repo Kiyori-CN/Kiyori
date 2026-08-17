@@ -7,13 +7,13 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object MediaPoolManager {
     private const val TAG = "MediaPoolManager"
 
     private const val MAX_INPUT_BYTES = 20 * 1024 * 1024
-
-    private fun q(path: String): String = "\"" + path.replace("\"", "\\\"") + "\""
 
     private data class TranscodedMedia(
         val file: File,
@@ -23,49 +23,121 @@ object MediaPoolManager {
     private fun transcodeToFit(source: File, mimeType: String, targetBytes: Long): TranscodedMedia? {
         val baseDir = cacheDir ?: return null
         val dir = File(baseDir, "media_pool_transcoded")
-        runCatching { if (!dir.exists()) dir.mkdirs() }
+        if (!dir.isDirectory && !dir.mkdirs()) {
+            AppLogger.e(TAG, "无法创建媒体转码目录: ${dir.absolutePath}")
+            return null
+        }
 
         fun ok(out: File): Boolean = out.exists() && out.isFile && out.length() in 1..targetBytes
 
+        val durationSeconds =
+            FFmpegUtil.getMediaInfo(source.absolutePath)
+                ?.duration
+                ?.toDoubleOrNull()
+                ?.takeIf { duration -> duration.isFinite() && duration > 0.0 }
+        if (durationSeconds == null) {
+            AppLogger.e(TAG, "无法确定媒体时长，拒绝执行不可验证的容量转码: ${source.absolutePath}")
+            return null
+        }
+
         if (mimeType.startsWith("audio/", ignoreCase = true)) {
-            val out = File(dir, "${UUID.randomUUID()}.mp3")
-            val inPath = q(source.absolutePath)
-            val outPath = q(out.absolutePath)
-
-            val commands = listOf(
-                "-y -i $inPath -vn -ac 1 -ar 16000 -b:a 64k $outPath",
-                "-y -i $inPath -vn -ac 1 -ar 16000 -b:a 32k $outPath"
-            )
-
-            for (cmd in commands) {
-                runCatching { out.delete() }
-                if (FFmpegUtil.executeCommand(cmd) && ok(out)) {
-                    return TranscodedMedia(out, "audio/mpeg")
-                }
+            val plan =
+                resolveMediaPoolTranscodePlan(
+                    kind = MediaPoolTranscodeKind.AUDIO,
+                    durationSeconds = durationSeconds,
+                    targetBytes = targetBytes,
+                )
+            if (plan == null) {
+                AppLogger.e(TAG, "音频时长无法在单次编码中满足容量上限: duration=$durationSeconds")
+                return null
             }
+            val out = File(dir, "${UUID.randomUUID()}.mp3")
+            val arguments =
+                listOf(
+                    "-y",
+                    "-i",
+                    source.absolutePath,
+                    "-map",
+                    "0:a:0",
+                    "-vn",
+                    "-sn",
+                    "-dn",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "16000",
+                    "-c:a",
+                    "libmp3lame",
+                    "-b:a",
+                    "${plan.audioBitrateKbps}k",
+                    out.absolutePath,
+                )
+            val succeeded = FFmpegUtil.executeArguments(arguments)
+            if (succeeded && ok(out)) {
+                return TranscodedMedia(out, "audio/mpeg")
+            }
+            AppLogger.e(
+                TAG,
+                "音频单次转码未满足容量合同: success=$succeeded, bytes=${out.length()}, target=$targetBytes",
+            )
             runCatching { out.delete() }
             return null
         }
 
         if (mimeType.startsWith("video/", ignoreCase = true)) {
-            val out = File(dir, "${UUID.randomUUID()}.mp4")
-            val inPath = q(source.absolutePath)
-            val outPath = q(out.absolutePath)
-            val scale640 = FFmpegUtil.scaleFilterMaxWidth(640)
-            val scale480 = FFmpegUtil.scaleFilterMaxWidth(480)
-
-            val commands = listOf(
-                "-y -i $inPath -vf $scale640 -c:v h264 -preset veryfast -crf 32 -c:a aac -b:a 64k -movflags +faststart $outPath",
-                "-y -i $inPath -vf $scale640 -c:v mpeg4 -q:v 8 -c:a aac -b:a 64k -movflags +faststart $outPath",
-                "-y -i $inPath -vf $scale480 -c:v mpeg4 -q:v 12 -c:a aac -b:a 48k -movflags +faststart $outPath"
-            )
-
-            for (cmd in commands) {
-                runCatching { out.delete() }
-                if (FFmpegUtil.executeCommand(cmd) && ok(out)) {
-                    return TranscodedMedia(out, "video/mp4")
-                }
+            val plan =
+                resolveMediaPoolTranscodePlan(
+                    kind = MediaPoolTranscodeKind.VIDEO,
+                    durationSeconds = durationSeconds,
+                    targetBytes = targetBytes,
+                )
+            val videoBitrateKbps = plan?.videoBitrateKbps
+            if (plan == null || videoBitrateKbps == null) {
+                AppLogger.e(TAG, "视频时长无法在单次编码中满足容量上限: duration=$durationSeconds")
+                return null
             }
+            val out = File(dir, "${UUID.randomUUID()}.mp4")
+            val arguments =
+                listOf(
+                    "-y",
+                    "-i",
+                    source.absolutePath,
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "0:a:0?",
+                    "-vf",
+                    FFmpegUtil.scaleFilterMaxWidth(640),
+                    "-c:v",
+                    "libopenh264",
+                    "-profile:v",
+                    "constrained_baseline",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-b:v",
+                    "${videoBitrateKbps}k",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "${plan.audioBitrateKbps}k",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "32000",
+                    "-sn",
+                    "-dn",
+                    "-movflags",
+                    "+faststart",
+                    out.absolutePath,
+                )
+            val succeeded = FFmpegUtil.executeArguments(arguments)
+            if (succeeded && ok(out)) {
+                return TranscodedMedia(out, "video/mp4")
+            }
+            AppLogger.e(
+                TAG,
+                "视频单次转码未满足容量合同: success=$succeeded, bytes=${out.length()}, target=$targetBytes",
+            )
             runCatching { out.delete() }
             return null
         }
@@ -162,8 +234,13 @@ object MediaPoolManager {
         }
     }
 
+    suspend fun addMedia(filePath: String, mimeType: String): String =
+        withContext(Dispatchers.IO) {
+            addMediaOnBackground(filePath, mimeType)
+        }
+
     @Synchronized
-    fun addMedia(filePath: String, mimeType: String): String {
+    private fun addMediaOnBackground(filePath: String, mimeType: String): String {
         return try {
             val file = File(filePath)
             if (!file.exists() || !file.isFile) {
@@ -216,8 +293,13 @@ object MediaPoolManager {
         }
     }
 
+    suspend fun addMediaFromBase64(base64: String, mimeType: String): String =
+        withContext(Dispatchers.IO) {
+            addMediaFromBase64OnBackground(base64, mimeType)
+        }
+
     @Synchronized
-    fun addMediaFromBase64(base64: String, mimeType: String): String {
+    private fun addMediaFromBase64OnBackground(base64: String, mimeType: String): String {
         return try {
             val estimated = MediaBase64Limiter.estimateDecodedSizeBytes(base64)
             if (estimated == null) {

@@ -7164,6 +7164,10 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_network_log_filter_audio">Audio</string>
     <string name="web_session_network_log_filter_image">Imej</string>
     <string name="web_session_network_log_filter_web">Web</string>
+    <string name="web_session_network_log_filter_script">Skrip</string>
+    <string name="web_session_network_log_filter_style">Gaya</string>
+    <string name="web_session_network_log_filter_data">Data/teks</string>
+    <string name="web_session_network_log_filter_font">Fon</string>
     <string name="web_session_network_log_filter_other">Lain-lain</string>
     <string name="web_session_network_log_filter_blocked">Disekat</string>
     <string name="web_session_network_log_third_party_hint">“Pihak ketiga” bermaksud domain permintaan berbeza daripada domain halaman semasa; ia tidak bermaksud iklan atau kegagalan.</string>
@@ -7176,11 +7180,14 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="web_session_network_log_block_rule_saved">Peraturan sekatan URL disimpan</string>
     <string name="web_session_network_log_blocked_by_custom">Peraturan sekatan tersuai</string>
     <string name="web_session_network_log_view_details">Lihat butiran</string>
+    <string name="web_session_network_log_view_page_source">Lihat sumber halaman semasa</string>
     <string name="web_session_network_log_details_title">Butiran permintaan</string>
     <string name="web_session_network_log_detail_method">Kaedah permintaan</string>
     <string name="web_session_network_log_detail_type">Kategori sumber</string>
     <string name="web_session_network_log_detail_frame">Lokasi permintaan</string>
-    <string name="web_session_network_log_detail_time">Masa tangkapan</string>
+    <string name="web_session_network_log_detail_first_seen">Pertama dikesan</string>
+    <string name="web_session_network_log_detail_last_seen">Terakhir dikesan</string>
+    <string name="web_session_network_log_detail_request_count">Bilangan permintaan dalam halaman</string>
     <string name="web_session_network_log_detail_url">URL penuh</string>
     <string name="web_session_network_log_detail_result">Hasil</string>
     <string name="web_session_network_log_result_blocked">Disekat</string>

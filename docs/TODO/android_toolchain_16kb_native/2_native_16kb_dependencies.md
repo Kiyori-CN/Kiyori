@@ -30,20 +30,63 @@ AArch64 ELF64，全部 `PT_LOAD` 最小对齐至少为 `0x4000`。launcher 为 `
 `libc++_shared.so` launcher 依赖均为 0；Debug v2、单 signer 与
 `zipalign -c -P 16 -v 4` 通过。
 
-## 2026-07-29 播放器 native 命名空间与 HTTPS 修正（当前播放器方案）
+## 2026-08-16 双 M9 source closure（当前播放器方案）
 
-播放器接入后已删除旧 `ffmpeg-kit-local.aar` owner，改为两个固定输入生成的确定性 arm64 AAR。
-mpv AAR 持有 `libmpv.so`、`libplayer.so`、同 Clang 21 工具链的 `libc++_shared.so`，以及固定 mpv
-输入中启用 Mbed TLS 的七个 FFmpeg ELF；准备脚本通过等长字符串替换把它们隔离为 `libmp*.so`，
-并同步改写全部 SONAME / `DT_NEEDED`。FFmpegKit AAR 持有 Java/资源/许可证与九个正常名称 native
-库，继续服务主进程 FFmpeg 工具。两个进程不共享 FFmpeg 状态或播放器 owner。
+播放器已删除旧 `ffmpeg-kit-local.aar` owner。当前 mpv AAR 由固定源码 closure 完整构建，
+持有 `libmpv.so`、`libplayer.so`、同 Clang 21 工具链的 `libc++_shared.so`，以及启用
+Mbed TLS `3.6.7` 的七个 FFmpeg `n9.0.1` ELF；准备脚本通过等长字符串替换把它们隔离为
+`libmp*.so`，并同步改写全部 SONAME / `DT_NEEDED`。FFmpegKit AAR 由固定 maintained framework
+`62b07bf097baf26b416c815aea514e05c9ad6d63` 和 FFmpeg `n9.0.1` 完整重建，wrapper 为
+`8.1.7-kiyori-n9.0.1-r4`，OpenH264 固定为
+`v2.6.0@652bdb7719f30b52b08e506645a7322ff1b2cc6f`，持有 Java/资源/许可证与九个正常名称 native 库，只由非导出
+`:ffmpeg` 进程加载；主进程通过 Binder 调用。`:ffmpeg` 与 `:player` 不共享 FFmpeg 状态或
+播放器 owner。r4 的 FFmpeg Android 兼容层保留应用已经启动的 Binder threadpool；服务层由一个
+FIFO worker 持有顶层 native execution，终态前排空当前 session 与 session `0` 的 callback。
 
-新的 mpv AAR 为 `50543589` 字节，SHA-256
-`FC983B7ED0C8B8BE1938283FE94108DFDC593AA31608D55DD1CE119AE201C32C`；七个上游 FFmpeg ELF、
-`libmpv.so`、`libplayer.so` 与 `libc++_shared.so` 的所有 `PT_LOAD` 最小对齐均至少为 `0x4000`。
-`libmpformat.so` 的固定编译配置包含 `--enable-mbedtls`，二进制版本为 Mbed TLS 3.6.6。
+当前 mpv AAR 为 `50926119` 字节，SHA-256
+`F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4`；七个上游 FFmpeg ELF、
+`libmpv.so`、`libplayer.so` 与 `libc++_shared.so` 的所有 `PT_LOAD` 最小对齐均至少为 `0x4000`，
+且 `RPATH` / `RUNPATH` 均不存在。`libmpformat.so` 的固定编译配置包含 `--enable-mbedtls`，
+二进制版本为 FFmpeg `n9.0.1` 与 Mbed TLS `3.6.7`，RSA-PSS enabled，curl disabled。
 
-`2026-07-29 14:22:10 +08:00` 最终 Debug APK 为 `474822245` 字节，SHA-256
+当前 FFmpegKit r4 AAR 为 `30133322` 字节，SHA-256
+`86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7`。九个 normal-name native
+ELF 与十个播放器 native ELF 均为 AArch64，FFmpeg majors 为 `.63/.63/.12/.63/.61/.7/.10`，
+`PT_LOAD` 均不低于 `0x4000`，不含 `RPATH/RUNPATH`。两个 AAR 的全部 native payload ZIP offset
+均为 `0 mod 0x4000`，且 normal/namespaced basename 零交集。
+
+两份产品 AAR 已通过 exact-hash 成对 promotion，并与最终 aligned thin candidate 逐字节一致。
+r4 Python 合同 `46/46`、Gradle `verifyPlayerNativeInputs`、定向 JVM 与 AndroidTest Kotlin 编译已通过。
+当前 r4 双 M9 Debug APK 为 `486200460` bytes，SHA-256
+`14CBE55B2BF1FC11B769D9E14267F474E41C3EF40FC115210E7A7A0CB6CC28C6`；规定构建重新验证为
+`BUILD SUCCESSFUL in 59s`，`232` 个任务中 `19` 个 executed、`213` 个 up-to-date。
+Android Debug V2 单 signer
+和 `zipalign -c -P 16 -v 4` 通过。APK 仅含 arm64-v8a：51 个 `.so` basename 零重复，加 shell
+launcher 共 52 个 ELF64/AArch64，153 个 `PT_LOAD` 为 `0x4000 × 151` 与 `0x10000 × 2`。
+播放器 10 个与
+FFmpegKit 9 个 native payload 均与产品 AAR 逐字节一致；两套 FFmpeg 均为 `n9.0.1`，
+FFmpeg 8 markers/majors、normal/namespaced 交叉依赖和相关 19 个 ELF 的 `RPATH/RUNPATH` 均为 0；
+`44` 个 DEX 包含 FFmpeg runtime service；`libffmpegkit.so` 包含 r4 wrapper 与
+`ABinderProcess_isThreadPoolStarted` patch marker。
+
+r4 继续使用的 OpenH264 `v2.6.0` 发布点早于上游 `BsFlush` empty-word 修复
+`40555ec684ec0fede3948c8f272c04d88d05189d`，因此继续保留锁定的 OpenH264 patch、FFmpeg
+constrained-baseline 映射 patch 与 framework 重应用 patch。host ASan/UBSan 编码/回读矩阵为
+`20/20 PASS`。当前 r4 APK 的独立审计确认 `19/19` AAR payload 字节一致、r4 wrapper/Binder
+patch marker、arm64-only、相关 19 个 closure ELF 的 `RPATH/RUNPATH=0` 与上述 PT_LOAD 分布。
+全 APK 扫描另观察到两个其它 native owner `libonnxruntime.so`、`libsherpa-mnn-jni.so` 带
+`RPATH/RUNPATH`，不属于本阶段播放器/FFmpegKit closure。
+
+## 2026-08-16 播放器 M8 source closure（历史安全刷新基线）
+
+历史 M8 Debug APK 为 `471063551` 字节，SHA-256
+`6656ABC96C32A0E74FD00098478C2ACBA866EC272447F20A8CE3AAA395F6FA43`。APK 仅含
+`arm64-v8a`，51 个 `.so` basename 零重复；加 shell launcher 共 52 个 ELF64/AArch64，160 个
+`PT_LOAD` 的最小对齐为 `0x4000`。播放器 AAR 的十个 native 成员和 FFmpegKit AAR 的九个 native
+成员与 APK 全部字节一致，Debug V2 与 `zipalign -c -P 16 -v 4` 通过。
+
+以下 `2026-07-29` APK 记录属于 M8 选择前的历史证据。
+当时最终 Debug APK 为 `474822245` 字节，SHA-256
 `969C20C2FC6E1A401CFF51812EC1936AB674ECF5B2F51D0A7AB1589FBB35A6A7`。APK 仅含
 `arm64-v8a`，53 个 native basename 无重复，52 个 ELF 的所有 `PT_LOAD` 最小对齐至少为
 `0x4000`，唯一非 ELF 为既有 2 字节 `libsudo.so`。`libmpv.so` / `libplayer.so` 的 256 个版本化

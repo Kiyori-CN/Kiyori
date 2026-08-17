@@ -34,13 +34,20 @@ constructs mpv or opens the media descriptor.
 
 The non-exported `:player` `PlayerRuntimeService` owns one `HandlerThread`, one `MpvPlayerEngine`, one
 `PlayerMediaResolver`, one content descriptor and one remote Surface wrapper. A separate single thumbnail executor may
-call the packaged binding's `grabThumbnailFast`, but it does not create another playback core. It keeps at most one
-active and one newest pending extraction, buckets requests at two positions per second and returns a maximum `320px`
-Bitmap through AIDL. `MpvPlayerEngine` is the only source file allowed to import `is.xyz.mpv.MPVLib` or `MPVNode`.
-One-way AIDL messages carry runtime generation, command ID and monotonic event sequence.
+call the packaged binding's `grabThumbnailFast` only for non-network media; HTTP/HTTPS seek preview is rejected before
+the thumbnail command so it cannot open an independent headerless connection. It keeps at most one active and one
+newest pending local extraction, buckets requests at two positions per second and returns a maximum `320px` Bitmap
+through AIDL. `MpvPlayerEngine` is the only source file allowed to import `is.xyz.mpv.MPVLib` or `MPVNode`. One-way AIDL
+messages carry runtime generation, command ID and monotonic event sequence. `FILE_LOADED` publishes track/container
+metadata but does not clear the loading state; `PLAYBACK_RESTART` is the first runtime event allowed to mark playback
+output ready.
 
-`PlayerSettingsStore` owns persisted player preferences. The settings page never writes mpv properties. A live session
-observes settings and applies only properties that mpv can consume without creating a new media request.
+`PlayerSettingsStore` owns persisted player preferences. Decoder backend owns `hwdec`; rendering profile owns the mpv
+profile. Initialization and media load apply the broad profile before explicit backend and seek properties so each
+dedicated Kiyori setting remains the final owner of its property. Network cache is one request-scoped four-value policy:
+`COMPACT`, `BALANCED`, `LARGE`, or `FULL_VIDEO`; there is no independent full-cache boolean. A live settings update may
+change rendering, decoder, seek, subtitles, volume, and shaders, but it cannot change the current request's cache
+owner. The next media request snapshots the current policy. The settings page never writes mpv properties.
 
 The player settings page is ordered as playback/queue, gestures/progress, picture/Anime4K, audio/subtitles,
 save/download, and window/online. Screenshot and video directories are optional SAF document trees. Blank values mean
@@ -60,9 +67,15 @@ enabled state restores the default sensor-landscape policy. The manual rotate co
 `自动` while gravity rotation owns orientation. The landscape Anime4K control keeps a fixed lower-left width and compact
 line heights so its mode label cannot drift toward the centered transport row.
 
-Each `WebSession` owns its in-memory media candidates. The browser top bar, candidate drawer, automatic floating
-selection and network log only project candidate IDs; request headers and Cookie remain in the runtime owner. Playback
-calls `PlayerSession`, and download calls the existing `BrowserDownloadManager`.
+Each `WebSession` owns its current-document static resource directory and in-memory media candidates. The directory
+aggregates by document token plus normalized original URL, excludes fragments, preserves queries, increments a request
+count, keeps an independent 2,000-identity bound and groups resources by
+media/image/document/script/style/data/font/other type instead of displaying a reverse timestamp stream. The browser
+top bar, “资源嗅探” drawer, automatic floating selection and network resource directory only project candidate IDs;
+request headers and Cookie remain in the runtime owner. Bounded image thumbnails and the single image viewer reuse the
+captured request identity. Controlled response MIME and `Content-Disposition` may identify opaque URLs without reading
+the response body. Video playback calls `PlayerSession`, media download calls the existing `BrowserDownloadManager`,
+and recognized audio remains non-playable until a music-player owner exists.
 
 ## State and transitions
 
@@ -79,14 +92,30 @@ Browser floating to fullscreen to floating to close never calls WebView `loadUrl
 candidate rescan or JavaScript media control. A page may continue its own media independently; Kiyori does not mutate
 that page state.
 
+The fixed `mpvlibAndroid@168e0a5e` lifecycle remains the native Surface authority: detach sets `vo=null`,
+`force-window=no`, and releases the native window; attach restores the configured VO and `force-window=yes`. Kiyori
+does not replace that sequence without a reproducible native source/build closure. Fit ownership stays in
+`MpvPlayerEngine`: `FIT` resets aspect override and panscan, `CROP` uses panscan, and `STRETCH` sets
+`video-aspect-override` to the current accepted Surface width divided by height. A valid resize reapplies stretch, so
+landscape, portrait, floating, freeform, foldable, and inset-adjusted layouts follow their real Surface rather than
+display metrics.
+
+Fullscreen and floating progress bars keep drag movement in a local draft and submit one seek only on release.
+Cancellation submits no seek. `PlayerSession` records a pending user seek only after the current runtime/load accepts
+the explicit command. The runtime emits every `MPV_EVENT_SEEK` with the current load command, but the main process sets
+`seeking=true` only when that load also owns a pending user seek. Events caused by the packaged binding's Surface/VO
+reconfiguration are logged as internal seeks and do not enter UI seeking. The matching
+`MPV_EVENT_PLAYBACK_RESTART` completes the user seek; an unrelated restart marks output ready without consuming a
+future pending seek. New media, close, runtime death and explicit errors clear both pending and visible seek state.
+
 ## Media requests
 
-Network URLs are passed to mpv unchanged. The media request retains only headers actually observed by the WebSession,
-including Origin, User-Agent, Referer, Cookie, Range and Accept when present. Missing fields remain missing. Immediately
-before writing `http-header-fields`, the `:player` runtime removes `Range` case-insensitively and records that decision
-without its value. FFmpeg owns the active byte offset and generates the Range required for each open or seek; replaying
-one browser request's captured Range would force every transfer to that stale position. The candidate and download
-owner continue retaining the original Range evidence.
+Network URLs are passed to mpv unchanged. The media request retains headers observed by the WebSession. Immediately
+before writing `http-header-fields`, the `:player` runtime removes `Range`, `Accept-Encoding`, hop-by-hop fields and
+Chromium-only `Sec-CH-UA` / `Sec-Fetch-*` metadata case-insensitively. Origin, User-Agent, Referer, Cookie, Accept and
+unknown end-to-end authentication fields remain attached when present. FFmpeg owns active byte offsets, content
+encoding, connection framing and each seek Range; replaying browser transport metadata would force stale or
+WebView-specific behavior. The candidate and download owner continue retaining the original evidence.
 
 The `:player` resolver opens one read-only `ParcelFileDescriptor` for `content://`; its lifetime matches the remote
 media request. `file://` resolves to its original local path. System `ACTION_VIEW` creates a new request ID; Activity
@@ -94,16 +123,22 @@ recreation reuses the existing ID. External local videos may build a same-direct
 names match; entries use natural numeric title order. Browser and other network requests remain a one-item queue unless
 their caller provides an explicit ordered queue.
 
-MIME is evidence, not a URL resolver. An API request observed with a video MIME does not become a direct media file
-without exact URL or DOM evidence. `blob:` and MSE entries remain non-executable clues.
+MIME and URL suffix are evidence, not absolute identity. A controlled response MIME can identify an opaque direct media
+resource, video DOM evidence outranks a misleading audio suffix/MIME, and audio DOM evidence identifies a real audio
+candidate. The original URL is never changed. At `FILE_LOADED`, mpv publishes `file-format`, video/audio codecs,
+video-track count, active hardware decoder, pixel format, and the selected video track's
+`track-list/N/codec-profile`. A stable `VIDEO_RECONFIG` rereads only that light identity, suppresses an identical
+snapshot, and sends a dedicated AIDL update without rebuilding the full track list or rerunning full-cache
+qualification. Blank, `no`, and `none` `hwdec-current` values all mean that no hardware decoder is active. Actual
+demux/track state is authoritative for diagnostics. `blob:`, MSE, WebRTC and DRM entries remain non-executable clues.
 
 ## Diagnostics
 
 `PlayerDebugLogBuffer` is the single fullscreen log-view owner. A new media request clears the previous in-memory
 segment, after which the main process records session, command and Surface transitions. `MpvPlayerEngine` registers the
-packaged binding's `MPVLib.LogObserver`, sets `msg-level=all=v` before `mpv_initialize`, and sends MPV verbose,
-file-event and error messages from `:player` through the existing ordered AIDL callback. Progress snapshots are not
-logged every 250 ms.
+packaged binding's `MPVLib.LogObserver`, sets `msg-level=all=warn,ffmpeg=info,demux=info` before `mpv_initialize`, and
+sends bounded native file/network/error evidence from `:player` through the existing ordered AIDL callback. Progress
+snapshots are not logged every 250 ms.
 
 The buffer keeps at most 2,000 timestamped entries and reports how many older entries were dropped. Each entry receives
 a stable sequence ID and one or more topics when it is appended, so filtering does not repeatedly classify the full
@@ -119,10 +154,61 @@ text export build a chronological full report from the current view. Exports are
 Diagnostics retain the online scheme, host, port and path shape needed to identify stream behavior, while URL query
 values, request-header values, Cookie, Authorization, titles and private local paths are removed. The report also
 contains the app version, device/Android version, runtime generation/PID, presentation, Surface lease, decoder,
-Anime4K, track counts and visible error. Media-load diagnostics record input/forwarded header counts, forwarded field
-names and whether an observed Range was left to mpv; values remain omitted. `END_FILE` reads mpv's node schema as the
-string `reason` plus optional string `file_error`, so native loading failures remain ERROR entries and become a visible
-session error instead of `unknown / none`.
+Anime4K, track counts and visible error. The `:player` runtime registers one default-network callback on its existing
+serial Handler, emits an initial snapshot, coalesces callback bursts for 250 ms and appends only changed redacted facts.
+Every media load records another request-start snapshot; report export records the main-process snapshot at report
+time and points to the ordered `PlayerNetwork` entries for player-process history. Each snapshot contains
+active/process-bound network presence, separate active/effective VPN/Wi-Fi/cellular/ethernet/Bluetooth transports,
+validation, metering, captive portal, background restriction, Private DNS presence, IPv4/IPv6 DNS/default-route counts
+and absent/static/PAC proxy type. It never records IPs, DNS names, proxy addresses, interface names or network handles
+and never binds around a VPN. If Android reports a process-bound network, that network is the effective owner for
+transports, DNS, routes, proxy and metering; active and effective transports remain separate evidence so a VPN or
+unexpected binding is visible without claiming causality.
+Media-load diagnostics record input/forwarded header counts, forwarded field names and whether an observed Range was
+left to mpv; values remain omitted. Concrete native evidence such as DNS failure, TCP refusal/timeout, unreachable
+route, TLS certificate failure or HTTP error outranks generic `loading failed`. `END_FILE` reads mpv's node schema as
+the string `reason` plus optional string `file_error`.
+
+After `MPVLib.init()` succeeds, `MpvPlayerEngine` strictly queries the required `mpv-version`, `ffmpeg-version`,
+`protocol-list`, `demuxer-lavf-list` and `decoder-list` properties exactly once. Hardware-decoder metadata is read from
+the `option-info/hwdec` Node map because mpv defines `choices` as optional and the fixed runtime exposes `hwdec` as a
+string-list option without a choices list. When choices are exposed, a pure policy projects the fixed MediaCodec
+targets as confirmed available or unavailable. Missing option/map/choices metadata projects those targets as unknown
+with explicit evidence; malformed map, array or entry nodes additionally produce a warning but do not abort the
+otherwise valid mpv core. The stable digest includes this evidence, so unknown introspection is distinct from a
+confirmed empty list. The complete native lists are not sent through Binder, and a browser extension or MIME hint
+never becomes runtime capability evidence.
+
+Every cache policy uses explicit startup/non-startup semantics: `cache=yes`, `cache-pause-initial=no`,
+`cache-pause=yes`, `cache-pause-wait=1.0`, and its fixed forward/backward/time limits. The single setting is:
+
+| Policy | Forward | Backward | Time | Session disk cache |
+| --- | ---: | ---: | ---: | --- |
+| `COMPACT` / 省流模式 | 64 MiB | 32 MiB | 60 s | no |
+| `BALANCED` / 智能均衡 | 128 MiB | 64 MiB | 180 s | no; fresh-install default |
+| `LARGE` / 流畅优先 | 256 MiB | 128 MiB | 300 s | no |
+| `FULL_VIDEO` / 完整缓存 | 256 MiB | 128 MiB | 300 s initially | prepared before `loadfile` |
+
+`FULL_VIDEO` uses the same mpv request, headers, demuxer, and an app-private immediate-unlink session directory. It
+becomes active after `FILE_LOADED` confirms `demuxer-via-network=yes`, at least one actual video track, a non-HLS/DASH
+actual format, finite duration no longer than four hours, `seekable=yes`, `partially-seekable=no`, a positive
+`file-size` no larger than 20 GiB, and available space of at least
+`file-size + max(1 GiB, ceil(file-size * 0.15))`. Qualification does not read `stream-start`, `stream-end`, URL
+suffixes, or `demuxer-cache-state`. An ineligible request disables disk cache, deletes only its verified session
+directory, records the exact reason, and retains `FULL_VIDEO`'s own 256/128 MiB and 300-second base playback cache
+without changing policy.
+
+For an active request, `cache-secs` expands to finite duration plus 60 seconds.
+`demuxer-max-bytes` and `demuxer-max-back-bytes` are bounded packet-metadata budgets (`128..256 MiB` by duration) and
+never shrink the base values. `demuxer-cache-state` reads are capped at 1 Hz and classified as
+`AVAILABLE`, `UNAVAILABLE`, or `MALFORMED`; the latter two are observable but do not fail ordinary playback or form
+completion evidence. `file-cache-bytes` may exceed `file-size`, but independently enforces the actual 20 GiB disk-cache
+limit. Free-space checks run at most every five seconds, and 512 MiB is a hard stop.
+`bof-cached=yes + eof-cached=yes + exactly one seekable range` is the only first completion proof. Once that proof
+establishes `COMPLETE`, a transient unavailable, malformed, or incomplete node cannot revoke the same media session's
+completion fact. Replacement, close, engine destruction, and the next runtime initialization clean only the canonical
+`noBackupFilesDir/player/mpv-session-cache` scope after rejecting symlink or boundary violations. This is not a
+download or offline-library path.
 
 ## Native and class loading
 

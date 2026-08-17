@@ -1,0 +1,40 @@
+From 4bb7e352211e3547ea1d83ef4b10c995350a1dfd Mon Sep 17 00:00:00 2001
+From: Kiyori Native Build <noreply@kiyori.local>
+Date: Mon, 17 Aug 2026 15:40:00 +0800
+Subject: [PATCH] android: reapply locked OpenH264 patch after source reset
+
+The Android OpenH264 helper restores codec/ before every build. Reapply the
+manifest-locked Kiyori source patch immediately after that reset so the
+compiled archive and its tests stay on the same audited source state.
+---
+ scripts/android/openh264.sh | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/scripts/android/openh264.sh b/scripts/android/openh264.sh
+--- a/scripts/android/openh264.sh
++++ b/scripts/android/openh264.sh
+@@ -28,6 +28,22 @@ make clean 2>/dev/null 1>/dev/null
+ git checkout "${BASEDIR}"/src/"${LIB_NAME}"/build || return 1
+ git checkout "${BASEDIR}"/src/"${LIB_NAME}"/codec || return 1
+ 
++# The reset above intentionally discards upstream platform workarounds, but it
++# also removes Kiyori's locked codec fix. Restore every file owned by the
++# current OpenH264 patch to one known base state, then apply that patch in full.
++if [[ -n "${FFMPEG_KIT_OPENH264_PATCH:-}" ]]; then
++  git checkout -- \
++    "${BASEDIR}"/src/"${LIB_NAME}"/test/encoder/EncUT_ExpGolomb.cpp \
++    || return 1
++
++  git -C "${BASEDIR}"/src/"${LIB_NAME}" \
++    apply --check "${FFMPEG_KIT_OPENH264_PATCH}" \
++    || return 1
++  git -C "${BASEDIR}"/src/"${LIB_NAME}" \
++    apply "${FFMPEG_KIT_OPENH264_PATCH}" \
++    || return 1
++fi
++
+ # WORKAROUND TO DISABLE PARTS THAT COMPILE cpu-features INTO libopenh264.a
+ ${SED_INLINE} 's/^COMMON_INCLUDES +=/# COMMON_INCLUDES +=/' "${BASEDIR}"/src/"${LIB_NAME}"/build/platform-android.mk
+ ${SED_INLINE} 's/^COMMON_OBJS +=/# COMMON_OBJS +=/' "${BASEDIR}"/src/"${LIB_NAME}"/build/platform-android.mk
+-- 
+2.43.0

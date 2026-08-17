@@ -631,14 +631,19 @@ private fun FloatingPlayerSeekBar(
     modifier: Modifier = Modifier,
 ) {
     var trackWidthPx by remember { mutableIntStateOf(0) }
+    var seekDraftSeconds by remember(durationSeconds) { mutableStateOf<Double?>(null) }
     val density = LocalDensity.current
     val thumbSizePx = with(density) { 7.dp.roundToPx() }
+    val displayedPositionSeconds = seekDraftSeconds ?: currentPositionSeconds
     val progressFraction =
         if (durationSeconds > 0.0) {
-            (currentPositionSeconds / durationSeconds).toFloat()
+            (displayedPositionSeconds / durationSeconds).toFloat()
         } else {
             0f
         }.coerceIn(0f, 1f)
+    fun resolveSeekTarget(positionX: Float): Double =
+        durationSeconds *
+            (positionX / trackWidthPx.toFloat()).coerceIn(0f, 1f)
 
     Box(
         modifier =
@@ -649,9 +654,29 @@ private fun FloatingPlayerSeekBar(
                 .pointerInput(durationSeconds, trackWidthPx) {
                     if (durationSeconds > 0.0 && trackWidthPx > 0) {
                         detectTapGestures { offset ->
-                            val targetFraction =
-                                (offset.x / trackWidthPx.toFloat()).coerceIn(0f, 1f)
-                            onSeekTo(durationSeconds * targetFraction)
+                            onSeekTo(resolveSeekTarget(offset.x))
+                        }
+                    }
+                }
+                .pointerInput(durationSeconds, trackWidthPx) {
+                    if (durationSeconds > 0.0 && trackWidthPx > 0) {
+                        var pendingTarget = currentPositionSeconds.coerceIn(0.0, durationSeconds)
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                pendingTarget = resolveSeekTarget(offset.x)
+                                seekDraftSeconds = pendingTarget
+                            },
+                            onDragEnd = {
+                                onSeekTo(pendingTarget)
+                                seekDraftSeconds = null
+                            },
+                            onDragCancel = {
+                                seekDraftSeconds = null
+                            },
+                        ) { change, _ ->
+                            change.consume()
+                            pendingTarget = resolveSeekTarget(change.position.x)
+                            seekDraftSeconds = pendingTarget
                         }
                     }
                 },

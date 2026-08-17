@@ -29,6 +29,7 @@ receiver	.integrations.tasker.WorkflowTaskerReceiver
 receiver	.widget.ToolPkgDesktopWidgetReceiver
 receiver	.widget.VoiceAssistantWidgetReceiver
 service	.api.chat.AIForegroundService
+service	.core.ffmpeg.runtime.FFmpegRuntimeService
 service	.core.player.runtime.PlayerRuntimeService
 service	.core.tools.defaultTool.websession.browser.BrowserDownloadForegroundService
 service	.core.tools.defaultTool.websession.browser.BrowserDownloadJobService
@@ -124,6 +125,7 @@ permission	android.permission.MANAGE_DOCUMENTS
 permission	android.permission.MANAGE_DOCUMENTS
 permission	android.permission.MANAGE_DOCUMENTS
 process	:crash
+process	:ffmpeg
 process	:player
 process	:repair
 process	:repair

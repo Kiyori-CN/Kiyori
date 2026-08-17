@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,10 +22,35 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlayerRuntimeServiceAndroidTest {
     @Test
+    fun playerNetworkSnapshotIsPassiveRedactedAndStructurallyBounded() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val snapshot = capturePlayerNetworkSnapshot(context)
+        val summary = snapshot.diagnosticSummary()
+
+        assertTrue(summary.length < 512)
+        assertFalse(summary.contains("://"))
+        assertFalse(summary.contains('@'))
+        assertFalse(summary.contains("networkHandle", ignoreCase = true))
+        assertTrue(snapshot.ipv4DnsCount >= 0)
+        assertTrue(snapshot.ipv6DnsCount >= 0)
+        assertTrue(snapshot.ipv4DefaultRouteCount >= 0)
+        assertTrue(snapshot.ipv6DefaultRouteCount >= 0)
+        assertTrue(snapshot.proxyType in setOf("absent", "static", "pac"))
+        assertTrue(snapshot.effectiveNetworkSource in setOf("absent", "active", "bound"))
+        assertTrue(
+            (snapshot.activeTransports + snapshot.effectiveTransports).all { transport ->
+                transport in setOf("wifi", "cellular", "ethernet", "vpn", "bluetooth")
+            },
+        )
+    }
+
+    @Test
     fun initialize_reportsDistinctProcessAndIncreasingEventSequence() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val connected = CountDownLatch(1)
         val ready = CountDownLatch(1)
+        val networkSnapshotObserved = CountDownLatch(1)
+        val runtimeCapabilityObserved = CountDownLatch(1)
         val closed = CountDownLatch(1)
         val runtimePid = AtomicInteger(0)
         val readySequence = AtomicLong(0L)
@@ -90,6 +116,25 @@ class PlayerRuntimeServiceAndroidTest {
                     tracks: PlayerRuntimeTrackSnapshot?,
                 ) = Unit
 
+                override fun onMediaIdentityChanged(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    loadCommandId: Long,
+                    identity: PlayerRuntimeMediaIdentitySnapshot?,
+                ) = Unit
+
+                override fun onSeek(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    loadCommandId: Long,
+                ) = Unit
+
+                override fun onPlaybackRestart(
+                    runtimeGeneration: Long,
+                    eventSequence: Long,
+                    loadCommandId: Long,
+                ) = Unit
+
                 override fun onNaturalEnd(
                     runtimeGeneration: Long,
                     eventSequence: Long,
@@ -107,7 +152,18 @@ class PlayerRuntimeServiceAndroidTest {
                     level: Int,
                     tag: String?,
                     message: String?,
-                ) = Unit
+                ) {
+                    if (tag == "PlayerNetwork" && message?.contains("reason=initial") == true) {
+                        networkSnapshotObserved.countDown()
+                    }
+                    if (
+                        message?.contains("播放器运行时能力") == true &&
+                            message.contains("digest=") &&
+                            message.contains("hwdecEvidence=")
+                    ) {
+                        runtimeCapabilityObserved.countDown()
+                    }
+                }
 
                 override fun onThumbnailReady(
                     runtimeGeneration: Long,
@@ -150,7 +206,8 @@ class PlayerRuntimeServiceAndroidTest {
                 RUNTIME_GENERATION,
                 INITIALIZE_COMMAND_ID,
                 PlayerRuntimeConfig(
-                    decoderPresetId = "fast",
+                    decoderBackendId = "software",
+                    renderingProfileId = "fast",
                     gpuNextEnabled = false,
                     vulkanEnabled = false,
                     preciseSeeking = true,
@@ -162,6 +219,8 @@ class PlayerRuntimeServiceAndroidTest {
             )
             assertTrue(ready.await(20, TimeUnit.SECONDS))
             assertNotEquals(Process.myPid(), runtimePid.get())
+            assertTrue(networkSnapshotObserved.await(10, TimeUnit.SECONDS))
+            assertTrue(runtimeCapabilityObserved.await(10, TimeUnit.SECONDS))
 
             activeRuntime.close(RUNTIME_GENERATION, CLOSE_COMMAND_ID)
             assertTrue(closed.await(10, TimeUnit.SECONDS))

@@ -11,25 +11,33 @@ Player native stack
 1. mpv and Android JNI binding
 
    Source: https://github.com/Riteshp2001/mpvlibAndroid
-   Fixed tag: 2026-06-25
-   Fixed commit: 168e0a5e43b37c85509050cddcb5eaddc2e313c0
-   Binary input: mpv-android-lib-2026-06-25.aar
-   Binary SHA-256: CA0D1C60DDFE5BAD46C369D0D0BF6C2D1A8BB5EC5A3AB916C33F892D0263A75E
+   Fixed binding baseline: tag 2026-06-25
+   Fixed binding commit: 168e0a5e43b37c85509050cddcb5eaddc2e313c0
    mpv source: https://github.com/mpv-player/mpv
+   Fixed mpv commit: 2339eb72767517fc5a113283939f59076946fbc1
+   mpv source identity: v0.41.0-dev-g2339eb727
+   Embedded runtime string: mpv v0.41.0-774-g2339eb727
+   FFmpeg source: https://github.com/FFmpeg/FFmpeg
+   Fixed FFmpeg tag: n9.0.1
+   Fixed FFmpeg commit: bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa
+   Source closure AAR SHA-256: 7CB0B25DC15F21278992243CE2597193B7A54E1A488933555B572982203E2BC0
 
-   Kiyori creates a deterministic arm64 player AAR from that fixed input. It
-   retains the Java API, required assets, libmpv.so, libplayer.so, the matching
-   libc++_shared.so, and the seven FFmpeg libraries built with mpv. To keep
-   those HTTPS-capable FFmpeg libraries isolated from the application's
-   FFmpegKit tools, Kiyori rewrites only their equal-length ELF SONAME and
-   DT_NEEDED strings and stores them as libmpcodec.so, libmpdevice.so,
-   libmpfilter.so, libmpformat.so, libmputil.so, libmpresample.so, and
-   libmpscale.so. The native machine code and symbol implementations are not
-   replaced. Distribution must provide the complete corresponding source,
-   transformation script, and build information required by the applicable
-   mpv, FFmpeg, Mbed TLS, and GPL licenses.
+   Kiyori builds the complete arm64 player closure from these fixed sources,
+   including the Java binding, libplayer JNI bridge, mpv, FFmpeg, Mbed TLS,
+   libplacebo, shaderc, the matching libc++_shared.so, and required assets.
+   The audited source AAR is transformed deterministically into the selected
+   product AAR. To keep the HTTPS-capable player FFmpeg closure isolated from
+   the application's FFmpegKit tools, Kiyori rewrites only equal-length ELF
+   SONAME and DT_NEEDED strings and stores the seven FFmpeg libraries as
+   libmpcodec.so, libmpdevice.so, libmpfilter.so, libmpformat.so, libmputil.so,
+   libmpresample.so, and libmpscale.so. The native machine code and symbol
+   implementations are not replaced. The selected ELF closure contains no
+   RPATH or RUNPATH and all PT_LOAD alignments are at least 0x4000.
+   Distribution must provide the complete corresponding source,
+   transformation scripts, build information, and notices required by the
+   applicable mpv, FFmpeg, Mbed TLS, and GPL licenses.
 
-   Player AAR SHA-256: FC983B7ED0C8B8BE1938283FE94108DFDC593AA31608D55DD1CE119AE201C32C
+   Player AAR SHA-256: F52ACA6F35C651BE7AAB55F2EFE6B5F40180D1EBAEB1404CC446470BF8DEB6A4
 
    C++ runtime SHA-256: C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B
    C++ runtime source: https://github.com/llvm/llvm-project/tree/main/libcxx
@@ -41,32 +49,45 @@ Player native stack
 2. Mbed TLS
 
    Source: https://github.com/Mbed-TLS/mbedtls
-   Version embedded by the fixed mpv input: 3.6.6
+   Fixed tag: mbedtls-3.6.7
+   Fixed commit: 068ff080b369adfac81509f9b57b2afabaf82dc5
+   Framework submodule commit: dde0c4a0e448a0552f18817dcea633bb851fd288
+   Version embedded by the selected player closure: 3.6.7
+   RSA-PSS: enabled
    License: Apache-2.0 OR GPL-2.0-or-later
 
-   The mpv-built libmpformat.so statically includes Mbed TLS as its HTTPS/TLS
-   backend. Kiyori distributes the combined player under GPL-3.0-or-later and
-   preserves the fixed upstream build identity and corresponding-source
-   obligation.
+   The source-built libmpformat.so statically includes Mbed TLS as its
+   HTTPS/TLS backend. Kiyori distributes the combined player under
+   GPL-3.0-or-later and preserves the fixed upstream build identity and
+   corresponding-source obligation.
 
 3. FFmpegKit Maintained and FFmpeg
 
-   Maven coordinate: dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7
+   Java/API compatibility baseline: dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7
    Source: https://github.com/ffmpegkit-maintained/ffmpeg
    Fixed tag: v8.1.7
    Fixed tag object/commit: 62b07bf097baf26b416c815aea514e05c9ad6d63
-   Binary SHA-256: C3CBC81D498175FD2AA69EE2DFE7DAFBF519052A96283C2568FE5B3B16618456
-   FFmpeg version: n8.1.2
+   Kiyori wrapper version: 8.1.7-kiyori-n9.0.1-r4
+   FFmpeg source: https://github.com/FFmpeg/FFmpeg
+   Fixed FFmpeg tag: n9.0.1
+   Fixed FFmpeg commit: bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa
+   OpenH264 source: https://github.com/cisco/openh264
+   Fixed OpenH264 tag: v2.6.0
+   Fixed OpenH264 commit: 652bdb7719f30b52b08e506645a7322ff1b2cc6f
+   Source AAR SHA-256: DF332D8F2FECA7508541A2F20EDB348A3BFBC2AD5AE6EEFDEDF2889D679C96CC
 
-   Kiyori creates a deterministic arm64 tools AAR from this fixed input. It retains
+   Kiyori restores the fixed maintained framework source, applies the audited
+   FFmpeg 9 host integration overlay, maps constrained baseline to OpenH264's
+   baseline enum, applies the fixed BsFlush empty-word correction, and preserves
+   an Android application's already-started Binder threadpool before transcode. It retains
    the Java API, proguard metadata, embedded res/raw license and source notices,
-   and the nine FFmpegKit/FFmpeg libraries. It removes the x86_64 libraries and
-   the input AAR's C++ runtime so the APK contains the matching mpv runtime
-   described above. These normal libav*.so names remain owned by FFmpegKit
-   utilities in the main process; the :player process resolves only the
-   namespaced mpv FFmpeg closure.
+   and the nine FFmpegKit/FFmpeg libraries. The tools AAR omits its C++ runtime so
+   the APK contains the unique matching runtime supplied by the player closure
+   described above. These normal libav*.so names are loaded only by the
+   non-exported :ffmpeg process; the main process uses Binder, and the :player
+   process resolves only the namespaced mpv FFmpeg closure.
 
-   Tools arm64 AAR SHA-256: 1A30A94226BF2157927EC6EDBB20154F9A1C1C53580F59CF55EFE46DB87A5AB3
+   Tools arm64 AAR SHA-256: 86D97CC0174FF44A8057899BEF7B8E66BD976E5CFA7BBA7D2A9FC819CB8EFCA7
 
    FFmpeg and enabled external libraries retain their own licenses.
    Distribution must provide relinkable/dynamically linked library materials

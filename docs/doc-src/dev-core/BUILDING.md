@@ -234,7 +234,7 @@ Linux / macOS：
 ABI、native owner、TLS 与 C++ 符号检查的播放器 AAR。详细合同见
 [Player native stack](./PLAYER_NATIVE_STACK.md)。
 
-只重新生成播放器输入时：
+只验证当前已选播放器输入时：
 
 Windows：
 
@@ -247,6 +247,65 @@ Linux / macOS：
 ```bash
 .venv/bin/python -B ci/script/prepare_mpv_player_dependency.py --repository .
 ```
+
+Selected dual M9 native source closure qualification:
+
+```powershell
+.\.venv\Scripts\python.exe -B ci\script\build_player_native_closure.py `
+  --repository . `
+  --profile m9_ffmpeg_major_candidate `
+  --work-root <isolated-work-root> `
+  --android-ndk <isolated-r29-path> `
+  --android-sdk <android-sdk-path> `
+  --bash <msys2-bash-path> `
+  --build-tools <python-build-tools-path> `
+  --host-toolchain <winlibs-root> `
+  --jobs 8
+
+.\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py `
+  --repository . `
+  --source-closure-aar <source-aar> `
+  --source-closure-profile m9_ffmpeg_major_candidate `
+  --native-readelf <windows-host-ndk-llvm-readelf.exe>
+
+.\.venv\Scripts\python.exe -B ci\script\build_ffmpegkit_native_closure.py `
+  --repository . `
+  --distribution Ubuntu-22.04 `
+  --linux-user <wsl-user> `
+  --work-root <wsl-work-root> `
+  --android-ndk <wsl-ndk-r29-path> `
+  --android-sdk <wsl-android-sdk-path> `
+  --native-readelf <windows-host-ndk-llvm-readelf.exe> `
+  --jobs 12 `
+  --candidate-output
+
+.\.venv\Scripts\python.exe -B ci\script\prepare_mpv_player_dependency.py `
+  --repository . `
+  --promote-m9-mpv-candidate <m9-player-thin-candidate> `
+  --promote-m9-ffmpegkit-candidate <m9-ffmpegkit-thin-candidate> `
+  --source-closure-profile m9_ffmpeg_major_candidate `
+  --native-readelf <windows-host-ndk-llvm-readelf.exe> `
+  --expected-mpv-sha256 f52aca6f35c651be7aab55f2efe6b5f40180d1ebaeb1404cc446470bf8deb6a4 `
+  --expected-ffmpegkit-sha256 86d97cc0174ff44a8057899bef7b8e66bd976e5cfa7bba7d2a9fc819cb8efca7
+```
+
+The default prepare command only validates the selected product AAR and fixed FFmpegKit AAR. It does not download
+or recreate the historical mpv product when the selected AAR is absent. The explicit legacy `--mpv-input-aar` mode
+writes only a baseline under `work/`.
+
+The selected player source and candidate commands use `--profile m9_ffmpeg_major_candidate`. Paired promotion
+accepts only that profile and the two fixed product hashes; it audits both candidates, both product-directory
+temporary files and both final product AARs. The source builder records an ignored
+`work/player-native-build/<profile>/source-lock.json`. Windows builds require MSYS2 Bash with Autotools, an isolated
+NDK r29 and SDK path, plus a complete fixed WinLibs host toolchain. The builder checks
+`x86_64-w64-mingw32/include/assert.h`, `stdint.h`, and `stdio.h` before compiling; a partial archive extraction is
+rejected before the FFmpeg host code generators run. NDK 28.2 is only a smoke environment and cannot be used as final
+M8/M9 selection evidence.
+
+FFmpegKit compilation uses the fixed WSL NDK r29 path. The `--native-readelf` argument is different: the closure
+auditor runs as a Windows-host Python process, so it requires a Windows `llvm-readelf.exe` and rejects a `/home/...`
+WSL binary path before touching the workspace. A compatible Windows NDK `llvm-readelf.exe` may inspect the generated
+AArch64 ELF files; it does not change the NDK revision recorded by the built closure.
 
 ## 6. 生成 WebChat 与示例输入
 

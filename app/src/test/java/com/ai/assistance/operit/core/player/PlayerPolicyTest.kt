@@ -11,19 +11,44 @@ class PlayerPolicyTest {
     @Test
     fun initialPlayerDefaultsUseRequestedPlaybackProfile() {
         val settings = FRESH_INSTALL_PLAYER_SETTINGS
-        assertEquals(
-            PlayerDecoderPreset.HIGH_QUALITY,
-            settings.decoderPreset,
-        )
-        assertTrue(settings.rememberPlaybackSpeed)
-        assertTrue(settings.longPressSpeedBoostEnabled)
-        assertTrue(settings.rememberAnime4KMode)
-        assertEquals(Anime4KMode.A_PLUS, settings.anime4KMode)
-        assertEquals(PlayerNetworkCachePolicy.LARGE, settings.networkCachePolicy)
+        assertEquals(PlayerDecoderBackend.SOFTWARE, settings.decoderBackend)
+        assertEquals(PlayerRenderingProfile.FAST, settings.renderingProfile)
+        assertFalse(settings.rememberPlaybackSpeed)
+        assertFalse(settings.longPressSpeedBoostEnabled)
+        assertFalse(settings.rememberAnime4KMode)
+        assertEquals(Anime4KMode.OFF, settings.anime4KMode)
+        assertEquals(PlayerNetworkCachePolicy.BALANCED, settings.networkCachePolicy)
+        assertFalse(settings.preciseSeeking)
+        assertFalse(settings.seekbarThumbnailEnabled)
         assertFalse(PlayerSettings().followGravityRotation)
         assertEquals(PlayerDoubleTapAction.PLAY_PAUSE, PlayerSettings().doubleTapAction)
         assertTrue(PlayerSettings().screenshotDirectoryUri.isBlank())
         assertTrue(PlayerSettings().videoDownloadDirectoryUri.isBlank())
+    }
+
+    @Test
+    fun networkCachePoliciesHaveOneOwnerAndAFullVideoMode() {
+        assertEquals(
+            listOf(
+                PlayerNetworkCachePolicy.COMPACT,
+                PlayerNetworkCachePolicy.BALANCED,
+                PlayerNetworkCachePolicy.LARGE,
+                PlayerNetworkCachePolicy.FULL_VIDEO,
+            ),
+            PlayerNetworkCachePolicy.entries,
+        )
+        assertFalse(PlayerNetworkCachePolicy.COMPACT.usesSessionDiskCache)
+        assertFalse(PlayerNetworkCachePolicy.BALANCED.usesSessionDiskCache)
+        assertFalse(PlayerNetworkCachePolicy.LARGE.usesSessionDiskCache)
+        assertTrue(PlayerNetworkCachePolicy.FULL_VIDEO.usesSessionDiskCache)
+        assertEquals(
+            PlayerNetworkCachePolicy.LARGE.forwardBytes,
+            PlayerNetworkCachePolicy.FULL_VIDEO.forwardBytes,
+        )
+        assertEquals(
+            PlayerNetworkCachePolicy.LARGE.backwardBytes,
+            PlayerNetworkCachePolicy.FULL_VIDEO.backwardBytes,
+        )
     }
 
     @Test
@@ -89,8 +114,17 @@ class PlayerPolicyTest {
 
     @Test
     fun persistedSettingsMapToExactRuntimeValues() {
-        PlayerDecoderPreset.entries.forEach { value ->
-            assertEquals(value, PlayerDecoderPreset.fromPersistedId(value.persistedId))
+        PlayerDecoderBackend.entries.forEach { value ->
+            assertEquals(value, PlayerDecoderBackend.fromPersistedId(value.persistedId))
+        }
+        assertEquals("no", PlayerDecoderBackend.SOFTWARE.mpvValue)
+        assertFalse(PlayerDecoderBackend.SOFTWARE.hardwareAccelerated)
+        assertEquals("mediacodec", PlayerDecoderBackend.MEDIACODEC.mpvValue)
+        assertTrue(PlayerDecoderBackend.MEDIACODEC.hardwareAccelerated)
+        assertEquals("mediacodec-copy", PlayerDecoderBackend.MEDIACODEC_COPY.mpvValue)
+        assertTrue(PlayerDecoderBackend.MEDIACODEC_COPY.hardwareAccelerated)
+        PlayerRenderingProfile.entries.forEach { value ->
+            assertEquals(value, PlayerRenderingProfile.fromPersistedId(value.persistedId))
             assertTrue(value.displayName.isNotBlank())
             assertTrue(value.description.isNotBlank())
         }
@@ -449,6 +483,7 @@ class PlayerPolicyTest {
                 durationSeconds = 120.0,
                 paused = true,
                 speed = 1.5,
+                seeking = true,
                 loadGeneration = 4L,
             )
 
@@ -464,6 +499,7 @@ class PlayerPolicyTest {
         assertEquals(PlayerPresentation.FULLSCREEN_PLAYER, transition.state.presentation)
         assertEquals(87.5, transition.state.positionSeconds, 0.0)
         assertEquals(1.5, transition.state.speed, 0.0)
+        assertTrue(transition.state.seeking)
         assertEquals(4L, transition.state.loadGeneration)
     }
 
@@ -543,12 +579,14 @@ class PlayerPolicyTest {
                 durationSeconds = 120.0,
                 paused = true,
                 speed = 1.5,
+                seeking = true,
                 loadGeneration = 4L,
             )
         val settings =
             PlayerSettings(
                 defaultSpeed = 1.25,
-                decoderPreset = PlayerDecoderPreset.HIGH_QUALITY,
+                decoderBackend = PlayerDecoderBackend.MEDIACODEC_COPY,
+                renderingProfile = PlayerRenderingProfile.HIGH_QUALITY,
                 anime4KMode = Anime4KMode.B,
                 rememberAnime4KMode = true,
             )
@@ -564,8 +602,10 @@ class PlayerPolicyTest {
         assertTrue(transition.shouldLoad)
         assertEquals(0.0, transition.state.positionSeconds, 0.0)
         assertEquals(1.25, transition.state.speed, 0.0)
+        assertFalse(transition.state.seeking)
         assertEquals(5L, transition.state.loadGeneration)
-        assertEquals(PlayerDecoderPreset.HIGH_QUALITY, transition.state.decoderPreset)
+        assertEquals(PlayerDecoderBackend.MEDIACODEC_COPY, transition.state.decoderBackend)
+        assertEquals(PlayerRenderingProfile.HIGH_QUALITY, transition.state.renderingProfile)
         assertEquals(Anime4KMode.B, transition.state.anime4KMode)
     }
 
