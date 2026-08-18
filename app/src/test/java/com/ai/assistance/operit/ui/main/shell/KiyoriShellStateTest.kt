@@ -42,6 +42,7 @@ import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedStartScale
 import com.kiyori.app.shell.resolveKiyoriBottomBarAlpha
 import com.kiyori.app.shell.restoreKiyoriShellState
 import com.kiyori.app.shell.shouldAcceptKiyoriHomePagerInput
+import com.kiyori.app.shell.shouldAnimateKiyoriShellChildOverlay
 import com.kiyori.app.shell.shouldComposeKiyoriAiHost
 import com.kiyori.app.shell.shouldElevateKiyoriAiHost
 import com.kiyori.app.shell.shouldEnableKiyoriBrowserHostBackHandler
@@ -51,7 +52,7 @@ import com.kiyori.app.shell.shouldNotifyKiyoriAiHomeSettledForInitialPage
 import com.kiyori.app.shell.shouldPresentKiyoriBookmarkDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriDownloadDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriHistoryDrawer
-import com.kiyori.app.shell.shouldPresentKiyoriShellOverlay
+import com.kiyori.app.shell.shouldPresentKiyoriSettingsOverlay
 import com.kiyori.app.shell.shouldProvideKiyoriSettingsTheme
 import com.kiyori.app.shell.shouldReverseKiyoriPagerDrag
 import com.kiyori.app.shell.toKiyoriShellSaveableValues
@@ -858,7 +859,7 @@ class KiyoriShellStateTest {
             )
 
         assertFalse(state.showsBottomBar)
-        assertTrue(shouldPresentKiyoriShellOverlay(state))
+        assertTrue(shouldAnimateKiyoriShellChildOverlay(state))
         assertEquals(
             KiyoriShellBackTransition(
                 state = state.copy(child = null),
@@ -866,6 +867,41 @@ class KiyoriShellStateTest {
             ),
             state.handleBack(),
         )
+    }
+
+    @Test
+    fun `settings surfaces never enter the animated Shell child host`() {
+        val bottomHome =
+            KiyoriShellState().selectPrimary(PrimaryDestination.SETTINGS_HOME)
+        val bottomShellDetail =
+            bottomHome.openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+        val bottomOperitDetail = bottomHome.showSettingsOperitRoute()
+        val browserOwner =
+            KiyoriShellState().openBrowser(
+                returnTarget = KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+            )
+        val sourceHome = browserOwner.openSettings(KiyoriSettingsOrigin.BROWSER_HOME)
+        val sourceShellDetail =
+            sourceHome.openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+        val sourceOperitDetail = sourceHome.showSettingsOperitRoute()
+
+        listOf(
+            bottomHome,
+            bottomShellDetail,
+            bottomOperitDetail,
+            sourceHome,
+            sourceShellDetail,
+            sourceOperitDetail,
+        ).forEach { state ->
+            assertFalse(shouldAnimateKiyoriShellChildOverlay(state))
+        }
+
+        assertFalse(shouldPresentKiyoriSettingsOverlay(bottomHome))
+        assertTrue(shouldPresentKiyoriSettingsOverlay(bottomShellDetail))
+        assertFalse(shouldPresentKiyoriSettingsOverlay(bottomOperitDetail))
+        assertTrue(shouldPresentKiyoriSettingsOverlay(sourceHome))
+        assertTrue(shouldPresentKiyoriSettingsOverlay(sourceShellDetail))
+        assertFalse(shouldPresentKiyoriSettingsOverlay(sourceOperitDetail))
     }
 
     @Test

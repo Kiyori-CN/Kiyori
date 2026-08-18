@@ -400,6 +400,13 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 设置首页保留四个旧版 PNG 顶栏图标、四张 `16dp` 圆角卡片和 `4/4/4/4` 共 16 个入口的信息结构。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 16 个入口由设计层 `KiyoriSettingsHomeIconPalette` 分别提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。第一张卡固定为“账号连接 / AI助手 / 语音服务 / 小程序”，第二张卡固定为“网页浏览器 / 视频播放器 / 音乐播放器 / 文档阅读器”，第三张卡固定为“文件下载器 / 文件管理器 / 广告拦截器 / 日志记录器”，最后一张卡固定为“界面定制 / 数据备份 / 开发手册 / 更多功能”；16 个图标也必须互不重复。前三项进入现有真实设置根，“小程序”保持空动作，等待底部第三个小程序产品域建立自己的管理页，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。网页浏览器、视频播放器、文件下载器、广告拦截器、界面定制和数据备份也进入各自唯一 owner；广告拦截器设置页只消费 `BrowserAdBlockStore`，不创建第二规则源。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。标题返回与系统 Back 共用同一 route-pop 语义，详情先回分类、再回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
 
+Settings surface 不参与 Shell child 的 enter/exit 动画。Shell child 动画宿主只承载
+Full-Screen Search；底部 `PRIMARY_ROOT + HOME` 的设置首页只由 Primary Root 绘制，
+`SOURCE_OVERLAY + HOME` 与 Shell 设置详情只由直接、不透明的 Settings surface 绘制，
+`OPERIT_ROUTE_DETAIL` 只由 App Router 绘制。该分层防止 route/presentation 同事务变化时，
+退出层读取新的 `HOME` 并重复绘制，或来源恢复后的设置首页再次执行进入动画；它不改变设置主题、
+Back owner、Router、Browser Runtime、WebSession 或 AI Host 所有权。
+
 ## 设置所有权
 
 | Kiyori 系统设置 | AI 助手设置 |

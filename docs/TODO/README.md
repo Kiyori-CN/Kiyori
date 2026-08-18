@@ -87,6 +87,19 @@ payload、完整性链和审计导出的唯一 owner。现有聊天消息继续�
   `git diff --check` 均通过；Debug APK 为 `494168730` bytes，SHA-256
   `A8EE926FCD4C68B6B4B50DB689112936376ADFA53ED5577D8BD21174A0C155ED`。目标设备保持
   `verification_pending`
+- 2026-08-18 设置返回转场残影继续按双入口四象限取证：底部入口的 Shell 设置详情返回时，
+  退出中的 Settings overlay 会读取已经恢复的 `HOME` route，与 Primary Root 设置首页重复绘制；
+  Browser Menu/AI 抽屉来源的 Operit 设置详情返回时，Settings overlay 会从不可见重新进入，
+  让恢复出的设置首页再次执行 `fadeIn + slideIn`。本次将 Settings surface 从 Shell child
+  `AnimatedVisibility` 中彻底拆出：该动画宿主只承载 Full-Screen Search；底部设置首页只由
+  Primary Root 绘制，来源设置首页和 Shell 设置详情只由直接、不透明的 Settings surface 绘制，
+  Operit 设置详情只由 App Router 绘制。不改 Back owner、Router 恢复事务、AI Host 层级、
+  Browser Runtime、WebSession 或主题所有权。`KiyoriShellStateTest 69/69`、完整 App JVM
+  `239 suites / 1405 tests`、AndroidTest Kotlin/Java 编译、architecture `phase=m03`、
+  formal readiness 与 `git diff --check` 均通过；Debug APK 为 `467107608` bytes，SHA-256
+  `BFA17A75523E74EF7C0A44651443D52D660D9EDB15EB458314A3317E76DBB0F6`，包/版本/SDK、
+  唯一 launcher、arm64-only、V2 单 signer 和 16 KB ZIP 对齐通过。目标设备视觉复测仍为
+  `verification_pending`
 - 项目 Python `220/220`、完整 JVM `229 suites / 1362 tests`、AndroidTest Kotlin/Java 编译、
   formal readiness、architecture `phase=m03` 与完整 Lint 均通过。Lint 最终只显示
   `GradleDependency 5 / NewerVersionAvailable 15 / UseKtx 3` 共 `23` 条既有范围诊断，

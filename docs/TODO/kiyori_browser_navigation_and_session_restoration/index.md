@@ -458,6 +458,54 @@ Kotlin/Java 编译、architecture `phase=m03`、formal readiness 和规定 Debug
 `67F8F4D73367981591A2C0C73C25CB4F3B698C658238C682DA040E8E4533B16D`；目标设备点击、IME、
 系统 Back 和 Browser 来源设置返回仍保持 `verification_pending`。
 
+#### 2026-08-18 设置 surface 返回转场残影修正
+
+目标设备继续复测发现，两类设置入口与两类详情宿主组成稳定的反相四象限：
+
+| 设置入口与详情宿主 | 返回时的 Settings overlay 变化 | 旧结果 |
+| --- | --- | --- |
+| 底部入口 + Shell 设置详情 | `true -> false` | 退出层读取已恢复的 `HOME`，与 Primary Root 设置首页重复绘制 |
+| 底部入口 + Operit 设置详情 | `false -> false` | 正常 |
+| Browser/AI 来源 + Shell 设置详情 | `true -> true` | 正常 |
+| Browser/AI 来源 + Operit 设置详情 | `false -> true` | 设置首页重新执行 `fadeIn + slideIn` |
+
+这组现象证明根因不在九个设置页面自身，也不能只由 Browser WebView、Back owner 或
+`AppContent` route 转场解释。`KiyoriSettingsRoute` 与
+`KiyoriSettingsPresentation` 会在同一状态事务中变化；当 Settings 与 Shell child 共用
+`AnimatedVisibility` 时，动画退出内容可以读取新 route，来源恢复也会把最终设置首页误当成
+新进入的 child。
+
+本次冻结并实现以下宿主不变量：
+
+1. Shell child `AnimatedVisibility` 只承载 `KiyoriShellState.child`，当前即
+   Full-Screen Search，并保留原 `fade + vertical slide`；
+2. Settings surface 不参加任何 Shell child enter/exit，直接在 `zIndex(12f)` 以最终不透明状态
+   呈现；
+3. `BOTTOM_NAVIGATION + PRIMARY_ROOT + HOME` 只由 `KiyoriPrimaryRootPage` 绘制设置首页；
+4. `SOURCE_OVERLAY + HOME` 和 Shell 设置详情只由直接 Settings surface 绘制；
+5. `OPERIT_ROUTE_DETAIL` 只由 App Router 绘制，返回事务恢复 presentation 后再直接显示设置首页；
+6. 继续复用现有设置主题边界、Shell/Operit/Browser Back owner、AI Host 前景规则、
+   `popKiyoriRouterBackStack()`、唯一 Browser Runtime 与 WebSession，不增加延迟、截图、
+   第二状态源或逐页特殊分支。
+
+自动测试必须同时锁定六个代表状态都不进入 animated Shell child host，并保留原 Settings
+surface 四象限。目标设备仍需覆盖三类入口、系统 Back、标题返回、九个设置根、深层子页、
+浅深主题和快速重复返回；完成前保持 `verification_pending`。
+
+本次本地证据：
+
+- `KiyoriShellStateTest 69/69`；完整 `:app:testDebugUnitTest` 为
+  `239 suites / 1405 tests`，失败、错误和跳过均为 `0`；
+- `:app:compileDebugAndroidTestKotlin`、`:app:compileDebugAndroidTestJavaWithJavac`、
+  architecture `phase=m03`、formal readiness 与 `git diff --check` 通过；
+- `:app:assembleDebug --no-daemon --console=plain` 为
+  `232 actionable tasks: 22 executed, 210 up-to-date`，零失败；
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`467107608` bytes，
+  SHA-256 `BFA17A75523E74EF7C0A44651443D52D660D9EDB15EB458314A3317E76DBB0F6`；
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、唯一
+  `com.ai.assistance.operit.ui.main.MainActivity` launcher、arm64-only、51 个 `.so` 无重复
+  basename、Android Debug V2 单 signer 和 16 KB ZIP 对齐通过。
+
 ### 5.5 Operit Router 集成
 
 为 `RouteEntry` 增加明确的设置导航上下文，例如：

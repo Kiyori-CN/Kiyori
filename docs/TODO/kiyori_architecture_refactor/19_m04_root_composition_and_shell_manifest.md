@@ -173,6 +173,52 @@ launcher、arm64-only、Android Debug V2 单 signer 和 16 KB ZIP 对齐通过�
 Android 手势与 Full-Screen Search smoke test 未在设备执行；修复后目标设备手感、内容滚动、
 IME、TalkBack 和系统边缘 Back 保持 `verification_pending`。
 
+## 2026-08-18 Stage 7 Settings surface 转场宿主维护批准
+
+Stage 4/5 已修复设置 route、presentation、Back owner 与 Router 恢复事务，Stage 6 又让
+Full-Screen Search 和 Settings 使用独立可见性判定，但两者仍共享同一个
+`AnimatedVisibility` 内容宿主。目标设备的反相四象限证明该共享宿主本身会产生两条视觉竞态：
+
+- 底部入口从 Shell 设置详情返回时，Settings overlay 从可见变为不可见；退出内容读取已经恢复的
+  `HOME` route，与 `KiyoriPrimaryRootPage` 同时绘制设置首页；
+- Browser Menu/AI 抽屉来源从 Operit 设置详情返回时，Settings overlay 从不可见变为可见；
+  已恢复的设置首页被当作新 surface 再次执行 `fadeIn + slideIn`。
+
+本次 Stage 7 只批准以下闭环变化：
+
+- 原 Shell child `AnimatedVisibility` 继续保留动画参数，但只承载
+  `KiyoriShellState.child`，当前即 Full-Screen Search；
+- Settings route 从 animated child host 中移出，使用同一 `zIndex(12f)` 的直接、不透明
+  Settings surface；
+- 底部设置首页仍只由 Primary Root 绘制，来源设置首页和 Shell 设置详情只由直接 Settings
+  surface 绘制，Operit 设置详情只由 App Router 绘制；
+- 主题边界从 child 专用命名改为 surface 通用命名，设置页主题选择规则保持不变；
+- 新增纯判定 `shouldAnimateKiyoriShellChildOverlay()`，测试锁定底部/来源入口与
+  Shell/Operit 详情的六个代表状态都不能进入 animated child host，同时保留原 Settings
+  surface 四象限；
+- 不修改 `KiyoriSettingsNavigationState`、`KiyoriShellState.handleBack()`、
+  `popKiyoriRouterBackStack()`、Browser Back owner、AI Host z-index、Browser Runtime、
+  WebSession、页面级 Back guard 或任何持久化状态。
+
+本阶段对应架构快照：
+
+- ARCH020 `KiyoriApp.kt` LF-normalized SHA-256 保持
+  `2873212F7A1105F04B664995775E3731342407824F7158FC6ADD91F4255166B9`；
+- ARCH024 `KiyoriAppShell.kt` package-normalized SHA-256 从
+  `6698094CB59519FB8124A67216B70DA5CFD8E7A18B92C92300794E3748E34391` 更新为
+  `C004F429D9F15D4F39CA9B66C7FE4DAF72152A37A819A508E366F67B11448EA8`。
+
+本地封板证据：`KiyoriShellStateTest 69/69`、完整 App JVM
+`239 suites / 1405 tests`、AndroidTest Kotlin/Java 编译、architecture `phase=m03`、
+formal readiness 与 `git diff --check` 均通过；规定 Debug 构建为
+`232 actionable tasks: 22 executed, 210 up-to-date`，零失败。APK 为 `467107608` bytes，
+SHA-256 `BFA17A75523E74EF7C0A44651443D52D660D9EDB15EB458314A3317E76DBB0F6`，包/版本/SDK、
+唯一 launcher、arm64-only、Android Debug V2 单 signer 和 16 KB ZIP 对齐通过。
+
+本地自动验证与 Debug APK 只能证明代码、宿主合同和静态产物；三类入口、九个设置根、深层子页、
+快速重复返回、浅深主题和系统/标题 Back 的目标设备视觉矩阵仍保持
+`verification_pending`。
+
 因此 M-04 按可编译的子里程碑串行完成：
 
 1. **M-04A1：宿主 CompositionLocal 合同拆分（已完成）**
