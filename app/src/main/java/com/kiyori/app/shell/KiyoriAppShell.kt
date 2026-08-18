@@ -111,6 +111,7 @@ internal fun KiyoriAppShell(
     val latestState by rememberUpdatedState(state)
     val latestOnStateChange by rememberUpdatedState(onStateChange)
     val latestOnAiHomeSettled by rememberUpdatedState(onAiHomeSettled)
+    val latestOnRequestExit by rememberUpdatedState(onRequestExit)
     val pagerFlingBehavior = PagerDefaults.flingBehavior(state = pagerState)
     val aiHostPagerGestureState =
         remember(pagerState) {
@@ -185,6 +186,15 @@ internal fun KiyoriAppShell(
             }
     }
 
+    val settingsOverlayVisible = shouldPresentKiyoriSettingsOverlay(state)
+    val dispatchShellBack: () -> Unit = {
+        val transition = latestState.handleBack()
+        when (transition.result) {
+            KiyoriShellBackResult.CONSUMED -> latestOnStateChange(transition.state)
+            KiyoriShellBackResult.REQUEST_EXIT -> latestOnRequestExit()
+        }
+    }
+
     BackHandler(
         enabled =
             shouldEnableKiyoriShellBackHandler(
@@ -193,15 +203,10 @@ internal fun KiyoriAppShell(
                 isBookmarkDrawerOpen = state.isBookmarkDrawerOpen,
                 isHistoryDrawerOpen = state.isHistoryDrawerOpen,
                 isDownloadDrawerOpen = state.isDownloadDrawerOpen,
-                isSettingsVisible = shouldPresentKiyoriSettingsOverlay(state),
+                settingsNavigation = state.settingsNavigation,
             ),
-    ) {
-        val transition = latestState.handleBack()
-        when (transition.result) {
-            KiyoriShellBackResult.CONSUMED -> latestOnStateChange(transition.state)
-            KiyoriShellBackResult.REQUEST_EXIT -> onRequestExit()
-        }
-    }
+        onBack = dispatchShellBack,
+    )
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().clipToBounds(),
@@ -363,8 +368,18 @@ internal fun KiyoriAppShell(
             }
         }
 
+        // 该处理器在 Browser/AI 宿主之后、具体设置页面之前注册。这样所有 Shell 设置页面
+        // 都能压住底层宿主，页面内弹窗和未保存确认仍可在随后注册并取得最高优先级。
+        BackHandler(
+            enabled =
+                shouldEnableKiyoriSettingsHostBackHandler(
+                    settingsNavigation = state.settingsNavigation,
+                ),
+            onBack = dispatchShellBack,
+        )
+
         AnimatedVisibility(
-            visible = shouldPresentKiyoriSettingsOverlay(state),
+            visible = settingsOverlayVisible,
             modifier = Modifier.fillMaxSize().zIndex(12f),
             enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
@@ -642,13 +657,19 @@ internal fun shouldEnableKiyoriShellBackHandler(
     isBookmarkDrawerOpen: Boolean,
     isHistoryDrawerOpen: Boolean,
     isDownloadDrawerOpen: Boolean,
-    isSettingsVisible: Boolean,
+    settingsNavigation: KiyoriSettingsNavigationState?,
 ): Boolean =
-    isBookmarkDrawerOpen ||
-        isHistoryDrawerOpen ||
-        isDownloadDrawerOpen ||
-        isSettingsVisible ||
-        (aiHostIsRoot && !isAiDrawerOpen)
+    settingsNavigation == null &&
+        (
+            isBookmarkDrawerOpen ||
+                isHistoryDrawerOpen ||
+                isDownloadDrawerOpen ||
+                (aiHostIsRoot && !isAiDrawerOpen)
+        )
+
+internal fun shouldEnableKiyoriSettingsHostBackHandler(
+    settingsNavigation: KiyoriSettingsNavigationState?,
+): Boolean = isKiyoriSettingsBackOwnedByShell(settingsNavigation)
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun calculateKiyoriPagerPageOffset(
@@ -664,7 +685,10 @@ internal fun resolveKiyoriBottomBarAlpha(
     when {
         !aiHostIsRoot ||
             state.child != null ||
-            state.settingsNavigation != null ||
+            (
+                state.settingsNavigation != null &&
+                    !isKiyoriBottomNavigationSettingsHome(state)
+            ) ||
             state.isAiDrawerOpen ||
             state.isBookmarkDrawerOpen ||
             state.isHistoryDrawerOpen ||
@@ -677,3 +701,11 @@ internal fun resolveKiyoriBottomBarAlpha(
         !state.showsBottomBar -> 0f
         else -> 1f
     }
+
+internal fun isKiyoriBottomNavigationSettingsHome(state: KiyoriShellState): Boolean {
+    val navigation = state.settingsNavigation ?: return false
+    return state.primaryDestination == PrimaryDestination.SETTINGS_HOME &&
+        navigation.origin == KiyoriSettingsOrigin.BOTTOM_NAVIGATION &&
+        navigation.presentation == KiyoriSettingsPresentation.PRIMARY_ROOT &&
+        navigation.currentRoute == KiyoriSettingsRoute.HOME
+}

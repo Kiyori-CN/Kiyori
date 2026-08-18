@@ -23,6 +23,12 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
   询问是否恢复页面 / 保留多窗口”，四项默认关闭
 - 普通窗口恢复只保存最小 URL 级投影；无痕窗口、Cookie、请求头、DOM、表单、正文、截图、密码和
   网络日志不进入恢复文件。搜索窗口离开已加载结果页后立即失去搜索恢复资格
+- 2026-08-18 回归修正按入口来源恢复了设置首页底部五按钮，并把 Shell/Operit 设置的系统 Back
+  处理器放到各自底层宿主之后、具体页面之前；Operit 深层子导航继承同一
+  `KIYORI_SETTINGS` session，只有离开分类根页时才恢复设置首页。最终 App JVM 为
+  `230 suites / 1376 tests`，formal readiness、architecture `phase=m03` 与
+  `git diff --check` 均通过；Debug APK 为 `494168730` bytes，SHA-256
+  `98B59B9BA408ABC3373AAD17BDE3141671B9314EDA778E07D26C6F92EC0D12D0`
 - 项目 Python `220/220`、完整 JVM `229 suites / 1362 tests`、AndroidTest Kotlin/Java 编译、
   formal readiness、architecture `phase=m03` 与完整 Lint 均通过。Lint 最终只显示
   `GradleDependency 5 / NewerVersionAvailable 15 / UseKtx 3` 共 `23` 条既有范围诊断，

@@ -94,6 +94,81 @@ private data class NetworkStateSnapshot(
     val type: String,
 )
 
+internal data class KiyoriSettingsNavigationContext(
+    val source: RouteEntrySource,
+    val navigationContextId: String?,
+)
+
+/**
+ * Default navigation from a Kiyori settings-owned Operit page stays in that settings session.
+ *
+ * The explicit source/context parameters remain authoritative for callers that intentionally
+ * start another navigation family. Without this decision point, every AI settings child becomes
+ * a normal AI root child, so its top bar opens the drawer and Back loses the Browser/AI owner.
+ */
+internal fun resolveKiyoriSettingsNavigationContext(
+    requestedSource: RouteEntrySource,
+    requestedNavigationContextId: String?,
+    settingsPresentation: KiyoriSettingsPresentation?,
+    settingsSessionId: String?,
+): KiyoriSettingsNavigationContext {
+    val inheritsSettingsContext =
+        requestedSource == RouteEntrySource.DEFAULT &&
+            settingsPresentation ==
+                KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL
+    val effectiveSource =
+        if (inheritsSettingsContext) {
+            RouteEntrySource.KIYORI_SETTINGS
+        } else {
+            requestedSource
+        }
+    val effectiveNavigationContextId =
+        when {
+            requestedNavigationContextId != null -> requestedNavigationContextId
+            inheritsSettingsContext -> checkNotNull(settingsSessionId)
+            else -> null
+        }
+    return KiyoriSettingsNavigationContext(
+        source = effectiveSource,
+        navigationContextId = effectiveNavigationContextId,
+    )
+}
+
+internal fun shouldEnableKiyoriAppBackHandler(
+    currentScreenIsAiChat: Boolean,
+    isAiDrawerOpen: Boolean,
+    settingsPresentation: KiyoriSettingsPresentation?,
+): Boolean =
+    !currentScreenIsAiChat &&
+        !isAiDrawerOpen &&
+        settingsPresentation == null
+
+internal fun shouldEnableKiyoriOperitSettingsBackHandler(
+    currentScreenIsAiChat: Boolean,
+    isAiDrawerOpen: Boolean,
+    settingsPresentation: KiyoriSettingsPresentation?,
+): Boolean =
+    !currentScreenIsAiChat &&
+        !isAiDrawerOpen &&
+        settingsPresentation == KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL
+
+internal fun shouldRestoreKiyoriSettingsAfterRouterPop(
+    currentEntry: RouteEntry,
+    previousEntry: RouteEntry?,
+    settingsSessionId: String?,
+): Boolean {
+    if (
+        settingsSessionId == null ||
+            currentEntry.source != RouteEntrySource.KIYORI_SETTINGS ||
+            currentEntry.navigationContextId != settingsSessionId
+    ) {
+        return false
+    }
+    return previousEntry == null ||
+        previousEntry.source != RouteEntrySource.KIYORI_SETTINGS ||
+        previousEntry.navigationContextId != settingsSessionId
+}
+
 @Composable
 fun KiyoriApp(
     initialNavItem: NavItem = NavItem.AiChat,
@@ -305,10 +380,17 @@ fun KiyoriApp(
         navigationContextId: String? = null,
     ) {
         isNavigatingBack = false
+        val settingsNavigationContext =
+            resolveKiyoriSettingsNavigationContext(
+                requestedSource = source,
+                requestedNavigationContextId = navigationContextId,
+                settingsPresentation = shellState.settingsNavigation?.presentation,
+                settingsSessionId = shellState.settingsNavigation?.sessionId,
+            )
         val nextEntry =
             operitNavigation.toEntry(
                 screen = newScreen,
-                source = source,
+                source = settingsNavigationContext.source,
             )
         if (
             !forceNewInstance &&
@@ -322,7 +404,7 @@ fun KiyoriApp(
             routeId = nextEntry.routeId,
             args = nextEntry.args,
             source = nextEntry.source,
-            navigationContextId = navigationContextId,
+            navigationContextId = settingsNavigationContext.navigationContextId,
             routeSpec =
                 if (forceNewInstance) {
                     requireNotNull(routeSpec) {
@@ -420,10 +502,13 @@ fun KiyoriApp(
     fun performGoBack() {
         if (routerState.canPop) {
             isNavigatingBack = true
+            val backStack = routerState.backStack
             val returningFromKiyoriSettings =
-                currentRouteEntry.source == RouteEntrySource.KIYORI_SETTINGS &&
-                    currentRouteEntry.navigationContextId ==
-                    shellState.settingsNavigation?.sessionId
+                shouldRestoreKiyoriSettingsAfterRouterPop(
+                    currentEntry = routerState.currentEntry,
+                    previousEntry = backStack[backStack.lastIndex - 1],
+                    settingsSessionId = shellState.settingsNavigation?.sessionId,
+                )
             routerState.pop()
             if (returningFromKiyoriSettings) {
                 updateShellState(
@@ -622,7 +707,12 @@ fun KiyoriApp(
     }
 
     BackHandler(
-        enabled = currentScreen !is Screen.AiChat && !shellState.isAiDrawerOpen,
+        enabled =
+            shouldEnableKiyoriAppBackHandler(
+                currentScreenIsAiChat = currentScreen is Screen.AiChat,
+                isAiDrawerOpen = shellState.isAiDrawerOpen,
+                settingsPresentation = shellState.settingsNavigation?.presentation,
+            ),
         onBack = { requestGoBack() },
     )
 
@@ -844,6 +934,18 @@ fun KiyoriApp(
                     )
                 },
                 aiHost = {
+                    // Browser Home 会先注册自己的系统返回。设置详情在这里接管返回，才能压住
+                    // 底层 Browser；具体设置页面随后注册的未保存确认仍然拥有更高优先级。
+                    BackHandler(
+                        enabled =
+                            shouldEnableKiyoriOperitSettingsBackHandler(
+                                currentScreenIsAiChat = currentScreen is Screen.AiChat,
+                                isAiDrawerOpen = shellState.isAiDrawerOpen,
+                                settingsPresentation =
+                                    shellState.settingsNavigation?.presentation,
+                            ),
+                        onBack = { requestGoBack() },
+                    )
                     AppContent(
                         currentRouteEntry = currentRouteEntry,
                         currentScreen = currentScreen,

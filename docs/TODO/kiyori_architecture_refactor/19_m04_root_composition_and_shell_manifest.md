@@ -46,6 +46,43 @@ ARCH038、剩余 Kiyori 内容装配及完整封板验证。M-04E 已完成 ARCH
 ownership、到期例外清零、行为保持型 lint 收口与 M-04 总封板。当前进入 M-05
 design/theme/platform。
 
+## 2026-08-18 Stage 4 设置返回维护批准
+
+设置返回专项在真实页面复测中确认：`KiyoriApp` 的外层 `BackHandler` 与
+`KiyoriAppShell` 的 Shell `BackHandler` 只根据当前页面类型或设置 overlay 可见性判断，未按
+`KiyoriSettingsPresentation` 划分返回宿主；同时 Operit 设置详情中的默认子导航没有继承活动
+设置会话的 `RouteEntrySource.KIYORI_SETTINGS` 与 `sessionId`，且弹出任一同 session 子页后会
+过早恢复 Shell 设置页面。结果是 Browser/AI 来源的 Shell 设置页与 Operit 设置深层页都可能被
+底层 Browser/AI `BackHandler` 抢先消费，越过父级进入软件首页，或从深层子页直接跳到设置首页。
+
+本次 Stage 4 维护继续保留唯一 `KiyoriShellState`、唯一 `AppRouterState`、唯一 Browser Host
+和原 Shell/Operit package owner，只批准以下精确合同变化：
+
+- `KiyoriSettingsNavigationState.kt` 定义 Shell 返回所有权纯函数；
+- `KiyoriShellState.handleBack()` 与 `KiyoriAppShell` 共用该函数；
+- `KiyoriAppShell` 在 Browser/AI 宿主之后、具体设置页面之前注册唯一 Shell 设置
+  `BackHandler`；根 Shell `BackHandler` 在活动设置会话期间让位；
+- `KiyoriApp` 在 AI Host 内注册 `OPERIT_ROUTE_DETAIL` 专用 `BackHandler`，其位置晚于
+  Browser Host、早于具体 Operit 页面；App 根 `BackHandler` 在活动设置会话期间让位；
+- `KiyoriApp.navigateTo()` 让活动 Operit 设置详情中的默认子导航继承同一设置 session；
+- `KiyoriApp.performGoBack()` 只在离开该 session 的首个 Operit 分类条目时恢复 Shell 设置
+  presentation；同 session 子页面继续按 Router 原顺序逐级 pop；
+- 底部导航只在 `BOTTOM_NAVIGATION + PRIMARY_ROOT + HOME + SETTINGS_HOME` 的设置首页显示；
+  Browser/AI 来源、分类页、子页、Operit 详情和 Browser workspace 均隐藏；
+- `KiyoriApp` 的 Shell import 集合、`KiyoriAppShell` 的完整项目 import 集合、所有 package、
+  route、状态 owner 和持久化合同均不增加或减少。
+
+对应精确 SHA 更新：
+
+| 合同 | 旧值 | 新值 |
+| --- | --- | --- |
+| ARCH020 `KiyoriApp.kt` LF-normalized SHA-256 | `BBCA5C235E381F5EE98CACE173FCCD9A121FB5612799AF00D978B3D872EA87F6` | `BD3DED71AFA01F15595B1CB05A803AF1B6E93D5A5552D462F2FA573AE37ECD67` |
+| ARCH021 `KiyoriShellState.kt` LF-normalized SHA-256 | `665D491ED1EF59251A5CA25F0617BF48C1F3E3BEF05A527E5FAACDE392372A3C` | `412F5C0F9C5FA00BF0F031B87E2FFFCE69129670E101867FB5922B471B0DB712` |
+| ARCH024 `KiyoriAppShell.kt` package-normalized SHA-256 | `E06BB0F22DB33000B7ADE38C49BA591A7B9365A6B168D7E137EA54B34FEBB591` | `4011FBE44CA6AA3B9B6C1B4498B7475AB53225947F85999A7D3A8088985868A6` |
+
+这些 snapshot 只批准上述返回契约修复；后续其他根组合、Shell state 或 App Shell 变化仍必须形成
+新的正式说明和精确验证，不能复用本次哈希更新。
+
 因此 M-04 按可编译的子里程碑串行完成：
 
 1. **M-04A1：宿主 CompositionLocal 合同拆分（已完成）**

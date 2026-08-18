@@ -373,11 +373,7 @@ data class KiyoriShellState(
                     state = closeChild(),
                     result = KiyoriShellBackResult.CONSUMED,
                 )
-            settingsNavigation != null &&
-                settingsNavigation.presentation !=
-                    KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL &&
-                settingsNavigation.presentation !=
-                    KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE ->
+            isKiyoriSettingsBackOwnedByShell(settingsNavigation) ->
                 KiyoriShellBackTransition(
                     state = closeSettingsRoute(),
                     result = KiyoriShellBackResult.CONSUMED,

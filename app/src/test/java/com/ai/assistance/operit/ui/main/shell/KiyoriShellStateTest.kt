@@ -30,6 +30,8 @@ import com.kiyori.app.shell.calculateKiyoriAiHostTranslation
 import com.kiyori.app.shell.calculateKiyoriAiDrawerWidthDp
 import com.kiyori.app.shell.calculateKiyoriPagerPageOffset
 import com.kiyori.app.shell.kiyoriStartupBeyondViewportPageCount
+import com.kiyori.app.shell.isKiyoriBottomNavigationSettingsHome
+import com.kiyori.app.shell.isKiyoriSettingsBackOwnedByShell
 import com.kiyori.app.shell.openExternalDestination
 import com.kiyori.app.shell.resolveKiyoriAiDrawerTone
 import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedFinalScale
@@ -39,6 +41,7 @@ import com.kiyori.app.shell.resolveKiyoriBottomBarAlpha
 import com.kiyori.app.shell.restoreKiyoriShellState
 import com.kiyori.app.shell.shouldComposeKiyoriAiHost
 import com.kiyori.app.shell.shouldEnableKiyoriShellBackHandler
+import com.kiyori.app.shell.shouldEnableKiyoriSettingsHostBackHandler
 import com.kiyori.app.shell.shouldNotifyKiyoriAiHomeSettledForInitialPage
 import com.kiyori.app.shell.shouldPresentKiyoriBookmarkDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriDownloadDrawer
@@ -55,6 +58,11 @@ import com.kiyori.integration.operit.navigation.preservesAiPrimaryStack
 import com.kiyori.integration.operit.navigation.resolveAiDrawerSelection
 import com.kiyori.integration.operit.navigation.resolveAiTopBarMode
 import com.kiyori.integration.operit.navigation.toAiPrimaryRouteEntry
+import com.kiyori.app.KiyoriSettingsNavigationContext
+import com.kiyori.app.resolveKiyoriSettingsNavigationContext
+import com.kiyori.app.shouldEnableKiyoriAppBackHandler
+import com.kiyori.app.shouldEnableKiyoriOperitSettingsBackHandler
+import com.kiyori.app.shouldRestoreKiyoriSettingsAfterRouterPop
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -63,6 +71,308 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriShellStateTest {
+    @Test
+    fun `settings presentation assigns Back ownership to its active host`() {
+        val presentations =
+            listOf(
+                KiyoriSettingsPresentation.PRIMARY_ROOT to true,
+                KiyoriSettingsPresentation.SOURCE_OVERLAY to true,
+                KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL to false,
+                KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE to false,
+            )
+
+        presentations.forEach { (presentation, shellOwnsBack) ->
+            val navigation =
+                KiyoriSettingsNavigationState.start(
+                    origin =
+                        if (presentation == KiyoriSettingsPresentation.PRIMARY_ROOT) {
+                            KiyoriSettingsOrigin.BOTTOM_NAVIGATION
+                        } else {
+                            KiyoriSettingsOrigin.BROWSER_HOME
+                        },
+                    sessionId = presentation.name,
+                ).copy(presentation = presentation)
+
+            assertEquals(shellOwnsBack, isKiyoriSettingsBackOwnedByShell(navigation))
+        }
+
+        assertFalse(isKiyoriSettingsBackOwnedByShell(null))
+    }
+
+    @Test
+    fun `root and settings host BackHandlers keep every Shell settings surface above its owner`() {
+        val bottomSettingsHome =
+            KiyoriShellState().openSettings(KiyoriSettingsOrigin.BOTTOM_NAVIGATION)
+        val bottomDownload =
+            bottomSettingsHome.openSettingsRoute(KiyoriSettingsRoute.DOWNLOAD)
+        val browserSettingsHome =
+            KiyoriShellState()
+                .openBrowser(
+                    returnTarget = KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+                    exitPresentation = KiyoriBrowserExitPresentation.CLOSE,
+                ).openSettings(KiyoriSettingsOrigin.BROWSER_HOME)
+        val browserAdBlock =
+            browserSettingsHome
+                .openSettingsRoute(KiyoriSettingsRoute.AD_BLOCK_OVERVIEW)
+                .openSettingsRoute(KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS)
+        val operitSettings =
+            KiyoriShellState(
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openSettings(KiyoriSettingsOrigin.AI_HOST)
+                .showSettingsOperitRoute()
+        val browserWorkspace =
+            browserSettingsHome
+                .openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+                .suspendSettingsForBrowserWorkspace()
+        val settingsStates =
+            listOf(
+                Triple(bottomSettingsHome, false, true),
+                Triple(bottomDownload, false, true),
+                Triple(browserSettingsHome, false, true),
+                Triple(browserAdBlock, false, true),
+                Triple(operitSettings, false, false),
+                Triple(browserWorkspace, false, false),
+            )
+
+        settingsStates.forEach { (settingsState, rootEnabled, settingsHostEnabled) ->
+            assertEquals(
+                rootEnabled,
+                shouldEnableKiyoriShellBackHandler(
+                    aiHostIsRoot = true,
+                    isAiDrawerOpen = false,
+                    isBookmarkDrawerOpen = false,
+                    isHistoryDrawerOpen = false,
+                    isDownloadDrawerOpen = false,
+                    settingsNavigation = settingsState.settingsNavigation,
+                ),
+            )
+            assertEquals(
+                settingsHostEnabled,
+                shouldEnableKiyoriSettingsHostBackHandler(
+                    settingsNavigation = settingsState.settingsNavigation,
+                ),
+            )
+        }
+
+        assertTrue(
+            shouldEnableKiyoriShellBackHandler(
+                aiHostIsRoot = true,
+                isAiDrawerOpen = false,
+                isBookmarkDrawerOpen = false,
+                isHistoryDrawerOpen = false,
+                isDownloadDrawerOpen = false,
+                settingsNavigation = null,
+            ),
+        )
+        assertFalse(shouldEnableKiyoriSettingsHostBackHandler(null))
+    }
+
+    @Test
+    fun `App root and Operit host BackHandlers keep settings above Browser and below page guards`() {
+        val settingsStates =
+            listOf(
+                KiyoriSettingsNavigationState
+                    .start(
+                        origin = KiyoriSettingsOrigin.BOTTOM_NAVIGATION,
+                        sessionId = "bottom-settings",
+                    ),
+                KiyoriSettingsNavigationState
+                    .start(
+                        origin = KiyoriSettingsOrigin.BROWSER_HOME,
+                        sessionId = "browser-settings",
+                    ),
+                KiyoriSettingsNavigationState
+                    .start(
+                        origin = KiyoriSettingsOrigin.AI_HOST,
+                        sessionId = "browser-workspace-settings",
+                    )
+                    .suspendForBrowserWorkspace(),
+            )
+        val operitPresentation = KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL
+
+        settingsStates.forEach { settingsNavigation ->
+            assertFalse(
+                shouldEnableKiyoriAppBackHandler(
+                    currentScreenIsAiChat = false,
+                    isAiDrawerOpen = false,
+                    settingsPresentation = settingsNavigation.presentation,
+                ),
+            )
+            assertFalse(
+                shouldEnableKiyoriOperitSettingsBackHandler(
+                    currentScreenIsAiChat = false,
+                    isAiDrawerOpen = false,
+                    settingsPresentation = settingsNavigation.presentation,
+                ),
+            )
+        }
+        assertFalse(
+            shouldEnableKiyoriAppBackHandler(
+                currentScreenIsAiChat = false,
+                isAiDrawerOpen = false,
+                settingsPresentation = operitPresentation,
+            ),
+        )
+        assertTrue(
+            shouldEnableKiyoriOperitSettingsBackHandler(
+                currentScreenIsAiChat = false,
+                isAiDrawerOpen = false,
+                settingsPresentation = operitPresentation,
+            ),
+        )
+        assertTrue(
+            shouldEnableKiyoriAppBackHandler(
+                currentScreenIsAiChat = false,
+                isAiDrawerOpen = false,
+                settingsPresentation = null,
+            ),
+        )
+        assertFalse(
+            shouldEnableKiyoriAppBackHandler(
+                currentScreenIsAiChat = true,
+                isAiDrawerOpen = false,
+                settingsPresentation = null,
+            ),
+        )
+        assertFalse(
+            shouldEnableKiyoriOperitSettingsBackHandler(
+                currentScreenIsAiChat = true,
+                isAiDrawerOpen = false,
+                settingsPresentation = operitPresentation,
+            ),
+        )
+        assertFalse(
+            shouldEnableKiyoriOperitSettingsBackHandler(
+                currentScreenIsAiChat = false,
+                isAiDrawerOpen = true,
+                settingsPresentation = operitPresentation,
+            ),
+        )
+    }
+
+    @Test
+    fun `settings child navigation inherits only the active Operit settings session`() {
+        val settingsNavigation =
+            KiyoriSettingsNavigationState
+                .start(
+                    origin = KiyoriSettingsOrigin.AI_HOST,
+                    sessionId = "settings-ai",
+                )
+                .showOperitRoute()
+
+        assertEquals(
+            KiyoriSettingsNavigationContext(
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                navigationContextId = "settings-ai",
+            ),
+            resolveKiyoriSettingsNavigationContext(
+                requestedSource = RouteEntrySource.DEFAULT,
+                requestedNavigationContextId = null,
+                settingsPresentation = settingsNavigation.presentation,
+                settingsSessionId = settingsNavigation.sessionId,
+            ),
+        )
+        assertEquals(
+            KiyoriSettingsNavigationContext(
+                source = RouteEntrySource.AI_DRAWER,
+                navigationContextId = "explicit-context",
+            ),
+            resolveKiyoriSettingsNavigationContext(
+                requestedSource = RouteEntrySource.AI_DRAWER,
+                requestedNavigationContextId = "explicit-context",
+                settingsPresentation = settingsNavigation.presentation,
+                settingsSessionId = settingsNavigation.sessionId,
+            ),
+        )
+        assertEquals(
+            KiyoriSettingsNavigationContext(
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                navigationContextId = null,
+            ),
+            resolveKiyoriSettingsNavigationContext(
+                requestedSource = RouteEntrySource.KIYORI_SETTINGS,
+                requestedNavigationContextId = null,
+                settingsPresentation = settingsNavigation.presentation,
+                settingsSessionId = settingsNavigation.sessionId,
+            ),
+        )
+        assertEquals(
+            KiyoriSettingsNavigationContext(
+                source = RouteEntrySource.DEFAULT,
+                navigationContextId = null,
+            ),
+            resolveKiyoriSettingsNavigationContext(
+                requestedSource = RouteEntrySource.DEFAULT,
+                requestedNavigationContextId = null,
+                settingsPresentation = KiyoriSettingsPresentation.SOURCE_OVERLAY,
+                settingsSessionId = settingsNavigation.sessionId,
+            ),
+        )
+    }
+
+    @Test
+    fun `Operit settings router restores Settings Home only after its category root leaves`() {
+        val settingsSessionId = "settings-browser"
+        val underlyingBrowserOwner =
+            RouteEntry(
+                instanceId = "ai-owner",
+                routeId = "native.ai_chat",
+                source = RouteEntrySource.DEFAULT,
+            )
+        val settingsCategoryRoot =
+            RouteEntry(
+                instanceId = "settings-root",
+                routeId = "native.settings",
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                navigationContextId = settingsSessionId,
+            )
+        val settingsChild =
+            RouteEntry(
+                instanceId = "settings-child",
+                routeId = "native.model_prompts",
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                navigationContextId = settingsSessionId,
+            )
+        val settingsGrandchild =
+            RouteEntry(
+                instanceId = "settings-grandchild",
+                routeId = "native.tag_market",
+                source = RouteEntrySource.KIYORI_SETTINGS,
+                navigationContextId = settingsSessionId,
+            )
+        val routerState = AppRouterState(underlyingBrowserOwner)
+        routerState.restoreStack(
+            listOf(
+                underlyingBrowserOwner,
+                settingsCategoryRoot,
+                settingsChild,
+                settingsGrandchild,
+            ),
+        )
+
+        val restoreDecisions = mutableListOf<Boolean>()
+        while (routerState.canPop) {
+            val backStack = routerState.backStack
+            restoreDecisions +=
+                shouldRestoreKiyoriSettingsAfterRouterPop(
+                    currentEntry = routerState.currentEntry,
+                    previousEntry = backStack[backStack.lastIndex - 1],
+                    settingsSessionId = settingsSessionId,
+                )
+            routerState.pop()
+        }
+
+        assertEquals(listOf(false, false, true), restoreDecisions)
+        assertEquals(underlyingBrowserOwner, routerState.currentEntry)
+        assertFalse(
+            shouldRestoreKiyoriSettingsAfterRouterPop(
+                currentEntry = settingsCategoryRoot,
+                previousEntry = underlyingBrowserOwner,
+                settingsSessionId = "another-settings-session",
+            ),
+        )
+    }
+
     @Test
     fun `launch state is software home center with bottom navigation`() {
         val state = KiyoriShellState()
@@ -152,6 +462,58 @@ class KiyoriShellStateTest {
             ),
             0.0001f,
         )
+    }
+
+    @Test
+    fun `settings shows bottom navigation only on the bottom-entry settings home`() {
+        val bottomSettingsHome =
+            KiyoriShellState().openSettings(KiyoriSettingsOrigin.BOTTOM_NAVIGATION)
+        val browserSettingsHome =
+            KiyoriShellState()
+                .openBrowser(
+                    returnTarget = KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+                    exitPresentation = KiyoriBrowserExitPresentation.CLOSE,
+                ).openSettings(KiyoriSettingsOrigin.BROWSER_HOME)
+        val aiSettingsHome =
+            KiyoriShellState(
+                softwareHomePage = SoftwareHomePage.AI_HOME,
+            ).openSettings(KiyoriSettingsOrigin.AI_HOST)
+        val hiddenSettingsStates =
+            listOf(
+                bottomSettingsHome.openSettingsRoute(KiyoriSettingsRoute.DOWNLOAD),
+                bottomSettingsHome
+                    .openSettingsRoute(KiyoriSettingsRoute.AD_BLOCK_OVERVIEW)
+                    .openSettingsRoute(KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS),
+                browserSettingsHome,
+                aiSettingsHome,
+                bottomSettingsHome.showSettingsOperitRoute(),
+                bottomSettingsHome
+                    .openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+                    .suspendSettingsForBrowserWorkspace(),
+            )
+
+        assertTrue(isKiyoriBottomNavigationSettingsHome(bottomSettingsHome))
+        assertEquals(
+            1f,
+            resolveKiyoriBottomBarAlpha(
+                state = bottomSettingsHome,
+                aiHostIsRoot = true,
+                centerPageOffset = 0f,
+            ),
+            0.0001f,
+        )
+        hiddenSettingsStates.forEach { settingsState ->
+            assertFalse(isKiyoriBottomNavigationSettingsHome(settingsState))
+            assertEquals(
+                0f,
+                resolveKiyoriBottomBarAlpha(
+                    state = settingsState,
+                    aiHostIsRoot = true,
+                    centerPageOffset = 0f,
+                ),
+                0.0001f,
+            )
+        }
     }
 
     @Test
@@ -473,6 +835,83 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `every Shell settings route returns level by level to its bottom Browser or AI owner`() {
+        val owners =
+            listOf(
+                KiyoriSettingsOrigin.BOTTOM_NAVIGATION to KiyoriShellState(),
+                KiyoriSettingsOrigin.BROWSER_HOME to
+                    KiyoriShellState().openBrowser(
+                        returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                        exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+                    ),
+                KiyoriSettingsOrigin.AI_HOST to
+                    KiyoriShellState(
+                        softwareHomePage = SoftwareHomePage.AI_HOME,
+                    ),
+            )
+        val routePaths =
+            listOf(
+                listOf(KiyoriSettingsRoute.BROWSER),
+                listOf(
+                    KiyoriSettingsRoute.BROWSER,
+                    KiyoriSettingsRoute.BROWSER_HOME_CUSTOMIZATION,
+                ),
+                listOf(
+                    KiyoriSettingsRoute.BROWSER,
+                    KiyoriSettingsRoute.BROWSER_PLUGIN_PERMISSIONS,
+                ),
+                listOf(
+                    KiyoriSettingsRoute.BROWSER,
+                    KiyoriSettingsRoute.BROWSER_TEXT_SIZE,
+                ),
+                listOf(
+                    KiyoriSettingsRoute.BROWSER,
+                    KiyoriSettingsRoute.BROWSER_PASSWORD_MANAGER,
+                ),
+                listOf(KiyoriSettingsRoute.DOWNLOAD),
+                listOf(KiyoriSettingsRoute.PLAYER),
+                listOf(KiyoriSettingsRoute.AD_BLOCK_OVERVIEW),
+                listOf(
+                    KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+                    KiyoriSettingsRoute.AD_BLOCK_URL_RULES,
+                ),
+                listOf(
+                    KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+                    KiyoriSettingsRoute.AD_BLOCK_ELEMENT_RULES,
+                ),
+                listOf(
+                    KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+                    KiyoriSettingsRoute.AD_BLOCK_ALLOW_LIST,
+                ),
+                listOf(
+                    KiyoriSettingsRoute.AD_BLOCK_OVERVIEW,
+                    KiyoriSettingsRoute.AD_BLOCK_SUBSCRIPTIONS,
+                ),
+            )
+
+        owners.forEach { (origin, owner) ->
+            routePaths.forEach { routePath ->
+                var state = owner.openSettings(origin)
+                routePath.forEach { route ->
+                    state = state.openSettingsRoute(route)
+                }
+
+                routePath.asReversed().forEach { expectedRoute ->
+                    assertEquals(expectedRoute, state.settingsNavigation?.currentRoute)
+                    val transition = state.handleBack()
+                    assertEquals(KiyoriShellBackResult.CONSUMED, transition.result)
+                    state = transition.state
+                }
+
+                assertEquals(KiyoriSettingsRoute.HOME, state.settingsNavigation?.currentRoute)
+                val returnToOwner = state.handleBack()
+                assertEquals(KiyoriShellBackResult.CONSUMED, returnToOwner.result)
+                assertEquals(owner, returnToOwner.state)
+            }
+        }
+    }
+
+    @Test
     fun `external browser settings request uses settings home owner`() {
         val state =
             KiyoriShellState(
@@ -651,7 +1090,7 @@ class KiyoriShellStateTest {
                 isBookmarkDrawerOpen = false,
                 isHistoryDrawerOpen = false,
                 isDownloadDrawerOpen = true,
-                isSettingsVisible = false,
+                settingsNavigation = null,
             ),
         )
         assertTrue(

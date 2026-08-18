@@ -353,6 +353,43 @@ class KiyoriSettingsPagesTest {
     }
 
     @Test
+    fun `every application settings child round trips through the Kiyori settings source`() {
+        listOf(
+            Screen.GitHubAccount,
+            Screen.UserPreferencesSettings,
+            Screen.ModelConfig,
+            Screen.MnnModelDownload,
+            Screen.FunctionalConfig,
+            Screen.ModelPromptsSettings,
+            Screen.PersonaCardGeneration,
+            Screen.WaifuModeSettings,
+            Screen.CustomEmojiManagement,
+            Screen.TagMarket,
+            Screen.ContextSummarySettings,
+            Screen.ToolPermission,
+            Screen.TokenUsageStatistics,
+            Screen.ExternalHttpChatSettings,
+            Screen.ThemeSettings,
+            Screen.GlobalDisplaySettings,
+            Screen.LayoutAdjustmentSettings,
+            Screen.ChatHistorySettings,
+            Screen.ChatBackupSettings,
+            Screen.LanguageSettings,
+            Screen.TextToSpeech,
+        ).forEach { screen ->
+            val entry =
+                AppRouteCatalog.toEntry(
+                    screen = screen,
+                    source = RouteEntrySource.KIYORI_SETTINGS,
+                )
+
+            assertEquals(RouteEntrySource.KIYORI_SETTINGS, entry.source)
+            assertEquals(screen, ScreenRouteRegistry.screenFromEntry(entry))
+            assertEquals(screen, ScreenRouteRegistry.buildScreen(entry.routeId, emptyMap()))
+        }
+    }
+
+    @Test
     fun `download settings use player style groups and expose every download consumer`() {
         assertEquals(
             listOf(5, 4, 2, 2, 1),

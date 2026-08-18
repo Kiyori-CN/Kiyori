@@ -363,6 +363,29 @@ settingsSession = {
 标题返回和系统 Back 不得分别调用 `closeChild()`、`subPageName = null` 或 `routerState.pop()`；
 它们都调用同一个 `requestSettingsBack()`。
 
+实际返回宿主按 `KiyoriSettingsPresentation` 唯一确定：
+
+| presentation | 系统 Back owner |
+| --- | --- |
+| `PRIMARY_ROOT` | Shell |
+| `SOURCE_OVERLAY` | Shell |
+| `OPERIT_ROUTE_DETAIL` | App Router |
+| `SUSPENDED_FOR_BROWSER_WORKSPACE` | Browser Host |
+
+`isKiyoriSettingsBackOwnedByShell()` 是 Shell reducer 与 Shell `BackHandler` 的共同判断。
+实际 `BackHandler` 的注册位置也必须与视觉宿主一致：
+
+- Shell 设置处理器注册在 Browser/AI 宿主之后、具体 Shell 设置页面之前，覆盖
+  `PRIMARY_ROOT / SOURCE_OVERLAY`，并让页面内确认框和选择面板保持最高优先级；
+- Operit 设置处理器注册在 AI Host 内、Browser Host 之后、具体 Operit 页面之前，只覆盖
+  `OPERIT_ROUTE_DETAIL`；
+- App 与 Shell 根处理器在活动设置会话期间全部让位；
+- `SUSPENDED_FOR_BROWSER_WORKSPACE` 只由 Browser Host 处理。
+
+该顺序同时覆盖设置首页、网页浏览器、文件下载器、视频播放器、广告拦截器及其全部子页，以及
+账号连接、AI 助手、语音服务、界面定制、数据管理和后续 Operit 深层页。否则视觉上位于前景的
+设置页仍可能被底层 Browser/AI 更晚注册的处理器越过，错误进入软件首页或原 AI 根页。
+
 ### 5.5 Operit Router 集成
 
 为 `RouteEntry` 增加明确的设置导航上下文，例如：
@@ -378,12 +401,21 @@ val navigationContextId: String?
 - 不改变 settings route stack
 - `presentation = OPERIT_ROUTE_DETAIL`
 
-Operit route 耗尽时：
+设置详情内部继续调用统一 `navigateTo()` 时，默认 `RouteEntrySource.DEFAULT` 必须继承当前
+`KIYORI_SETTINGS + sessionId`。显式传入的其他 source 或 context 保持调用方语义。该继承覆盖
+AI 助手、界面定制、数据备份、语音服务及其全部后续子页面，确保深层页持续显示返回按钮，并按
+原进入顺序逐层 pop，而不是把导航按钮重新解释为 AI 抽屉菜单。
 
-1. 校验当前 `navigationContextId` 与活动设置会话匹配；
-2. 恢复该设置会话的展示；
-3. 返回调用它的设置 route；
+同一 `settingsSessionId` 的 Router 条目形成连续设置链。返回时：
+
+1. 当前条目与前一条目都属于同一设置 session 时，只 pop 当前 Operit 子页，继续显示父级；
+2. 当前条目是该 session 的首个分类根条目时，pop 后才恢复 Shell 设置 presentation；
+3. 恢复后的设置首页或 Shell 分类页继续沿 `KiyoriSettingsNavigationState.routes` 返回；
 4. 不调用现有 `returnFromKiyoriAiSettings()` 的无条件 `selectPrimary(SETTINGS_HOME)`。
+
+因此 `模型与 API → MNN 模型下载`、`提示词 → 标签市场/人设卡/聊天历史`、
+`界面定制 → 语言/主题/全局显示/布局调整`、`数据备份 → 备份/聊天历史` 和
+`语音服务 → TextToSpeech` 均逐级返回，不会从任一深层页直接恢复设置首页。
 
 ### 5.6 浏览器插件工作台返回令牌
 
@@ -946,6 +978,12 @@ writer，将并发变化合并到最新 revision，不为每个网络请求写�
 
 - 在 `KiyoriShellState` 接入 `KiyoriSettingsNavigationState`。
 - 改造 `KiyoriAppShell` 和 `KiyoriApp` 的设置入口、Back 和 Operit Router bridge。
+- 统一 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL /
+  SUSPENDED_FOR_BROWSER_WORKSPACE` 四种展示状态的返回宿主。
+- 让 Shell/Operit 设置处理器分别在 Browser/AI 宿主之后、具体设置页面之前注册。
+- 只在底部来源的设置首页显示底部五按钮，全部分类页、子页和 Browser/AI 来源隐藏。
+- 让 Operit 设置详情的默认子导航继承同一 `KIYORI_SETTINGS` session。
+- 同 session 的 Operit 深层页面逐级 pop，只在离开分类根条目时恢复 Shell 设置页面。
 - 将浏览器设置内部子页面迁入统一 route stack。
 - 将广告拦截器内部实际页面迁入设置 route。
 - 删除 `childBackTarget`、`openNestedChild()`、`subPageName` 和旧返回函数。
@@ -1041,6 +1079,28 @@ writer，将并发变化合并到最新 revision，不为每个网络请求写�
   `liboperit_ripgrep.so` 与 `assets/operit_shell_exec`，不含 `libsudo.so`。`51` 个
   `.so` 加 shell launcher 共 `52/52` 个 ELF64/AArch64，`153` 个 `PT_LOAD` 的最小
   alignment 为 `0x4000`，分布为 `0x4000 × 151 / 0x10000 × 2`。
+
+2026-08-18 设置返回回归修正证据：
+
+- 完整 App JVM 为 `230 suites / 1376 tests`，失败、错误和跳过均为 `0`；
+- Shell 矩阵覆盖底部、Browser、AI 三类来源与 12 条完整路径：浏览器分类及四个子页、
+  文件下载器、视频播放器、广告拦截器分类及四个子页；每条路径均验证逐级返回设置首页和原来源；
+- Operit 矩阵覆盖账号连接、AI 助手、语音服务、界面定制、数据管理五个分类根与
+  GitHub 账号、用户偏好、模型/API、MNN 下载、功能模型、提示词、人设卡、分句回复、自定义表情、
+  标签市场、上下文、工具授权、Token 统计、外部 HTTP、主题、全局显示、布局、聊天历史、备份、
+  语言和 TextToSpeech 等全部现有子页面；
+- `check_formal_readiness.py --require-main`、
+  `check_architecture_boundaries.py --require-main` 和 `git diff --check` 均通过；
+- ARCH020/021/024 的精确源码 snapshot 已按
+  [M-04 根组合与 Shell 精确实施清单](../kiyori_architecture_refactor/19_m04_root_composition_and_shell_manifest.md)
+  记录的旧值、新值和维护原因更新，检查器规则与 import 许可未改变；
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 50s`，
+  `232 actionable tasks: 22 executed, 210 up-to-date`；
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成时间
+  `2026-08-18 15:35:38 +08:00`，大小 `494168730` bytes，SHA-256
+  `98B59B9BA408ABC3373AAD17BDE3141671B9314EDA778E07D26C6F92EC0D12D0`；
+- APK 为 `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`，唯一
+  `MainActivity` launcher，Android Debug V2 单 signer，`zipalign -P 16` 通过。
 
 ## 12. 实际主要文件
 

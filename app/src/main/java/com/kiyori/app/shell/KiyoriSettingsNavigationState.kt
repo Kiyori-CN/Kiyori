@@ -123,6 +123,26 @@ data class KiyoriSettingsNavigationState(
     }
 }
 
+/**
+ * Settings owns system Back only while its visual surface is rendered by the Shell.
+ *
+ * Operit route details and the Browser workspace have their own active host. Treating either
+ * presentation as Shell-owned lets an outer BackHandler bypass that host and lose the settings
+ * session's return owner.
+ */
+internal fun isKiyoriSettingsBackOwnedByShell(
+    settingsNavigation: KiyoriSettingsNavigationState?,
+): Boolean =
+    when (settingsNavigation?.presentation) {
+        null,
+        KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
+        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
+        -> false
+        KiyoriSettingsPresentation.PRIMARY_ROOT,
+        KiyoriSettingsPresentation.SOURCE_OVERLAY,
+        -> true
+    }
+
 internal data class BrowserWorkspaceReturnToken(
     val settingsSessionId: String,
     val settingsRoutes: List<KiyoriSettingsRoute>,
