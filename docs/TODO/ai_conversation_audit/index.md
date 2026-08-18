@@ -447,7 +447,7 @@ WORKSPACE
 8. [DONE] v3 聊天归档、完整审计包、AI 审阅导出和导入续接
 9. [DONE] 文档、静态反向检查、定向测试、完整 App JVM 与 AndroidTest 编译
 10. [DONE] formal/fresh-clone、architecture、差异、Lint baseline 交集、完整 Lint 和 Debug APK 核验
-11. [DELIVERY GATE] 精确 staged allowlist、candidate 门禁、提交推送与 local/tracking/remote ref 对账
+11. [DONE] 精确 staged allowlist、candidate 门禁、提交推送与 local/tracking/remote ref 对账
 12. [PENDING] 目标设备视觉、编辑、Back、输入法、旋转、进程恢复和大对话性能验收
 
 ### 11.1 最终一致性补强
@@ -547,8 +547,9 @@ WORKSPACE
   `testDebugUnitTest compileDebugAndroidTestKotlin compileDebugAndroidTestJavaWithJavac lintDebug`
   已通过；App Lint 为 `0 errors / 28 warnings / 1 hint`，29 项均为本轮开始前已有诊断，本功能
   新增诊断为 0，未新增 suppress 或扩大 baseline；
-- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`494211266` bytes，SHA-256
-  `FB7FB6A115E0606243761102865CD82294D6DE5D05A1E137428F45E4FF4DF6B7`；包身份
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，`295885014` bytes，SHA-256
+  `43B3DDBA6E795D515C5DD289CF217992F8B95130E9AB2BEEB7E73C8D0B88E49F`；该 APK 从已推送的
+  `f2e78c2bb083ba6bdd54c9db5d3b95badcfefa20` 隔离提交树构建并复制到标准忽略构建路径；包身份
   `com.kiyori / 45 / 0.1.0 / min 26 / target 34 / compile 37`、唯一 launcher、Android Debug
   V2 单 signer、16 KB ZIP 对齐、arm64-only、51 个 `.so` 零重复 basename 均通过；
 - 正式 native closure 为 51 个 `.so` 加 `assets/operit_shell_exec`，共 52 个 AArch64 ELF，
@@ -557,6 +558,6 @@ WORKSPACE
   `PT_LOAD=0x1000` 作为独立工具链风险保留，不宣称已由本功能解决；
 - APK 条目与文本扫描未发现 `.kiyori-audit`、审计 staging、临时 baseline/审计目录、本功能测试类
   或高置信凭据形状；三个 `assets/templates/**/src/{test,androidTest}` 条目是既有项目模板内容；
-- 提交与推送：当前任务已授权；实际 commit、tracking ref 与 remote ref 状态以本轮最终交付报告和
-  Git 历史为准，本文不预写一次性提交 SHA 或远端状态；
+- 提交与推送：`f2e78c2bb083ba6bdd54c9db5d3b95badcfefa20` 已正常推送到 `origin/main`；
+  本地 `main`、tracking `origin/main` 与 `ls-remote origin refs/heads/main` 相等，分歧为 `0/0`；
 - 真实 Provider、设备与用户现场验收：未授权或待用户后续执行，保持 `verification_pending`。

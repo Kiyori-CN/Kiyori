@@ -13,7 +13,9 @@ APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观
 审计链、消息修订、Provider/Hook/工具接线、分页三视图、v3 归档和导入导出已经完成本地实现。
 项目 Python、完整架构、formal/fresh-clone、聚合 JVM/AndroidTest/Lint 和规定 Debug APK
 构建与静态产物审计均已通过；目标设备、真实 Provider/ToolPkg/工具现场链保持
-`verification_pending`，精确 Git 交付以本轮最终远端对账为准。
+`verification_pending`；本轮已完成精确 staged 交付，提交
+`f2e78c2bb083ba6bdd54c9db5d3b95badcfefa20` 已推送并与 `main`、`origin/main` 和远端
+`refs/heads/main` 对齐。
 
 当前方案以独立的 `ConversationAuditRepository` 作为不可覆盖审计事件、消息修订、加密
 payload、完整性链和审计导出的唯一 owner。现有聊天消息继续作为当前投影，Provider execution
