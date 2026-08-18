@@ -70,6 +70,9 @@ internal data class BrowserAdBlockSubscription(
     val networkExceptionRuleCount: Int = 0,
     val elementBlockingRuleCount: Int = 0,
     val elementExceptionRuleCount: Int = 0,
+    val payloadSha256: String? = null,
+    val payloadByteCount: Long? = null,
+    val payloadStorageVersion: Int? = null,
 ) {
     val effectiveRuleCount: Int
         get() =
@@ -79,7 +82,7 @@ internal data class BrowserAdBlockSubscription(
                 elementExceptionRuleCount
 
     val hasLocalRules: Boolean
-        get() = effectiveRuleCount > 0
+        get() = hasCommittedPayloadMetadata
 }
 
 internal data class BrowserAdBlockState(
@@ -144,6 +147,11 @@ internal data class BrowserAdBlockRefreshSummary(
     val failedCount: Int,
 )
 
+internal data class BrowserAdBlockUnchangedRefreshCommit(
+    val state: BrowserAdBlockState,
+    val subscription: BrowserAdBlockSubscription,
+)
+
 internal enum class BrowserAdBlockSubscriptionRefreshOrigin {
     AUTOMATIC,
     ACTIVATION,
@@ -161,6 +169,7 @@ internal data class BrowserAdBlockSubscriptionRefreshProgress(
 
 internal enum class BrowserAdBlockRuntimePhase {
     READING_SETTINGS,
+    LOADING_COMPILED_RULES,
     COMPILING_RULES,
     READY,
     FAILED,
@@ -170,6 +179,11 @@ internal data class BrowserAdBlockRuntimeStatus(
     val phase: BrowserAdBlockRuntimePhase,
     val completedSubscriptionCount: Int = 0,
     val totalSubscriptionCount: Int = 0,
+    val cacheHitCount: Int = 0,
+    val cacheMissCount: Int = 0,
+    val cacheInvalidCount: Int = 0,
+    val compiledSubscriptionCount: Int = 0,
+    val warningMessage: String? = null,
     val errorMessage: String? = null,
 ) {
     val ready: Boolean
@@ -180,6 +194,7 @@ private data class BrowserAdBlockInitialSnapshot(
     val state: BrowserAdBlockState,
     val requiresPersistence: Boolean,
     val migratedPayloads: Map<String, ByteArray> = emptyMap(),
+    val legacyPayloadIds: Set<String> = emptySet(),
 )
 
 internal fun mergeBrowserAdBlockBuiltInSubscriptions(
@@ -244,6 +259,12 @@ internal class BrowserAdBlockStore private constructor(
                 "Cannot create browser ad-block subscription directory: ${it.absolutePath}"
             }
         }
+    private val compiledCacheDirectory =
+        applicationContext.noBackupFilesDir.resolve(BROWSER_AD_BLOCK_COMPILED_DIRECTORY_NAME).also {
+            require(it.exists() || it.mkdirs()) {
+                "Cannot create browser ad-block compiled cache directory: ${it.absolutePath}"
+            }
+        }
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val subscriptionRefreshMutex = Mutex()
     private val blockedRequestCounter = AtomicLong(0L)
@@ -264,7 +285,8 @@ internal class BrowserAdBlockStore private constructor(
     private val _subscriptionRefreshProgress =
         MutableStateFlow<BrowserAdBlockSubscriptionRefreshProgress?>(null)
     private var customRuleSet = BrowserAdBlockCompiledRuleSet.EMPTY
-    private var subscriptionRuleSets = emptyMap<String, BrowserAdBlockCompiledRuleSet>()
+    private var subscriptionRuntimePartitions =
+        emptyMap<String, BrowserAdBlockCompiledPartition>()
     private var customRuntimeEngine = BrowserAdBlockEngine.EMPTY
     private var subscriptionRuntimeEngine = BrowserAdBlockEngine.EMPTY
     private var runtimeEngine = BrowserAdBlockEngine.EMPTY
@@ -613,6 +635,18 @@ internal class BrowserAdBlockStore private constructor(
                             existing.elementExceptionRuleCount.takeIf {
                                 existing.url == normalizedUrl
                             } ?: 0,
+                        payloadSha256 =
+                            existing.payloadSha256.takeIf {
+                                existing.url == normalizedUrl
+                            },
+                        payloadByteCount =
+                            existing.payloadByteCount.takeIf {
+                                existing.url == normalizedUrl
+                            },
+                        payloadStorageVersion =
+                            existing.payloadStorageVersion.takeIf {
+                                existing.url == normalizedUrl
+                            },
                     )
                 }
             require(
@@ -636,7 +670,7 @@ internal class BrowserAdBlockStore private constructor(
         }
         return checkNotNull(savedSubscription).also { subscription ->
             if (removeStoredPayload) {
-                deleteSubscriptionPayload(subscription.id)
+                deleteSubscriptionArtifacts(subscription.id)
             }
         }
     }
@@ -715,7 +749,7 @@ internal class BrowserAdBlockStore private constructor(
                     current.subscriptions.filterNot { subscription -> subscription.id == id },
             )
         }
-        deleteSubscriptionPayload(id)
+        deleteSubscriptionArtifacts(id)
     }
 
     suspend fun refreshSubscription(id: String): Result<BrowserAdBlockSubscription> =
@@ -753,6 +787,23 @@ internal class BrowserAdBlockStore private constructor(
                     )
             return try {
                 val bytes = downloadSubscription(subscription)
+                val payloadSha256 = browserAdBlockSha256(bytes)
+                val updatedAt = System.currentTimeMillis()
+                if (
+                    subscription.matchesCommittedPayload(
+                        payloadSha256 = payloadSha256,
+                        payloadByteCount = bytes.size.toLong(),
+                    )
+                ) {
+                    return Result.success(
+                        commitUnchangedSubscriptionRefresh(
+                            id = subscription.id,
+                            expectedUrl = subscription.url,
+                            expectedName = subscription.name,
+                            updatedAt = updatedAt,
+                        ),
+                    )
+                }
                 val parsed =
                     parseBrowserAdBlockSubscription(
                         text = bytes.toString(StandardCharsets.UTF_8),
@@ -762,15 +813,48 @@ internal class BrowserAdBlockStore private constructor(
                 check(parsed.networkRules.isNotEmpty() || parsed.elementRules.isNotEmpty()) {
                     "订阅中没有可用规则"
                 }
-                Result.success(
+                val refreshedSubscription =
+                    mergeBrowserAdBlockRefreshedSubscription(
+                        current = subscription,
+                        expectedUrl = subscription.url,
+                        expectedName = subscription.name,
+                        parsed = parsed,
+                        updatedAt = updatedAt,
+                        payloadSha256 = payloadSha256,
+                        payloadByteCount = bytes.size.toLong(),
+                    )
+                val partition =
+                    compileSubscriptionPartition(
+                        subscription = refreshedSubscription,
+                        parsed = parsed,
+                    )
+                // 内容寻址载荷和编译快照先完整落盘，状态最后提交。进程在此前终止时，
+                // 旧状态仍引用旧内容；新文件只会成为后续可安全清理的未引用派生物。
+                writeSubscriptionPayload(refreshedSubscription, bytes)
+                try {
+                    BrowserAdBlockCompiledCacheCodec.write(
+                        target = compiledCacheFile(refreshedSubscription),
+                        identity = refreshedSubscription.compiledCacheIdentity(),
+                        partition = partition,
+                    )
+                } catch (writeError: Exception) {
+                    AppLogger.e(
+                        BROWSER_AD_BLOCK_TAG,
+                        "Failed to persist refreshed compiled subscription cache id=${subscription.id}",
+                        writeError,
+                    )
+                    publishCompiledCacheWarning()
+                }
+                val committed =
                     commitRefreshedSubscription(
                         id = subscription.id,
                         expectedUrl = subscription.url,
-                        parsed = parsed,
-                        updatedAt = System.currentTimeMillis(),
-                        payload = bytes,
-                    ),
-                )
+                        expectedName = subscription.name,
+                        subscription = refreshedSubscription,
+                        partition = partition,
+                    )
+                pruneSubscriptionArtifacts(committed)
+                Result.success(committed)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -857,10 +941,19 @@ internal class BrowserAdBlockStore private constructor(
     }
 
     private suspend fun initializeRuntime() {
+        val initializationStartedAt = System.nanoTime()
         try {
             val initialSnapshot = readInitialSnapshot()
             initialSnapshot.migratedPayloads.forEach { (id, payload) ->
-                writeSubscriptionPayload(id, payload)
+                val subscription =
+                    checkNotNull(
+                        initialSnapshot.state.subscriptions.singleOrNull { candidate ->
+                            candidate.id == id
+                        },
+                    ) {
+                        "Migrated browser ad-block payload has no subscription metadata: $id"
+                    }
+                writeSubscriptionPayload(subscription, payload)
             }
             var loadedState = initialSnapshot.state
             synchronized(lock) {
@@ -873,68 +966,143 @@ internal class BrowserAdBlockStore private constructor(
                 loadedState.subscriptions.filter(BrowserAdBlockSubscription::hasLocalRules)
             _runtimeStatus.value =
                 BrowserAdBlockRuntimeStatus(
-                    phase = BrowserAdBlockRuntimePhase.COMPILING_RULES,
+                    phase = BrowserAdBlockRuntimePhase.LOADING_COMPILED_RULES,
                     totalSubscriptionCount = subscriptionsToCompile.size,
                 )
             val compiledCustomRules = compileCustomRuleSet(loadedState)
+            var cacheHitCount = 0
+            var cacheMissCount = 0
+            var cacheInvalidCount = 0
+            var compiledSubscriptionCount = 0
+            var cacheWarning: String? = null
             val compiledSubscriptions =
-                buildMap<String, BrowserAdBlockCompiledRuleSet> {
-                    subscriptionsToCompile.forEachIndexed { index, subscription ->
-                        val parsedResult =
+                buildMap<String, BrowserAdBlockCompiledPartition> {
+                    subscriptionsToCompile.forEachIndexed { index, originalSubscription ->
+                        var subscription = originalSubscription
+                        val cacheResult =
                             runCatching {
-                                val payload =
-                                    checkNotNull(readSubscriptionPayload(subscription.id)) {
-                                        "本地订阅规则缺失，等待重新同步"
-                                    }
-                                parseBrowserAdBlockSubscription(
-                                    text = payload.toString(StandardCharsets.UTF_8),
-                                    subscriptionId = subscription.id,
-                                    subscriptionName = subscription.name,
+                                BrowserAdBlockCompiledCacheCodec.read(
+                                    source = compiledCacheFile(subscription),
+                                    expectedIdentity = subscription.compiledCacheIdentity(),
                                 )
                             }
-                        parsedResult.fold(
-                            onSuccess = { parsed ->
-                                put(
-                                    subscription.id,
-                                    compileSubscriptionRuleSet(
-                                        subscription = subscription,
-                                        parsed = parsed,
-                                    ),
-                                )
-                                loadedState =
-                                    loadedState.updateSubscriptionMetadata(
-                                        subscription.withParsedRuleCounts(
-                                            parsed = parsed,
-                                            updatedAt = subscription.lastUpdatedAt,
-                                            clearError = false,
-                                        ),
-                                    )
+                        cacheResult.fold(
+                            onSuccess = { partition ->
+                                cacheHitCount += 1
+                                put(subscription.id, partition)
                             },
-                            onFailure = { error ->
-                                AppLogger.e(
-                                    BROWSER_AD_BLOCK_TAG,
-                                    "Failed to compile stored subscription id=${subscription.id}",
-                                    error,
-                                )
-                                loadedState =
-                                    loadedState.updateSubscriptionMetadata(
-                                        subscription.copy(
-                                            lastError =
-                                                browserAdBlockSubscriptionRefreshErrorMessage(error)
-                                                    .take(BROWSER_AD_BLOCK_MAX_ERROR_LENGTH),
-                                            networkBlockingRuleCount = 0,
-                                            networkExceptionRuleCount = 0,
-                                            elementBlockingRuleCount = 0,
-                                            elementExceptionRuleCount = 0,
-                                        ),
+                            onFailure = { cacheError ->
+                                val invalidReason =
+                                    (cacheError as? BrowserAdBlockCompiledCacheException)
+                                        ?.invalidReason
+                                if (invalidReason == "missing") {
+                                    cacheMissCount += 1
+                                } else {
+                                    cacheInvalidCount += 1
+                                    AppLogger.w(
+                                        BROWSER_AD_BLOCK_TAG,
+                                        "Invalid compiled subscription cache id=${subscription.id} reason=${invalidReason ?: cacheError::class.java.simpleName}",
                                     )
+                                }
+                                _runtimeStatus.value =
+                                    BrowserAdBlockRuntimeStatus(
+                                        phase = BrowserAdBlockRuntimePhase.COMPILING_RULES,
+                                        completedSubscriptionCount = index,
+                                        totalSubscriptionCount = subscriptionsToCompile.size,
+                                        cacheHitCount = cacheHitCount,
+                                        cacheMissCount = cacheMissCount,
+                                        cacheInvalidCount = cacheInvalidCount,
+                                        compiledSubscriptionCount = compiledSubscriptionCount,
+                                        warningMessage = cacheWarning,
+                                    )
+                                val compiledResult =
+                                    runCatching {
+                                        val payload =
+                                            checkNotNull(readSubscriptionPayload(subscription)) {
+                                                "本地订阅规则缺失，等待重新同步"
+                                            }
+                                        val parsed =
+                                            parseBrowserAdBlockSubscription(
+                                                text =
+                                                    payload.toString(StandardCharsets.UTF_8),
+                                                subscriptionId = subscription.id,
+                                                subscriptionName = subscription.name,
+                                            )
+                                        check(
+                                            parsed.networkRules.isNotEmpty() ||
+                                                parsed.elementRules.isNotEmpty(),
+                                        ) {
+                                            "订阅中没有可用规则"
+                                        }
+                                        subscription =
+                                            subscription.withParsedRuleCounts(
+                                                parsed = parsed,
+                                                updatedAt = subscription.lastUpdatedAt,
+                                                clearError = false,
+                                            )
+                                        val partition =
+                                            compileSubscriptionPartition(
+                                                subscription = subscription,
+                                                parsed = parsed,
+                                            )
+                                        try {
+                                            BrowserAdBlockCompiledCacheCodec.write(
+                                                target = compiledCacheFile(subscription),
+                                                identity = subscription.compiledCacheIdentity(),
+                                                partition = partition,
+                                            )
+                                        } catch (writeError: Exception) {
+                                            AppLogger.e(
+                                                BROWSER_AD_BLOCK_TAG,
+                                                "Failed to persist compiled subscription cache id=${subscription.id}",
+                                                writeError,
+                                            )
+                                            cacheWarning =
+                                                "部分本地编译快照未保存，下次启动会重新编译"
+                                        }
+                                        partition
+                                    }
+                                compiledResult.fold(
+                                    onSuccess = { partition ->
+                                        compiledSubscriptionCount += 1
+                                        put(subscription.id, partition)
+                                        loadedState =
+                                            loadedState.updateSubscriptionMetadata(subscription)
+                                    },
+                                    onFailure = { error ->
+                                        AppLogger.e(
+                                            BROWSER_AD_BLOCK_TAG,
+                                            "Failed to compile stored subscription id=${subscription.id}",
+                                            error,
+                                        )
+                                        loadedState =
+                                            loadedState.updateSubscriptionMetadata(
+                                                subscription.withoutCommittedPayload(
+                                                    errorMessage =
+                                                        browserAdBlockSubscriptionRefreshErrorMessage(
+                                                            error,
+                                                        ),
+                                                ),
+                                            )
+                                    },
+                                )
                             },
                         )
                         _runtimeStatus.value =
                             BrowserAdBlockRuntimeStatus(
-                                phase = BrowserAdBlockRuntimePhase.COMPILING_RULES,
+                                phase =
+                                    if (compiledSubscriptionCount > 0) {
+                                        BrowserAdBlockRuntimePhase.COMPILING_RULES
+                                    } else {
+                                        BrowserAdBlockRuntimePhase.LOADING_COMPILED_RULES
+                                    },
                                 completedSubscriptionCount = index + 1,
                                 totalSubscriptionCount = subscriptionsToCompile.size,
+                                cacheHitCount = cacheHitCount,
+                                cacheMissCount = cacheMissCount,
+                                cacheInvalidCount = cacheInvalidCount,
+                                compiledSubscriptionCount = compiledSubscriptionCount,
+                                warningMessage = cacheWarning,
                             )
                     }
                 }
@@ -957,7 +1125,7 @@ internal class BrowserAdBlockStore private constructor(
                                         compiledCustomRules.networkRules.isNotEmpty() ||
                                             compiledCustomRules.elementRules.isNotEmpty() ||
                                             compiledSubscriptions.isNotEmpty()
-                                    )
+                                        )
                             ) {
                                 1L
                             } else {
@@ -971,7 +1139,7 @@ internal class BrowserAdBlockStore private constructor(
                     writePersistedState(revisionedState)
                 }
                 customRuleSet = compiledCustomRules
-                subscriptionRuleSets = compiledSubscriptions
+                subscriptionRuntimePartitions = compiledSubscriptions
                 customRuntimeEngine = compiledCustomEngine
                 subscriptionRuntimeEngine = compiledSubscriptionEngine
                 runtimeEngine = compiledEngine
@@ -983,8 +1151,22 @@ internal class BrowserAdBlockStore private constructor(
                         phase = BrowserAdBlockRuntimePhase.READY,
                         completedSubscriptionCount = subscriptionsToCompile.size,
                         totalSubscriptionCount = subscriptionsToCompile.size,
+                        cacheHitCount = cacheHitCount,
+                        cacheMissCount = cacheMissCount,
+                        cacheInvalidCount = cacheInvalidCount,
+                        compiledSubscriptionCount = compiledSubscriptionCount,
+                        warningMessage = cacheWarning,
                     )
             }
+            initialSnapshot.legacyPayloadIds.forEach(::deleteLegacySubscriptionPayload)
+            pruneObsoleteCompiledCacheDirectories()
+            loadedState.subscriptions
+                .filter(BrowserAdBlockSubscription::hasLocalRules)
+                .forEach(::pruneSubscriptionArtifacts)
+            AppLogger.i(
+                BROWSER_AD_BLOCK_TAG,
+                "Runtime ready subscriptions=${subscriptionsToCompile.size} cacheHits=$cacheHitCount cacheMisses=$cacheMissCount cacheInvalid=$cacheInvalidCount compiled=$compiledSubscriptionCount elapsedMillis=${(System.nanoTime() - initializationStartedAt) / 1_000_000L}",
+            )
             refreshDueBuiltInSubscriptions()
         } catch (error: CancellationException) {
             throw error
@@ -1041,14 +1223,14 @@ internal class BrowserAdBlockStore private constructor(
                 } else {
                     customRuleSet
                 }
-            val retainedSubscriptionRuleSets =
-                subscriptionRuleSets.filterKeys { id ->
+            val retainedSubscriptionPartitions =
+                subscriptionRuntimePartitions.filterKeys { id ->
                     transformed.subscriptions.any { subscription ->
                         subscription.id == id && subscription.hasLocalRules
                     }
                 }
             val subscriptionRulesChanged =
-                retainedSubscriptionRuleSets.keys != subscriptionRuleSets.keys
+                retainedSubscriptionPartitions.keys != subscriptionRuntimePartitions.keys
             val nextCustomRuntimeEngine =
                 if (customRulesChanged) {
                     compileCustomRuntimeEngine(nextCustomRuleSet)
@@ -1057,7 +1239,7 @@ internal class BrowserAdBlockStore private constructor(
                 }
             val nextSubscriptionRuntimeEngine =
                 if (subscriptionRulesChanged) {
-                    compileSubscriptionRuntimeEngine(retainedSubscriptionRuleSets)
+                    compileSubscriptionRuntimeEngine(retainedSubscriptionPartitions)
                 } else {
                     subscriptionRuntimeEngine
                 }
@@ -1085,10 +1267,10 @@ internal class BrowserAdBlockStore private constructor(
                         } else {
                             currentState.ruleRevision
                         },
-                )
+            )
             writePersistedState(updated)
             customRuleSet = nextCustomRuleSet
-            subscriptionRuleSets = retainedSubscriptionRuleSets
+            subscriptionRuntimePartitions = retainedSubscriptionPartitions
             customRuntimeEngine = nextCustomRuntimeEngine
             subscriptionRuntimeEngine = nextSubscriptionRuntimeEngine
             runtimeEngine = nextRuntimeEngine
@@ -1136,14 +1318,16 @@ internal class BrowserAdBlockStore private constructor(
         )
     }
 
-    private fun compileSubscriptionRuleSet(
+    private fun compileSubscriptionPartition(
         subscription: BrowserAdBlockSubscription,
         parsed: BrowserAdBlockSubscriptionParseResult,
-    ): BrowserAdBlockCompiledRuleSet =
-        BrowserAdBlockCompiledRuleSet.compile(
-            id = subscription.id,
-            networkRules = parsed.networkRules,
-            elementRules = parsed.elementRules,
+    ): BrowserAdBlockCompiledPartition =
+        compileBrowserAdBlockCompiledPartition(
+            BrowserAdBlockCompiledRuleSet.compile(
+                id = subscription.id,
+                networkRules = parsed.networkRules,
+                elementRules = parsed.elementRules,
+            ),
         )
 
     private fun compileCustomRuntimeEngine(
@@ -1154,10 +1338,10 @@ internal class BrowserAdBlockStore private constructor(
         )
 
     private fun compileSubscriptionRuntimeEngine(
-        subscriptionRules: Map<String, BrowserAdBlockCompiledRuleSet>,
+        subscriptionPartitions: Map<String, BrowserAdBlockCompiledPartition>,
     ): BrowserAdBlockEngine =
-        BrowserAdBlockEngine.compile(
-            subscriptionRules.values,
+        BrowserAdBlockEngine.combine(
+            subscriptionPartitions.values.map(BrowserAdBlockCompiledPartition::engine),
         )
 
     private fun combineRuntimeEngines(
@@ -1184,7 +1368,7 @@ internal class BrowserAdBlockStore private constructor(
                     state.subscriptions
                         .filter { subscription ->
                             subscription.enabled &&
-                                subscription.id in subscriptionRuleSets
+                                subscription.id in subscriptionRuntimePartitions
                         }
                         .forEach { subscription ->
                             add(subscription.id)
@@ -1229,9 +1413,9 @@ internal class BrowserAdBlockStore private constructor(
     private fun commitRefreshedSubscription(
         id: String,
         expectedUrl: String,
-        parsed: BrowserAdBlockSubscriptionParseResult,
-        updatedAt: Long,
-        payload: ByteArray,
+        expectedName: String,
+        subscription: BrowserAdBlockSubscription,
+        partition: BrowserAdBlockCompiledPartition,
     ): BrowserAdBlockSubscription =
         synchronized(lock) {
             val currentState = _state.value
@@ -1243,23 +1427,28 @@ internal class BrowserAdBlockStore private constructor(
             require(currentSubscription.url == expectedUrl) {
                 "广告拦截订阅地址在更新期间发生变化，请重新刷新"
             }
-            val subscription =
-                mergeBrowserAdBlockRefreshedSubscription(
+            require(currentSubscription.name == expectedName) {
+                "广告拦截订阅名称在更新期间发生变化，请重新刷新"
+            }
+            require(subscription.id == currentSubscription.id) {
+                "广告拦截订阅更新结果不属于当前订阅"
+            }
+            val committedSubscription =
+                mergeBrowserAdBlockPreparedSubscriptionAtCommit(
                     current = currentSubscription,
                     expectedUrl = expectedUrl,
-                    parsed = parsed,
-                    updatedAt = updatedAt,
-                )
-            val compiledRuleSet =
-                compileSubscriptionRuleSet(
-                    subscription = subscription,
-                    parsed = parsed,
+                    expectedName = expectedName,
+                    prepared = subscription,
                 )
             val updatedState =
                 currentState.copy(
                     subscriptions =
                         currentState.subscriptions.map { candidate ->
-                            if (candidate.id == subscription.id) subscription else candidate
+                            if (candidate.id == committedSubscription.id) {
+                                committedSubscription
+                            } else {
+                                candidate
+                            }
                         },
                     blockedRequestCount = blockedRequestCounter.get(),
                 )
@@ -1267,24 +1456,56 @@ internal class BrowserAdBlockStore private constructor(
                 updatedState.copy(
                     ruleRevision = currentState.ruleRevision + 1L,
                 )
-            val updatedSubscriptionRuleSets =
-                subscriptionRuleSets + (subscription.id to compiledRuleSet)
+            val updatedSubscriptionPartitions =
+                subscriptionRuntimePartitions + (committedSubscription.id to partition)
             val updatedSubscriptionRuntimeEngine =
-                compileSubscriptionRuntimeEngine(updatedSubscriptionRuleSets)
+                compileSubscriptionRuntimeEngine(updatedSubscriptionPartitions)
             val updatedRuntimeEngine =
                 combineRuntimeEngines(
                     customEngine = customRuntimeEngine,
                     subscriptionEngine = updatedSubscriptionRuntimeEngine,
                 )
-            writeSubscriptionPayload(subscription.id, payload)
             writePersistedState(revisionedState)
-            subscriptionRuleSets = updatedSubscriptionRuleSets
+            subscriptionRuntimePartitions = updatedSubscriptionPartitions
             subscriptionRuntimeEngine = updatedSubscriptionRuntimeEngine
             runtimeEngine = updatedRuntimeEngine
             matcher = compileMatcher(revisionedState, updatedRuntimeEngine)
             publishState(revisionedState)
-            subscription
+            committedSubscription
         }
+
+    private fun commitUnchangedSubscriptionRefresh(
+        id: String,
+        expectedUrl: String,
+        expectedName: String,
+        updatedAt: Long,
+    ): BrowserAdBlockSubscription =
+        synchronized(lock) {
+            val currentState = _state.value
+            val commit =
+                browserAdBlockUnchangedRefreshCommit(
+                    currentState = currentState,
+                    id = id,
+                    expectedUrl = expectedUrl,
+                    expectedName = expectedName,
+                    updatedAt = updatedAt,
+                )
+            val updatedState =
+                commit.state.copy(
+                    blockedRequestCount = blockedRequestCounter.get(),
+                )
+            writePersistedState(updatedState)
+            publishState(updatedState)
+            commit.subscription
+        }
+
+    private fun publishCompiledCacheWarning() {
+        _runtimeStatus.update { currentStatus ->
+            currentStatus.copy(
+                warningMessage = "部分本地编译快照未保存，下次启动会重新编译",
+            )
+        }
+    }
 
     private fun publishState(state: BrowserAdBlockState) {
         _state.value =
@@ -1368,18 +1589,75 @@ internal class BrowserAdBlockStore private constructor(
         }
     }
 
-    private fun subscriptionPayloadFile(id: String): AtomicFile {
+    private fun legacySubscriptionPayloadFile(id: String): AtomicFile {
         require(BROWSER_AD_BLOCK_SUBSCRIPTION_ID_REGEX.matches(id)) {
             "Invalid browser ad-block subscription ID: $id"
         }
         return AtomicFile(subscriptionPayloadDirectory.resolve("$id.txt"))
     }
 
+    private fun subscriptionPayloadFile(
+        subscription: BrowserAdBlockSubscription,
+    ): AtomicFile {
+        val payloadSha256 =
+            requireNotNull(subscription.payloadSha256) {
+                "Browser ad-block subscription has no payload SHA-256"
+            }
+        require(BROWSER_AD_BLOCK_SHA_256_REGEX.matches(payloadSha256)) {
+            "Invalid browser ad-block payload SHA-256"
+        }
+        val directory =
+            subscriptionPayloadDirectory.resolve(subscription.id).also { target ->
+                require(target.exists() || target.mkdirs()) {
+                    "Cannot create browser ad-block subscription payload directory: ${target.absolutePath}"
+                }
+            }
+        return AtomicFile(directory.resolve("$payloadSha256.txt"))
+    }
+
+    private fun compiledCacheFile(
+        subscription: BrowserAdBlockSubscription,
+    ): File {
+        val payloadSha256 =
+            requireNotNull(subscription.payloadSha256) {
+                "Browser ad-block subscription has no payload SHA-256"
+            }
+        require(BROWSER_AD_BLOCK_SHA_256_REGEX.matches(payloadSha256)) {
+            "Invalid browser ad-block payload SHA-256"
+        }
+        val sourceNameSha256 = browserAdBlockSha256(subscription.name)
+        val directory =
+            compiledCacheDirectory
+                .resolve(BrowserAdBlockCompilerContract.CACHE_FORMAT_VERSION.toString())
+                .resolve(BrowserAdBlockCompilerContract.COMPILER_CONTRACT_ID)
+                .resolve(subscription.id)
+        return directory.resolve("$payloadSha256-$sourceNameSha256.bin")
+    }
+
     private fun writeSubscriptionPayload(
-        id: String,
+        subscription: BrowserAdBlockSubscription,
         bytes: ByteArray,
     ) {
-        val payloadFile = subscriptionPayloadFile(id)
+        require(subscription.payloadByteCount == bytes.size.toLong()) {
+            "Browser ad-block payload byte count changed before persistence"
+        }
+        require(subscription.payloadSha256 == browserAdBlockSha256(bytes)) {
+            "Browser ad-block payload SHA-256 changed before persistence"
+        }
+        val payloadFile = subscriptionPayloadFile(subscription)
+        if (payloadFile.baseFile.isFile) {
+            val existingPayloadIsValid =
+                runCatching {
+                    readSubscriptionPayload(subscription)
+                }.isSuccess
+            if (existingPayloadIsValid) {
+                return
+            }
+            AppLogger.w(
+                BROWSER_AD_BLOCK_TAG,
+                "Replacing invalid browser ad-block content-addressed payload id=${subscription.id}",
+            )
+        }
         var output = payloadFile.startWrite()
         try {
             output.write(bytes)
@@ -1390,8 +1668,10 @@ internal class BrowserAdBlockStore private constructor(
         }
     }
 
-    private fun readSubscriptionPayload(id: String): ByteArray? {
-        val payloadFile = subscriptionPayloadFile(id)
+    private fun readSubscriptionPayload(
+        subscription: BrowserAdBlockSubscription,
+    ): ByteArray? {
+        val payloadFile = subscriptionPayloadFile(subscription)
         if (!payloadFile.baseFile.exists()) {
             return null
         }
@@ -1400,23 +1680,152 @@ internal class BrowserAdBlockStore private constructor(
             require(bytes.size <= BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_BYTES) {
                 "Stored subscription is larger than $BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_BYTES bytes"
             }
+            require(bytes.size.toLong() == subscription.payloadByteCount) {
+                "Stored subscription byte count does not match committed metadata"
+            }
+            require(browserAdBlockSha256(bytes) == subscription.payloadSha256) {
+                "Stored subscription SHA-256 does not match committed metadata"
+            }
             bytes
         }
     }
 
-    private fun deleteSubscriptionPayload(id: String) {
-        val payloadFile = subscriptionPayloadFile(id)
+    private fun deleteLegacySubscriptionPayload(id: String) {
+        val payloadFile = legacySubscriptionPayloadFile(id)
         if (payloadFile.baseFile.exists() && !payloadFile.baseFile.delete()) {
             AppLogger.w(
                 BROWSER_AD_BLOCK_TAG,
-                "Could not delete browser ad-block subscription payload id=$id",
+                "Could not delete legacy browser ad-block subscription payload id=$id",
             )
         }
         val backupFile = File(payloadFile.baseFile.path + ".bak")
         if (backupFile.exists() && !backupFile.delete()) {
             AppLogger.w(
                 BROWSER_AD_BLOCK_TAG,
-                "Could not delete browser ad-block subscription backup id=$id",
+                "Could not delete legacy browser ad-block subscription backup id=$id",
+            )
+        }
+    }
+
+    private fun deleteSubscriptionArtifacts(id: String) {
+        require(BROWSER_AD_BLOCK_SUBSCRIPTION_ID_REGEX.matches(id)) {
+            "Invalid browser ad-block subscription ID: $id"
+        }
+        deleteLegacySubscriptionPayload(id)
+        deleteFilesAndDirectory(
+            subscriptionPayloadDirectory.resolve(id),
+            "subscription payload",
+        )
+        deleteFilesAndDirectory(
+            compiledCacheDirectory
+                .resolve(BrowserAdBlockCompilerContract.CACHE_FORMAT_VERSION.toString())
+                .resolve(BrowserAdBlockCompilerContract.COMPILER_CONTRACT_ID)
+                .resolve(id),
+            "compiled subscription cache",
+        )
+    }
+
+    private fun pruneSubscriptionArtifacts(
+        subscription: BrowserAdBlockSubscription,
+    ) {
+        if (!subscription.hasCommittedPayloadMetadata) {
+            return
+        }
+        val payloadFile = subscriptionPayloadFile(subscription).baseFile
+        val payloadBackup = File(payloadFile.path + ".bak")
+        subscriptionPayloadDirectory.resolve(subscription.id).listFiles()?.forEach { candidate ->
+            if (candidate != payloadFile && candidate != payloadBackup && !candidate.delete()) {
+                AppLogger.w(
+                    BROWSER_AD_BLOCK_TAG,
+                    "Could not delete unreferenced browser ad-block payload id=${subscription.id} file=${candidate.name}",
+                )
+            }
+        }
+        val cacheFile = compiledCacheFile(subscription)
+        cacheFile.parentFile?.listFiles()?.forEach { candidate ->
+            if (candidate != cacheFile && !candidate.delete()) {
+                AppLogger.w(
+                    BROWSER_AD_BLOCK_TAG,
+                    "Could not delete unreferenced browser ad-block compiled cache id=${subscription.id} file=${candidate.name}",
+                )
+            }
+        }
+    }
+
+    private fun pruneObsoleteCompiledCacheDirectories() {
+        val activeFormatDirectory =
+            compiledCacheDirectory.resolve(
+                BrowserAdBlockCompilerContract.CACHE_FORMAT_VERSION.toString(),
+            )
+        compiledCacheDirectory.listFiles()?.forEach { formatDirectory ->
+            if (formatDirectory != activeFormatDirectory) {
+                deleteCompiledCacheTree(formatDirectory)
+            }
+        }
+        val activeContractDirectory =
+            activeFormatDirectory.resolve(
+                BrowserAdBlockCompilerContract.COMPILER_CONTRACT_ID,
+            )
+        activeFormatDirectory.listFiles()?.forEach { contractDirectory ->
+            if (contractDirectory != activeContractDirectory) {
+                deleteCompiledCacheTree(contractDirectory)
+            }
+        }
+    }
+
+    private fun deleteCompiledCacheTree(entry: File) {
+        val rootPath = compiledCacheDirectory.absoluteFile.toPath().normalize()
+        val entryPath = entry.absoluteFile.toPath().normalize()
+        require(entryPath != rootPath && entryPath.startsWith(rootPath)) {
+            "Compiled browser ad-block cache cleanup escaped its private root"
+        }
+        if (java.nio.file.Files.isSymbolicLink(entry.toPath())) {
+            if (!entry.delete()) {
+                AppLogger.w(
+                    BROWSER_AD_BLOCK_TAG,
+                    "Could not delete obsolete browser ad-block compiled cache link=${entry.name}",
+                )
+            }
+            return
+        }
+        val canonicalRootPath = compiledCacheDirectory.canonicalFile.toPath()
+        val canonicalEntryPath = entry.canonicalFile.toPath()
+        require(
+            canonicalEntryPath != canonicalRootPath &&
+                canonicalEntryPath.startsWith(canonicalRootPath),
+        ) {
+            "Compiled browser ad-block cache cleanup escaped its canonical private root"
+        }
+        if (entry.isDirectory) {
+            entry.listFiles()?.forEach(::deleteCompiledCacheTree)
+        }
+        if (entry.exists() && !entry.delete()) {
+            AppLogger.w(
+                BROWSER_AD_BLOCK_TAG,
+                "Could not delete obsolete browser ad-block compiled cache entry=${entry.name}",
+            )
+        }
+    }
+
+    private fun deleteFilesAndDirectory(
+        directory: File,
+        artifactName: String,
+    ) {
+        if (!directory.exists()) {
+            return
+        }
+        directory.listFiles()?.forEach { candidate ->
+            if (candidate.isFile && !candidate.delete()) {
+                AppLogger.w(
+                    BROWSER_AD_BLOCK_TAG,
+                    "Could not delete browser ad-block $artifactName file=${candidate.name}",
+                )
+            }
+        }
+        if (!directory.delete()) {
+            AppLogger.w(
+                BROWSER_AD_BLOCK_TAG,
+                "Could not delete browser ad-block $artifactName directory=${directory.name}",
             )
         }
     }
@@ -1440,7 +1849,8 @@ internal class BrowserAdBlockStore private constructor(
         val loadedSnapshot =
             when (schemaVersion) {
                 1 -> readSchemaOneSnapshot(json)
-                BROWSER_AD_BLOCK_SCHEMA_VERSION -> readSchemaTwoSnapshot(json)
+                2 -> readSchemaTwoSnapshot(json)
+                BROWSER_AD_BLOCK_SCHEMA_VERSION -> readSchemaThreeSnapshot(json)
                 else ->
                     error("Unsupported browser ad-block state schema: $schemaVersion")
             }
@@ -1448,8 +1858,26 @@ internal class BrowserAdBlockStore private constructor(
             mergeBrowserAdBlockBuiltInSubscriptions(loadedSnapshot.state.subscriptions)
         val state = loadedSnapshot.state.copy(subscriptions = mergedSubscriptions)
         validateStoredState(state)
+        val migratedPayloads =
+            loadedSnapshot.migratedPayloads.mapKeys { (legacyId, _) ->
+                val legacySubscription =
+                    loadedSnapshot.state.subscriptions.singleOrNull { subscription ->
+                        subscription.id == legacyId
+                    }
+                mergedSubscriptions
+                    .singleOrNull { subscription ->
+                        subscription.id == legacyId ||
+                            (
+                                legacySubscription != null &&
+                                    subscription.url == legacySubscription.url
+                                )
+                    }
+                    ?.id
+                    ?: legacyId
+            }
         return loadedSnapshot.copy(
             state = state,
+            migratedPayloads = migratedPayloads,
             requiresPersistence =
                 loadedSnapshot.requiresPersistence ||
                     schemaVersion != BROWSER_AD_BLOCK_SCHEMA_VERSION ||
@@ -1465,8 +1893,8 @@ internal class BrowserAdBlockStore private constructor(
                 val elementRules =
                     item.getJSONArray("elementRules").mapObjects(::readStoredElementRule)
                 val id = item.getString("id")
-                if (networkRules.isNotEmpty() || elementRules.isNotEmpty()) {
-                    migratedPayloads[id] =
+                val migratedPayload =
+                    if (networkRules.isNotEmpty() || elementRules.isNotEmpty()) {
                         buildString {
                             appendLine("[Adblock Plus 2.0]")
                             networkRules.forEach(::appendLine)
@@ -1476,6 +1904,11 @@ internal class BrowserAdBlockStore private constructor(
                                 appendLine(rule.selector)
                             }
                         }.toByteArray(StandardCharsets.UTF_8)
+                    } else {
+                        null
+                    }
+                if (migratedPayload != null) {
+                    migratedPayloads[id] = migratedPayload
                 }
                 BrowserAdBlockSubscription(
                     id = id,
@@ -1495,6 +1928,12 @@ internal class BrowserAdBlockStore private constructor(
                         elementRules.count { rule -> !rule.exception },
                     elementExceptionRuleCount =
                         elementRules.count(BrowserAdBlockSubscriptionElementRule::exception),
+                    payloadSha256 = migratedPayload?.let(::browserAdBlockSha256),
+                    payloadByteCount = migratedPayload?.size?.toLong(),
+                    payloadStorageVersion =
+                        migratedPayload?.let {
+                            BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION
+                        },
                 )
             }
         return BrowserAdBlockInitialSnapshot(
@@ -1508,7 +1947,8 @@ internal class BrowserAdBlockStore private constructor(
     }
 
     private fun readSchemaTwoSnapshot(json: JSONObject): BrowserAdBlockInitialSnapshot {
-        var metadataChanged = false
+        val migratedPayloads = mutableMapOf<String, ByteArray>()
+        val legacyPayloadIds = mutableSetOf<String>()
         val subscriptions =
             json.getJSONArray("subscriptions").mapObjects { item ->
                 val metadata =
@@ -1539,19 +1979,106 @@ internal class BrowserAdBlockStore private constructor(
                         elementExceptionRuleCount =
                             item.optInt("elementExceptionRuleCount", 0),
                     )
+                if (metadata.effectiveRuleCount <= 0) {
+                    if (legacySubscriptionPayloadFile(metadata.id).baseFile.exists()) {
+                        legacyPayloadIds += metadata.id
+                    }
+                    metadata
+                } else {
+                    val payloadFile = legacySubscriptionPayloadFile(metadata.id).baseFile
+                    if (!payloadFile.exists()) {
+                        metadata.withoutCommittedPayload("本地订阅规则缺失，等待重新同步")
+                    } else {
+                        val payload =
+                            legacySubscriptionPayloadFile(metadata.id).openRead().use { input ->
+                                input.readBytes().also { bytes ->
+                                    require(bytes.size <= BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_BYTES) {
+                                        "Stored subscription is larger than $BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_BYTES bytes"
+                                    }
+                                }
+                            }
+                        legacyPayloadIds += metadata.id
+                        if (payload.isEmpty()) {
+                            metadata.withoutCommittedPayload("本地订阅规则为空，等待重新同步")
+                        } else {
+                            migratedPayloads[metadata.id] = payload
+                            metadata.copy(
+                                payloadSha256 = browserAdBlockSha256(payload),
+                                payloadByteCount = payload.size.toLong(),
+                                payloadStorageVersion =
+                                    BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION,
+                            )
+                        }
+                    }
+                }
+            }
+        val state =
+            readStoredStateWithoutSubscriptions(json).copy(
+                autoUpdateBuiltInSubscriptions =
+                    json.optBoolean("autoUpdateBuiltInSubscriptions", true),
+                subscriptions = subscriptions,
+            )
+        return BrowserAdBlockInitialSnapshot(
+            state = state,
+            requiresPersistence = true,
+            migratedPayloads = migratedPayloads,
+            legacyPayloadIds = legacyPayloadIds,
+        )
+    }
+
+    private fun readSchemaThreeSnapshot(json: JSONObject): BrowserAdBlockInitialSnapshot {
+        var metadataChanged = false
+        val legacyPayloadIds = mutableSetOf<String>()
+        val subscriptions =
+            json.getJSONArray("subscriptions").mapObjects { item ->
+                val metadata =
+                    BrowserAdBlockSubscription(
+                        id = item.getString("id"),
+                        name = item.getString("name"),
+                        url = normalizeBrowserAdBlockSubscriptionUrl(item.getString("url")),
+                        enabled = item.getBoolean("enabled"),
+                        group =
+                            BrowserAdBlockSubscriptionGroup.valueOf(
+                                item.optString(
+                                    "group",
+                                    BrowserAdBlockSubscriptionGroup.CUSTOM.name,
+                                ),
+                            ),
+                        builtIn = item.optBoolean("builtIn", false),
+                        lastUpdatedAt =
+                            item.optLong("lastUpdatedAt", -1L).takeIf { value -> value >= 0L },
+                        lastError =
+                            item.optString("lastError", "").takeIf(String::isNotBlank),
+                        ignoredLineCount = item.optInt("ignoredLineCount", 0),
+                        networkBlockingRuleCount =
+                            item.optInt("networkBlockingRuleCount", 0),
+                        networkExceptionRuleCount =
+                            item.optInt("networkExceptionRuleCount", 0),
+                        elementBlockingRuleCount =
+                            item.optInt("elementBlockingRuleCount", 0),
+                        elementExceptionRuleCount =
+                            item.optInt("elementExceptionRuleCount", 0),
+                        payloadSha256 =
+                            item.optString("payloadSha256", "").takeIf(String::isNotBlank),
+                        payloadByteCount =
+                            item.optLong("payloadByteCount", -1L).takeIf { value -> value >= 0L },
+                        payloadStorageVersion =
+                            item.optInt("payloadStorageVersion", -1)
+                                .takeIf { value -> value >= 0 },
+                    )
+                if (legacySubscriptionPayloadFile(metadata.id).baseFile.exists()) {
+                    legacyPayloadIds += metadata.id
+                }
                 if (!metadata.hasCommittedPayloadMetadata) {
                     metadata
                 } else {
-                    val payloadFile = subscriptionPayloadFile(metadata.id).baseFile
-                    if (!payloadFile.exists()) {
+                    val payloadFile = subscriptionPayloadFile(metadata).baseFile
+                    if (
+                        !payloadFile.isFile ||
+                            payloadFile.length() != metadata.payloadByteCount
+                    ) {
                         metadataChanged = true
-                        metadata.copy(
-                            lastError = "本地订阅规则缺失，等待重新同步",
-                            networkBlockingRuleCount = 0,
-                            networkExceptionRuleCount = 0,
-                            elementBlockingRuleCount = 0,
-                            elementExceptionRuleCount = 0,
-                        )
+                        metadata.withoutCommittedPayload("本地订阅规则缺失，等待重新同步")
                     } else {
                         metadata
                     }
@@ -1566,6 +2093,7 @@ internal class BrowserAdBlockStore private constructor(
         return BrowserAdBlockInitialSnapshot(
             state = state,
             requiresPersistence = metadataChanged,
+            legacyPayloadIds = legacyPayloadIds,
         )
     }
 
@@ -1640,6 +2168,37 @@ internal class BrowserAdBlockStore private constructor(
         require(state.subscriptions.map { subscription -> subscription.id }.distinct().size == state.subscriptions.size) {
             "Stored browser ad-block subscription IDs contain duplicates"
         }
+        state.subscriptions.forEach { subscription ->
+            val payloadFields =
+                listOf(
+                    subscription.payloadSha256,
+                    subscription.payloadByteCount,
+                    subscription.payloadStorageVersion,
+                )
+            require(payloadFields.all { value -> value == null } || payloadFields.none { value -> value == null }) {
+                "Stored browser ad-block payload metadata is incomplete"
+            }
+            require(
+                (subscription.effectiveRuleCount > 0) ==
+                    payloadFields.none { value -> value == null },
+            ) {
+                "Stored browser ad-block rule counts and payload identity are inconsistent"
+            }
+            if (subscription.payloadSha256 != null) {
+                require(BROWSER_AD_BLOCK_SHA_256_REGEX.matches(subscription.payloadSha256)) {
+                    "Stored browser ad-block payload SHA-256 is invalid"
+                }
+                require(subscription.payloadByteCount in 1..BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_BYTES) {
+                    "Stored browser ad-block payload byte count is invalid"
+                }
+                require(
+                    subscription.payloadStorageVersion ==
+                        BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION,
+                ) {
+                    "Stored browser ad-block payload storage version is unsupported"
+                }
+            }
+        }
     }
 
     private fun writePersistedState(state: BrowserAdBlockState) {
@@ -1711,6 +2270,18 @@ internal class BrowserAdBlockStore private constructor(
                                     .put(
                                         "elementExceptionRuleCount",
                                         subscription.elementExceptionRuleCount,
+                                    )
+                                    .put(
+                                        "payloadSha256",
+                                        subscription.payloadSha256.orEmpty(),
+                                    )
+                                    .put(
+                                        "payloadByteCount",
+                                        subscription.payloadByteCount ?: -1L,
+                                    )
+                                    .put(
+                                        "payloadStorageVersion",
+                                        subscription.payloadStorageVersion ?: -1,
                                     ),
                             )
                         }
@@ -1749,20 +2320,101 @@ internal class BrowserAdBlockStore private constructor(
 }
 
 internal val BrowserAdBlockSubscription.hasCommittedPayloadMetadata: Boolean
-    get() = effectiveRuleCount > 0
+    get() =
+        effectiveRuleCount > 0 &&
+            payloadSha256 != null &&
+            payloadByteCount != null &&
+            payloadStorageVersion == BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION
+
+internal fun BrowserAdBlockSubscription.matchesCommittedPayload(
+    payloadSha256: String,
+    payloadByteCount: Long,
+): Boolean =
+    hasCommittedPayloadMetadata &&
+        this.payloadSha256 == payloadSha256 &&
+        this.payloadByteCount == payloadByteCount
 
 internal fun mergeBrowserAdBlockRefreshedSubscription(
     current: BrowserAdBlockSubscription,
     expectedUrl: String,
+    expectedName: String,
     parsed: BrowserAdBlockSubscriptionParseResult,
     updatedAt: Long,
+    payloadSha256: String,
+    payloadByteCount: Long,
 ): BrowserAdBlockSubscription {
     require(current.url == expectedUrl) {
         "广告拦截订阅地址在更新期间发生变化，请重新刷新"
     }
+    require(current.name == expectedName) {
+        "广告拦截订阅名称在更新期间发生变化，请重新刷新"
+    }
     return current.withParsedRuleCounts(
         parsed = parsed,
         updatedAt = updatedAt,
+    ).copy(
+        payloadSha256 = payloadSha256,
+        payloadByteCount = payloadByteCount,
+        payloadStorageVersion = BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION,
+    )
+}
+
+internal fun mergeBrowserAdBlockPreparedSubscriptionAtCommit(
+    current: BrowserAdBlockSubscription,
+    expectedUrl: String,
+    expectedName: String,
+    prepared: BrowserAdBlockSubscription,
+): BrowserAdBlockSubscription {
+    require(current.id == prepared.id) {
+        "广告拦截订阅更新结果不属于当前订阅"
+    }
+    require(current.url == expectedUrl) {
+        "广告拦截订阅地址在更新期间发生变化，请重新刷新"
+    }
+    require(current.name == expectedName) {
+        "广告拦截订阅名称在更新期间发生变化，请重新刷新"
+    }
+    return prepared.copy(
+        name = current.name,
+        url = current.url,
+        enabled = current.enabled,
+        group = current.group,
+        builtIn = current.builtIn,
+    )
+}
+
+internal fun browserAdBlockUnchangedRefreshCommit(
+    currentState: BrowserAdBlockState,
+    id: String,
+    expectedUrl: String,
+    expectedName: String,
+    updatedAt: Long,
+): BrowserAdBlockUnchangedRefreshCommit {
+    val currentSubscription =
+        currentState.subscriptions.singleOrNull { candidate -> candidate.id == id }
+            ?: throw IllegalStateException(
+                "广告拦截订阅在更新期间已被删除：$id",
+            )
+    require(currentSubscription.url == expectedUrl) {
+        "广告拦截订阅地址在更新期间发生变化，请重新刷新"
+    }
+    require(currentSubscription.name == expectedName) {
+        "广告拦截订阅名称在更新期间发生变化，请重新刷新"
+    }
+    val refreshed =
+        currentSubscription.copy(
+            lastUpdatedAt = updatedAt,
+            lastError = null,
+        )
+    return BrowserAdBlockUnchangedRefreshCommit(
+        state =
+            currentState.copy(
+                subscriptions =
+                    currentState.subscriptions.map { candidate ->
+                        if (candidate.id == refreshed.id) refreshed else candidate
+                    },
+            ),
+        subscription = refreshed,
     )
 }
 
@@ -1851,6 +2503,39 @@ private fun BrowserAdBlockSubscription.withParsedRuleCounts(
             parsed.elementRules.count(BrowserAdBlockElementRuleSpec::exception),
     )
 
+private fun BrowserAdBlockSubscription.withoutCommittedPayload(
+    errorMessage: String,
+): BrowserAdBlockSubscription =
+    copy(
+        lastError = errorMessage.take(BROWSER_AD_BLOCK_MAX_ERROR_LENGTH),
+        networkBlockingRuleCount = 0,
+        networkExceptionRuleCount = 0,
+        elementBlockingRuleCount = 0,
+        elementExceptionRuleCount = 0,
+        payloadSha256 = null,
+        payloadByteCount = null,
+        payloadStorageVersion = null,
+    )
+
+private fun BrowserAdBlockSubscription.compiledCacheIdentity():
+    BrowserAdBlockCompiledCacheIdentity =
+    BrowserAdBlockCompiledCacheIdentity(
+        subscriptionId = id,
+        subscriptionName = name,
+        payloadSha256 =
+            requireNotNull(payloadSha256) {
+                "Browser ad-block subscription has no committed payload SHA-256"
+            },
+        payloadByteCount =
+            requireNotNull(payloadByteCount) {
+                "Browser ad-block subscription has no committed payload byte count"
+            },
+        networkBlockingRuleCount = networkBlockingRuleCount,
+        networkExceptionRuleCount = networkExceptionRuleCount,
+        elementBlockingRuleCount = elementBlockingRuleCount,
+        elementExceptionRuleCount = elementExceptionRuleCount,
+    )
+
 private fun BrowserAdBlockState.updateSubscriptionMetadata(
     subscription: BrowserAdBlockSubscription,
 ): BrowserAdBlockState =
@@ -1914,10 +2599,12 @@ private fun JSONArray.mapStrings(): List<String> =
     }
 
 private const val BROWSER_AD_BLOCK_TAG = "BrowserAdBlock"
-private const val BROWSER_AD_BLOCK_SCHEMA_VERSION = 2
+private const val BROWSER_AD_BLOCK_SCHEMA_VERSION = 3
 private const val BROWSER_AD_BLOCK_STATE_FILE_NAME = "browser_ad_block_state.json"
 private const val BROWSER_AD_BLOCK_SUBSCRIPTION_DIRECTORY_NAME =
     "browser_ad_block_subscriptions"
+private const val BROWSER_AD_BLOCK_COMPILED_DIRECTORY_NAME =
+    "browser_ad_block_compiled"
 private const val BROWSER_AD_BLOCK_MAX_CUSTOM_RULE_LENGTH = 2_048
 private const val BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_NAME_LENGTH = 80
 private const val BROWSER_AD_BLOCK_MAX_SUBSCRIPTION_BYTES = 32L * 1024L * 1024L
@@ -1928,3 +2615,4 @@ private const val BROWSER_AD_BLOCK_CUSTOM_RULE_SET_ID = "custom"
 private const val BROWSER_AD_BLOCK_BLOCKED_COUNT_PUBLISH_INTERVAL_MILLIS = 500L
 private const val BROWSER_AD_BLOCK_SUBSCRIPTION_USER_AGENT = "Kiyori-AdBlock/1"
 private val BROWSER_AD_BLOCK_SUBSCRIPTION_ID_REGEX = Regex("[A-Za-z0-9._-]{1,96}")
+private val BROWSER_AD_BLOCK_SHA_256_REGEX = Regex("[a-f0-9]{64}")

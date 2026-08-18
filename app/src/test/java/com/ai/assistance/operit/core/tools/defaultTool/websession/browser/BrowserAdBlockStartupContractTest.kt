@@ -18,11 +18,34 @@ class BrowserAdBlockStartupContractTest {
         assertTrue(source.contains("init {"))
         assertTrue(source.contains("ioScope.launch {"))
         assertTrue(source.contains("initializeRuntime()"))
+        assertTrue(source.contains("phase = BrowserAdBlockRuntimePhase.LOADING_COMPILED_RULES"))
         assertTrue(source.contains("phase = BrowserAdBlockRuntimePhase.COMPILING_RULES"))
+        assertTrue(source.contains("BrowserAdBlockCompiledCacheCodec.read("))
+        assertTrue(source.contains("cacheResult.fold("))
+        assertTrue(source.contains("onSuccess = { partition ->"))
+        assertTrue(source.contains("compiledSubscriptionCount += 1"))
         assertTrue(source.contains("matcher = compileMatcher(revisionedState, compiledEngine)"))
         assertTrue(source.contains("private var customRuntimeEngine"))
         assertTrue(source.contains("private var subscriptionRuntimeEngine"))
         assertTrue(source.contains("combineRuntimeEngines("))
+    }
+
+    @Test
+    fun `schema three and refresh paths preserve content identity and unchanged revisions`() {
+        val source =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserAdBlockStore.kt",
+            ).readText()
+
+        assertTrue(source.contains("private const val BROWSER_AD_BLOCK_SCHEMA_VERSION = 3"))
+        assertTrue(source.contains("\"payloadSha256\""))
+        assertTrue(source.contains("\"payloadByteCount\""))
+        assertTrue(source.contains("\"payloadStorageVersion\""))
+        assertTrue(source.contains("subscription.matchesCommittedPayload("))
+        assertTrue(source.contains("commitUnchangedSubscriptionRefresh("))
+        assertTrue(source.contains("ruleRevision = currentState.ruleRevision + 1L"))
+        assertTrue(source.contains("compiledCacheDirectory"))
+        assertTrue(source.contains("applicationContext.noBackupFilesDir"))
     }
 
     @Test

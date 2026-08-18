@@ -73,6 +73,8 @@ kiyori_browser_product_completion/
 	11_player_runtime_ui_and_browser_completion.md
 	12_player_process_crash_isolation.md
 	13_player_online_playback_reliability_and_compatibility.md
+	14_player_native_dependency_upgrade.md
+	15_adblock_compiled_runtime_cache.md
 ```
 
 实施顺序不可交换：播放器和嗅探依赖稳定的 session profile、窗口生命周期、设置 owner、下载 owner 和菜单路由；无痕必须先于缩略图和 AI tab 输出完成，以免后续再次更改窗口模型。

@@ -186,6 +186,29 @@ internal class BrowserAdBlockCompiledRuleSet private constructor(
                         .toSet(),
             )
         }
+
+        fun fromCompiled(
+            id: String,
+            networkRules: List<CompiledBrowserAdBlockNetworkRule>,
+            elementRules: List<CompiledBrowserAdBlockElementRule>,
+            badFilters: Set<BrowserAdBlockBadFilter>,
+        ): BrowserAdBlockCompiledRuleSet {
+            require(networkRules.all { rule -> rule.ruleSetId == id }) {
+                "Compiled browser ad-block network rule belongs to another rule set"
+            }
+            require(elementRules.all { rule -> rule.ruleSetId == id }) {
+                "Compiled browser ad-block element rule belongs to another rule set"
+            }
+            require(badFilters.all { filter -> filter.ruleSetId == id }) {
+                "Compiled browser ad-block badfilter belongs to another rule set"
+            }
+            return BrowserAdBlockCompiledRuleSet(
+                id = id,
+                networkRules = networkRules,
+                elementRules = elementRules,
+                badFilters = badFilters,
+            )
+        }
     }
 }
 
@@ -220,21 +243,52 @@ internal class BrowserAdBlockEngine private constructor(
             )
 
         fun compile(ruleSets: Collection<BrowserAdBlockCompiledRuleSet>): BrowserAdBlockEngine =
-            BrowserAdBlockEngine(
-                networkIndex =
-                    BrowserAdBlockNetworkIndex.fromCompiled(
-                        ruleSets.flatMap(BrowserAdBlockCompiledRuleSet::networkRules),
-                    ),
-                elementIndex =
-                    BrowserAdBlockElementIndex.fromCompiled(
-                        ruleSets.flatMap(BrowserAdBlockCompiledRuleSet::elementRules),
-                    ),
-                badFilters =
-                    ruleSets
-                        .asSequence()
-                        .flatMap { ruleSet -> ruleSet.badFilters.asSequence() }
-                        .toSet(),
+            combine(
+                ruleSets.map { ruleSet ->
+                    compilePartition(ruleSet).engine
+                },
             )
+
+        fun compilePartition(
+            ruleSet: BrowserAdBlockCompiledRuleSet,
+        ): BrowserAdBlockCompiledPartition {
+            val networkIndexSnapshot =
+                buildBrowserAdBlockNetworkIndexSnapshot(ruleSet.networkRules)
+            val elementIndexSnapshot =
+                buildBrowserAdBlockElementIndexSnapshot(ruleSet.elementRules)
+            return restorePartition(
+                ruleSet = ruleSet,
+                networkIndexSnapshot = networkIndexSnapshot,
+                elementIndexSnapshot = elementIndexSnapshot,
+            )
+        }
+
+        fun restorePartition(
+            ruleSet: BrowserAdBlockCompiledRuleSet,
+            networkIndexSnapshot: BrowserAdBlockNetworkIndexSnapshot,
+            elementIndexSnapshot: BrowserAdBlockElementIndexSnapshot,
+        ): BrowserAdBlockCompiledPartition {
+            val engine =
+                BrowserAdBlockEngine(
+                    networkIndex =
+                        BrowserAdBlockNetworkIndex.fromSnapshot(
+                            compiledRules = ruleSet.networkRules,
+                            snapshot = networkIndexSnapshot,
+                        ),
+                    elementIndex =
+                        BrowserAdBlockElementIndex.fromSnapshot(
+                            compiledRules = ruleSet.elementRules,
+                            snapshot = elementIndexSnapshot,
+                        ),
+                    badFilters = ruleSet.badFilters,
+                )
+            return BrowserAdBlockCompiledPartition(
+                ruleSet = ruleSet,
+                engine = engine,
+                networkIndexSnapshot = networkIndexSnapshot,
+                elementIndexSnapshot = elementIndexSnapshot,
+            )
+        }
 
         fun combine(engines: Collection<BrowserAdBlockEngine>): BrowserAdBlockEngine {
             if (engines.isEmpty()) {
@@ -258,6 +312,22 @@ internal class BrowserAdBlockEngine private constructor(
         }
     }
 }
+
+internal fun compileBrowserAdBlockCompiledPartition(
+    ruleSet: BrowserAdBlockCompiledRuleSet,
+): BrowserAdBlockCompiledPartition =
+    BrowserAdBlockEngine.compilePartition(ruleSet)
+
+internal fun restoreBrowserAdBlockCompiledPartition(
+    ruleSet: BrowserAdBlockCompiledRuleSet,
+    networkIndexSnapshot: BrowserAdBlockNetworkIndexSnapshot,
+    elementIndexSnapshot: BrowserAdBlockElementIndexSnapshot,
+): BrowserAdBlockCompiledPartition =
+    BrowserAdBlockEngine.restorePartition(
+        ruleSet = ruleSet,
+        networkIndexSnapshot = networkIndexSnapshot,
+        elementIndexSnapshot = elementIndexSnapshot,
+    )
 
 internal data class BrowserAdBlockPreparedRequest(
     val context: BrowserAdBlockRequestContext,
@@ -866,10 +936,24 @@ internal class BrowserAdBlockNetworkIndex private constructor(
         fun fromCompiled(
             compiledRules: List<CompiledBrowserAdBlockNetworkRule>,
         ): BrowserAdBlockNetworkIndex =
+            fromSnapshot(
+                compiledRules = compiledRules,
+                snapshot = buildBrowserAdBlockNetworkIndexSnapshot(compiledRules),
+            )
+
+        fun fromSnapshot(
+            compiledRules: List<CompiledBrowserAdBlockNetworkRule>,
+            snapshot: BrowserAdBlockNetworkIndexSnapshot,
+        ): BrowserAdBlockNetworkIndex =
             BrowserAdBlockNetworkIndex(
-                ruleIndexes = listOf(CompiledBrowserAdBlockRuleIndex(compiledRules)),
-                requiresPartyClassification =
-                    compiledRules.any { rule -> rule.thirdParty != null },
+                ruleIndexes =
+                    listOf(
+                        CompiledBrowserAdBlockRuleIndex(
+                            rules = compiledRules,
+                            snapshot = snapshot,
+                        ),
+                    ),
+                requiresPartyClassification = snapshot.requiresPartyClassification,
             )
 
         fun combine(
@@ -883,24 +967,37 @@ internal class BrowserAdBlockNetworkIndex private constructor(
     }
 }
 
-private class CompiledBrowserAdBlockRuleIndex(
-    rules: List<CompiledBrowserAdBlockNetworkRule>,
+private class CompiledBrowserAdBlockRuleIndex private constructor(
+    private val hostAnchoredRules: Map<String, List<CompiledBrowserAdBlockNetworkRule>>,
+    private val tokenRules: Map<Int, Map<Long, List<CompiledBrowserAdBlockNetworkRule>>>,
+    private val unindexedRules: List<CompiledBrowserAdBlockNetworkRule>,
 ) {
-    private val hostAnchoredRules =
-        rules
-            .filter { rule -> rule.hostAnchor != null }
-            .groupBy { rule -> checkNotNull(rule.hostAnchor) }
-    private val tokenRules =
-        rules
-            .filter { rule -> rule.hostAnchor == null && rule.indexKey != null }
-            .groupBy { rule -> checkNotNull(rule.indexKey).length }
-            .mapValues { (_, rulesForLength) ->
-                rulesForLength.groupBy { rule ->
-                    browserAdBlockTokenHash(checkNotNull(rule.indexKey))
+    constructor(
+        rules: List<CompiledBrowserAdBlockNetworkRule>,
+        snapshot: BrowserAdBlockNetworkIndexSnapshot,
+    ) : this(
+        hostAnchoredRules =
+            snapshot.hostRuleIndexes.mapValues { (_, indexes) ->
+                indexes.map { index ->
+                    rules.getOrNull(index)
+                        ?: throw BrowserAdBlockCompiledCacheException("host_rule_index")
                 }
-            }
-    private val unindexedRules =
-        rules.filter { rule -> rule.hostAnchor == null && rule.indexKey == null }
+            },
+        tokenRules =
+            snapshot.tokenRuleIndexes.mapValues { (_, buckets) ->
+                buckets.mapValues { (_, indexes) ->
+                    indexes.map { index ->
+                        rules.getOrNull(index)
+                            ?: throw BrowserAdBlockCompiledCacheException("token_rule_index")
+                    }
+                }
+            },
+        unindexedRules =
+            snapshot.unindexedRuleIndexes.map { index ->
+                rules.getOrNull(index)
+                    ?: throw BrowserAdBlockCompiledCacheException("unindexed_rule_index")
+            },
+    )
 
     fun addCandidates(
         prepared: BrowserAdBlockPreparedRequest,
@@ -1015,20 +1112,27 @@ internal data class CompiledBrowserAdBlockNetworkRule(
         )
 }
 
-private class BrowserAdBlockElementPartition(
-    compiledRules: List<CompiledBrowserAdBlockElementRule>,
+private class BrowserAdBlockElementPartition private constructor(
+    val genericRules: List<CompiledBrowserAdBlockElementRule>,
+    val domainRules: Map<String, List<CompiledBrowserAdBlockElementRule>>,
 ) {
-    val genericRules = compiledRules.filter(CompiledBrowserAdBlockElementRule::generic)
-    val domainRules =
-        buildMap<String, MutableList<CompiledBrowserAdBlockElementRule>> {
-            compiledRules
-                .filterNot(CompiledBrowserAdBlockElementRule::generic)
-                .forEach { rule ->
-                    rule.domainIncludes.forEach { domain ->
-                        getOrPut(domain) { mutableListOf() }.add(rule)
-                    }
+    constructor(
+        compiledRules: List<CompiledBrowserAdBlockElementRule>,
+        snapshot: BrowserAdBlockElementIndexSnapshot,
+    ) : this(
+        genericRules =
+            snapshot.genericRuleIndexes.map { index ->
+                compiledRules.getOrNull(index)
+                    ?: throw BrowserAdBlockCompiledCacheException("generic_element_rule_index")
+            },
+        domainRules =
+            snapshot.domainRuleIndexes.mapValues { (_, indexes) ->
+                indexes.map { index ->
+                    compiledRules.getOrNull(index)
+                        ?: throw BrowserAdBlockCompiledCacheException("domain_element_rule_index")
                 }
-        }
+            },
+    )
 }
 
 internal class BrowserAdBlockElementIndex private constructor(
@@ -1090,8 +1194,23 @@ internal class BrowserAdBlockElementIndex private constructor(
         fun fromCompiled(
             compiledRules: List<CompiledBrowserAdBlockElementRule>,
         ): BrowserAdBlockElementIndex =
+            fromSnapshot(
+                compiledRules = compiledRules,
+                snapshot = buildBrowserAdBlockElementIndexSnapshot(compiledRules),
+            )
+
+        fun fromSnapshot(
+            compiledRules: List<CompiledBrowserAdBlockElementRule>,
+            snapshot: BrowserAdBlockElementIndexSnapshot,
+        ): BrowserAdBlockElementIndex =
             BrowserAdBlockElementIndex(
-                partitions = listOf(BrowserAdBlockElementPartition(compiledRules)),
+                partitions =
+                    listOf(
+                        BrowserAdBlockElementPartition(
+                            compiledRules = compiledRules,
+                            snapshot = snapshot,
+                        ),
+                    ),
             )
 
         fun combine(
@@ -1101,6 +1220,58 @@ internal class BrowserAdBlockElementIndex private constructor(
                 partitions = indexes.flatMap(BrowserAdBlockElementIndex::partitions),
             )
     }
+}
+
+private fun buildBrowserAdBlockNetworkIndexSnapshot(
+    rules: List<CompiledBrowserAdBlockNetworkRule>,
+): BrowserAdBlockNetworkIndexSnapshot {
+    val hostRuleIndexes = LinkedHashMap<String, MutableList<Int>>()
+    val tokenRuleIndexes = LinkedHashMap<Int, MutableMap<Long, MutableList<Int>>>()
+    val unindexedRuleIndexes = mutableListOf<Int>()
+    rules.forEachIndexed { index, rule ->
+        when {
+            rule.hostAnchor != null ->
+                hostRuleIndexes
+                    .getOrPut(rule.hostAnchor) { mutableListOf() }
+                    .add(index)
+            rule.indexKey != null -> {
+                val key = rule.indexKey
+                tokenRuleIndexes
+                    .getOrPut(key.length) { LinkedHashMap() }
+                    .getOrPut(browserAdBlockTokenHash(key)) { mutableListOf() }
+                    .add(index)
+            }
+            else -> unindexedRuleIndexes += index
+        }
+    }
+    return BrowserAdBlockNetworkIndexSnapshot(
+        requiresPartyClassification = rules.any { rule -> rule.thirdParty != null },
+        hostRuleIndexes = hostRuleIndexes,
+        tokenRuleIndexes = tokenRuleIndexes,
+        unindexedRuleIndexes = unindexedRuleIndexes,
+    )
+}
+
+private fun buildBrowserAdBlockElementIndexSnapshot(
+    rules: List<CompiledBrowserAdBlockElementRule>,
+): BrowserAdBlockElementIndexSnapshot {
+    val genericRuleIndexes = mutableListOf<Int>()
+    val domainRuleIndexes = LinkedHashMap<String, MutableList<Int>>()
+    rules.forEachIndexed { index, rule ->
+        if (rule.generic) {
+            genericRuleIndexes += index
+        } else {
+            rule.domainIncludes.forEach { domain ->
+                domainRuleIndexes
+                    .getOrPut(domain) { mutableListOf() }
+                    .add(index)
+            }
+        }
+    }
+    return BrowserAdBlockElementIndexSnapshot(
+        genericRuleIndexes = genericRuleIndexes,
+        domainRuleIndexes = domainRuleIndexes,
+    )
 }
 
 private fun explicitHostForBrowserAdBlockNetworkRule(rule: String): String? {
@@ -1775,9 +1946,12 @@ private val BrowserAdBlockDataExtensions =
     setOf("json", "xml")
 
 private const val BROWSER_AD_BLOCK_DEFAULT_RULE_SET_ID = "default"
-private const val BROWSER_AD_BLOCK_MIN_INDEX_KEY_LENGTH = 4
-private const val BROWSER_AD_BLOCK_MAX_INDEX_KEY_LENGTH = 8
-private const val BROWSER_AD_BLOCK_TOKEN_HASH_BASE = 257L
+private const val BROWSER_AD_BLOCK_MIN_INDEX_KEY_LENGTH =
+    BrowserAdBlockCompilerContract.MIN_INDEX_KEY_LENGTH
+private const val BROWSER_AD_BLOCK_MAX_INDEX_KEY_LENGTH =
+    BrowserAdBlockCompilerContract.MAX_INDEX_KEY_LENGTH
+private const val BROWSER_AD_BLOCK_TOKEN_HASH_BASE =
+    BrowserAdBlockCompilerContract.TOKEN_HASH_BASE
 private const val BROWSER_AD_BLOCK_PAGE_CACHE_SIZE = 64
 private const val BROWSER_AD_BLOCK_ELEMENT_PAGE_CACHE_SIZE = 16
 private const val BROWSER_AD_BLOCK_SITE_CACHE_SIZE = 128

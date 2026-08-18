@@ -206,6 +206,57 @@ formal readiness、architecture `phase=m03`、差异检查、最终 Debug APK �
   的最小对齐为 `0x4000`；shell launcher 只依赖 `libandroid.so / liblog.so / libm.so /
   libdl.so / libc.so`，不依赖 `libc++_shared.so`
 
+### 2026-08-18 广告拦截编译快照与启动缓存
+
+状态：五条预置订阅的持久化编译快照、逐订阅 Engine 分区、内容去重刷新、定向自动验证、
+正式门禁、Debug APK 构建与静态产物核验已完成；目标设备首次迁移、第二次启动缓存命中、
+冷启动性能、真实网页和长时间内存稳定性仍保持 `verification_pending`。
+
+本轮在唯一 `BrowserAdBlockStore`、唯一 Browser Runtime 和不可变 matcher 合同内完成：
+
+1. [DONE] 状态升级为 schema v3，记录已提交原始载荷的 SHA-256、字节数和存储版本；原始载荷
+   迁移到 `filesDir/browser_ad_block_subscriptions/<subscription-id>/<payload-sha256>.txt`
+   的内容寻址布局
+2. [DONE] 派生编译快照进入 `noBackupFilesDir/browser_ad_block_compiled/<format-version>/`
+   `<compiler-contract-id>/<subscription-id>/`；二进制 codec 保存完整网络/元素规则语义、
+   `badfilter`、host/token/unindexed 网络索引和元素域索引，并校验身份、正文摘要、数量、
+   长度、bucket 与 rule index 边界
+3. [DONE] 每条订阅拥有独立 Engine 分区。有效缓存命中直接恢复规则和既有索引引用，不读取大型
+   原始文本，不进入订阅逐行解析、完整规则编译或 host/token/domain 索引重算；全部分区就绪后
+   仍一次性组合并发布唯一 matcher
+4. [DONE] 单条快照缺失或损坏只从该条权威原始载荷重建；单条订阅内容变化只替换对应分区，
+   其余订阅分区不重新编译
+5. [DONE] 订阅刷新先比较精确 SHA-256。下载内容与已提交内容相同时，不解析、不编译、不替换
+   Engine、不递增 `ruleRevision`，也不触发重复 DOM 规则应用；只更新同步时间并清除错误
+6. [DONE] 设置页区分读取设置、加载本地编译规则、编译已变化规则、已就绪和初始化失败，并显示
+   `cacheHitCount / cacheMissCount / cacheInvalidCount / compiledSubscriptionCount` 对应结果
+   与编译快照持久化警告
+
+最终本地交付证据：
+
+- 广告、设置与浏览器定向矩阵覆盖 10 个 suite、`131` 项测试，失败、错误和跳过均为 `0`；
+  `BrowserAdBlockCompiledCacheTest` 覆盖确定性编码、完整字段 round-trip、显式正则恢复、
+  网络/元素匹配等价、`badfilter`、正文 SHA-256、身份不匹配、截断和正文损坏
+- `check_formal_readiness.py --repository . --require-main` 与
+  `check_architecture_boundaries.py --repository . --require-main` 均通过，architecture 为
+  `phase=m03`；`git diff --check` 无 whitespace error
+- `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 1m 15s`，
+  `232 actionable tasks: 23 executed, 209 up-to-date`；唯一 launcher 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `494168730` bytes，
+  SHA-256 `235A25DB2D1978D66E364F16C6488E53C2D260EB76155B692F684C17292FBECE`，
+  文件时间 `2026-08-18 13:06:33 +08:00`；包名/版本/SDK 为
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`
+- APK 使用 Android Debug V2 单 signer，证书 SHA-256 为
+  `E72AD950D07ADBEDFB9C909C48D922FDDB3560677012DA79B686A127867AE902`，
+  `zipalign -c -P 16 -v 4` 验证通过，ABI 为 `arm64-v8a`
+
+仍需在目标设备确认 schema v2 真实用户数据首次迁移、第二次启动
+`cacheHitCount=5 / compiledSubscriptionCount=0`、十次强制停止冷启动、Java heap/PSS/GC/CPU/
+首屏帧改善、真实网页阻断/例外/元素隐藏/网络日志兼容、相同内容自动更新不重复应用 DOM 规则、
+单条真实内容变化只重建一个分区，以及进程回收和长时间浏览稳定性。详细设计、失效矩阵与验收
+清单见 [`kiyori_browser_product_completion/15_adblock_compiled_runtime_cache.md`](kiyori_browser_product_completion/15_adblock_compiled_runtime_cache.md)。
+
 ### 任务目标
 
 在唯一 Browser Runtime、WebSession 和 Android System WebView 上建立 Kiyori 原生广告拦截能力：

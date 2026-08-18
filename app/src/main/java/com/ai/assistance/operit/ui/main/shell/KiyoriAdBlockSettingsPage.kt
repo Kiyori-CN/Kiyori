@@ -1815,6 +1815,8 @@ private fun browserAdBlockRuntimeStatusValue(
 ): String =
     when (status.phase) {
         BrowserAdBlockRuntimePhase.READING_SETTINGS -> "读取中"
+        BrowserAdBlockRuntimePhase.LOADING_COMPILED_RULES ->
+            "${status.completedSubscriptionCount}/${status.totalSubscriptionCount}"
         BrowserAdBlockRuntimePhase.COMPILING_RULES ->
             "${status.completedSubscriptionCount}/${status.totalSubscriptionCount}"
         BrowserAdBlockRuntimePhase.READY -> "已就绪"
@@ -1827,10 +1829,18 @@ private fun browserAdBlockRuntimeStatusDescription(
     when (status.phase) {
         BrowserAdBlockRuntimePhase.READING_SETTINGS ->
             "正在后台读取广告拦截设置，页面和浏览器请求不会等待"
+        BrowserAdBlockRuntimePhase.LOADING_COMPILED_RULES ->
+            "正在加载本地编译规则 ${status.completedSubscriptionCount}/${status.totalSubscriptionCount}，规则内容未变化时不会重新解析和编译"
         BrowserAdBlockRuntimePhase.COMPILING_RULES ->
-            "正在后台编译本地规则 ${status.completedSubscriptionCount}/${status.totalSubscriptionCount}，完成后一次性启用"
+            "正在后台编译已变化规则 ${status.completedSubscriptionCount}/${status.totalSubscriptionCount}，完成后一次性启用"
         BrowserAdBlockRuntimePhase.READY ->
-            "本地规则已编译完成，浏览器请求直接读取不可变快照"
+            status.warningMessage
+                ?.let { warning -> "本地规则已就绪；$warning" }
+                ?: if (status.totalSubscriptionCount > 0) {
+                    "已加载 ${status.cacheHitCount} 份本地编译快照，本次编译 ${status.compiledSubscriptionCount} 份；浏览器请求直接读取不可变快照"
+                } else {
+                    "本地编译规则已就绪，浏览器请求直接读取不可变快照"
+                }
         BrowserAdBlockRuntimePhase.FAILED ->
             status.errorMessage ?: "广告拦截规则初始化失败"
     }

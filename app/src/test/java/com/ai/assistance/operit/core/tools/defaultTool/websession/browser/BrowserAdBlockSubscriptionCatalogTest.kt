@@ -69,10 +69,25 @@ class BrowserAdBlockSubscriptionCatalogTest {
             empty.copy(
                 lastUpdatedAt = 123L,
                 networkBlockingRuleCount = 1,
+                payloadSha256 = "a".repeat(64),
+                payloadByteCount = 128L,
+                payloadStorageVersion = BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION,
             )
 
         assertFalse(empty.hasCommittedPayloadMetadata)
         assertTrue(committed.hasCommittedPayloadMetadata)
+        assertTrue(
+            committed.matchesCommittedPayload(
+                payloadSha256 = "a".repeat(64),
+                payloadByteCount = 128L,
+            ),
+        )
+        assertFalse(
+            committed.matchesCommittedPayload(
+                payloadSha256 = "b".repeat(64),
+                payloadByteCount = 128L,
+            ),
+        )
     }
 
     @Test
@@ -102,8 +117,11 @@ class BrowserAdBlockSubscriptionCatalogTest {
             mergeBrowserAdBlockRefreshedSubscription(
                 current = current,
                 expectedUrl = current.url,
+                expectedName = current.name,
                 parsed = parsed,
                 updatedAt = 456L,
+                payloadSha256 = "b".repeat(64),
+                payloadByteCount = 256L,
             )
 
         assertEquals("Renamed while refreshing", merged.name)
@@ -113,14 +131,63 @@ class BrowserAdBlockSubscriptionCatalogTest {
         assertEquals(0, merged.networkExceptionRuleCount)
         assertTrue(merged.hasLocalRules)
         assertEquals(2, merged.ignoredLineCount)
+        val committed =
+            mergeBrowserAdBlockPreparedSubscriptionAtCommit(
+                current = current.copy(enabled = true),
+                expectedUrl = current.url,
+                expectedName = current.name,
+                prepared = merged.copy(enabled = false),
+            )
+        assertTrue(committed.enabled)
+        assertEquals(merged.payloadSha256, committed.payloadSha256)
         assertThrows(IllegalArgumentException::class.java) {
             mergeBrowserAdBlockRefreshedSubscription(
                 current = current.copy(url = "https://example.org/new.txt"),
                 expectedUrl = current.url,
+                expectedName = current.name,
                 parsed = parsed,
                 updatedAt = 789L,
+                payloadSha256 = "c".repeat(64),
+                payloadByteCount = 512L,
             )
         }
+    }
+
+    @Test
+    fun `unchanged payload refresh keeps the rule revision and compiled identity`() {
+        val subscription =
+            subscription(
+                id = "same-content",
+                url = "https://example.org/list.txt",
+                enabled = true,
+            ).copy(
+                lastUpdatedAt = 100L,
+                lastError = "previous error",
+                networkBlockingRuleCount = 1,
+                payloadSha256 = "d".repeat(64),
+                payloadByteCount = 1024L,
+                payloadStorageVersion = BrowserAdBlockCompilerContract.PAYLOAD_STORAGE_VERSION,
+            )
+        val state =
+            BrowserAdBlockState(
+                subscriptions = listOf(subscription),
+                ruleRevision = 17L,
+            )
+
+        val commit =
+            browserAdBlockUnchangedRefreshCommit(
+                currentState = state,
+                id = subscription.id,
+                expectedUrl = subscription.url,
+                expectedName = subscription.name,
+                updatedAt = 200L,
+            )
+
+        assertEquals(17L, commit.state.ruleRevision)
+        assertEquals(200L, commit.subscription.lastUpdatedAt)
+        assertEquals(null, commit.subscription.lastError)
+        assertEquals(subscription.payloadSha256, commit.subscription.payloadSha256)
+        assertEquals(subscription.payloadByteCount, commit.subscription.payloadByteCount)
     }
 
     @Test

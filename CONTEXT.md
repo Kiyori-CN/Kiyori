@@ -21,9 +21,13 @@ Current work status and implementation notes belong in `docs/TODO/`.
 - Kiyori has never had a user-facing release. The inherited Operit navigation drawer is not a published Kiyori interface, so the product-shell migration removes that design instead of maintaining a parallel legacy route.
 - The current Browser tool contract is shared by Browser Home and Operit AI through the one `StandardBrowserSessionTools` / WebSession / real WebView runtime. A requested viewport is a per-session CSS layout contract; only the Host boundary converts it by Android display density into physical View dimensions, and the page's DOM viewport metrics are the evidence returned to the caller. Fixed `1×1` background-anchor wording in older presentation history is not current behavior. Real link clicks retain click semantics and report navigation settlement separately. Page console messages exclude userscript bridge/runtime diagnostics.
 - Browser ad blocking is owned by one `BrowserAdBlockStore`. It persists the master switch, allowlisted
-  domains, custom URL rules, custom element selectors and subscription metadata in schema-v2 state;
-  raw subscription text is stored separately in atomic app-private
-  `browser_ad_block_subscriptions/<subscription-id>.txt` payloads. Five stable built-ins are enabled by
+  domains, custom URL rules, custom element selectors and subscription metadata in schema-v3 state.
+  Raw subscription text is the authoritative input and uses content-addressed atomic app-private
+  `browser_ad_block_subscriptions/<subscription-id>/<payload-sha256>.txt` payloads. Derived compiled
+  snapshots are excluded from backup and stored under
+  `noBackupFilesDir/browser_ad_block_compiled/<format>/<compiler-contract>/<subscription-id>/`.
+  State records the committed payload SHA-256, byte count and storage version only after the new payload
+  and compiled partition have been fully written. Five stable built-ins are enabled by
   default and shown as “广告拦截器 Pro” (My AdFilters, AdGuard 中文过滤器, AdRules Lite) and
   “Adblock Plus” (EasyList China + EasyList, 可接受广告例外规则). Missing built-in payloads synchronize
   on first use or immediately when a subscription is enabled; later process starts check enabled built-ins
@@ -41,16 +45,22 @@ Current work status and implementation notes belong in `docs/TODO/`.
   main-frame evidence, headers and inferred resource type to an immutable matcher snapshot on the WebView
   request thread; main documents are never directly blocked. Store construction never reads or compiles
   subscription payloads on its caller: settings metadata and local rules load on one IO lifecycle with
-  explicit reading, compiling, ready and failed states, then publish one complete matcher atomically.
+  explicit reading, compiled-snapshot loading, changed-rule compiling, ready and failed states, then publish
+  one complete matcher atomically.
   While that lifecycle is incomplete, WebView requests continue without waiting for its lock or parsing
-  work. The ready runtime keeps one aggregate token/host index for subscription rules and one small index
-  for user-authored rules, then combines both inside the same immutable matcher and one global candidate
-  decision. This preserves cross-source exceptions and `important` priority while a manual-rule edit only
-  rebuilds the small custom partition instead of scanning every subscription rule. Each request is normalized
-  once; page policy and registrable-domain facts use bounded caches whose first miss is computed once even
-  when WebView emits concurrent subresource requests. Blocked-count publication and per-session network-log
-  UI refresh are coalesced instead of emitting one Compose update per subresource, including a final
-  race-safe blocked-count publication after traffic becomes idle.
+  work. Each subscription owns one compiled Engine partition containing the already-computed host/token/
+  unindexed network index, element-domain index and `badfilter` records; the small user-authored partition
+  remains separate. A valid snapshot is decoded directly into its partition without reading the large text,
+  parsing ABP syntax, compiling rules or recalculating indexes. `BrowserAdBlockEngine.combine()` joins the
+  partitions inside the same immutable matcher and one global candidate decision, preserving cross-source
+  exceptions, `important`, `badfilter` and element exceptions. One changed subscription rebuilds only its
+  partition; total switch, allowlist and subscription enablement changes rebuild only the lightweight
+  matcher. A refresh whose exact payload SHA-256 is unchanged updates synchronization metadata without
+  replacing the Engine, advancing `ruleRevision` or reapplying DOM rules. Each request is normalized once;
+  page policy and registrable-domain facts use bounded caches whose first miss is computed once even when
+  WebView emits concurrent subresource requests. Blocked-count publication and per-session network-log UI
+  refresh are coalesced instead of emitting one Compose update per subresource, including a final race-safe
+  blocked-count publication after traffic becomes idle.
   DOM selectors are indexed and cached by page, assembled into bounded CSS chunks off the main thread and
   injected into the same WebSession WebView at most once per document token and `ruleRevision`. Hiker-style
   selectors retain their dedicated mutation observer; ordinary CSS selectors do not run through it.
