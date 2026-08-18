@@ -5,7 +5,7 @@
 1	versionCode = 45
 1	versionName = "0.1.0"
 3	"app_database"
-1	version = 21
+1	version = 22
 1	private const val FORMAT_VERSION = 1
 1	"operit_raw_snapshot_"
 8	"__type"

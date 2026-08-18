@@ -4108,6 +4108,7 @@ object KiyoriPaths {
     private const val EXPORT_PLAYER_DIR_NAME = "player"
     private const val EXPORT_TOOLBOX_DIR_NAME = "toolbox"
     private const val EXPORT_AI_CONFIG_DIR_NAME = "ai-config"
+    private const val EXPORT_CONVERSATION_AUDIT_DIR_NAME = "conversation-audit"
     private const val EXPORT_BACKUPS_DIR_NAME = "backups"
     private const val EXPORT_TOOLPKG_DIR_NAME = "toolpkg"
     private const val TOOLPKG_PUBLIC_DIR_NAME = "toolpkg"
@@ -4153,6 +4154,10 @@ object KiyoriPaths {
     private const val INTERNAL_LOGS_DIR_NAME = "logs"
     private const val INTERNAL_ERROR_DIR_NAME = "errors"
     private const val INTERNAL_BACKUP_STAGING_DIR_NAME = "backup-staging"
+    private const val INTERNAL_CONVERSATION_AUDIT_DIR_NAME = "conversation-audit"
+    private const val INTERNAL_CONVERSATION_AUDIT_VERSION_DIR_NAME = "v1"
+    private const val INTERNAL_CONVERSATION_AUDIT_PAYLOADS_DIR_NAME = "payloads"
+    private const val INTERNAL_CONVERSATION_AUDIT_STAGING_DIR_NAME = "staging"
 
     const val SHERPA_NCNN_MODELS_DIR_NAME = ".sherpa_ncnn_models"
     const val VECTOR_INDEX_DIR_NAME = ".vector_index"
@@ -4182,6 +4187,29 @@ object KiyoriPaths {
     fun mcpPluginsDir(): File = ensureDir(File(kiyoriRootDir(), MCP_PLUGINS_DIR_NAME))
     fun bridgeDir(): File = ensureDir(File(kiyoriRootDir(), BRIDGE_DIR_NAME))
     fun exportsDir(): File = ensureDir(File(kiyoriRootDir(), EXPORTS_DIR_NAME))
+    fun conversationAuditExportsDir(): File =
+        ensureDir(File(exportsDir(), EXPORT_CONVERSATION_AUDIT_DIR_NAME))
+    fun conversationAuditRootDir(context: Context): File =
+        ensureDir(
+            File(
+                File(File(context.filesDir, KIYORI_DIR_NAME), INTERNAL_CONVERSATION_AUDIT_DIR_NAME),
+                INTERNAL_CONVERSATION_AUDIT_VERSION_DIR_NAME,
+            ),
+        )
+    fun conversationAuditPayloadsDir(context: Context): File =
+        ensureDir(
+            File(
+                conversationAuditRootDir(context),
+                INTERNAL_CONVERSATION_AUDIT_PAYLOADS_DIR_NAME,
+            ),
+        )
+    fun conversationAuditStagingDir(context: Context): File =
+        ensureDir(
+            File(
+                conversationAuditRootDir(context),
+                INTERNAL_CONVERSATION_AUDIT_STAGING_DIR_NAME,
+            ),
+        )
     fun exportDir(location: KiyoriPublicLocation): File {
         val projection = publicProjection(location)
         require(projection.collection == KiyoriPublicCollection.DOWNLOADS)

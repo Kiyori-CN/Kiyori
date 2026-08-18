@@ -15,10 +15,13 @@ import androidx.compose.ui.text.input.TextFieldValue.Companion
 import androidx.core.content.FileProvider
 import com.ai.assistance.operit.ui.features.chat.components.ChatStyle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.ai.assistance.operit.api.chat.ChatRuntimeHolder
 import com.ai.assistance.operit.api.chat.ChatRuntimeSlot
 import com.ai.assistance.operit.api.chat.EnhancedAIService
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.audit.ConversationAuditExporter
 import com.ai.assistance.operit.core.chat.AIMessageManager
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.FileOperationData
@@ -28,6 +31,7 @@ import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.ChatHistory
 import com.ai.assistance.operit.data.model.ChatMessage
 import com.ai.assistance.operit.data.model.ChatMessageLocatorPreview
+import com.ai.assistance.operit.data.model.ConversationAuditEventEntity
 import com.ai.assistance.operit.data.model.FunctionType
 import com.ai.assistance.operit.data.model.PromptFunctionType
 import com.ai.assistance.operit.data.model.ToolParameter
@@ -47,6 +51,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
@@ -98,10 +107,16 @@ enum class ChatHistoryDisplayMode {
     CURRENT_CHARACTER_ONLY
 }
 
-class ChatViewModel(private val context: Context) : ViewModel() {
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+class ChatViewModel(
+    private val context: Context,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
+) : ViewModel() {
 
     companion object {
         private const val TAG = "ChatViewModel"
+        private const val PANEL_MODE_STATE_KEY = "chat_panel_mode"
+        private const val CONVERSATION_AUDIT_EVENT_PAGE_SIZE = 100
     }
 
     private data class ActiveMentionTrigger(
@@ -157,6 +172,25 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     // 工具处理器
     private val toolHandler = AIToolHandler.getInstance(context)
     private val chatRuntimeHolder = ChatRuntimeHolder.getInstance(context)
+    private val conversationAuditRepository = ConversationAuditRepository.from(context)
+    private val conversationAuditExporter = ConversationAuditExporter(context)
+    private val _currentConversationAuditEvents =
+        MutableStateFlow<List<ConversationAuditEventEntity>>(emptyList())
+    val currentConversationAuditEvents: StateFlow<List<ConversationAuditEventEntity>> =
+        _currentConversationAuditEvents.asStateFlow()
+    private val _currentConversationAuditMessages =
+        MutableStateFlow<List<ChatMessage>>(emptyList())
+    val currentConversationAuditMessages: StateFlow<List<ChatMessage>> =
+        _currentConversationAuditMessages.asStateFlow()
+    private val _hasOlderConversationAuditEvents = MutableStateFlow(false)
+    val hasOlderConversationAuditEvents: StateFlow<Boolean> =
+        _hasOlderConversationAuditEvents.asStateFlow()
+    private val _isLoadingOlderConversationAuditEvents = MutableStateFlow(false)
+    val isLoadingOlderConversationAuditEvents: StateFlow<Boolean> =
+        _isLoadingOlderConversationAuditEvents.asStateFlow()
+    private val _currentConversationAuditStoredBytes = MutableStateFlow(0L)
+    val currentConversationAuditStoredBytes: StateFlow<Long> =
+        _currentConversationAuditStoredBytes.asStateFlow()
 
     // 工具权限系统
     private val toolPermissionSystem = ToolPermissionSystem.getInstance(context)
@@ -359,9 +393,23 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     private val _attachmentPanelState = MutableStateFlow(false)
     val attachmentPanelState: StateFlow<Boolean> = _attachmentPanelState
 
-    // 添加WebView显示状态的状态流
-    private val _showWebView = MutableStateFlow(false)
-    val showWebView: StateFlow<Boolean> = _showWebView.asStateFlow()
+    private val restoredPanelModeName = savedStateHandle.get<String>(PANEL_MODE_STATE_KEY)
+    private val restoredPanelMode =
+        if (restoredPanelModeName == null) {
+            ChatPanelMode.CHAT
+        } else {
+            ChatPanelMode.valueOf(restoredPanelModeName)
+        }
+    private val _panelMode = MutableStateFlow(restoredPanelMode)
+    val panelMode: StateFlow<ChatPanelMode> = _panelMode.asStateFlow()
+    val showWebView: StateFlow<Boolean> =
+        _panelMode
+            .map { mode -> mode == ChatPanelMode.WORKSPACE }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val showConversationDetails: StateFlow<Boolean> =
+        _panelMode
+            .map { mode -> mode == ChatPanelMode.DETAILS }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _isWorkspacePreparing = MutableStateFlow(false)
     val isWorkspacePreparing: StateFlow<Boolean> = _isWorkspacePreparing.asStateFlow()
@@ -373,9 +421,22 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     }
 
-    // 添加AI电脑显示状态的状态流
-    private val _showAiComputer = MutableStateFlow(false)
-    val showAiComputer: StateFlow<Boolean> = _showAiComputer
+    val showAiComputer: StateFlow<Boolean> =
+        _panelMode
+            .map { mode -> mode == ChatPanelMode.TERMINAL }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val currentConversationAudit by lazy {
+        currentChatId
+            .flatMapLatest { chatId ->
+                if (chatId == null) {
+                    flowOf(null)
+                } else {
+                    conversationAuditRepository.observeAudit(chatId)
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    }
 
     // 添加WebView刷新控制流 - 使用Int计数器避免重复刷新问题
     private val _webViewRefreshCounter = MutableStateFlow(0)
@@ -403,6 +464,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     init {
         // Initialize delegates in correct order to avoid circular references
         initializeDelegates()
+        startConversationAuditPaging()
 
         // Setup additional components
         setupPermissionSystemCollection()
@@ -637,7 +699,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         chatRuntimeHolder.syncMainChatSelectionToFloating(chatId)
 
         // 如果当前WebView正在显示，则更新工作区并触发刷新
-        if (_showWebView.value) {
+        if (_panelMode.value == ChatPanelMode.WORKSPACE) {
             viewModelScope.launch {
                 try {
                     prepareWorkspaceServerForCurrentChat(chatId)
@@ -1059,16 +1121,19 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     fun updateMessage(index: Int, editedMessage: ChatMessage) {
         viewModelScope.launch {
             try {
+                if (isLoading.value) {
+                    uiStateDelegate.showErrorMessage(
+                        context.getString(R.string.chat_regenerate_busy)
+                    )
+                    return@launch
+                }
                 val currentHistory = chatHistoryDelegate.chatHistory.value
                 if (currentHistory.getOrNull(index) == null) {
                     uiStateDelegate.showErrorMessage(context.getString(R.string.chat_invalid_message_index))
                     return@launch
                 }
 
-                // 直接在数据库中更新该条消息
-                chatHistoryDelegate.addMessageToChat(editedMessage)
-
-                messageCoordinationDelegate.refreshStableContextWindow(chatId = currentChatId.value)
+                reviseMessageProjection(editedMessage)
 
                 // 显示成功提示
                 uiStateDelegate.showToast(context.getString(R.string.chat_message_updated))
@@ -1077,6 +1142,34 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                 uiStateDelegate.showErrorMessage(context.getString(R.string.chat_update_message_failed, e.message ?: ""))
             }
         }
+    }
+
+    fun reviseConversationAuditMessage(editedMessage: ChatMessage) {
+        viewModelScope.launch {
+            try {
+                if (isLoading.value) {
+                    uiStateDelegate.showErrorMessage(
+                        context.getString(R.string.chat_regenerate_busy)
+                    )
+                    return@launch
+                }
+                reviseMessageProjection(editedMessage)
+                uiStateDelegate.showToast(context.getString(R.string.chat_message_updated))
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "从对话详情修订消息失败", e)
+                uiStateDelegate.showErrorMessage(
+                    context.getString(
+                        R.string.chat_update_message_failed,
+                        e.message.orEmpty(),
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun reviseMessageProjection(editedMessage: ChatMessage) {
+        chatHistoryDelegate.reviseMessage(editedMessage)
+        messageCoordinationDelegate.refreshStableContextWindow(chatId = currentChatId.value)
     }
 
     fun regenerateSingleAiMessage(index: Int) {
@@ -2144,10 +2237,10 @@ class ChatViewModel(private val context: Context) : ViewModel() {
 
     // WebView控制方法
     fun toggleWebView() {
-        if (_showWebView.value) {
+        if (_panelMode.value == ChatPanelMode.WORKSPACE) {
             workspaceOpenJob?.cancel()
             _isWorkspacePreparing.value = false
-            _showWebView.value = false
+            setPanelMode(ChatPanelMode.CHAT)
             return
         }
 
@@ -2160,11 +2253,6 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         workspaceOpenJob = viewModelScope.launch {
             _isWorkspacePreparing.value = true
             try {
-                if (_showAiComputer.value) {
-                    _showAiComputer.value = false
-                    AppLogger.d(TAG, "AI电脑已关闭（由于打开工作区）")
-                }
-
                 val chatId = awaitWorkspaceChatId()
                 if (chatId != null) {
                     prepareWorkspaceServerForCurrentChat(chatId)
@@ -2172,7 +2260,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                     AppLogger.w(TAG, "打开工作区时未获取到聊天ID，将直接显示工作区页面")
                 }
 
-                _showWebView.value = true
+                setPanelMode(ChatPanelMode.WORKSPACE)
             } catch (e: CancellationException) {
                 AppLogger.d(TAG, "工作区打开流程已取消")
                 throw e
@@ -2683,11 +2771,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
     }
 
     private fun openAiComputerForTerminalSession() {
-        if (_showWebView.value) {
-            _showWebView.value = false
-            AppLogger.d(TAG, "工作区已关闭（由于打开后台命令终端）")
-        }
-        _showAiComputer.value = true
+        setPanelMode(ChatPanelMode.TERMINAL)
     }
 
     fun dismissWorkspaceCommandExecutionDialog(workspacePath: String) {
@@ -2822,17 +2906,236 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         toggleAiComputer()
     }
 
+    fun onConversationDetailsButtonClick() {
+        viewModelScope.launch {
+            try {
+                if (_panelMode.value == ChatPanelMode.DETAILS) {
+                    setPanelMode(ChatPanelMode.CHAT)
+                    return@launch
+                }
+                val chatId = awaitWorkspaceChatId() ?: return@launch
+                conversationAuditRepository.reconstructLegacyAuditIfNeeded(chatId)
+                _currentConversationAuditMessages.value =
+                    chatHistoryDelegate.getChatHistory(chatId)
+                setPanelMode(ChatPanelMode.DETAILS)
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "打开对话详情失败", e)
+                uiStateDelegate.showErrorMessage(
+                    context.getString(
+                        R.string.conversation_audit_open_failed,
+                        e.message.orEmpty(),
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * 详情页只加载最近一页历史事件，并通过最后事件观察器增量拉取新事件。
+     *
+     * 不能直接长期 collect 全表：审计是永久记录，长对话的事件数量没有固定上限；分页边界必须
+     * 位于 ViewModel/Repository，而不是只依赖 LazyColumn 做视觉虚拟化。
+     */
+    private fun startConversationAuditPaging() {
+        viewModelScope.launch {
+            chatHistoryDelegate.currentChatId.collectLatest { chatId ->
+                _currentConversationAuditEvents.value = emptyList()
+                _currentConversationAuditMessages.value = emptyList()
+                _hasOlderConversationAuditEvents.value = false
+                _isLoadingOlderConversationAuditEvents.value = false
+                _currentConversationAuditStoredBytes.value = 0L
+                if (chatId == null) {
+                    return@collectLatest
+                }
+
+                val latestPage =
+                    conversationAuditRepository.getEventPage(
+                        chatId = chatId,
+                        beforeSequenceExclusive = null,
+                        limit = CONVERSATION_AUDIT_EVENT_PAGE_SIZE,
+                    )
+                _currentConversationAuditEvents.value =
+                    latestPage.sortedBy { event -> event.sequenceNumber }
+                if (_panelMode.value == ChatPanelMode.DETAILS) {
+                    _currentConversationAuditMessages.value =
+                        chatHistoryDelegate.getChatHistory(chatId)
+                }
+                _hasOlderConversationAuditEvents.value =
+                    latestPage.minOfOrNull { event -> event.sequenceNumber }?.let { sequence ->
+                        sequence > 1L
+                    } == true
+                _currentConversationAuditStoredBytes.value =
+                    conversationAuditRepository.getStoredPayloadBytesForChat(chatId)
+
+                conversationAuditRepository.observeLastEvent(chatId).collect { lastEvent ->
+                    val currentLastSequence =
+                        _currentConversationAuditEvents.value.lastOrNull()?.sequenceNumber ?: 0L
+                    if (
+                        lastEvent != null &&
+                            lastEvent.sequenceNumber > currentLastSequence &&
+                            chatHistoryDelegate.currentChatId.value == chatId
+                    ) {
+                        val appended =
+                            conversationAuditRepository.getEventsAfterSequence(
+                                chatId = chatId,
+                                afterSequenceExclusive = currentLastSequence,
+                            )
+                        if (
+                            appended.isNotEmpty() &&
+                                chatHistoryDelegate.currentChatId.value == chatId
+                        ) {
+                            _currentConversationAuditEvents.value =
+                                (_currentConversationAuditEvents.value + appended)
+                                    .distinctBy { event -> event.eventId }
+                                    .sortedBy { event -> event.sequenceNumber }
+                            if (
+                                _panelMode.value == ChatPanelMode.DETAILS &&
+                                    appended.any(::auditEventChangesConversationProjection)
+                            ) {
+                                _currentConversationAuditMessages.value =
+                                    chatHistoryDelegate.getChatHistory(chatId)
+                            }
+                            _currentConversationAuditStoredBytes.value =
+                                conversationAuditRepository.getStoredPayloadBytesForChat(chatId)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun auditEventChangesConversationProjection(
+        event: ConversationAuditEventEntity,
+    ): Boolean =
+        event.eventType in
+            setOf(
+                "PROVIDER_REQUEST_SUBMITTED",
+                "ASSISTANT_PROJECTION_UPDATED",
+                "MESSAGE_REVISED",
+                "VARIANT_CREATED",
+                "VARIANT_SELECTED",
+                "VARIANT_DELETED",
+                "MESSAGE_DELETED",
+                "MESSAGES_ROLLED_BACK",
+                "HISTORICAL_MESSAGE_RECONSTRUCTED",
+                "HISTORICAL_VARIANT_RECONSTRUCTED",
+            )
+
+    fun loadOlderConversationAuditEvents() {
+        val chatId = currentChatId.value ?: return
+        if (
+            _isLoadingOlderConversationAuditEvents.value ||
+                !_hasOlderConversationAuditEvents.value
+        ) {
+            return
+        }
+        viewModelScope.launch {
+            _isLoadingOlderConversationAuditEvents.value = true
+            try {
+                val firstSequence =
+                    _currentConversationAuditEvents.value.firstOrNull()?.sequenceNumber
+                        ?: return@launch
+                val olderPage =
+                    conversationAuditRepository.getEventPage(
+                        chatId = chatId,
+                        beforeSequenceExclusive = firstSequence,
+                        limit = CONVERSATION_AUDIT_EVENT_PAGE_SIZE,
+                    )
+                if (currentChatId.value != chatId) {
+                    return@launch
+                }
+                _currentConversationAuditEvents.value =
+                    (olderPage.sortedBy { event -> event.sequenceNumber } +
+                            _currentConversationAuditEvents.value)
+                        .distinctBy { event -> event.eventId }
+                        .sortedBy { event -> event.sequenceNumber }
+                _hasOlderConversationAuditEvents.value =
+                    olderPage.minOfOrNull { event -> event.sequenceNumber }?.let { sequence ->
+                        sequence > 1L
+                    } == true
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "加载更早的对话审计事件失败", e)
+                uiStateDelegate.showErrorMessage(
+                    context.getString(
+                        R.string.conversation_audit_load_older_failed,
+                        e.message.orEmpty(),
+                    )
+                )
+            } finally {
+                _isLoadingOlderConversationAuditEvents.value = false
+            }
+        }
+    }
+
+    fun closeActiveChatPanel(): Boolean {
+        if (_panelMode.value == ChatPanelMode.CHAT) {
+            return false
+        }
+        setPanelMode(ChatPanelMode.CHAT)
+        return true
+    }
+
+    suspend fun loadConversationAuditPayloads(
+        eventId: String,
+    ) =
+        try {
+            conversationAuditRepository.loadEventPayloads(eventId)
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "加载对话审计 payload 失败: eventId=$eventId", e)
+            throw e
+        }
+
+    fun addConversationAuditAnnotation(text: String) {
+        val chatId = currentChatId.value ?: return
+        viewModelScope.launch {
+            try {
+                conversationAuditRepository.appendUserAnnotation(chatId, text)
+                uiStateDelegate.showToast(
+                    context.getString(R.string.conversation_audit_annotation_added)
+                )
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "添加对话审计注释失败", e)
+                uiStateDelegate.showErrorMessage(
+                    context.getString(
+                        R.string.conversation_audit_annotation_failed,
+                        e.message.orEmpty(),
+                    )
+                )
+            }
+        }
+    }
+
+    fun exportCurrentConversationAudit() {
+        val chatId = currentChatId.value ?: return
+        viewModelScope.launch {
+            try {
+                val result = conversationAuditExporter.export(chatId)
+                uiStateDelegate.showToast(
+                    context.getString(
+                        R.string.conversation_audit_exported,
+                        result.eventCount,
+                        result.completePackage.name,
+                    )
+                )
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "导出对话审计失败", e)
+                uiStateDelegate.showErrorMessage(
+                    context.getString(
+                        R.string.conversation_audit_export_failed,
+                        e.message.orEmpty(),
+                    )
+                )
+            }
+        }
+    }
+
     // AI电脑控制方法
     fun toggleAiComputer() {
         viewModelScope.launch {
-            // 如果要显示AI电脑，先关闭工作区
-            if (!_showAiComputer.value && _showWebView.value) {
-                _showWebView.value = false
-                AppLogger.d(TAG, "工作区已关闭（由于打开AI电脑）")
-            }
-            
-            val newShowState = !_showAiComputer.value
-            _showAiComputer.value = newShowState
+            val newShowState = _panelMode.value != ChatPanelMode.TERMINAL
+            setPanelMode(
+                if (newShowState) ChatPanelMode.TERMINAL else ChatPanelMode.CHAT
+            )
             
             if (newShowState) {
                 // 初始化AI电脑管理器
@@ -2840,7 +3143,7 @@ class ChatViewModel(private val context: Context) : ViewModel() {
                     AppLogger.d(TAG, "AI电脑已启动")
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "启动AI电脑失败", e)
-                    _showAiComputer.value = false
+                    setPanelMode(ChatPanelMode.CHAT)
                     uiStateDelegate.showErrorMessage(
                         context.getString(R.string.chat_start_ai_computer_failed, e.message ?: "")
                     )
@@ -2851,7 +3154,10 @@ class ChatViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-
+    private fun setPanelMode(mode: ChatPanelMode) {
+        _panelMode.value = mode
+        savedStateHandle[PANEL_MODE_STATE_KEY] = mode.name
+    }
 
     /** 初始化语音服务 */
     private fun initializeVoiceService() {

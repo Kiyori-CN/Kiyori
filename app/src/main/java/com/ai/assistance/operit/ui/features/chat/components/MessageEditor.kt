@@ -168,7 +168,7 @@ fun MessageEditor(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        if (showResendButton) context.getString(R.string.edit_message) else context.getString(R.string.modify_memory),
+                        context.getString(R.string.edit_message),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface

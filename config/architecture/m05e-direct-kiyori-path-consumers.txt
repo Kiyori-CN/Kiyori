@@ -3,6 +3,8 @@ app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/use
 app/src/main/java/com/ai/assistance/operit/core/tools/packTool/PackageManager.kt
 app/src/main/java/com/ai/assistance/operit/core/tools/packTool/ToolPkgArtifactBuilder.kt
 app/src/main/java/com/ai/assistance/operit/core/tools/packTool/ToolPkgArtifactStore.kt
+app/src/main/java/com/ai/assistance/operit/data/audit/ConversationAuditExporter.kt
+app/src/main/java/com/ai/assistance/operit/data/audit/ConversationAuditPayloadStore.kt
 app/src/main/java/com/ai/assistance/operit/data/backup/RawSnapshotBackupManager.kt
 app/src/main/java/com/ai/assistance/operit/util/AppLogger.kt
 app/src/main/java/com/ai/assistance/operit/util/OperitPaths.kt

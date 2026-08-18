@@ -19,7 +19,7 @@ AA7CFCA8555E8750D93D676CC059B71F916DD7951CC13FF1A623F32583D4DEB9	app/src/main/ai
 F9BDEC02FA4ADE6DDF31F0527AE02CFDBEB14A315C0666AE3900EADE73BCF8D3	app/src/main/aidl/com/ai/assistance/operit/core/player/runtime/PlayerRuntimeTrackSnapshot.aidl
 3DE9EA3ED929812D52BE4EBF5E3E6A4894F368A74B74767CBC8C10384A3BC4A1	app/src/main/aidl/com/ai/assistance/operit/provider/IAccessibilityEventCallback.aidl
 F04743CEB6626C0D1C0E8184200D5AA28596E9B66053CC2B71CB598EC3DEEDAF	app/src/main/aidl/com/ai/assistance/operit/provider/IAccessibilityProvider.aidl
-53002E3051FF7888B777FF21B3570714F48ACC6524865DA3B7E3A02C3F41565B	app/src/main/java/com/ai/assistance/operit/data/db/AppDatabase.kt
+1D5A8444115F4FD9AA09E9CE54B0822A1EF5A1BA470FE962EC4C12CCAE46C47F	app/src/main/java/com/ai/assistance/operit/data/db/AppDatabase.kt
 36F5441F8FE0843552D0769E1E1C52247F0416740A6199736E8C8C69CDBE75E6	app/src/main/java/com/ai/assistance/operit/data/db/ObjectBox.kt
 AAADD5E2152EA9D7E472CEC693140C761E7EF50EC705B7E27A4B728BCA75D130	app/src/main/java/com/ai/assistance/operit/data/model/ChatEntity.kt
 C1E022DA9D03DED4C74174CB48CA032049C9FD0824E1A947ECE2667C7F36D59D	app/src/main/java/com/ai/assistance/operit/data/model/MessageEntity.kt

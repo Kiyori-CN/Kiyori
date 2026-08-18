@@ -4,6 +4,9 @@ package com.ai.assistance.operit.data.converter
  * 支持的聊天记录格式
  */
 enum class ChatFormat {
+    /** Kiyori 单对话完整审计包 */
+    KIYORI_AUDIT,
+
     /** Operit 原生格式 */
     OPERIT,
     

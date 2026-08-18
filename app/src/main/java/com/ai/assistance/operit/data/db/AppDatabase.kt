@@ -8,12 +8,20 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ai.assistance.operit.data.dao.ChatContentDao
 import com.ai.assistance.operit.data.dao.ChatDao
+import com.ai.assistance.operit.data.dao.ConversationAuditDao
 import com.ai.assistance.operit.data.dao.MessageProviderStateDao
 import com.ai.assistance.operit.data.dao.MessageDao
 import com.ai.assistance.operit.data.dao.MessageVariantDao
 import com.ai.assistance.operit.data.dao.ProviderExecutionDao
 import com.ai.assistance.operit.data.dao.ToolInvocationLedgerDao
 import com.ai.assistance.operit.data.model.ChatEntity
+import com.ai.assistance.operit.data.model.ConversationAuditEntity
+import com.ai.assistance.operit.data.model.ConversationAuditEventEntity
+import com.ai.assistance.operit.data.model.ConversationAuditEventPayloadEntity
+import com.ai.assistance.operit.data.model.ConversationAuditPayloadEntity
+import com.ai.assistance.operit.data.model.ConversationAuditSealEntity
+import com.ai.assistance.operit.data.model.ConversationMessageProjectionEntity
+import com.ai.assistance.operit.data.model.ConversationMessageRevisionEntity
 import com.ai.assistance.operit.data.model.MessageProviderStateEntity
 import com.ai.assistance.operit.data.model.MessageEntity
 import com.ai.assistance.operit.data.model.MessageVariantEntity
@@ -31,8 +39,15 @@ import com.ai.assistance.operit.data.model.ToolInvocationLedgerEntity
         ProviderExecutionEventEntity::class,
         MessageProviderStateEntity::class,
         ToolInvocationLedgerEntity::class,
+        ConversationAuditEntity::class,
+        ConversationAuditEventEntity::class,
+        ConversationAuditPayloadEntity::class,
+        ConversationAuditEventPayloadEntity::class,
+        ConversationMessageRevisionEntity::class,
+        ConversationMessageProjectionEntity::class,
+        ConversationAuditSealEntity::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -52,6 +67,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageProviderStateDao(): MessageProviderStateDao
 
     abstract fun toolInvocationLedgerDao(): ToolInvocationLedgerDao
+
+    abstract fun conversationAuditDao(): ConversationAuditDao
 
     companion object {
         @Volatile
@@ -375,6 +392,243 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        internal val MIGRATION_21_22 =
+            object : Migration(21, 22) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_audits` (
+                                `chatId` TEXT NOT NULL,
+                                `schemaVersion` INTEGER NOT NULL,
+                                `completenessStatus` TEXT NOT NULL,
+                                `eventCount` INTEGER NOT NULL,
+                                `lastSequenceNumber` INTEGER NOT NULL,
+                                `chainHeadSha256` TEXT NOT NULL,
+                                `latestSealSequenceNumber` INTEGER NOT NULL,
+                                `createdAt` INTEGER NOT NULL,
+                                `updatedAt` INTEGER NOT NULL,
+                                `lastFailureCode` TEXT,
+                                `legacyReconstructionLevel` TEXT,
+                                PRIMARY KEY(`chatId`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audits_completenessStatus` ON `conversation_audits` (`completenessStatus`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audits_updatedAt` ON `conversation_audits` (`updatedAt`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_audit_events` (
+                                `eventId` TEXT NOT NULL,
+                                `chatId` TEXT NOT NULL,
+                                `sequenceNumber` INTEGER NOT NULL,
+                                `occurredAt` INTEGER NOT NULL,
+                                `recordedAt` INTEGER NOT NULL,
+                                `category` TEXT NOT NULL,
+                                `eventType` TEXT NOT NULL,
+                                `actor` TEXT NOT NULL,
+                                `summary` TEXT NOT NULL,
+                                `messageTimestamp` INTEGER,
+                                `variantIndex` INTEGER,
+                                `localExecutionId` TEXT,
+                                `providerCallId` TEXT,
+                                `parentEventId` TEXT,
+                                `sourceChatId` TEXT,
+                                `sourceEventId` TEXT,
+                                `previousEventSha256` TEXT NOT NULL,
+                                `eventSha256` TEXT NOT NULL,
+                                `visibility` TEXT NOT NULL,
+                                `terminalState` TEXT,
+                                PRIMARY KEY(`eventId`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_conversation_audit_events_chatId_sequenceNumber` ON `conversation_audit_events` (`chatId`, `sequenceNumber`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_events_chatId_category_sequenceNumber` ON `conversation_audit_events` (`chatId`, `category`, `sequenceNumber`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_events_chatId_messageTimestamp_variantIndex` ON `conversation_audit_events` (`chatId`, `messageTimestamp`, `variantIndex`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_events_localExecutionId` ON `conversation_audit_events` (`localExecutionId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_events_providerCallId` ON `conversation_audit_events` (`providerCallId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_events_parentEventId` ON `conversation_audit_events` (`parentEventId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_events_sourceChatId_sourceEventId` ON `conversation_audit_events` (`sourceChatId`, `sourceEventId`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_audit_payloads` (
+                                `payloadSha256` TEXT NOT NULL,
+                                `relativePath` TEXT NOT NULL,
+                                `plainByteCount` INTEGER NOT NULL,
+                                `storedByteCount` INTEGER NOT NULL,
+                                `mediaType` TEXT NOT NULL,
+                                `encoding` TEXT NOT NULL,
+                                `compression` TEXT NOT NULL,
+                                `encryptionAlgorithm` TEXT NOT NULL,
+                                `keyAlias` TEXT NOT NULL,
+                                `nonceBase64` TEXT NOT NULL,
+                                `createdAt` INTEGER NOT NULL,
+                                PRIMARY KEY(`payloadSha256`)
+                            )
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_audit_event_payloads` (
+                                `eventId` TEXT NOT NULL,
+                                `payloadSha256` TEXT NOT NULL,
+                                `label` TEXT NOT NULL,
+                                `ordinal` INTEGER NOT NULL,
+                                `role` TEXT NOT NULL,
+                                PRIMARY KEY(`eventId`, `label`, `ordinal`),
+                                FOREIGN KEY(`eventId`) REFERENCES `conversation_audit_events`(`eventId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                                FOREIGN KEY(`payloadSha256`) REFERENCES `conversation_audit_payloads`(`payloadSha256`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_event_payloads_eventId` ON `conversation_audit_event_payloads` (`eventId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_audit_event_payloads_payloadSha256` ON `conversation_audit_event_payloads` (`payloadSha256`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_message_revisions` (
+                                `revisionId` TEXT NOT NULL,
+                                `chatId` TEXT NOT NULL,
+                                `messageTimestamp` INTEGER NOT NULL,
+                                `variantIndex` INTEGER NOT NULL,
+                                `revisionNumber` INTEGER NOT NULL,
+                                `sender` TEXT NOT NULL,
+                                `contentPayloadSha256` TEXT NOT NULL,
+                                `previousRevisionId` TEXT,
+                                `auditEventId` TEXT NOT NULL,
+                                `source` TEXT NOT NULL,
+                                `createdAt` INTEGER NOT NULL,
+                                PRIMARY KEY(`revisionId`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                                FOREIGN KEY(`auditEventId`) REFERENCES `conversation_audit_events`(`eventId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                                FOREIGN KEY(`contentPayloadSha256`) REFERENCES `conversation_audit_payloads`(`payloadSha256`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_conversation_message_revisions_chatId_messageTimestamp_variantIndex_revisionNumber` ON `conversation_message_revisions` (`chatId`, `messageTimestamp`, `variantIndex`, `revisionNumber`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_message_revisions_auditEventId` ON `conversation_message_revisions` (`auditEventId`)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_conversation_message_revisions_contentPayloadSha256` ON `conversation_message_revisions` (`contentPayloadSha256`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_message_projections` (
+                                `chatId` TEXT NOT NULL,
+                                `messageTimestamp` INTEGER NOT NULL,
+                                `variantIndex` INTEGER NOT NULL,
+                                `currentRevisionId` TEXT NOT NULL,
+                                `estimatedTokenCount` INTEGER NOT NULL,
+                                `updatedAt` INTEGER NOT NULL,
+                                PRIMARY KEY(`chatId`, `messageTimestamp`, `variantIndex`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                                FOREIGN KEY(`currentRevisionId`) REFERENCES `conversation_message_revisions`(`revisionId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_conversation_message_projections_currentRevisionId` ON `conversation_message_projections` (`currentRevisionId`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            CREATE TABLE IF NOT EXISTS `conversation_audit_seals` (
+                                `sealId` TEXT NOT NULL,
+                                `chatId` TEXT NOT NULL,
+                                `sequenceNumber` INTEGER NOT NULL,
+                                `rootSha256` TEXT NOT NULL,
+                                `signatureAlgorithm` TEXT NOT NULL,
+                                `signatureBase64` TEXT NOT NULL,
+                                `publicKeyBase64` TEXT NOT NULL,
+                                `reason` TEXT NOT NULL,
+                                `createdAt` INTEGER NOT NULL,
+                                PRIMARY KEY(`sealId`),
+                                FOREIGN KEY(`chatId`) REFERENCES `chats`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                            )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_conversation_audit_seals_chatId_sequenceNumber` ON `conversation_audit_seals` (`chatId`, `sequenceNumber`)"
+                    )
+
+                    db.execSQL(
+                        """
+                            INSERT INTO conversation_audits (
+                                chatId,
+                                schemaVersion,
+                                completenessStatus,
+                                eventCount,
+                                lastSequenceNumber,
+                                chainHeadSha256,
+                                latestSealSequenceNumber,
+                                createdAt,
+                                updatedAt,
+                                lastFailureCode,
+                                legacyReconstructionLevel
+                            )
+                            SELECT
+                                chats.id,
+                                1,
+                                CASE
+                                    WHEN EXISTS (
+                                        SELECT 1
+                                        FROM provider_executions
+                                        WHERE provider_executions.chatId = chats.id
+                                    ) THEN 'PARTIAL'
+                                    ELSE 'BASIC'
+                                END,
+                                0,
+                                0,
+                                '',
+                                0,
+                                chats.createdAt,
+                                chats.updatedAt,
+                                NULL,
+                                CASE
+                                    WHEN EXISTS (
+                                        SELECT 1
+                                        FROM provider_executions
+                                        WHERE provider_executions.chatId = chats.id
+                                    ) THEN 'PARTIAL'
+                                    ELSE 'BASIC'
+                                END
+                            FROM chats
+                        """.trimIndent()
+                    )
+                }
+            }
+
         // 定义从版本2到3的迁移
         private val MIGRATION_2_3 =
             object : Migration(2, 3) {
@@ -492,7 +746,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 MIGRATION_17_18,
                                 MIGRATION_18_19,
                                 MIGRATION_19_20,
-                                MIGRATION_20_21
+                                MIGRATION_20_21,
+                                MIGRATION_21_22
                             ) // 添加新的迁移
                             .build()
                     INSTANCE = instance

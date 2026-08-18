@@ -343,6 +343,16 @@ fun ImportFormatDialog(
 
                 item {
                     ImportFormatOption(
+                        format = ChatFormat.KIYORI_AUDIT,
+                        title = stringResource(R.string.backup_format_kiyori_audit),
+                        description = stringResource(R.string.backup_format_kiyori_audit_desc),
+                        selected = selectedFormat == ChatFormat.KIYORI_AUDIT,
+                        onClick = { onFormatSelected(ChatFormat.KIYORI_AUDIT) }
+                    )
+                }
+
+                item {
+                    ImportFormatOption(
                         format = ChatFormat.OPERIT,
                         title = stringResource(R.string.backup_format_operit),
                         description = stringResource(R.string.backup_format_operit_desc),

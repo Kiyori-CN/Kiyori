@@ -35,6 +35,16 @@ data class PromptHookMutation(
     val metadata: Map<String, Any?> = emptyMap()
 )
 
+data class PromptHookAuditObservation(
+    val hookId: String,
+    val hookLabel: String,
+    val input: PromptHookContext,
+    val output: PromptHookContext?,
+    val startedAt: Long,
+    val completedAt: Long,
+    val error: Throwable?,
+)
+
 interface PromptInputHook {
     val id: String
 
@@ -85,6 +95,12 @@ object PromptHookRegistry {
     private val toolPromptComposeHooks = CopyOnWriteArrayList<ToolPromptComposeHook>()
     private val promptFinalizeHooks = CopyOnWriteArrayList<PromptFinalizeHook>()
     private val promptEstimateFinalizeHooks = CopyOnWriteArrayList<PromptEstimateFinalizeHook>()
+    @Volatile
+    private var auditObserver: ((PromptHookAuditObservation) -> Unit)? = null
+
+    fun setAuditObserver(observer: ((PromptHookAuditObservation) -> Unit)?) {
+        auditObserver = observer
+    }
 
     @Synchronized
     fun registerPromptInputHook(hook: PromptInputHook) {
@@ -167,7 +183,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = promptInputHooks,
-            hookLabel = "PromptInputHook"
+            hookLabel = "PromptInputHook",
+            hookId = PromptInputHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -177,7 +194,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = promptHistoryHooks,
-            hookLabel = "PromptHistoryHook"
+            hookLabel = "PromptHistoryHook",
+            hookId = PromptHistoryHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -187,7 +205,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = promptEstimateHistoryHooks,
-            hookLabel = "PromptEstimateHistoryHook"
+            hookLabel = "PromptEstimateHistoryHook",
+            hookId = PromptEstimateHistoryHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -197,7 +216,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = systemPromptComposeHooks,
-            hookLabel = "SystemPromptComposeHook"
+            hookLabel = "SystemPromptComposeHook",
+            hookId = SystemPromptComposeHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -207,7 +227,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = toolPromptComposeHooks,
-            hookLabel = "ToolPromptComposeHook"
+            hookLabel = "ToolPromptComposeHook",
+            hookId = ToolPromptComposeHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -217,7 +238,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = promptFinalizeHooks,
-            hookLabel = "PromptFinalizeHook"
+            hookLabel = "PromptFinalizeHook",
+            hookId = PromptFinalizeHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -227,7 +249,8 @@ object PromptHookRegistry {
         return dispatch(
             initialContext = initialContext,
             hooks = promptEstimateFinalizeHooks,
-            hookLabel = "PromptEstimateFinalizeHook"
+            hookLabel = "PromptEstimateFinalizeHook",
+            hookId = PromptEstimateFinalizeHook::id,
         ) { hook, context ->
             hook.onEvent(context)
         }
@@ -237,18 +260,50 @@ object PromptHookRegistry {
         initialContext: PromptHookContext,
         hooks: List<THook>,
         hookLabel: String,
+        hookId: (THook) -> String,
         invoke: (THook, PromptHookContext) -> PromptHookMutation?
     ): PromptHookContext {
         var current = initialContext
         hooks.forEach { hook ->
+            val input = current
+            val startedAt = System.currentTimeMillis()
             val mutation =
-                runCatching { invoke(hook, current) }
-                    .onFailure { error ->
-                        AppLogger.e(TAG, "$hookLabel callback failed", error)
-                    }
-                    .getOrNull()
-                    ?: return@forEach
-            current = applyMutation(current, mutation)
+                try {
+                    invoke(hook, input)
+                } catch (error: Throwable) {
+                    AppLogger.e(TAG, "$hookLabel callback failed", error)
+                    val completedAt = maxOf(startedAt, System.currentTimeMillis())
+                    auditObserver?.invoke(
+                        PromptHookAuditObservation(
+                            hookId = hookId(hook),
+                            hookLabel = hookLabel,
+                            input = input,
+                            output = null,
+                            startedAt = startedAt,
+                            completedAt = completedAt,
+                            error = error,
+                        )
+                    )
+                    return@forEach
+                }
+            val output =
+                if (mutation == null) {
+                    input
+                } else {
+                    applyMutation(input, mutation)
+                }
+            auditObserver?.invoke(
+                PromptHookAuditObservation(
+                    hookId = hookId(hook),
+                    hookLabel = hookLabel,
+                    input = input,
+                    output = output,
+                    startedAt = startedAt,
+                    completedAt = maxOf(startedAt, System.currentTimeMillis()),
+                    error = null,
+                )
+            )
+            current = output
         }
         return current
     }

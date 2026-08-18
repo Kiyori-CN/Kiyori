@@ -42,6 +42,7 @@ Kiyori 是一款以浏览器为产品中心、以内置 Operit AI 为智能子�
 - **受控窗口与网页历史**：普通网页的同站、跨站、`target="_blank"` 和用户 `window.open()` 默认继续在当前窗口导航；只有配置主页上的真实用户跨站跳转会保留主页并创建同 Profile 子窗口。
 - **可选启动恢复**：网页浏览器设置提供边缘滑屏前进后退、恢复上次搜索结果、恢复前询问和保留普通多窗口四个独立开关；无痕窗口和无痕元数据不会写入恢复记录。
 - **Operit AI 子系统**：支持多模型配置、对话、角色卡、记忆、工具调用、工作流、附件、语音和可恢复执行。
+- **可审计 AI 对话**：每条已保存对话都有持久化“对话详情”，可查看输入、上下文转换、Provider、工具、异常、修订和终态，并导出完整 `.kiyori-audit` 包或适合外部 AI 审阅的隐私增强 Markdown。
 - **扩展生态**：支持脚本包、ToolPkg 插件、Skill、MCP、市场安装、环境变量和权限管理。
 - **本地工作区**：集成文件管理、Ubuntu 终端、SSH、开发工具、工作区和自动化能力。
 - **媒体能力**：提供当前网页静态资源目录、图片缩略图与查看器、音视频资源嗅探、下载、独立 mpv 播放器、播放队列、字幕、Anime4K、会话级完整视频缓存和悬浮/全屏切换。
@@ -79,6 +80,8 @@ Kiyori App Shell
 - 市场、模型服务、GitHub 登录、网页搜索、语音、图片生成和用户主动配置的远程能力会连接对应第三方服务。
 - 新建公开数据使用 `Download/Kiyori`、`Pictures/Kiyori` 等 Kiyori 路径；应用不会自动扫描、合并或删除 `Download/Operit`。
 - 浏览器启动恢复仅保存用户开启相应设置后所需的普通窗口 URL、标题、顺序、活动窗口、创建原因和明确搜索来源；不保存无痕窗口、Cookie、请求头、表单、网页正文、截图或密码。
+- AI 对话审计随已保存聊天持久化，正文进入应用私有加密存储；API Key、Authorization、Cookie、密码、私钥、访问令牌和请求签名在加密前脱敏。只有删除整个聊天时才删除该聊天审计并回收无引用 payload。
+- 完整 `.kiyori-audit` 用于本机复现和可信追溯；独立 AI 审阅 Markdown 还会假名化账户、设备标识和私有路径。两种导出都不包含真实凭据。
 - API Key、令牌、Cookie、签名材料、私密日志和私人对话不得提交到仓库或公开 Issue。
 
 ## 获取源码
@@ -152,6 +155,7 @@ app/build/outputs/apk/debug/app-debug.apk
 | [构建指南](docs/doc-src/dev-core/BUILDING.md) | 环境、依赖、构建和故障排查 |
 | [贡献指南](docs/doc-src/dev-core/CONTRIBUTING.md) | 开发流程、变更和验证要求 |
 | [仓库布局](docs/doc-src/dev-core/REPOSITORY_LAYOUT.md) | 根目录、模块、生成目录和本地输入边界 |
+| [AI 对话详情与完整审计](docs/doc-src/dev-core/AI_CONVERSATION_AUDIT.md) | 审计数据模型、写入门禁、修订、导入导出、安全和验证边界 |
 | [正式开发准备](docs/TODO/formal_development_readiness/index.md) | 主分支、复现、CI、安全和设备验收门禁 |
 | [`docs/TODO/README.md`](docs/TODO/README.md) | 当前长期任务、专项计划和历史验证证据 |
 

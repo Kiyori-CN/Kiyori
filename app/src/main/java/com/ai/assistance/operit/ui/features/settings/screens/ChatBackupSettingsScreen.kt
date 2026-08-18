@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -63,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -80,6 +82,8 @@ import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.ModelConfigManager
 import com.ai.assistance.operit.data.repository.ChatHistoryManager
 import com.ai.assistance.operit.data.repository.MemoryRepository
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.audit.ConversationAuditStorageSummary
 import com.ai.assistance.operit.data.converter.ExportFormat
 import com.ai.assistance.operit.data.converter.ChatFormat
 import com.ai.assistance.operit.ui.features.settings.components.BackupFilesStatisticsCard
@@ -142,9 +146,11 @@ enum class RawSnapshotOperation {
 @Composable
 fun ChatBackupSettingsScreen() {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
 
     val chatHistoryManager = remember { ChatHistoryManager.getInstance(context) }
+    val conversationAuditRepository = remember { ConversationAuditRepository.from(context) }
     val userPreferencesManager = remember { UserPreferencesManager.getInstance(context) }
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
     val modelConfigManager = remember { ModelConfigManager(context) }
@@ -152,6 +158,8 @@ fun ChatBackupSettingsScreen() {
     var memoryRepo by remember { mutableStateOf<MemoryRepository?>(null) }
 
     var totalChatCount by remember { mutableStateOf(0) }
+    var conversationAuditStorageSummary by
+        remember { mutableStateOf<ConversationAuditStorageSummary?>(null) }
     var totalCharacterCardCount by remember { mutableStateOf(0) }
     var totalMemoryCount by remember { mutableStateOf(0) }
     var totalMemoryLinkCount by remember { mutableStateOf(0) }
@@ -239,6 +247,10 @@ fun ChatBackupSettingsScreen() {
         chatHistoryManager.chatHistoriesFlow.collect { chatHistories ->
             totalChatCount = chatHistories.size
         }
+    }
+
+    LaunchedEffect(totalChatCount) {
+        conversationAuditStorageSummary = conversationAuditRepository.getStorageSummary()
     }
 
     LaunchedEffect(Unit) {
@@ -329,14 +341,14 @@ fun ChatBackupSettingsScreen() {
                             if (importResult.total > 0) {
                                 characterCardOperationState = CharacterCardOperation.IMPORTED
                                 val skippedText = if (importResult.skipped > 0) {
-                                    context.getString(
+                                    resources.getString(
                                         R.string.backup_character_cards_import_result_skipped,
                                         importResult.skipped
                                     )
                                 } else {
                                     ""
                                 }
-                                characterCardOperationMessage = context.getString(
+                                characterCardOperationMessage = resources.getString(
                                     R.string.backup_character_cards_import_result_success,
                                     importResult.new,
                                     importResult.updated,
@@ -345,17 +357,17 @@ fun ChatBackupSettingsScreen() {
                             } else {
                                 characterCardOperationState = CharacterCardOperation.FAILED
                                 characterCardOperationMessage =
-                                    context.getString(R.string.backup_character_cards_import_result_failed)
+                                    resources.getString(R.string.backup_character_cards_import_result_failed)
                             }
                         } else {
                             characterCardOperationState = CharacterCardOperation.FAILED
                             characterCardOperationMessage =
-                                context.getString(R.string.backup_import_failed_unreadable_file)
+                                resources.getString(R.string.backup_import_failed_unreadable_file)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         characterCardOperationState = CharacterCardOperation.FAILED
-                        characterCardOperationMessage = context.getString(
+                        characterCardOperationMessage = resources.getString(
                             R.string.backup_import_failed_with_reason,
                             e.localizedMessage ?: e.toString()
                         )
@@ -431,14 +443,14 @@ fun ChatBackupSettingsScreen() {
                                     modelConfigManager.importConfigs(jsonContent)
                                 modelConfigOperationState = ModelConfigOperation.IMPORTED
                                 val skippedText = if (skippedCount > 0) {
-                                    context.getString(
+                                    resources.getString(
                                         R.string.backup_model_config_import_result_skipped,
                                         skippedCount
                                     )
                                 } else {
                                     ""
                                 }
-                                modelConfigOperationMessage = context.getString(
+                                modelConfigOperationMessage = resources.getString(
                                     R.string.backup_model_config_import_result_success,
                                     newCount,
                                     updatedCount,
@@ -447,12 +459,12 @@ fun ChatBackupSettingsScreen() {
                             } else {
                                 modelConfigOperationState = ModelConfigOperation.FAILED
                                 modelConfigOperationMessage =
-                                    context.getString(R.string.backup_import_failed_unreadable_file)
+                                    resources.getString(R.string.backup_import_failed_unreadable_file)
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
                             modelConfigOperationState = ModelConfigOperation.FAILED
-                            modelConfigOperationMessage = context.getString(
+                            modelConfigOperationMessage = resources.getString(
                                 R.string.backup_import_failed_with_reason,
                                 e.localizedMessage ?: e.toString()
                             )
@@ -554,6 +566,8 @@ fun ChatBackupSettingsScreen() {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "*/*"  // 接受所有类型
                         putExtra(Intent.EXTRA_MIME_TYPES, arrayOf(
+                            "application/zip",
+                            "application/octet-stream",
                             "application/json",
                             "text/markdown",
                             "text/plain",
@@ -564,6 +578,56 @@ fun ChatBackupSettingsScreen() {
                 },
                 onDelete = { showDeleteConfirmDialog = true }
             )
+        }
+        item {
+            val summary = conversationAuditStorageSummary
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    SectionHeader(
+                        title = stringResource(R.string.conversation_audit_storage_title),
+                        subtitle = stringResource(R.string.conversation_audit_storage_subtitle),
+                        icon = Icons.Default.Storage,
+                    )
+                    if (summary == null) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    } else {
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.conversation_audit_storage_summary,
+                                    summary.auditCount,
+                                    Formatter.formatShortFileSize(
+                                        context,
+                                        summary.totalStoredPayloadBytes,
+                                    ),
+                                    summary.abnormalAuditCount,
+                                ),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        val largestChatId = summary.largestChatId
+                        Text(
+                            text =
+                                if (largestChatId == null) {
+                                    stringResource(R.string.conversation_audit_storage_largest_none)
+                                } else {
+                                    stringResource(
+                                        R.string.conversation_audit_storage_largest,
+                                        largestChatId,
+                                        Formatter.formatShortFileSize(
+                                            context,
+                                            summary.largestChatStoredPayloadBytes,
+                                        ),
+                                    )
+                                },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
         item {
             CharacterCardManagementCard(
@@ -578,7 +642,7 @@ fun ChatBackupSettingsScreen() {
                             val filePath = characterCardManager.exportAllCharacterCardsToBackupFile()
                             if (filePath != null) {
                                 characterCardOperationState = CharacterCardOperation.EXPORTED
-                                characterCardOperationMessage = context.getString(
+                                characterCardOperationMessage = resources.getString(
                                     R.string.backup_character_cards_export_result_success,
                                     totalCharacterCardCount,
                                     filePath
@@ -586,12 +650,12 @@ fun ChatBackupSettingsScreen() {
                             } else {
                                 characterCardOperationState = CharacterCardOperation.FAILED
                                 characterCardOperationMessage =
-                                    context.getString(R.string.backup_export_failed_create_file)
+                                    resources.getString(R.string.backup_export_failed_create_file)
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
                             characterCardOperationState = CharacterCardOperation.FAILED
-                            characterCardOperationMessage = context.getString(
+                            characterCardOperationMessage = resources.getString(
                                 R.string.backup_export_failed_with_reason,
                                 e.localizedMessage ?: e.toString()
                             )
@@ -646,7 +710,7 @@ fun ChatBackupSettingsScreen() {
                         } catch (e: Exception) {
                             e.printStackTrace()
                             modelConfigOperationState = ModelConfigOperation.FAILED
-                            modelConfigOperationMessage = context.getString(
+                            modelConfigOperationMessage = resources.getString(
                                 R.string.backup_export_failed_with_reason,
                                 e.localizedMessage ?: e.toString()
                             )
@@ -797,7 +861,7 @@ fun ChatBackupSettingsScreen() {
                                         roomDbBackupOperationState = RoomDatabaseBackupOperation.SUCCESS
                                         roomDbBackupOperationMessage =
                                             result.backupFile?.absolutePath
-                                                ?: context.getString(R.string.backup_operation_failed)
+                                                ?: resources.getString(R.string.backup_operation_failed)
 
                                         isScanning = true
                                         try {
@@ -967,7 +1031,8 @@ fun ChatBackupSettingsScreen() {
                             onClick = {
                                 scope.launch {
                                     rawSnapshotOperationState = RawSnapshotOperation.BACKING_UP
-                                    rawSnapshotOperationMessage = context.getString(R.string.backup_raw_snapshot_progress_preparing)
+                                    rawSnapshotOperationMessage =
+                                        resources.getString(R.string.backup_raw_snapshot_progress_preparing)
                                     try {
                                         val outFile = RawSnapshotBackupManager.exportToBackupDir(
                                             context = context,
@@ -975,33 +1040,33 @@ fun ChatBackupSettingsScreen() {
                                                 val suffix = progress.percent?.let { " ${it}%" } ?: ""
                                                 rawSnapshotOperationMessage = when (progress.stage) {
                                                     RawSnapshotBackupManager.ExportProgress.PREPARING ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_preparing)
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_preparing)
 
                                                     RawSnapshotBackupManager.ExportProgress.SCANNING_FILES ->
                                                         progress.scannedFiles?.let { scanned ->
-                                                            context.getString(
+                                                            resources.getString(
                                                                 R.string.backup_raw_snapshot_progress_scanning_files_with_count,
                                                                 scanned
                                                             )
-                                                        } ?: context.getString(R.string.backup_raw_snapshot_progress_scanning_files)
+                                                        } ?: resources.getString(R.string.backup_raw_snapshot_progress_scanning_files)
 
                                                     RawSnapshotBackupManager.ExportProgress.ZIPPING_FILES ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_zipping_files) + suffix
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_zipping_files) + suffix
 
                                                     RawSnapshotBackupManager.ExportProgress.ZIPPING_EXTERNAL_FILES ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_zipping_external_files) + suffix
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_zipping_external_files) + suffix
 
                                                     RawSnapshotBackupManager.ExportProgress.ZIPPING_SHARED_PREFS ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_zipping_shared_prefs)
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_zipping_shared_prefs)
 
                                                     RawSnapshotBackupManager.ExportProgress.ZIPPING_DATASTORE ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_zipping_datastore)
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_zipping_datastore)
 
                                                     RawSnapshotBackupManager.ExportProgress.ZIPPING_DATABASES ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_zipping_databases)
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_zipping_databases)
 
                                                     RawSnapshotBackupManager.ExportProgress.FINALIZING ->
-                                                        context.getString(R.string.backup_raw_snapshot_progress_finalizing)
+                                                        resources.getString(R.string.backup_raw_snapshot_progress_finalizing)
                                                 }
                                             }
                                         )
@@ -1087,7 +1152,7 @@ fun ChatBackupSettingsScreen() {
                         val result = deleteAllChatHistories(context)
                         operationState = ChatHistoryOperation.DELETED
                         val skippedText = if (result.skippedLockedCount > 0) {
-                            context.getString(
+                            resources.getString(
                                 R.string.backup_delete_skipped_locked,
                                 result.skippedLockedCount
                             )
@@ -1095,13 +1160,13 @@ fun ChatBackupSettingsScreen() {
                             ""
                         }
                         operationMessage =
-                            context.getString(
+                            resources.getString(
                                 R.string.backup_delete_result_success,
                                 result.deletedCount
                             ) + skippedText
                     } catch (e: Exception) {
                         operationState = ChatHistoryOperation.FAILED
-                        operationMessage = context.getString(
+                        operationMessage = resources.getString(
                             R.string.backup_clear_failed_with_reason,
                             e.localizedMessage ?: e.toString()
                         )
@@ -1131,7 +1196,7 @@ fun ChatBackupSettingsScreen() {
                             memoryOperationState = MemoryOperation.IMPORTED
                             val profileName = allProfiles.find { it.id == selectedImportProfileId }?.name
                                 ?: selectedImportProfileId
-                            memoryOperationMessage = context.getString(
+                            memoryOperationMessage = resources.getString(
                                 R.string.backup_memory_import_result_success,
                                 profileName,
                                 result.newMemories,
@@ -1152,7 +1217,7 @@ fun ChatBackupSettingsScreen() {
                         } catch (e: Exception) {
                             e.printStackTrace()
                             memoryOperationState = MemoryOperation.FAILED
-                            memoryOperationMessage = context.getString(
+                            memoryOperationMessage = resources.getString(
                                 R.string.backup_import_failed_with_reason,
                                 e.localizedMessage ?: e.toString()
                             )
@@ -1185,7 +1250,7 @@ fun ChatBackupSettingsScreen() {
                             val memoryCount = memories.count { !it.isDocumentNode }
                             val graph = exportRepo.getMemoryGraph()
                             val linkCount = graph.edges.size
-                            memoryOperationMessage = context.getString(
+                            memoryOperationMessage = resources.getString(
                                 R.string.backup_memory_export_result_success,
                                 profileName,
                                 memoryCount,
@@ -1195,12 +1260,12 @@ fun ChatBackupSettingsScreen() {
                         } else {
                             memoryOperationState = MemoryOperation.FAILED
                             memoryOperationMessage =
-                                context.getString(R.string.backup_export_failed_create_file)
+                                resources.getString(R.string.backup_export_failed_create_file)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         memoryOperationState = MemoryOperation.FAILED
-                        memoryOperationMessage = context.getString(
+                        memoryOperationMessage = resources.getString(
                             R.string.backup_export_failed_with_reason,
                             e.localizedMessage ?: e.toString()
                         )
@@ -1242,13 +1307,13 @@ fun ChatBackupSettingsScreen() {
                             operationState = ChatHistoryOperation.EXPORTED
                             val chatCount = chatHistoryManager.chatHistoriesFlow.first().size
                             val formatName = when (selectedExportFormat) {
-                                ExportFormat.JSON -> context.getString(R.string.backup_format_json)
-                                ExportFormat.MARKDOWN -> context.getString(R.string.backup_format_markdown)
-                                ExportFormat.HTML -> context.getString(R.string.backup_format_html)
-                                ExportFormat.TXT -> context.getString(R.string.backup_format_txt)
+                                ExportFormat.JSON -> resources.getString(R.string.backup_format_json)
+                                ExportFormat.MARKDOWN -> resources.getString(R.string.backup_format_markdown)
+                                ExportFormat.HTML -> resources.getString(R.string.backup_format_html)
+                                ExportFormat.TXT -> resources.getString(R.string.backup_format_txt)
                                 ExportFormat.CSV -> "CSV"
                             }
-                            operationMessage = context.getString(
+                            operationMessage = resources.getString(
                                 R.string.backup_chat_export_result_success,
                                 chatCount,
                                 formatName,
@@ -1257,12 +1322,12 @@ fun ChatBackupSettingsScreen() {
                         } else {
                             operationState = ChatHistoryOperation.FAILED
                             operationMessage =
-                                context.getString(R.string.backup_export_failed_create_file)
+                                resources.getString(R.string.backup_export_failed_create_file)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         operationState = ChatHistoryOperation.FAILED
-                        operationMessage = context.getString(
+                        operationMessage = resources.getString(
                             R.string.backup_export_failed_with_reason,
                             e.localizedMessage ?: e.toString()
                         )
@@ -1290,23 +1355,25 @@ fun ChatBackupSettingsScreen() {
                             operationMessage = if (importResult.total > 0) {
                                 operationState = ChatHistoryOperation.IMPORTED
                                 val formatName = when (selectedImportFormat) {
-                                    ChatFormat.OPERIT -> context.getString(R.string.backup_format_operit)
-                                    ChatFormat.CHATGPT -> context.getString(R.string.backup_format_chatgpt)
-                                    ChatFormat.CHATBOX -> context.getString(R.string.backup_format_chatbox)
-                                    ChatFormat.MARKDOWN -> context.getString(R.string.backup_format_markdown)
-                                    ChatFormat.GENERIC_JSON -> context.getString(R.string.backup_format_generic_json)
-                                    ChatFormat.CLAUDE -> context.getString(R.string.backup_format_claude)
-                                    else -> context.getString(R.string.backup_format_unknown)
+                                    ChatFormat.KIYORI_AUDIT ->
+                                        resources.getString(R.string.backup_format_kiyori_audit)
+                                    ChatFormat.OPERIT -> resources.getString(R.string.backup_format_operit)
+                                    ChatFormat.CHATGPT -> resources.getString(R.string.backup_format_chatgpt)
+                                    ChatFormat.CHATBOX -> resources.getString(R.string.backup_format_chatbox)
+                                    ChatFormat.MARKDOWN -> resources.getString(R.string.backup_format_markdown)
+                                    ChatFormat.GENERIC_JSON -> resources.getString(R.string.backup_format_generic_json)
+                                    ChatFormat.CLAUDE -> resources.getString(R.string.backup_format_claude)
+                                    else -> resources.getString(R.string.backup_format_unknown)
                                 }
                                 val skippedText = if (importResult.skipped > 0) {
-                                    context.getString(
+                                    resources.getString(
                                         R.string.backup_import_result_skipped,
                                         importResult.skipped
                                     )
                                 } else {
                                     ""
                                 }
-                                context.getString(
+                                resources.getString(
                                     R.string.backup_import_result_success,
                                     formatName,
                                     importResult.new,
@@ -1315,12 +1382,12 @@ fun ChatBackupSettingsScreen() {
                                 )
                             } else {
                                 operationState = ChatHistoryOperation.FAILED
-                                context.getString(R.string.backup_import_result_failed)
+                                resources.getString(R.string.backup_import_result_failed)
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
                             operationState = ChatHistoryOperation.FAILED
-                            operationMessage = context.getString(
+                            operationMessage = resources.getString(
                                 R.string.backup_import_failed_with_reason,
                                 e.localizedMessage ?: e.toString()
                             )
@@ -1339,7 +1406,7 @@ fun ChatBackupSettingsScreen() {
             exportPath = exportedModelConfigPath,
             onDismiss = {
                 showModelConfigExportWarning = false
-                modelConfigOperationMessage = context.getString(
+                modelConfigOperationMessage = resources.getString(
                     R.string.backup_export_result_success,
                     exportedModelConfigPath
                 )
@@ -1436,7 +1503,8 @@ fun ChatBackupSettingsScreen() {
                         if (uri != null) {
                             scope.launch {
                                 rawSnapshotOperationState = RawSnapshotOperation.RESTORING
-                                rawSnapshotOperationMessage = context.getString(R.string.backup_raw_snapshot_progress_preparing)
+                                rawSnapshotOperationMessage =
+                                    resources.getString(R.string.backup_raw_snapshot_progress_preparing)
                                 try {
                                     try {
                                         context.contentResolver.takePersistableUriPermission(
@@ -1451,31 +1519,31 @@ fun ChatBackupSettingsScreen() {
                                         onProgress = { progress ->
                                             rawSnapshotOperationMessage = when (progress) {
                                                 RawSnapshotBackupManager.RestoreProgress.PREPARING ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_preparing)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_preparing)
 
                                                 RawSnapshotBackupManager.RestoreProgress.READING_ZIP ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_reading_zip)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_reading_zip)
 
                                                 RawSnapshotBackupManager.RestoreProgress.EXTRACTING ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_extracting)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_extracting)
 
                                                 RawSnapshotBackupManager.RestoreProgress.REPLACING_FILES ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_replacing_files)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_replacing_files)
 
                                                 RawSnapshotBackupManager.RestoreProgress.REPLACING_EXTERNAL_FILES ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_replacing_external_files)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_replacing_external_files)
 
                                                 RawSnapshotBackupManager.RestoreProgress.REPLACING_SHARED_PREFS ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_replacing_shared_prefs)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_replacing_shared_prefs)
 
                                                 RawSnapshotBackupManager.RestoreProgress.REPLACING_DATASTORE ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_replacing_datastore)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_replacing_datastore)
 
                                                 RawSnapshotBackupManager.RestoreProgress.REPLACING_DATABASES ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_replacing_databases)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_replacing_databases)
 
                                                 RawSnapshotBackupManager.RestoreProgress.FINALIZING ->
-                                                    context.getString(R.string.backup_raw_snapshot_progress_finalizing)
+                                                    resources.getString(R.string.backup_raw_snapshot_progress_finalizing)
                                             }
                                         }
                                     )

@@ -948,6 +948,10 @@ M05E_DIRECT_PATH_CONSUMER_PATHS = (
     "ToolPkgArtifactBuilder.kt",
     "app/src/main/java/com/ai/assistance/operit/core/tools/packTool/"
     "ToolPkgArtifactStore.kt",
+    "app/src/main/java/com/ai/assistance/operit/data/audit/"
+    "ConversationAuditExporter.kt",
+    "app/src/main/java/com/ai/assistance/operit/data/audit/"
+    "ConversationAuditPayloadStore.kt",
     "app/src/main/java/com/ai/assistance/operit/data/backup/"
     "RawSnapshotBackupManager.kt",
     "app/src/main/java/com/kiyori/platform/storage/KiyoriPublicStore.kt",
@@ -10252,6 +10256,7 @@ def check_m05e_storage_paths(
         "player": 1,
         "toolbox": 1,
         "ai-config": 1,
+        "conversation-audit": 2,
         "backups": 1,
         "toolpkg": 3,
         "public": 1,
@@ -10276,7 +10281,9 @@ def check_m05e_storage_paths(
         "Markdown": 1,
         "Shared": 1,
         "AI": 1,
-        "v1": 2,
+        "v1": 3,
+        "payloads": 1,
+        "staging": 1,
         "data": 1,
         "generations": 1,
         "migration-audit": 1,
@@ -10350,6 +10357,10 @@ def check_m05e_storage_paths(
     )
     extended_path_api_methods = (
         "exportDir",
+        "conversationAuditExportsDir",
+        "conversationAuditRootDir",
+        "conversationAuditPayloadsDir",
+        "conversationAuditStagingDir",
         "browserApplicationDownloadsDir",
         "publicProjection",
         "toolPkgPublicWorkspaceDir",

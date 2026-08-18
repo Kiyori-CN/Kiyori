@@ -1171,6 +1171,18 @@ class ChatHistoryDelegate(
         }
     }
 
+    suspend fun reviseMessage(message: ChatMessage) {
+        val chatId = _currentChatId.value ?: throw IllegalStateException("No active chat")
+        val shouldReloadCurrentChat =
+            historyUpdateMutex.withLock {
+                chatHistoryManager.reviseMessage(chatId, message)
+                chatId == _currentChatId.value
+            }
+        if (shouldReloadCurrentChat && chatId == _currentChatId.value) {
+            reloadCurrentChatDisplayHistory(chatId)
+        }
+    }
+
     suspend fun addMessageVariant(
         timestamp: Long,
         message: ChatMessage,

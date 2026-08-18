@@ -12,6 +12,7 @@
 | 准备开发环境并构建 | [构建指南](doc-src/dev-core/BUILDING.md) |
 | 参与开发 | [贡献指南](doc-src/dev-core/CONTRIBUTING.md) |
 | 理解仓库目录和本地输入边界 | [仓库布局](doc-src/dev-core/REPOSITORY_LAYOUT.md) |
+| 理解 AI 对话详情、审计链与导入导出 | [AI 对话详情与完整审计](doc-src/dev-core/AI_CONVERSATION_AUDIT.md) |
 | 运行本地与 CI 门禁 | [`ci/README.md`](../ci/README.md) |
 | 查看当前长期工作 | [开发任务与验证索引](TODO/README.md) |
 | 核对正式开发门禁 | [正式开发准备](TODO/formal_development_readiness/index.md) |
@@ -51,6 +52,7 @@
 - [浏览器插件平台与插件中心架构](doc-src/architecture/browser_plugin_platform.md)
 - [统一模型能力与可恢复执行](doc-src/architecture/model_capability_and_resumable_execution.md)
 - [OpenAI Hosted Web Search](doc-src/architecture/openai_hosted_web_search.md)
+- [AI 对话详情与完整审计](doc-src/dev-core/AI_CONVERSATION_AUDIT.md)
 - [FFmpeg 架构与开发指南](doc-src/dev-core/FFMPEG_ARCHITECTURE.md)
 
 ## 文档维护

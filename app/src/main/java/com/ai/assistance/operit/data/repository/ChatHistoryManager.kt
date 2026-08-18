@@ -2,6 +2,7 @@ package com.ai.assistance.operit.data.repository
 
 import android.content.Context
 import android.net.Uri
+import androidx.room.withTransaction
 import com.ai.assistance.operit.util.AppLogger
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -9,6 +10,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ai.assistance.operit.R
 import com.kiyori.platform.storage.KiyoriBackupPaths
+import com.ai.assistance.operit.data.audit.ConversationAuditEventRequest
+import com.ai.assistance.operit.data.audit.ConversationAuditPayloadInput
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.audit.ConversationMessageRevisionRequest
+import com.ai.assistance.operit.data.audit.toOperitArchivedChat
 import com.ai.assistance.operit.data.db.AppDatabase
 import com.ai.assistance.operit.data.model.ChatEntity
 import com.ai.assistance.operit.data.model.ChatHistory
@@ -19,7 +25,7 @@ import com.ai.assistance.operit.data.model.CharacterGroupChatStats
 import com.ai.assistance.operit.data.model.MessageEntity
 import com.ai.assistance.operit.data.model.MessageVariantEntity
 import com.ai.assistance.operit.data.model.OperitArchivedChat
-import com.ai.assistance.operit.data.model.OperitArchivedMessage
+import com.ai.assistance.operit.data.model.OperitArchivedConversationAudit
 import com.ai.assistance.operit.data.model.OperitArchivedMessageVariant
 import com.ai.assistance.operit.data.model.OperitChatArchive
 import com.ai.assistance.operit.data.model.WorkspaceRenameResult
@@ -56,17 +62,20 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import org.json.JSONObject
 
 // 仅保留这个DataStore用于存储当前聊天ID
 private val Context.currentChatIdDataStore by preferencesDataStore(name = "current_chat_id")
@@ -75,6 +84,12 @@ class ChatHistoryManager private constructor(private val context: Context) {
     companion object {
         private const val TAG = "ChatHistoryManager"
         private const val LOCATOR_PREVIEW_CHAR_COUNT = 48
+        private const val AUDIT_PACKAGE_MANIFEST_ENTRY = "manifest.json"
+        private const val AUDIT_PACKAGE_CHAT_ENTRY = "chat.json"
+        private const val AUDIT_PACKAGE_AUDIT_ENTRY = "audit.json"
+        private const val MAX_AUDIT_PACKAGE_ENTRY_COUNT = 100_000
+        private const val MAX_AUDIT_PACKAGE_ENTRY_BYTES = 256L * 1024L * 1024L
+        private const val MAX_AUDIT_PACKAGE_TOTAL_BYTES = 512L * 1024L * 1024L
 
         @Volatile
         private var INSTANCE: ChatHistoryManager? = null
@@ -95,6 +110,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
     private val messageDao = database.messageDao()
     private val messageVariantDao = database.messageVariantDao()
     private val chatContentDao = database.chatContentDao()
+    private val conversationAuditRepository = ConversationAuditRepository.from(context)
     private val operitArchiveJson =
         Json {
             prettyPrint = true
@@ -163,21 +179,13 @@ class ChatHistoryManager private constructor(private val context: Context) {
     }
 
     private suspend fun buildOperitArchivedChat(chatHistory: ChatHistory): OperitArchivedChat {
-        val messageEntities = chatContentDao.getMessagesForChat(chatHistory.id)
-        val variantsByTimestamp =
-            chatContentDao.getVariantsForChat(chatHistory.id).groupBy { it.messageTimestamp }
-        val archivedMessages =
-            messageEntities.map { messageEntity ->
-                val messageVariants = variantsByTimestamp[messageEntity.timestamp].orEmpty()
-                OperitArchivedMessage(
-                    baseMessage =
-                        messageEntity.toChatMessage().copy(
-                            variantCount = messageVariants.size + 1,
-                        ),
-                    variants = messageVariants.map(OperitArchivedMessageVariant::fromEntity),
-                )
-            }
-        return OperitArchivedChat.fromChatHistory(chatHistory, archivedMessages)
+        conversationAuditRepository.reconstructLegacyAuditIfNeeded(chatHistory.id)
+        val auditSnapshot =
+            conversationAuditRepository.createExportSnapshot(
+                chatId = chatHistory.id,
+                sealReason = "CHAT_ARCHIVE_EXPORTED",
+            )
+        return auditSnapshot.toOperitArchivedChat(includeAudit = true)
     }
 
     private suspend fun exportOperitArchiveJsonStream(
@@ -245,15 +253,35 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     return
                 }
 
+                val auditArchive = archivedChat.conversationAudit
                 val existed = existingIds.contains(archivedChat.id)
-                if (existed) {
-                    counters.updatedCount++
-                } else {
+                if (auditArchive != null) {
+                    require(!existed) {
+                        "带完整审计的 v3 对话不能覆盖同 ID 现有对话：${archivedChat.id}"
+                    }
+                    saveArchivedChat(archivedChat)
+                    try {
+                        conversationAuditRepository.importPortableAudit(
+                            chatId = archivedChat.id,
+                            archive = auditArchive,
+                        )
+                    } catch (error: Exception) {
+                        chatDao.deleteChat(archivedChat.id)
+                        conversationAuditRepository.cleanupUnreferencedPayloads()
+                        throw error
+                    }
                     counters.newCount++
                     existingIds.add(archivedChat.id)
+                } else {
+                    if (existed) {
+                        counters.updatedCount++
+                    } else {
+                        counters.newCount++
+                        existingIds.add(archivedChat.id)
+                    }
+                    saveArchivedChat(archivedChat)
+                    conversationAuditRepository.reconstructLegacyAuditIfNeeded(archivedChat.id)
                 }
-
-                saveArchivedChat(archivedChat)
 
                 if (importedIndex % 20 == 0) {
                     AppLogger.d(
@@ -280,6 +308,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 }
 
                 saveChatHistory(chatHistory)
+                conversationAuditRepository.reconstructLegacyAuditIfNeeded(chatHistory.id)
 
                 if (importedIndex % 20 == 0) {
                     AppLogger.d(
@@ -297,6 +326,8 @@ class ChatHistoryManager private constructor(private val context: Context) {
     ): ChatImportResult {
         val counters = ImportCounters()
         var importedIndex = 0
+        var archiveType: String? = null
+        var formatVersion: Int? = null
 
         JsonReader(InputStreamReader(inputStream, StandardCharsets.UTF_8)).use { reader ->
             reader.isLenient = true
@@ -310,7 +341,28 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     reader.beginObject()
                     while (reader.hasNext()) {
                         when (reader.nextName()) {
+                            "archiveType" -> {
+                                archiveType = reader.nextString()
+                                require(archiveType == OperitChatArchive.ARCHIVE_TYPE) {
+                                    "不支持的聊天归档类型：$archiveType"
+                                }
+                            }
+
+                            "formatVersion" -> {
+                                formatVersion = reader.nextInt()
+                                require(formatVersion in 1..OperitChatArchive.CURRENT_FORMAT_VERSION) {
+                                    "不支持的聊天归档版本：$formatVersion"
+                                }
+                            }
+
                             "chats" -> {
+                                require(archiveType == OperitChatArchive.ARCHIVE_TYPE) {
+                                    "聊天归档缺少有效 archiveType"
+                                }
+                                val resolvedFormatVersion =
+                                    requireNotNull(formatVersion) {
+                                        "聊天归档缺少 formatVersion"
+                                    }
                                 reader.beginArray()
                                 while (reader.hasNext()) {
                                     importedIndex++
@@ -318,6 +370,12 @@ class ChatHistoryManager private constructor(private val context: Context) {
                                         decodeStreamElement(reader) {
                                             operitArchiveJson.decodeFromString<OperitArchivedChat>(it)
                                         }
+                                    require(
+                                        resolvedFormatVersion < 3 ||
+                                            archivedChat.conversationAudit != null
+                                    ) {
+                                        "聊天归档 v3 缺少完整审计：${archivedChat.id}"
+                                    }
                                     consumeImportedChat(
                                         StreamImportedChat.Archive(archivedChat),
                                         existingIds,
@@ -332,6 +390,12 @@ class ChatHistoryManager private constructor(private val context: Context) {
                         }
                     }
                     reader.endObject()
+                    require(archiveType == OperitChatArchive.ARCHIVE_TYPE) {
+                        "聊天归档缺少有效 archiveType"
+                    }
+                    requireNotNull(formatVersion) {
+                        "聊天归档缺少 formatVersion"
+                    }
                 }
 
                 JsonToken.BEGIN_ARRAY -> {
@@ -365,6 +429,166 @@ class ChatHistoryManager private constructor(private val context: Context) {
         )
         return ChatImportResult(counters.newCount, counters.updatedCount, counters.skippedCount)
     }
+
+    private suspend fun importConversationAuditPackageStream(
+        inputStream: InputStream,
+        existingIds: MutableSet<String>,
+    ): ChatImportResult {
+        var manifestBytes: ByteArray? = null
+        var chatBytes: ByteArray? = null
+        var auditBytes: ByteArray? = null
+        val payloadEvidence = mutableMapOf<String, AuditPackagePayloadEvidence>()
+        val seenEntries = mutableSetOf<String>()
+        var entryCount = 0
+        var totalUncompressedBytes = 0L
+
+        ZipInputStream(BufferedInputStream(inputStream)).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                entryCount++
+                require(entryCount <= MAX_AUDIT_PACKAGE_ENTRY_COUNT) {
+                    "对话审计包条目数量超过限制"
+                }
+                val entryName = entry.name
+                require(isSafeAuditPackageEntry(entryName)) {
+                    "对话审计包包含不安全路径：$entryName"
+                }
+                require(seenEntries.add(entryName)) {
+                    "对话审计包包含重复条目：$entryName"
+                }
+                if (!entry.isDirectory) {
+                    val capture =
+                        entryName == AUDIT_PACKAGE_MANIFEST_ENTRY ||
+                            entryName == AUDIT_PACKAGE_CHAT_ENTRY ||
+                            entryName == AUDIT_PACKAGE_AUDIT_ENTRY
+                    val output = if (capture) ByteArrayOutputStream() else null
+                    val payloadDigest =
+                        if (entryName.startsWith("payloads/")) {
+                            MessageDigest.getInstance("SHA-256")
+                        } else {
+                            null
+                        }
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var entryBytes = 0L
+                    while (true) {
+                        val read = zip.read(buffer)
+                        if (read < 0) {
+                            break
+                        }
+                        entryBytes += read
+                        totalUncompressedBytes += read
+                        require(entryBytes <= MAX_AUDIT_PACKAGE_ENTRY_BYTES) {
+                            "对话审计包条目超过大小限制：$entryName"
+                        }
+                        require(totalUncompressedBytes <= MAX_AUDIT_PACKAGE_TOTAL_BYTES) {
+                            "对话审计包解压后总大小超过限制"
+                        }
+                        output?.write(buffer, 0, read)
+                        payloadDigest?.update(buffer, 0, read)
+                    }
+                    val bytes = output?.toByteArray()
+                    when (entryName) {
+                        AUDIT_PACKAGE_MANIFEST_ENTRY -> manifestBytes = requireNotNull(bytes)
+                        AUDIT_PACKAGE_CHAT_ENTRY -> chatBytes = requireNotNull(bytes)
+                        AUDIT_PACKAGE_AUDIT_ENTRY -> auditBytes = requireNotNull(bytes)
+                    }
+                    if (payloadDigest != null) {
+                        payloadEvidence[entryName] =
+                            AuditPackagePayloadEvidence(
+                                byteCount = entryBytes,
+                                sha256 =
+                                    payloadDigest
+                                        .digest()
+                                        .joinToString("") { byte -> "%02x".format(byte) },
+                            )
+                    }
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+
+        val manifest =
+            JSONObject(
+                requireNotNull(manifestBytes) {
+                    "对话审计包缺少 $AUDIT_PACKAGE_MANIFEST_ENTRY"
+                }.toString(Charsets.UTF_8)
+            )
+        require(manifest.getString("archiveType") == "kiyori_conversation_audit") {
+            "不支持的对话审计包类型"
+        }
+        require(manifest.getInt("formatVersion") == 1) {
+            "不支持的对话审计包版本"
+        }
+        val archivedChat =
+            operitArchiveJson.decodeFromString<OperitArchivedChat>(
+                requireNotNull(chatBytes) {
+                    "对话审计包缺少 $AUDIT_PACKAGE_CHAT_ENTRY"
+                }.toString(Charsets.UTF_8)
+            )
+        require(archivedChat.conversationAudit == null) {
+            "对话审计包 chat.json 不得重复嵌入审计正文"
+        }
+        val audit =
+            operitArchiveJson.decodeFromString<OperitArchivedConversationAudit>(
+                requireNotNull(auditBytes) {
+                    "对话审计包缺少 $AUDIT_PACKAGE_AUDIT_ENTRY"
+                }.toString(Charsets.UTF_8)
+            )
+        require(manifest.getString("chatId") == archivedChat.id) {
+            "对话审计包 manifest 与聊天 ID 不一致"
+        }
+        require(audit.audit.chatId == archivedChat.id) {
+            "对话审计包聊天与审计 ID 不一致"
+        }
+        val expectedPayloadEntries =
+            audit.payloads.associate { payload ->
+                val extension =
+                    if (payload.encoding.equals("utf-8", ignoreCase = true)) {
+                        "txt"
+                    } else {
+                        "bin"
+                    }
+                "payloads/${payload.payloadSha256}.$extension" to payload
+            }
+        require(payloadEvidence.keys == expectedPayloadEntries.keys) {
+            "对话审计包 payload 条目集合与 audit.json 不一致"
+        }
+        payloadEvidence.forEach { (entryName, evidence) ->
+            val payload = requireNotNull(expectedPayloadEntries[entryName])
+            require(evidence.byteCount == payload.plainByteCount) {
+                "对话审计包 payload 字节数不匹配：$entryName"
+            }
+            require(evidence.sha256 == payload.payloadSha256) {
+                "对话审计包 payload 哈希不匹配：$entryName"
+            }
+        }
+        val counters = ImportCounters()
+        consumeImportedChat(
+            imported =
+                StreamImportedChat.Archive(
+                    archivedChat.copy(conversationAudit = audit)
+                ),
+            existingIds = existingIds,
+            counters = counters,
+            importedIndex = 1,
+        )
+        return ChatImportResult(counters.newCount, counters.updatedCount, counters.skippedCount)
+    }
+
+    private fun isSafeAuditPackageEntry(entryName: String): Boolean {
+        if (entryName.isBlank() || entryName.startsWith('/') || entryName.contains('\\')) {
+            return false
+        }
+        return entryName.split('/').none { segment ->
+            segment.isBlank() || segment == "." || segment == ".."
+        }
+    }
+
+    private data class AuditPackagePayloadEvidence(
+        val byteCount: Long,
+        val sha256: String,
+    )
 
     init {
         // 确保数据库被初始化
@@ -909,6 +1133,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     // 只删除指定角色卡下的分组（使用 SQL 批量操作）
                     if (deleteChats) {
                         chatDao.deleteChatsInGroupForCharacter(groupName, characterCardName)
+                        conversationAuditRepository.cleanupUnreferencedPayloads()
                         // 保留被锁定的聊天：仅清除锁定聊天的分组
                         chatDao.removeGroupFromLockedChatsForCharacter(groupName, characterCardName)
                     } else {
@@ -918,6 +1143,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     // 删除所有同名分组
                     if (deleteChats) {
                         chatDao.deleteChatsInGroup(groupName)
+                        conversationAuditRepository.cleanupUnreferencedPayloads()
                         // 保留被锁定的聊天：仅清除锁定聊天的分组
                         chatDao.removeGroupFromLockedChats(groupName)
                     } else {
@@ -944,8 +1170,50 @@ class ChatHistoryManager private constructor(private val context: Context) {
         chatMutex(chatId).withLock {
             try {
                 AppLogger.d(TAG, "正在从数据库删除消息. ChatId: $chatId, Timestamp: $timestamp")
-                messageVariantDao.deleteVariantsForMessage(chatId, timestamp)
-                messageDao.deleteMessageByTimestamp(chatId, timestamp)
+                val message = chatContentDao.getMessageByTimestamp(chatId, timestamp)
+                val variants = chatContentDao.getVariantsForMessage(chatId, timestamp)
+                if (message != null) {
+                    conversationAuditRepository.mutateAndAppendEvent(
+                        ConversationAuditEventRequest(
+                            chatId = chatId,
+                            category = "DELETION",
+                            eventType = "MESSAGE_DELETED",
+                            actor = "USER",
+                            summary = "消息已从当前对话投影删除",
+                            messageTimestamp = timestamp,
+                            variantIndex = message.selectedVariantIndex,
+                            visibility =
+                                com.ai.assistance.operit.data.model
+                                    .ConversationAuditVisibility
+                                    .TOMBSTONE,
+                            payloads =
+                                buildList {
+                                    add(
+                                        ConversationAuditPayloadInput.text(
+                                            label = "message",
+                                            role = message.sender,
+                                            value = message.content,
+                                        )
+                                    )
+                                    variants.forEach { variant ->
+                                        add(
+                                            ConversationAuditPayloadInput.text(
+                                                label = "variant_${variant.variantIndex}",
+                                                role = "ai",
+                                                value = variant.content,
+                                            )
+                                        )
+                                    }
+                                },
+                        )
+                    ) {
+                        messageVariantDao.deleteVariantsForMessage(chatId, timestamp)
+                        messageDao.deleteMessageByTimestamp(chatId, timestamp)
+                    }
+                } else {
+                    messageVariantDao.deleteVariantsForMessage(chatId, timestamp)
+                    messageDao.deleteMessageByTimestamp(chatId, timestamp)
+                }
                 AppLogger.d(TAG, "消息从数据库删除成功.")
 
                 // Update chat metadata
@@ -988,6 +1256,39 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 if (variants.isEmpty()) {
                     throw IllegalStateException("Message $messageTimestamp has no deletable variants")
                 }
+                val deletedContent =
+                    if (variantIndex == 0) {
+                        baseMessage.content
+                    } else {
+                        variants.firstOrNull { variant -> variant.variantIndex == variantIndex }
+                            ?.content
+                            ?: throw IllegalArgumentException(
+                                "Variant $variantIndex does not exist for message $messageTimestamp",
+                            )
+                    }
+                conversationAuditRepository.mutateAndAppendEvent(
+                    ConversationAuditEventRequest(
+                        chatId = chatId,
+                        category = "VARIANT",
+                        eventType = "VARIANT_DELETED",
+                        actor = "USER",
+                        summary = "AI 回答 variant $variantIndex 已从当前投影删除",
+                        messageTimestamp = messageTimestamp,
+                        variantIndex = variantIndex,
+                        visibility =
+                            com.ai.assistance.operit.data.model
+                                .ConversationAuditVisibility
+                                .TOMBSTONE,
+                        payloads =
+                            listOf(
+                                ConversationAuditPayloadInput.text(
+                                    label = "deleted_variant",
+                                    role = "ai",
+                                    value = deletedContent,
+                                )
+                            ),
+                    )
+                ) {
 
                 if (variantIndex == 0) {
                     val replacementVariant =
@@ -1064,6 +1365,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                         outputTokens = chat.outputTokens,
                         currentWindowSize = chat.currentWindowSize,
                     )
+                }
                 }
             } catch (e: Exception) {
                 AppLogger.e(
@@ -1176,6 +1478,22 @@ class ChatHistoryManager private constructor(private val context: Context) {
         }
     }
 
+    suspend fun reviseMessage(
+        chatId: String,
+        message: ChatMessage,
+    ) {
+        chatMutex(chatId).withLock {
+            conversationAuditRepository.reviseMessage(
+                ConversationMessageRevisionRequest(
+                    chatId = chatId,
+                    messageTimestamp = message.timestamp,
+                    variantIndex = message.selectedVariantIndex,
+                    newContent = message.content,
+                )
+            )
+        }
+    }
+
     suspend fun setMessageFavorite(chatId: String, timestamp: Long, isFavorite: Boolean) {
         chatMutex(chatId).withLock {
             try {
@@ -1210,24 +1528,63 @@ class ChatHistoryManager private constructor(private val context: Context) {
             }
             val nextVariantIndex =
                 chatContentDao.getVariantsForMessage(chatId, messageTimestamp).size + 1
-            messageVariantDao.insertVariant(
+            val variantEntity =
                 MessageVariantEntity.fromChatMessage(
                     chatId = chatId,
                     messageTimestamp = messageTimestamp,
                     variantIndex = nextVariantIndex,
                     message = message.copy(selectedVariantIndex = nextVariantIndex, variantCount = 1),
                 )
-            )
-            messageDao.updateSelectedVariantIndex(chatId, messageTimestamp, nextVariantIndex)
-            chatDao.getChatById(chatId)?.let { chat ->
-                chatDao.updateChatMetadata(
+            conversationAuditRepository.mutateAndAppendEvent(
+                ConversationAuditEventRequest(
                     chatId = chatId,
-                    title = chat.title,
-                    timestamp = System.currentTimeMillis(),
-                    inputTokens = chat.inputTokens,
-                    outputTokens = chat.outputTokens,
-                    currentWindowSize = chat.currentWindowSize
+                    category = "VARIANT",
+                    eventType = "VARIANT_CREATED",
+                    actor = "KIYORI",
+                    summary = "已保存重新生成的 AI 回答 variant $nextVariantIndex",
+                    messageTimestamp = messageTimestamp,
+                    variantIndex = nextVariantIndex,
+                    terminalState = "COMPLETED",
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "variant_content",
+                                role = "ai",
+                                value = variantEntity.content,
+                            ),
+                            ConversationAuditPayloadInput.text(
+                                label = "variant_metadata",
+                                role = "metadata",
+                                value =
+                                    JSONObject()
+                                        .put("provider", variantEntity.provider)
+                                        .put("modelName", variantEntity.modelName)
+                                        .put("inputTokens", variantEntity.inputTokens)
+                                        .put("outputTokens", variantEntity.outputTokens)
+                                        .put(
+                                            "cachedInputTokens",
+                                            variantEntity.cachedInputTokens,
+                                        )
+                                        .put("sentAt", variantEntity.sentAt)
+                                        .put("completedAt", variantEntity.completedAt)
+                                        .toString(),
+                                mediaType = "application/json",
+                            ),
+                        ),
                 )
+            ) {
+                messageVariantDao.insertVariant(variantEntity)
+                messageDao.updateSelectedVariantIndex(chatId, messageTimestamp, nextVariantIndex)
+                chatDao.getChatById(chatId)?.let { chat ->
+                    chatDao.updateChatMetadata(
+                        chatId = chatId,
+                        title = chat.title,
+                        timestamp = System.currentTimeMillis(),
+                        inputTokens = chat.inputTokens,
+                        outputTokens = chat.outputTokens,
+                        currentWindowSize = chat.currentWindowSize
+                    )
+                }
             }
             nextVariantIndex
         }
@@ -1239,8 +1596,11 @@ class ChatHistoryManager private constructor(private val context: Context) {
         selectedVariantIndex: Int,
     ) {
         chatMutex(chatId).withLock {
-            chatContentDao.getMessageByTimestamp(chatId, messageTimestamp)
-                ?: throw IllegalArgumentException("Message $messageTimestamp does not exist in chat $chatId")
+            val message =
+                chatContentDao.getMessageByTimestamp(chatId, messageTimestamp)
+                    ?: throw IllegalArgumentException(
+                        "Message $messageTimestamp does not exist in chat $chatId"
+                    )
             if (selectedVariantIndex > 0) {
                 chatContentDao.getVariantForMessage(
                     chatId,
@@ -1251,7 +1611,25 @@ class ChatHistoryManager private constructor(private val context: Context) {
                         "Variant $selectedVariantIndex does not exist for message $messageTimestamp",
                     )
             }
-            messageDao.updateSelectedVariantIndex(chatId, messageTimestamp, selectedVariantIndex)
+            conversationAuditRepository.mutateAndAppendEvent(
+                ConversationAuditEventRequest(
+                    chatId = chatId,
+                    category = "VARIANT",
+                    eventType = "VARIANT_SELECTED",
+                    actor = "USER",
+                    summary =
+                        "AI 回答 variant 从 ${message.selectedVariantIndex} 切换为 " +
+                            selectedVariantIndex,
+                    messageTimestamp = messageTimestamp,
+                    variantIndex = selectedVariantIndex,
+                )
+            ) {
+                messageDao.updateSelectedVariantIndex(
+                    chatId,
+                    messageTimestamp,
+                    selectedVariantIndex,
+                )
+            }
         }
     }
 
@@ -1268,8 +1646,56 @@ class ChatHistoryManager private constructor(private val context: Context) {
         chatMutex(chatId).withLock {
             try {
                 AppLogger.d(TAG, "正在从数据库删除消息. ChatId: $chatId, Timestamp >=: $timestamp")
-                messageVariantDao.deleteVariantsFrom(chatId, timestamp)
-                messageDao.deleteMessagesFrom(chatId, timestamp)
+                val messages = chatContentDao.getMessagesForChatFromTimestampAsc(chatId, timestamp)
+                val variants =
+                    if (messages.isEmpty()) {
+                        emptyList()
+                    } else {
+                        chatContentDao.getVariantsForMessages(
+                            chatId,
+                            messages.map { message -> message.timestamp },
+                        )
+                    }
+                conversationAuditRepository.mutateAndAppendEvent(
+                    ConversationAuditEventRequest(
+                        chatId = chatId,
+                        category = "DELETION",
+                        eventType = "MESSAGES_ROLLED_BACK",
+                        actor = "USER",
+                        summary = "从时间戳 $timestamp 起的 ${messages.size} 条消息已回滚",
+                        messageTimestamp = timestamp,
+                        visibility =
+                            com.ai.assistance.operit.data.model
+                                .ConversationAuditVisibility
+                                .TOMBSTONE,
+                        payloads =
+                            buildList {
+                                messages.forEach { message ->
+                                    add(
+                                        ConversationAuditPayloadInput.text(
+                                            label = "message_${message.timestamp}",
+                                            role = message.sender,
+                                            value = message.content,
+                                        )
+                                    )
+                                }
+                                variants.forEach { variant ->
+                                    add(
+                                        ConversationAuditPayloadInput.text(
+                                            label =
+                                                "variant_${variant.messageTimestamp}_" +
+                                                    variant.variantIndex,
+                                            role = "ai",
+                                            value = variant.content,
+                                        )
+                                    )
+                                }
+                            },
+                    )
+                ) {
+                    messageVariantDao.deleteVariantsFrom(chatId, timestamp)
+                    messageDao.deleteMessagesFrom(chatId, timestamp)
+                }
                 AppLogger.d(TAG, "后续消息从数据库删除成功.")
                 // 更新聊天元数据时间戳
                 chatDao.getChatById(chatId)?.let { chat ->
@@ -1301,8 +1727,47 @@ class ChatHistoryManager private constructor(private val context: Context) {
     suspend fun clearChatMessages(chatId: String) {
         chatMutex(chatId).withLock {
             try {
-                messageVariantDao.deleteAllVariantsForChat(chatId)
-                messageDao.deleteAllMessagesForChat(chatId)
+                val messages = chatContentDao.getMessagesForChat(chatId)
+                val variants = chatContentDao.getVariantsForChat(chatId)
+                conversationAuditRepository.mutateAndAppendEvent(
+                    ConversationAuditEventRequest(
+                        chatId = chatId,
+                        category = "DELETION",
+                        eventType = "MESSAGES_ROLLED_BACK",
+                        actor = "USER",
+                        summary = "当前对话的 ${messages.size} 条消息已全部清空",
+                        visibility =
+                            com.ai.assistance.operit.data.model
+                                .ConversationAuditVisibility
+                                .TOMBSTONE,
+                        payloads =
+                            buildList {
+                                messages.forEach { message ->
+                                    add(
+                                        ConversationAuditPayloadInput.text(
+                                            label = "message_${message.timestamp}",
+                                            role = message.sender,
+                                            value = message.content,
+                                        )
+                                    )
+                                }
+                                variants.forEach { variant ->
+                                    add(
+                                        ConversationAuditPayloadInput.text(
+                                            label =
+                                                "variant_${variant.messageTimestamp}_" +
+                                                    variant.variantIndex,
+                                            role = "ai",
+                                            value = variant.content,
+                                        )
+                                    )
+                                }
+                            },
+                    )
+                ) {
+                    messageVariantDao.deleteAllVariantsForChat(chatId)
+                    messageDao.deleteAllMessagesForChat(chatId)
+                }
                 // 更新聊天元数据
                 chatDao.getChatById(chatId)?.let { chat ->
                     chatDao.updateChatMetadata(
@@ -1423,6 +1888,7 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 }
                 // 删除聊天实体（级联删除所有消息）
                 chatDao.deleteChat(chatId)
+                conversationAuditRepository.cleanupUnreferencedPayloads()
 
                 // 如果删除的是当前聊天，清除当前聊天ID
                 val currentChatId = currentChatIdFlow.first()
@@ -1477,9 +1943,24 @@ class ChatHistoryManager private constructor(private val context: Context) {
                 characterGroupId = characterGroupId // 绑定群组角色卡ID（可选）
             )
 
-        // 保存新聊天
         val chatEntity = ChatEntity.fromChatHistory(newHistory)
-        chatDao.insertChat(chatEntity)
+        conversationAuditRepository.mutateAndAppendEvent(
+            ConversationAuditEventRequest(
+                chatId = newHistory.id,
+                category = "SESSION",
+                eventType = "CHAT_CREATED",
+                actor = "KIYORI",
+                summary = "已创建空对话",
+                occurredAt =
+                    newHistory
+                        .createdAt
+                        .atZone(ZoneId.systemDefault())
+                        .toInstant()
+                        .toEpochMilli(),
+            )
+        ) {
+            chatDao.insertChat(chatEntity)
+        }
 
         // 设置为当前聊天
         if (setAsCurrentChat) {
@@ -1721,21 +2202,122 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     )
 
                 chatDao.insertChat(branchEntity)
-
+                var parentBranchEvent:
+                    com.ai.assistance.operit.data.model.ConversationAuditEventEntity? = null
                 val copiedMessageCount =
-                    messageDao.countMessagesForChatUpToTimestamp(parentChatId, upToMessageTimestamp)
-                if (copiedMessageCount > 0) {
-                    messageDao.copyMessagesToChat(
-                        sourceChatId = parentChatId,
-                        targetChatId = branchEntity.id,
-                        upToTimestampInclusive = upToMessageTimestamp,
-                    )
-                    messageVariantDao.copyVariantsToChat(
-                        sourceChatId = parentChatId,
-                        targetChatId = branchEntity.id,
-                        upToTimestampInclusive = upToMessageTimestamp,
-                    )
-                }
+                    try {
+                        val messageCount =
+                            messageDao.countMessagesForChatUpToTimestamp(
+                                parentChatId,
+                                upToMessageTimestamp,
+                            )
+                        if (messageCount > 0) {
+                            messageDao.copyMessagesToChat(
+                                sourceChatId = parentChatId,
+                                targetChatId = branchEntity.id,
+                                upToTimestampInclusive = upToMessageTimestamp,
+                            )
+                            messageVariantDao.copyVariantsToChat(
+                                sourceChatId = parentChatId,
+                                targetChatId = branchEntity.id,
+                                upToTimestampInclusive = upToMessageTimestamp,
+                            )
+                        }
+                        conversationAuditRepository.inheritAuditForBranch(
+                            sourceChatId = parentChatId,
+                            targetChatId = branchEntity.id,
+                            upToMessageTimestampInclusive = upToMessageTimestamp,
+                            createdAt = branchEntity.createdAt,
+                        )
+                        conversationAuditRepository.seal(
+                            branchEntity.id,
+                            reason = "BRANCH_CREATED",
+                        )
+                        parentBranchEvent =
+                            conversationAuditRepository.appendEvent(
+                                ConversationAuditEventRequest(
+                                    chatId = parentChatId,
+                                    category = "BRANCH",
+                                    eventType = "BRANCH_CREATED",
+                                    actor = "USER",
+                                    summary = "已创建分支对话 ${branchEntity.id}",
+                                    sourceChatId = parentChatId,
+                                    payloads =
+                                        listOf(
+                                            ConversationAuditPayloadInput.text(
+                                                label = "branch",
+                                                role = "metadata",
+                                                value =
+                                                    """
+                                                    {
+                                                      "targetChatId": "${branchEntity.id}",
+                                                      "upToMessageTimestampInclusive": ${
+                                                        upToMessageTimestamp ?: "null"
+                                                    }
+                                                    }
+                                                    """.trimIndent(),
+                                                mediaType = "application/json",
+                                            )
+                                        ),
+                                )
+                            )
+                        conversationAuditRepository.seal(
+                            parentChatId,
+                            reason = "BRANCH_CREATED",
+                        )
+                        messageCount
+                    } catch (error: Exception) {
+                        try {
+                            chatDao.deleteChat(branchEntity.id)
+                            conversationAuditRepository.cleanupUnreferencedPayloads()
+                        } catch (cleanupError: Exception) {
+                            error.addSuppressed(cleanupError)
+                        }
+                        parentBranchEvent?.let { createdEvent ->
+                            try {
+                                conversationAuditRepository.appendEvent(
+                                    ConversationAuditEventRequest(
+                                        chatId = parentChatId,
+                                        category = "BRANCH",
+                                        eventType = "BRANCH_CREATION_ABORTED",
+                                        actor = "KIYORI",
+                                        summary =
+                                            "分支 ${branchEntity.id} 创建未完成，已删除目标对话",
+                                        sourceChatId = parentChatId,
+                                        sourceEventId = createdEvent.eventId,
+                                        visibility =
+                                            com.ai.assistance.operit.data.model
+                                                .ConversationAuditVisibility
+                                                .TOMBSTONE,
+                                        terminalState = "FAILED",
+                                        payloads =
+                                            listOf(
+                                                ConversationAuditPayloadInput.text(
+                                                    label = "branch_abort",
+                                                    role = "metadata",
+                                                    value =
+                                                        JSONObject()
+                                                            .put("targetChatId", branchEntity.id)
+                                                            .put(
+                                                                "failureType",
+                                                                error.javaClass.name,
+                                                            )
+                                                            .toString(),
+                                                    mediaType = "application/json",
+                                                )
+                                            ),
+                                    )
+                                )
+                                conversationAuditRepository.seal(
+                                    parentChatId,
+                                    reason = "BRANCH_CREATION_ABORTED",
+                                )
+                            } catch (compensationError: Exception) {
+                                error.addSuppressed(compensationError)
+                            }
+                        }
+                        throw error
+                    }
 
                 val branchHistory = branchEntity.toChatHistory(emptyList())
 
@@ -1987,7 +2569,19 @@ class ChatHistoryManager private constructor(private val context: Context) {
 
                 if (!isZipProcessed) {
                     AppLogger.d(TAG, "使用指定格式导入: $format")
-                    if (format == ChatFormat.OPERIT) {
+                    if (format == ChatFormat.KIYORI_AUDIT) {
+                        val existingIds = chatHistoriesFlow.first().map { it.id }.toMutableSet()
+                        val inputStream =
+                            context.contentResolver.openInputStream(uri)
+                                ?: return@withContext ChatImportResult(0, 0, 0)
+                        inputStream.use { stream ->
+                            AppLogger.d(TAG, "开始导入 Kiyori 对话审计包: uri=$uri")
+                            return@withContext importConversationAuditPackageStream(
+                                stream,
+                                existingIds,
+                            )
+                        }
+                    } else if (format == ChatFormat.OPERIT) {
                         val existingIds = chatHistoriesFlow.first().map { it.id }.toMutableSet()
                         val inputStream =
                             context.contentResolver.openInputStream(uri)
@@ -2061,6 +2655,10 @@ class ChatHistoryManager private constructor(private val context: Context) {
     private fun convertToOperitFormat(content: String, format: ChatFormat): List<ChatHistory> {
         return try {
             when (format) {
+                ChatFormat.KIYORI_AUDIT -> {
+                    throw ConversionException("Kiyori 对话审计包必须通过 ZIP 导入器读取")
+                }
+
                 ChatFormat.OPERIT -> {
                     parseLegacyOperitChatHistories(content)
                 }
@@ -2523,6 +3121,9 @@ class ChatHistoryManager private constructor(private val context: Context) {
                     chatDao.deleteUnlockedUnboundChats()
                 } else {
                     chatDao.deleteUnlockedChatsByCharacterCardName(sourceCharacterCardName)
+                }
+                if (deletedCount > 0) {
+                    conversationAuditRepository.cleanupUnreferencedPayloads()
                 }
 
                 val currentChatShouldBeCleared =

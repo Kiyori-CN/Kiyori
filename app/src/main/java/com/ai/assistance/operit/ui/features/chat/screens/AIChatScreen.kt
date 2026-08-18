@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.CodeOff
 import androidx.compose.material.icons.filled.Terminal
@@ -44,6 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.createSavedStateHandle
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.model.AITool
@@ -77,6 +79,7 @@ import com.ai.assistance.operit.ui.features.chat.webview.MentionSuggestionPanelS
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.WorkspaceScreen
 import com.ai.assistance.operit.ui.features.chat.webview.MentionSuggestionPanel
 import com.ai.assistance.operit.ui.features.chat.webview.computer.ComputerScreen
+import com.ai.assistance.operit.ui.features.chat.details.ConversationDetailsScreen
 import com.ai.assistance.operit.ui.features.chat.viewmodel.ChatViewModel
 import com.ai.assistance.operit.ui.features.chat.viewmodel.PendingMessageQueueState
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
@@ -141,7 +144,14 @@ fun AIChatScreen(
     val colorScheme = MaterialTheme.colorScheme
     val isCurrentScreen = LocalIsCurrentScreen.current
 // Correctly initialize ViewModel using the viewModel() composable function
-val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(context.applicationContext) }
+val actualViewModel: ChatViewModel =
+    viewModel
+        ?: viewModel {
+            ChatViewModel(
+                context = context.applicationContext,
+                savedStateHandle = createSavedStateHandle(),
+            )
+        }
 
     // 设置权限系统的颜色方案
     LaunchedEffect(colorScheme) { actualViewModel.setPermissionSystemColorScheme(colorScheme) }
@@ -786,10 +796,27 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     val showWebView by actualViewModel.showWebView.collectAsState()
     // 收集AI电脑显示状态
     val showAiComputer by actualViewModel.showAiComputer.collectAsState()
+    val showConversationDetails by actualViewModel.showConversationDetails.collectAsState()
+    val conversationAudit by actualViewModel.currentConversationAudit.collectAsState()
+    val conversationAuditEvents by
+        actualViewModel.currentConversationAuditEvents.collectAsState()
+    val conversationAuditMessages by
+        actualViewModel.currentConversationAuditMessages.collectAsState()
+    val hasOlderConversationAuditEvents by
+        actualViewModel.hasOlderConversationAuditEvents.collectAsState()
+    val isLoadingOlderConversationAuditEvents by
+        actualViewModel.isLoadingOlderConversationAuditEvents.collectAsState()
+    val conversationAuditStoredBytes by
+        actualViewModel.currentConversationAuditStoredBytes.collectAsState()
+    val hasConversationAuditWarning =
+        conversationAudit?.completenessStatus?.let { status ->
+            status != "COMPLETE" && status != "IN_PROGRESS"
+        } == true
     val shouldUseChatLocalImeHandling =
         inputStyle == UserPreferencesManager.INPUT_STYLE_AGENT &&
             !showWebView &&
-            !showAiComputer
+            !showAiComputer &&
+            !showConversationDetails
     var hasEverShownWebView by remember { mutableStateOf(false) }
     LaunchedEffect(showWebView, isWorkspacePreparing) {
         if (showWebView || isWorkspacePreparing) {
@@ -841,16 +868,26 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     }
 
 
-    // 当showWebView或showAiComputer状态改变时，更新TopAppBar的actions
+    // 四个入口保持固定顺序；面板状态由 ChatViewModel 的单一 owner 驱动。
     // 使用DisposableEffect确保当AIChatScreen离开组合时，actions被清空
-    LaunchedEffect(isCurrentScreen, showWebView, showAiComputer, isWorkspacePreparing, hasBoundWorkspace) {
+    LaunchedEffect(
+        isCurrentScreen,
+        showWebView,
+        showAiComputer,
+        showConversationDetails,
+        hasConversationAuditWarning,
+        isWorkspacePreparing,
+        hasBoundWorkspace,
+    ) {
         if (isCurrentScreen) {
             setTopBarActions {
                 val browserColors = KiyoriSemanticTone.BLUE.resolveColors()
                 val terminalColors = KiyoriSemanticTone.CYAN.resolveColors()
+                val detailsColors = KiyoriSemanticTone.ORANGE.resolveColors()
                 val workspaceColors = KiyoriSemanticTone.PURPLE.resolveColors()
                 // 共享浏览器入口：进入 Browser Home 时只转挂现有 WebSession，不创建第二个 WebView。
                 IconButton(
+                        modifier = Modifier.size(40.dp),
                         enabled = !isWorkspacePreparing,
                         onClick = openBrowser,
                         colors =
@@ -867,6 +904,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
 
                 // AI电脑模式切换按钮
                 IconButton(
+                        modifier = Modifier.size(40.dp),
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onAiComputerButtonClick()
@@ -890,8 +928,43 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
                     )
                 }
 
+                IconButton(
+                        modifier = Modifier.size(40.dp),
+                        enabled = !isWorkspacePreparing,
+                        onClick = {
+                            actualViewModel.onConversationDetailsButtonClick()
+                        },
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                containerColor =
+                                    if (showConversationDetails) {
+                                        detailsColors.container
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                contentColor = detailsColors.icon,
+                                disabledContainerColor = Color.Transparent,
+                                disabledContentColor = detailsColors.icon.copy(alpha = 0.38f),
+                            ),
+                ) {
+                    BadgedBox(
+                        badge = {
+                            if (hasConversationAuditWarning) {
+                                Badge()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Article,
+                            contentDescription =
+                                stringResource(R.string.conversation_details_title),
+                        )
+                    }
+                }
+
                 // Web开发模式切换按钮
                 IconButton(
+                        modifier = Modifier.size(40.dp),
                         enabled = !isWorkspacePreparing,
                         onClick = {
                             actualViewModel.onWorkspaceButtonClick()
@@ -1334,6 +1407,28 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
             ) {
                 ComputerScreen()
             }
+        }
+
+        if (showConversationDetails) {
+            ConversationDetailsScreen(
+                audit = conversationAudit,
+                events = conversationAuditEvents,
+                messages = conversationAuditMessages,
+                storedPayloadBytes = conversationAuditStoredBytes,
+                hasOlderEvents = hasOlderConversationAuditEvents,
+                isLoadingOlderEvents = isLoadingOlderConversationAuditEvents,
+                isGenerating = isLoading,
+                onEditMessage = actualViewModel::reviseConversationAuditMessage,
+                onLoadPayloads = actualViewModel::loadConversationAuditPayloads,
+                onLoadOlderEvents = actualViewModel::loadOlderConversationAuditEvents,
+                onExport = actualViewModel::exportCurrentConversationAudit,
+                onAddAnnotation = actualViewModel::addConversationAuditAnnotation,
+                onClose = { actualViewModel.closeActiveChatPanel() },
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clipToBounds(),
+            )
         }
 
         AnimatedVisibility(
@@ -1856,6 +1951,7 @@ private fun ChatInputBottomBar(
                 }
             }
         }
+
     }
 
     fun enqueueDraftToPendingQueue() {

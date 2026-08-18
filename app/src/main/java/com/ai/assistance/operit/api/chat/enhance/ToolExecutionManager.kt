@@ -16,6 +16,10 @@ import com.ai.assistance.operit.data.model.ToolInvocation
 import com.ai.assistance.operit.data.model.ToolInvocationLedgerEntity
 import com.ai.assistance.operit.data.model.ToolInvocationStatus
 import com.ai.assistance.operit.data.model.ToolResult
+import com.ai.assistance.operit.data.audit.ConversationAuditEventRequest
+import com.ai.assistance.operit.data.audit.ConversationAuditPayloadInput
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.model.ConversationAuditCompletenessStatus
 import com.ai.assistance.operit.data.repository.ProviderExecutionRepository
 import com.ai.assistance.operit.data.repository.ToolInvocationClaim
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
@@ -579,6 +583,19 @@ object ToolExecutionManager {
         callerCardId: String? = null
     ): List<ToolResult> = coroutineScope {
         val normalizedInvocations = normalizeProviderInvocations(invocations)
+        val auditedChatId = callerChatId?.takeIf { chatId -> chatId.isNotBlank() }
+        val conversationAuditRepository =
+            auditedChatId?.let { ConversationAuditRepository.from(context) }
+        auditedChatId?.let { chatId ->
+            val repository = requireNotNull(conversationAuditRepository)
+            normalizedInvocations.forEach { invocation ->
+                appendToolRequestAudit(
+                    repository = repository,
+                    chatId = chatId,
+                    invocation = invocation,
+                )
+            }
+        }
         if (normalizedInvocations.size != invocations.size) {
             AppLogger.w(
                 TAG,
@@ -629,6 +646,14 @@ object ToolExecutionManager {
                 toolExposurePermittedInvocations.add(invocation)
             } else {
                 toolExposureDeniedResults.add(deniedResult)
+                appendToolResultAudit(
+                    repository = conversationAuditRepository,
+                    chatId = callerChatId,
+                    invocation = invocation,
+                    result = deniedResult,
+                    eventType = "TOOL_CALL_FAILED",
+                    summary = "工具调用被工具暴露策略拒绝",
+                )
                 toolHandler.notifyToolExecutionResult(invocation.tool, deniedResult)
                 val toolResultStatusContent =
                     ConversationMarkupManager.formatToolResultForMessage(deniedResult)
@@ -652,6 +677,14 @@ object ToolExecutionManager {
                 roleCardPermittedInvocations.add(invocation)
             } else {
                 roleCardDeniedResults.add(deniedResult)
+                appendToolResultAudit(
+                    repository = conversationAuditRepository,
+                    chatId = callerChatId,
+                    invocation = invocation,
+                    result = deniedResult,
+                    eventType = "TOOL_CALL_FAILED",
+                    summary = "工具调用被角色卡权限策略拒绝",
+                )
                 toolHandler.notifyToolExecutionResult(invocation.tool, deniedResult)
                 val toolResultStatusContent =
                     ConversationMarkupManager.formatToolResultForMessage(deniedResult)
@@ -675,6 +708,14 @@ object ToolExecutionManager {
                     } else {
                         errorResult?.let {
                             permissionDeniedResults.add(it)
+                            appendToolResultAudit(
+                                repository = conversationAuditRepository,
+                                chatId = callerChatId,
+                                invocation = invocation,
+                                result = it,
+                                eventType = "TOOL_CALL_FAILED",
+                                summary = "工具调用未获得所需权限",
+                            )
                             val toolResultStatusContent =
                                 ConversationMarkupManager.formatToolResultForMessage(it)
                             collector.emit(ensureEndsWithNewline(toolResultStatusContent))
@@ -689,6 +730,14 @@ object ToolExecutionManager {
                             interception
                         )
                     hookDeniedResults.add(interceptedResult)
+                    appendToolResultAudit(
+                        repository = conversationAuditRepository,
+                        chatId = callerChatId,
+                        invocation = invocation,
+                        result = interceptedResult,
+                        eventType = "TOOL_CALL_FAILED",
+                        summary = "工具调用被 Tool Hook 拦截",
+                    )
                     toolHandler.notifyToolExecutionResult(invocation.tool, interceptedResult)
                     toolHandler.notifyToolExecutionFinished(invocation.tool)
                     val toolResultStatusContent =
@@ -740,6 +789,8 @@ object ToolExecutionManager {
                         collector = collector,
                         runtimeContext = toolRuntimeContext,
                         providerExecutionRepository = providerExecutionRepository,
+                        conversationAuditRepository = conversationAuditRepository,
+                        callerChatId = callerChatId,
                     )
                 executionResults[invocation] = result
             }
@@ -755,6 +806,8 @@ object ToolExecutionManager {
                     collector = collector,
                     runtimeContext = toolRuntimeContext,
                     providerExecutionRepository = providerExecutionRepository,
+                    conversationAuditRepository = conversationAuditRepository,
+                    callerChatId = callerChatId,
                 )
             executionResults[invocation] = result
         }
@@ -783,6 +836,8 @@ object ToolExecutionManager {
         collector: StreamCollector<String>,
         runtimeContext: ToolRuntimeContext,
         providerExecutionRepository: ProviderExecutionRepository?,
+        conversationAuditRepository: ConversationAuditRepository?,
+        callerChatId: String?,
     ): ToolResult {
         val toolName = invocation.tool.name
         val displayToolName = resolveDisplayToolName(invocation.tool)
@@ -800,12 +855,28 @@ object ToolExecutionManager {
                     null -> Unit
                     is ToolLedgerClaim.Execute -> ledgerIdentity = ledgerClaim.identity
                     is ToolLedgerClaim.Reuse -> {
+                        appendToolResultAudit(
+                            repository = conversationAuditRepository,
+                            chatId = callerChatId,
+                            invocation = invocation,
+                            result = ledgerClaim.result,
+                            eventType = "TOOL_CALL_REUSED",
+                            summary = "复用已持久化的工具执行结果",
+                        )
                         emitToolResult(ledgerClaim.result, collector)
                         toolHandler.notifyToolExecutionResult(invocation.tool, ledgerClaim.result)
                         return@withContext ledgerClaim.result
                     }
 
                     is ToolLedgerClaim.DoNotExecute -> {
+                        appendToolResultAudit(
+                            repository = conversationAuditRepository,
+                            chatId = callerChatId,
+                            invocation = invocation,
+                            result = ledgerClaim.result,
+                            eventType = "TOOL_CALL_FAILED",
+                            summary = "工具账本拒绝重复执行",
+                        )
                         emitToolResult(ledgerClaim.result, collector)
                         toolHandler.notifyToolExecutionResult(invocation.tool, ledgerClaim.result)
                         return@withContext ledgerClaim.result
@@ -818,7 +889,6 @@ object ToolExecutionManager {
                         buildToolNotAvailableErrorMessage(toolName, packageManager, toolHandler)
                     val notAvailableContent =
                         ConversationMarkupManager.createToolNotAvailableError(toolName, errorMessage)
-                    collector.emit(ensureEndsWithNewline(notAvailableContent))
                     val notAvailableResult =
                         ToolResult(
                             toolName = displayToolName,
@@ -826,6 +896,15 @@ object ToolExecutionManager {
                             result = StringResultData(""),
                             error = errorMessage
                         )
+                    appendToolResultAudit(
+                        repository = conversationAuditRepository,
+                        chatId = callerChatId,
+                        invocation = invocation,
+                        result = notAvailableResult,
+                        eventType = "TOOL_CALL_FAILED",
+                        summary = "工具不可用",
+                    )
+                    collector.emit(ensureEndsWithNewline(notAvailableContent))
                     toolHandler.notifyToolExecutionResult(invocation.tool, notAvailableResult)
                     completeToolLedger(
                         repository = providerExecutionRepository,
@@ -837,10 +916,23 @@ object ToolExecutionManager {
                 }
 
                 toolHandler.notifyToolExecutionStarted(invocation.tool)
+                appendToolStartedAudit(
+                    repository = conversationAuditRepository,
+                    chatId = callerChatId,
+                    invocation = invocation,
+                )
 
                 val collectedResults = mutableListOf<ToolResult>()
                 executeToolSafely(invocation, executor, toolHandler).collect { result ->
                     collectedResults.add(result)
+                    appendToolResultAudit(
+                        repository = conversationAuditRepository,
+                        chatId = callerChatId,
+                        invocation = invocation,
+                        result = result,
+                        eventType = "TOOL_RESULT_EMITTED",
+                        summary = "工具返回了一个语义结果",
+                    )
                     // 实时输出每个结果
                     val toolResultStatusContent =
                         ConversationMarkupManager.formatToolResultForMessage(result)
@@ -856,6 +948,14 @@ object ToolExecutionManager {
                             result = StringResultData(""),
                             error = "The tool execution returned no results."
                         )
+                    appendToolResultAudit(
+                        repository = conversationAuditRepository,
+                        chatId = callerChatId,
+                        invocation = invocation,
+                        result = emptyResult,
+                        eventType = "TOOL_CALL_FAILED",
+                        summary = "工具执行未返回结果",
+                    )
                     toolHandler.notifyToolExecutionResult(invocation.tool, emptyResult)
                     completeToolLedger(
                         repository = providerExecutionRepository,
@@ -878,6 +978,24 @@ object ToolExecutionManager {
                         result = StringResultData(combinedResultString),
                         error = lastResult.error
                     )
+                appendToolResultAudit(
+                    repository = conversationAuditRepository,
+                    chatId = callerChatId,
+                    invocation = invocation,
+                    result = finalResult,
+                    eventType =
+                        if (finalResult.success) {
+                            "TOOL_CALL_COMPLETED"
+                        } else {
+                            "TOOL_CALL_FAILED"
+                        },
+                    summary =
+                        if (finalResult.success) {
+                            "工具调用已完成"
+                        } else {
+                            "工具调用以失败结果完成"
+                        },
+                )
                 toolHandler.notifyToolExecutionResult(invocation.tool, finalResult)
                 completeToolLedger(
                     repository = providerExecutionRepository,
@@ -893,6 +1011,35 @@ object ToolExecutionManager {
                         identity = ledgerIdentity,
                         error = error,
                     )
+                }
+                if (conversationAuditRepository != null && !callerChatId.isNullOrBlank()) {
+                    try {
+                        conversationAuditRepository.appendEvent(
+                            ConversationAuditEventRequest(
+                                chatId = callerChatId,
+                                category = "TOOL",
+                                eventType = "TOOL_CALL_FAILED",
+                                actor = "KIYORI",
+                                summary = "工具执行抛出异常：$displayToolName",
+                                providerCallId = invocation.providerCallId,
+                                terminalState = "FAILED",
+                                completeness =
+                                    ConversationAuditCompletenessStatus.IN_PROGRESS,
+                                payloads =
+                                    listOf(
+                                        ConversationAuditPayloadInput.text(
+                                            label = "tool_error",
+                                            role = "error",
+                                            value = error.stackTraceToString(),
+                                            mediaType = "text/x-java-stacktrace",
+                                        )
+                                ),
+                            )
+                        )
+                    } catch (auditError: Exception) {
+                        error.addSuppressed(auditError)
+                        AppLogger.e(TAG, "工具异常审计写入失败", auditError)
+                    }
                 }
                 throw error
             } finally {
@@ -1044,6 +1191,93 @@ object ToolExecutionManager {
     ) {
         val content = ConversationMarkupManager.formatToolResultForMessage(result)
         collector.emit(ensureEndsWithNewline(content))
+    }
+
+    private suspend fun appendToolRequestAudit(
+        repository: ConversationAuditRepository,
+        chatId: String,
+        invocation: ToolInvocation,
+    ) {
+        repository.appendEvent(
+            ConversationAuditEventRequest(
+                chatId = chatId,
+                category = "TOOL",
+                eventType = "TOOL_CALL_REQUESTED",
+                actor = "PROVIDER",
+                summary = "Provider 请求调用工具：${resolveDisplayToolName(invocation.tool)}",
+                providerCallId = invocation.providerCallId,
+                completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                payloads =
+                    listOf(
+                        ConversationAuditPayloadInput.text(
+                            label = "tool_arguments",
+                            role = "tool",
+                            value = canonicalToolArguments(invocation),
+                            mediaType = "application/json",
+                        )
+                    ),
+            )
+        )
+    }
+
+    private suspend fun appendToolStartedAudit(
+        repository: ConversationAuditRepository?,
+        chatId: String?,
+        invocation: ToolInvocation,
+    ) {
+        if (repository == null || chatId.isNullOrBlank()) {
+            return
+        }
+        repository.appendEvent(
+            ConversationAuditEventRequest(
+                chatId = chatId,
+                category = "TOOL",
+                eventType = "TOOL_CALL_STARTED",
+                actor = "KIYORI",
+                summary = "开始执行工具：${resolveDisplayToolName(invocation.tool)}",
+                providerCallId = invocation.providerCallId,
+                completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+            )
+        )
+    }
+
+    private suspend fun appendToolResultAudit(
+        repository: ConversationAuditRepository?,
+        chatId: String?,
+        invocation: ToolInvocation,
+        result: ToolResult,
+        eventType: String,
+        summary: String,
+    ) {
+        if (repository == null || chatId.isNullOrBlank()) {
+            return
+        }
+        repository.appendEvent(
+            ConversationAuditEventRequest(
+                chatId = chatId,
+                category = "TOOL",
+                eventType = eventType,
+                actor = "KIYORI",
+                summary = "$summary：${resolveDisplayToolName(invocation.tool)}",
+                providerCallId = invocation.providerCallId,
+                terminalState =
+                    when (eventType) {
+                        "TOOL_CALL_COMPLETED", "TOOL_CALL_REUSED" -> "COMPLETED"
+                        "TOOL_CALL_FAILED" -> "FAILED"
+                        else -> null
+                    },
+                completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                payloads =
+                    listOf(
+                        ConversationAuditPayloadInput.text(
+                            label = "tool_result",
+                            role = "tool",
+                            value = encodeToolResult(result),
+                            mediaType = "application/json",
+                        )
+                    ),
+            )
+        )
     }
 
     private fun canonicalToolArguments(invocation: ToolInvocation): String {

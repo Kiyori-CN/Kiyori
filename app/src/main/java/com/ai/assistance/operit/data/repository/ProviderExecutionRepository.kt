@@ -2,6 +2,9 @@ package com.ai.assistance.operit.data.repository
 
 import android.content.Context
 import androidx.room.withTransaction
+import com.ai.assistance.operit.data.audit.ConversationAuditEventRequest
+import com.ai.assistance.operit.data.audit.ConversationAuditPayloadInput
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
 import com.ai.assistance.operit.data.dao.ProviderEventAppendOutcome
 import com.ai.assistance.operit.data.dao.ToolInvocationRegistration
 import com.ai.assistance.operit.data.db.AppDatabase
@@ -12,6 +15,7 @@ import com.ai.assistance.operit.data.model.ProviderExecutionStatus
 import com.ai.assistance.operit.data.model.ToolInvocationLedgerEntity
 import com.ai.assistance.operit.data.model.ToolInvocationStatus
 import java.security.MessageDigest
+import org.json.JSONObject
 
 /**
  * provider execution、事件游标、消息私有状态和工具账本的唯一写入入口。
@@ -20,6 +24,7 @@ import java.security.MessageDigest
  */
 class ProviderExecutionRepository private constructor(
     private val database: AppDatabase,
+    private val conversationAuditRepository: ConversationAuditRepository,
 ) {
     private val executionDao = database.providerExecutionDao()
     private val messageStateDao = database.messageProviderStateDao()
@@ -57,7 +62,38 @@ class ProviderExecutionRepository private constructor(
             "A newly compiled execution cannot have an applied provider event"
         }
 
-        database.withTransaction {
+        conversationAuditRepository.mutateAndAppendEvent(
+            ConversationAuditEventRequest(
+                chatId = execution.chatId,
+                category = "PROVIDER",
+                eventType = "PROVIDER_EXECUTION_CREATED",
+                actor = "KIYORI",
+                summary = "已创建可恢复的 Provider execution",
+                messageTimestamp = execution.messageTimestamp,
+                variantIndex = execution.variantIndex,
+                localExecutionId = execution.localExecutionId,
+                completeness =
+                    com.ai.assistance.operit.data.model
+                        .ConversationAuditCompletenessStatus
+                        .IN_PROGRESS,
+                payloads =
+                    listOf(
+                        ConversationAuditPayloadInput.text(
+                            label = "execution",
+                            role = "metadata",
+                            value =
+                                JSONObject()
+                                    .put("provider", execution.provider)
+                                    .put("modelName", execution.modelName)
+                                    .put("transportKind", execution.transportKind)
+                                    .put("requestFingerprint", execution.requestFingerprint)
+                                    .put("hopOrdinal", execution.hopOrdinal)
+                                    .toString(),
+                            mediaType = "application/json",
+                        )
+                    ),
+            )
+        ) {
             executionDao.insertExecution(execution)
             executionDao.insertMessageProviderState(initialMessageState)
         }
@@ -87,14 +123,44 @@ class ProviderExecutionRepository private constructor(
                 payloadSha256 = sha256(payloadJson),
                 receivedAt = receivedAt,
             )
-        return executionDao.appendEventAndAdvance(
-            event = event,
-            nextMessageState = nextMessageState,
-            terminalEventType = terminalEventType,
-            lastErrorCode = lastErrorCode,
-            lastErrorMessage = lastErrorMessage,
-            completedAt = completedAt,
-        )
+        val status = ProviderExecutionStatus.valueOf(nextMessageState.status)
+        return conversationAuditRepository
+            .mutateAndAppendEvent(
+                ConversationAuditEventRequest(
+                    chatId = nextMessageState.chatId,
+                    category = "PROVIDER",
+                    eventType = "PROVIDER_EVENT_RECEIVED",
+                    actor = "PROVIDER",
+                    summary = "收到 Provider 语义事件：$eventType",
+                    messageTimestamp = nextMessageState.messageTimestamp,
+                    variantIndex = nextMessageState.variantIndex,
+                    localExecutionId = localExecutionId,
+                    providerCallId = remoteResponseId,
+                    terminalState = terminalEventType,
+                    completeness = auditCompleteness(status),
+                    failureCode = lastErrorCode,
+                    occurredAt = receivedAt,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "provider_event",
+                                role = "provider",
+                                value = payloadJson,
+                                mediaType = "application/json",
+                            )
+                        ),
+                )
+            ) {
+                executionDao.appendEventAndAdvance(
+                    event = event,
+                    nextMessageState = nextMessageState,
+                    terminalEventType = terminalEventType,
+                    lastErrorCode = lastErrorCode,
+                    lastErrorMessage = lastErrorMessage,
+                    completedAt = completedAt,
+                )
+            }
+            .value
     }
 
     suspend fun getExecution(localExecutionId: String): ProviderExecutionEntity? =
@@ -146,7 +212,47 @@ class ProviderExecutionRepository private constructor(
         completedAt: Long? = null,
         updatedAt: Long = System.currentTimeMillis(),
     ) {
-        database.withTransaction {
+        val execution =
+            requireNotNull(executionDao.getExecution(localExecutionId)) {
+                "Provider execution not found: $localExecutionId"
+            }
+        conversationAuditRepository.mutateAndAppendEvent(
+            ConversationAuditEventRequest(
+                chatId = execution.chatId,
+                category = "PROVIDER",
+                eventType = "PROVIDER_STATUS_CHANGED",
+                actor = "KIYORI",
+                summary = "Provider execution 状态变更为 ${status.name}",
+                messageTimestamp = execution.messageTimestamp,
+                variantIndex = execution.variantIndex,
+                localExecutionId = localExecutionId,
+                terminalState =
+                    status
+                        .takeIf {
+                            it == ProviderExecutionStatus.COMPLETED ||
+                                it == ProviderExecutionStatus.FAILED ||
+                                it == ProviderExecutionStatus.INCOMPLETE ||
+                                it == ProviderExecutionStatus.CANCELLED ||
+                                it == ProviderExecutionStatus.EXPIRED
+                        }
+                        ?.name,
+                completeness = auditCompleteness(status),
+                failureCode = lastErrorCode,
+                occurredAt = updatedAt,
+                payloads =
+                    if (lastErrorMessage.isNullOrBlank()) {
+                        emptyList()
+                    } else {
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "provider_error",
+                                role = "error",
+                                value = lastErrorMessage,
+                            )
+                        )
+                    },
+            )
+        ) {
             val updated =
                 executionDao.updateExecutionStatus(
                     localExecutionId = localExecutionId,
@@ -171,25 +277,62 @@ class ProviderExecutionRepository private constructor(
         localExecutionId: String,
         updatedAt: Long = System.currentTimeMillis(),
     ): ProviderExecutionEntity {
-        database.withTransaction {
-            val updated =
-                executionDao.incrementResumeCount(
+        val execution =
+            requireNotNull(executionDao.getExecution(localExecutionId)) {
+                "Provider execution not found: $localExecutionId"
+            }
+        return conversationAuditRepository
+            .mutateAndAppendEvent(
+                ConversationAuditEventRequest(
+                    chatId = execution.chatId,
+                    category = "PROVIDER",
+                    eventType = "PROVIDER_RESUME_STARTED",
+                    actor = "KIYORI",
+                    summary = "开始续接同一 Provider response",
+                    messageTimestamp = execution.messageTimestamp,
+                    variantIndex = execution.variantIndex,
+                    localExecutionId = localExecutionId,
+                    providerCallId = execution.remoteResponseId,
+                    completeness =
+                        com.ai.assistance.operit.data.model
+                            .ConversationAuditCompletenessStatus
+                            .IN_PROGRESS,
+                    occurredAt = updatedAt,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "resume",
+                                role = "metadata",
+                                value =
+                                    JSONObject()
+                                        .put("previousStatus", execution.status)
+                                        .put("previousResumeCount", execution.resumeCount)
+                                        .put("remoteResponseId", execution.remoteResponseId)
+                                        .toString(),
+                                mediaType = "application/json",
+                            )
+                        ),
+                )
+            ) {
+                val updated =
+                    executionDao.incrementResumeCount(
+                        localExecutionId = localExecutionId,
+                        status = ProviderExecutionStatus.RESUMING.name,
+                        updatedAt = updatedAt,
+                    )
+                if (updated != 1) {
+                    error(
+                        "Provider execution $localExecutionId cannot resume before a remote response ID is known"
+                    )
+                }
+                executionDao.updateMessageProviderStateStatus(
                     localExecutionId = localExecutionId,
                     status = ProviderExecutionStatus.RESUMING.name,
                     updatedAt = updatedAt,
                 )
-            if (updated != 1) {
-                error(
-                    "Provider execution $localExecutionId cannot resume before a remote response ID is known"
-                )
+                requireNotNull(executionDao.getExecution(localExecutionId))
             }
-            executionDao.updateMessageProviderStateStatus(
-                localExecutionId = localExecutionId,
-                status = ProviderExecutionStatus.RESUMING.name,
-                updatedAt = updatedAt,
-            )
-        }
-        return requireNotNull(executionDao.getExecution(localExecutionId))
+            .value
     }
 
     suspend fun registerToolInvocation(
@@ -281,11 +424,38 @@ class ProviderExecutionRepository private constructor(
             .digest(value.toByteArray(Charsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(byte) }
 
+    private fun auditCompleteness(
+        status: ProviderExecutionStatus,
+    ): com.ai.assistance.operit.data.model.ConversationAuditCompletenessStatus =
+        when (status) {
+            ProviderExecutionStatus.COMPLETED ->
+                com.ai.assistance.operit.data.model
+                    .ConversationAuditCompletenessStatus
+                    .COMPLETE
+
+            ProviderExecutionStatus.FAILED,
+            ProviderExecutionStatus.INCOMPLETE,
+            ProviderExecutionStatus.CANCELLED,
+            ProviderExecutionStatus.EXPIRED ->
+                com.ai.assistance.operit.data.model
+                    .ConversationAuditCompletenessStatus
+                    .PARTIAL
+
+            else ->
+                com.ai.assistance.operit.data.model
+                    .ConversationAuditCompletenessStatus
+                    .IN_PROGRESS
+        }
+
     companion object {
-        fun from(context: Context): ProviderExecutionRepository =
-            ProviderExecutionRepository(
-                AppDatabase.getDatabase(context.applicationContext)
+        fun from(context: Context): ProviderExecutionRepository {
+            val applicationContext = context.applicationContext
+            return ProviderExecutionRepository(
+                database = AppDatabase.getDatabase(applicationContext),
+                conversationAuditRepository =
+                    ConversationAuditRepository.from(applicationContext),
             )
+        }
     }
 }
 

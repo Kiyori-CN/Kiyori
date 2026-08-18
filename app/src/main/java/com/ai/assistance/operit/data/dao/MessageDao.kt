@@ -199,6 +199,15 @@ interface MessageDao {
     @Query("UPDATE messages SET content = :content WHERE messageId = :messageId")
     suspend fun updateMessageContent(messageId: Long, content: String)
 
+    @Query(
+        "UPDATE messages SET content = :content WHERE chatId = :chatId AND timestamp = :timestamp"
+    )
+    suspend fun updateMessageContentByTimestamp(
+        chatId: String,
+        timestamp: Long,
+        content: String,
+    ): Int
+
     /** 更新整条消息 */
     @Update
     suspend fun updateMessage(message: MessageEntity)

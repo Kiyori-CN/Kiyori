@@ -19,6 +19,10 @@ import com.ai.assistance.operit.core.chat.logMessageTiming
 import com.ai.assistance.operit.core.chat.messageTimingNow
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.agent.PhoneAgentJobRegistry
+import com.ai.assistance.operit.data.audit.ConversationAuditEventRequest
+import com.ai.assistance.operit.data.audit.ConversationAuditPayloadInput
+import com.ai.assistance.operit.data.audit.ConversationAuditRepository
+import com.ai.assistance.operit.data.audit.resolveConversationAuditTextChange
 import com.ai.assistance.operit.data.model.*
 import com.ai.assistance.operit.data.model.InputProcessingState as EnhancedInputProcessingState
 import com.ai.assistance.operit.data.model.PromptFunctionType
@@ -59,6 +63,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.ai.assistance.operit.core.tools.ToolProgressBus
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
@@ -173,6 +179,9 @@ class MessageProcessingDelegate(
     
     // 功能配置管理器，用于获取正确的模型配置ID
     private val functionalConfigManager = FunctionalConfigManager(context)
+    private val conversationAuditRepository = ConversationAuditRepository.from(context)
+    private val conversationAuditGson: Gson =
+        GsonBuilder().disableHtmlEscaping().serializeNulls().create()
 
     private val _userMessage = MutableStateFlow(TextFieldValue(""))
     val userMessage: StateFlow<TextFieldValue> = _userMessage.asStateFlow()
@@ -319,6 +328,7 @@ class MessageProcessingDelegate(
         var finalInputStateAfterSend: EnhancedInputProcessingState? = null
         var cancellationToPropagate: kotlinx.coroutines.CancellationException? = null
         var receivedChunkCount: Int = 0
+        var lastAuditedContent: String = ""
         var terminalOutcome: String = "unknown"
         var terminalCancellationSource: AssistantTurnCancellationSource? = null
         var providerRequestContextPresent: Boolean = false
@@ -972,6 +982,48 @@ class MessageProcessingDelegate(
                         } else {
                             "unexpected_cancelled"
                         }
+                    if (state.effectivePersistTurn) {
+                        withContext(NonCancellable) {
+                            runCatching {
+                                conversationAuditRepository.appendEvent(
+                                    ConversationAuditEventRequest(
+                                        chatId = state.chatId,
+                                        category = "PROVIDER",
+                                        eventType = "PROVIDER_TERMINAL",
+                                        actor = "KIYORI",
+                                        summary =
+                                            "回合已取消，来源为 ${cancellation.source.name}",
+                                        messageTimestamp =
+                                            state.aiMessage.timestamp.takeIf { it > 0L },
+                                        variantIndex = 0,
+                                        terminalState = "CANCELLED",
+                                        completeness =
+                                            ConversationAuditCompletenessStatus.PARTIAL,
+                                        payloads =
+                                            listOf(
+                                                ConversationAuditPayloadInput.text(
+                                                    label = "cancellation",
+                                                    role = "error",
+                                                    value = e.stackTraceToString(),
+                                                    mediaType =
+                                                        "text/x-java-stacktrace",
+                                                )
+                                            ),
+                                    )
+                                )
+                                conversationAuditRepository.seal(
+                                    state.chatId,
+                                    reason = "TURN_CANCELLED",
+                                )
+                            }.onFailure { auditError ->
+                                AppLogger.e(
+                                    TAG,
+                                    "取消回合的审计终态写入失败",
+                                    auditError,
+                                )
+                            }
+                        }
+                    }
                 } else {
                     handleAssistantTurnFailure(state, e)
                 }
@@ -1107,6 +1159,52 @@ class MessageProcessingDelegate(
             }
 
         AppLogger.d(TAG, "开始处理用户消息：附件数量=${state.attachments.size}")
+        if (state.effectivePersistTurn) {
+            conversationAuditRepository.appendEvent(
+                ConversationAuditEventRequest(
+                    chatId = state.chatId,
+                    category = "USER",
+                    eventType = "USER_INPUT_SUBMITTED",
+                    actor = "USER",
+                    summary = "用户提交了原始输入",
+                    completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "raw_input",
+                                role = "user",
+                                value = state.originalMessageText,
+                            ),
+                            ConversationAuditPayloadInput.text(
+                                label = "submission_context",
+                                role = "context",
+                                value =
+                                    conversationAuditGson.toJson(
+                                        mapOf(
+                                            "proxySenderName" to
+                                                state.proxySenderNameOverride,
+                                            "replyToMessageTimestamp" to
+                                                state.replyToMessage?.timestamp,
+                                            "workspacePath" to state.workspacePath,
+                                            "workspaceEnv" to state.workspaceEnv,
+                                            "attachments" to
+                                                state.attachments.map { attachment ->
+                                                    mapOf(
+                                                        "fileName" to attachment.fileName,
+                                                        "mimeType" to attachment.mimeType,
+                                                        "fileSize" to attachment.fileSize,
+                                                        "expandedContentLength" to
+                                                            attachment.content.length,
+                                                    )
+                                                },
+                                        )
+                                    ),
+                                mediaType = "application/json",
+                            ),
+                        ),
+                )
+            )
+        }
 
         val configId =
             state.chatModelConfigIdOverride?.takeIf { it.isNotBlank() }
@@ -1175,6 +1273,28 @@ class MessageProcessingDelegate(
                         ChatMessageDisplayMode.NORMAL
                     }
             )
+        if (state.effectivePersistTurn) {
+            conversationAuditRepository.appendEvent(
+                ConversationAuditEventRequest(
+                    chatId = state.chatId,
+                    category = "CONTEXT",
+                    eventType = "USER_INPUT_TRANSFORMED",
+                    actor = "KIYORI",
+                    summary = "用户输入已完成代理发送者、回复、工作区和附件转换",
+                    messageTimestamp = state.userMessage.timestamp,
+                    variantIndex = 0,
+                    completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "final_user_message",
+                                role = "user",
+                                value = state.finalMessageContent,
+                            )
+                        ),
+                )
+            )
+        }
 
         val toolHandler = AIToolHandler.getInstance(context)
         state.toolHandler = toolHandler
@@ -1371,6 +1491,76 @@ class MessageProcessingDelegate(
             startTimeMs = loadProviderModelStartTime,
             details = "chatId=${state.activeChatId}, provider=$provider, model=$modelName"
         )
+        if (state.effectivePersistTurn) {
+            conversationAuditRepository.appendEvent(
+                ConversationAuditEventRequest(
+                    chatId = state.activeChatId,
+                    category = "PROVIDER",
+                    eventType = "PROVIDER_REQUEST_PREPARED",
+                    actor = "KIYORI",
+                    summary = "已生成交给 Provider 的请求上下文",
+                    messageTimestamp = state.userMessage.timestamp,
+                    variantIndex = 0,
+                    completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "request_message",
+                                role = "user",
+                                value = state.requestMessageContent,
+                            ),
+                            ConversationAuditPayloadInput.text(
+                                label = "history",
+                                role = "context",
+                                value =
+                                    conversationAuditGson.toJson(
+                                        state.chatHistory.map { message ->
+                                            mapOf(
+                                                "sender" to message.sender,
+                                                "content" to message.content,
+                                                "timestamp" to message.timestamp,
+                                                "roleName" to message.roleName,
+                                                "selectedVariantIndex" to
+                                                    message.selectedVariantIndex,
+                                                "provider" to message.provider,
+                                                "modelName" to message.modelName,
+                                            )
+                                        }
+                                    ),
+                                mediaType = "application/json",
+                            ),
+                            ConversationAuditPayloadInput.text(
+                                label = "request_parameters",
+                                role = "context",
+                                value =
+                                    conversationAuditGson.toJson(
+                                        mapOf(
+                                            "provider" to state.provider,
+                                            "modelName" to state.modelName,
+                                            "promptFunctionType" to
+                                                state.promptFunctionType.name,
+                                            "roleCardId" to state.roleCardId,
+                                            "currentRoleName" to state.currentRoleName,
+                                            "enableThinking" to state.enableThinking,
+                                            "enableMemoryAutoUpdate" to
+                                                state.enableMemoryAutoUpdate,
+                                            "maxTokens" to state.effectiveMaxTokens,
+                                            "tokenUsageThreshold" to
+                                                state.effectiveTokenUsageThreshold,
+                                            "chatModelConfigIdOverride" to
+                                                state.chatModelConfigIdOverride,
+                                            "chatModelIndexOverride" to
+                                                state.chatModelIndexOverride,
+                                            "memorySpaceIdOverride" to
+                                                state.memorySpaceIdOverride,
+                                        )
+                                    ),
+                                mediaType = "application/json",
+                            ),
+                        ),
+                )
+            )
+        }
 
         val waifuPreferences = WaifuPreferences.getInstance(context)
         state.isWaifuModeEnabled = waifuPreferences.enableWaifuModeFlow.first()
@@ -1452,6 +1642,20 @@ class MessageProcessingDelegate(
                 providerRequestContext = providerRequestContext,
                 operationId = state.turnId,
             )
+        if (state.effectivePersistTurn) {
+            conversationAuditRepository.appendEvent(
+                ConversationAuditEventRequest(
+                    chatId = state.activeChatId,
+                    category = "PROVIDER",
+                    eventType = "PROVIDER_REQUEST_SUBMITTED",
+                    actor = "KIYORI",
+                    summary = "请求已交给 Provider 执行管线",
+                    messageTimestamp = aiMessageTimestamp,
+                    variantIndex = 0,
+                    completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                )
+            )
+        }
         state.sharedCharStream = responseStream
         state.chatRuntime.responseStream = responseStream
         state.aiMessage =
@@ -1821,6 +2025,41 @@ class MessageProcessingDelegate(
         state: SendUserMessageTurnState,
         contentSnapshot: String,
     ) {
+        if (state.effectivePersistTurn) {
+            val textChange =
+                resolveConversationAuditTextChange(
+                    previous = state.lastAuditedContent,
+                    current = contentSnapshot,
+                )
+            if (textChange != null) {
+                conversationAuditRepository.appendEvent(
+                    ConversationAuditEventRequest(
+                        chatId = state.chatId,
+                        category = "PROVIDER",
+                        eventType = textChange.eventType,
+                        actor = "PROVIDER",
+                        summary =
+                            if (textChange.isRevision) {
+                                "Provider 修订了已接收的流式文本"
+                            } else {
+                                "收到 ${textChange.value.length} 个可见文本字符"
+                            },
+                        messageTimestamp = state.aiMessage.timestamp,
+                        variantIndex = 0,
+                        completeness = ConversationAuditCompletenessStatus.IN_PROGRESS,
+                        payloads =
+                            listOf(
+                                ConversationAuditPayloadInput.text(
+                                    label = textChange.payloadLabel,
+                                    role = "assistant",
+                                    value = textChange.value,
+                                )
+                            ),
+                    )
+                )
+                state.lastAuditedContent = contentSnapshot
+            }
+        }
         addMessageToChat(
             state.chatId,
             state.aiMessage.copy(content = contentSnapshot)
@@ -1903,6 +2142,70 @@ class MessageProcessingDelegate(
                 )
         }
         state.aiMessage = state.aiMessage.copy(completedAt = System.currentTimeMillis())
+        if (state.effectivePersistTurn) {
+            conversationAuditRepository.appendEvent(
+                ConversationAuditEventRequest(
+                    chatId = state.chatId,
+                    category = "PROVIDER",
+                    eventType = "PROVIDER_TERMINAL",
+                    actor = "PROVIDER",
+                    summary = "Provider 回合已正常完成",
+                    messageTimestamp = state.aiMessage.timestamp,
+                    variantIndex = 0,
+                    terminalState = "COMPLETED",
+                    completeness = ConversationAuditCompletenessStatus.COMPLETE,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "usage",
+                                role = "metadata",
+                                value =
+                                    conversationAuditGson.toJson(
+                                        mapOf(
+                                            "inputTokens" to state.turnInputTokens,
+                                            "outputTokens" to state.turnOutputTokens,
+                                            "cachedInputTokens" to
+                                                state.turnCachedInputTokens,
+                                            "sentAt" to state.aiMessage.sentAt,
+                                            "waitDurationMs" to
+                                                state.aiMessage.waitDurationMs,
+                                            "outputDurationMs" to
+                                                state.aiMessage.outputDurationMs,
+                                            "completedAt" to
+                                                state.aiMessage.completedAt,
+                                        )
+                                    ),
+                                mediaType = "application/json",
+                            )
+                        ),
+                )
+            )
+            conversationAuditRepository.appendEvent(
+                ConversationAuditEventRequest(
+                    chatId = state.chatId,
+                    category = "ASSISTANT",
+                    eventType = "ASSISTANT_PROJECTION_UPDATED",
+                    actor = "KIYORI",
+                    summary = "最终 AI 可见回答已提交到聊天投影",
+                    messageTimestamp = state.aiMessage.timestamp,
+                    variantIndex = 0,
+                    terminalState = "COMPLETED",
+                    completeness = ConversationAuditCompletenessStatus.COMPLETE,
+                    payloads =
+                        listOf(
+                            ConversationAuditPayloadInput.text(
+                                label = "assistant_output",
+                                role = "assistant",
+                                value = state.aiMessage.content,
+                            )
+                        ),
+                )
+            )
+            conversationAuditRepository.seal(
+                state.chatId,
+                reason = "TURN_COMPLETED",
+            )
+        }
 
         if (state.isWaifuModeEnabled) {
             syncWaifuMessageMetrics(state, state.aiMessage)
@@ -1957,6 +2260,26 @@ class MessageProcessingDelegate(
         // 清理前后都由消息最终 owner 持有 Error。原 Job 若已被上游取消，普通挂起提交可能不会
         // 执行，最终 UI 就会再次只看到 Idle，因此这里只提交终态和用户提示。
         withContext(NonCancellable) {
+            if (state.effectivePersistTurn) {
+                runCatching {
+                    conversationAuditRepository.appendThrowable(
+                        chatId = state.chatId,
+                        eventType = "PROVIDER_TERMINAL_ERROR",
+                        summary = "Provider 回合失败：${failureKind.name}",
+                        throwable = error,
+                        messageTimestamp =
+                            state.aiMessage.timestamp.takeIf { it > 0L },
+                        variantIndex = 0,
+                        completeness = ConversationAuditCompletenessStatus.PARTIAL,
+                    )
+                    conversationAuditRepository.seal(
+                        state.chatId,
+                        reason = "TURN_FAILED",
+                    )
+                }.onFailure { auditError ->
+                    AppLogger.e(TAG, "失败回合的审计终态写入失败", auditError)
+                }
+            }
             setChatInputProcessingState(state.chatId, terminal.finalInputState)
             withContext(Dispatchers.Main) {
                 showErrorMessage(userMessage)

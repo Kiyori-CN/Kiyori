@@ -1,10 +1,9 @@
 package com.ai.assistance.operit.data.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.ai.assistance.operit.data.model.ChatEntity
 import com.ai.assistance.operit.data.model.CharacterCardChatStats
 import com.ai.assistance.operit.data.model.CharacterGroupChatStats
@@ -30,7 +29,7 @@ interface ChatDao {
     suspend fun getChatById(chatId: String): ChatEntity?
 
     /** 插入或更新聊天 */
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertChat(chat: ChatEntity)
+    @Upsert suspend fun insertChat(chat: ChatEntity)
 
     /** 删除聊天 */
     @Query("DELETE FROM chats WHERE id = :chatId") suspend fun deleteChat(chatId: String)

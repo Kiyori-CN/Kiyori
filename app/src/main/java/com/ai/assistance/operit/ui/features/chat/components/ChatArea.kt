@@ -899,11 +899,11 @@ private fun MessageItem(
                     },
                     modifier = Modifier.height(36.dp)
                 )
-                // 修改记忆选项
+                // 编辑当前消息投影；原始内容由对话审计修订链保留。
                 DropdownMenuItem(
                     text = {
                         Text(
-                            stringResource(id = R.string.modify_memory),
+                            stringResource(id = R.string.edit_message),
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 13.sp
                         )
@@ -915,7 +915,7 @@ private fun MessageItem(
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.AutoFixHigh,
-                            contentDescription = stringResource(id = R.string.modify_memory),
+                            contentDescription = stringResource(id = R.string.edit_message),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )

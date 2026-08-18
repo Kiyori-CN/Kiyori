@@ -35,6 +35,7 @@
 - [浏览器插件平台与插件中心架构](architecture/browser_plugin_platform.md)
 - [统一模型能力与可恢复执行](architecture/model_capability_and_resumable_execution.md)
 - [OpenAI Hosted Web Search](architecture/openai_hosted_web_search.md)
+- [AI 对话详情与完整审计](dev-core/AI_CONVERSATION_AUDIT.md)
 - [FFmpeg 架构与开发指南](dev-core/FFMPEG_ARCHITECTURE.md)
 - [Kiyori 产品定位与 Operit AI 边界](decisions/0001_kiyori_product_positioning.md)
 - [模态 AI 左抽屉导航](decisions/0004_modal_ai_drawer_navigation.md)

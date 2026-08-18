@@ -65,6 +65,22 @@ interface MessageVariantDao {
 
     @Query(
         """
+        UPDATE message_variants
+        SET content = :content
+        WHERE chatId = :chatId
+            AND messageTimestamp = :messageTimestamp
+            AND variantIndex = :variantIndex
+        """
+    )
+    suspend fun updateVariantContent(
+        chatId: String,
+        messageTimestamp: Long,
+        variantIndex: Int,
+        content: String,
+    ): Int
+
+    @Query(
+        """
         DELETE FROM provider_executions
         WHERE chatId = :chatId
             AND messageTimestamp = :messageTimestamp

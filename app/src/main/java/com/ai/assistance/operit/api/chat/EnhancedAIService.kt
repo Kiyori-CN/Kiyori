@@ -88,6 +88,8 @@ import com.ai.assistance.operit.data.preferences.CharacterCardToolAccessResolver
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import com.ai.assistance.operit.data.preferences.preferencesManager
 import com.ai.assistance.operit.data.repository.MemoryAutoSaveCandidateRepository
+import com.ai.assistance.operit.data.audit.ConversationAuditProviderRequestRecorder
+import com.ai.assistance.operit.data.audit.ConversationAuditPromptHookBridge
 import com.ai.assistance.operit.core.config.SystemToolPrompts
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.data.model.ToolParameterSchema
@@ -565,6 +567,7 @@ class EnhancedAIService private constructor(private val context: Context) {
     private var lastReplyContent: String? = null
 
     init {
+        ConversationAuditPromptHookBridge.install(context)
         com.ai.assistance.operit.api.chat.library.MemoryLibrary.initialize(context)
         initScope.launch {
             runCatching {
@@ -1143,6 +1146,18 @@ class EnhancedAIService private constructor(private val context: Context) {
                     // 使用新的Stream API
                     AppLogger.d(TAG, "sendMessage请求前准备耗时: ${tAfterGetTools - startTime}ms, 流式输出: $stream")
                     val requestStartTime = messageTimingNow()
+                    val providerHopContext = execContext.nextProviderRequestContext()
+                    ConversationAuditProviderRequestRecorder.record(
+                        context = this@EnhancedAIService.context,
+                        providerRequestContext = providerHopContext,
+                        requestHistory = requestHistory,
+                        modelParameters = modelParameters,
+                        availableTools = availableTools,
+                        providerModel = serviceForFunction.providerModel,
+                        modelConfig = modelSnapshot.config,
+                        enableThinking = enableThinking,
+                        stream = stream,
+                    )
                     val responseStream =
                             serviceForFunction.sendMessage(
                                     context = this@EnhancedAIService.context,
@@ -1151,7 +1166,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                                     enableThinking = enableThinking,
                                     stream = stream,
                                     availableTools = availableTools,
-                                    providerRequestContext = execContext.nextProviderRequestContext(),
+                                    providerRequestContext = providerHopContext,
                                     onTokensUpdated = { input, cachedInput, output ->
                                         currentRequestInputTokenCount = input.coerceAtLeast(0)
                                         currentRequestOutputTokenCount = output.coerceAtLeast(0)
@@ -2395,6 +2410,18 @@ class EnhancedAIService private constructor(private val context: Context) {
             try {
                 // 发送消息并获取响应流
                 val aiStartTime = messageTimingNow()
+                val providerHopContext = context.nextProviderRequestContext()
+                ConversationAuditProviderRequestRecorder.record(
+                    context = this@EnhancedAIService.context,
+                    providerRequestContext = providerHopContext,
+                    requestHistory = currentChatHistory,
+                    modelParameters = modelParameters,
+                    availableTools = availableTools,
+                    providerModel = serviceForFunction.providerModel,
+                    modelConfig = modelSnapshot.config,
+                    enableThinking = enableThinking,
+                    stream = stream,
+                )
                 val responseStream =
                         serviceForFunction.sendMessage(
                                 context = this@EnhancedAIService.context,
@@ -2403,7 +2430,7 @@ class EnhancedAIService private constructor(private val context: Context) {
                                 enableThinking = enableThinking,
                                 stream = stream,
                                 availableTools = availableTools,
-                                providerRequestContext = context.nextProviderRequestContext(),
+                                providerRequestContext = providerHopContext,
                                 onTokensUpdated = { input, cachedInput, output ->
                                     currentRequestInputTokenCount = input.coerceAtLeast(0)
                                     currentRequestOutputTokenCount = output.coerceAtLeast(0)
