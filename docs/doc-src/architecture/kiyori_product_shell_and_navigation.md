@@ -127,7 +127,11 @@ Kiyori App Shell/
 - 全屏网页搜索页、子页面和播放器、阅读器、网页内容等沉浸页面隐藏底部五入口
 - AI 首页应保持稳定挂载，左右切换不能销毁正在进行的对话、输入草稿或流式状态
 - 模态 AI 抽屉覆盖当前 AI 页面；AI Home 在抽屉开关和一级页面切换期间保持持续组合与同一个会话状态
-- 三页首页和 AI Home 覆盖层共享同一个 `PagerState` 与 fling 行为。页面位移直接跟随手指，新反向拖动可取消尚未结束的 fling；`SoftwareHomePage` 只在 `settledPage` 后同步
+- 三页首页共享唯一 `PagerState` 和同一产品吸附合同。负一屏与软件首页继续使用原生
+  `HorizontalPager` fling；永久挂载的 AI Home 通过公开 API bridge 为每次按下建立独立会话，
+  按严格大于半页、`400dp/s`、最多一页、LTR/RTL、边界和同一 bounded spring 决策释放，
+  不读取 Pager 私有手势元数据。页面位移直接跟随手指，新反向拖动可取消尚未结束的吸附；
+  `SoftwareHomePage` 只在 `settledPage` 后同步
 
 底栏的显示与隐藏通过产品壳的页面状态驱动。Browser Home 直接占满 presentation 约束，不为已隐藏的 Kiyori 底栏保留高度；切换动画不得通过增删内容高度造成首页主体跳动。
 
@@ -144,9 +148,11 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
 迁移前 `PhoneLayout` 在根布局监听水平拖动并打开抽屉，这与软件首页 Pager 使用同一手势轴。当前合同采用以下规则：
 
 - 删除手机端左边缘打开 Operit 抽屉的手势
-- 负一屏、软件首页和 AI 首页使用同一 Pager 手势轴、速度、阈值与吸附模型，不以离散阈值触发程序化跳页
+- 负一屏、软件首页和 AI 首页使用同一 Pager 手势轴、速度、阈值与吸附模型；原生 Pager 与
+  AI bridge 共享产品合同而不是共享框架私有手势字段，不以离散阈值触发程序化跳页
 - 模态 AI 左抽屉只能由三横线按钮打开，不响应边缘、拖动或横向滑动
-- AI 页面内部的代码块、横向列表、选择器等组件需要明确消费自己的横向手势
+- AI 页面内部的表格、关闭自动换行的代码、横向公式、Mermaid/HTML 预览、横向列表和选择器
+  通过同一多 owner 占用状态声明当前手势；任一 owner 活跃时首页 bridge 让位
 - 全屏网页搜索、AI 一级页面和其他子页不把手势传给首页 Pager
 
 ## Back 契约
@@ -180,6 +186,12 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
 旧 `kiyori-android` 的 `HomeLandingSearch.kt` 只作为交互结构参考。当前 Search/AI 是同一个搜索框内的两种入口语义，不共享结果页：选项只切换模式，主框再按模式进入网页搜索或 AI 首页；两项在同一个圆角边框内严格等宽，不分别绘制外部按钮轮廓。
 
 软件首页或天气提交不会覆盖正在浏览的活动窗口，由 `BrowserPresentationCoordinator.openSearchResultInNewSession` 在唯一 Browser Runtime 中创建并激活带明确搜索来源的 WebSession，随后进入 Browser Home。软件首页和浏览器顶栏共用强制显示的浏览 Profile 控件，睁眼表示普通、闭眼表示无痕；控件不绘制边框、底色或阴影，切换后只显示短时 `inverseSurface/inverseOnSurface` 反馈，随亮暗主题保持反相高对比。浏览器顶栏搜索在所选 Profile 与活动窗口一致时继续当前窗口，不一致时创建对应 Profile 的新 WebSession；两条路径都记录 `BROWSER_HOME` 来源，搜索历史重开记录 `SEARCH_HISTORY` 来源。全屏搜索首行直接复用 Browser Home 的 `8dp` 横纵边距、`6dp` 三槽间距、`40dp` 两侧动作区和搜索框宽度；输入框单行基准高 `42dp`，保持顶部与宽度不变，在一至三行内自动换行并平滑向下增高，超过三行后只纵向滚动。全屏搜索框只显示选中引擎图标；左右动作和引擎按钮始终沿输入框垂直中心同步移动。引擎面板覆盖搜索页内容，当前网页区显示标题和网址并提供复制/编辑动作，搜索历史以 `FlowRow` 标签展示。垃圾桶进入编辑模式后，标签叉号只暂存单条删除并由“完成”提交；“清空”显示底部确认框，确认后直接清空共享历史并退出编辑模式。普通搜索记录写入共享 `WebSessionHistoryStore`，无痕搜索与网页访问、标题更新均不写入共享历史；AI `browser_tabs list` 可立即发现两类窗口。
+
+`WebSessionBrowserSearchScreen` 的系统 Back owner 是每个宿主必须显式传入的参数。软件首页
+Full-Screen Web Search 是当前可见 Shell child，固定传入 `true`；Browser Home 内的搜索页
+传入 retained Browser 子树共享的 `LocalWebSessionBrowserSystemBackEnabled`。该 Local 继续
+保持 strict 错误合同，只约束 Browser 宿主必须提供共享 owner，不再让独立 Shell 搜索页隐式
+依赖 `KiyoriBrowserHome` 的 CompositionLocal provider。
 
 全屏搜索页主体继续遵循浏览器下拉抽屉菜单的紧凑基准。复制/编辑图标为 `16dp`，并向标签文字轻微
 靠近；历史垃圾桶为 `26dp`，标题行固定为 `34dp`，切换垃圾桶与“清空 / 完成”时标题不发生垂直位移。

@@ -13,6 +13,8 @@ import com.ai.assistance.operit.ui.main.navigation.RouteRuntime
 import com.ai.assistance.operit.ui.main.navigation.RouteSpec
 import com.ai.assistance.operit.ui.main.navigation.RouteEntrySource
 import com.ai.assistance.operit.ui.main.navigation.matchesNavigationRoot
+import com.ai.assistance.operit.ui.main.screens.Screen
+import com.ai.assistance.operit.ui.main.screens.ScreenRouteRegistry
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.app.shell.KiyoriBrowserReturnTarget
 import com.kiyori.app.shell.KiyoriShellBackResult
@@ -39,13 +41,17 @@ import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedSpringDampingRa
 import com.kiyori.app.shell.resolveKiyoriBottomNavigationSelectedStartScale
 import com.kiyori.app.shell.resolveKiyoriBottomBarAlpha
 import com.kiyori.app.shell.restoreKiyoriShellState
+import com.kiyori.app.shell.shouldAcceptKiyoriHomePagerInput
 import com.kiyori.app.shell.shouldComposeKiyoriAiHost
+import com.kiyori.app.shell.shouldElevateKiyoriAiHost
+import com.kiyori.app.shell.shouldEnableKiyoriBrowserHostBackHandler
 import com.kiyori.app.shell.shouldEnableKiyoriShellBackHandler
 import com.kiyori.app.shell.shouldEnableKiyoriSettingsHostBackHandler
 import com.kiyori.app.shell.shouldNotifyKiyoriAiHomeSettledForInitialPage
 import com.kiyori.app.shell.shouldPresentKiyoriBookmarkDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriDownloadDrawer
 import com.kiyori.app.shell.shouldPresentKiyoriHistoryDrawer
+import com.kiyori.app.shell.shouldPresentKiyoriShellOverlay
 import com.kiyori.app.shell.shouldProvideKiyoriSettingsTheme
 import com.kiyori.app.shell.shouldReverseKiyoriPagerDrag
 import com.kiyori.app.shell.toKiyoriShellSaveableValues
@@ -59,6 +65,7 @@ import com.kiyori.integration.operit.navigation.resolveAiDrawerSelection
 import com.kiyori.integration.operit.navigation.resolveAiTopBarMode
 import com.kiyori.integration.operit.navigation.toAiPrimaryRouteEntry
 import com.kiyori.app.KiyoriSettingsNavigationContext
+import com.kiyori.app.popKiyoriRouterBackStack
 import com.kiyori.app.resolveKiyoriSettingsNavigationContext
 import com.kiyori.app.shouldEnableKiyoriAppBackHandler
 import com.kiyori.app.shouldEnableKiyoriOperitSettingsBackHandler
@@ -251,6 +258,77 @@ class KiyoriShellStateTest {
     }
 
     @Test
+    fun `Browser system Back is disabled for every visible settings surface`() {
+        val browserOwner =
+            KiyoriShellState().openBrowser(
+                returnTarget = KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+                exitPresentation = KiyoriBrowserExitPresentation.CLOSE,
+            )
+        val settingsHome = browserOwner.openSettings(KiyoriSettingsOrigin.BROWSER_HOME)
+        val shellSettingsDetail =
+            settingsHome.openSettingsRoute(KiyoriSettingsRoute.DOWNLOAD)
+        val operitSettingsDetail = settingsHome.showSettingsOperitRoute()
+        val browserWorkspace =
+            settingsHome
+                .openSettingsRoute(KiyoriSettingsRoute.BROWSER)
+                .suspendSettingsForBrowserWorkspace()
+
+        assertTrue(shouldEnableKiyoriBrowserHostBackHandler(browserOwner))
+        assertFalse(shouldEnableKiyoriBrowserHostBackHandler(settingsHome))
+        assertFalse(shouldEnableKiyoriBrowserHostBackHandler(shellSettingsDetail))
+        assertFalse(shouldEnableKiyoriBrowserHostBackHandler(operitSettingsDetail))
+        assertTrue(shouldEnableKiyoriBrowserHostBackHandler(browserWorkspace))
+        assertFalse(
+            shouldEnableKiyoriBrowserHostBackHandler(browserOwner.openBookmarkDrawer()),
+        )
+        assertFalse(
+            shouldEnableKiyoriBrowserHostBackHandler(browserOwner.openHistoryDrawer()),
+        )
+        assertFalse(
+            shouldEnableKiyoriBrowserHostBackHandler(browserOwner.openDownloadDrawer()),
+        )
+        assertFalse(
+            shouldEnableKiyoriBrowserHostBackHandler(browserOwner.openAiDrawer()),
+        )
+    }
+
+    @Test
+    fun `settings and Browser presentations stay above retained AI route depth`() {
+        listOf(
+            KiyoriSettingsPresentation.PRIMARY_ROOT,
+            KiyoriSettingsPresentation.SOURCE_OVERLAY,
+            KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
+        ).forEach { presentation ->
+            assertFalse(
+                shouldElevateKiyoriAiHost(
+                    aiHostIsRoot = false,
+                    settingsPresentation = presentation,
+                ),
+            )
+        }
+        assertTrue(
+            shouldElevateKiyoriAiHost(
+                aiHostIsRoot = false,
+                settingsPresentation = KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
+            ),
+        )
+        assertTrue(
+            shouldElevateKiyoriAiHost(
+                aiHostIsRoot = false,
+                settingsPresentation = null,
+            ),
+        )
+        KiyoriSettingsPresentation.entries.forEach { presentation ->
+            assertFalse(
+                shouldElevateKiyoriAiHost(
+                    aiHostIsRoot = true,
+                    settingsPresentation = presentation,
+                ),
+            )
+        }
+    }
+
+    @Test
     fun `settings child navigation inherits only the active Operit settings session`() {
         val settingsNavigation =
             KiyoriSettingsNavigationState
@@ -308,6 +386,74 @@ class KiyoriShellStateTest {
                 settingsSessionId = settingsNavigation.sessionId,
             ),
         )
+    }
+
+    @Test
+    fun `every Browser Operit settings category restores visible Settings Home before Browser`() {
+        val browserOwner =
+            KiyoriShellState().openBrowser(
+                returnTarget = KiyoriBrowserReturnTarget.AI_HOME,
+                exitPresentation = KiyoriBrowserExitPresentation.MINIMIZED_INDICATOR,
+            )
+        val retainedAiDetail =
+            RouteEntry(
+                instanceId = "retained-ai-detail",
+                routeId = "native.assistant_config",
+                source = RouteEntrySource.DEFAULT,
+            )
+        val categoryScreens =
+            listOf(
+                Screen.AccountConnectionsSettings,
+                Screen.Settings,
+                Screen.SpeechServicesSettings,
+                Screen.AppearanceSettings,
+                Screen.DataManagementSettings,
+            )
+
+        categoryScreens.forEach { screen ->
+            val settingsDetail =
+                browserOwner
+                    .openSettings(KiyoriSettingsOrigin.BROWSER_HOME)
+                    .showSettingsOperitRoute()
+            val settingsSessionId = checkNotNull(settingsDetail.settingsNavigation).sessionId
+            val categoryRoute =
+                ScreenRouteRegistry
+                    .toEntry(
+                        screen = screen,
+                        source = RouteEntrySource.KIYORI_SETTINGS,
+                    )
+            val routerState = AppRouterState(retainedAiDetail)
+            routerState.navigate(
+                routeId = categoryRoute.routeId,
+                args = categoryRoute.args,
+                source = categoryRoute.source,
+                navigationContextId = settingsSessionId,
+            )
+
+            assertEquals(RouteEntrySource.KIYORI_SETTINGS, routerState.currentEntry.source)
+            assertEquals(settingsSessionId, routerState.currentEntry.navigationContextId)
+
+            val restoredSettingsHome =
+                popKiyoriRouterBackStack(
+                    routerState = routerState,
+                    shellState = settingsDetail,
+                )
+            assertEquals(retainedAiDetail, routerState.currentEntry)
+            assertEquals(
+                KiyoriSettingsPresentation.SOURCE_OVERLAY,
+                restoredSettingsHome.settingsNavigation?.presentation,
+            )
+            assertFalse(
+                shouldElevateKiyoriAiHost(
+                    aiHostIsRoot = false,
+                    settingsPresentation = restoredSettingsHome.settingsNavigation?.presentation,
+                ),
+            )
+
+            val returnToBrowser = restoredSettingsHome.handleBack()
+            assertEquals(KiyoriShellBackResult.CONSUMED, returnToBrowser.result)
+            assertEquals(browserOwner, returnToBrowser.state)
+        }
     }
 
     @Test
@@ -712,12 +858,77 @@ class KiyoriShellStateTest {
             )
 
         assertFalse(state.showsBottomBar)
+        assertTrue(shouldPresentKiyoriShellOverlay(state))
         assertEquals(
             KiyoriShellBackTransition(
                 state = state.copy(child = null),
                 result = KiyoriShellBackResult.CONSUMED,
             ),
             state.handleBack(),
+        )
+    }
+
+    @Test
+    fun `home pager input is disabled while another Shell surface owns interaction`() {
+        val home = KiyoriShellState()
+
+        assertTrue(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home,
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home,
+                aiHostIsRoot = false,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home.openChild(KiyoriShellChild.FULL_SCREEN_WEB_SEARCH),
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home.openSettings(KiyoriSettingsOrigin.AI_HOST),
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home.openAiDrawer(),
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home.openBookmarkDrawer(),
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home.openHistoryDrawer(),
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state = home.openDownloadDrawer(),
+                aiHostIsRoot = true,
+            ),
+        )
+        assertFalse(
+            shouldAcceptKiyoriHomePagerInput(
+                state =
+                    home.openBrowser(
+                        returnTarget = KiyoriBrowserReturnTarget.SOFTWARE_HOME,
+                        exitPresentation = KiyoriBrowserExitPresentation.CLOSE,
+                    ),
+                aiHostIsRoot = true,
+            ),
         )
     }
 

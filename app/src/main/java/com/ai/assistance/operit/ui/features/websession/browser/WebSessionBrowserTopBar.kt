@@ -388,6 +388,7 @@ internal fun WebSessionBrowserSearchScreen(
     onDraftChange: (String) -> Unit,
     onEnginePanelVisibleChange: (Boolean) -> Unit,
     onBack: () -> Unit,
+    systemBackEnabled: Boolean,
     onSubmit: () -> Unit,
     onSelectEngine: (WebSessionSearchEngine) -> Unit,
     onOpenSearchRecord: (WebSessionSearchRecord) -> Unit,
@@ -464,7 +465,10 @@ internal fun WebSessionBrowserSearchScreen(
         isHistoryEditing = false
     }
 
-    BackHandler(onBack = ::closeSearch)
+    BackHandler(
+        enabled = systemBackEnabled,
+        onBack = ::closeSearch,
+    )
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()

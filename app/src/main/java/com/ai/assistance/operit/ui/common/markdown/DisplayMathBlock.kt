@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.common.gestures.ownAiContentHorizontalGestureOnTouch
+import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
 import com.ai.assistance.operit.ui.common.displays.LatexCache
 import com.ai.assistance.operit.ui.common.displays.logLatexRenderFailure
 import com.ai.assistance.operit.ui.common.displays.prepareLatexForJLatexMath
@@ -51,6 +53,7 @@ internal fun DisplayMathBlock(
 ) {
     val density = LocalDensity.current
     val scrollState = rememberScrollState()
+    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
     val expressionResult =
         remember(latexContent) {
             captureLatexException { parseDisplayMathExpression(latexContent) }
@@ -79,6 +82,10 @@ internal fun DisplayMathBlock(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .ownAiContentHorizontalGestureOnTouch(
+                        owner = horizontalGestureOwner,
+                        enabled = scrollState.maxValue > 0,
+                    )
                     .horizontalScroll(scrollState)
         ) {
             Layout(

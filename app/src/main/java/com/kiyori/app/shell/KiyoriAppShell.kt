@@ -8,7 +8,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +19,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
@@ -100,7 +101,7 @@ internal fun KiyoriAppShell(
     onOpenBrowserWorkspace: (KiyoriBrowserWorkspaceRoute) -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
-    browserHome: @Composable (Modifier) -> Unit,
+    browserHome: @Composable (Modifier, Boolean) -> Unit,
     aiHost: @Composable () -> Unit,
 ) {
     val pagerState =
@@ -113,15 +114,8 @@ internal fun KiyoriAppShell(
     val latestOnAiHomeSettled by rememberUpdatedState(onAiHomeSettled)
     val latestOnRequestExit by rememberUpdatedState(onRequestExit)
     val pagerFlingBehavior = PagerDefaults.flingBehavior(state = pagerState)
-    val aiHostPagerGestureState =
-        remember(pagerState) {
-            object : ScrollableState by pagerState {
-                // A tap must reach AI Home while the previous fling is settling. Reporting the
-                // pager animation here makes scrollable intercept immediately before touch slop.
-                override val isScrollInProgress: Boolean
-                    get() = false
-            }
-        }
+    val aiHomePagerGestureBridge =
+        remember(pagerState) { KiyoriAiHomePagerGestureBridge(pagerState) }
 
     var startupPreloadReady by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -186,7 +180,7 @@ internal fun KiyoriAppShell(
             }
     }
 
-    val settingsOverlayVisible = shouldPresentKiyoriSettingsOverlay(state)
+    val shellOverlayVisible = shouldPresentKiyoriShellOverlay(state)
     val dispatchShellBack: () -> Unit = {
         val transition = latestState.handleBack()
         when (transition.result) {
@@ -212,8 +206,28 @@ internal fun KiyoriAppShell(
         modifier = Modifier.fillMaxSize().clipToBounds(),
     ) {
         val viewportWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
-        val pagerReverseDirection =
-            shouldReverseKiyoriPagerDrag(LocalLayoutDirection.current)
+        val density = LocalDensity.current
+        val layoutDirection = LocalLayoutDirection.current
+        val pagerReverseDirection = shouldReverseKiyoriPagerDrag(layoutDirection)
+        val pagerAcceptsInput =
+            shouldAcceptKiyoriHomePagerInput(
+                state = state,
+                aiHostIsRoot = aiHostIsRoot,
+            )
+        val aiHomePagerGestureEnabled =
+            pagerAcceptsInput &&
+                !aiHomeGestureBlocked &&
+                pagerState.layoutInfo.pageSize > 0
+        SideEffect {
+            aiHomePagerGestureBridge.updateConfiguration(
+                pageSizePx = pagerState.layoutInfo.pageSize.toFloat(),
+                minimumFlingVelocityPxPerSecond =
+                    with(density) {
+                        KIYORI_HOME_PAGER_MIN_FLING_VELOCITY_DP_PER_SECOND.dp.toPx()
+                    },
+                layoutDirection = layoutDirection,
+            )
+        }
         val aiPageOffset by remember(pagerState) {
             derivedStateOf {
                 calculateKiyoriPagerPageOffset(
@@ -230,14 +244,6 @@ internal fun KiyoriAppShell(
                 )
             }
         }
-        val pagerAcceptsInput =
-            aiHostIsRoot &&
-                state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
-                state.child == null &&
-                !state.isAiDrawerOpen &&
-                !state.isBookmarkDrawerOpen &&
-                !state.isHistoryDrawerOpen &&
-                !state.isDownloadDrawerOpen
 
         HorizontalPager(
             state = pagerState,
@@ -288,6 +294,7 @@ internal fun KiyoriAppShell(
                     Modifier
                         .fillMaxSize()
                         .zIndex(4f),
+                    shouldEnableKiyoriBrowserHostBackHandler(state),
                 )
             } else {
                 KiyoriPrimaryRootPage(
@@ -328,6 +335,11 @@ internal fun KiyoriAppShell(
         }
 
         val forceAiHostFullscreen = !aiHostIsRoot
+        val elevateAiHostAboveShellSurfaces =
+            shouldElevateKiyoriAiHost(
+                aiHostIsRoot = aiHostIsRoot,
+                settingsPresentation = state.settingsNavigation?.presentation,
+            )
         val aiHostTranslationX =
             if (forceAiHostFullscreen) {
                 0f
@@ -342,20 +354,21 @@ internal fun KiyoriAppShell(
                 Modifier
                     .matchParentSize()
                     .offset { IntOffset(aiHostTranslationX.roundToInt(), 0) }
-                    // Sharing PagerState lets a reverse drag cancel an in-flight home-page fling.
+                    .observeKiyoriAiHomePagerGesture(
+                        bridge = aiHomePagerGestureBridge,
+                        enabled = aiHomePagerGestureEnabled,
+                    )
                     .scrollable(
-                        state = aiHostPagerGestureState,
+                        state = aiHomePagerGestureBridge.scrollableState,
                         orientation = Orientation.Horizontal,
                         // HorizontalPager reverses LTR drag deltas before dispatching them to
                         // PagerState. The AI host sits above the pager, so it must use the same
                         // direction or a rightward drag is consumed against the last-page edge.
                         reverseDirection = pagerReverseDirection,
-                        enabled =
-                            pagerAcceptsInput &&
-                                !aiHomeGestureBlocked,
-                        flingBehavior = pagerFlingBehavior,
+                        enabled = aiHomePagerGestureEnabled,
+                        flingBehavior = aiHomePagerGestureBridge.flingBehavior,
                     )
-                    .zIndex(if (forceAiHostFullscreen) 20f else 2f),
+                    .zIndex(if (elevateAiHostAboveShellSurfaces) 20f else 2f),
         ) {
             if (
                 shouldComposeKiyoriAiHost(
@@ -379,7 +392,7 @@ internal fun KiyoriAppShell(
         )
 
         AnimatedVisibility(
-            visible = settingsOverlayVisible,
+            visible = shellOverlayVisible,
             modifier = Modifier.fillMaxSize().zIndex(12f),
             enter = fadeIn() + slideInVertically(initialOffsetY = { height -> height / 18 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { height -> height / 24 }),
@@ -598,6 +611,26 @@ internal fun shouldComposeKiyoriAiHost(
 ): Boolean =
     startupPreloadReady || !aiHostIsRoot || softwareHomePage == SoftwareHomePage.AI_HOME
 
+internal fun shouldElevateKiyoriAiHost(
+    aiHostIsRoot: Boolean,
+    settingsPresentation: KiyoriSettingsPresentation?,
+): Boolean {
+    if (aiHostIsRoot) {
+        return false
+    }
+    // 非根 AI 路由需要保持挂载，但只有它本身是当前展示 owner 时才能覆盖 Shell。
+    // 否则 Browser 来源恢复出的设置首页会被旧 AI 页面遮住，后续 Back 也会落到错误宿主。
+    return when (settingsPresentation) {
+        null,
+        KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
+        -> true
+        KiyoriSettingsPresentation.PRIMARY_ROOT,
+        KiyoriSettingsPresentation.SOURCE_OVERLAY,
+        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
+        -> false
+    }
+}
+
 internal fun shouldNotifyKiyoriAiHomeSettledForInitialPage(
     initialSettledPage: SoftwareHomePage,
     requestedPage: SoftwareHomePage,
@@ -623,6 +656,22 @@ internal fun shouldPresentKiyoriSettingsOverlay(state: KiyoriShellState): Boolea
             navigation.currentRoute == KiyoriSettingsRoute.HOME
     )
 }
+
+internal fun shouldPresentKiyoriShellOverlay(state: KiyoriShellState): Boolean =
+    state.child != null || shouldPresentKiyoriSettingsOverlay(state)
+
+internal fun shouldAcceptKiyoriHomePagerInput(
+    state: KiyoriShellState,
+    aiHostIsRoot: Boolean,
+): Boolean =
+    aiHostIsRoot &&
+        state.primaryDestination == PrimaryDestination.SOFTWARE_HOME &&
+        state.child == null &&
+        state.settingsNavigation == null &&
+        !state.isAiDrawerOpen &&
+        !state.isBookmarkDrawerOpen &&
+        !state.isHistoryDrawerOpen &&
+        !state.isDownloadDrawerOpen
 
 internal fun calculateKiyoriAiHostTranslation(
     pageOffset: Float,
@@ -670,6 +719,36 @@ internal fun shouldEnableKiyoriShellBackHandler(
 internal fun shouldEnableKiyoriSettingsHostBackHandler(
     settingsNavigation: KiyoriSettingsNavigationState?,
 ): Boolean = isKiyoriSettingsBackOwnedByShell(settingsNavigation)
+
+/**
+ * Browser Home stays composed behind Settings so its WebView and window state remain intact.
+ *
+ * Its BackHandlers must follow the visible Shell surface instead of callback registration age;
+ * otherwise a Browser callback created after the long-lived Shell callbacks consumes Back through
+ * the hidden webpage history. A suspended settings session intentionally hands ownership to the
+ * Browser workspace until that workspace closes.
+ */
+internal fun shouldEnableKiyoriBrowserHostBackHandler(state: KiyoriShellState): Boolean {
+    if (
+        state.primaryDestination != PrimaryDestination.BROWSER_HOME ||
+            state.child != null ||
+            state.isAiDrawerOpen ||
+            state.isBookmarkDrawerOpen ||
+            state.isHistoryDrawerOpen ||
+            state.isDownloadDrawerOpen
+    ) {
+        return false
+    }
+    return when (state.settingsNavigation?.presentation) {
+        null,
+        KiyoriSettingsPresentation.SUSPENDED_FOR_BROWSER_WORKSPACE,
+        -> true
+        KiyoriSettingsPresentation.PRIMARY_ROOT,
+        KiyoriSettingsPresentation.SOURCE_OVERLAY,
+        KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
+        -> false
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 internal fun calculateKiyoriPagerPageOffset(

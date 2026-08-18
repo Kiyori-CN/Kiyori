@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-07-22
-updated: 2026-08-17
+updated: 2026-08-18
 supersedes: 0002_product_shell_and_ai_center_navigation.md
 ---
 
@@ -31,7 +31,10 @@ supersedes: 0002_product_shell_and_ai_center_navigation.md
 - 包管理、ToolPkg、脚本包和插件市场继续属于 AI 抽屉及其独立目的地，不得经由设置首页为底部小程序产品域保留的“小程序管理”空入口打开。
 - `Screen.ShizukuCommands`、Kiyori 权限总览和 `ToolPermissionSystem` 继续是三个不同的页面与状态 owner，不互相复制。
 - AI Home 保持单一、稳定的组合宿主。打开或关闭抽屉、切换 AI 一级页面都不能暂停、取消、销毁或重建其流式回答、思考、工具调用、附件、草稿、会话和滚动状态。
-- 三页首页与 AI Home 覆盖层共享一个 Pager 状态和 fling 行为；移动跟随手指，新手势可以立即中断尚未完成的 fling，Shell 状态在页面 settle 后更新。
+- 三页首页共享一个 `PagerState` 和同一产品吸附合同。负一屏与软件首页保留原生
+  `HorizontalPager` fling；永久 AI Home 使用公开 API bridge 记录当前手势，并以严格半页、
+  `400dp/s`、单页边界、LTR/RTL 和同一 spring 完成释放。移动跟随手指，真实反向拖动可以中断
+  尚未完成的吸附，普通点击在水平 touch slop 前保持可用，Shell 状态在页面 settle 后更新。
 - 抽屉直接使用共享 `OperitTheme` 的组件视觉语言，默认色板遵守 [专业浏览器灰白默认主题](0007_professional_browser_theme.md)。不得恢复抽屉专属玻璃、背景色、强调色或持久化偏好。
 - Kiyori 页面使用同一 edge-to-edge 状态栏：页面背景和抽屉遮罩延伸至物理顶边，抽屉面板从状态栏底部开始，显示中的状态栏保持透明。删除继承的透明状态栏和自定义状态栏颜色设置及偏好，只保留隐藏状态栏。
 

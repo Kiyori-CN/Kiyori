@@ -81,6 +81,9 @@ internal fun KiyoriFullScreenWebSearchPage(
             onDraftChange = { query = it },
             onEnginePanelVisibleChange = { isEnginePanelVisible = it },
             onBack = onBack,
+            // 全屏搜索是当前可见的 Shell child，不属于长期保留的 Browser 子树。这里必须显式
+            // 声明 Back owner，否则新增宿主会把所有权遗漏推迟到运行期才暴露。
+            systemBackEnabled = true,
             onSubmit = {
                 profileState = browserCoordinator.newSessionProfileState()
                 if (

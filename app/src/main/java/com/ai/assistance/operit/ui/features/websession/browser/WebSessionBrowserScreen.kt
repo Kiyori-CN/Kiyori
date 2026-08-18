@@ -763,6 +763,7 @@ internal fun WebSessionBrowserScreen(
                         it.copy(isSearchVisible = false, isSearchEnginePanelVisible = false, searchDraft = "")
                     }
                 },
+                systemBackEnabled = LocalWebSessionBrowserSystemBackEnabled.current,
                 onEnginePanelVisibleChange = { visible ->
                     onHostStateChange { current -> current.copy(isSearchEnginePanelVisible = visible) }
                 },

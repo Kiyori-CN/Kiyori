@@ -38,6 +38,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.common.gestures.ownAiContentHorizontalGestureOnTouch
+import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
 import com.ai.assistance.operit.ui.theme.LocalAiMarkdownTextLayoutSettings
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -109,6 +111,7 @@ fun EnhancedTableBlock(
     if (tableData.rows.isEmpty()) return
 
     val coroutineScope = rememberCoroutineScope()
+    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
     // 流式追加会不断改变 tableContent；滚动状态必须绑定当前表格节点而不是内容快照。
     var scrollOffsetPx by remember { mutableStateOf(0f) }
     var dragVelocityPxPerSec by remember { mutableStateOf(0f) }
@@ -217,6 +220,10 @@ fun EnhancedTableBlock(
                     .fillMaxWidth()
                     .padding(vertical = TABLE_OUTER_VERTICAL_PADDING)
                     .height(totalHeightDp)
+                    .ownAiContentHorizontalGestureOnTouch(
+                        owner = horizontalGestureOwner,
+                        enabled = maxScrollPx > 0f,
+                    )
                     .pointerInput(maxScrollPx) {
                         if (maxScrollPx <= 0f) return@pointerInput
                         detectHorizontalDragGestures(

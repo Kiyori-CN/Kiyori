@@ -211,7 +211,11 @@ internal fun WebSessionBookmarkSheet(
         }
     }
 
-    BackHandler(enabled = normalizedQuery.isNotBlank() || currentFolderId != null || dragSortMode) {
+    BackHandler(
+        enabled =
+            LocalWebSessionBrowserSystemBackEnabled.current &&
+                (normalizedQuery.isNotBlank() || currentFolderId != null || dragSortMode),
+    ) {
         when {
             normalizedQuery.isNotBlank() -> searchQuery = ""
             dragSortMode -> dragSortMode = false

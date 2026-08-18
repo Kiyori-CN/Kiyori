@@ -67,12 +67,14 @@ import com.ai.assistance.operit.data.preferences.UserProfileDocumentRepository
 import com.ai.assistance.operit.ui.common.displays.MarkdownTextComposable
 import com.ai.assistance.operit.ui.components.CustomScaffold
 import com.ai.assistance.operit.ui.features.settings.components.rememberMarkdownSyntaxOutputTransformation
+import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
+    val isCurrentScreen = LocalIsCurrentScreen.current
     val repository = remember(context) { UserProfileDocumentRepository.getInstance(context) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -116,7 +118,12 @@ fun UserPreferencesSettingsScreen(onNavigateBack: () -> Unit) {
         if (hasUnsavedChanges) showDiscardDialog = true else onNavigateBack()
     }
 
-    BackHandler(onBack = ::navigateBackSafely)
+    // AppContent keeps the previous route composed during its exit animation. Once this page is no
+    // longer current, its unsaved-change guard must not consume the next settings Back event.
+    BackHandler(
+        enabled = isCurrentScreen,
+        onBack = ::navigateBackSafely,
+    )
 
     CustomScaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }

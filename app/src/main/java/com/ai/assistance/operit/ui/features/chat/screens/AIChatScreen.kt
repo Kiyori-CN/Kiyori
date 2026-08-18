@@ -97,6 +97,8 @@ import kotlinx.coroutines.Job
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.ui.common.rememberLocal
+import com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
+import com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
@@ -779,13 +781,8 @@ val actualViewModel: ChatViewModel =
     val onChatScreenGestureConsumedChange = remember {
         { it: Boolean -> chatScreenGestureConsumed = it }
     }
-
-    // 添加累计滑动距离变量
-    var currentDrag by remember { mutableStateOf(0f) }
-    val onCurrentDragChange = remember { { it: Float -> currentDrag = it } }
-    var verticalDrag by remember { mutableStateOf(0f) }
-    val onVerticalDragChange = remember { { it: Float -> verticalDrag = it } }
-    val dragThreshold = 40f
+    val aiContentHorizontalGestureOwnership =
+        remember { AiContentHorizontalGestureOwnership() }
     val onSwitchCharacter = remember(actualViewModel) {
         { target: CharacterSelectorTarget ->
             actualViewModel.switchActiveCharacterTarget(target)
@@ -823,10 +820,15 @@ val actualViewModel: ChatViewModel =
             hasEverShownWebView = true
         }
     }
-    // 将聊天内部的横向手势状态保持在聊天边界内，避免首页 Pager 抢占交互。
-    LaunchedEffect(chatScreenGestureConsumed, showWebView) {
-        val finalGestureState = chatScreenGestureConsumed
-        onGestureConsumed(finalGestureState)
+    // 历史快速滚动与消息内容横向交互共用一个边界，任一 owner 活跃时首页 Pager 都必须让位。
+    val finalGestureState =
+        chatScreenGestureConsumed || aiContentHorizontalGestureOwnership.isOwned
+    val latestOnGestureConsumed by rememberUpdatedState(onGestureConsumed)
+    LaunchedEffect(finalGestureState) {
+        latestOnGestureConsumed(finalGestureState)
+    }
+    DisposableEffect(Unit) {
+        onDispose { latestOnGestureConsumed(false) }
     }
 
     // 处理文件选择器请求
@@ -1065,7 +1067,11 @@ val actualViewModel: ChatViewModel =
                                 .matchParentSize()
                                 .graphicsLayer { translationY = -chatViewportTranslationYPx }
                     ) {
-                        ChatScreenContent(
+                        CompositionLocalProvider(
+                            LocalAiContentHorizontalGestureOwnership provides
+                                aiContentHorizontalGestureOwnership,
+                        ) {
+                            ChatScreenContent(
                                 modifier = Modifier.fillMaxSize(),
                                 paddingValues =
                                         PaddingValues(), // Padding is already handled by the parent Box
@@ -1088,11 +1094,6 @@ val actualViewModel: ChatViewModel =
                                 editingMessageContent = editingMessageContent,
                                 chatScreenGestureConsumed = chatScreenGestureConsumed,
                                 onChatScreenGestureConsumed = onChatScreenGestureConsumedChange,
-                                currentDrag = currentDrag,
-                                onCurrentDragChange = onCurrentDragChange,
-                                verticalDrag = verticalDrag,
-                                onVerticalDragChange = onVerticalDragChange,
-                                dragThreshold = dragThreshold,
                                 scrollState = scrollState,
                                 autoScrollToBottom = autoScrollToBottom,
                                 onAutoScrollToBottomChange = onAutoScrollToBottomChange,
@@ -1125,7 +1126,8 @@ val actualViewModel: ChatViewModel =
                                 bubbleAiContentPaddingLeft = bubbleAiContentPaddingLeft,
                                 bubbleAiContentPaddingRight = bubbleAiContentPaddingRight,
                                 showChatFloatingDotsAnimation = showChatFloatingDotsAnimation,
-                        )
+                            )
+                        }
 
                         if (inputStyle == UserPreferencesManager.INPUT_STYLE_CLASSIC) {
                             ClassicChatSettingsBar(

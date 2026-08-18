@@ -47,6 +47,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ai.assistance.operit.ui.common.gestures.ownAiContentHorizontalGestureOnTouch
+import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.editorCellWidth
 import com.ai.assistance.operit.ui.features.chat.webview.workspace.editor.editorNextSymbolOffset
 import kotlinx.coroutines.launch
@@ -94,6 +96,7 @@ internal fun CanvasMonospaceCodeBlockBody(
     val density = LocalDensity.current
     val hostView = LocalView.current
     val scope = rememberCoroutineScope()
+    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
     val focusRequester = remember { FocusRequester() }
     val touchSlop =
         remember(hostView) {
@@ -442,6 +445,10 @@ internal fun CanvasMonospaceCodeBlockBody(
                     .height(with(density) { actualViewportHeightPx.toDp() })
                     .focusRequester(focusRequester)
                     .focusable()
+                    .ownAiContentHorizontalGestureOnTouch(
+                        owner = horizontalGestureOwner,
+                        enabled = !verticalOnlyScroll && maxHorizontalOffsetPx > 0f,
+                    )
                     .pointerInput(autoWrapEnabled, maxHorizontalOffsetPx, maxVerticalOffsetPx) {
                         if (maxHorizontalOffsetPx <= 0f && maxVerticalOffsetPx <= 0f) {
                             return@pointerInput

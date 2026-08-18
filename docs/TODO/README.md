@@ -7,6 +7,30 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-18 三页首页横向手势、全屏搜索与 AI 内容横向交互修复
+
+状态：根因修复已经本地实现，保持 `verification_pending`。负一屏与软件首页继续由原生
+`HorizontalPager` 接收触摸；永久 AI 根改用公开 API bridge，为每次按下建立新会话，并按严格
+大于半页、`400dp/s`、最多一页、LTR/RTL、边界和 bounded spring 合同释放，不再把依赖 Pager
+私有手势元数据的默认 fling 交给普通 `scrollable`。软件首页的 Full-Screen Web Search child
+现在独立参与 Shell overlay 可见性，点击搜索框后不再只隐藏底栏而看不到搜索页。后续现场崩溃
+进一步确认：该页复用 Browser 搜索组件，却不属于 `KiyoriBrowserHome` 的 retained subtree，
+不能依赖其 CompositionLocal provider。搜索组件现要求每个宿主显式传入系统 Back owner：
+Full-Screen Search 固定传入当前可见 child 的 `true`，Browser 内搜索传入共享 Browser owner；
+strict CompositionLocal 继续在 Browser 宿主漏接时抛出开发期错误。
+
+AI 消息中的宽表格、关闭自动换行的代码、横向公式、Mermaid 和 HTML 预览接入同一多 owner
+横向手势占用状态；任一内容 owner 或历史快速滚动 owner 活跃时，首页 bridge 让出当前手势。
+当前专项 JVM `85/85`、完整 App JVM `239 suites / 1404 tests`、AndroidTest Kotlin/Java 编译、
+architecture `phase=m03`、formal readiness、`git diff --check` 与规定 Debug 构建均通过。
+APK 为 `467107608` bytes，SHA-256
+`67F8F4D73367981591A2C0C73C25CB4F3B698C658238C682DA040E8E4533B16D`；包/版本/SDK、唯一
+launcher、arm64-only、V2 单一 Android Debug signer 与 16 KB ZIP 对齐已核验。真机手感、IME、
+TalkBack、系统边缘 Back 和真实内容滚动不由本地自动化替代。
+
+详细根因、方案取舍、目标架构、影响文件、阶段、自动差分矩阵、目标设备验收和完成定义见
+[`home_pager_gesture_consistency/index.md`](home_pager_gesture_consistency/index.md)。
+
 ## 2026-08-18 AI 对话详情与完整审计
 
 状态：产品、数据、UI、安全、导入导出和生命周期合同已经通过三轮 Grill Me 冻结；Room 22、
@@ -51,6 +75,18 @@ payload、完整性链和审计导出的唯一 owner。现有聊天消息继续�
   `230 suites / 1376 tests`，formal readiness、architecture `phase=m03` 与
   `git diff --check` 均通过；Debug APK 为 `494168730` bytes，SHA-256
   `98B59B9BA408ABC3373AAD17BDE3141671B9314EDA778E07D26C6F92EC0D12D0`
+- 2026-08-18 目标设备继续复测证明 Browser 来源设置返回并非只有前景层级问题：Browser
+  首次创建后，其长期保留的系统 Back 回调可能比 Shell/Operit 设置回调更新，从而越过可见设置页，
+  先消费隐藏网页历史，再把 Browser 退回软件首页。本次在保留前景 presentation 修正的同时，
+  新增唯一 Browser 子树 Back owner：设置首页、Shell 设置子页和 Operit 设置详情可见时，
+  Browser 根、搜索、书签与历史回调全部让位；只有
+  `SUSPENDED_FOR_BROWSER_WORKSPACE` 重新归 Browser。Router pop 与设置 presentation 恢复也改为
+  同一事务，缓存转场中的用户偏好页只在当前 route 消费 Back。不重置 AI Router，不修改当前网页、
+  WebSession、窗口或网页历史。`KiyoriShellStateTest 67/67`、完整 App JVM
+  `230 suites / 1379 tests`、architecture `phase=m03`、formal readiness、Markdown 本地链接和
+  `git diff --check` 均通过；Debug APK 为 `494168730` bytes，SHA-256
+  `A8EE926FCD4C68B6B4B50DB689112936376ADFA53ED5577D8BD21174A0C155ED`。目标设备保持
+  `verification_pending`
 - 项目 Python `220/220`、完整 JVM `229 suites / 1362 tests`、AndroidTest Kotlin/Java 编译、
   formal readiness、architecture `phase=m03` 与完整 Lint 均通过。Lint 最终只显示
   `GradleDependency 5 / NewerVersionAvailable 15 / UseKtx 3` 共 `23` 条既有范围诊断，

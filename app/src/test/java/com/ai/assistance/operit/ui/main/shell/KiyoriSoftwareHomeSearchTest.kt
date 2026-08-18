@@ -33,8 +33,11 @@ import com.kiyori.app.shell.resolveKiyoriSoftwareHomeLayout
 import com.kiyori.app.shell.resolveKiyoriSoftwareHomePrimaryTarget
 import com.kiyori.app.shell.resolveKiyoriSoftwareHomeSearchTopY
 import com.kiyori.app.shell.resolveKiyoriWebSearchRequest
+import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriSoftwareHomeSearchTest {
@@ -169,5 +172,61 @@ class KiyoriSoftwareHomeSearchTest {
                 source = KiyoriBrowserSearchSource.SOFTWARE_HOME,
             ),
         )
+    }
+
+    @Test
+    fun `every search host declares system Back ownership explicitly`() {
+        val fullScreenSearchSource =
+            repositoryFile(
+                "app/src/main/java/com/kiyori/app/shell/KiyoriBrowserSearch.kt",
+            ).readText()
+        val browserScreenSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/" +
+                    "browser/WebSessionBrowserScreen.kt",
+            ).readText()
+        val searchScreenSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/" +
+                    "browser/WebSessionBrowserTopBar.kt",
+            ).readText()
+        val ownershipSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/" +
+                    "browser/WebSessionBrowserBackOwnership.kt",
+            ).readText()
+
+        assertTrue(fullScreenSearchSource.contains("systemBackEnabled = true"))
+        assertTrue(
+            browserScreenSource.contains(
+                "systemBackEnabled = LocalWebSessionBrowserSystemBackEnabled.current",
+            ),
+        )
+        assertTrue(searchScreenSource.contains("systemBackEnabled: Boolean"))
+        assertTrue(searchScreenSource.contains("enabled = systemBackEnabled"))
+        assertFalse(
+            searchScreenSource.contains(
+                "enabled = LocalWebSessionBrowserSystemBackEnabled.current",
+            ),
+        )
+        assertTrue(ownershipSource.contains("staticCompositionLocalOf<Boolean>"))
+        assertTrue(ownershipSource.contains("error("))
+        assertFalse(
+            Regex("""staticCompositionLocalOf<Boolean>\s*\{\s*true\s*\}""")
+                .containsMatchIn(ownershipSource),
+        )
+    }
+
+    private fun repositoryFile(relativePath: String): File {
+        var current: File? =
+            File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(4) {
+            val candidate = current?.let { directory -> File(directory, relativePath) }
+            if (candidate?.isFile == true) {
+                return candidate
+            }
+            current = current?.parentFile
+        }
+        throw AssertionError("Repository file not found: $relativePath")
     }
 }

@@ -169,6 +169,32 @@ internal fun shouldRestoreKiyoriSettingsAfterRouterPop(
         previousEntry.navigationContextId != settingsSessionId
 }
 
+/**
+ * Pops one Operit route and commits the matching Shell settings presentation in the same event.
+ *
+ * Keeping these mutations together prevents a category-root Back from exposing the retained AI or
+ * Browser owner while the Shell still says that an Operit settings detail is active.
+ */
+internal fun popKiyoriRouterBackStack(
+    routerState: AppRouterState,
+    shellState: KiyoriShellState,
+): KiyoriShellState {
+    check(routerState.canPop) { "Router Back requires a previous route entry." }
+    val backStack = routerState.backStack
+    val restoreSettings =
+        shouldRestoreKiyoriSettingsAfterRouterPop(
+            currentEntry = routerState.currentEntry,
+            previousEntry = backStack[backStack.lastIndex - 1],
+            settingsSessionId = shellState.settingsNavigation?.sessionId,
+        )
+    routerState.pop()
+    return if (restoreSettings) {
+        shellState.restoreSettingsAfterOperitRoute()
+    } else {
+        shellState
+    }
+}
+
 @Composable
 fun KiyoriApp(
     initialNavItem: NavItem = NavItem.AiChat,
@@ -502,30 +528,22 @@ fun KiyoriApp(
     fun performGoBack() {
         if (routerState.canPop) {
             isNavigatingBack = true
-            val backStack = routerState.backStack
-            val returningFromKiyoriSettings =
-                shouldRestoreKiyoriSettingsAfterRouterPop(
-                    currentEntry = routerState.currentEntry,
-                    previousEntry = backStack[backStack.lastIndex - 1],
-                    settingsSessionId = shellState.settingsNavigation?.sessionId,
+            val nextShellState =
+                popKiyoriRouterBackStack(
+                    routerState = routerState,
+                    shellState = shellState,
                 )
-            routerState.pop()
-            if (returningFromKiyoriSettings) {
-                updateShellState(
-                    shellState.settingsNavigation
-                        ?.let { shellState.restoreSettingsAfterOperitRoute() }
-                        ?: shellState,
-                )
+            if (nextShellState != shellState) {
+                updateShellState(nextShellState)
             }
         } else if (currentScreen !is Screen.AiChat) {
             isNavigatingBack = true
             val rootSource = routerState.backStack.first().source
             if (rootSource == RouteEntrySource.KIYORI_SETTINGS) {
-                updateShellState(
-                    shellState.settingsNavigation
-                        ?.let { shellState.restoreSettingsAfterOperitRoute() }
-                        ?: shellState,
-                )
+                checkNotNull(shellState.settingsNavigation) {
+                    "A Kiyori settings Router root requires an active settings session."
+                }
+                updateShellState(shellState.restoreSettingsAfterOperitRoute())
             } else {
                 replaceAiPrimary(aiChatDrawerEntry, RouteEntrySource.DEFAULT)
                 updateShellState(
@@ -895,7 +913,7 @@ fun KiyoriApp(
                         ).show()
                     }
                 },
-                browserHome = { modifier ->
+                browserHome = { modifier, systemBackEnabled ->
                     KiyoriBrowserHome(
                         onExitBrowser = {
                             updateShellState(
@@ -930,6 +948,7 @@ fun KiyoriApp(
                             }
                         },
                         exitPresentation = shellState.browserExitPresentation,
+                        systemBackEnabled = systemBackEnabled,
                         modifier = modifier,
                     )
                 },

@@ -9,6 +9,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,6 +22,7 @@ import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentation
 import com.ai.assistance.operit.core.browser.presentation.BrowserAppPresentationLease
 import com.ai.assistance.operit.core.browser.presentation.BrowserPresentationCoordinator
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
+import com.ai.assistance.operit.ui.features.websession.browser.LocalWebSessionBrowserSystemBackEnabled
 import com.kiyori.capability.browser.presentation.KiyoriBrowserExitPresentation
 
 internal enum class KiyoriBrowserHomeBackSource {
@@ -67,6 +69,7 @@ internal fun KiyoriBrowserHome(
     pendingForegroundUrl: String?,
     onPendingForegroundUrlHandled: (String) -> Unit,
     exitPresentation: KiyoriBrowserExitPresentation,
+    systemBackEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -160,55 +163,61 @@ internal fun KiyoriBrowserHome(
         }
     }
 
-    BackHandler(enabled = presentationLease != null) {
+    BackHandler(enabled = presentationLease != null && systemBackEnabled) {
         handleBrowserBack(KiyoriBrowserHomeBackSource.SYSTEM_BACK)
     }
 
-    Box(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+    // BrowserContent remains alive under Settings. Propagating ownership through its whole subtree
+    // prevents a hidden search/bookmark/history handler from bypassing the visible settings route.
+    CompositionLocalProvider(
+        LocalWebSessionBrowserSystemBackEnabled provides systemBackEnabled,
     ) {
-        if (launchReady) {
-            presentationLease?.presentation?.BrowserContent(
-                webViewHost = webViewHost,
-                onTopBarBack = {
-                    handleBrowserBack(KiyoriBrowserHomeBackSource.TOP_BAR)
-                },
-                onOpenAiDialogue = {
-                    finishPresentation(
-                        BrowserAppPresentationReleaseMode.MINIMIZE,
-                        onOpenAiDialogue,
-                    )
-                },
-                onOpenSettingsHome = onOpenSettingsHome,
-                onOpenDownloadSettings = onOpenDownloadSettings,
-                onExitBrowser = {
-                    finishPresentation(
-                        BrowserAppPresentationReleaseMode.DESTROY,
-                        onCloseBrowser,
-                    )
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        launchPrompt?.let { prompt ->
-            AlertDialog(
-                onDismissRequest = { pendingRestoreDecision = false },
-                title = { Text(prompt.title) },
-                text = { Text(prompt.summary) },
-                confirmButton = {
-                    TextButton(onClick = { pendingRestoreDecision = true }) {
-                        Text("恢复")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { pendingRestoreDecision = false }) {
-                        Text("不恢复")
-                    }
-                },
-            )
+        Box(
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+        ) {
+            if (launchReady) {
+                presentationLease?.presentation?.BrowserContent(
+                    webViewHost = webViewHost,
+                    onTopBarBack = {
+                        handleBrowserBack(KiyoriBrowserHomeBackSource.TOP_BAR)
+                    },
+                    onOpenAiDialogue = {
+                        finishPresentation(
+                            BrowserAppPresentationReleaseMode.MINIMIZE,
+                            onOpenAiDialogue,
+                        )
+                    },
+                    onOpenSettingsHome = onOpenSettingsHome,
+                    onOpenDownloadSettings = onOpenDownloadSettings,
+                    onExitBrowser = {
+                        finishPresentation(
+                            BrowserAppPresentationReleaseMode.DESTROY,
+                            onCloseBrowser,
+                        )
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            launchPrompt?.let { prompt ->
+                AlertDialog(
+                    onDismissRequest = { pendingRestoreDecision = false },
+                    title = { Text(prompt.title) },
+                    text = { Text(prompt.summary) },
+                    confirmButton = {
+                        TextButton(onClick = { pendingRestoreDecision = true }) {
+                            Text("恢复")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { pendingRestoreDecision = false }) {
+                            Text("不恢复")
+                        }
+                    },
+                )
+            }
         }
     }
 }

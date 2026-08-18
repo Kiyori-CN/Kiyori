@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
+import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -341,6 +342,7 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
 @Composable
 fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
 
     // 创建HTML模板
     val htmlContent =
@@ -590,7 +592,7 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
         }
 
     // 记住WebView实例以便重用
-    val webView = remember {
+    val webView = remember(context, horizontalGestureOwner) {
         WebView(context).apply {
             // 基本设置
             settings.javaScriptEnabled = true
@@ -635,6 +637,7 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
 
             // 处理触摸事件
             setOnTouchListener { v, event ->
+                horizontalGestureOwner.updateFromMotionEvent(event)
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> v.parent.requestDisallowInterceptTouchEvent(true)
                     MotionEvent.ACTION_UP -> {
@@ -686,10 +689,11 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
 @Composable
 fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
 
     val htmlContent = remember(code) { code.trim() }
 
-    val webView = remember {
+    val webView = remember(context, horizontalGestureOwner) {
         WebView(context).apply {
             settings.javaScriptEnabled = false
             settings.domStorageEnabled = false
@@ -711,6 +715,7 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
             setBackgroundColor(android.graphics.Color.WHITE)
 
             setOnTouchListener { v, event ->
+                horizontalGestureOwner.updateFromMotionEvent(event)
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> v.parent.requestDisallowInterceptTouchEvent(true)
                     MotionEvent.ACTION_UP -> {

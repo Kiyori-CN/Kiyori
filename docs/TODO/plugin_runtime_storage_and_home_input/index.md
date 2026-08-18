@@ -37,5 +37,9 @@ status: verification_pending
 - [x] 插件导入提示、内置编辑器和调试工具已指向 Kiyori 宿主包，同时保留 Operit 插件与广播协议标识。
 - [x] 公共路径所有者、MCP、Skill、插件配置、工作区、模型、导出、备份、日志及相关用户提示已改为 Kiyori；真机文件系统待验证。
 - [x] AI Home 覆盖层已在触摸阈值前隐藏 pager 的动画滚动状态，真实拖动仍委托同一 `PagerState`；真机交互待验证。
+- [x] 2026-08-18 目标设备纠正已落实到本地实现：删除旧 AI 默认 fling 接线，使用当前手势会话
+  bridge 执行严格半页、`400dp/s`、单页边界和同一 spring；AI 宽表格、代码、公式和内嵌预览
+  通过多 owner 状态取得横向手势优先权。修复后目标设备验收仍由
+  [三页首页横向手势一致性修复](../home_pager_gesture_consistency/index.md) 接续。
 - [x] `assembleDebug` 已通过，最新 APK（`2026-07-23 19:06:58 +08:00`，SHA-256 `46948D7C83D982221E19F0C0B8543CD308C2DBEFE85D582812F229FAD57A2695`）中包含全部 11 个 ToolPkg；构建目录生成文件与 APK 资产逐项哈希一致。
 - [ ] Lint、市场下载安装、抽屉/输入框插件与真机快速点击验证另行执行。

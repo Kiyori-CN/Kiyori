@@ -158,7 +158,7 @@ internal fun WebSessionHistorySheet(
         selectedEntryKeys = setOf(entry.entryKey())
     }
 
-    BackHandler(enabled = batchMode) {
+    BackHandler(enabled = LocalWebSessionBrowserSystemBackEnabled.current && batchMode) {
         leaveBatchMode()
     }
 

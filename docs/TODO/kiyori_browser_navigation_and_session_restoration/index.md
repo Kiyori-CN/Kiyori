@@ -386,6 +386,78 @@ settingsSession = {
 账号连接、AI 助手、语音服务、界面定制、数据管理和后续 Operit 深层页。否则视觉上位于前景的
 设置页仍可能被底层 Browser/AI 更晚注册的处理器越过，错误进入软件首页或原 AI 根页。
 
+#### 2026-08-18 Browser 来源设置返回二次实测修正
+
+目标设备复测确认 AI 左抽屉来源已经正确，但 Browser 菜单来源仍存在稳定的两步错误序列：
+账号连接、AI 助手和语音服务等 Operit 分类第一次系统 Back 没有可见变化，第二次直接退到软件首页；
+除“网页浏览器”外的 Shell 设置子页也可能绕过设置首页。前一轮只修正 AI Host 与设置 overlay 的
+`zIndex`，没有覆盖 Browser 首次动态创建后 `BackHandler` 注册顺序变化，因此“已完全修复”的
+结论无效。
+
+源码取证确认根因是返回所有权重叠：
+
+- `KiyoriBrowserHome` 在 presentation lease 存在时始终启用系统 Back，并长期保留 Browser
+  WebView 与页面历史；
+- Shell 设置与 Operit 设置的 host 回调虽然按 presentation 切换 `enabled`，但它们通常在
+  Browser 创建前就已注册；后创建的 Browser 回调会先收到系统 Back；
+- “网页浏览器”页面自己注册了更晚的页面级 Back，所以它恰好正常；其他页面的差异与目标设备
+  现象一致；
+- AppContent 返回动画会短暂继续组合旧 route，“用户偏好”旧页面的未保存确认也必须随
+  `LocalIsCurrentScreen` 失去 Back 所有权。
+
+本次修正门禁：
+
+1. [DONE] `KiyoriAppShell` 明确计算 Browser 是否拥有系统 Back，不再依赖回调注册时间；
+2. [DONE] 设置首页、任一 Shell 设置子页和 `OPERIT_ROUTE_DETAIL` 可见时，Browser 根、搜索、
+   书签和历史子树统一禁用 Back；`SUSPENDED_FOR_BROWSER_WORKSPACE` 明确重新交给 Browser；
+3. [DONE] `AppRouterState.pop()` 与离开设置 session 时的 `SOURCE_OVERLAY` 恢复由同一生产事务
+   提交；五个 Operit 分类测试直接执行真实 Router push/pop，而不是手工拼接理想恢复结果；
+4. [DONE] 缓存转场中的用户偏好页仅在当前 route 启用未保存确认 Back；
+5. [DONE] AI Host 前景层级继续按 `KiyoriSettingsPresentation` 决定，恢复出的设置首页不会被
+   保留 AI route 遮挡；
+6. [DONE] 不重置或改写 AI Router，不修改 Browser WebSession、当前网页、窗口返回目标或网页
+   历史；
+7. [DONE] 专项与完整 JVM、architecture、formal readiness、文档链接、差异检查和 Debug APK
+   均已通过；目标设备仍保持 `verification_pending`。
+
+本次本地证据：
+
+- `KiyoriShellStateTest 67/67`；五个 Operit 分类直接使用 `AppRouterState.navigate()` 和生产
+  `popKiyoriRouterBackStack()`，验证第一次 Back 恢复 `SOURCE_OVERLAY + 设置首页`，第二次
+  `KiyoriShellState.handleBack()` 才回到原 Browser owner；
+- 完整 `:app:testDebugUnitTest` 为 `230 suites / 1379 tests`，失败、错误和跳过均为 `0`；
+- architecture `phase=m03`、formal readiness、Markdown 本地链接
+  `errors=0 / warnings=0` 和 `git diff --check` 通过；
+- `:app:assembleDebug --no-daemon --console=plain` 为
+  `232 actionable tasks: 23 executed, 209 up-to-date`，零失败；
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，`494168730` bytes，
+  SHA-256 `A8EE926FCD4C68B6B4B50DB689112936376ADFA53ED5577D8BD21174A0C155ED`；
+  `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37`、唯一
+  `com.ai.assistance.operit.ui.main.MainActivity` launcher、arm64-only、Android Debug V2
+  单 signer 和 16 KB ZIP 对齐通过。
+
+#### 2026-08-18 软件首页 Full-Screen Search Back owner 崩溃修正
+
+软件首页搜索 child 恢复可见后，现场崩溃堆栈确认它复用了
+`WebSessionBrowserSearchScreen`，但该 Shell child 不位于 `KiyoriBrowserHome` 的 retained
+Browser provider 内。搜索组件此前直接读取 strict
+`LocalWebSessionBrowserSystemBackEnabled`，因此在首帧组合时抛出
+`IllegalStateException`，而不是进入全屏搜索页。
+
+当前修正把 `systemBackEnabled` 设为 `WebSessionBrowserSearchScreen` 的必填宿主参数：
+
+- Full-Screen Search 作为当前可见 Shell child 显式传入 `true`；
+- Browser Home 内搜索显式传入共享 Browser CompositionLocal owner；
+- strict CompositionLocal 不恢复隐式值，Browser 根、搜索、书签和历史仍共享同一 owner；
+- JVM 源码结构合同锁定两个生产宿主及 strict Local；Compose Android smoke test 直接在没有
+  Browser provider 的测试宿主中组合搜索页。
+
+修正后的本地证据为专项 `85/85`、完整 App JVM `239 suites / 1404 tests`、AndroidTest
+Kotlin/Java 编译、architecture `phase=m03`、formal readiness 和规定 Debug 构建通过。APK 为
+`467107608` bytes，SHA-256
+`67F8F4D73367981591A2C0C73C25CB4F3B698C658238C682DA040E8E4533B16D`；目标设备点击、IME、
+系统 Back 和 Browser 来源设置返回仍保持 `verification_pending`。
+
 ### 5.5 Operit Router 集成
 
 为 `RouteEntry` 增加明确的设置导航上下文，例如：

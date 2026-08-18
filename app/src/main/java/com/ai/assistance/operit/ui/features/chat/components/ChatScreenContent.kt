@@ -16,9 +16,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.*
@@ -100,11 +98,6 @@ fun ChatScreenContent(
         editingMessageContent: MutableState<String>,
         chatScreenGestureConsumed: Boolean,
         onChatScreenGestureConsumed: (Boolean) -> Unit,
-        currentDrag: Float,
-        onCurrentDragChange: (Float) -> Unit,
-        verticalDrag: Float,
-        onVerticalDragChange: (Float) -> Unit,
-        dragThreshold: Float,
         scrollState: ScrollState,
         autoScrollToBottom: Boolean,
         onAutoScrollToBottomChange: (Boolean) -> Unit,

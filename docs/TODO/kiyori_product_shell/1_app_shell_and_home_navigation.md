@@ -8,7 +8,10 @@ status: in_progress
 
 - `KiyoriShellState` 已建立五个根目的地、三个首页页面、子页面可见性与 Back 决策
 - Kiyori App Shell 已接管启动页面、首页 Pager、底部五入口和 AI Home 宿主位置
-- 三页首页与 AI Home 覆盖层已共享同一个 `PagerState` 和 `PagerDefaults.flingBehavior`，取代一次性阈值跳转
+- 三页首页共享唯一 `PagerState` 和同一产品吸附合同。负一屏与软件首页继续使用原生
+  `HorizontalPager` fling；永久 AI Home 已改用公开 API bridge，为当前手势记录独立会话并按
+  严格大于半页、`400dp/s`、最多一页、LTR/RTL、边界和同一 spring 吸附，不再读取原生 Pager
+  私有手势元数据
 - 全屏 AI Center 已删除，按钮触发的模态 AI 左抽屉直接覆盖 AI Home 与 AI 一级页面
 - 手机抽屉手势、倾斜缩放变换、平板旧侧栏和跨页面手势全局状态已从主导航调用链删除
 - 浏览器首页已接入共享 WebSession；小程序、文件和设置当前只完成根页面骨架，领域内容与每个根页面的独立子栈仍待后续切片接入
@@ -58,7 +61,9 @@ status: in_progress
 ## 需要保护的行为
 
 - 当前会话、流式响应、附件和草稿不因左右滑动重建
-- AI Home 覆盖层通过同一个 Pager 的 `scrollable` 接入手势；启用条件不依赖尚未同步的 `SoftwareHomePage`，避免进入 AI 页动画期间出现输入空窗
+- AI Home 覆盖层继续通过唯一 `PagerState` 跟手移动；等价手势桥在不依赖尚未同步
+  `SoftwareHomePage` 的前提下支持动画中反向拖动和普通点击，并在表格、代码、公式或内嵌预览
+  声明横向手势所有权时让位
 - 悬浮窗、外部 Intent、默认助手和通知进入主聊天的路径保持有效
 - `ScreenRouteRegistry` 和 ToolPkg 动态页面仍可从新的 owner 导航
 - 系统栏、输入法和预测性返回状态由产品壳统一处理
@@ -83,3 +88,8 @@ status: in_progress
 - 部分完成：五个根页面与全屏搜索已建立宿主，但除软件首页与 AI 首页外仍是骨架
 - 未完成：每个根页面的独立子栈和滚动状态、真实搜索提交、负一屏数据、自适应 Rail/双栏
 - 待验证：真机左右滑动、聊天内部手势仲裁、Back、旋转、折叠姿态与流式对话持续性
+- 2026-08-18 设备纠正：中部慢拖和短促 flick 已确认 AI → Home 比真正 Pager 路径更容易切页；
+  物理边缘反方向进入 Home 已确认属于系统 Back。根因修复现已完成本地实现；专项 JVM
+  `85/85`、完整 App JVM `239 suites / 1404 tests`、AndroidTest Kotlin/Java 编译、architecture
+  `phase=m03`、formal readiness、规定 Debug 构建与 APK 静态审计通过。修复后目标设备矩阵继续由
+  [三页首页横向手势一致性修复](../home_pager_gesture_consistency/index.md) 跟踪。

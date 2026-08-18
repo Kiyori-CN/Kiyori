@@ -83,6 +83,96 @@ design/theme/platform。
 这些 snapshot 只批准上述返回契约修复；后续其他根组合、Shell state 或 App Shell 变化仍必须形成
 新的正式说明和精确验证，不能复用本次哈希更新。
 
+## 2026-08-18 Stage 5 Browser 来源设置展示与 Back owner 维护批准
+
+Stage 4 后，AI 左抽屉来源的设置返回已经正确；Browser 菜单来源仍会在 Operit 分类第一次系统
+Back 时没有可见变化，第二次直接进入软件首页。“网页浏览器”页正常而其他页异常。目标设备证据
+否定了最初“仅由 AI Host `zIndex` 导致”的结论：前景层级确实需要修正，但稳定触发两次返回的
+直接原因是 Browser 动态创建后，其 `BackHandler` 比长期挂载的 Shell/Operit host 回调更新，
+从而先消费隐藏网页历史。
+
+本次 Stage 5 维护批准以下闭环变化：
+
+- 非根 AI route 继续保持原实例和 Router 栈；AI Host 前景层级同时由路由深度与
+  `KiyoriSettingsPresentation` 决定；
+- `KiyoriAppShell` 把 Browser 系统 Back 所有权作为显式参数传给唯一 Browser Home；
+- 设置首页、Shell 设置子页和 `OPERIT_ROUTE_DETAIL` 可见时，Browser 根及搜索、书签、历史
+  子树共同让出 Back；`SUSPENDED_FOR_BROWSER_WORKSPACE` 明确仍归 Browser；
+- `KiyoriApp` 把 Router pop 与离开设置 session 时的 Shell presentation 恢复封装为同一事务；
+- AppContent 缓存的旧用户偏好页在退出转场中不再消费下一次 Back；
+- 不创建第二 Router、Shell state、Browser Runtime 或 WebView，不重置 AI Router，不修改当前
+  网页、网页历史、窗口、Browser return target 或设置 route stack。
+
+对应架构 snapshot：
+
+- ARCH020 `KiyoriApp.kt` LF-normalized SHA-256 从
+  `BD3DED71AFA01F15595B1CB05A803AF1B6E93D5A5552D462F2FA573AE37ECD67` 更新为
+  `2873212F7A1105F04B664995775E3731342407824F7158FC6ADD91F4255166B9`；
+- ARCH024 `KiyoriAppShell.kt` package-normalized SHA-256 从
+  `E42F9E81E50FA19E92C849D78FDAD00562DBD5AE3F42A970A5F1E4595DCE951A` 更新为
+  `7D80D713C5D8A069EB58592939182E356ACAE2F876F812FA9161CFA415387039`。
+
+这些 snapshot 只批准上述展示与 Back owner 修复；后续其他根组合或 App Shell 变化仍需新的正式
+说明和精确验证。
+
+本地封板证据：`KiyoriShellStateTest 67/67`、完整 App JVM
+`230 suites / 1379 tests`、architecture `phase=m03`、formal readiness、Markdown 本地链接
+`errors=0 / warnings=0` 与 `git diff --check` 均通过；规定 Debug 构建为
+`232 actionable tasks: 23 executed, 209 up-to-date`，零失败。APK 为 `494168730` bytes，
+SHA-256 `A8EE926FCD4C68B6B4B50DB689112936376ADFA53ED5577D8BD21174A0C155ED`，包元数据、唯一
+launcher、arm64-only、Android Debug V2 单 signer 和 16 KB ZIP 对齐通过。目标设备复测仍是
+`verification_pending`，不能由本地证据替代。
+
+## 2026-08-18 Stage 6 首页手势、搜索 overlay 与 AI 横向内容维护批准
+
+目标设备复现和 Compose Foundation `1.11.4` 源码核对确认：永久 AI 根虽然与原生
+`HorizontalPager` 共用 `PagerState`，但旧普通 `scrollable` 直接复用默认 Pager fling 时没有
+本次 down/up 位移元数据，释放结果会受零值或上一轮原生 Pager 手势影响。同时 Full-Screen Web
+Search child 已使底栏隐藏，但 Shell overlay 可见性只读取 Settings navigation，导致搜索页没有
+实际显示；AI 消息内宽表格、代码、公式和 WebView 预览也缺少对首页横滑的显式所有权。
+
+本次 Stage 6 只批准以下闭环变化：
+
+- 原生 Minus-One/Software Home 继续使用唯一 `HorizontalPager`、唯一 `PagerState` 和默认
+  fling；永久 AI 根删除旧默认 fling 接线，改用 `KiyoriAiHomePagerGestureBridge`；
+- bridge 为每次按下建立独立会话，按严格 `> 0.5`、`>= 400dp/s`、最多一页、LTR/RTL、边界和
+  `Spring.StiffnessMediumLow` 合同吸附，不读取、反射或复制 Pager 私有状态；
+- `shouldAcceptKiyoriHomePagerInput` 作为唯一 Shell 输入 gate，排除 child、Settings、
+  Browser、非根 AI route 和所有共享 drawer；真实 page size 未建立或 AI 内容 owner 活跃时
+  同样不启用 AI bridge；
+- Full-Screen Web Search child 与 Settings overlay 使用独立可见性判定并共享原承载层；Back
+  仍只关闭 child 并恢复软件首页与底栏；
+- `WebSessionBrowserSearchScreen` 的系统 Back owner 改为必填宿主参数；Full-Screen Search
+  作为当前可见 Shell child 传入 `true`，Browser 内搜索传入 retained Browser 子树的共享
+  CompositionLocal owner，避免独立搜索宿主在组合时读取不存在的 Browser provider；
+- AI 表格、关闭自动换行的 Canvas 代码、横向公式、Mermaid 与 HTML WebView 通过 Operit UI
+  内部多 owner 状态声明当前横向交互，并与聊天历史快速滚动 owner 合并后沿既有
+  `onGestureConsumed` 边界上报；
+- 删除失效的 `currentDrag`、`verticalDrag`、`dragThreshold` 参数和旧 AI fling 双路径；不
+  新建第二 PagerState、第二 AI Host、运行时开关、回退或持久化手势状态。
+
+本阶段对应架构快照：
+
+- ARCH020 `KiyoriApp.kt` LF-normalized SHA-256 保持
+  `2873212F7A1105F04B664995775E3731342407824F7158FC6ADD91F4255166B9`；
+- ARCH024 `KiyoriAppShell.kt` package-normalized SHA-256 从
+  `7D80D713C5D8A069EB58592939182E356ACAE2F876F812FA9161CFA415387039` 更新为
+  `6698094CB59519FB8124A67216B70DA5CFD8E7A18B92C92300794E3748E34391`。
+- ARCH028 `KiyoriBrowserSearch.kt` LF-normalized SHA-256 从
+  `C343F80E19F513039530C228D19A8FD82BA1715975EE504717E413DCB46F23D0` 更新为
+  `89CB261ECC04BBE38CCB6EB133F3D1AA0CF5BCB40A3BC3259CAE26B17F315EEF`。
+
+专项本地证据为 `KiyoriShellStateTest 68/68`、Pager policy `6/6`、内容 owner `2/2`，
+Software Home Search `9/9`，合计 `85/85`；完整 App JVM 为
+`239 suites / 1404 tests`，零 failure/error/skip；
+AndroidTest Kotlin/Java 编译、architecture `phase=m03`、formal readiness 与
+`git diff --check` 通过。规定 Debug 构建在全部源码、文档和架构快照修改后通过，唯一 launcher
+与 player runtime packaging gate 均通过；APK 为 `467107608` bytes，SHA-256
+`67F8F4D73367981591A2C0C73C25CB4F3B698C658238C682DA040E8E4533B16D`，包/版本/SDK、唯一
+launcher、arm64-only、Android Debug V2 单 signer 和 16 KB ZIP 对齐通过。新增 Compose
+Android 手势与 Full-Screen Search smoke test 未在设备执行；修复后目标设备手感、内容滚动、
+IME、TalkBack 和系统边缘 Back 保持 `verification_pending`。
+
 因此 M-04 按可编译的子里程碑串行完成：
 
 1. **M-04A1：宿主 CompositionLocal 合同拆分（已完成）**
@@ -302,8 +392,9 @@ files 的具体页面按后续领域迁移。Shell 不实现 Browser Runtime、�
 - [DONE M-04D8] 提取权限级别与协议接受后的三态启动门禁；
 - [DONE M-04D9] 提取一次性 content request projection、shared-content 交接、
   `LocalPluginLoadingState` provider 与唯一 `KiyoriApp` 挂载；
-- `KiyoriAppShell` 继续使用同一 `HorizontalPager`、`PagerState`、fling behavior、
-  `BackHandler`、window inset 和 drawer surface；
+- `KiyoriAppShell` 继续使用同一 `HorizontalPager`、唯一 `PagerState`、同一产品吸附合同、
+  `BackHandler`、window inset 和 drawer surface；AI 永久覆盖层使用公开 API bridge，
+  不读取或复制 Pager 私有手势状态；
 - 不恢复永久 tablet sidebar，不引入旧 PhoneLayout 的 page transform 或透明 scrim。
 
 ## M-04C navigation integration 目标
