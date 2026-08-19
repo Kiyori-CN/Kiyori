@@ -30,6 +30,7 @@ class KiyoriSettingsPagesTest {
         assertEquals("文件下载器", KIYORI_DOWNLOAD_SETTINGS_PAGE_TITLE)
         assertEquals("视频播放器", KIYORI_PLAYER_SETTINGS_PAGE_TITLE)
         assertEquals("广告拦截器", KIYORI_AD_BLOCK_SETTINGS_PAGE_TITLE)
+        assertEquals("更多功能", KIYORI_MORE_FEATURES_SETTINGS_PAGE_TITLE)
         assertEquals(156, KIYORI_SETTINGS_THEME_MENU_WIDTH_DP)
         assertEquals(
             0f,
@@ -187,6 +188,35 @@ class KiyoriSettingsPagesTest {
                     entry.action == KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS
                 }
                 .map(KiyoriSettingsHomeEntry::title),
+        )
+        assertEquals(
+            listOf("更多功能"),
+            kiyoriSettingsHomeGroups
+                .flatten()
+                .filter { entry ->
+                    entry.action == KiyoriSettingsHomeAction.OPEN_MORE_FEATURES
+                }
+                .map(KiyoriSettingsHomeEntry::title),
+        )
+    }
+
+    @Test
+    fun `more features exposes the original device permission owner as navigation`() {
+        assertEquals(
+            listOf("系统能力"),
+            kiyoriMoreFeaturesSettingsGroups.map(KiyoriMoreFeaturesSettingsGroupSpec::title),
+        )
+        val permissionEntry =
+            kiyoriMoreFeaturesSettingsGroups
+                .flatMap(KiyoriMoreFeaturesSettingsGroupSpec::entries)
+                .single()
+        assertEquals("权限", permissionEntry.title)
+        assertTrue(permissionEntry.description.contains("Shizuku"))
+        assertTrue(permissionEntry.description.contains("无障碍"))
+        assertTrue(permissionEntry.description.contains("Root"))
+        assertEquals(
+            KiyoriMoreFeaturesSettingsAction.OPEN_PERMISSIONS,
+            permissionEntry.action,
         )
     }
 

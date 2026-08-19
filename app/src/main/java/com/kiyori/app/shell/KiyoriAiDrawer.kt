@@ -43,7 +43,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -64,12 +63,9 @@ import androidx.window.layout.WindowInfoTracker
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.core.tools.packTool.PackageManager
-import com.ai.assistance.operit.core.tools.system.AndroidPermissionLevel
-import com.ai.assistance.operit.core.tools.system.ShizukuAuthorizer
-import com.ai.assistance.operit.core.tools.system.action.ActionListenerFactory
-import com.ai.assistance.operit.data.preferences.androidPermissionPreferences
 import com.ai.assistance.operit.data.repository.WorkflowRepository
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
+import com.ai.assistance.operit.ui.main.navigation.LocalAppNavigationModel
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.navigation.NavigationSurface
 import com.kiyori.design.theme.KiyoriSemanticTone
@@ -92,10 +88,6 @@ private val AI_DRAWER_PLUGIN_TONES =
         KiyoriSemanticTone.PINK,
         KiyoriSemanticTone.BLUE,
     )
-
-private data class AiDrawerPermissionStatus(
-    val badgeTextResId: Int,
-)
 
 @Composable
 internal fun KiyoriModalAiDrawer(
@@ -207,8 +199,10 @@ private fun KiyoriAiDrawerContent(
     onEntrySelected: (NavigationEntrySpec) -> Unit,
 ) {
     val context = LocalContext.current
-    val preferredPermissionLevel by
-        androidPermissionPreferences.preferredPermissionLevelFlow.collectAsState(initial = null)
+    val navigationModel =
+        checkNotNull(LocalAppNavigationModel.current) {
+            "Kiyori AI drawer requires the AppNavigationModel provider"
+        }
     val quickActionEntries =
         navigationEntries.filter { entry ->
             entry.surface == NavigationSurface.MAIN_SIDEBAR_TOOLS
@@ -228,6 +222,10 @@ private fun KiyoriAiDrawerContent(
             PackageManager.getInstance(context, AIToolHandler.getInstance(context))
         }
     val workflowRepository = remember(context) { WorkflowRepository(context) }
+    val toolboxEntryCount =
+        remember(navigationModel) {
+            countKiyoriAiDrawerToolboxEntries(navigationModel.navigationEntries)
+        }
     val activePackageCount by
         produceState<Int?>(initialValue = null, isOpen) {
             if (isOpen) {
@@ -243,23 +241,6 @@ private fun KiyoriAiDrawerContent(
                     }
             }
         }
-    val permissionStatus by
-        produceState<AiDrawerPermissionStatus?>(
-            initialValue = null,
-            isOpen,
-            preferredPermissionLevel,
-        ) {
-            if (isOpen) {
-                value =
-                    withContext(Dispatchers.IO) {
-                        resolveAiDrawerPermissionStatus(
-                            context = context,
-                            preferredPermissionLevel = preferredPermissionLevel,
-                        )
-                    }
-            }
-        }
-
     Column(
         modifier =
             Modifier
@@ -289,23 +270,14 @@ private fun KiyoriAiDrawerContent(
                     val badgeText =
                         when (entry.entryId) {
                             "main.packages" -> activePackageCount?.toString() ?: "..."
-                            "main.shizuku_commands" ->
-                                permissionStatus?.let { status ->
-                                    stringResource(status.badgeTextResId)
-                                } ?: "..."
+                            "main.toolbox" -> toolboxEntryCount.toString()
                             "main.workflow" -> workflowCount?.toString() ?: "..."
                             else -> error("Unexpected AI drawer quick action ${entry.entryId}")
-                        }
-                    val label =
-                        if (entry.entryId == "main.shizuku_commands") {
-                            stringResource(R.string.sidebar_permission_short)
-                        } else {
-                            entry.title
                         }
                     KiyoriAiDrawerQuickAction(
                         modifier = Modifier.weight(1f),
                         entry = entry,
-                        label = label,
+                        label = entry.title,
                         badgeText = badgeText,
                         selected = selectedEntryId == entry.entryId,
                         enabled = isOpen,
@@ -567,7 +539,6 @@ internal fun resolveKiyoriAiDrawerTone(entry: NavigationEntrySpec): KiyoriSemant
         "main.assistant_config" -> KiyoriSemanticTone.PINK
         "main.memory_base" -> KiyoriSemanticTone.GREEN
         "main.packages" -> KiyoriSemanticTone.PURPLE
-        "main.shizuku_commands" -> KiyoriSemanticTone.RED
         "main.workflow" -> KiyoriSemanticTone.ORANGE
         "main.settings" -> KiyoriSemanticTone.BLUE
         "main.toolbox" -> KiyoriSemanticTone.CYAN
@@ -577,37 +548,11 @@ internal fun resolveKiyoriAiDrawerTone(entry: NavigationEntrySpec): KiyoriSemant
         }
     }
 
-private suspend fun resolveAiDrawerPermissionStatus(
-    context: Context,
-    preferredPermissionLevel: AndroidPermissionLevel?,
-): AiDrawerPermissionStatus =
-    when (preferredPermissionLevel) {
-        null,
-        AndroidPermissionLevel.STANDARD ->
-            AiDrawerPermissionStatus(R.string.sidebar_status_normal)
-        AndroidPermissionLevel.DEBUGGER ->
-            when {
-                !ShizukuAuthorizer.isShizukuInstalled(context) ->
-                    AiDrawerPermissionStatus(R.string.status_not_installed)
-                !ShizukuAuthorizer.isShizukuServiceRunning() ->
-                    AiDrawerPermissionStatus(R.string.status_not_running)
-                ShizukuAuthorizer.hasShizukuPermission() ->
-                    AiDrawerPermissionStatus(R.string.sidebar_status_normal)
-                else -> AiDrawerPermissionStatus(R.string.unauthorized)
-            }
-        AndroidPermissionLevel.ACCESSIBILITY,
-        AndroidPermissionLevel.ADMIN,
-        AndroidPermissionLevel.ROOT -> {
-            val permissionStatus =
-                ActionListenerFactory.getListener(context, preferredPermissionLevel).hasPermission()
-            AiDrawerPermissionStatus(
-                if (permissionStatus.granted) {
-                    R.string.sidebar_status_normal
-                } else {
-                    R.string.unauthorized
-                },
-            )
-        }
+internal fun countKiyoriAiDrawerToolboxEntries(
+    navigationEntries: List<NavigationEntrySpec>,
+): Int =
+    navigationEntries.count { entry ->
+        entry.surface == NavigationSurface.TOOLBOX
     }
 
 @Composable

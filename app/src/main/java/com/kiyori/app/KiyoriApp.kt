@@ -898,6 +898,12 @@ fun KiyoriApp(
                         rootId = "data_management",
                     )
                 },
+                onOpenPermissionsFromKiyoriSettings = {
+                    openKiyoriSettingsRoot(
+                        screen = Screen.ShizukuCommands,
+                        rootId = "permissions",
+                    )
+                },
                 onOpenBrowserWorkspace = ::openBrowserWorkspaceFromSettings,
                 onSubmitWebSearch = ::submitWebSearch,
                 onRequestExit = {

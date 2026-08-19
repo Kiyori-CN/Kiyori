@@ -94,7 +94,7 @@ Kiyori App Shell/
 │   └── 浏览器底部抽屉
 ├── 小程序首页/
 ├── 文件管理首页/（固定布局，实际存储容量，其余空动作）
-└── 设置首页/（固定布局，账号 / AI / 语音 / 浏览器 / 播放器 / 下载 / 广告拦截 / 界面 / 数据已接入）
+└── 设置首页/（固定布局，账号 / AI / 语音 / 浏览器 / 播放器 / 下载 / 广告拦截 / 界面 / 数据 / 更多功能已接入）
 ```
 
 模态 AI 抽屉底部“设置”进入来源保持型设置首页，不替换当前 AI 一级路由或子栈；设置详情按统一 route stack 逐级返回，关闭设置首页后回到原 AI 页面。AI 助手设置由设置首页进入同一页面与持久状态：Operit route 绑定活动设置 `sessionId`，route 耗尽后恢复同一设置会话，而不是改写底部主目的地。
@@ -248,18 +248,20 @@ Terminal 与 Workspace 是切换动作，活动时只增加各自低饱和容器
 - 使用手册
 - 设置
 
-帮助、关于、使用手册和应用语言不进入抽屉；其中帮助、关于和使用手册由 Kiyori 产品页面承接，应用语言由 Kiyori 系统设置承接。抽屉底部保留通用“设置”，打开来源保持型设置首页；AI 助手配置仍由该设置首页中的“AI助手”入口承接。包管理、权限授予、工作流、助手配置、记忆库和工具箱保留为 AI 能力入口，Terminal 仍只位于 AI 首页右上角。包管理继续属于 AI 抽屉，不进入设置首页为底部小程序产品域保留的“小程序”空入口。
+帮助、关于、使用手册和应用语言不进入抽屉；其中帮助、关于和使用手册由 Kiyori 产品页面承接，应用语言由 Kiyori 系统设置承接。抽屉底部保留通用“设置”，打开来源保持型设置首页；AI 助手配置仍由该设置首页中的“AI助手”入口承接。高频快捷行固定为包管理、工具箱和工作流，AI 功能列表保留 AI 对话、助手配置和记忆库，Terminal 仍只位于 AI 首页右上角。包管理继续属于 AI 抽屉，不进入设置首页为底部小程序产品域保留的“小程序”空入口。
 
 源码对照表明，原抽屉的“权限”入口是 `Screen.ShizukuCommands`，而 `Screen.ToolPermission` 是独立的 AI 工具调用策略页面。两者不能继续共用“权限”这一含混名称：
 
 - 设备能力授权：Android 运行时权限、文件访问、Shizuku、无障碍、悬浮窗、电池优化豁免、Root 和调试能力，由 Kiyori 系统安全设置持有状态
 - AI 工具授权：`ALLOW`、`ASK`、`FORBID` 及单工具例外，由 AI 助手设置持有状态
 
-抽屉“权限”快捷卡直接进入 `Screen.ShizukuCommands`。AI 助手设置中的 AI 工具授权进入 `Screen.ToolPermission` 并继续由 `ToolPermissionSystem` 持有状态。权限中心仍是系统设置目标，但当前设置首页没有导航到它；这些领域不复制或混合持久状态。
+抽屉不再显示权限快捷卡，也不再读取 Shizuku 或当前设备执行通道状态。“设置 - 更多功能”使用统一折叠标题和设置分组卡，其中“权限”通过当前 settings session 进入 `Screen.ShizukuCommands` 唯一设备能力 owner；AI 助手设置中的 AI 工具授权仍进入 `Screen.ToolPermission` 并由 `ToolPermissionSystem` 持有状态。两类权限状态不复制、不混合。
 
 ### 权限中心合同
 
-权限中心的目标仍是系统级状态汇总与导航页，不是第三套权限存储；当前静态设置首页尚未接入该页面。抽屉“权限”高频卡片继续按已确认合同直接进入 `Screen.ShizukuCommands`。
+当前已实现的最小权限入口是“设置 - 更多功能 - 权限”：它只导航到原
+`Screen.ShizukuCommands`，不是第三套权限存储，也不是新的权限总览状态 owner。更完整的系统级
+只读汇总仍属于后续权限中心范围。
 
 当前源码和已接受的安全合同涉及四类能力。前两类已有实现，后两类仍处于设计阶段：
 
@@ -316,8 +318,6 @@ AI 工具授权不折算成设备权限状态，也不产生“正常”或“�
 
 Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 Expanded 复用 Kiyori 设置的详情区域。返回权限中心时保留其滚动位置，窗口尺寸变化不改变当前 owner 路由。
 
-模态 AI 抽屉的“权限”高频卡片继续使用短标签和 `SidebarQuickActionCard` 信息密度。`resolveSidebarPermissionStatus` 只检查所选 `AndroidPermissionLevel` 的执行通道：标准模式显示正常，调试模式检查 Shizuku 的安装、运行与授权，其他特权模式检查对应 listener；它不统计 Android 运行时权限，也不读取 `ToolPermissionSystem`。
-
 明确不属于权限中心的内容：
 
 - “数据和权限”中的备份、聊天记录管理和 Token 统计
@@ -344,8 +344,8 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 原版 `DrawerContent` 的有效信息层级为：
 
 1. `SidebarInfoCard` 显示模块名称和网络状态。
-2. 三个 `SidebarQuickActionCard` 分别显示包管理、权限和工作流，并携带启用包数量、权限状态和工作流数量。
-3. “AI 功能”使用 `CompactNavigationDrawerItem` 展示 AI 对话、助手配置、记忆库和工具箱。
+2. 三个 `SidebarQuickActionCard` 分别显示包管理、工具箱和工作流，并携带启用包数量、工具目录数量和工作流数量。
+3. “AI 功能”使用 `CompactNavigationDrawerItem` 展示 AI 对话、助手配置和记忆库。
 4. “插件”按注册顺序展示 ToolPkg 动态入口。
 5. 底部固定显示关于、使用手册和设置。
 
@@ -354,20 +354,24 @@ Compact 窗口点击权限总览分项后全屏进入 owner 页面；Medium 与 
 ```text
 模态 AI 左抽屉/
 ├── 模块状态：Operit AI / 网络状态
-├── 高频入口：包管理 / 权限授予 / 工作流
-├── AI 功能：AI 对话 / 助手配置 / 记忆库 / 工具箱
+├── 高频入口：包管理 / 工具箱 / 工作流
+├── AI 功能：AI 对话 / 助手配置 / 记忆库
 ├── 插件：ToolPkg 动态入口
 └── 固定底部入口：AI 助手
 ```
 
 “关于”和“使用手册”迁入 Kiyori 产品页面；原“设置”入口改为 AI 助手。“AI 对话”返回现有 AI Home，不创建会话或清空草稿。
 
+工具箱右上角徽标直接统计唯一 `AppNavigationModel` 中 `NavigationSurface.TOOLBOX` 的宿主与
+ToolPkg 动态条目，因此工具箱页面与抽屉不会维护两份数量。权限入口已经移动到
+“设置 - 更多功能 - 权限”，并复用原 `Screen.ShizukuCommands` owner。
+
 ### 视觉与组件合同
 
 - 沿用 Operit 对语义主题 token 的使用方式、字体层级、图标、选中态、状态徽标、分隔线和交互密度；默认 token 值遵守 [专业浏览器灰白默认主题](../decisions/0007_professional_browser_theme.md)
 - 模块状态区显示“Operit AI”，不再由 `softwareIdentity` 决定 Kiyori 应用品牌
-- 保留包数量、权限状态、工作流数量和动态插件入口，不把可操作状态退化为静态按钮
-- 包管理、权限和工作流快捷卡为右上角数量/状态徽标保留独立顶部区域，图标与标签位于其下方；窄屏下“正常”、未授权和未运行等文本不得覆盖图标
+- 保留包数量、工具目录数量、工作流数量和动态插件入口，不把可操作状态退化为静态按钮
+- 包管理、工具箱和工作流快捷卡为右上角数量徽标保留独立顶部区域，图标与标签位于其下方；窄屏下数字不得覆盖图标
 - 包管理保留宿主顶栏标题，右侧动作严格按“环境变量 / 市场 / 添加 / 刷新”排列；搜索框与“插件 / 脚本包 / 技能 / MCP”页签分别固定在顶栏下方，只有内容列表滚动。插件和脚本包不再放置右下角浮动按钮或 `120dp` 遮挡预留，包加载错误通过页签下方紧凑提示条进入现有详情。首次进入、手动刷新、市场成功安装脚本或 ToolPkg、删除包和删除冲突源共用同一个完整 `PackageManagerSnapshot` 重载入口
 - 环境变量顶栏入口使用共享三态底部抽屉：标题、搜索和 `ToolPackage.category` 动态类型条固定在上方，类型按英文名称 A 到 Z 排列，工具包按英文或中文拼音首字母稳定排序。脚本包页与环境变量抽屉共用 17 类独立浅深配色和语义图标；环境变量包头使用 `32dp` 类型徽标与紧凑两行文字，变量输入区高 `42dp`。每次打开时，初始状态展开所有存在未填写必填变量的工具包，必填项完整或只有可选变量的工具包默认收起；进入后仍可独立切换分组。取消与保存固定在底部；搜索不读取变量值，保存继续只写入 `EnvPreferences`
 - 使用原版纵向滚动层级；AI 助手固定在底部安全区上方，不随长列表消失
@@ -406,7 +410,7 @@ Kiyori App Shell 统一拥有状态栏策略。软件首页、负一屏、五个
 
 文件管理首页按固定旧版提交保留搜索顶栏、八个文件分类、七个快捷访问和四个存储位置。分类计数固定为 `0项`；手机存储使用应用实际所在数据卷的 `StatFs.availableBytes` 与 `totalBytes`，在首次组合和宿主恢复前台时刷新，其余按钮为空动作。分类图标到标题为 `5dp`，标题与计数使用明确行高且不再加入额外间隔，网格行距为 `10dp`。
 
-设置首页保留四个旧版 PNG 顶栏图标、四张 `16dp` 圆角卡片和 `4/4/4/4` 共 16 个入口的信息结构。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 16 个入口由设计层 `KiyoriSettingsHomeIconPalette` 分别提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。第一张卡固定为“账号连接 / AI助手 / 语音服务 / 小程序”，第二张卡固定为“网页浏览器 / 视频播放器 / 音乐播放器 / 文档阅读器”，第三张卡固定为“文件下载器 / 文件管理器 / 广告拦截器 / 日志记录器”，最后一张卡固定为“界面定制 / 数据备份 / 开发手册 / 更多功能”；16 个图标也必须互不重复。前三项进入现有真实设置根，“小程序”保持空动作，等待底部第三个小程序产品域建立自己的管理页，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。网页浏览器、视频播放器、文件下载器、广告拦截器、界面定制和数据备份也进入各自唯一 owner；广告拦截器设置页只消费 `BrowserAdBlockStore`，不创建第二规则源。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。标题返回与系统 Back 共用同一 route-pop 语义，详情先回分类、再回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
+设置首页保留四个旧版 PNG 顶栏图标、四张 `16dp` 圆角卡片和 `4/4/4/4` 共 16 个入口的信息结构。页面、卡片、文字、分隔线、开关、禁用态和底部选择面板由 `KiyoriSettingsTheme` 统一适配浅色与深色；首页 16 个入口由设计层 `KiyoriSettingsHomeIconPalette` 分别提供独立的图标前景与低饱和容器色，不使用随机颜色或大面积高饱和背景。第一张卡固定为“账号连接 / AI助手 / 语音服务 / 小程序”，第二张卡固定为“网页浏览器 / 视频播放器 / 音乐播放器 / 文档阅读器”，第三张卡固定为“文件下载器 / 文件管理器 / 广告拦截器 / 日志记录器”，最后一张卡固定为“界面定制 / 数据备份 / 开发手册 / 更多功能”；16 个图标也必须互不重复。前三项进入现有真实设置根，“小程序”保持空动作，等待底部第三个小程序产品域建立自己的管理页，禁止连接 AI 包管理、脚本包、ToolPkg 或插件市场。网页浏览器、视频播放器、文件下载器、广告拦截器、界面定制、数据备份和更多功能也进入各自唯一 route；更多功能使用现有折叠设置页视觉，系统能力分组中的“权限”进入原 `Screen.ShizukuCommands`，不复制权限状态。广告拦截器设置页只消费 `BrowserAdBlockStore`，不创建第二规则源。主题快捷菜单固定为 `156dp`。`KiyoriSettingsNavigationState` 是唯一设置会话 owner，保存 `sessionId`、来源、完整 capability-level `KiyoriSettingsRoute` 栈和 `PRIMARY_ROOT / SOURCE_OVERLAY / OPERIT_ROUTE_DETAIL / SUSPENDED_FOR_BROWSER_WORKSPACE` 展示状态。主目的地设置首页显示底部五入口；浏览器菜单和 AI 抽屉启动来源保持会话并隐藏底栏。权限 owner 根页耗尽时恢复同一 More Features route；标题返回与系统 Back 再逐级回设置首页，Browser/AI 来源最终恢复原 Browser Home/WebSession 或原 AI route stack。
 
 Settings surface 不参与 Shell child 的 enter/exit 动画。Shell child 动画宿主只承载
 Full-Screen Search；底部 `PRIMARY_ROOT + HOME` 的设置首页只由 Primary Root 绘制，

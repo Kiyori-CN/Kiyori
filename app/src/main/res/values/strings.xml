@@ -21,7 +21,6 @@
     <string name="nav_terminal">终端</string>
     <string name="nav_toolbox">工具箱</string>
     <string name="nav_item_agreement">用户协议</string>
-    <string name="sidebar_permission_short">权限</string>
     <string name="sidebar_status_normal">正常</string>
 
     <!-- Chat Module -->

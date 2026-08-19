@@ -7634,7 +7634,6 @@
     <string name="screen_title_package_manage">Manage Plugins</string>
     <string name="screen_title_package_publish">Publish Plugin</string>
 
-    <string name="sidebar_permission_short">Permissions</string>
     <string name="sidebar_status_normal">Normal</string>
     <string name="chat_style_bubble_ai_bubble_liquid_glass">Bubble AI Message Frosted Glass Background</string>
     <string name="chat_style_bubble_ai_bubble_liquid_glass_desc">When enabled, the bubble AI message background will display an iOS-style frosted glass effect</string>

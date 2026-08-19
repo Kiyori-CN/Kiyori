@@ -18,7 +18,6 @@
     <string name="nav_terminal">터미널</string>
     <string name="nav_toolbox">도구 상자</string>
     <string name="nav_item_agreement">사용자 계약</string>
-    <string name="sidebar_permission_short">권한</string>
     <string name="sidebar_status_normal">정상</string>
     <string name="chat_fullscreen_input">전체 화면 입력</string>
     <string name="chat_history_settings">채팅 기록 설정</string>

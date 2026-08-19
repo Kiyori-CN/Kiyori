@@ -93,6 +93,7 @@ internal enum class KiyoriSettingsHomeAction {
     OPEN_AD_BLOCKER_SETTINGS,
     OPEN_APPEARANCE_SETTINGS,
     OPEN_DATA_SETTINGS,
+    OPEN_MORE_FEATURES,
 }
 
 internal enum class KiyoriSettingsQuickTheme {
@@ -229,6 +230,7 @@ internal val kiyoriSettingsHomeGroups =
                 "更多功能",
                 Icons.Default.Widgets,
                 KiyoriSettingsHomeIconPalette.MORE_FEATURES,
+                KiyoriSettingsHomeAction.OPEN_MORE_FEATURES,
             ),
         ),
     )
@@ -244,6 +246,7 @@ internal fun KiyoriSettingsHomePage(
     onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
+    onOpenMoreFeatures: () -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
 ) {
@@ -314,6 +317,7 @@ internal fun KiyoriSettingsHomePage(
                     onOpenAdBlockSettings = onOpenAdBlockSettings,
                     onOpenAppearanceSettings = onOpenAppearanceSettings,
                     onOpenDataSettings = onOpenDataSettings,
+                    onOpenMoreFeatures = onOpenMoreFeatures,
                 )
             }
             item { Spacer(modifier = Modifier.height(96.dp)) }
@@ -514,6 +518,7 @@ private fun KiyoriSettingsHomeGroupCard(
     onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
+    onOpenMoreFeatures: () -> Unit,
 ) {
     KiyoriSettingsGroupCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
@@ -530,6 +535,7 @@ private fun KiyoriSettingsHomeGroupCard(
                 onOpenAdBlockSettings = onOpenAdBlockSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
+                onOpenMoreFeatures = onOpenMoreFeatures,
             )
             if (index != entries.lastIndex) {
                 Box(
@@ -556,6 +562,7 @@ private fun KiyoriSettingsHomeRow(
     onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
+    onOpenMoreFeatures: () -> Unit,
 ) {
     val colors = LocalKiyoriSettingsColors.current
     val iconColors = entry.iconPalette.resolveSettingsHomeIconColors()
@@ -579,6 +586,7 @@ private fun KiyoriSettingsHomeRow(
                         KiyoriSettingsHomeAction.OPEN_APPEARANCE_SETTINGS ->
                             onOpenAppearanceSettings()
                         KiyoriSettingsHomeAction.OPEN_DATA_SETTINGS -> onOpenDataSettings()
+                        KiyoriSettingsHomeAction.OPEN_MORE_FEATURES -> onOpenMoreFeatures()
                     }
                 }
                 .padding(start = 16.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),

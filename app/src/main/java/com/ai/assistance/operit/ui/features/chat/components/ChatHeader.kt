@@ -50,7 +50,7 @@ fun ChatHeader(
         val displayCharacterName = activeCharacterName.toChatHeaderName()
         val historyColors = KiyoriSemanticTone.ORANGE.resolveColors()
         val floatingColors = KiyoriSemanticTone.CYAN.resolveColors()
-        val characterColors = KiyoriSemanticTone.PINK.resolveColors()
+        val characterColors = KiyoriSemanticTone.BLUE.resolveColors()
 
         Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -170,7 +170,13 @@ fun ChatHeader(
                                         Modifier
                                                 .size(24.dp)
                                                 .clip(CircleShape)
-                                                .background(characterColors.container),
+                                                .background(
+                                                        if (activeCharacterAvatarUri == null) {
+                                                                characterColors.container
+                                                        } else {
+                                                                Color.Transparent
+                                                        }
+                                                ),
                                 contentAlignment = Alignment.Center
                         ) {
                                 // Use Coil or another image loader for activeCharacterAvatarUri

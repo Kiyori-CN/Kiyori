@@ -6657,7 +6657,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="web_session_render_process_crashed">Proses render halaman web saat ini mengalami crash. Tab ini telah ditutup.</string>
     <string name="web_session_render_process_gone">Proses render halaman web saat ini telah direklamasi oleh sistem. Tab ini telah ditutup.</string>
 
-    <string name="sidebar_permission_short">Izin</string>
     <string name="sidebar_status_normal">Normal</string>
     <string name="chat_hidden_user_message_placeholder">Pesan pengguna yang dipicu otomatis (konten disembunyikan)</string>
     <string name="chat_only_ai_message_allowed">Hanya dapat melakukan operasi ini pada pesan AI</string>

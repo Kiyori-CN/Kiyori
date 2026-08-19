@@ -44,7 +44,7 @@ baseline: c036a03e
 | 界面定制 | 语言、主题与外观、全局显示、布局调整 | 原有显示与主题 preference |
 | 数据备份 | 进入现有数据根页；聊天及记忆数据备份、聊天历史管理 | 原有备份与聊天 repository |
 | 开发手册 | 保留开发文档产品入口，不建立第二套终端、工具箱或开发模式状态 | 尚未建立 |
-| 更多功能 | 保留未来产品能力入口，不聚合或复制现有设置状态 | 尚未建立 |
+| 更多功能 | 统一设置风格的系统能力子页；“权限”进入原设备能力页面 | `Screen.ShizukuCommands` 及其现有权限 owner |
 | 网页浏览器 | 普通网站 Cookie 清理 | `CookiePrivacyManager` |
 
 移动入口只改变信息架构和导航，不复制、迁移或改写任何持久化状态。“小程序”严禁连接
@@ -62,7 +62,9 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
 - 账号、语音、界面和备份根页使用 `RouteEntrySource.KIYORI_SETTINGS`，并携带活动设置
   `navigationContextId/sessionId`；根页面 Back 恢复同一 Settings Home，内部子页 Back 先返回
   对应设置根，来源保持会话最后再返回原浏览器或 AI 页面
-- 小程序、开发手册和更多功能保持空动作，不建立页面、状态或与 AI 包管理之间的路由
+- 小程序和开发手册保持空动作；更多功能进入 `KiyoriSettingsRoute.MORE_FEATURES`，其中“权限”
+  使用当前 settings `sessionId` 和 `RouteEntrySource.KIYORI_SETTINGS` 打开原
+  `Screen.ShizukuCommands`，不建立第二权限页面或状态
 - 首页 16 个入口分别使用 16 个不同图标和 16 组固定浅深色图标容器；详情页继续使用全应用
   `KiyoriSemanticTone` 身份，但通过 Settings Surface 专用低饱和浅深色对渲染，不把首页专用
   色板扩散到业务状态语义，也不改变文件管理、工具箱等非设置界面
@@ -88,6 +90,8 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
 10. [DONE] 用 `KiyoriSettingsNavigationState` 和 capability-level `KiyoriSettingsRoute`
     替代设置类 `KiyoriShellChild`、`childBackTarget` 与浏览器局部子页状态；Browser/AI 来源最终
     恢复原页面和原路由栈
+11. [DONE] 新增“更多功能”设置子页和“权限”导航项，复用原设备能力 owner，并建立
+    权限页 -> 更多功能 -> 设置首页的逐级 Back 合同
 
 ## 验收边界
 
@@ -119,3 +123,18 @@ AI 包管理、脚本包、ToolPkg、插件市场或 AI 抽屉路由；小程序
   SHA-256 `28BFBC295AEA0433C279FC7EFCF9BE6FF37468E306B5E3C33CCBF4384CAD821C`
 - APK 身份为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，Android Debug V2 单 signer，
   16 KB ZIP 对齐通过；目标设备视觉与交互仍保持 `verification_pending`
+
+### 2026-08-19 更多功能与权限入口增量
+
+- 设置首页“更多功能”已从空动作改为 `KiyoriSettingsRoute.MORE_FEATURES`，使用与其他设置详情
+  一致的折叠标题、系统能力分组卡和双行导航项
+- “权限”通过当前 settings `sessionId` 与 `RouteEntrySource.KIYORI_SETTINGS` 打开原
+  `Screen.ShizukuCommands`；权限根页 Back 恢复更多功能，再 Back 返回设置首页
+- `KiyoriSettingsPagesTest` `14/14`、`KiyoriShellStateTest` `71/71`，architecture
+  `PASS (phase=m03)`、architecture 单元测试 `109/109`、formal readiness 和
+  `git diff --check` 通过
+- 规定 Debug 构建为 `BUILD SUCCESSFUL in 2m 2s`；最终 APK 为
+  `app/build/outputs/apk/debug/app-debug.apk`，`472553854` bytes，SHA-256
+  `8C08C8D7150BBDB56EE1018BFE1C24FDB07C70F453A3F0AB9ABA74DF267A87E1`，
+  包/版本/SDK、唯一 launcher、arm64-only、Android Debug V2 单 signer 与 16 KB ZIP 对齐通过
+- 未安装或操作设备；真实点击、逐级 Back 与浅深主题视觉保持 `verification_pending`

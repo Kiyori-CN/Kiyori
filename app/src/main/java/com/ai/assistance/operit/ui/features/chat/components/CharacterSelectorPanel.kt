@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -83,7 +84,7 @@ fun CharacterSelectorPanel(
     onSelectCharacter: (CharacterSelectorTarget) -> Unit,
     onOpenCharacterSettings: () -> Unit
 ) {
-    val panelColors = KiyoriSemanticTone.PINK.resolveColors()
+    val panelColors = KiyoriSemanticTone.BLUE.resolveColors()
     val context = LocalContext.current
     val characterCardManager = remember { CharacterCardManager.getInstance(context) }
     val characterGroupCardManager = remember { CharacterGroupCardManager.getInstance(context) }
@@ -189,10 +190,15 @@ fun CharacterSelectorPanel(
                                 DropdownMenu(
                                     expanded = sortMenuExpanded,
                                     onDismissRequest = { sortMenuExpanded = false },
-                                    modifier = Modifier
-                                        .shadow(elevation = 12.dp, shape = RoundedCornerShape(12.dp))
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surface)
+                                    modifier = Modifier.border(
+                                        width = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 0.dp,
+                                    shadowElevation = 0.dp
                                 ) {
                                     DropdownMenuItem(
                                         text = {
@@ -310,17 +316,17 @@ fun CharacterItem(
     val userPreferencesManager = remember { UserPreferencesManager.getInstance(context) }
     val avatarUri by userPreferencesManager.getAiAvatarForCharacterCardFlow(card.id).collectAsState(initial = null)
 
-    val colors = KiyoriSemanticTone.PINK.resolveColors()
+    val colors = KiyoriSemanticTone.BLUE.resolveColors()
     val backgroundColor = if (isSelected) {
         colors.container
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        MaterialTheme.colorScheme.surface
     }
     
     val borderColor = if (isSelected) {
         colors.icon.copy(alpha = 0.3f)
     } else {
-        Color.Transparent
+        MaterialTheme.colorScheme.outlineVariant
     }
 
     Surface(
@@ -330,7 +336,7 @@ fun CharacterItem(
         shape = RoundedCornerShape(12.dp),
         color = backgroundColor,
         border = androidx.compose.foundation.BorderStroke(
-            width = if (isSelected) 1.dp else 0.dp,
+            width = if (isSelected) 1.dp else 0.5.dp,
             color = borderColor
         )
     ) {
@@ -433,17 +439,17 @@ fun CharacterGroupItem(
     }.collectAsState(initial = null)
     val displayAvatarUri = groupAvatarUri ?: fallbackMemberAvatarUri
 
-    val colors = KiyoriSemanticTone.PURPLE.resolveColors()
+    val colors = KiyoriSemanticTone.BLUE.resolveColors()
     val backgroundColor = if (isSelected) {
         colors.container
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        MaterialTheme.colorScheme.surface
     }
 
     val borderColor = if (isSelected) {
         colors.icon.copy(alpha = 0.3f)
     } else {
-        Color.Transparent
+        MaterialTheme.colorScheme.outlineVariant
     }
 
     Surface(
@@ -453,7 +459,7 @@ fun CharacterGroupItem(
         shape = RoundedCornerShape(12.dp),
         color = backgroundColor,
         border = androidx.compose.foundation.BorderStroke(
-            width = if (isSelected) 1.dp else 0.dp,
+            width = if (isSelected) 1.dp else 0.5.dp,
             color = borderColor
         )
     ) {

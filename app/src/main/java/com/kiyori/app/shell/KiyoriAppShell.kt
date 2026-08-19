@@ -48,6 +48,7 @@ import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriDownloadSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriMinusOnePage
+import com.ai.assistance.operit.ui.main.shell.KiyoriMoreFeaturesSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriPlayerSettingsPage
 import com.ai.assistance.operit.ui.main.shell.KiyoriSettingsHomePage
 import com.kiyori.capability.browser.presentation.KiyoriBrowserWorkspaceRoute
@@ -101,6 +102,7 @@ internal fun KiyoriAppShell(
     onOpenBrowserSettingsFromKiyoriSettings: () -> Unit,
     onOpenAppearanceSettingsFromKiyoriSettings: () -> Unit,
     onOpenDataSettingsFromKiyoriSettings: () -> Unit,
+    onOpenPermissionsFromKiyoriSettings: () -> Unit,
     onOpenBrowserWorkspace: (KiyoriBrowserWorkspaceRoute) -> Unit,
     onSubmitWebSearch: (KiyoriWebSearchRequest) -> Unit,
     onRequestExit: () -> Unit,
@@ -338,6 +340,11 @@ internal fun KiyoriAppShell(
                     },
                     onOpenAppearanceSettings = onOpenAppearanceSettingsFromKiyoriSettings,
                     onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
+                    onOpenMoreFeatures = {
+                        onStateChange(
+                            state.openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES),
+                        )
+                    },
                     modifier = Modifier.fillMaxSize().zIndex(4f),
                 )
             }
@@ -468,7 +475,20 @@ internal fun KiyoriAppShell(
                                 onOpenAppearanceSettings =
                                     onOpenAppearanceSettingsFromKiyoriSettings,
                                 onOpenDataSettings = onOpenDataSettingsFromKiyoriSettings,
+                                onOpenMoreFeatures = {
+                                    onStateChange(
+                                        state.openSettingsRoute(
+                                            KiyoriSettingsRoute.MORE_FEATURES,
+                                        ),
+                                    )
+                                },
                                 onBack = { onStateChange(state.closeSettingsRoute()) },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        KiyoriSettingsRoute.MORE_FEATURES ->
+                            KiyoriMoreFeaturesSettingsPage(
+                                onBack = { onStateChange(state.closeSettingsRoute()) },
+                                onOpenPermissions = onOpenPermissionsFromKiyoriSettings,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         KiyoriSettingsRoute.BROWSER ->

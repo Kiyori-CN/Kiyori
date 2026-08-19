@@ -6417,7 +6417,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="market_detail_open_page">Abrir página</string>
     <string name="market_detail_post_comment">Publicar comentário</string>
 
-    <string name="sidebar_permission_short">Permissão</string>
     <string name="sidebar_status_normal">Normal</string>
     <string name="chat_hidden_user_message_placeholder">Mensagem de usuário acionada automaticamente (conteúdo oculto)</string>
     <string name="load_newer_history">Toque para carregar mensagens mais recentes</string>

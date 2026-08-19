@@ -31,6 +31,7 @@ import com.kiyori.app.shell.SoftwareHomePage
 import com.kiyori.app.shell.calculateKiyoriAiHostTranslation
 import com.kiyori.app.shell.calculateKiyoriAiDrawerWidthDp
 import com.kiyori.app.shell.calculateKiyoriPagerPageOffset
+import com.kiyori.app.shell.countKiyoriAiDrawerToolboxEntries
 import com.kiyori.app.shell.kiyoriStartupBeyondViewportPageCount
 import com.kiyori.app.shell.isKiyoriBottomNavigationSettingsHome
 import com.kiyori.app.shell.isKiyoriSettingsBackOwnedByShell
@@ -975,6 +976,7 @@ class KiyoriShellStateTest {
             shouldProvideKiyoriSettingsTheme(KiyoriSettingsRoute.HOME),
         )
         listOf(
+            KiyoriSettingsRoute.MORE_FEATURES,
             KiyoriSettingsRoute.BROWSER,
             KiyoriSettingsRoute.DOWNLOAD,
             KiyoriSettingsRoute.PLAYER,
@@ -1098,6 +1100,7 @@ class KiyoriShellStateTest {
             )
         val routePaths =
             listOf(
+                listOf(KiyoriSettingsRoute.MORE_FEATURES),
                 listOf(KiyoriSettingsRoute.BROWSER),
                 listOf(
                     KiyoriSettingsRoute.BROWSER,
@@ -1468,7 +1471,6 @@ class KiyoriShellStateTest {
                 "main.assistant_config" to KiyoriSemanticTone.PINK,
                 "main.memory_base" to KiyoriSemanticTone.GREEN,
                 "main.packages" to KiyoriSemanticTone.PURPLE,
-                "main.shizuku_commands" to KiyoriSemanticTone.RED,
                 "main.workflow" to KiyoriSemanticTone.ORANGE,
                 "main.settings" to KiyoriSemanticTone.BLUE,
                 "main.toolbox" to KiyoriSemanticTone.CYAN,
@@ -1477,6 +1479,27 @@ class KiyoriShellStateTest {
         expected.forEach { (entryId, tone) ->
             assertEquals(tone, resolveKiyoriAiDrawerTone(testAiDrawerEntry(entryId)))
         }
+    }
+
+    @Test
+    fun `AI drawer toolbox badge counts host and plugin toolbox entries`() {
+        val entries =
+            listOf(
+                testAiDrawerEntry(
+                    entryId = "toolbox.host",
+                    surface = NavigationSurface.TOOLBOX,
+                ),
+                testAiDrawerEntry(
+                    entryId = "toolpkg:demo:tool",
+                    surface = NavigationSurface.TOOLBOX,
+                ),
+                testAiDrawerEntry(
+                    entryId = "main.workflow",
+                    surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,
+                ),
+            )
+
+        assertEquals(2, countKiyoriAiDrawerToolboxEntries(entries))
     }
 
     @Test
@@ -1614,6 +1637,30 @@ class KiyoriShellStateTest {
         assertEquals(
             KiyoriSettingsRoute.BROWSER,
             state.restoreSettingsAfterOperitRoute().settingsNavigation?.currentRoute,
+        )
+    }
+
+    @Test
+    fun `permission owner returns to more features in the same settings session`() {
+        val moreFeatures =
+            KiyoriShellState()
+                .openSettings(KiyoriSettingsOrigin.BOTTOM_NAVIGATION)
+                .openSettingsRoute(KiyoriSettingsRoute.MORE_FEATURES)
+        val permissionOwner = moreFeatures.showSettingsOperitRoute()
+
+        assertEquals(
+            KiyoriSettingsPresentation.OPERIT_ROUTE_DETAIL,
+            permissionOwner.settingsNavigation?.presentation,
+        )
+        val restored = permissionOwner.restoreSettingsAfterOperitRoute()
+        assertEquals(
+            KiyoriSettingsRoute.MORE_FEATURES,
+            restored.settingsNavigation?.currentRoute,
+        )
+        assertEquals(moreFeatures, restored)
+        assertEquals(
+            KiyoriSettingsRoute.HOME,
+            restored.closeSettingsRoute().settingsNavigation?.currentRoute,
         )
     }
 

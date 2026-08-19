@@ -14,14 +14,14 @@ baseline: e42bd44f
 | 分组 | 入口 | 目标与 owner |
 | --- | --- | --- |
 | 高频状态 | 包管理 | 现有 Packages 一级页面 |
-| 高频状态 | 权限授予 | `Screen.ShizukuCommands`，不等于 Kiyori 权限总览或 AI 工具授权 |
+| 高频状态 | 工具箱 | 现有 Toolbox 一级页面；徽标统计唯一 `AppNavigationModel` 中的 `NavigationSurface.TOOLBOX` 条目 |
 | 高频状态 | 工作流 | 现有 Workflow 一级页面 |
 | AI 功能 | AI 对话 | 返回现有 AI Home，不创建会话、不清空草稿 |
-| AI 功能 | 助手配置、记忆库、工具箱 | 现有对应一级页面 |
+| AI 功能 | 助手配置、记忆库 | 现有对应一级页面 |
 | 插件 | ToolPkg 动态入口 | 保持 route ID、注册协议和注册顺序；动作入口只执行一次 |
 | 固定入口 | AI 设置 | 现有 Settings 页面和持久状态 |
 
-帮助、关于、使用手册和 Terminal 不进入抽屉。Terminal 继续只位于 AI 首页右上角；工具箱不迁入小程序首页。
+帮助、关于、使用手册和 Terminal 不进入抽屉。Terminal 继续只位于 AI 首页右上角；工具箱不迁入小程序首页。权限授予不再显示在抽屉；“设置 - 更多功能 - 权限”通过当前 settings session 进入原 `Screen.ShizukuCommands`，不新建第二份权限页面或状态。
 
 ## 模态容器合同
 
@@ -40,7 +40,7 @@ baseline: e42bd44f
 
 ## 导航与状态合同
 
-- AI Home、包管理、权限授予、工作流、助手配置、记忆库、工具箱、ToolPkg 一级页面和从抽屉进入的 AI 设置显示三横线；快捷方式、Widget 或外部路由直达这些一级根页面时规则相同
+- AI Home、包管理、工具箱、工作流、助手配置、记忆库、ToolPkg 一级页面和从抽屉进入的 AI 设置显示三横线；快捷方式、Widget 或外部路由直达这些一级根页面时规则相同
 - 上述页面的深层子页面显示返回箭头
 - 每个一级根路由显式保存注册入口 ID。宿主入口只按 route ID 匹配，ToolPkg 插件入口按 route ID 与注册参数共同匹配；禁止从 route args、返回栈深度或 instance ID 前缀推断根归属
 - 浏览器、小程序、文件管理和 Kiyori 设置不显示 AI 抽屉按钮
@@ -80,6 +80,9 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 13. [已完成] 首页三页共享 Pager 输入与 fling，删除 AI 覆盖层阈值跳转
 14. [已完成] 抽屉面板移到状态栏下方，保留全屏遮罩、动态网络状态与原动画参数
 15. [已完成] ToolPkg 一级根服从自身 `keepAlive`，并清理运行时已移除插件的保存栈
+16. [已完成] 将高频入口调整为“扩展 / 工具箱 / 工作流”，删除抽屉权限状态查询和短标签资源；工具箱徽标直接统计唯一导航模型中的宿主与 ToolPkg 工具条目
+17. [已完成] 将原权限入口接入“设置 - 更多功能 - 权限”，复用 `Screen.ShizukuCommands` 和
+    `RouteEntrySource.KIYORI_SETTINGS` 返回链
 
 ## 自动验收
 
@@ -93,6 +96,9 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 - 源码不存在 `statusBarTransparent`、`useCustomStatusBarColor` 或 `customStatusBarColor` 的设置与持久化
 - 无模型配置或 API Key 时 AI Home 仍显示聊天内容区和输入框；源码不存在强制替换 AI Home 的配置整页、`shouldShowConfigDialog` 或 `CHAT_ONBOARDING` 路由
 - 普通模型与参数配置页的 Back 不经过 API Key readiness guard，缺少凭据不会阻塞离开页面
+- 抽屉快捷行只包含 `main.packages / main.toolbox / main.workflow`；`main.shizuku_commands` 不再属于可见抽屉 surface，工具箱徽标数量覆盖宿主与 ToolPkg 的 `TOOLBOX` 条目
+- 设置首页最后一项进入 `KiyoriSettingsRoute.MORE_FEATURES`；权限项打开原
+  `Screen.ShizukuCommands`，离开该根页时恢复同一 More Features route
 - 先前授权的 Python、JVM、Kotlin、lint 和 Debug APK 验证已通过；本轮告警清理后重新通过 Debug Kotlin 编译和 lint，未重复运行与告警修复无直接关系的 JVM 测试或 `assembleDebug`
 
 ## 自动验证记录
@@ -103,6 +109,25 @@ AI Home 保持单一稳定宿主。打开或关闭抽屉、切换 AI 一级页�
 - `:app:lintDebug --rerun-tasks` 在 `13m 05s` 后通过，报告从 59 条 warning 降至 52 条，2 条 hint 不变；项目资源与 Compose 私有资源同名产生的 7 条 `PrivateResource` 已归零，lint baseline 未修改
 - CMake arm64-v8a 重新配置通过；仓库源码没有新增 CMake 告警，保留的 3 条 `CMP0063` 来自 FetchContent OpenFST，2 次 `CXX5304` 来自本机 SDK XML 与旧解析器不匹配
 - 当前工作树的 `assembleDebug` 通过；`app/build/outputs/apk/debug/app-debug.apk` 生成于 `2026-07-23 03:31:37 +08:00`，大小 `416308263` 字节，包名 `com.kiyori`，版本 `45 / 0.1.0`，SHA-256 `38F1F9A37CD55902428E1E6D42989DCCCE0C232C0D88E72764B3603AFED1C494`
+
+## 2026-08-19 本轮快捷入口、更多功能与角色选择维护证据
+
+- `CharacterSelectorVisualContractTest` `4/4`、`KiyoriSettingsPagesTest` `14/14`、
+  `KiyoriShellStateTest` `71/71`，零失败、零错误、零跳过；任务包含
+  `:app:compileDebugKotlin`
+- architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、
+  `python -B ci/script/check_formal_readiness.py --repository . --require-main` 和
+  `git diff --check` 通过
+- `.\gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过；`232` 个任务中
+  `23 executed / 209 up-to-date`，`verifySingleDebugLauncher` 与
+  `verifyDebugPlayerRuntimePackaging` 通过
+- Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，写入时间
+  `2026-08-19 16:00:14 +08:00`，`472553854` bytes，SHA-256
+  `8C08C8D7150BBDB56EE1018BFE1C24FDB07C70F453A3F0AB9ABA74DF267A87E1`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、arm64-only、Android
+  Debug V2 单 signer 与 16 KB ZIP 对齐通过
+- 未安装 APK、未操作设备；抽屉三卡、默认角色头像、排序菜单四角与描边、更多功能权限返回链、
+  浅深主题和窄屏布局保持 `verification_pending`
 
 ## 真机验收
 

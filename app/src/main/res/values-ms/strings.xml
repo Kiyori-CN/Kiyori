@@ -6654,7 +6654,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="conversation_markup_tool_calls">Panggilan alat</string>
     <string name="conversation_markup_tools_call">Panggilan alat `%1$s`</string>
 
-    <string name="sidebar_permission_short">Kebenaran</string>
     <string name="sidebar_status_normal">Normal</string>
     <string name="chat_hidden_user_message_placeholder">Mesej pengguna dicetuskan secara automatik (kandungan disembunyikan)</string>
     <string name="chat_only_ai_message_allowed">Hanya boleh melakukan tindakan ini pada mesej AI</string>

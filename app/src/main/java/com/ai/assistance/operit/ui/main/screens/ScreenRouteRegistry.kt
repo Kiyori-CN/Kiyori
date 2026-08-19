@@ -144,10 +144,8 @@ object ScreenRouteRegistry {
             hostEntryDefinition(
                 entryId = "main.shizuku_commands",
                 screen = Screen.ShizukuCommands,
-                surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,
                 launchNavItem = NavItem.ShizukuCommands,
-                icon = NavItem.ShizukuCommands.icon,
-                order = 20
+                icon = NavItem.ShizukuCommands.icon
             ),
             hostEntryDefinition(
                 entryId = "main.workflow",
@@ -349,10 +347,10 @@ object ScreenRouteRegistry {
             hostEntryDefinition(
                 entryId = "main.toolbox",
                 screen = Screen.Toolbox,
-                surface = NavigationSurface.MAIN_SIDEBAR_AI,
+                surface = NavigationSurface.MAIN_SIDEBAR_TOOLS,
                 launchNavItem = NavItem.Toolbox,
                 icon = NavItem.Toolbox.icon,
-                order = 40
+                order = 20
             ),
             hostEntryDefinition(
                 entryId = "hidden.tool_permissions",

@@ -16,7 +16,7 @@ date: 2026-07-29
 本阶段重点覆盖：
 
 - 负一屏的数据卡片和快捷工具
-- AI 对话页的模态左抽屉、快捷入口、包管理、权限和工作流入口
+- AI 对话页的模态左抽屉、快捷入口、包管理、工具箱和工作流入口
 - 浏览器菜单抽屉、书签、历史、下载、用户脚本、媒体候选和网络日志等内容抽屉及其弹窗
 - 包管理、权限引导和工作流列表/画布的关键视觉层级
 - 与上述页面共享的图标、空态、状态和选中组件
@@ -60,6 +60,24 @@ date: 2026-07-29
 本轮 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，大小 `482617522` 字节，
 SHA-256 `22C6A2D7A20D28038DB8B549826F56CA7871F18E79D6748F7D4310FC358AC15A`；包名
 `com.kiyori`、版本 `45 / 0.1.0`，Android Debug V2 签名和 16 KB ZIP 对齐通过。
+
+## 2026-08-19 AI 角色选择与左抽屉快捷入口调整
+
+- [DONE] AI 抽屉高频入口调整为“扩展 / 工具箱 / 工作流”，工具箱徽标统计唯一导航目录中的宿主与 ToolPkg 工具；权限入口退出抽屉
+- [DONE] 角色选择弹层的角色卡与群组改为中性/蓝色，顶栏默认头像同步改为蓝色；排序菜单为
+  `12dp` 圆角、零 tonal/shadow elevation 和 `0.5dp outlineVariant` 描边
+- [DONE] `CharacterSelectorVisualContractTest` `4/4`、`KiyoriSettingsPagesTest` `14/14`、
+  `KiyoriShellStateTest` `71/71`，零失败、零错误、零跳过；任务包含
+  `:app:compileDebugKotlin`
+- [DONE] architecture `PASS (phase=m03)`、architecture 单元测试 `109/109`、
+  formal readiness、`git diff --check` 和规定 Debug APK 构建通过
+- [DONE] 最终 Debug APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  `472553854` bytes，SHA-256
+  `8C08C8D7150BBDB56EE1018BFE1C24FDB07C70F453A3F0AB9ABA74DF267A87E1`；
+  `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、arm64-only、Android
+  Debug V2 单 signer 与 16 KB ZIP 对齐通过
+- [PENDING] 未安装 APK、未操作设备；浅深主题、排序弹窗四角与描边、设置返回链、窄屏三卡布局
+  和动态 ToolPkg 数量仍需目标设备验收
 
 ## 本地实施结果
 

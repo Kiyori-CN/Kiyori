@@ -145,6 +145,7 @@ internal fun KiyoriPrimaryRootPage(
     onOpenAdBlockSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenDataSettings: () -> Unit,
+    onOpenMoreFeatures: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (destination) {
@@ -163,6 +164,7 @@ internal fun KiyoriPrimaryRootPage(
                 onOpenAdBlockSettings = onOpenAdBlockSettings,
                 onOpenAppearanceSettings = onOpenAppearanceSettings,
                 onOpenDataSettings = onOpenDataSettings,
+                onOpenMoreFeatures = onOpenMoreFeatures,
                 modifier = modifier,
             )
             return
