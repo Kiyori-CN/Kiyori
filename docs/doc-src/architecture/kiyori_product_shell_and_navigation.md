@@ -509,7 +509,9 @@ Browser Home 是沉浸式根页面。其浏览器专属底栏、全屏标签总�
 媒体 URI 不进入网页书签。单条和批量删除都二次确认，并按 `url / category / visitedAt` 精确身份调用
 唯一 `WebSessionHistoryStore`；批量选择保留当前搜索与分类，全选只作用于当前结果，Back 先退出批量模式。
 
-网络日志也属于单个 WebSession，而不是跨窗口持久化诊断库。现有 Android WebView `shouldInterceptRequest` 只记录当前请求能够确认的 method、URL、主框架标记、请求头与时间，并把最多 500 条内存记录投影给 App Shell Browser Home 与 AI 共用的 host；1×1 background anchor 不组合日志 UI。页面导航与用户清空只清该 session；搜索、`全部 / 视频 / 音频 / 图片 / 网页 / 其他 / 拦截` 筛选、第三方 host 提示和操作弹窗属于 presentation 状态。被广告规则命中的请求追加客户端 `blocked`、命中规则和来源字段，并返回明确的 204 空响应；这不是服务端 HTTP 状态推断。列表禁止加载远端缩略图，避免观察行为污染日志。复制和外部打开使用已记录 HTTP/HTTPS URL，下载复用 `BrowserDownloadManager`、当前默认 engine 与活动 Profile 请求身份。Android WebView 没有提供的响应状态、响应 MIME 和播放器状态不得从 URL 猜测或从旧版 X5/hikerView 复制。
+网络日志也属于单个 WebSession，而不是跨窗口持久化诊断库。现有 Android WebView `shouldInterceptRequest` 只记录当前请求能够确认的 method、URL、主框架标记、请求头与时间，并按当前 document token 和规范化 URL 聚合最多 2,000 个资源 identity，投影给 App Shell Browser Home 与 AI 共用的 host；1×1 background anchor 不组合日志 UI。页面导航与用户清空只清该 session；搜索、`全部 / 视频 / 音频 / 图片 / 网页 / 脚本 / 样式 / 数据 / 字体 / 其他 / 拦截` 筛选、第三方 host 提示和操作弹窗属于 presentation 状态。被广告规则命中的请求追加客户端 `blocked`、命中规则和来源字段，并返回明确的 204 空响应；这不是服务端 HTTP 状态推断。图片条目使用原请求 URL、已观察请求头及活动 WebSession 补齐的 User-Agent、Profile Cookie 和 HTTP(S) Referer 显示有界缩略图；查看时冻结当前筛选图片集合，在不带平台 dim 的 edge-to-edge Dialog 中按原比例完整显示，支持左右分页、编号、保存、长按保存、单击退出、上下拖动透明退出和双指缩放。查看和保存不写回资源目录，保存仍进入唯一 `BrowserDownloadManager`。复制和外部打开使用已记录 HTTP/HTTPS URL。Android WebView 没有提供的响应状态、响应 MIME 和播放器状态不得从 URL 猜测或从旧版 X5/hikerView 复制。
+
+网页长按按目标类型明确分流：编辑型 `input`、`textarea` 和有效 `contenteditable` 交给 Android WebView 原生长按、系统 `ActionMode` 和原生选区手柄，系统负责剪切、复制、粘贴与选区范围调整；Kiyori 不绘制输入框选区，也不显示输入框专用的复制、全选、取消按钮。普通元素继续进入 `__kiyoriElementActions`，不与编辑控件共享长按 owner。WebView 只对普通元素消费原生长按，编辑控件由 `EDIT_TEXT_TYPE` 返回未消费以进入系统选区，不新增第二套原生选区 owner 或 WebView。
 
 AI 操作采用四级风险模型：R0 只读、R1 低影响、R2 高影响、R3 关键操作。风险由具体命令、目标、范围、可逆性、数据敏感度和外部影响共同决定，不能按工具名称固定。`ALLOW` 只能免除 R0 与 R1 的逐次操作确认；R2 默认单次确认，只允许目标与范围固定的显式会话期授权；R3 每次确认，不允许会话期或持久免确认。
 

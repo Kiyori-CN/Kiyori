@@ -103,6 +103,114 @@ internal fun filterBrowserNetworkLogEntries(
         }
 }
 
+internal data class BrowserNetworkImageViewerSnapshot(
+    val entries: List<WebSessionBrowserNetworkEntry>,
+    val initialPage: Int,
+)
+
+internal const val BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE = 1f
+internal const val BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE = 5f
+
+internal fun clampBrowserNetworkImageViewerScale(scale: Float): Float =
+    scale.coerceIn(
+        BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE,
+        BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE,
+    )
+
+internal fun buildBrowserNetworkImageViewerSnapshot(
+    entries: List<WebSessionBrowserNetworkEntry>,
+    selectedResourceIdentity: String,
+): BrowserNetworkImageViewerSnapshot? {
+    val imageEntries =
+        entries.filter { entry ->
+            entry.kind == BrowserNetworkLogEntryKind.REQUEST &&
+                entry.category == BrowserNetworkRequestCategory.IMAGE &&
+                isHttpBrowserNetworkUrl(entry.url)
+        }
+    val initialPage =
+        imageEntries.indexOfFirst { entry ->
+            entry.resourceIdentity == selectedResourceIdentity
+        }
+    if (initialPage < 0) {
+        return null
+    }
+    return BrowserNetworkImageViewerSnapshot(
+        entries = imageEntries,
+        initialPage = initialPage,
+    )
+}
+
+internal fun isHttpBrowserNetworkUrl(url: String): Boolean =
+    runCatching {
+        val uri = URI(url.trim())
+        val scheme = uri.scheme?.lowercase(Locale.ROOT)
+        scheme == "http" || scheme == "https"
+    }.getOrDefault(false)
+
+internal fun buildBrowserNetworkRequestHeaders(
+    observedHeaders: Map<String, String>,
+    appliedUserAgent: String,
+    cookie: String?,
+    pageUrl: String,
+): Map<String, String> {
+    val headers = LinkedHashMap<String, String>()
+    observedHeaders.forEach { (name, value) ->
+        if (name.isNotBlank()) {
+            headers.keys.firstOrNull { it.equals(name, ignoreCase = true) }?.let(headers::remove)
+            headers[name] = value
+        }
+    }
+    addBrowserNetworkHeaderIfMissing(
+        headers = headers,
+        name = "User-Agent",
+        value = appliedUserAgent,
+    )
+    addBrowserNetworkHeaderIfMissing(
+        headers = headers,
+        name = "Cookie",
+        value = cookie,
+    )
+    addBrowserNetworkHeaderIfMissing(
+        headers = headers,
+        name = "Referer",
+        value = pageUrl.takeIf(::isHttpBrowserNetworkUrl),
+    )
+    return headers.toMap()
+}
+
+private fun addBrowserNetworkHeaderIfMissing(
+    headers: LinkedHashMap<String, String>,
+    name: String,
+    value: String?,
+) {
+    val existingKey = headers.keys.firstOrNull { it.equals(name, ignoreCase = true) }
+    if (existingKey != null && headers[existingKey].orEmpty().isNotBlank()) {
+        return
+    }
+    existingKey?.let(headers::remove)
+    value?.takeIf(String::isNotBlank)?.let { headers[name] = it }
+}
+
+internal fun browserNetworkImageViewerBackgroundAlpha(
+    verticalOffsetPx: Float,
+    viewportHeightPx: Float,
+): Float {
+    if (!verticalOffsetPx.isFinite() || !viewportHeightPx.isFinite() || viewportHeightPx <= 0f) {
+        return 1f
+    }
+    val fadeDistance = viewportHeightPx * 0.55f
+    return (1f - (kotlin.math.abs(verticalOffsetPx) / fadeDistance)).coerceIn(0f, 1f)
+}
+
+internal fun shouldDismissBrowserNetworkImageViewer(
+    verticalOffsetPx: Float,
+    touchSlopPx: Float,
+): Boolean =
+    verticalOffsetPx.isFinite() &&
+        touchSlopPx.isFinite() &&
+        touchSlopPx >= 0f &&
+        kotlin.math.abs(verticalOffsetPx) > touchSlopPx
+
 internal fun isThirdPartyBrowserNetworkRequest(
     pageUrl: String,
     requestUrl: String,

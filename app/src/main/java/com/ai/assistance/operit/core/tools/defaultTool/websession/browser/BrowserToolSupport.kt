@@ -265,8 +265,33 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
     if (session.credentialDocumentToken != documentToken) {
         return
     }
-    val headers = request.requestHeaders?.mapKeys { it.key ?: "" } ?: emptyMap()
-    val acceptHeader = headers.entries.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value
+    val observedHeaders = request.requestHeaders?.filterKeys(String::isNotBlank).orEmpty()
+    val acceptHeader =
+        observedHeaders.entries.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value
+    val category =
+        classifyBrowserNetworkRequest(
+            url = url,
+            acceptHeader = acceptHeader,
+            isMainFrame = request.isForMainFrame,
+        )
+    val headers =
+        if (category == BrowserNetworkRequestCategory.IMAGE) {
+            // 完整图片由 Coil 在 WebView 之外请求；采集时补齐同一 Profile 的请求身份，
+            // 否则需要防盗链或登录态的图片会停在加载态。其他资源不读取 Cookie，避免
+            // shouldInterceptRequest 为每个脚本、字体和数据请求承担无关开销。
+            val cookie =
+                runCatching { session.cookieManager.getCookie(url) }
+                    .getOrNull()
+                    ?.takeIf(String::isNotBlank)
+            buildBrowserNetworkRequestHeaders(
+                observedHeaders = observedHeaders,
+                appliedUserAgent = session.appliedUserAgent,
+                cookie = cookie,
+                pageUrl = session.currentUrl,
+            )
+        } else {
+            observedHeaders
+        }
     val now = System.currentTimeMillis()
     val entry =
         com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkRequestEntry(
@@ -274,12 +299,7 @@ internal fun StandardBrowserSessionTools.recordNetworkRequest(
             url = url,
             isMainFrame = request.isForMainFrame,
             isStatic = isStaticRequest(url, acceptHeader),
-            category =
-                classifyBrowserNetworkRequest(
-                    url = url,
-                    acceptHeader = acceptHeader,
-                    isMainFrame = request.isForMainFrame,
-                ),
+            category = category,
             headers = headers,
             blocked = blockDecision?.blocked == true,
             blockingRule = blockDecision?.rule,

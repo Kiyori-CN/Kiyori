@@ -1,15 +1,20 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
+import android.graphics.Color as AndroidColor
+import android.view.ViewConfiguration
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,25 +53,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -76,23 +85,32 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
-import coil.compose.AsyncImagePainter
+import androidx.core.graphics.drawable.toDrawable
 import coil.compose.SubcomposeAsyncImage
-import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadSettingsStore
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkLogEntryKind
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkRequestCategory
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserNetworkImageViewerSnapshot
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionBrowserNetworkEntry
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserNetworkImageViewerBackgroundAlpha
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildBrowserNetworkImageViewerSnapshot
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserNetworkHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserNetworkUrlExtension
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.clampBrowserNetworkImageViewerScale
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.compactBrowserNetworkLogUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.filterBrowserNetworkLogEntries
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isThirdPartyBrowserNetworkRequest
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.normalizeBrowserResourceIdentityUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.resolveManualBrowserDownloadFileName
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.shouldDismissBrowserNetworkImageViewer
 import com.ai.assistance.operit.ui.components.KiyoriSemanticIconBadge
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.resolveColors
@@ -100,6 +118,7 @@ import com.ai.assistance.operit.util.AppLogger
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 import okhttp3.Headers
 
 private const val NETWORK_LOG_TAG = "WebSessionNetworkLog"
@@ -140,7 +159,8 @@ internal fun WebSessionBrowserNetworkLog(
     var query by rememberSaveable { mutableStateOf("") }
     var actionEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
     var detailEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
-    var imagePreviewEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
+    var imageViewerSnapshot by remember { mutableStateOf<BrowserNetworkImageViewerSnapshot?>(null) }
+    var pendingImageSaveEntry by remember { mutableStateOf<WebSessionBrowserNetworkEntry?>(null) }
     val filteredEntries =
         remember(entries, selectedFilter, query) {
             filterBrowserNetworkLogEntries(
@@ -152,6 +172,30 @@ internal fun WebSessionBrowserNetworkLog(
         }
     val copiedMessage = stringResource(R.string.web_session_network_log_copied)
     val externalOpenFailedMessage = stringResource(R.string.web_session_network_log_external_open_failed)
+    val startDownload: (WebSessionBrowserNetworkEntry) -> Unit = { entry ->
+        val fileName = resolveManualBrowserDownloadFileName("", entry.url, "")
+        val accepted =
+            entry.mediaCandidateId?.let(onDownloadMediaCandidate)
+                ?: onStartDownload(
+                    fileName,
+                    entry.url,
+                    "",
+                    downloadSettingsStore.current.defaultEngine,
+                )
+        if (accepted) {
+            Toast.makeText(
+                context,
+                resources.getString(R.string.download_started, fileName),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+    LaunchedEffect(pendingImageSaveEntry) {
+        pendingImageSaveEntry?.let { entry ->
+            startDownload(entry)
+            pendingImageSaveEntry = null
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         WebSessionDrawerHeader(
@@ -283,22 +327,7 @@ internal fun WebSessionBrowserNetworkLog(
                 actionEntry = null
             },
             onDownload = {
-                val fileName = resolveManualBrowserDownloadFileName("", entry.url, "")
-                val accepted =
-                    entry.mediaCandidateId?.let(onDownloadMediaCandidate)
-                        ?: onStartDownload(
-                            fileName,
-                            entry.url,
-                            "",
-                            downloadSettingsStore.current.defaultEngine,
-                        )
-                if (accepted) {
-                    Toast.makeText(
-                        context,
-                        resources.getString(R.string.download_started, fileName),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
+                startDownload(entry)
                 actionEntry = null
             },
             onPlay = {
@@ -306,7 +335,11 @@ internal fun WebSessionBrowserNetworkLog(
                 actionEntry = null
             },
             onViewImage = {
-                imagePreviewEntry = entry
+                imageViewerSnapshot =
+                    buildBrowserNetworkImageViewerSnapshot(
+                        entries = filteredEntries,
+                        selectedResourceIdentity = entry.resourceIdentity,
+                    )
                 actionEntry = null
             },
             onViewPageSource = {
@@ -344,10 +377,14 @@ internal fun WebSessionBrowserNetworkLog(
         )
     }
 
-    imagePreviewEntry?.let { entry ->
+    imageViewerSnapshot?.let { snapshot ->
         BrowserNetworkImageViewer(
-            entry = entry,
-            onDismiss = { imagePreviewEntry = null },
+            snapshot = snapshot,
+            onDismiss = { imageViewerSnapshot = null },
+            onSave = { entry ->
+                pendingImageSaveEntry = entry
+                imageViewerSnapshot = null
+            },
         )
     }
 }
@@ -703,7 +740,7 @@ private fun BrowserNetworkLogActionDialog(
                     description = "内置音乐播放器尚未实现",
                 )
             }
-            if (entry.category == BrowserNetworkRequestCategory.IMAGE) {
+            if (entry.category == BrowserNetworkRequestCategory.IMAGE && networkUrl) {
                 BrowserNetworkLogActionRow(
                     icon = Icons.Filled.Info,
                     title = "查看图片",
@@ -999,101 +1036,300 @@ private fun browserNetworkCategoryLabel(category: BrowserNetworkRequestCategory)
 
 @Composable
 private fun BrowserNetworkImageViewer(
-    entry: WebSessionBrowserNetworkEntry,
+    snapshot: BrowserNetworkImageViewerSnapshot,
     onDismiss: () -> Unit,
+    onSave: (WebSessionBrowserNetworkEntry) -> Unit,
 ) {
     val context = LocalContext.current
-    val request =
-        remember(entry.resourceIdentity, entry.requestHeaders) {
-            buildBrowserResourceImageRequest(
-                context = context,
-                entry = entry,
-                thumbnail = false,
-            )
-        }
-    val painter = rememberAsyncImagePainter(request)
-    var scale by remember(entry.resourceIdentity) { mutableFloatStateOf(1f) }
-    var offset by remember(entry.resourceIdentity) { mutableStateOf(Offset.Zero) }
+    val gestureScope = rememberCoroutineScope()
+    val viewConfiguration = remember(context) { ViewConfiguration.get(context) }
+    val pagerState =
+        rememberPagerState(
+            initialPage = snapshot.initialPage,
+            pageCount = { snapshot.entries.size },
+        )
+    var verticalOffsetPx by remember { mutableStateOf(0f) }
+    var viewportHeightPx by remember { mutableStateOf(0f) }
+    var saveActionVisible by remember { mutableStateOf(false) }
+    var imageScale by remember(snapshot.entries) {
+        mutableStateOf(BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE)
+    }
 
-    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Color.Black,
+    LaunchedEffect(pagerState.currentPage) {
+        imageScale = BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties =
+            DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+    ) {
+        val dialogWindow = (LocalView.current.parent as DialogWindowProvider).window
+        SideEffect {
+            // 图片查看层必须与底层浏览器共享真实透明度；保留 Dialog 默认 dim 会让
+            // 黑色背景即使变透明也只能露出一层暗化后的网页。
+            dialogWindow.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            dialogWindow.setBackgroundDrawable(AndroidColor.TRANSPARENT.toDrawable())
+            val insetsController =
+                WindowCompat.getInsetsController(dialogWindow, dialogWindow.decorView)
+            insetsController.isAppearanceLightStatusBars = false
+            insetsController.isAppearanceLightNavigationBars = false
+        }
+        BackHandler {
+            if (saveActionVisible) {
+                saveActionVisible = false
+            } else {
+                onDismiss()
+            }
+        }
+
+        val backgroundAlpha =
+            browserNetworkImageViewerBackgroundAlpha(
+                verticalOffsetPx = verticalOffsetPx,
+                viewportHeightPx = viewportHeightPx,
+            )
+        val currentEntry = snapshot.entries[pagerState.currentPage]
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = backgroundAlpha)),
         ) {
-            Box(
+            HorizontalPager(
+                state = pagerState,
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .onSizeChanged { size -> viewportHeightPx = size.height.toFloat() }
                         .clipToBounds()
-                        .pointerInput(entry.resourceIdentity) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                val nextScale = (scale * zoom).coerceIn(1f, 5f)
-                                scale = nextScale
-                                offset =
-                                    if (nextScale == 1f) {
-                                        Offset.Zero
-                                    } else {
-                                        offset + pan
-                                    }
+                        .graphicsLayer { translationY = verticalOffsetPx }
+                        .pointerInput(snapshot.entries, saveActionVisible) {
+                            if (saveActionVisible) {
+                                return@pointerInput
                             }
-                        }
-                        .pointerInput(entry.resourceIdentity) {
-                            detectTapGestures(
-                                onDoubleTap = {
-                                    if (scale > 1f) {
-                                        scale = 1f
-                                        offset = Offset.Zero
-                                    } else {
-                                        scale = 2.5f
+                            awaitEachGesture {
+                                val down =
+                                    awaitFirstDown(
+                                        requireUnconsumed = false,
+                                        pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
+                                    )
+                                var horizontalGesture = false
+                                var verticalGesture = false
+                                var movedBeyondSlop = false
+                                var longPressTriggered = false
+                                var pointerIsDown = true
+                                var completedWithUp = false
+                                var pinchGesture = false
+                                var previousPinchDistancePx = 0f
+                                val longPressJob =
+                                    gestureScope.launch {
+                                        kotlinx.coroutines.delay(ViewConfiguration.getLongPressTimeout().toLong())
+                                        if (pointerIsDown && !movedBeyondSlop) {
+                                            longPressTriggered = true
+                                            saveActionVisible = true
+                                        }
                                     }
-                                },
-                            )
+                                try {
+                                    while (true) {
+                                        val event =
+                                            awaitPointerEvent(
+                                                androidx.compose.ui.input.pointer.PointerEventPass.Initial,
+                                            )
+                                        val pressedPointers =
+                                            event.changes.filter { change -> change.pressed }
+                                        if (pressedPointers.size >= 2) {
+                                            movedBeyondSlop = true
+                                            pinchGesture = true
+                                            longPressJob.cancel()
+                                            val firstPointer = pressedPointers[0]
+                                            val secondPointer = pressedPointers[1]
+                                            val pinchDistancePx =
+                                                (firstPointer.position - secondPointer.position)
+                                                    .getDistance()
+                                            if (pinchDistancePx > 0f) {
+                                                if (previousPinchDistancePx > 0f) {
+                                                    imageScale =
+                                                        clampBrowserNetworkImageViewerScale(
+                                                            imageScale *
+                                                                (pinchDistancePx / previousPinchDistancePx),
+                                                        )
+                                                }
+                                                previousPinchDistancePx = pinchDistancePx
+                                            }
+                                            pressedPointers.forEach { change -> change.consume() }
+                                            continue
+                                        }
+                                        if (pinchGesture) {
+                                            event.changes.forEach { change -> change.consume() }
+                                            if (pressedPointers.isEmpty()) {
+                                                completedWithUp = true
+                                                break
+                                            }
+                                            continue
+                                        }
+                                        val pointer =
+                                            event.changes.firstOrNull { change ->
+                                                change.id == down.id
+                                            } ?: break
+                                        val totalDelta = pointer.position - down.position
+                                        if (
+                                            !movedBeyondSlop &&
+                                                totalDelta.getDistance() > viewConfiguration.scaledTouchSlop
+                                        ) {
+                                            movedBeyondSlop = true
+                                            longPressJob.cancel()
+                                            if (kotlin.math.abs(totalDelta.x) >= kotlin.math.abs(totalDelta.y)) {
+                                                horizontalGesture = true
+                                            } else {
+                                                verticalGesture = true
+                                            }
+                                        }
+                                        if (horizontalGesture) {
+                                            break
+                                        }
+                                        if (verticalGesture) {
+                                            verticalOffsetPx = totalDelta.y
+                                            pointer.consume()
+                                        }
+                                        if (!pointer.pressed) {
+                                            completedWithUp = true
+                                            break
+                                        }
+                                    }
+                                } finally {
+                                    pointerIsDown = false
+                                    longPressJob.cancel()
+                                }
+                                if (verticalGesture && completedWithUp && !longPressTriggered) {
+                                    if (
+                                        shouldDismissBrowserNetworkImageViewer(
+                                            verticalOffsetPx = verticalOffsetPx,
+                                            touchSlopPx = viewConfiguration.scaledTouchSlop.toFloat(),
+                                        )
+                                    ) {
+                                        onDismiss()
+                                    } else {
+                                        verticalOffsetPx = 0f
+                                    }
+                                } else if (
+                                    completedWithUp &&
+                                        !movedBeyondSlop &&
+                                        !longPressTriggered
+                                ) {
+                                    onDismiss()
+                                } else if (verticalGesture) {
+                                    verticalOffsetPx = 0f
+                                }
+                            }
                         },
-                contentAlignment = Alignment.Center,
-            ) {
-                when (painter.state) {
-                    is AsyncImagePainter.State.Error ->
-                        Text(
-                            text = "图片加载失败",
-                            color = Color.White,
-                            fontSize = 14.sp,
+            ) { page ->
+                val entry = snapshot.entries[page]
+                val request =
+                    remember(entry.resourceIdentity, entry.requestHeaders) {
+                        buildBrowserResourceImageRequest(
+                            context = context,
+                            entry = entry,
+                            thumbnail = false,
                         )
-                    AsyncImagePainter.State.Empty,
-                    is AsyncImagePainter.State.Loading ->
-                        Text(
-                            text = "正在加载图片",
-                            color = Color.White.copy(alpha = 0.76f),
-                            fontSize = 14.sp,
-                        )
-                    else ->
-                        Image(
-                            painter = painter,
-                            contentDescription = null,
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        scaleX = scale
-                                        scaleY = scale
-                                        translationX = offset.x
-                                        translationY = offset.y
-                                    },
-                            contentScale = ContentScale.Fit,
-                        )
-                }
-                IconButton(
-                    onClick = onDismiss,
+                    }
+                SubcomposeAsyncImage(
+                    model = request,
+                    contentDescription = null,
                     modifier =
                         Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(12.dp)
-                            .background(Color.Black.copy(alpha = 0.56f), RoundedCornerShape(20.dp)),
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = imageScale
+                                scaleY = imageScale
+                            },
+                    contentScale = ContentScale.Fit,
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "正在加载图片",
+                                color = Color.White.copy(alpha = 0.76f),
+                                fontSize = 14.sp,
+                            )
+                        }
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "图片加载失败",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                            )
+                        }
+                    },
+                )
+            }
+
+            if (!saveActionVisible) {
+                Row(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                            .graphicsLayer { alpha = backgroundAlpha },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.close),
-                        tint = Color.White,
+                    Text(
+                        text = "${pagerState.currentPage + 1}/${snapshot.entries.size}",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
                     )
+                    Text(
+                        text = "保存",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier =
+                            Modifier
+                                .clickable(role = Role.Button) { onSave(currentEntry) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                    )
+                }
+            } else {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.22f))
+                            .clickable { saveActionVisible = false },
+                ) {
+                    Surface(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                                .padding(20.dp)
+                                .clickable(role = Role.Button) { onSave(currentEntry) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
+                    ) {
+                        Text(
+                            text = "保存原图",
+                            color = Color.Black,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 18.dp),
+                        )
+                    }
                 }
             }
         }

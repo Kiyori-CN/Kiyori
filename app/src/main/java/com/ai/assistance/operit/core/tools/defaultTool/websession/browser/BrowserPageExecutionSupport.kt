@@ -34,6 +34,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val EXECUTION_SUPPORT_TAG = "BrowserSessionTools"
 
@@ -85,6 +86,15 @@ internal class BrowserAsyncBridge {
 internal class BrowserTextSelectionBridge(
     private val browserTools: StandardBrowserSessionTools,
 ) {
+    private val editableLongPressTarget = AtomicBoolean(false)
+
+    @JavascriptInterface
+    fun setEditableLongPressTarget(editable: Boolean) {
+        editableLongPressTarget.set(editable)
+    }
+
+    fun isEditableLongPressTarget(): Boolean = editableLongPressTarget.get()
+
     @JavascriptInterface
     fun showActions(
         anchorX: Double,
@@ -557,6 +567,30 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                     : "";
             }
 
+            function textSelectionTargetFor(element) {
+                if (!element || isRuntimeElement(element)) {
+                    return null;
+                }
+                const target =
+                    element.closest
+                        ? element.closest("input, textarea, [contenteditable]")
+                        : element;
+                if (
+                    target &&
+                    (
+                        target.tagName === "TEXTAREA" ||
+                        (
+                            target.tagName === "INPUT" &&
+                            !/^(button|checkbox|color|file|hidden|image|radio|range|reset|submit)$/i.test(target.type || "")
+                        ) ||
+                        target.isContentEditable
+                    )
+                ) {
+                    return target;
+                }
+                return null;
+            }
+
             function payloadFor(element, x, y) {
                 if (!element || isRuntimeElement(element)) {
                     return null;
@@ -931,6 +965,9 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
             window.__kiyoriElementActions = {
                 handleLongPress: function(x, y) {
                     const element = document.elementFromPoint(x, y);
+                    if (textSelectionTargetFor(element)) {
+                        return false;
+                    }
                     const payload = payloadFor(element, x, y);
                     if (!payload) {
                         return false;
@@ -998,7 +1035,6 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 startX: 0,
                 startY: 0,
                 range: null,
-                control: null,
                 selectedText: "",
                 overlay: null,
                 highlights: [],
@@ -1023,11 +1059,33 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 return !!target && !!target.closest && !!target.closest("[" + uiAttribute + "='true']");
             }
 
+            function editableTextControlFor(element) {
+                if (!element) {
+                    return null;
+                }
+                const target =
+                    element.closest
+                        ? element.closest("input, textarea, [contenteditable]")
+                        : element;
+                if (!target) {
+                    return null;
+                }
+                if (target.tagName === "TEXTAREA") {
+                    return target;
+                }
+                if (
+                    target.tagName === "INPUT" &&
+                    !/^(button|checkbox|color|file|hidden|image|radio|range|reset|submit)$/i.test(
+                        target.type || ""
+                    )
+                ) {
+                    return target;
+                }
+                return target.isContentEditable ? target : null;
+            }
+
             function isEditableTextControl(element) {
-                return !!element &&
-                    (element.tagName === "TEXTAREA" ||
-                        (element.tagName === "INPUT" &&
-                            !/^(button|checkbox|color|file|hidden|image|radio|range|reset|submit)$/i.test(element.type || "")));
+                return !!editableTextControlFor(element);
             }
 
             function clearNativeSelection() {
@@ -1341,22 +1399,6 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 }
             }
 
-            function renderControlSelection(showActions) {
-                const control = state.control;
-                if (!control) {
-                    clearVisuals();
-                    clearNativeSelection();
-                    return;
-                }
-                const rect = control.getBoundingClientRect();
-                renderHighlights([rect]);
-                updateHandle("start", rect);
-                updateHandle("end", rect);
-                if (showActions) {
-                    showActionsForRect(rect);
-                }
-            }
-
             function selectRange(range) {
                 const text = String(range.toString() || "");
                 if (!text.trim()) {
@@ -1364,42 +1406,18 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 }
                 clearOperitSelection(false);
                 state.range = range.cloneRange();
-                state.control = null;
                 state.selectedText = text;
                 renderRangeSelection(true);
                 performHapticFeedback();
                 return true;
             }
 
-            function selectControlContents(control) {
-                const text = String(control.value || "");
-                if (!text.trim()) {
-                    return false;
-                }
-                clearOperitSelection(false);
-                control.focus();
-                control.setSelectionRange(0, text.length);
-                state.control = control;
-                state.range = null;
-                state.selectedText = text;
-                renderControlSelection(true);
-                performHapticFeedback();
-                return true;
-            }
-
             function selectAtPoint(x, y) {
                 const element = document.elementFromPoint(x, y);
-                const control =
-                    isEditableTextControl(element)
-                        ? element
-                        : element && element.closest
-                            ? element.closest("input, textarea")
-                            : null;
-                if (
-                    isEditableTextControl(control) &&
-                    typeof control.setSelectionRange === "function"
-                ) {
-                    selectControlContents(control);
+                if (editableTextControlFor(element)) {
+                    // Editable controls are selected by Android WebView. Keeping this
+                    // branch empty prevents a programmatic caller from recreating the
+                    // old painted control selection.
                     return;
                 }
 
@@ -1500,25 +1518,11 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 return { x: event.clientX, y: event.clientY };
             }
 
-            function selectedControlText() {
-                const control = state.control;
-                if (
-                    control &&
-                    typeof control.selectionStart === "number" &&
-                    typeof control.selectionEnd === "number"
-                ) {
-                    return String(control.value || "").slice(control.selectionStart, control.selectionEnd);
-                }
-                return state.selectedText;
-            }
-
             function selectAllText() {
                 const active = document.activeElement;
-                if (
-                    isEditableTextControl(active) &&
-                    typeof active.setSelectionRange === "function"
-                ) {
-                    selectControlContents(active);
+                if (isEditableTextControl(active)) {
+                    // Native WebView ActionMode owns editable select-all. The custom
+                    // helper must never paint or report a second control selection.
                     return;
                 }
                 const body = document.body;
@@ -1537,17 +1541,7 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 }
                 clearVisuals();
                 state.range = null;
-                state.control = null;
                 state.selectedText = "";
-                const active = document.activeElement;
-                if (
-                    isEditableTextControl(active) &&
-                    typeof active.selectionEnd === "number" &&
-                    typeof active.setSelectionRange === "function"
-                ) {
-                    const end = active.selectionEnd;
-                    active.setSelectionRange(end, end);
-                }
                 clearNativeSelection();
                 if (hideActions) {
                     window.OperitTextSelectionBridge.hideActions();
@@ -1556,7 +1550,7 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
 
             window.__operitTextSelection = {
                 getText: function() {
-                    return selectedControlText();
+                    return state.selectedText;
                 },
                 clear: function() {
                     clearOperitSelection(true);
@@ -1575,6 +1569,9 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 }
                 clearLongPressTimer();
                 state.longPressArmed = false;
+                window.OperitTextSelectionBridge.setEditableLongPressTarget(
+                    isEditableTextControl(event.target)
+                );
                 if (state.selectedText) {
                     clearOperitSelection(true);
                 }
@@ -1586,6 +1583,17 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
                 state.startY = touch.clientY;
                 state.longPressTimer = setTimeout(function() {
                     state.longPressTimer = null;
+                    const pressedElement = document.elementFromPoint(
+                        state.startX,
+                        state.startY
+                    );
+                    if (isEditableTextControl(pressedElement)) {
+                        // Android WebView owns editable long-press. Calling the custom
+                        // selector here would replace the real selection with a painted
+                        // rectangle that cannot participate in the system clipboard or
+                        // ActionMode.
+                        return;
+                    }
                     state.longPressArmed = true;
                     const handled =
                         window.__kiyoriElementActions &&
@@ -1627,6 +1635,7 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
             }, { capture: true, passive: false });
 
             document.addEventListener("touchend", function(event) {
+                window.OperitTextSelectionBridge.setEditableLongPressTarget(false);
                 if (state.draggingHandle) {
                     if (state.dragFrame) {
                         cancelAnimationFrame(state.dragFrame);
@@ -1651,6 +1660,7 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
             }, { capture: true, passive: false });
 
             document.addEventListener("touchcancel", function() {
+                window.OperitTextSelectionBridge.setEditableLongPressTarget(false);
                 clearLongPressTimer();
                 state.longPressArmed = false;
                 if (state.dragFrame) {
@@ -1676,16 +1686,12 @@ internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebV
             document.addEventListener("scroll", function() {
                 if (state.range) {
                     renderRangeSelection(true);
-                } else if (state.control) {
-                    renderControlSelection(true);
                 }
             }, true);
 
             window.addEventListener("resize", function() {
                 if (state.range) {
                     renderRangeSelection(true);
-                } else if (state.control) {
-                    renderControlSelection(true);
                 }
             }, true);
         })();

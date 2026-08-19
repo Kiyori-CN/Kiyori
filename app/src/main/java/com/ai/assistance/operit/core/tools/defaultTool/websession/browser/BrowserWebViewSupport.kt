@@ -154,6 +154,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
     configureCookiePolicy(session)
 
     val adMarkingViewConfiguration = ViewConfiguration.get(session.webView.context)
+    val textSelectionBridge = BrowserTextSelectionBridge(this@configureWebView)
     val adMarkingTouchTracker =
         BrowserAdMarkingTouchTracker(
             touchSlopPx = adMarkingViewConfiguration.scaledTouchSlop.toFloat(),
@@ -164,7 +165,10 @@ internal fun StandardBrowserSessionTools.configureWebView(
         isFocusable = true
         isFocusableInTouchMode = true
         isClickable = true
-        isLongClickable = false
+        // 编辑控件的长按必须交给 WebView 自己处理，系统才能创建真实的
+        // ActionMode、选区手柄和剪切/复制/粘贴动作；普通网页元素仍由下面的
+        // OnLongClickListener 消费，继续进入 Kiyori 网页元素操作链。
+        isLongClickable = true
         isHapticFeedbackEnabled = false
         contentDescription = context.getString(R.string.web_session_accessibility_web_content)
         setOnTouchListener { view, event ->
@@ -260,7 +264,6 @@ internal fun StandardBrowserSessionTools.configureWebView(
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         view.parent?.requestDisallowInterceptTouchEvent(true)
-                        view.isLongClickable = false
                         view.isHapticFeedbackEnabled = false
                         if (!view.hasFocus()) {
                             view.requestFocus()
@@ -280,7 +283,7 @@ internal fun StandardBrowserSessionTools.configureWebView(
         }
         addJavascriptInterface(BrowserWebDownloadBridge(this@configureWebView, session), "OperitWebDownloadBridge")
         addJavascriptInterface(BrowserAsyncBridge(), "OperitAsyncBridge")
-        addJavascriptInterface(BrowserTextSelectionBridge(this@configureWebView), "OperitTextSelectionBridge")
+        addJavascriptInterface(textSelectionBridge, "OperitTextSelectionBridge")
         addJavascriptInterface(
             BrowserWebElementBridge(this@configureWebView, session),
             "OperitWebElementBridge",
@@ -294,8 +297,11 @@ internal fun StandardBrowserSessionTools.configureWebView(
             BROWSER_CREDENTIAL_BRIDGE_NAME,
         )
         setDownloadListener(createDownloadListener(session))
-        setOnLongClickListener { true }
-        isLongClickable = false
+        setOnLongClickListener {
+            !textSelectionBridge.isEditableLongPressTarget() &&
+                hitTestResult.type != WebView.HitTestResult.EDIT_TEXT_TYPE
+        }
+        isLongClickable = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             isScreenReaderFocusable = true
         }

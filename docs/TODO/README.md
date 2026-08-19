@@ -7,6 +7,113 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-19 浏览器原生选区与图片双指缩放继续修复
+
+状态：用户现场复测证明上一轮输入框蓝色选区与“复制 / 全选 / 取消”属于 Kiyori 自绘假选中，
+无法作为系统选区逐字调整，也无法可靠读取剪贴文本。本轮已完成源码纠正、定向 JVM 测试、
+Kotlin 编译、正式门禁和规定的 Debug APK 静态核验；目标设备复测仍为
+`verification_pending`。
+
+本轮继续复用
+[`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
+及其
+[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+作为唯一浏览器专项载体，不创建平行 TODO。Kiyori 尚未发布，因此直接删除输入框自绘选区路径，
+不保留复制、全选、取消自定义操作栏的兼容实现。
+
+细化计划：
+
+1. [DONE] 核对现场截图、当前 dirty 工作树、WebView 长按配置、JavaScript 文字选择 helper、
+   Host 自绘操作层和图片查看器单指手势状态机
+2. [DONE] 保持 WebView 可长按，并按 `EDIT_TEXT_TYPE` 把编辑控件交给 Android WebView 原生
+   `ActionMode`、系统剪切/复制/粘贴和原生选区手柄；普通网页元素继续进入“网页元素操作”
+3. [DONE] 在 JavaScript 长按定时器、`selectAtPoint()` 和全选入口阻止编辑控件进入 Kiyori
+   自绘选择，并删除自定义 `state.control`、控件矩形、控件全选和控件文本读取路径
+4. [DONE] 在现有 edge-to-edge 图片查看器手势状态机中增加双指缩放，范围固定为 `1x..5x`，
+   双指期间消费事件，切换图片后重置为 `1x`
+5. [DONE] 保持单指左右分页、上下拖动透明退出、单击退出、长按保存、编号和保存按钮语义
+6. [DONE] 更新源码合同测试、`CONTEXT.md`、README、正式架构与阶段 7 文档
+7. [DONE] 定向 `BrowserNetworkLogPolicyTest`、`BrowserInteractionContractTest` 与
+   `:app:compileDebugKotlin` 通过
+8. [DONE] 运行 formal readiness、architecture boundaries、Markdown links、
+   `git diff --check` 和规定的串行 Debug APK 构建/静态产物核验
+9. [PENDING] 在目标设备复测输入框系统选区菜单、逐字拖动手柄、剪切/复制/粘贴，以及图片双指
+   放大/缩小、单指切图、上下退出、点击退出和保存
+
+本地验证：
+
+- `BrowserInteractionContractTest` `3/3` 与 `BrowserNetworkLogPolicyTest` `13/13`，
+  合计 `16/16`，零失败、零错误、零跳过；`:app:compileDebugKotlin` 通过
+- formal readiness、architecture boundaries `phase=m03`、Markdown links
+  `errors=0 / warnings=0` 与 `git diff --check` 通过；输入框自绘
+  `selectControlContents / renderControlSelection / state.control` 残留搜索为零
+- 规定的串行 `:app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 1s`，`232` 个任务中 `22` executed / `210` up-to-date；
+  唯一 Debug Launcher 与 Player Runtime packaging 门禁通过
+- `app/build/outputs/apk/debug/app-debug.apk` 写入于
+  `2026-08-19 23:25:53 +08:00`，`472553854` bytes，SHA-256
+  `3E7B488E966C77E5DCB606E2B6238190B889F7CE9E081A027F96917256FD64B9`
+- APK 为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37 /
+  arm64-v8a`，唯一 Launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`；
+  Android Debug V2 单 signer 与 `zipalign -c -P 16 -v 4` 均通过
+- 未安装 APK、未调用 ADB/模拟器/真实设备；Android WebView provider 的原生选区菜单、
+  选区手柄与图片双指缩放手感仍需用户在目标设备复测
+
+## 2026-08-19 浏览器输入文字长按与网络日志图片查看器修复
+
+状态：本地实现、定向自动验证、Kotlin 编译、正式开发准备门禁、架构边界检查和规定的
+Debug APK 构建/静态产物核验已完成；目标设备交互验收保持 `verification_pending`。
+
+本轮继续复用
+[`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
+及其
+[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+作为唯一浏览器菜单专项载体，不创建平行 TODO。Kiyori 尚未发布，当前图片查看器属于未发布的
+浏览器内部交互，可按用户给出的目标方案直接替换，不保留旧居中黑窗、关闭叉号或并行查看路径。
+
+细化计划：
+
+1. [DONE] 核对当前 `main`、干净工作树、正式开发门禁、五张参考/实机图、现有网络日志与网页
+   元素长按调用链
+2. [DONE] 确认输入框长按根因：文字选择 helper 先调用网页元素动作，`input` 返回已处理后阻断
+   现有选择流程
+3. [DONE] 确认图片查看器根因：通用模态宿主的安全区和 `20dp` 内边距把所谓全屏限制为居中窗口；
+   当前 painter 状态分支没有使用受布局约束的图片内容节点，请求身份也未补齐活动 WebSession 的
+   User-Agent、Cookie 与 Referer
+4. [DONE] 让编辑型 `input`、`textarea` 与可编辑内容优先进入现有文字选择 helper，
+   非编辑元素继续进入“网页元素操作”
+5. [DONE] 将图片查看器替换为 edge-to-edge 全屏窗口，按打开时的图片筛选结果建立稳定快照，
+   左右滑动切换并在左下角显示当前编号和总数
+6. [DONE] 增加右下角保存、长按“保存原图”、单击退出，以及上下拖动时降低黑色背景透明度并
+   在松手后退出；保存继续调用唯一浏览器下载 owner
+7. [DONE] 增加请求身份、图片集合/索引、拖动透明度和长按选择优先级自动合同，更新
+   `CONTEXT.md`、README、正式架构与阶段 7 文档
+8. [DONE] 运行定向测试、Kotlin 编译、formal readiness、架构门禁、差异检查和规定的
+   Debug APK 构建与产物核验
+9. [PENDING] 在目标设备复测输入框选区手柄、复制/全选、图片加载、左右切换、上下退出、
+   单击退出、保存、长按保存、系统 Back、浅深主题和普通/无痕 Profile
+
+本地验证：
+
+- `BrowserNetworkLogPolicyTest` 与 `BrowserInteractionContractTest` 共 `15/15`，零失败、零错误、
+  零跳过；覆盖图片请求身份、查看集合/初始索引、拖动透明度/退出阈值、编辑控件长按优先权、
+  edge-to-edge Dialog、分页、图片加载节点和保存派发时序
+- `:app:compileDebugKotlin --no-daemon --console=plain` 通过；最终定向测试与 Debug 构建均重新编译
+  本轮 Kotlin 源码
+- formal readiness、architecture boundaries `phase=m03`、Markdown links
+  `errors=0 / warnings=0` 与 `git diff --check` 通过；仅保留两个既有源码文件的 CRLF 到 LF 提示
+- 最终串行 `:app:assembleDebug --no-daemon --console=plain` 为 `BUILD SUCCESSFUL in 58s`，
+  `232` 个任务中 `22` executed / `210` up-to-date；唯一 Debug Launcher 和 Player Runtime
+  packaging 门禁通过
+- `app/build/outputs/apk/debug/app-debug.apk` 写入于 `2026-08-19 22:23:53 +08:00`，
+  `472553854` bytes，SHA-256
+  `9C442B3B8C65AF71A1C5746354FE189C3BF6C6872D304DA61AFD6FEA38C19367`
+- APK 为 `com.kiyori / 45 / 0.1.0 / arm64-v8a`，唯一 Launcher 为
+  `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug V2 单 signer 与
+  `zipalign -c -P 16 4` 均通过
+- 未安装 APK、未调用 ADB/模拟器/真实设备；输入选区、真实站点图片防盗链、左右/上下手势、
+  保存确认层和亮暗系统栏视觉仍需目标设备验收
+
 ## 2026-08-19 播放器真机日志驱动的全链路优化
 
 状态：本地实现、定向自动验证、App Lint、正式门禁和 Debug APK 静态核验已完成；目标设备上的
@@ -3735,7 +3842,8 @@ native refresh 保持 `verification_pending`。继续使用
    URL 聚合，fragment 不参与 identity、query 保留，重复请求累计次数且每行不显示时间；独立上限
    为 `2,000` 个资源 identity
 2. [DONE] 分类 `VIDEO / AUDIO / IMAGE / WEB / SCRIPT / STYLE / DATA / FONT / OTHER`；图片使用
-   当前捕获的有界 headers 显示 `52dp` 缩略图，并提供唯一内置适配/缩放/平移查看器
+   当前捕获的有界 headers 显示 `52dp` 缩略图；该轮旧适配/缩放/平移查看器已由本文件顶部
+   `2026-08-19` 的 edge-to-edge 全屏分页查看器替换
 3. [DONE] 将“悬浮嗅探”和“视频资源”统一为“资源嗅探”；DOM observer 同时观察 video/audio，
    音频可识别和下载，但在没有音乐播放器 owner 时明确禁用播放
 4. [DONE] 媒体身份按 DOM、response MIME、`Content-Disposition`、declared/Accept、URL suffix

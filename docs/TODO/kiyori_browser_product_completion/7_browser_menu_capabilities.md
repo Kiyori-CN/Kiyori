@@ -1,8 +1,9 @@
 # 浏览器四行菜单真实能力
 
-> 2026-08-15 当前状态：网络日志、广告拦截、标记广告和网页元素长按已完成本地实现、
-> 定向自动验证、正式门禁、Debug APK 构建与独立静态产物审计；真实网页、设备触控、
-> 动图/视频/iframe 现场行为和订阅兼容性保持 `verification_pending`。
+> 2026-08-19 当前状态：上一轮输入框自绘选区被现场证明为假选中；本轮已改为 Android WebView
+> 原生选区，并为网络日志图片查看器增加双指缩放。源码、定向自动验证、Kotlin 编译、正式门禁
+> 和规定的 Debug APK 静态核验已完成；真实网页、设备触控、图片加载/保存、动图/视频/iframe
+> 现场行为和订阅兼容性保持 `verification_pending`。
 
 ## 原则
 
@@ -103,19 +104,43 @@ Activity、LitePal 或 native ABP 架构。
 
 ## 网络日志实现合同
 
-- `BrowserNetworkRequestEntry` 继续由当前活动 WebSession 的 `shouldInterceptRequest` 采集并保存在该 session 的内存队列中；Browser Home、悬浮浏览器和 AI 浏览器工具读取同一份最多 500 条记录，不新增持久化日志库或第二个浏览器状态
+- `BrowserNetworkRequestEntry` 继续由当前活动 WebSession 的 `shouldInterceptRequest` 采集并保存在该 session 的当前文档资源目录中；Browser Home、悬浮浏览器和 AI 浏览器工具读取同一份按 document token 与规范化 URL 聚合的最多 2,000 个资源 identity，不新增持久化日志库或第二个浏览器状态
 - 页面开始导航时清空该 session 的控制台和网络事件；抽屉中的“清空”只清当前 session 的网络请求，不改网页、历史、下载、其他窗口或控制台记录
 - 抽屉复用书签与下载相同的 Hidden/Partial/Expanded 宿主、`52dp` 标题栏、中性浏览器配色、空态和居中模态弹窗。标题栏提供真实条目数与清空动作，内容依次为 URL 搜索、`全部 / 视频 / 音乐 / 图片 / 网页 / 其他` 横向分类和请求列表
 - 分类只依据 Android WebView 当前能够确认的主框架标记、请求 URL、扩展名和 `Accept` 请求头。第三方域名使用明确的“第三方”提示；不把异域请求直接宣称为广告，不凭空补 HTTP status、响应 MIME、失败或响应体。`拦截` 只表示 Kiyori 客户端在请求进入系统加载前作出的本地规则决定
-- 请求行显示资源类型、method、host、紧凑 URL 和时间；不通过 Coil、WebView 或其他网络客户端加载图片缩略图，避免查看日志本身再次发起请求并污染列表
+- 请求行显示资源类型、method、host、紧凑 URL 和时间；图片条目使用 Coil 展示有界缩略图。缩略图和
+  查看器只消费原请求 URL 与活动 WebSession 已捕获的 User-Agent、Cookie、Referer 等请求身份，
+  不写回网络日志、不创建新条目，也不建立第二资源目录
 - 点击请求打开与书签、下载一致的居中操作弹窗。复制链接使用系统剪贴板；下载资源进入唯一 `BrowserDownloadManager` 并采用当前默认下载器及活动 Profile 的 User-Agent、Cookie、Referer；外部打开只处理本条已记录的 HTTP/HTTPS URL；详情显示完整 URL、method、分类、主框架/子资源和捕获时间
+- 图片查看使用独立的 edge-to-edge 全屏窗口，不复用带安全区和外边距的通用居中模态。打开时冻结
+  当前筛选结果中的图片条目及初始索引；左右滑动切换，左下角显示“当前编号 / 总数”，右下角显示
+  保存。图片支持双指缩放，切换到新图片后恢复 `1x`；单击图片退出，长按显示“保存原图”，
+  上下拖动按位移降低黑色背景透明度并在松手后退出，使下层网页和网络日志内容直接显现
+- 图片显示使用受实际窗口尺寸约束的 Coil 内容节点，`ContentScale.Fit` 保证完整图像可见；
+  失败状态必须明确结束加载状态。保存继续调用唯一浏览器下载 owner，并在需要确认时先退出查看器，
+  避免确认层被全屏窗口遮挡
 - “拦截过滤网址”写入同一个 `BrowserAdBlockStore`，使用真实网络日志 URL 生成建议规则；不复制 legacy X5 响应头或 hikerView 的旧状态 owner
+
+## 网页长按所有权修复合同
+
+- 编辑型 `input`、`textarea` 与有效 `contenteditable` 由 Android WebView 原生长按、系统
+  `ActionMode` 和原生选区手柄持有；系统负责剪切、复制、粘贴、全选和逐字调整选区范围。
+  Kiyori 不绘制输入框选区，也不显示输入框专用的复制、全选、取消按钮
+- Android 侧保持 WebView 可长按：命中 `EDIT_TEXT_TYPE` 时返回未消费，使 WebView 进入系统选区；
+  普通网页元素继续由 Kiyori 消费并进入 `__kiyoriElementActions`
+- JavaScript 文字选择 helper 在编辑控件上不启动自绘选择、不调用 `selectAtPoint()`、不调用
+  `OperitTextSelectionBridge`；它仍可服务于普通网页正文的既有“选择文本”动作
+- WebView 仍只使用现有一套注入脚本、JavaScript bridge 和 Host 瞬态状态；不新增第二套原生选区
+  owner、第二 WebView 或输入框自定义操作栏
 
 ## 验收
 
 - 加书签、书签、历史、下载和网络日志复用现有真实 owner；UA 标识接入唯一 Browser Settings owner 和活动 WebView
-- 网络日志点击后主菜单退出并打开共享可拖动子抽屉；搜索、六类过滤、第三方提示、清空、复制、下载、外部打开和详情均作用于当前 active session 的真实记录
-- 自动测试覆盖请求分类、第三方 host 判定、紧凑 URL、过滤与搜索；本地验证不宣称已获得 HTTP 响应、广告拦截或真机 WebView 请求完整性
+- 网络日志点击后主菜单退出并打开共享可拖动子抽屉；搜索、分类过滤、第三方提示、清空、复制、
+  下载、图片查看、外部打开和详情均作用于当前 active session 的真实记录
+- 自动测试覆盖请求分类、第三方 host 判定、紧凑 URL、过滤与搜索、图片请求身份、查看集合与索引、
+  拖动透明度/退出阈值及编辑输入长按优先级；本地验证不宣称已获得 HTTP 响应或真机 WebView
+  请求完整性
 - 点击 UA 标识时主菜单消失，一级选择弹窗直接显示；系统 Back、遮罩点击和取消均关闭当前最上层 UA 弹窗
 - 六种入口、两种自定义编辑路径、域名规则增删、子域匹配及 preset UA 均有定向测试或可复核运行时证据
 - 旧版未实现的入口保持明确空占位，不伪造状态
@@ -123,6 +148,31 @@ Activity、LitePal 或 native ABP 架构。
 - AI 操作当前 session 时 UI 状态不分叉
 - 广告规则管理、网络日志 blocked 记录、元素高亮和 DOM 注入均不创建第二 Browser Runtime 或第二规则 owner
 - Debug APK 与本地门禁通过；提交和推送仅在用户另行授权时执行
+
+2026-08-19 原生选区与图片缩放纠正证据：
+
+- `BrowserInteractionContractTest` `3/3` 与 `BrowserNetworkLogPolicyTest` `13/13`，
+  合计 `16/16`，零失败、零错误、零跳过；`:app:compileDebugKotlin` 通过
+- formal readiness、architecture boundaries `phase=m03`、Markdown links
+  `errors=0 / warnings=0` 和 `git diff --check` 通过
+- 最终 Debug APK 为 `472553854` bytes，SHA-256
+  `3E7B488E966C77E5DCB606E2B6238190B889F7CE9E081A027F96917256FD64B9`；
+  `com.kiyori / 45 / 0.1.0 / arm64-v8a`，唯一 Launcher、Android Debug V2 单 signer 与
+  16 KB ZIP 对齐通过
+- 未安装 APK、未运行设备；系统原生输入框选区、选区手柄和图片双指缩放仍为
+  `verification_pending`
+
+本轮本地证据：
+
+- 图片策略与源码合同 `15/15` 通过，零失败、零错误、零跳过；Kotlin 编译、formal readiness、
+  architecture boundaries `phase=m03`、Markdown links `errors=0 / warnings=0` 和
+  `git diff --check` 通过
+- 最终 Debug APK 为 `472553854` bytes，SHA-256
+  `9C442B3B8C65AF71A1C5746354FE189C3BF6C6872D304DA61AFD6FEA38C19367`；
+  `com.kiyori / 45 / 0.1.0 / arm64-v8a`，唯一 Launcher、Android Debug V2 单 signer 与
+  16 KB ZIP 对齐通过
+- 未安装 APK、未运行设备；输入选区手柄、真实站点图片身份、左右分页、上下透明退出、
+  单击退出、保存与系统栏视觉仍为 `verification_pending`
 
 ## 2026-07-30 Browser Plugin Center 里程碑一
 

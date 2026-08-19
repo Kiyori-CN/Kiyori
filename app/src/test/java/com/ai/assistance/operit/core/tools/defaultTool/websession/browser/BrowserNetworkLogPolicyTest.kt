@@ -117,6 +117,140 @@ class BrowserNetworkLogPolicyTest {
     }
 
     @Test
+    fun `image viewer snapshot keeps current filtered request images and selected page`() {
+        val selected =
+            entry(
+                method = "GET",
+                url = "https://img.example.com/selected.png",
+                category = BrowserNetworkRequestCategory.IMAGE,
+                timestamp = 3L,
+            )
+        val snapshot =
+            buildBrowserNetworkImageViewerSnapshot(
+                entries =
+                    listOf(
+                        entry(
+                            method = "GET",
+                            url = "https://img.example.com/first.jpg",
+                            category = BrowserNetworkRequestCategory.IMAGE,
+                            timestamp = 1L,
+                        ),
+                        WebSessionBrowserNetworkEntry(
+                            method = "DOM",
+                            url = "https://img.example.com/element.png",
+                            isMainFrame = false,
+                            isStatic = false,
+                            category = BrowserNetworkRequestCategory.IMAGE,
+                            timestamp = 2L,
+                            kind = BrowserNetworkLogEntryKind.ELEMENT,
+                        ),
+                        selected,
+                        entry(
+                            method = "GET",
+                            url = "data:image/png;base64,AA",
+                            category = BrowserNetworkRequestCategory.IMAGE,
+                            timestamp = 4L,
+                        ),
+                        entry(
+                            method = "GET",
+                            url = "https://example.com/page",
+                            category = BrowserNetworkRequestCategory.WEB,
+                            timestamp = 5L,
+                        ),
+                    ),
+                selectedResourceIdentity = selected.resourceIdentity,
+            )
+
+        assertEquals(
+            listOf(
+                "https://img.example.com/first.jpg",
+                "https://img.example.com/selected.png",
+            ),
+            requireNotNull(snapshot).entries.map(WebSessionBrowserNetworkEntry::url),
+        )
+        assertEquals(1, snapshot.initialPage)
+        assertEquals(
+            null,
+            buildBrowserNetworkImageViewerSnapshot(
+                entries = listOf(selected),
+                selectedResourceIdentity = "https://img.example.com/missing.png",
+            ),
+        )
+    }
+
+    @Test
+    fun `network image request identity preserves observed headers and fills missing session values`() {
+        val observed =
+            buildBrowserNetworkRequestHeaders(
+                observedHeaders =
+                    mapOf(
+                        "user-agent" to "Observed UA",
+                        "COOKIE" to "observed=1",
+                        "Referer" to "https://observed.example/page",
+                    ),
+                appliedUserAgent = "Session UA",
+                cookie = "session=1",
+                pageUrl = "https://page.example/article",
+            )
+        assertEquals("Observed UA", observed.headerValue("User-Agent"))
+        assertEquals("observed=1", observed.headerValue("Cookie"))
+        assertEquals("https://observed.example/page", observed.headerValue("Referer"))
+
+        val filled =
+            buildBrowserNetworkRequestHeaders(
+                observedHeaders = mapOf("Accept" to "image/avif,image/webp"),
+                appliedUserAgent = "Session UA",
+                cookie = "session=1",
+                pageUrl = "https://page.example/article",
+            )
+        assertEquals("Session UA", filled.headerValue("User-Agent"))
+        assertEquals("session=1", filled.headerValue("Cookie"))
+        assertEquals("https://page.example/article", filled.headerValue("Referer"))
+
+        val nonHttpPage =
+            buildBrowserNetworkRequestHeaders(
+                observedHeaders = emptyMap(),
+                appliedUserAgent = "",
+                cookie = null,
+                pageUrl = "about:blank",
+            )
+        assertFalse(nonHttpPage.keys.any { it.equals("Referer", ignoreCase = true) })
+        assertFalse(nonHttpPage.keys.any { it.equals("User-Agent", ignoreCase = true) })
+        assertFalse(nonHttpPage.keys.any { it.equals("Cookie", ignoreCase = true) })
+    }
+
+    @Test
+    fun `image viewer drag alpha is symmetric monotonic and dismisses beyond touch slop`() {
+        assertEquals(1f, browserNetworkImageViewerBackgroundAlpha(0f, 1_000f))
+        val shortDrag = browserNetworkImageViewerBackgroundAlpha(100f, 1_000f)
+        val longDrag = browserNetworkImageViewerBackgroundAlpha(300f, 1_000f)
+        assertEquals(shortDrag, browserNetworkImageViewerBackgroundAlpha(-100f, 1_000f))
+        assertTrue(shortDrag < 1f)
+        assertTrue(longDrag < shortDrag)
+        assertTrue(longDrag >= 0f)
+        assertEquals(1f, browserNetworkImageViewerBackgroundAlpha(100f, 0f))
+
+        assertFalse(shouldDismissBrowserNetworkImageViewer(verticalOffsetPx = 8f, touchSlopPx = 8f))
+        assertTrue(shouldDismissBrowserNetworkImageViewer(verticalOffsetPx = 9f, touchSlopPx = 8f))
+        assertTrue(shouldDismissBrowserNetworkImageViewer(verticalOffsetPx = -9f, touchSlopPx = 8f))
+    }
+
+    @Test
+    fun `image viewer pinch scale is bounded and starts at fit scale`() {
+        assertEquals(1f, BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE)
+        assertEquals(5f, BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE)
+        assertEquals(
+            BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE,
+            clampBrowserNetworkImageViewerScale(0.25f),
+        )
+        assertEquals(
+            BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE,
+            clampBrowserNetworkImageViewerScale(8f),
+        )
+        assertEquals(2.5f, clampBrowserNetworkImageViewerScale(2.5f))
+    }
+
+    @Test
     fun `resource identity removes fragment but preserves signed query variants`() {
         assertEquals(
             "https://example.com/media.mp4?token=one",
@@ -327,4 +461,7 @@ class BrowserNetworkLogPolicyTest {
             category = category,
             timestamp = timestamp,
         )
+
+    private fun Map<String, String>.headerValue(name: String): String? =
+        entries.firstOrNull { entry -> entry.key.equals(name, ignoreCase = true) }?.value
 }
