@@ -33,4 +33,19 @@ class AiContentHorizontalGestureOwnershipTest {
 
         assertFalse(ownership.isOwned)
     }
+
+    @Test
+    fun `ownership transition callback fires only on aggregate boundary changes`() {
+        val transitions = mutableListOf<Boolean>()
+        val ownership = AiContentHorizontalGestureOwnership(transitions::add)
+        val tableOwner = Any()
+        val codeOwner = Any()
+
+        ownership.claim(tableOwner)
+        ownership.claim(codeOwner)
+        ownership.release(tableOwner)
+        ownership.release(codeOwner)
+
+        assertTrue(transitions == listOf(true, false))
+    }
 }

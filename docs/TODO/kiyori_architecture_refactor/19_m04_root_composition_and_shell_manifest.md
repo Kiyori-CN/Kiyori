@@ -219,6 +219,63 @@ SHA-256 `BFA17A75523E74EF7C0A44651443D52D660D9EDB15EB458314A3317E76DBB0F6`，包
 快速重复返回、浅深主题和系统/标题 Back 的目标设备视觉矩阵仍保持
 `verification_pending`。
 
+## 2026-08-19 Stage 8 AI 内容手势与 App Shell fling 隔离维护批准
+
+用户提供的 `APP_FATAL 158cdc96-af02-4045-9170-efa03d778440` 证明 Stage 6 的内容 owner
+虽然阻止了首页位移，却仍有两个宿主级缺口：AI 根 `scrollable` 也是消息列表、表格和 WebView
+的 nested-scroll 祖先，子组件可在没有完整首页会话时触发其 `performFling`；同时内容 owner
+通过聊天状态回调动态切换祖先 `scrollable.enabled`，会在同一 pointer stream 中途更新输入
+节点。前者使严格 `sessionComplete` 断言终止主线程，后者破坏宽表格和图表连续接收
+MOVE/UP 的能力。
+
+本次 Stage 8 只批准以下闭环变化：
+
+- `KiyoriHomePagerGestureSession.consumeCompleted()` 只把完整首页会话交给严格
+  `resolveKiyoriHomePagerSnapTarget()`；未建立或尚未完成的子 nested fling 保持非首页输入
+  语义，不创建页面目标、不触发断言；
+- `KiyoriAppShell` 直接持有唯一 `AiContentHorizontalGestureOwnership`，并通过原 AI Host
+  CompositionLocal 提供给表格、代码、公式、Mermaid、HTML 和 XML 图表入口；
+- 内容 owner 在 `DOWN` 同步通知 `KiyoriAiHomePagerGestureBridge`，bridge 丢弃尚未发生页面
+  位移的首页候选；聊天历史快速滚动继续沿既有 `onGestureConsumed` 外部 gate 上报；
+- AI 根祖先 `scrollable` 不再随内容 owner 动态拆装。bridge 的 `ScrollScope` 与
+  `dispatchRawDelta()` 在内容占用期间拒绝页面位移，外部 gate 需要取消时仍按原首页取消语义
+  返回 origin；
+- 目标设备第二次复测确认表格边界 fling 可晚于 `UP` 到达。bridge 因此进一步要求 Pager delta
+  必须属于尚未结束的真实首页拖动会话，或属于其自身已经决定的 settle；没有首页会话的边界
+  nested delta 即使在内容 owner 释放后到达也返回 `0f`，不能留下无 snap 目标的中间 offset；
+- 宽表格删除自制速度和衰减 fling，改用稳定 `rememberScrollState()` 与标准
+  `horizontalScroll()`；真实总宽度由内部 Canvas 持有，纵向手势可继续驱动外层消息列表；
+- Mermaid 使用显式 `mermaid.run()`，在最终 SVG 产生后读取 `viewBox/getBBox()`，关闭 SVG
+  `max-width` 压缩，并为缩放后的真实宽高建立内部二维 `overflow:auto` 视口；Mermaid、
+  fenced HTML 与 XML HTML 图表 WebView 不再向 AI 根转发 nested fling；
+- 保留唯一 `PagerState`、永久 AI 根、三页顺序、系统 Back、Markdown AST、JLaTeXMath、
+  Mermaid/HTML 入口和现有 WebView，不增加第二渲染器、运行时开关、依赖升级、回退或持久化
+  手势状态。
+
+本阶段对应架构快照：
+
+- ARCH020 `KiyoriApp.kt` LF-normalized SHA-256 保持
+  `2873212F7A1105F04B664995775E3731342407824F7158FC6ADD91F4255166B9`；
+- ARCH024 `KiyoriAppShell.kt` package-normalized SHA-256 从
+  `C004F429D9F15D4F39CA9B66C7FE4DAF72152A37A819A508E366F67B11448EA8` 更新为
+  `BB27AD7EAA49A1787E8A1E86A8CC67794BE0DB3FED0CFDABB2BB78918FE5111A`；
+- ARCH024 项目 import snapshot 从 15 项增至 17 项；只新增
+  `com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership` 与
+  `com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership`，
+  Operit import 从 11 项增至 13 项。
+
+第二次设备边界修正后的专项 Pager JVM、主源码及 AndroidTest Kotlin/Java 编译通过；完整 App
+JVM 为 `241 suites / 1414 tests`，零 failure/error/skip。formal readiness、architecture
+`phase=m03`、ARCH024 hash/import 精确匹配、`git diff --check` 与 314 个工作树 Markdown
+文件的本地链接检查通过。规定 Debug 构建为 `BUILD SUCCESSFUL in 37s`，
+`232` 个任务中 `22 executed / 210 up-to-date`，唯一 launcher 与 player runtime packaging
+门禁通过。APK 为 `467107608` bytes，SHA-256
+`12EF31588AA26E0B2CD0863958A9FAB97EE6FD6B74642A5813F180543F8E43C1`；包/版本/SDK、
+唯一 launcher、arm64-only、Android Debug V2 单 signer 和 16 KB ZIP 对齐通过。52 个
+AArch64 ELF64 的 153 个 `PT_LOAD` 为 `0x4000 × 151` 与 `0x10000 × 2`，无低于 16 KB 的
+输入。目标设备上的原崩溃路径、表格两端向外 fling、长 Mermaid、缩放后四向平移和 HTML/XML
+图表交互仍保持 `verification_pending`。
+
 因此 M-04 按可编译的子里程碑串行完成：
 
 1. **M-04A1：宿主 CompositionLocal 合同拆分（已完成）**

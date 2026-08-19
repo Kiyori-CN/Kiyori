@@ -6,8 +6,10 @@ import com.kiyori.app.shell.KiyoriHomePagerSnapInput
 import com.kiyori.app.shell.KiyoriHomePagerSnapReason
 import com.kiyori.app.shell.resolveKiyoriHomePagerSnapTarget
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KiyoriHomePagerGesturePolicyTest {
@@ -131,11 +133,80 @@ class KiyoriHomePagerGesturePolicyTest {
         )
         session.finish(360f)
 
-        val input = session.consume(pageCount = 3, physicalVelocityX = 0f)
+        val input = session.consumeCompleted(pageCount = 3, physicalVelocityX = 0f)
         val decision = resolveKiyoriHomePagerSnapTarget(requireNotNull(input))
         assertEquals(1, decision.targetPage)
         assertEquals(KiyoriHomePagerSnapReason.POSITION, decision.reason)
-        assertNull(session.consume(pageCount = 3, physicalVelocityX = 0f))
+        assertNull(session.consumeCompleted(pageCount = 3, physicalVelocityX = 0f))
+    }
+
+    @Test
+    fun `nested fling without a completed home gesture cannot enter snap policy`() {
+        val session = KiyoriHomePagerGestureSession()
+        session.begin(
+            originPage = 2,
+            downX = 300f,
+            pageSizePx = 100f,
+            minimumFlingVelocityPxPerSecond = 400f,
+            layoutDirection = LayoutDirection.Ltr,
+        )
+        session.update(260f)
+
+        assertNull(session.consumeCompleted(pageCount = 3, physicalVelocityX = -800f))
+        assertNull(session.consumeCompleted(pageCount = 3, physicalVelocityX = -800f))
+    }
+
+    @Test
+    fun `content-owned gesture candidate is discarded before snap policy`() {
+        val session = KiyoriHomePagerGestureSession()
+        session.begin(
+            originPage = 1,
+            downX = 300f,
+            pageSizePx = 100f,
+            minimumFlingVelocityPxPerSecond = 400f,
+            layoutDirection = LayoutDirection.Ltr,
+        )
+        session.discard()
+
+        assertNull(session.consumeCompleted(pageCount = 3, physicalVelocityX = -800f))
+    }
+
+    @Test
+    fun `pager drag deltas require an unfinished real home gesture`() {
+        val session = KiyoriHomePagerGestureSession()
+        assertFalse(session.acceptsPagerDragDelta)
+
+        session.begin(
+            originPage = 1,
+            downX = 300f,
+            pageSizePx = 100f,
+            minimumFlingVelocityPxPerSecond = 400f,
+            layoutDirection = LayoutDirection.Ltr,
+        )
+        assertTrue(session.acceptsPagerDragDelta)
+
+        session.finish(260f)
+        assertFalse(session.acceptsPagerDragDelta)
+
+        session.begin(
+            originPage = 1,
+            downX = 300f,
+            pageSizePx = 100f,
+            minimumFlingVelocityPxPerSecond = 400f,
+            layoutDirection = LayoutDirection.Ltr,
+        )
+        session.cancel()
+        assertFalse(session.acceptsPagerDragDelta)
+
+        session.begin(
+            originPage = 1,
+            downX = 300f,
+            pageSizePx = 100f,
+            minimumFlingVelocityPxPerSecond = 400f,
+            layoutDirection = LayoutDirection.Ltr,
+        )
+        session.discard()
+        assertFalse(session.acceptsPagerDragDelta)
     }
 
     private fun assertDecision(

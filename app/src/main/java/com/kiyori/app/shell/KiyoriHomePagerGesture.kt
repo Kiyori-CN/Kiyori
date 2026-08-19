@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
@@ -115,6 +116,9 @@ private data class KiyoriHomePagerGestureSnapshot(
 internal class KiyoriHomePagerGestureSession {
     private var current: KiyoriHomePagerGestureSnapshot? = null
 
+    val acceptsPagerDragDelta: Boolean
+        get() = current?.let { snapshot -> !snapshot.complete && !snapshot.cancelled } == true
+
     fun begin(
         originPage: Int,
         downX: Float,
@@ -151,12 +155,19 @@ internal class KiyoriHomePagerGestureSession {
         }
     }
 
-    fun consume(
+    fun discard() {
+        current = null
+    }
+
+    fun consumeCompleted(
         pageCount: Int,
         physicalVelocityX: Float,
     ): KiyoriHomePagerSnapInput? {
         val snapshot = current ?: return null
         current = null
+        if (!snapshot.complete) {
+            return null
+        }
         return KiyoriHomePagerSnapInput(
             originPage = snapshot.originPage,
             pageCount = pageCount,
@@ -186,6 +197,17 @@ internal class KiyoriAiHomePagerGestureBridge(
     private var minimumFlingVelocityPxPerSecond: Float = 0f
     private var layoutDirection: LayoutDirection = LayoutDirection.Ltr
     private var settlingTargetPage: Int? = null
+    private var externalGestureBlocked: Boolean = false
+    private var ownedContentGestureBlocked: Boolean = false
+    private val contentGestureBlocked: Boolean
+        get() = externalGestureBlocked || ownedContentGestureBlocked
+    // A child fling can outlive the pointer owner that began it. Without an unfinished real Home
+    // drag or this bridge's own settle, accepting that unconsumed delta can strand Pager mid-page
+    // because there is intentionally no Home snap decision for the child input.
+    private val acceptsPagerDelta: Boolean
+        get() =
+            !contentGestureBlocked &&
+                (gestureSession.acceptsPagerDragDelta || settlingTargetPage != null)
 
     val scrollableState: ScrollableState =
         object : ScrollableState by pagerState {
@@ -193,6 +215,34 @@ internal class KiyoriAiHomePagerGestureBridge(
             // PagerState still owns its scroll mutex, so an actual drag interrupts an old spring.
             override val isScrollInProgress: Boolean
                 get() = false
+
+            override suspend fun scroll(
+                scrollPriority: MutatePriority,
+                block: suspend ScrollScope.() -> Unit,
+            ) {
+                pagerState.scroll(scrollPriority) {
+                    val pagerScrollScope = this
+                    val contentAwareScope =
+                        object : ScrollScope {
+                            override fun scrollBy(pixels: Float): Float {
+                                return if (!acceptsPagerDelta) {
+                                    0f
+                                } else {
+                                    pagerScrollScope.scrollBy(pixels)
+                                }
+                            }
+                        }
+                    contentAwareScope.block()
+                }
+            }
+
+            override fun dispatchRawDelta(delta: Float): Float {
+                return if (!acceptsPagerDelta) {
+                    0f
+                } else {
+                    pagerState.dispatchRawDelta(delta)
+                }
+            }
         }
 
     val flingBehavior: FlingBehavior =
@@ -206,14 +256,14 @@ internal class KiyoriAiHomePagerGestureBridge(
                         initialVelocity
                     }
                 val input =
-                    checkNotNull(
-                        gestureSession.consume(
-                            pageCount = pagerState.pageCount,
-                            physicalVelocityX = physicalVelocity,
-                        ),
-                    ) {
-                        "AI Home pager fling requires the current gesture session."
-                    }
+                    gestureSession.consumeCompleted(
+                        pageCount = pagerState.pageCount,
+                        physicalVelocityX = physicalVelocity,
+                    )
+                        // scrollable is also a nested-scroll ancestor. Child lists, tables and
+                        // WebViews may dispatch post-fling without ever starting an AI Home drag;
+                        // that input must stay outside the strict page-snap policy.
+                        ?: return initialVelocity
                 val decision = resolveKiyoriHomePagerSnapTarget(input)
                 val targetPage = decision.targetPage
                 val settleDistancePx =
@@ -268,13 +318,32 @@ internal class KiyoriAiHomePagerGestureBridge(
         pageSizePx: Float,
         minimumFlingVelocityPxPerSecond: Float,
         layoutDirection: LayoutDirection,
+        externalGestureBlocked: Boolean,
     ) {
         this.pageSizePx = pageSizePx
         this.minimumFlingVelocityPxPerSecond = minimumFlingVelocityPxPerSecond
         this.layoutDirection = layoutDirection
+        this.externalGestureBlocked = externalGestureBlocked
+        if (contentGestureBlocked) {
+            // Keep the ancestor scrollable node mounted for the whole pointer stream. Marking the
+            // current page session cancelled prevents a child-owned gesture from settling Pager.
+            gestureSession.cancel()
+        }
+    }
+
+    fun updateContentGestureOwnership(isOwned: Boolean) {
+        ownedContentGestureBlocked = isOwned
+        if (isOwned) {
+            // Content owners call this synchronously from DOWN, before their drag or nested fling
+            // can move Pager. Discarding that candidate keeps child input outside page-snap policy.
+            gestureSession.discard()
+        }
     }
 
     fun beginGesture(downX: Float) {
+        if (contentGestureBlocked) {
+            return
+        }
         val originPage =
             settlingTargetPage
                 ?: if (pagerState.isScrollInProgress) {

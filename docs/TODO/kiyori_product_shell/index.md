@@ -17,8 +17,10 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 - 负一屏、文件管理首页和设置首页已按固定旧版参考实现；文件分类仍为零计数，手机存储显示实际数据卷容量，设置首页仅“AI 设置”接入真实页面，小程序首页仍是根页面骨架
 - 模态 AI 左抽屉的无手势容器、一级页面状态、AI 设置双来源返回和原版信息密度已实现；权限总览继续由后续切片完成
 - 首页三页继续共享唯一 `PagerState` 和同一产品吸附合同。负一屏与软件首页保留原生
-  HorizontalPager；永久 AI 根已接入当前手势会话 bridge，并把表格、代码、公式、Mermaid/HTML
-  等横向内容的多 owner 占用汇总到现有 Shell 手势边界。专项实现、测试和设备验收见
+  HorizontalPager；永久 AI 根已接入当前手势会话 bridge，祖先 `scrollable` 在子内容手势期间
+  保持稳定，只有完整真实首页会话进入吸附。Shell 直接持有表格、代码、公式、Mermaid/HTML/XML
+  图表等内容的多 owner 占用；宽表格使用标准 Compose 横向滚动，Mermaid 按最终 SVG 尺寸建立
+  内部二维滚动和缩放范围。专项实现、测试和设备验收见
   [三页首页横向手势一致性修复](../home_pager_gesture_consistency/index.md)。抽屉面板从状态栏底部
   开始且保留全屏遮罩；ToolPkg 一级根继续严格服从自身 `keepAlive` 合同
 - 2026-07-23 累积自动验证通过：Debug Kotlin 编译、定向 Shell 测试 `23/23`、完整 Debug JVM 测试 `394/394`、47 项 CI Python 测试、正式开发准备门禁、Android lint、`git diff --check` 和 `assembleDebug`
@@ -29,6 +31,12 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
   `67F8F4D73367981591A2C0C73C25CB4F3B698C658238C682DA040E8E4533B16D`；完整 App JVM
   `239 suites / 1404 tests`、AndroidTest Kotlin/Java 编译、architecture `phase=m03`、formal
   readiness、唯一 launcher、V2 Debug signer 和 16 KB ZIP 对齐通过
+- 2026-08-19 AI 对话崩溃与内容滚动维护完成本地封板：完整 App JVM
+  `241 suites / 1414 tests`，AndroidTest Kotlin/Java 编译、formal readiness、architecture
+  `phase=m03`、工作树 Markdown 链接和 `git diff --check` 通过；Debug APK 为
+  `467107608` bytes，SHA-256
+  `12EF31588AA26E0B2CD0863958A9FAB97EE6FD6B74642A5813F180543F8E43C1`，唯一 launcher、
+  arm64-only、V2 Debug signer、52 个 AArch64 ELF64 的 16 KB `PT_LOAD` 与 ZIP 对齐通过
 - 自动编译和 JVM 状态测试不替代真机手势、Back、旋转、折叠屏及流式对话持续性验收
 
 ## 目标

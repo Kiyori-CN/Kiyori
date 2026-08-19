@@ -7,6 +7,34 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 2026-08-19 AI 对话崩溃与表格/图表滚动回归修复
+
+状态：设备边界复测修正与本地自动门禁完成，目标设备再次复测待验证。用户提供的
+`APP_FATAL 158cdc96-af02-4045-9170-efa03d778440` 已定位到 AI 首页根
+`KiyoriAiHomePagerGestureBridge`：子组件的 nested `postFling` 在没有完整首页手势会话时仍会
+调用首页 `FlingBehavior`，现有 `sessionComplete` 致命断言因此终止主线程。此前内容横向 owner
+又通过 `aiHomeGestureBlocked` 在 `DOWN` 后动态禁用祖先 `scrollable`，会在同一手势中途更新
+输入节点，造成参考截图中的宽表格无法稳定左右拖动，纵向手势也不能可靠交还消息列表。
+
+本轮复用
+[`home_pager_gesture_consistency`](home_pager_gesture_consistency/index.md)
+作为唯一专项载体。冻结方向是：保持首页祖先输入节点稳定；只有完整真实首页手势进入严格吸附
+策略，普通子 nested fling 不生成页面目标；表格改用标准 Compose 横向滚动；Mermaid 在异步渲染
+完成后按最终 SVG 建立内部水平/垂直滚动与缩放范围。保留唯一 `PagerState`、永久 AI 根、现有
+Markdown/JLaTeXMath 路径和 Mermaid/HTML 入口，不增加第二渲染器、回退路径或依赖升级。
+
+实施与验收顺序：
+
+1. [DONE] 核对崩溃栈、Git/正式门禁、首页 bridge、内容 ownership、表格和 Mermaid/HTML 链路；
+2. [DONE] 修复首页会话与 nested fling 合同，并锁定未完成会话不进入吸附策略；
+3. [DONE] 保持祖先 `scrollable` 稳定，把内容占用改为 bridge 内部位移/吸附门禁；
+4. [DONE] 修复表格标准横向滚动、父级纵向滚动和末列可达；
+5. [DONE] 修复 Mermaid 最终尺寸、内部四向滚动、缩放后完整平移与 WebView 手势所有权；
+6. [DONE] 根据设备复测补齐表格边界惯性 delta 门禁，重新运行专项测试、AndroidTest
+   编译、正式/架构门禁、差异检查和 Debug APK 构建核验；
+7. [PENDING] 目标设备复测崩溃、宽表格、长流程图及连续交互，完成前保持
+   `verification_pending`。
+
 ## 2026-08-19 负一屏书签与历史入口 Back owner 崩溃修复
 
 状态：本地修复完成，设备复测待验证。用户提供的 `APP_FATAL f5fe7a19-c9a1-415f-8836-e97bcc234fa4`

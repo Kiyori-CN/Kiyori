@@ -1,5 +1,6 @@
 package com.ai.assistance.operit.ui.features.chat.components.part
 
+import android.view.MotionEvent
 import android.webkit.WebView
 import android.webkit.WebSettings
 import androidx.compose.animation.*
@@ -30,12 +31,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import com.ai.assistance.operit.ui.common.copyPlainTextToClipboard
-import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
+import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.api.chat.llmprovider.OpenAIHostedWebSearchContract
@@ -1119,7 +1119,7 @@ class CustomXmlRenderer(
         // 如果内容不为空，则作为HTML渲染
         if (htmlContent.isNotBlank()) {
             val context = LocalContext.current
-            val nestedScrollInterop = rememberNestedScrollInteropConnection()
+            val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
             
             // 应用内置样式
             val styledHtml = remember(htmlContent, className, customColor, textColor) {
@@ -1131,7 +1131,7 @@ class CustomXmlRenderer(
                 buildFullHtmlDocument(styledHtml, textColor)
             }
 
-            val webView = remember(context) {
+            val webView = remember(context, horizontalGestureOwner) {
                 WebView(context).apply {
                     settings.apply {
                         javaScriptEnabled = true
@@ -1139,7 +1139,7 @@ class CustomXmlRenderer(
                         domStorageEnabled = true
                         allowFileAccess = false
                         allowContentAccess = false
-                        loadWithOverviewMode = true
+                        loadWithOverviewMode = false
                         useWideViewPort = true
                         builtInZoomControls = false
                         displayZoomControls = false
@@ -1147,6 +1147,22 @@ class CustomXmlRenderer(
                         mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     }
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setOnTouchListener { view, event ->
+                        horizontalGestureOwner.updateFromMotionEvent(event)
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN ->
+                                view.parent.requestDisallowInterceptTouchEvent(true)
+
+                            MotionEvent.ACTION_UP -> {
+                                view.parent.requestDisallowInterceptTouchEvent(false)
+                                view.performClick()
+                            }
+
+                            MotionEvent.ACTION_CANCEL ->
+                                view.parent.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
                 }
             }
 
@@ -1172,8 +1188,7 @@ class CustomXmlRenderer(
             AndroidView(
                 modifier = modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .nestedScroll(nestedScrollInterop),
+                    .padding(vertical = 4.dp),
                 factory = { webView }
             )
         }

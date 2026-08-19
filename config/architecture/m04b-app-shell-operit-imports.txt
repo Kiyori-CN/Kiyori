@@ -1,8 +1,10 @@
+com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
+com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
 com.ai.assistance.operit.ui.main.AiHomeQuickAction
 com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
+com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
 com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
-com.ai.assistance.operit.ui.main.shell.KiyoriAdBlockSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriDownloadDrawerHost
 com.ai.assistance.operit.ui.main.shell.KiyoriDownloadSettingsPage
 com.ai.assistance.operit.ui.main.shell.KiyoriHistoryDrawerHost

@@ -3,13 +3,16 @@ package com.ai.assistance.operit.ui.main.shell
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -35,6 +38,7 @@ import com.kiyori.app.shell.KiyoriAiHomePagerGestureBridge
 import com.kiyori.app.shell.observeKiyoriAiHomePagerGesture
 import com.kiyori.app.shell.shouldReverseKiyoriPagerDrag
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -94,6 +98,7 @@ class KiyoriHomePagerGestureAndroidTest {
     @Test
     fun activeHorizontalContentOwnerPreventsHomePagerMovement() {
         lateinit var pagerState: PagerState
+        var contentScrollValue = 0
 
         composeTestRule.setContent {
             MaterialTheme {
@@ -102,6 +107,7 @@ class KiyoriHomePagerGestureAndroidTest {
                 KiyoriPagerBridgeTestHost(
                     pagerState = state,
                     contentOwnsGesture = true,
+                    onContentScrollValue = { contentScrollValue = it },
                 )
             }
         }
@@ -119,6 +125,43 @@ class KiyoriHomePagerGestureAndroidTest {
         waitForPagerIdle(pagerState)
         composeTestRule.runOnIdle {
             assertEquals(1, pagerState.settledPage)
+            assertTrue(contentScrollValue > 0)
+        }
+    }
+
+    @Test
+    fun outwardFlingAtContentStartCannotLeavePagerBetweenPages() {
+        lateinit var pagerState: PagerState
+        var contentScrollValue = 0
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                val state = rememberPagerState(initialPage = 1, pageCount = { 3 })
+                pagerState = state
+                KiyoriPagerBridgeTestHost(
+                    pagerState = state,
+                    contentOwnsGesture = true,
+                    onContentScrollValue = { contentScrollValue = it },
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        val content = composeTestRule.onNodeWithTag(CONTENT_TAG)
+        val contentWidth = content.fetchSemanticsNode().boundsInRoot.width
+        content.performTouchInput {
+            swipe(
+                start = Offset(contentWidth * 0.20f, centerY),
+                end = Offset(contentWidth * 0.85f, centerY),
+                durationMillis = 150L,
+            )
+        }
+        composeTestRule.waitForIdle()
+        waitForPagerIdle(pagerState)
+        composeTestRule.runOnIdle {
+            assertEquals(0, contentScrollValue)
+            assertEquals(1, pagerState.settledPage)
+            assertEquals(0f, pagerState.currentPageOffsetFraction, 0.001f)
         }
     }
 
@@ -134,13 +177,18 @@ class KiyoriHomePagerGestureAndroidTest {
 private fun KiyoriPagerBridgeTestHost(
     pagerState: PagerState,
     contentOwnsGesture: Boolean,
+    onContentScrollValue: (Int) -> Unit = {},
 ) {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val bridge = remember(pagerState) { KiyoriAiHomePagerGestureBridge(pagerState) }
-    val ownership = remember { AiContentHorizontalGestureOwnership() }
-    val blocked = ownership.isOwned
-    val bridgeEnabled = !blocked && pagerState.layoutInfo.pageSize > 0
+    val ownership =
+        remember(bridge) {
+            AiContentHorizontalGestureOwnership(
+                onOwnershipChanged = bridge::updateContentGestureOwnership,
+            )
+        }
+    val bridgeEnabled = pagerState.layoutInfo.pageSize > 0
 
     SideEffect {
         bridge.updateConfiguration(
@@ -150,6 +198,7 @@ private fun KiyoriPagerBridgeTestHost(
                     KIYORI_HOME_PAGER_MIN_FLING_VELOCITY_DP_PER_SECOND.dp.toPx()
                 },
             layoutDirection = layoutDirection,
+            externalGestureBlocked = false,
         )
     }
 
@@ -184,6 +233,10 @@ private fun KiyoriPagerBridgeTestHost(
                 LocalAiContentHorizontalGestureOwnership provides ownership,
             ) {
                 val owner = rememberAiContentHorizontalGestureOwner()
+                val contentScrollState = rememberScrollState()
+                SideEffect {
+                    onContentScrollValue(contentScrollState.value)
+                }
                 Box(
                     modifier =
                         Modifier
@@ -192,8 +245,16 @@ private fun KiyoriPagerBridgeTestHost(
                             .ownAiContentHorizontalGestureOnTouch(
                                 owner = owner,
                                 enabled = true,
-                            ),
-                )
+                            )
+                            .horizontalScroll(contentScrollState),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .width(600.dp)
+                                .fillMaxHeight(),
+                    )
+                }
             }
         }
     }

@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -33,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
@@ -338,16 +336,40 @@ fun EnhancedCodeBlock(code: String, language: String = "", modifier: Modifier = 
     }
 }
 
-/** Mermaid图表渲染组件 */
-@Composable
-fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
+internal fun quoteMermaidSourceForJavaScript(source: String): String {
+    return buildString(source.length + 2) {
+        append('"')
+        source.forEach { character ->
+            when (character) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                '<' -> append("\\u003c")
+                '>' -> append("\\u003e")
+                '&' -> append("\\u0026")
+                '\u2028' -> append("\\u2028")
+                '\u2029' -> append("\\u2029")
+                else -> {
+                    if (character.code < 0x20) {
+                        append("\\u")
+                        append(character.code.toString(16).padStart(4, '0'))
+                    } else {
+                        append(character)
+                    }
+                }
+            }
+        }
+        append('"')
+    }
+}
 
-    // 创建HTML模板
-    val htmlContent =
-        remember(code) {
-            """
+internal fun buildMermaidPreviewHtml(code: String): String {
+    val quotedSource = quoteMermaidSourceForJavaScript(code.trim())
+    return """
         <!DOCTYPE html>
         <html>
         <head>
@@ -356,240 +378,231 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
             <title>Mermaid Diagram</title>
             <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
             <style>
-                body { 
-                    background-color: #1E1E1E; 
-                    margin: 0; 
-                    padding: 16px;
-                    touch-action: pan-x pan-y;
+                html, body {
+                    width: 100%;
+                    height: 100%;
+                    margin: 0;
+                    overflow: hidden;
+                    background: #1E1E1E;
+                }
+                #diagram-viewport {
+                    position: absolute;
+                    inset: 0;
                     overflow: auto;
+                    overscroll-behavior: contain;
+                    touch-action: pan-x pan-y;
                     -webkit-overflow-scrolling: touch;
-                    height: 100vh;
                 }
                 #diagram-wrapper {
+                    position: relative;
+                    min-width: 100%;
+                    min-height: 100%;
+                }
+                #diagram {
+                    position: absolute;
                     display: block;
-                    margin: 0 auto;
-                }
-                #diagram { 
-                    display: inline-block;
-                    touch-action: manipulation;
-                }
-                .mermaid { 
+                    transform-origin: 0 0;
                     font-family: 'Courier New', Courier, monospace;
                     font-size: 14px;
                 }
-                
-                /* 添加自定义缩放控件 */
+                #diagram svg {
+                    display: block;
+                    max-width: none !important;
+                }
+                #render-error {
+                    box-sizing: border-box;
+                    padding: 16px;
+                    color: #FFB4AB;
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                }
                 .zoom-controls {
                     position: fixed;
-                    bottom: 10px;
                     right: 10px;
+                    bottom: 10px;
+                    z-index: 10;
                     display: flex;
                     flex-direction: column;
-                    background-color: rgba(30, 30, 30, 0.7);
-                    border-radius: 4px;
                     padding: 4px;
+                    border-radius: 4px;
+                    background: rgba(30, 30, 30, 0.78);
+                    touch-action: manipulation;
                 }
                 .zoom-btn {
-                    background: #383838;
-                    color: #AAA;
-                    border: none;
-                    width: 28px;
-                    height: 28px;
-                    margin: 2px;
-                    font-size: 18px;
-                    border-radius: 3px;
-                    cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                }
-                .zoom-btn:hover {
-                    background: #505050;
-                    color: #FFF;
+                    width: 30px;
+                    height: 30px;
+                    margin: 2px;
+                    border: 0;
+                    border-radius: 3px;
+                    background: #383838;
+                    color: #E6E1E5;
+                    font-size: 18px;
                 }
             </style>
         </head>
         <body>
-            <div id="diagram-wrapper">
-                <div id="diagram">
-                    <pre class="mermaid">
-                        ${code.trim()}
-                    </pre>
+            <div id="diagram-viewport">
+                <div id="diagram-wrapper">
+                    <div id="diagram"></div>
+                    <div id="render-error" hidden></div>
                 </div>
             </div>
             <div class="zoom-controls">
-                <button class="zoom-btn" onclick="zoomIn()">+</button>
-                <button class="zoom-btn" onclick="zoomOut()">-</button>
-                <button class="zoom-btn" onclick="resetZoom()">↺</button>
+                <button class="zoom-btn" type="button" onclick="zoomBy(0.2)">+</button>
+                <button class="zoom-btn" type="button" onclick="zoomBy(-0.2)">−</button>
+                <button class="zoom-btn" type="button" onclick="resetZoom()">↺</button>
             </div>
             <script>
-                mermaid.initialize({
-                    startOnLoad: true,
-                    theme: 'dark',
-                    securityLevel: 'loose',
-                    flowchart: { htmlLabels: true }
-                });
-                
-                // 自定义缩放功能
-                let scale = 1.0;
+                const diagramSource = $quotedSource;
+                const viewport = document.getElementById('diagram-viewport');
                 const wrapper = document.getElementById('diagram-wrapper');
                 const diagram = document.getElementById('diagram');
-                const scroller = document.scrollingElement || document.documentElement;
+                const renderError = document.getElementById('render-error');
+                const contentPadding = 16;
+                let scale = 1.0;
                 let baseWidth = 0;
                 let baseHeight = 0;
-                
-                function zoomIn() {
-                    scale = Math.min(scale + 0.2, 3.0);
-                    applyZoom();
-                }
-                
-                function zoomOut() {
-                    scale = Math.max(scale - 0.2, 0.5);
-                    applyZoom();
-                }
-                
-                function resetZoom() {
-                    scale = 1.0;
-                    applyZoom();
-                }
-                
+
                 function applyZoom() {
-                    if (!baseWidth || !baseHeight) {
-                        baseWidth = diagram.scrollWidth || diagram.getBoundingClientRect().width;
-                        baseHeight = diagram.scrollHeight || diagram.getBoundingClientRect().height;
-                    }
-                    wrapper.style.width = (baseWidth * scale) + 'px';
-                    wrapper.style.height = (baseHeight * scale) + 'px';
+                    if (baseWidth <= 0 || baseHeight <= 0) return;
+                    const scaledWidth = baseWidth * scale;
+                    const scaledHeight = baseHeight * scale;
+                    const left = Math.max(contentPadding, (viewport.clientWidth - scaledWidth) / 2);
+                    const top = Math.max(contentPadding, (viewport.clientHeight - scaledHeight) / 2);
+                    diagram.style.left = left + 'px';
+                    diagram.style.top = top + 'px';
                     diagram.style.transform = 'scale(' + scale + ')';
-                    diagram.style.transformOrigin = '0 0';
+                    wrapper.style.width =
+                        Math.max(viewport.clientWidth, left + scaledWidth + contentPadding) + 'px';
+                    wrapper.style.height =
+                        Math.max(viewport.clientHeight, top + scaledHeight + contentPadding) + 'px';
                 }
 
-                function captureBaseSize() {
-                    baseWidth = 0;
-                    baseHeight = 0;
-                    wrapper.style.width = '';
-                    wrapper.style.height = '';
-                    diagram.style.transform = '';
-                    diagram.style.transformOrigin = '';
-
-                    let tries = 0;
-                    function tick() {
-                        const w = diagram.scrollWidth;
-                        const h = diagram.scrollHeight;
-                        if (w > 0 && h > 0) {
-                            baseWidth = w;
-                            baseHeight = h;
-                            applyZoom();
-                            return;
-                        }
-                        tries++;
-                        if (tries < 60) {
-                            requestAnimationFrame(tick);
-                        } else {
-                            baseWidth = diagram.getBoundingClientRect().width;
-                            baseHeight = diagram.getBoundingClientRect().height;
-                            applyZoom();
-                        }
-                    }
-                    requestAnimationFrame(tick);
+                function setScale(nextScale) {
+                    if (baseWidth <= 0 || baseHeight <= 0) return;
+                    const oldScale = scale;
+                    const oldLeft = parseFloat(diagram.style.left) || contentPadding;
+                    const oldTop = parseFloat(diagram.style.top) || contentPadding;
+                    const contentCenterX =
+                        (viewport.scrollLeft + viewport.clientWidth / 2 - oldLeft) / oldScale;
+                    const contentCenterY =
+                        (viewport.scrollTop + viewport.clientHeight / 2 - oldTop) / oldScale;
+                    scale = Math.min(Math.max(nextScale, 0.5), 3.0);
+                    applyZoom();
+                    const nextLeft = parseFloat(diagram.style.left) || contentPadding;
+                    const nextTop = parseFloat(diagram.style.top) || contentPadding;
+                    viewport.scrollTo(
+                        nextLeft + contentCenterX * scale - viewport.clientWidth / 2,
+                        nextTop + contentCenterY * scale - viewport.clientHeight / 2
+                    );
                 }
 
-                window.addEventListener('load', function() {
-                    setTimeout(captureBaseSize, 0);
-                });
-                
-                // 添加触摸拖动支持
-                let isDragging = false;
-                let startX, startY, scrollLeft, scrollTop;
-                
-                document.addEventListener('mousedown', function(e) {
-                    if (e.target.closest('.zoom-controls')) return;
-                    
-                    isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    scrollLeft = scroller.scrollLeft;
-                    scrollTop = scroller.scrollTop;
-                });
-                
-                document.addEventListener('mousemove', function(e) {
-                    if (!isDragging) return;
-                    e.preventDefault();
-                    
-                    const x = e.clientX;
-                    const y = e.clientY;
-                    const moveX = (x - startX);
-                    const moveY = (y - startY);
-                    
-                    scroller.scrollTo(scrollLeft - moveX, scrollTop - moveY);
-                });
-                
-                document.addEventListener('mouseup', function() {
-                    isDragging = false;
-                });
-                
-                // 触摸支持
-                document.addEventListener('touchstart', function(e) {
-                    if (e.target.closest('.zoom-controls')) return;
-                    if (e.touches.length === 1) {
-                        isDragging = true;
-                        startX = e.touches[0].clientX;
-                        startY = e.touches[0].clientY;
-                        scrollLeft = scroller.scrollLeft;
-                        scrollTop = scroller.scrollTop;
+                function zoomBy(delta) {
+                    setScale(scale + delta);
+                }
+
+                function resetZoom() {
+                    setScale(1.0);
+                }
+
+                function measureRenderedDiagram() {
+                    const svg = diagram.querySelector('svg');
+                    if (!svg) {
+                        throw new Error('Mermaid did not produce an SVG element.');
                     }
-                }, {passive: false});
-                
-                document.addEventListener('touchmove', function(e) {
-                    if (!isDragging) return;
-                    
-                    if (e.touches.length === 1) {
-                        const x = e.touches[0].clientX;
-                        const y = e.touches[0].clientY;
-                        const moveX = (x - startX);
-                        const moveY = (y - startY);
-                        
-                        scroller.scrollTo(scrollLeft - moveX, scrollTop - moveY);
+                    const viewBox = svg.viewBox && svg.viewBox.baseVal;
+                    const bounds = svg.getBBox();
+                    baseWidth = Math.max(
+                        1,
+                        Math.ceil((viewBox && viewBox.width) || bounds.width || svg.scrollWidth)
+                    );
+                    baseHeight = Math.max(
+                        1,
+                        Math.ceil((viewBox && viewBox.height) || bounds.height || svg.scrollHeight)
+                    );
+                    svg.setAttribute('width', String(baseWidth));
+                    svg.setAttribute('height', String(baseHeight));
+                    svg.style.width = baseWidth + 'px';
+                    svg.style.height = baseHeight + 'px';
+                    svg.style.maxWidth = 'none';
+                    applyZoom();
+                    document.body.dataset.renderState = 'ready';
+                }
+
+                function showRenderError(error) {
+                    diagram.hidden = true;
+                    renderError.hidden = false;
+                    renderError.textContent =
+                        'Mermaid render failed: ' + (error && error.message ? error.message : String(error));
+                    document.body.dataset.renderState = 'error';
+                    console.error(error);
+                }
+
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'dark',
+                    securityLevel: 'loose',
+                    flowchart: {
+                        htmlLabels: true,
+                        useMaxWidth: false
                     }
-                }, {passive: false});
-                
-                document.addEventListener('touchend', function() {
-                    isDragging = false;
                 });
-                
-                // 双指捏合缩放支持
-                let initialDistance = 0;
-                let initialScale = 1.0;
-                
-                document.addEventListener('touchstart', function(e) {
-                    if (e.touches.length === 2) {
-                        initialDistance = Math.hypot(
-                            e.touches[0].pageX - e.touches[1].pageX,
-                            e.touches[0].pageY - e.touches[1].pageY
+                diagram.textContent = diagramSource;
+                mermaid.run({ nodes: [diagram] })
+                    .then(function() {
+                        requestAnimationFrame(function() {
+                            try {
+                                measureRenderedDiagram();
+                            } catch (error) {
+                                showRenderError(error);
+                            }
+                        });
+                    })
+                    .catch(showRenderError);
+
+                let pinchStartDistance = 0;
+                let pinchStartScale = 1.0;
+                viewport.addEventListener('touchstart', function(event) {
+                    if (event.touches.length === 2) {
+                        pinchStartDistance = Math.hypot(
+                            event.touches[0].clientX - event.touches[1].clientX,
+                            event.touches[0].clientY - event.touches[1].clientY
                         );
-                        initialScale = scale;
+                        pinchStartScale = scale;
+                        event.preventDefault();
                     }
-                }, {passive: false});
-                
-                document.addEventListener('touchmove', function(e) {
-                    if (e.touches.length === 2) {
-                        e.preventDefault(); // 防止默认缩放
-                        
+                }, { passive: false });
+                viewport.addEventListener('touchmove', function(event) {
+                    if (event.touches.length === 2 && pinchStartDistance > 0) {
                         const distance = Math.hypot(
-                            e.touches[0].pageX - e.touches[1].pageX,
-                            e.touches[0].pageY - e.touches[1].pageY
+                            event.touches[0].clientX - event.touches[1].clientX,
+                            event.touches[0].clientY - event.touches[1].clientY
                         );
-                        
-                        const delta = distance / initialDistance;
-                        scale = Math.min(Math.max(initialScale * delta, 0.5), 3.0);
-                        applyZoom();
+                        setScale(pinchStartScale * distance / pinchStartDistance);
+                        event.preventDefault();
                     }
-                }, {passive: false});
+                }, { passive: false });
+                viewport.addEventListener('touchend', function(event) {
+                    if (event.touches.length < 2) {
+                        pinchStartDistance = 0;
+                    }
+                }, { passive: true });
+                window.addEventListener('resize', applyZoom);
             </script>
         </body>
         </html>
-        """.trimIndent()
-        }
+    """.trimIndent()
+}
+
+/** Mermaid图表渲染组件 */
+@Composable
+fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
+    val htmlContent = remember(code) { buildMermaidPreviewHtml(code) }
 
     // 记住WebView实例以便重用
     val webView = remember(context, horizontalGestureOwner) {
@@ -599,7 +612,7 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
             settings.domStorageEnabled = true // 允许DOM存储
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            settings.loadWithOverviewMode = true
+            settings.loadWithOverviewMode = false
             settings.useWideViewPort = true
 
             // 禁用WebView内置缩放：Mermaid 使用页面内自定义缩放/拖拽，避免出现二级缩放
@@ -678,11 +691,9 @@ fun MermaidRenderer(code: String, modifier: Modifier = Modifier) {
         )
     }
 
-    // 渲染WebView
-    val nestedScrollInterop = rememberNestedScrollInteropConnection()
     AndroidView(
         factory = { webView },
-        modifier = modifier.nestedScroll(nestedScrollInterop)
+        modifier = modifier
     )
 }
 
@@ -699,7 +710,7 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
             settings.domStorageEnabled = false
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            settings.loadWithOverviewMode = true
+            settings.loadWithOverviewMode = false
             settings.useWideViewPort = true
 
             webViewClient =
@@ -752,10 +763,9 @@ fun HtmlPreviewRenderer(code: String, modifier: Modifier = Modifier) {
         )
     }
 
-    val nestedScrollInterop = rememberNestedScrollInteropConnection()
     AndroidView(
         factory = { webView },
-        modifier = modifier.nestedScroll(nestedScrollInterop)
+        modifier = modifier
     )
 }
 

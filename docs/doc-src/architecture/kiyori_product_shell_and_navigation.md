@@ -130,7 +130,10 @@ Kiyori App Shell/
 - 三页首页共享唯一 `PagerState` 和同一产品吸附合同。负一屏与软件首页继续使用原生
   `HorizontalPager` fling；永久挂载的 AI Home 通过公开 API bridge 为每次按下建立独立会话，
   按严格大于半页、`400dp/s`、最多一页、LTR/RTL、边界和同一 bounded spring 决策释放，
-  不读取 Pager 私有手势元数据。页面位移直接跟随手指，新反向拖动可取消尚未结束的吸附；
+  不读取 Pager 私有手势元数据。只有完整结束的真实 AI Home 会话进入该严格吸附策略；Pager
+  位移也只允许发生在真实首页会话尚未结束或 bridge 正在执行已决定吸附的时段。子组件 nested
+  fling、未完成会话和内容 owner 在 `DOWN` 同步丢弃的候选既不生成页面目标，也不能在 owner
+  释放后的惯性阶段修改 Pager。页面位移直接跟随手指，新反向拖动可取消尚未结束的吸附；
   `SoftwareHomePage` 只在 `settledPage` 后同步
 
 底栏的显示与隐藏通过产品壳的页面状态驱动。Browser Home 直接占满 presentation 约束，不为已隐藏的 Kiyori 底栏保留高度；切换动画不得通过增删内容高度造成首页主体跳动。
@@ -152,7 +155,12 @@ Browser、Mini App 与 Files 使用 `0.42` 阻尼扩大黄色填充的动画峰�
   AI bridge 共享产品合同而不是共享框架私有手势字段，不以离散阈值触发程序化跳页
 - 模态 AI 左抽屉只能由三横线按钮打开，不响应边缘、拖动或横向滑动
 - AI 页面内部的表格、关闭自动换行的代码、横向公式、Mermaid/HTML 预览、横向列表和选择器
-  通过同一多 owner 占用状态声明当前手势；任一 owner 活跃时首页 bridge 让位
+  通过 Shell 持有的同一多 owner 占用状态在 `DOWN` 同步声明当前手势；任一 owner 活跃时，祖先
+  `scrollable` 节点保持挂载，但 bridge 拒绝页面位移并丢弃该首页候选。宽表格由标准 Compose
+  `horizontalScroll` 处理横向方向竞争和 fling，纵向拖动仍可交给外层消息列表；表格到最左或
+  最右边界后的未消费 delta 即使晚于 `UP` 到达，也因不存在活动首页拖动会话而不能修改 Pager。
+  Mermaid 在最终 SVG 产生后按真实宽高建立内部二维滚动与缩放范围，Mermaid/HTML/XML 图表
+  WebView 不向首页转发 nested fling
 - 全屏网页搜索、AI 一级页面和其他子页不把手势传给首页 Pager
 
 ## Back 契约

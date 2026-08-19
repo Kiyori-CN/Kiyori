@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -86,6 +87,43 @@ class EnhancedTableBlockAndroidTest {
         composeTestRule.waitForIdle()
         val afterSecondSwipe = table.captureToImage().asAndroidBitmap()
         assertFalse(afterStreamingUpdate.sameAs(afterSecondSwipe))
+    }
+
+    @Test
+    fun verticalDragInsideTable_scrollsParentMessageViewport() {
+        lateinit var parentScrollState: ScrollState
+        val tableDescription =
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.table_block)
+
+        composeTestRule.setContent {
+            MaterialTheme {
+                val scrollState = rememberScrollState()
+                parentScrollState = scrollState
+                Column(
+                    modifier =
+                        Modifier
+                            .width(240.dp)
+                            .height(300.dp)
+                            .verticalScroll(scrollState)
+                ) {
+                    EnhancedTableBlock(tableContent = WIDE_TABLE)
+                    Spacer(modifier = Modifier.height(500.dp))
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription(tableDescription).performTouchInput {
+            swipe(
+                start = center + Offset(0f, 80f),
+                end = center - Offset(0f, 80f),
+                durationMillis = 1_000L,
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.runOnIdle {
+            assertTrue(parentScrollState.value > 0)
+        }
     }
 
     private companion object {

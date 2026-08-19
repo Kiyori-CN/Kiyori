@@ -8,6 +8,77 @@ device_acceptance: verification_pending
 
 # 三页首页横向手势一致性修复
 
+## 2026-08-19 AI 对话崩溃与内容滚动回归修复
+
+状态：`DEVICE EDGE RECHECK FIX LOCALLY VALIDATED / DEVICE RECHECK PENDING`
+
+用户提供的 `APP_FATAL 158cdc96-af02-4045-9170-efa03d778440` 已确认不是 Provider、消息持久化
+或 Markdown 解析故障。崩溃发生在 AI 首页根 `scrollable` 的 nested-scroll 回调：表格、消息列表
+或 WebView 等子组件结束 fling 后，祖先会收到 `onPostFling`，即使本次没有首页拖动手势也可能调用
+首页 `FlingBehavior`。现实现把“每次 fling 都存在完整首页手势会话”写成致命断言，因此
+`sessionComplete=false` 会直接终止主线程。
+
+同一批首页手势改动还让表格、代码、公式和预览在 `DOWN` 时通过状态回调把祖先
+`scrollable.enabled` 改成 `false`。这会在当前手势中途更新祖先输入节点，破坏子组件连续接收
+移动与释放事件；参考截图中的宽表格虽绘制到视口之外，却无法稳定左右拖动，纵向手势也不能可靠
+交还消息列表。
+
+目标设备在 `2026-08-19 13:46:39 +08:00` 的第二次截图进一步确认：表格已能横向滚动，但位于
+最左边界时继续向右拖动会让页面停在 AI Home 与 Software Home 中间。标准
+`horizontalScroll` 在边界后会把未消费位移和惯性沿 nested-scroll 交给祖先；`UP` 后内容 owner
+已经释放，而 bridge 当时只过滤“没有会话时不做 snap”，没有同时禁止该 nested delta 修改
+`PagerState`，所以最终没有页面目标可收口非零 offset。修正后，Pager delta 必须同时满足：
+当前存在尚未结束的真实首页拖动会话，或 bridge 正在执行已决定的首页吸附。
+
+本轮目标：
+
+1. 只有由 AI 首页自身建立并完整结束的手势会话才能进入吸附策略；子 nested fling 必须保持
+   非首页输入语义，不创建页面目标、不触发断言；
+2. Shell 允许首页输入时保持祖先 `scrollable` 节点稳定，内容占用只在桥内部阻止页面位移和吸附，
+   不在同一手势中途拆装祖先输入节点；
+3. 宽表格改用 Compose 标准横向 `ScrollState`、方向竞争与 fling，使横向拖动连续，纵向拖动可
+   交给外层消息列表；
+4. Mermaid 支持的 flowchart、sequence、class、state、ER、journey、gantt、pie、mindmap、
+   timeline 等图继续共用唯一预览器；在 Mermaid 异步渲染完成后再建立真实 SVG 内容尺寸，由
+   WebView 内部滚动容器处理水平/垂直平移和缩放，避免源码 `<pre>` 尺寸与最终图形尺寸混淆；
+5. 保留唯一 `PagerState`、永久 AI 根、当前三页顺序、系统 Back、Markdown AST、JLaTeXMath
+   路径和现有 Mermaid/HTML 预览入口，不增加第二渲染器、依赖升级、回退路径或运行时开关。
+
+细化计划：
+
+1. [DONE] 核对崩溃栈、当前 Git/正式门禁、首页 bridge、内容 ownership、表格 Canvas、
+   Mermaid/HTML WebView 和既有 AndroidTest；
+2. [DONE] 收紧 `KiyoriHomePagerGestureSession` 生命周期：未建立或未完成的会话不能进入
+   `resolveKiyoriHomePagerSnapTarget`，并增加 nested post-fling 回归测试；
+3. [DONE] 将动态内容占用从 `scrollable.enabled` 移入稳定 bridge 的 delta/fling 门禁，
+   增加“内容手势期间节点不拆装、Pager 不移动、内容实际滚动”的 Compose 合同；
+4. [DONE] 用标准 `horizontalScroll` 重做表格视口/内容宽度与 fling，增加横向移动、
+   流式更新状态保持、纵向父滚动和完整末列可达测试；
+5. [DONE] 重做 Mermaid 渲染完成、SVG 尺寸、内部滚动/缩放和 WebView 触控所有权；HTML
+   预览继续使用同一内部滚动边界，不把子 fling 转发给首页 Pager；
+6. [DONE] 根据设备边界复测新增“无真实首页拖动会话时任何 nested delta 都不能修改
+   Pager”的门禁和 Android 回归合同，并重新运行专项 JVM、AndroidTest 编译、
+   formal/architecture、差异检查和规定 Debug APK 构建；
+7. [PENDING] 目标设备复测本次崩溃路径、宽表格四向手势、长 Mermaid 全方向图、缩放后平移、
+   浅深主题和连续十次交互；设备执行未获本轮授权，完成前保持 `verification_pending`。
+
+本地封板证据：
+
+- 专项 JVM、主源码编译和 AndroidTest Kotlin/Java 编译通过；完整 App JVM 为
+  `241 suites / 1414 tests`，零 failure/error/skip；
+- formal readiness、architecture `phase=m03`、ARCH024 hash/import 精确匹配、
+  `git diff --check` 与 314 个工作树 Markdown 文件的本地链接检查通过；
+- 第二次设备边界修正后的规定 `:app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 37s`，`232` 个任务中 `22 executed / 210 up-to-date`，唯一 launcher
+  与 player runtime packaging 门禁通过；
+- `app/build/outputs/apk/debug/app-debug.apk` 写入于 `2026-08-19 14:01:12 +08:00`，
+  `467107608` bytes，SHA-256
+  `12EF31588AA26E0B2CD0863958A9FAB97EE6FD6B74642A5813F180543F8E43C1`；
+  包/版本/SDK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37`，唯一 launcher、arm64-only、
+  Android Debug V2 单 signer 和 16 KB ZIP 对齐通过；
+- APK 包含 51 个无重名 `.so` 与 `assets/operit_shell_exec`，共 52 个 AArch64 ELF64；
+  153 个 `PT_LOAD` 为 `0x4000 × 151` 与 `0x10000 × 2`，无低于 16 KB 的输入。
+
 ## 文档状态与权威边界
 
 本文定义“负一屏 ← 软件首页 → AI 首页”三页横向手势的根因修复方案。当前状态是：

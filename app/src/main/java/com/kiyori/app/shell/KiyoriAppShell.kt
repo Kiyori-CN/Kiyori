@@ -18,6 +18,7 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -37,6 +38,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.ai.assistance.operit.ui.main.AiHomeQuickAction
+import com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
+import com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
 import com.ai.assistance.operit.ui.main.navigation.NavigationEntrySpec
 import com.ai.assistance.operit.ui.main.shell.KiyoriBookmarkDrawerHost
 import com.ai.assistance.operit.ui.main.shell.KiyoriBrowserSettingsPage
@@ -116,6 +119,12 @@ internal fun KiyoriAppShell(
     val pagerFlingBehavior = PagerDefaults.flingBehavior(state = pagerState)
     val aiHomePagerGestureBridge =
         remember(pagerState) { KiyoriAiHomePagerGestureBridge(pagerState) }
+    val aiContentHorizontalGestureOwnership =
+        remember(aiHomePagerGestureBridge) {
+            AiContentHorizontalGestureOwnership(
+                onOwnershipChanged = aiHomePagerGestureBridge::updateContentGestureOwnership,
+            )
+        }
 
     var startupPreloadReady by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -216,7 +225,6 @@ internal fun KiyoriAppShell(
             )
         val aiHomePagerGestureEnabled =
             pagerAcceptsInput &&
-                !aiHomeGestureBlocked &&
                 pagerState.layoutInfo.pageSize > 0
         SideEffect {
             aiHomePagerGestureBridge.updateConfiguration(
@@ -226,6 +234,7 @@ internal fun KiyoriAppShell(
                         KIYORI_HOME_PAGER_MIN_FLING_VELOCITY_DP_PER_SECOND.dp.toPx()
                     },
                 layoutDirection = layoutDirection,
+                externalGestureBlocked = aiHomeGestureBlocked,
             )
         }
         val aiPageOffset by remember(pagerState) {
@@ -377,7 +386,12 @@ internal fun KiyoriAppShell(
                     startupPreloadReady = startupPreloadReady,
                 )
             ) {
-                aiHost()
+                CompositionLocalProvider(
+                    LocalAiContentHorizontalGestureOwnership provides
+                        aiContentHorizontalGestureOwnership,
+                ) {
+                    aiHost()
+                }
             }
         }
 

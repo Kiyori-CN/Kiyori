@@ -97,8 +97,6 @@ import kotlinx.coroutines.Job
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
 import com.ai.assistance.operit.data.preferences.CharacterGroupCardManager
 import com.ai.assistance.operit.ui.common.rememberLocal
-import com.ai.assistance.operit.ui.common.gestures.AiContentHorizontalGestureOwnership
-import com.ai.assistance.operit.ui.common.gestures.LocalAiContentHorizontalGestureOwnership
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
@@ -781,8 +779,6 @@ val actualViewModel: ChatViewModel =
     val onChatScreenGestureConsumedChange = remember {
         { it: Boolean -> chatScreenGestureConsumed = it }
     }
-    val aiContentHorizontalGestureOwnership =
-        remember { AiContentHorizontalGestureOwnership() }
     val onSwitchCharacter = remember(actualViewModel) {
         { target: CharacterSelectorTarget ->
             actualViewModel.switchActiveCharacterTarget(target)
@@ -820,12 +816,9 @@ val actualViewModel: ChatViewModel =
             hasEverShownWebView = true
         }
     }
-    // 历史快速滚动与消息内容横向交互共用一个边界，任一 owner 活跃时首页 Pager 都必须让位。
-    val finalGestureState =
-        chatScreenGestureConsumed || aiContentHorizontalGestureOwnership.isOwned
     val latestOnGestureConsumed by rememberUpdatedState(onGestureConsumed)
-    LaunchedEffect(finalGestureState) {
-        latestOnGestureConsumed(finalGestureState)
+    LaunchedEffect(chatScreenGestureConsumed) {
+        latestOnGestureConsumed(chatScreenGestureConsumed)
     }
     DisposableEffect(Unit) {
         onDispose { latestOnGestureConsumed(false) }
@@ -1067,67 +1060,62 @@ val actualViewModel: ChatViewModel =
                                 .matchParentSize()
                                 .graphicsLayer { translationY = -chatViewportTranslationYPx }
                     ) {
-                        CompositionLocalProvider(
-                            LocalAiContentHorizontalGestureOwnership provides
-                                aiContentHorizontalGestureOwnership,
-                        ) {
-                            ChatScreenContent(
-                                modifier = Modifier.fillMaxSize(),
-                                paddingValues =
-                                        PaddingValues(), // Padding is already handled by the parent Box
-                                bottomInset = bottomBarHeightDp,
-                                actualViewModel = actualViewModel,
-                                enableMessageDialogs = !isFloatingMode,
-                                showChatHistorySelector = showChatHistorySelector,
-                                chatHistory = chatHistory,
-                                isLoading = isLoading,
-                                userMessageColor = userMessageColor,
-                                aiMessageColor = aiMessageColor,
-                                userTextColor = userTextColor,
-                                aiTextColor = aiTextColor,
-                                systemMessageColor = systemMessageColor,
-                                systemTextColor = systemTextColor,
-                                thinkingBackgroundColor = thinkingBackgroundColor,
-                                thinkingTextColor = thinkingTextColor,
-                                hasBackgroundImage = effectiveHasBackgroundImage,
-                                editingMessageIndex = editingMessageIndex,
-                                editingMessageContent = editingMessageContent,
-                                chatScreenGestureConsumed = chatScreenGestureConsumed,
-                                onChatScreenGestureConsumed = onChatScreenGestureConsumedChange,
-                                scrollState = scrollState,
-                                autoScrollToBottom = autoScrollToBottom,
-                                onAutoScrollToBottomChange = onAutoScrollToBottomChange,
-                                coroutineScope = coroutineScope,
-                                chatHistories = chatHistories,
-                                currentChatId = currentChatId ?: "",
-                                chatHeaderTransparent = chatHeaderTransparent,
-                                chatHeaderHistoryIconColor = chatHeaderHistoryIconColor,
-                                chatHeaderPipIconColor = chatHeaderPipIconColor,
-                                chatHeaderOverlayMode = chatHeaderOverlayMode,
-                                chatStyle = chatStyle, // Pass chat style
-                                cursorUserBubbleLiquidGlass = cursorUserBubbleLiquidGlass,
-                                cursorUserBubbleWaterGlass = cursorUserBubbleWaterGlass,
-                                bubbleUserBubbleLiquidGlass = bubbleUserBubbleLiquidGlass,
-                                bubbleUserBubbleWaterGlass = bubbleUserBubbleWaterGlass,
-                                bubbleAiBubbleLiquidGlass = bubbleAiBubbleLiquidGlass,
-                                bubbleAiBubbleWaterGlass = bubbleAiBubbleWaterGlass,
-                                historyListState = historyListState,
-                                showCharacterSelector = showCharacterSelector,
-                                onShowCharacterSelectorChange = { showCharacterSelector = it },
-                                onSwitchCharacter = onSwitchCharacter,
-                                onOpenCharacterSettings = onNavigateToModelPrompts,
-                                chatAreaHorizontalPadding = chatAreaHorizontalPadding,
-                                bubbleUserImageStyle = bubbleUserImageStyle,
-                                bubbleAiImageStyle = bubbleAiImageStyle,
-                                bubbleUserRoundedCornersEnabled = bubbleUserRoundedCornersEnabled,
-                                bubbleAiRoundedCornersEnabled = bubbleAiRoundedCornersEnabled,
-                                bubbleUserContentPaddingLeft = bubbleUserContentPaddingLeft,
-                                bubbleUserContentPaddingRight = bubbleUserContentPaddingRight,
-                                bubbleAiContentPaddingLeft = bubbleAiContentPaddingLeft,
-                                bubbleAiContentPaddingRight = bubbleAiContentPaddingRight,
-                                showChatFloatingDotsAnimation = showChatFloatingDotsAnimation,
-                            )
-                        }
+                        ChatScreenContent(
+                            modifier = Modifier.fillMaxSize(),
+                            paddingValues =
+                                    PaddingValues(), // Padding is already handled by the parent Box
+                            bottomInset = bottomBarHeightDp,
+                            actualViewModel = actualViewModel,
+                            enableMessageDialogs = !isFloatingMode,
+                            showChatHistorySelector = showChatHistorySelector,
+                            chatHistory = chatHistory,
+                            isLoading = isLoading,
+                            userMessageColor = userMessageColor,
+                            aiMessageColor = aiMessageColor,
+                            userTextColor = userTextColor,
+                            aiTextColor = aiTextColor,
+                            systemMessageColor = systemMessageColor,
+                            systemTextColor = systemTextColor,
+                            thinkingBackgroundColor = thinkingBackgroundColor,
+                            thinkingTextColor = thinkingTextColor,
+                            hasBackgroundImage = effectiveHasBackgroundImage,
+                            editingMessageIndex = editingMessageIndex,
+                            editingMessageContent = editingMessageContent,
+                            chatScreenGestureConsumed = chatScreenGestureConsumed,
+                            onChatScreenGestureConsumed = onChatScreenGestureConsumedChange,
+                            scrollState = scrollState,
+                            autoScrollToBottom = autoScrollToBottom,
+                            onAutoScrollToBottomChange = onAutoScrollToBottomChange,
+                            coroutineScope = coroutineScope,
+                            chatHistories = chatHistories,
+                            currentChatId = currentChatId ?: "",
+                            chatHeaderTransparent = chatHeaderTransparent,
+                            chatHeaderHistoryIconColor = chatHeaderHistoryIconColor,
+                            chatHeaderPipIconColor = chatHeaderPipIconColor,
+                            chatHeaderOverlayMode = chatHeaderOverlayMode,
+                            chatStyle = chatStyle, // Pass chat style
+                            cursorUserBubbleLiquidGlass = cursorUserBubbleLiquidGlass,
+                            cursorUserBubbleWaterGlass = cursorUserBubbleWaterGlass,
+                            bubbleUserBubbleLiquidGlass = bubbleUserBubbleLiquidGlass,
+                            bubbleUserBubbleWaterGlass = bubbleUserBubbleWaterGlass,
+                            bubbleAiBubbleLiquidGlass = bubbleAiBubbleLiquidGlass,
+                            bubbleAiBubbleWaterGlass = bubbleAiBubbleWaterGlass,
+                            historyListState = historyListState,
+                            showCharacterSelector = showCharacterSelector,
+                            onShowCharacterSelectorChange = { showCharacterSelector = it },
+                            onSwitchCharacter = onSwitchCharacter,
+                            onOpenCharacterSettings = onNavigateToModelPrompts,
+                            chatAreaHorizontalPadding = chatAreaHorizontalPadding,
+                            bubbleUserImageStyle = bubbleUserImageStyle,
+                            bubbleAiImageStyle = bubbleAiImageStyle,
+                            bubbleUserRoundedCornersEnabled = bubbleUserRoundedCornersEnabled,
+                            bubbleAiRoundedCornersEnabled = bubbleAiRoundedCornersEnabled,
+                            bubbleUserContentPaddingLeft = bubbleUserContentPaddingLeft,
+                            bubbleUserContentPaddingRight = bubbleUserContentPaddingRight,
+                            bubbleAiContentPaddingLeft = bubbleAiContentPaddingLeft,
+                            bubbleAiContentPaddingRight = bubbleAiContentPaddingRight,
+                            showChatFloatingDotsAnimation = showChatFloatingDotsAnimation,
+                        )
 
                         if (inputStyle == UserPreferencesManager.INPUT_STYLE_CLASSIC) {
                             ClassicChatSettingsBar(

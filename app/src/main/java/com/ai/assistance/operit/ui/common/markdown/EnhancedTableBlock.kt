@@ -1,25 +1,21 @@
 package com.ai.assistance.operit.ui.common.markdown
 
 import android.graphics.Typeface
-import android.os.SystemClock
 import android.text.StaticLayout
 import android.text.TextPaint
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -29,7 +25,6 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.res.stringResource
@@ -41,12 +36,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.gestures.ownAiContentHorizontalGestureOnTouch
 import com.ai.assistance.operit.ui.common.gestures.rememberAiContentHorizontalGestureOwner
 import com.ai.assistance.operit.ui.theme.LocalAiMarkdownTextLayoutSettings
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.exp
 
 private val TABLE_MIN_COLUMN_WIDTH = 80.dp
 private val TABLE_MAX_COLUMN_WIDTH = 320.dp
@@ -58,9 +48,6 @@ private val TABLE_BORDER_WIDTH = 1.dp
 private val TABLE_GRID_WIDTH = 0.5.dp
 private const val TABLE_MAX_MEASURE_LINE_CHARS = 512
 private const val TABLE_LINE_SPACING_MULTIPLIER = 1.3f
-private const val TABLE_FLING_DECAY_RATE = 4.5f
-private const val TABLE_MIN_FLING_VELOCITY = 120f
-private const val TABLE_MAX_FLING_VELOCITY = 9000f
 
 /** 供表格渲染和复制为纯文本共用的表格解析结果。 */
 internal data class TableData(
@@ -110,13 +97,9 @@ fun EnhancedTableBlock(
 
     if (tableData.rows.isEmpty()) return
 
-    val coroutineScope = rememberCoroutineScope()
     val horizontalGestureOwner = rememberAiContentHorizontalGestureOwner()
     // 流式追加会不断改变 tableContent；滚动状态必须绑定当前表格节点而不是内容快照。
-    var scrollOffsetPx by remember { mutableStateOf(0f) }
-    var dragVelocityPxPerSec by remember { mutableStateOf(0f) }
-    var lastDragEventTimeMs by remember { mutableStateOf(0L) }
-    var flingJob by remember { mutableStateOf<Job?>(null) }
+    val horizontalScrollState = rememberScrollState()
     val tableBlockDesc = stringResource(R.string.table_block)
     val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
     val headerBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -156,6 +139,7 @@ fun EnhancedTableBlock(
             )
         }
 
+        val totalWidthDp = with(density) { renderLayout.totalWidthPx.toDp() }
         val totalHeightDp = with(density) { renderLayout.totalHeightPx.toDp() }
         val outerBorderWidthPx = with(density) { TABLE_BORDER_WIDTH.toPx() }
         val gridLineWidthPx = with(density) { TABLE_GRID_WIDTH.toPx() }
@@ -164,99 +148,24 @@ fun EnhancedTableBlock(
         val cellVerticalPaddingPx = with(density) { TABLE_CELL_VERTICAL_PADDING.toPx() }
         val maxScrollPx = (renderLayout.totalWidthPx - availableWidthPx).coerceAtLeast(0).toFloat()
 
-        fun cancelFling() {
-            flingJob?.cancel()
-            flingJob = null
-        }
-
-        fun startFling(initialVelocityPxPerSec: Float) {
-            if (maxScrollPx <= 0f) return
-            val clampedVelocity =
-                initialVelocityPxPerSec
-                    .coerceIn(-TABLE_MAX_FLING_VELOCITY, TABLE_MAX_FLING_VELOCITY)
-            if (abs(clampedVelocity) < TABLE_MIN_FLING_VELOCITY) return
-
-            cancelFling()
-            flingJob =
-                coroutineScope.launch {
-                    var velocity = clampedVelocity
-                    var lastFrameNanos = 0L
-                    while (isActive && abs(velocity) >= TABLE_MIN_FLING_VELOCITY) {
-                        val frameNanos = withFrameNanos { it }
-                        if (lastFrameNanos == 0L) {
-                            lastFrameNanos = frameNanos
-                            continue
-                        }
-
-                        val deltaSeconds = (frameNanos - lastFrameNanos) / 1_000_000_000f
-                        lastFrameNanos = frameNanos
-                        if (deltaSeconds <= 0f) continue
-
-                        val nextOffset =
-                            (scrollOffsetPx + velocity * deltaSeconds).coerceIn(0f, maxScrollPx)
-                        val hitEdge = nextOffset <= 0f || nextOffset >= maxScrollPx
-                        scrollOffsetPx = nextOffset
-                        velocity *= exp(-TABLE_FLING_DECAY_RATE * deltaSeconds)
-
-                        if (hitEdge) {
-                            break
-                        }
-                    }
-                    flingJob = null
-                }
-        }
-
-        SideEffect {
-            if (scrollOffsetPx > maxScrollPx) {
-                scrollOffsetPx = maxScrollPx
-                dragVelocityPxPerSec = 0f
-                cancelFling()
-            }
-        }
-
-        Canvas(
+        androidx.compose.foundation.layout.Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(vertical = TABLE_OUTER_VERTICAL_PADDING)
-                    .height(totalHeightDp)
+                    .clipToBounds()
                     .ownAiContentHorizontalGestureOnTouch(
                         owner = horizontalGestureOwner,
                         enabled = maxScrollPx > 0f,
                     )
-                    .pointerInput(maxScrollPx) {
-                        if (maxScrollPx <= 0f) return@pointerInput
-                        detectHorizontalDragGestures(
-                            onDragStart = {
-                                cancelFling()
-                                dragVelocityPxPerSec = 0f
-                                lastDragEventTimeMs = SystemClock.uptimeMillis()
-                            },
-                            onDragCancel = {
-                                dragVelocityPxPerSec = 0f
-                                lastDragEventTimeMs = 0L
-                            },
-                            onDragEnd = {
-                                startFling(dragVelocityPxPerSec)
-                                dragVelocityPxPerSec = 0f
-                                lastDragEventTimeMs = 0L
-                            },
-                        ) { _, dragAmount ->
-                            val nowMs = SystemClock.uptimeMillis()
-                            val deltaMs = (nowMs - lastDragEventTimeMs).coerceAtLeast(1L)
-                            val instantVelocity = (-dragAmount / deltaMs.toFloat()) * 1000f
-                            dragVelocityPxPerSec =
-                                if (dragVelocityPxPerSec == 0f) {
-                                    instantVelocity
-                                } else {
-                                    dragVelocityPxPerSec * 0.35f + instantVelocity * 0.65f
-                                }
-                            lastDragEventTimeMs = nowMs
-                            scrollOffsetPx = (scrollOffsetPx - dragAmount).coerceIn(0f, maxScrollPx)
-                        }
-                    }
+                    .horizontalScroll(horizontalScrollState),
         ) {
-            translate(left = -scrollOffsetPx, top = 0f) {
+            Canvas(
+                modifier =
+                    Modifier
+                        .width(totalWidthDp)
+                        .height(totalHeightDp),
+            ) {
                 drawRoundRect(
                     color = borderColor,
                     size = Size(renderLayout.totalWidthPx.toFloat(), renderLayout.totalHeightPx.toFloat()),

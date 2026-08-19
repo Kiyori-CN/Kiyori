@@ -20,18 +20,28 @@ import androidx.compose.foundation.gestures.awaitFirstDown
  * 结束手势时过早释放另一个仍在活动的组件。该状态只属于当前 AI 组合，不持久化。
  */
 @Stable
-internal class AiContentHorizontalGestureOwnership {
+internal class AiContentHorizontalGestureOwnership(
+    private val onOwnershipChanged: (Boolean) -> Unit = {},
+) {
     private val activeOwners = mutableStateMapOf<Any, Unit>()
 
     val isOwned: Boolean
         get() = activeOwners.isNotEmpty()
 
     internal fun claim(owner: Any) {
+        val wasOwned = isOwned
         activeOwners[owner] = Unit
+        if (!wasOwned && isOwned) {
+            onOwnershipChanged(true)
+        }
     }
 
     internal fun release(owner: Any) {
+        val wasOwned = isOwned
         activeOwners.remove(owner)
+        if (wasOwned && !isOwned) {
+            onOwnershipChanged(false)
+        }
     }
 }
 
