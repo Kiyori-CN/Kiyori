@@ -145,6 +145,19 @@ internal class BrowserWebElementBridge(
     }
 
     @JavascriptInterface
+    fun showImageViewer(payload: String?) {
+        if (payload.isNullOrBlank()) {
+            return
+        }
+        StandardBrowserSessionTools.mainHandler.post {
+            browserTools.browserHost?.showWebElementImageViewer(
+                sessionId = session.id,
+                payload = payload,
+            )
+        }
+    }
+
+    @JavascriptInterface
     fun updateAdMarking(payload: String?) {
         if (payload.isNullOrBlank()) {
             return
@@ -253,8 +266,11 @@ internal fun StandardBrowserSessionTools.createDownloadListener(
 internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
     webView: WebView,
     navigationPolicy: BrowserAdMarkingNavigationPolicy = BrowserAdMarkingNavigationPolicy.DEFAULT,
+    elementActionsEnabled: Boolean =
+        browserSettingsStore.current.webElementLongPressMenuEnabled,
 ) {
     val navigationPolicyValue = navigationPolicy.toJavascriptValue()
+    val elementActionsEnabledValue = elementActionsEnabled.toString()
     webView.evaluateJavascript(
         """
         (function() {
@@ -277,6 +293,7 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                 previewDisplayPriority: "",
                 previewedElements: [],
                 navigationPolicy: "$navigationPolicyValue",
+                elementActionsEnabled: $elementActionsEnabledValue,
                 eventHandlers: [],
                 lastSelectionAt: 0,
                 lastNavigationUrl: "",
@@ -527,6 +544,25 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                 }
             }
 
+            function nestedImageFor(element) {
+                if (!element) {
+                    return null;
+                }
+                const selector =
+                    "img[src], img[data-src], img[data-original], " +
+                    "img[data-lazy-src], picture img";
+                const directNested =
+                    element.querySelector ? element.querySelector(selector) : null;
+                if (directNested) {
+                    return directNested;
+                }
+                const linkContainer =
+                    element.closest ? element.closest("a[href]") : null;
+                return linkContainer && linkContainer !== element && linkContainer.querySelector
+                    ? linkContainer.querySelector(selector)
+                    : null;
+            }
+
             function resourceUrlFor(element) {
                 if (!element) {
                     return "";
@@ -547,6 +583,23 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                         return direct;
                     }
                 }
+                const nestedImage = nestedImageFor(element);
+                if (nestedImage) {
+                    const nestedImageValues = [
+                        nestedImage.currentSrc,
+                        nestedImage.src,
+                        nestedImage.getAttribute("src"),
+                        nestedImage.getAttribute("data-src"),
+                        nestedImage.getAttribute("data-original"),
+                        nestedImage.getAttribute("data-lazy-src")
+                    ];
+                    for (let index = 0; index < nestedImageValues.length; index += 1) {
+                        const nestedImageUrl = resolvedUrl(nestedImageValues[index]);
+                        if (nestedImageUrl) {
+                            return nestedImageUrl;
+                        }
+                    }
+                }
                 const source = element.querySelector
                     ? element.querySelector("source[src], source[data-src]")
                     : null;
@@ -565,6 +618,68 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                 return backgroundMatch
                     ? resolvedUrl(backgroundMatch[1] || backgroundMatch[2] || backgroundMatch[3])
                     : "";
+            }
+
+            function resourceKindFor(element, resourceUrl) {
+                if (!element || !resourceUrl) {
+                    return "none";
+                }
+                const tag = String(element.localName || "").toLowerCase();
+                if (tag === "img" || tag === "picture") {
+                    return "image";
+                }
+                if (tag === "source") {
+                    const parentTag =
+                        String(element.parentElement && element.parentElement.localName || "")
+                            .toLowerCase();
+                    if (parentTag === "picture") {
+                        return "image";
+                    }
+                    if (parentTag === "video") {
+                        return "video";
+                    }
+                    if (parentTag === "audio") {
+                        return "audio";
+                    }
+                }
+                if (tag === "video") {
+                    const posterUrl = resolvedUrl(element.getAttribute("poster"));
+                    return posterUrl && posterUrl === resourceUrl ? "image" : "video";
+                }
+                if (tag === "audio") {
+                    return "audio";
+                }
+                if (tag === "iframe") {
+                    return "frame";
+                }
+                if (tag === "object" || tag === "embed") {
+                    return "other";
+                }
+                const imageAncestor =
+                    element.closest ? element.closest("img, picture") : null;
+                if (imageAncestor) {
+                    return "image";
+                }
+                const nestedImage = nestedImageFor(element);
+                if (nestedImage) {
+                    return "image";
+                }
+                const backgroundImage =
+                    element.ownerDocument.defaultView.getComputedStyle(element).backgroundImage || "";
+                const backgroundMatch =
+                    backgroundImage.match(/url\((?:"([^"]+)"|'([^']+)'|([^)]*))\)/i);
+                if (backgroundMatch) {
+                    const backgroundUrl =
+                        resolvedUrl(
+                            backgroundMatch[1] ||
+                                backgroundMatch[2] ||
+                                backgroundMatch[3]
+                        );
+                    if (backgroundUrl === resourceUrl) {
+                        return "image";
+                    }
+                }
+                return "other";
             }
 
             function textSelectionTargetFor(element) {
@@ -600,17 +715,46 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                 if (!selector) {
                     return null;
                 }
+                const resourceUrl = resourceUrlFor(element);
                 return {
                     pageUrl: String(location.href || ""),
                     tagName: String(element.tagName || "").toLowerCase(),
                     text: stringValue(element.innerText || element.textContent || "", 1000),
                     linkUrl: anchor ? resolvedUrl(anchor.getAttribute("href")) : "",
-                    resourceUrl: resourceUrlFor(element),
+                    resourceUrl: resourceUrl,
+                    resourceKind: resourceKindFor(element, resourceUrl),
                     selector: selector,
                     html: prettyHtml(String(element.outerHTML || "").slice(0, 20000)),
                     clientX: Number(x || 0),
                     clientY: Number(y || 0)
                 };
+            }
+
+            function collectPageImageUrls(selectedUrl) {
+                const urls = [];
+                const identities = new Set();
+                function addImageUrl(value) {
+                    const url = resolvedUrl(value);
+                    if (!url || !/^https?:\/\//i.test(url)) {
+                        return;
+                    }
+                    const identity = url.split("#", 1)[0];
+                    if (identities.has(identity) || urls.length >= 200) {
+                        return;
+                    }
+                    identities.add(identity);
+                    urls.push(url);
+                }
+                addImageUrl(selectedUrl);
+                const elements = Array.from(document.querySelectorAll("*")).slice(0, 2000);
+                for (let index = 0; index < elements.length && urls.length < 200; index += 1) {
+                    const element = elements[index];
+                    const url = resourceUrlFor(element);
+                    if (resourceKindFor(element, url) === "image") {
+                        addImageUrl(url);
+                    }
+                }
+                return urls;
             }
 
             function navigationUrlFor(element) {
@@ -964,6 +1108,9 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
 
             window.__kiyoriElementActions = {
                 handleLongPress: function(x, y) {
+                    if (!state.elementActionsEnabled) {
+                        return false;
+                    }
                     const element = document.elementFromPoint(x, y);
                     if (textSelectionTargetFor(element)) {
                         return false;
@@ -974,6 +1121,24 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                     }
                     state.contextElement = element;
                     window.OperitWebElementBridge.showActions(JSON.stringify(payload));
+                    return true;
+                },
+                openImageMode: function(selectedUrl) {
+                    const normalizedSelectedUrl = resolvedUrl(selectedUrl);
+                    if (!normalizedSelectedUrl) {
+                        return false;
+                    }
+                    const images = collectPageImageUrls(normalizedSelectedUrl);
+                    if (images.length === 0) {
+                        return false;
+                    }
+                    window.OperitWebElementBridge.showImageViewer(
+                        JSON.stringify({
+                            pageUrl: String(location.href || ""),
+                            selectedUrl: normalizedSelectedUrl,
+                            images: images
+                        })
+                    );
                     return true;
                 },
                 startMarking: startMarking,
@@ -998,6 +1163,12 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
                                 ? "ask"
                                 : "block";
                 },
+                setElementActionsEnabled: function(enabled) {
+                    state.elementActionsEnabled = enabled === true;
+                    if (!state.elementActionsEnabled) {
+                        finish(false);
+                    }
+                },
                 selectText: function(x, y) {
                     if (
                         window.__operitTextSelection &&
@@ -1017,6 +1188,26 @@ internal fun StandardBrowserSessionTools.injectBrowserElementInteractionHelper(
         """.trimIndent(),
         null,
     )
+}
+
+internal fun StandardBrowserSessionTools.applyBrowserWebElementLongPressMenuSettingOnMain() {
+    val enabled = browserSettingsStore.current.webElementLongPressMenuEnabled
+    browserHost?.applyWebElementLongPressMenuSetting(enabled)
+    StandardBrowserSessionTools.sessions.values.forEach { session ->
+        session.webView.evaluateJavascript(
+            """
+            (function() {
+                if (
+                    window.__kiyoriElementActions &&
+                    typeof window.__kiyoriElementActions.setElementActionsEnabled === "function"
+                ) {
+                    window.__kiyoriElementActions.setElementActionsEnabled($enabled);
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
 }
 
 internal fun StandardBrowserSessionTools.injectTextSelectionHelper(webView: WebView) {

@@ -928,6 +928,23 @@ internal fun StandardBrowserSessionTools.createBrowserHostCallbacks(
             }
         }
 
+        override fun onBuildImageRequestHeaders(
+            url: String,
+            pageUrl: String,
+        ): Map<String, String> {
+            val session = getActiveSessionOnMain() ?: return emptyMap()
+            val appliedUserAgent =
+                session.appliedUserAgent.takeIf(String::isNotBlank)
+                    ?: session.webView.settings.userAgentString.orEmpty()
+            val cookie = session.cookieManager.getCookie(url)
+            return buildBrowserNetworkRequestHeaders(
+                observedHeaders = emptyMap(),
+                appliedUserAgent = appliedUserAgent,
+                cookie = cookie,
+                pageUrl = pageUrl,
+            )
+        }
+
         override fun onOpenHistoryEntry(entry: WebSessionHistoryEntry): Boolean =
             when (entry.category) {
                 WebSessionHistoryCategory.WEB,

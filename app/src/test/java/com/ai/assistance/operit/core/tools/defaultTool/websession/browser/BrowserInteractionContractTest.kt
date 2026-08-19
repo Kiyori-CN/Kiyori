@@ -89,15 +89,24 @@ class BrowserInteractionContractTest {
 
     @Test
     fun `network image viewer owns an edge to edge paged image surface`() {
-        val source =
+        val viewerSourceFile =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionBrowserImageViewer.kt",
+            ).readText()
+        val networkLogSource =
             repositoryFile(
                 "app/src/main/java/com/ai/assistance/operit/ui/features/websession/browser/WebSessionNetworkLogSheet.kt",
             ).readText()
-        val viewerStart = source.indexOf("private fun BrowserNetworkImageViewer(")
-        val viewerEnd = source.indexOf("private fun buildBrowserResourceImageRequest(", viewerStart)
+        val viewerStart =
+            viewerSourceFile.indexOf("internal fun WebSessionBrowserImageViewer(")
+        val viewerEnd =
+            viewerSourceFile.indexOf(
+                "internal fun buildBrowserResourceImageRequest(",
+                viewerStart,
+            )
         assertTrue(viewerStart >= 0)
         assertTrue(viewerEnd > viewerStart)
-        val viewerSource = source.substring(viewerStart, viewerEnd)
+        val viewerSource = viewerSourceFile.substring(viewerStart, viewerEnd)
 
         assertTrue(viewerSource.contains("Dialog("))
         assertTrue(viewerSource.contains("usePlatformDefaultWidth = false"))
@@ -106,31 +115,32 @@ class BrowserInteractionContractTest {
         assertTrue(viewerSource.contains("HorizontalPager("))
         assertTrue(viewerSource.contains("SubcomposeAsyncImage("))
         assertTrue(viewerSource.contains("ContentScale.Fit"))
-        assertTrue(viewerSource.contains("\"${'$'}{pagerState.currentPage + 1}/${'$'}{snapshot.entries.size}\""))
+        assertTrue(viewerSource.contains("\"${'$'}{pagerState.currentPage + 1}/${'$'}{snapshot.items.size}\""))
         assertTrue(viewerSource.contains("text = \"保存\""))
         assertTrue(viewerSource.contains("text = \"保存原图\""))
         assertTrue(viewerSource.contains("awaitEachGesture"))
-        assertTrue(viewerSource.contains("shouldDismissBrowserNetworkImageViewer("))
+        assertTrue(viewerSource.contains("shouldDismissBrowserImageViewer("))
         assertTrue(viewerSource.contains("pressedPointers.size >= 2"))
         assertTrue(viewerSource.contains("pinchGesture"))
         assertTrue(viewerSource.contains("change.consume()"))
-        assertTrue(viewerSource.contains("clampBrowserNetworkImageViewerScale("))
+        assertTrue(viewerSource.contains("clampBrowserImageViewerScale("))
         assertTrue(viewerSource.contains("LaunchedEffect(pagerState.currentPage)"))
-        val saveStateIndex = source.indexOf("var pendingImageSaveEntry")
+        val saveStateIndex = networkLogSource.indexOf("var pendingImageSaveItem")
         val pendingAssignmentIndex =
-            source.indexOf(
-                "pendingImageSaveEntry = entry",
+            networkLogSource.indexOf(
+                "pendingImageSaveItem = item",
                 startIndex = saveStateIndex,
             )
         val viewerCloseIndex =
-            source.indexOf(
+            networkLogSource.indexOf(
                 "imageViewerSnapshot = null",
                 startIndex = pendingAssignmentIndex,
             )
-        val downloadEffectIndex = source.indexOf("LaunchedEffect(pendingImageSaveEntry)")
+        val downloadEffectIndex =
+            networkLogSource.indexOf("LaunchedEffect(pendingImageSaveItem)")
         val downloadCallIndex =
-            source.indexOf(
-                "startDownload(entry)",
+            networkLogSource.indexOf(
+                "startDownloadUrl(item.url, item.mediaCandidateId)",
                 startIndex = downloadEffectIndex,
             )
         assertTrue(saveStateIndex >= 0)
@@ -142,6 +152,33 @@ class BrowserInteractionContractTest {
         assertFalse(viewerSource.contains("rememberAsyncImagePainter"))
         assertFalse(viewerSource.contains("detectTransformGestures"))
         assertFalse(viewerSource.contains("Icons.Filled.Close"))
+    }
+
+    @Test
+    fun `element menu switch and image mode remain bounded without intercepting editable controls`() {
+        val pageExecutionSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserPageExecutionSupport.kt",
+            ).readText()
+        val settingsSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/WebSessionBrowserSettingsStore.kt",
+            ).readText()
+        val bridgeSource =
+            repositoryFile(
+                "app/src/main/java/com/ai/assistance/operit/core/tools/defaultTool/websession/browser/BrowserPageExecutionSupport.kt",
+            ).readText()
+
+        assertTrue(settingsSource.contains("val webElementLongPressMenuEnabled: Boolean = true"))
+        assertTrue(pageExecutionSource.contains("state.elementActionsEnabled"))
+        assertTrue(pageExecutionSource.contains("setElementActionsEnabled: function(enabled)"))
+        assertTrue(pageExecutionSource.contains("if (!state.elementActionsEnabled)"))
+        assertTrue(pageExecutionSource.contains("openImageMode: function(selectedUrl)"))
+        assertTrue(pageExecutionSource.contains("Array.from(document.querySelectorAll(\"*\")).slice(0, 2000)"))
+        assertTrue(pageExecutionSource.contains("urls.length >= 200"))
+        assertTrue(pageExecutionSource.contains("img[src], img[data-src], img[data-original]"))
+        assertTrue(bridgeSource.contains("fun showImageViewer(payload: String?)"))
+        assertTrue(bridgeSource.contains("window.OperitWebElementBridge.showImageViewer("))
     }
 
     @Test

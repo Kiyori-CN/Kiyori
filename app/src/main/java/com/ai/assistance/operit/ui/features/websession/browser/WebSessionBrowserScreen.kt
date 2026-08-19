@@ -66,6 +66,7 @@ import com.ai.assistance.operit.core.player.PlayerSessionState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadEngine
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadPromptState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserDownloadRenameMode
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserImageViewerItem
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingMove
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingNavigationPolicy
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.DEFAULT_BROWSER_HOME_URL
@@ -265,7 +266,17 @@ internal fun WebSessionBrowserScreen(
     onAllowAdMarkingNavigationRequest: () -> Unit,
     onSelectElementText: (Double, Double) -> Unit,
     onCopyWebElementText: () -> Unit,
-    onCopyWebElementUrl: () -> Unit,
+    onCopyWebElementUrl: (String) -> Unit,
+    onOpenWebElementImage: () -> Unit,
+    onOpenWebElementImageMode: () -> Unit,
+    onSaveWebElementImage: () -> Unit,
+    onRecognizeWebElementQrCode: () -> Unit,
+    onBlockCurrentWebElement: () -> Unit,
+    onDismissImageViewer: () -> Unit,
+    onSaveImageViewerItem: (BrowserImageViewerItem) -> Unit,
+    onDismissQrCode: () -> Unit,
+    onCopyQrCodeContent: () -> Unit,
+    onOpenQrCodeContent: () -> Unit,
     homeUrl: String,
     modifier: Modifier = Modifier
 ) {
@@ -1309,8 +1320,28 @@ internal fun WebSessionBrowserScreen(
                 onCopyText = onCopyWebElementText,
                 onOpenExternal = onOpenExternalUrl,
                 onSelectText = onSelectElementText,
-                onBlockElement = onStartAdMarkingFromCurrentElement,
+                onOpenImage = onOpenWebElementImage,
+                onOpenImageMode = onOpenWebElementImageMode,
+                onSaveImage = onSaveWebElementImage,
+                onRecognizeQrCode = onRecognizeWebElementQrCode,
+                onBlockElementQuick = onBlockCurrentWebElement,
+                onBlockElementAdvanced = onStartAdMarkingFromCurrentElement,
                 onBlockUrl = onAddNetworkBlockRule,
+            )
+        }
+        hostState.imageViewer?.let { snapshot ->
+            WebSessionBrowserImageViewer(
+                snapshot = snapshot,
+                onDismiss = onDismissImageViewer,
+                onSave = onSaveImageViewerItem,
+            )
+        }
+        hostState.qrCode?.let { qrCode ->
+            WebSessionQrCodeDialog(
+                state = qrCode,
+                onDismiss = onDismissQrCode,
+                onCopy = onCopyQrCodeContent,
+                onOpen = onOpenQrCodeContent,
             )
         }
     }

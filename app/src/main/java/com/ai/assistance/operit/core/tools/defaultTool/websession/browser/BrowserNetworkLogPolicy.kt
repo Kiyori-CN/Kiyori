@@ -103,24 +103,10 @@ internal fun filterBrowserNetworkLogEntries(
         }
 }
 
-internal data class BrowserNetworkImageViewerSnapshot(
-    val entries: List<WebSessionBrowserNetworkEntry>,
-    val initialPage: Int,
-)
-
-internal const val BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE = 1f
-internal const val BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE = 5f
-
-internal fun clampBrowserNetworkImageViewerScale(scale: Float): Float =
-    scale.coerceIn(
-        BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE,
-        BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE,
-    )
-
 internal fun buildBrowserNetworkImageViewerSnapshot(
     entries: List<WebSessionBrowserNetworkEntry>,
     selectedResourceIdentity: String,
-): BrowserNetworkImageViewerSnapshot? {
+): BrowserImageViewerSnapshot? {
     val imageEntries =
         entries.filter { entry ->
             entry.kind == BrowserNetworkLogEntryKind.REQUEST &&
@@ -134,8 +120,17 @@ internal fun buildBrowserNetworkImageViewerSnapshot(
     if (initialPage < 0) {
         return null
     }
-    return BrowserNetworkImageViewerSnapshot(
-        entries = imageEntries,
+    return BrowserImageViewerSnapshot(
+        items =
+            imageEntries.map { entry ->
+                BrowserImageViewerItem(
+                    identity = entry.resourceIdentity,
+                    url = entry.url,
+                    requestHeaders =
+                        sanitizeBrowserImageRequestHeaders(entry.requestHeaders),
+                    mediaCandidateId = entry.mediaCandidateId,
+                )
+            },
         initialPage = initialPage,
     )
 }
@@ -190,26 +185,6 @@ private fun addBrowserNetworkHeaderIfMissing(
     existingKey?.let(headers::remove)
     value?.takeIf(String::isNotBlank)?.let { headers[name] = it }
 }
-
-internal fun browserNetworkImageViewerBackgroundAlpha(
-    verticalOffsetPx: Float,
-    viewportHeightPx: Float,
-): Float {
-    if (!verticalOffsetPx.isFinite() || !viewportHeightPx.isFinite() || viewportHeightPx <= 0f) {
-        return 1f
-    }
-    val fadeDistance = viewportHeightPx * 0.55f
-    return (1f - (kotlin.math.abs(verticalOffsetPx) / fadeDistance)).coerceIn(0f, 1f)
-}
-
-internal fun shouldDismissBrowserNetworkImageViewer(
-    verticalOffsetPx: Float,
-    touchSlopPx: Float,
-): Boolean =
-    verticalOffsetPx.isFinite() &&
-        touchSlopPx.isFinite() &&
-        touchSlopPx >= 0f &&
-        kotlin.math.abs(verticalOffsetPx) > touchSlopPx
 
 internal fun isThirdPartyBrowserNetworkRequest(
     pageUrl: String,

@@ -16,6 +16,7 @@ import android.view.WindowManager
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,12 @@ import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimiz
 import com.ai.assistance.operit.ui.features.websession.browser.WebSessionMinimizedIndicator
 import com.ai.assistance.operit.util.AppLogger
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -75,6 +82,7 @@ internal class WebSessionBrowserHost(
         fun onOpenBookmarkInTab(url: String, active: Boolean)
         fun onOpenUrl(url: String)
         fun onOpenExternalUrl(url: String)
+        fun onBuildImageRequestHeaders(url: String, pageUrl: String): Map<String, String>
         fun onOpenHistoryEntry(entry: WebSessionHistoryEntry): Boolean
         fun onDeleteHistory(category: WebSessionHistoryCategory?, cutoffTimeMillis: Long?)
         fun onDeleteHistoryEntries(entryKeys: Set<WebSessionHistoryEntryKey>)
@@ -167,6 +175,8 @@ internal class WebSessionBrowserHost(
     private val windowManager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val backgroundAnchor = BrowserBackgroundAnchor(appContext)
     private val browserSettingsStore = WebSessionBrowserSettingsStore.getInstance(appContext)
+    private val imageQrCodeRecognizer = BrowserImageQrCodeRecognizer(appContext)
+    private val browserOperationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var appWebViewHost: WebSessionWebViewHost? = null
     private var activeWebView: WebView? = null
 
@@ -194,6 +204,7 @@ internal class WebSessionBrowserHost(
     }
 
     fun destroy() {
+        browserOperationScope.cancel()
         exitAdMarking()
         hideTextSelectionActionsOverlay()
         hideIndicator()
@@ -230,6 +241,11 @@ internal class WebSessionBrowserHost(
         val browserSettings by browserSettingsStore.state.collectAsState()
         val playerSession = PlayerSession.getInstance(appContext)
         val playerState by playerSession.state.collectAsState()
+        LaunchedEffect(browserSettings.webElementLongPressMenuEnabled) {
+            applyWebElementLongPressMenuSetting(
+                browserSettings.webElementLongPressMenuEnabled,
+            )
+        }
 
         WebSessionBrowserScreen(
             hostState = hostState,
@@ -375,7 +391,17 @@ internal class WebSessionBrowserHost(
              onAllowAdMarkingNavigationRequest = ::allowAdMarkingNavigationRequest,
              onSelectElementText = ::selectElementText,
              onCopyWebElementText = ::copyCurrentWebElementText,
-             onCopyWebElementUrl = ::copyCurrentWebElementUrl,
+             onCopyWebElementUrl = ::copyWebElementUrl,
+             onOpenWebElementImage = ::openCurrentWebElementImage,
+             onOpenWebElementImageMode = ::openCurrentWebElementImageMode,
+             onSaveWebElementImage = ::saveCurrentWebElementImage,
+             onRecognizeWebElementQrCode = ::recognizeCurrentWebElementQrCode,
+             onBlockCurrentWebElement = ::blockCurrentWebElement,
+             onDismissImageViewer = ::dismissImageViewer,
+             onSaveImageViewerItem = ::saveImageViewerItem,
+             onDismissQrCode = ::dismissQrCode,
+             onCopyQrCodeContent = ::copyQrCodeContent,
+             onOpenQrCodeContent = ::openQrCodeContent,
             homeUrl = browserSettings.homeUrl,
             modifier = modifier,
         )
@@ -657,6 +683,14 @@ internal class WebSessionBrowserHost(
             return true
         }
         return when (resolveWebSessionBrowserBackAction(hostState)) {
+            WebSessionBrowserBackAction.DISMISS_IMAGE_VIEWER -> {
+                dismissImageViewer()
+                true
+            }
+            WebSessionBrowserBackAction.DISMISS_QR_CODE -> {
+                dismissQrCode()
+                true
+            }
             WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST -> {
                 cancelAdMarkingNavigationRequest()
                 true
@@ -778,7 +812,10 @@ internal class WebSessionBrowserHost(
         sessionId: String,
         payload: String,
     ) {
-        if (hostState.adMarking.active) {
+        if (
+            hostState.adMarking.active ||
+                !browserSettingsStore.current.webElementLongPressMenuEnabled
+        ) {
             return
         }
         if (hostState.browserState.activeSessionId != sessionId) {
@@ -792,6 +829,271 @@ internal class WebSessionBrowserHost(
         hideTextSelectionActionsOverlay()
         updateHostState { current ->
             current.copy(webElementAction = action)
+        }
+    }
+
+    fun applyWebElementLongPressMenuSetting(enabled: Boolean) {
+        if (!enabled && hostState.webElementAction != null) {
+            updateHostState { current -> current.copy(webElementAction = null) }
+        }
+        activeWebView?.evaluateJavascript(
+            """
+            (function() {
+                if (
+                    window.__kiyoriElementActions &&
+                    typeof window.__kiyoriElementActions.setElementActionsEnabled === "function"
+                ) {
+                    window.__kiyoriElementActions.setElementActionsEnabled($enabled);
+                }
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    fun showWebElementImageViewer(
+        sessionId: String,
+        payload: String,
+    ) {
+        if (
+            hostState.browserState.activeSessionId != sessionId ||
+                !browserSettingsStore.current.webElementLongPressMenuEnabled
+        ) {
+            return
+        }
+        val snapshot =
+            try {
+                val json = JSONObject(payload)
+                val pageUrl = json.getString("pageUrl").trim()
+                val selectedUrl = json.getString("selectedUrl").trim()
+                val currentPageIdentity =
+                    normalizeBrowserResourceIdentityUrl(hostState.browserState.currentUrl)
+                require(
+                    currentPageIdentity.isNotBlank() &&
+                        currentPageIdentity == normalizeBrowserResourceIdentityUrl(pageUrl),
+                ) {
+                    "Web-element image viewer page is no longer active"
+                }
+                val encodedImages = json.getJSONArray("images")
+                val imageUrls =
+                    buildList {
+                        for (index in 0 until encodedImages.length()) {
+                            add(encodedImages.getString(index))
+                        }
+                    }
+                buildBrowserWebElementImageViewerSnapshot(
+                    urls = imageUrls,
+                    selectedUrl = selectedUrl,
+                    requestHeadersFor = { url ->
+                        callbacks.onBuildImageRequestHeaders(url, pageUrl)
+                    },
+                )
+            } catch (error: Exception) {
+                AppLogger.e(
+                    "WebSessionBrowserHost",
+                    "Failed to build web-element image viewer snapshot",
+                    error,
+                )
+                null
+            }
+        if (snapshot == null) {
+            Toast.makeText(appContext, "当前页面没有可查看的图片", Toast.LENGTH_SHORT).show()
+            return
+        }
+        updateHostState {
+            it.copy(
+                webElementAction = null,
+                imageViewer = snapshot,
+                qrCode = null,
+            )
+        }
+    }
+
+    fun openCurrentWebElementImage() {
+        val action = hostState.webElementAction ?: return
+        val imageUrl = action.imageUrl() ?: return
+        val snapshot =
+            buildSingleBrowserImageViewerSnapshot(
+                url = imageUrl,
+                requestHeaders =
+                    callbacks.onBuildImageRequestHeaders(imageUrl, action.pageUrl),
+            ) ?: return
+        updateHostState {
+            it.copy(
+                webElementAction = null,
+                imageViewer = snapshot,
+                qrCode = null,
+            )
+        }
+    }
+
+    fun openCurrentWebElementImageMode() {
+        val action = hostState.webElementAction ?: return
+        val imageUrl = action.imageUrl() ?: return
+        val webView = activeWebView ?: return
+        updateHostState { it.copy(webElementAction = null) }
+        webView.evaluateJavascript(
+            """
+            (function() {
+                if (
+                    window.__kiyoriElementActions &&
+                    typeof window.__kiyoriElementActions.openImageMode === "function"
+                ) {
+                    return window.__kiyoriElementActions.openImageMode(
+                        ${JSONObject.quote(imageUrl)}
+                    );
+                }
+                return false;
+            })();
+            """.trimIndent(),
+        ) { result ->
+            if (result != "true") {
+                Toast.makeText(
+                    appContext,
+                    "当前页面没有可查看的图片",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+
+    fun saveCurrentWebElementImage() {
+        val imageUrl = hostState.webElementAction?.imageUrl() ?: return
+        updateHostState { it.copy(webElementAction = null) }
+        saveImageUrl(imageUrl)
+    }
+
+    fun saveImageViewerItem(item: BrowserImageViewerItem) {
+        dismissImageViewer()
+        saveImageUrl(item.url)
+    }
+
+    fun dismissImageViewer() {
+        if (hostState.imageViewer != null) {
+            updateHostState { it.copy(imageViewer = null) }
+        }
+    }
+
+    fun recognizeCurrentWebElementQrCode() {
+        val action = hostState.webElementAction ?: return
+        val imageUrl = action.imageUrl() ?: return
+        val requestHeaders = callbacks.onBuildImageRequestHeaders(imageUrl, action.pageUrl)
+        updateHostState {
+            it.copy(
+                webElementAction = null,
+                qrCode =
+                    WebSessionQrCodeState(
+                        sourceUrl = imageUrl,
+                        status = BrowserQrCodeUiStatus.LOADING,
+                    ),
+            )
+        }
+        browserOperationScope.launch {
+            val result =
+                try {
+                    imageQrCodeRecognizer.recognize(imageUrl, requestHeaders)
+                } catch (error: Exception) {
+                    AppLogger.e(
+                        "WebSessionBrowserHost",
+                        "Failed to recognize QR code from web image",
+                        error,
+                    )
+                    BrowserQrCodeRecognitionResult.ImageLoadFailed
+                }
+            withContext(Dispatchers.Main) {
+                val current = hostState.qrCode
+                if (
+                    current == null ||
+                        current.sourceUrl != imageUrl ||
+                        current.status != BrowserQrCodeUiStatus.LOADING
+                ) {
+                    return@withContext
+                }
+                updateHostState {
+                    it.copy(
+                        qrCode =
+                            when (result) {
+                                is BrowserQrCodeRecognitionResult.Success ->
+                                    current.copy(
+                                        status = BrowserQrCodeUiStatus.SUCCESS,
+                                        content = result.content,
+                                    )
+                                BrowserQrCodeRecognitionResult.ImageLoadFailed ->
+                                    current.copy(
+                                        status = BrowserQrCodeUiStatus.IMAGE_LOAD_FAILED,
+                                    )
+                                BrowserQrCodeRecognitionResult.NotRecognized ->
+                                    current.copy(
+                                        status = BrowserQrCodeUiStatus.NOT_RECOGNIZED,
+                                    )
+                            },
+                    )
+                }
+            }
+        }
+    }
+
+    fun dismissQrCode() {
+        if (hostState.qrCode != null) {
+            updateHostState { it.copy(qrCode = null) }
+        }
+    }
+
+    fun copyQrCodeContent() {
+        val content =
+            hostState.qrCode
+                ?.takeIf { state -> state.status == BrowserQrCodeUiStatus.SUCCESS }
+                ?.content
+                .orEmpty()
+        if (content.isBlank()) {
+            return
+        }
+        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("web_image_qr_code", content))
+        Toast.makeText(appContext, "二维码内容已复制", Toast.LENGTH_SHORT).show()
+    }
+
+    fun openQrCodeContent() {
+        val content =
+            hostState.qrCode
+                ?.takeIf { state -> state.status == BrowserQrCodeUiStatus.SUCCESS }
+                ?.content
+                ?.takeIf(::isHttpBrowserNetworkUrl)
+                ?: return
+        dismissQrCode()
+        callbacks.onOpenUrl(content)
+    }
+
+    fun blockCurrentWebElement() {
+        val action = hostState.webElementAction ?: return
+        val domain = normalizeBrowserAdBlockDomain(action.pageUrl)
+        if (domain.isBlank() || !isValidBrowserAdBlockSelector(action.selector)) {
+            Toast.makeText(appContext, "当前元素无法生成有效拦截规则", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            callbacks.onAddElementBlockRule(domain, action.selector)
+            updateHostState { it.copy(webElementAction = null) }
+            Toast.makeText(appContext, "网页元素拦截规则已保存", Toast.LENGTH_SHORT).show()
+        } catch (error: Exception) {
+            AppLogger.e(
+                "WebSessionBrowserHost",
+                "Failed to save quick web-element block rule",
+                error,
+            )
+            Toast.makeText(appContext, "网页元素拦截规则保存失败", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun saveImageUrl(url: String) {
+        val fileName = resolveManualBrowserDownloadFileName("", url, "")
+        val engine = BrowserDownloadSettingsStore.getInstance(appContext).current.defaultEngine
+        if (callbacks.onStartManualDownload(fileName, url, "", engine)) {
+            Toast.makeText(
+                appContext,
+                appContext.getString(R.string.download_started, fileName),
+                Toast.LENGTH_SHORT,
+            ).show()
         }
     }
 
@@ -1316,10 +1618,8 @@ internal class WebSessionBrowserHost(
         updateHostState { it.copy(webElementAction = null) }
     }
 
-    fun copyCurrentWebElementUrl() {
-        val action = hostState.webElementAction ?: return
-        val url = action.linkUrl ?: action.resourceUrl
-        if (url.isNullOrBlank()) {
+    fun copyWebElementUrl(url: String) {
+        if (!isHttpBrowserNetworkUrl(url)) {
             Toast.makeText(appContext, "当前元素没有可复制链接", Toast.LENGTH_SHORT).show()
             return
         }
@@ -1345,10 +1645,17 @@ internal class WebSessionBrowserHost(
                 null,
             )
         }
-        if (hostState.adMarking.active || hostState.webElementAction != null) {
+        if (
+            hostState.adMarking.active ||
+                hostState.webElementAction != null ||
+                hostState.imageViewer != null ||
+                hostState.qrCode != null
+        ) {
             hostState =
                 hostState.copy(
                     webElementAction = null,
+                    imageViewer = null,
+                    qrCode = null,
                     adMarking = WebSessionAdMarkingState(),
                     adMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
                     adMarkingNavigationRequest = null,
@@ -1375,6 +1682,10 @@ internal class WebSessionBrowserHost(
                 text = json.optString("text").trim(),
                 linkUrl = json.optString("linkUrl").trim().takeIf(String::isNotBlank),
                 resourceUrl = json.optString("resourceUrl").trim().takeIf(String::isNotBlank),
+                resourceKind =
+                    BrowserWebElementResourceKind.fromWireValue(
+                        json.optString("resourceKind"),
+                    ),
                 selector = selector,
                 html = json.optString("html").trim(),
                 clientX = json.optDouble("clientX", 0.0),

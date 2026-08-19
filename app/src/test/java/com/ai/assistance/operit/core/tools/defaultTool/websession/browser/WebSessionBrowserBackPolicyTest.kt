@@ -25,6 +25,36 @@ class WebSessionBrowserBackPolicyTest {
             )
 
         assertEquals(
+            WebSessionBrowserBackAction.DISMISS_IMAGE_VIEWER,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    imageViewer =
+                        BrowserImageViewerSnapshot(
+                            items =
+                                listOf(
+                                    BrowserImageViewerItem(
+                                        identity = "https://example.com/image.png",
+                                        url = "https://example.com/image.png",
+                                        requestHeaders = emptyMap(),
+                                    ),
+                                ),
+                            initialPage = 0,
+                        ),
+                ),
+            ),
+        )
+        assertEquals(
+            WebSessionBrowserBackAction.DISMISS_QR_CODE,
+            resolveWebSessionBrowserBackAction(
+                base.copy(
+                    qrCode =
+                        WebSessionQrCodeState(
+                            sourceUrl = "https://example.com/qr.png",
+                        ),
+                ),
+            ),
+        )
+        assertEquals(
             WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST,
             resolveWebSessionBrowserBackAction(
                 base.copy(
@@ -75,6 +105,7 @@ class WebSessionBrowserBackPolicyTest {
                             text = "",
                             linkUrl = null,
                             resourceUrl = null,
+                            resourceKind = BrowserWebElementResourceKind.NONE,
                             selector = "div",
                             html = "<div></div>",
                             clientX = 1.0,

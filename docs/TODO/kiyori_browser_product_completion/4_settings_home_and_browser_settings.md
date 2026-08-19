@@ -3,7 +3,7 @@
 > 2026-08-17 当前合同：底部设置、Browser Menu 和 AI 左抽屉共用
 > `KiyoriSettingsNavigationState` 与 capability-level `KiyoriSettingsRoute`。设置详情逐级返回到
 > 设置首页，Browser/AI 来源再恢复原 Browser Home/WebSession 或原 AI 页面/路由栈。网页浏览器
-> 设置当前为 `4/3/3/2/4/3` 六组 19 行；下方早期章节中的 `KiyoriShellChild`、旧分组数量和
+> 设置当前为 `4/3/3/2/1/4/3` 七组 20 行；下方早期章节中的 `KiyoriShellChild`、旧分组数量和
 > “当前”字样均是对应日期的历史观察，不再代表现行导航与设置合同。
 
 ## 2026-08-17 设置路由、窗口、滑屏与普通窗口恢复
@@ -13,8 +13,9 @@
 - `KiyoriSettingsNavigationState` 持有稳定 `sessionId`、来源、完整 route stack 和 presentation；
   `KiyoriShellChild` 只剩非设置的全屏网页搜索，`childBackTarget`、`openNestedChild()`、
   浏览器设置 `subPageName` 和旧 AI 设置返回特例已经从业务路径删除
-- 浏览器设置当前六组为 `4/3/3/2/4/3`：网页插件与脚本、主页与导航、启动与窗口、网页显示、
-  网站权限与数据、音视频嗅探，总计 19 项
+- 浏览器设置当前七组为 `4/3/3/2/1/4/3`：网页插件与脚本、主页与导航、启动与窗口、网页显示、
+  网页交互、网站权限与数据、音视频嗅探，总计 20 项；网页交互中的“长按网页元素菜单”默认开启，
+  关闭后即时同步现有 WebView，编辑控件继续使用 Android WebView 原生选区
 - 新增“滑屏前进后退 / 恢复上次的搜索结果 / 询问是否恢复页面 / 保留多窗口”，新安装均默认关闭；
   三个恢复开关变化立即重写或清除普通窗口最小恢复投影
 - 普通网页同站、跨站、用户 `_blank` 和用户 `window.open()` 默认在当前窗口导航。popup 由同

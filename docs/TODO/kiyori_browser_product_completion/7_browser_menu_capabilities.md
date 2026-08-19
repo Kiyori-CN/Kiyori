@@ -1,9 +1,9 @@
 # 浏览器四行菜单真实能力
 
-> 2026-08-19 当前状态：上一轮输入框自绘选区被现场证明为假选中；本轮已改为 Android WebView
-> 原生选区，并为网络日志图片查看器增加双指缩放。源码、定向自动验证、Kotlin 编译、正式门禁
-> 和规定的 Debug APK 静态核验已完成；真实网页、设备触控、图片加载/保存、动图/视频/iframe
-> 现场行为和订阅兼容性保持 `verification_pending`。
+> 当前状态：输入框继续由 Android WebView 系统原生选区持有；普通网页元素长按菜单已经重构为
+> 按链接、文本、图片、图片链接、媒体和普通元素裁剪动作的现代底部弹层，并增加默认开启的持久化
+> 总开关。源码实现、定向自动验证、正式门禁和 Debug APK 静态核验已完成；真实网页、设备触控、
+> 登录态图片、二维码、动图/视频/iframe 和视觉手感保持 `verification_pending`。
 
 ## 原则
 
@@ -40,8 +40,8 @@ Activity、LitePal 或 native ABP 架构。
 - 保存规则写入当前站点的元素规则并立即应用；清除确认显示规范化当前域名，并原子删除该
   域名下由用户创建的元素规则及明确针对该域名的网址规则，广告订阅内容和全局规则保留；
   清除后当前 WebSession 的样式、元素日志和原有标记广告立即恢复，不创建第二规则 owner
-- 网页元素长按按真实能力显示“新窗口打开 / 后台打开 / 复制链接 / 复制文本 / 外部打开 /
-  选择文本 / 拦截网页元素 / 拦截过滤网址”；没有链接、资源或文本时不显示对应动作
+- 网页元素长按不再按几个可空字段直接拼接长列表，而是先解析稳定元素类型，再从本文的动作矩阵
+  生成菜单；没有真实链接、资源、文本或图片能力时不显示对应动作
 - 标记脚本在顶层 document 捕获 `pointerdown/pointerup/touchstart/touchend/mousedown/mouseup/click`，
   使用 `composedPath()` 识别媒体真实目标，并读取 `currentSrc`、`<source>`、poster、懒加载属性
   和 CSS `background-image`；原生 WebView 触摸层把跨域 iframe 或媒体层上的触点解析为顶层
@@ -133,6 +133,76 @@ Activity、LitePal 或 native ABP 架构。
 - WebView 仍只使用现有一套注入脚本、JavaScript bridge 和 Host 瞬态状态；不新增第二套原生选区
   owner、第二 WebView 或输入框自定义操作栏
 
+## 网页元素长按菜单迭代合同
+
+### 元素类型
+
+注入脚本必须在一次命中中给出可复核的 `tagName / text / linkUrl / resourceUrl /
+resourceKind / selector / client point`。Host 只接受活动 session、当前页面和有效 HTTP(S) 图片
+资源，不从扩展名猜测一个 DOM 元素是不是图片。
+
+| 类型 | 判定事实 | 主要动作 |
+| --- | --- | --- |
+| 链接 | 存在祖先 `a[href]` 或 `area[href]`，无图片资源 | 新窗口、后台打开、复制链接、外部打开；有文本时复制/选择文本 |
+| 图片链接 | 同时存在真实链接与 `img/picture/poster/background-image` 图片资源 | 全部链接动作，加全屏查看、保存图片、看图模式、复制图片链接、识别二维码 |
+| 图片 | 存在图片资源且没有链接 | 全屏查看、保存图片、看图模式、复制图片链接、外部打开、识别二维码 |
+| 媒体 | `video/audio/source/object/embed/iframe` 等真实资源，不属于图片 | 复制资源链接、外部打开和网址/元素拦截；不显示图片或二维码动作 |
+| 文本 | 没有链接/资源但存在可见文本 | 复制文本、选择文本和元素拦截 |
+| 普通元素 | 只有有效 selector/HTML | 快速拦截与精细标记；不显示不可执行的链接、文本或图片动作 |
+
+每种普通元素都可以显示两种明确不同的拦截动作：
+
+- “拦截元素”：把当前已解析 selector 与规范化页面域名直接写入唯一 `BrowserAdBlockStore`，
+  用于确认目标无误时的一步保存
+- “拦截网页元素”：进入现有标记工作台，可移动到父/兄/弟/子节点、编辑 selector、预览后保存
+
+“拦截过滤网址”优先使用真实资源 URL，其次使用真实链接 URL；它写入同一广告规则 owner。
+图片链接同时存在跳转链接和图片资源时，菜单分别显示“复制链接”和“复制图片链接”，避免复制对象
+含糊。
+
+### UI 与状态
+
+- 使用 `ModalBottomSheet`，不再使用当前居中高信息密度长弹窗，也不复制 hikerView 的左侧窄列表
+- 顶部摘要显示元素类型、DOM 标签、当前站点和最多两行文本/URL，不显示大段 selector 或 HTML
+- 常用操作按稳定顺序使用四列紧凑图标卡；文本操作和拦截操作进入各自圆角分组，整个内容可滚动
+- 图片、链接、文本和拦截动作使用各自语义色；危险/持久化拦截不能与普通复制动作视觉等价
+- 系统 Back、遮罩点击和下滑关闭最上层菜单；二维码结果、图片查看器和标记工作台分别拥有自己的
+  Back 优先级，不让隐藏的元素菜单抢先处理
+
+### 设置总开关
+
+`WebSessionBrowserSettingsStore` 增加唯一持久化字段 `webElementLongPressMenuEnabled`，
+新安装默认 `true`。设置页面在“网页交互”分组显示“长按网页元素菜单”：
+
+- 开启：普通网页元素进入按类型适配的 Kiyori 菜单
+- 关闭：立即关闭现有元素菜单，并把状态同步到所有已打开 WebView；后续普通元素长按不再调用
+  `OperitWebElementBridge.showActions`
+- 无论开关状态，编辑型控件继续走 Android WebView 系统原生 `ActionMode`、剪切/复制/粘贴和
+  原生选区手柄
+
+设置变化不重载网页、不重建 session，也不持有第二份 UI 偏好。
+
+### 图片查看、看图模式与二维码
+
+- 网络日志和网页元素共用一个 edge-to-edge 图片 viewer 与一个手势状态机
+- “全屏查看”只冻结当前图片；“看图模式”在用户点击后有界收集当前 document 的可解析图片，
+  去重后最多保留 200 项，并从长按图片的索引开始
+- 每项图片请求使用活动 WebSession 的 User-Agent、Profile Cookie 和 HTTP(S) Referer；不把
+  Cookie、Authorization 或请求头写入持久状态
+- 保存继续调用唯一 `BrowserDownloadManager`；查看器在下载需要确认时退出，避免确认层被遮挡
+- 二维码识别只对图片显示。图片按同一请求身份加载为最长边受限的软件 Bitmap，再使用仓库已有
+  ZXing QR 解码；结果弹窗显示完整内容并提供复制，有效 HTTP(S) 结果才显示“打开网页”
+- 图片加载失败和未识别到二维码是两个明确终态；不自动改用第二加载器、OCR 或外部服务
+
+### 自动验证
+
+- 纯策略测试锁定六种元素类型、动作顺序和不可出现的动作
+- 设置测试锁定默认开启、持久化字段、设置页标题/分组/action 映射和关闭时的即时同步接线
+- JavaScript 合同测试锁定编辑控件旁路、`resourceKind`、有界图片收集、总开关和 bridge 方法
+- 图片策略测试锁定去重、200 项上限、初始索引、请求头过滤、缩放和退出手势
+- 二维码测试使用仓库内生成的标准 QR Bitmap 验证内容解码，并锁定非二维码错误终态
+- Back 测试锁定二维码结果、图片查看器、元素菜单、广告工作台与原浏览器覆盖层的顺序
+
 ## 验收
 
 - 加书签、书签、历史、下载和网络日志复用现有真实 owner；UA 标识接入唯一 Browser Settings owner 和活动 WebView
@@ -164,15 +234,25 @@ Activity、LitePal 或 native ABP 架构。
 
 本轮本地证据：
 
-- 图片策略与源码合同 `15/15` 通过，零失败、零错误、零跳过；Kotlin 编译、formal readiness、
-  architecture boundaries `phase=m03`、Markdown links `errors=0 / warnings=0` 和
-  `git diff --check` 通过
-- 最终 Debug APK 为 `472553854` bytes，SHA-256
-  `9C442B3B8C65AF71A1C5746354FE189C3BF6C6872D304DA61AFD6FEA38C19367`；
-  `com.kiyori / 45 / 0.1.0 / arm64-v8a`，唯一 Launcher、Android Debug V2 单 signer 与
-  16 KB ZIP 对齐通过
-- 未安装 APK、未运行设备；输入选区手柄、真实站点图片身份、左右分页、上下透明退出、
-  单击退出、保存与系统栏视觉仍为 `verification_pending`
+- `BrowserWebElementActionPolicyTest` `5/5`、`BrowserNetworkLogPolicyTest` `13/13`、
+  `BrowserInteractionContractTest` `4/4`、`WebSessionBrowserBackPolicyTest` `3/3` 和
+  `KiyoriSettingsPagesTest` `14/14`，合计 `39/39`，零失败、零错误、零跳过
+- `:app:compileDebugKotlin`、formal readiness、architecture boundaries `phase=m03` 和
+  `git diff --check` 通过；现行源码与文档中的旧六组设置合同、旧图片查看器符号和过期构造器
+  残留搜索为零
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 为
+  `BUILD SUCCESSFUL in 1m 35s`，`232` 个任务中 `23 executed / 209 up-to-date`；
+  唯一 Debug Launcher 与 Player Runtime packaging 门禁通过
+- 最终 Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`，写入于
+  `2026-08-20 00:47:25 +08:00`，`472553854` bytes，SHA-256
+  `75384DABE734B26DCF5E22AA55DBF1A2D7D7A290AB8E3A650444837134332206`
+- APK 为 `com.kiyori / 45 / 0.1.0 / minSdk 26 / targetSdk 34 / compileSdk 37 /
+  arm64-v8a`，唯一 Launcher 为 `com.ai.assistance.operit.ui.main.MainActivity`；Android Debug
+  V2 单 signer 与 `zipalign -c -P 16 -v 4` 通过
+- APK 含 `51` 个 `.so` 与 `1` 个 shell launcher，共 `52/52` 个 ELF64/AArch64；
+  `153` 个 `PT_LOAD` 为 `0x4000 × 151 / 0x10000 × 2`，无低于 16 KB 的对齐
+- 未安装 APK、未调用 ADB/模拟器/真实设备；输入框系统原生选区、设置开关即时触控、每类元素菜单、
+  登录态图片、页面看图、二维码识别、保存确认和系统栏视觉仍为 `verification_pending`
 
 ## 2026-07-30 Browser Plugin Center 里程碑一
 

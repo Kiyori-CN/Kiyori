@@ -7,6 +7,78 @@ For_Agent: 对项目大规模动工前按本规范协作
 本文件顶部记录当前跨领域长期任务，后续段落保留专项实施与历史证据。历史段落中的分支、提交、
 APK 哈希、测试数量和“未提交/未推送”等描述只代表当时观察点，不能替代当前 Git、构建或设备状态。
 
+## 浏览器网页元素长按菜单与设置开关优化
+
+状态：本地实现、定向自动验证、正式门禁与 Debug APK 静态核验已完成；目标设备交互仍为
+`verification_pending`，Git 提交与远端推送在本轮收尾阶段执行。本轮复用
+[`kiyori_browser_product_completion`](kiyori_browser_product_completion/index.md)
+及其
+[`浏览器四行菜单真实能力`](kiyori_browser_product_completion/7_browser_menu_capabilities.md)
+作为唯一浏览器菜单专项载体，不创建平行 TODO。Kiyori 尚未发布，本轮属于现有网页元素长按能力的
+正常迭代：保留输入框系统原生选区和现有 Browser Runtime/规则/下载/窗口 owner，重构普通网页元素
+动作策略与弹层 UI，并增加默认开启的持久化总开关。
+
+详细计划：
+
+1. [DONE] 核对当前 `main`、干净工作树、正式开发门禁、参考截图、Kiyori 当前长按注入/bridge/
+   Host/Compose 链路，以及本地 hikerView 的链接、图片链接、纯图片和未知元素菜单分支
+2. [DONE] 冻结唯一 owner：窗口继续由 WebSession registry 创建，广告规则继续写入
+   `BrowserAdBlockStore`，图片保存继续进入 `BrowserDownloadManager`，浏览器设置继续由
+   `WebSessionBrowserSettingsStore` 持有；不创建第二 WebView、图片下载器或广告规则仓库
+3. [DONE] 制定按真实元素类型裁剪的动作矩阵：
+   - 链接：新窗口、后台打开、复制链接、复制文本、外部打开、选择文本、快速拦截、精细标记、
+     拦截过滤网址
+   - 图片链接：链接动作加全屏查看、保存图片、看图模式、复制图片链接和识别二维码
+   - 纯图片/背景图片：全屏查看、保存图片、看图模式、复制图片链接、外部打开、识别二维码、
+     快速拦截、精细标记和拦截过滤网址
+   - 媒体资源：复制资源链接、外部打开、快速拦截、精细标记和拦截过滤网址，不伪装成图片
+   - 普通文本/元素：仅在存在真实文本时显示复制/选择文本，并提供元素拦截能力
+4. [DONE] 冻结 UI：使用带拖动柄的现代 Material 3 底部弹层；顶部显示元素类型、标签、
+   当前站点和两行摘要，常用动作使用四列紧凑图标卡，内容与拦截动作分组显示；不照搬
+   hikerView 左侧窄白色长列表，也不继续使用当前高信息密度居中长弹窗
+5. [DONE] 冻结图片能力：把网络日志的 edge-to-edge 分页图片查看器抽成共享 viewer；网页元素的
+   “全屏查看”只建立当前图片快照，“看图模式”在用户点击后从当前 document 有界收集图片并从
+   当前图片开始；两者共用左右分页、编号、保存、长按保存、单击/上下退出和 `1x..5x` 双指缩放
+6. [DONE] 冻结二维码能力：只对真实图片资源显示“识别二维码”，使用活动 WebSession 的
+   User-Agent、Profile Cookie 和 HTTP(S) Referer 加载有界软件 Bitmap，再通过仓库现有 ZXing
+   依赖执行单一路径 QR 解码；结果弹窗提供完整内容、复制，以及仅对有效 HTTP(S) 内容开放网页打开
+7. [DONE] 冻结设置合同：“设置首页 → 网页浏览器 → 网页交互”增加“长按网页元素菜单”开关，
+   新安装默认开启；关闭后立即关闭已显示菜单并同步所有已打开 WebView，普通元素不再触发该菜单，
+   编辑型 `input`、`textarea` 和有效 `contenteditable` 仍由 Android WebView 系统原生选区持有
+8. [DONE] 实现元素类型/动作纯策略、设置持久化和活动 WebView 同步、共享图片 viewer、
+   页面图片有界快照、二维码识别状态及现代化底部弹层
+9. [DONE] 增加策略、设置、JavaScript bridge、Back、图片快照与二维码解码合同测试，更新
+   `CONTEXT.md`、README 和正式架构文档
+10. [DONE] 运行定向 JVM 测试、Kotlin 编译、formal readiness、architecture boundaries、
+    `git diff --check` 和规定的串行 Debug APK 构建/静态核验；Markdown links 在形成候选提交后
+    按 `base/candidate` 合同执行
+11. [PENDING] 审计全部目标改动、敏感内容、构建产物和子模块，提交现有 `main`、推送
+    `origin/main` 并核对本地/tracking/远端 ref
+12. [PENDING] 在目标设备复测浅深主题、窄屏滚动、输入框原生选区、开关即时生效、每类元素动作、
+    登录态图片、页面看图、二维码结果、下载确认、系统 Back 与手势冲突
+
+实现边界：
+
+- 不安装 APK，不调用 ADB、模拟器或真实设备，不构建 Release/AAB
+- 不增加 hikerView 的 X5/TBS、Activity、EventBus、LitePal 或 native ABP 架构
+- 不增加回退、重试、备用图片加载器、第二浏览器运行时或第二规则 owner
+- 当前本地自动验证和 Debug APK 只能证明实现与构建基线；真实 WebView 命中、视觉和触控保持
+  `verification_pending`
+
+本地验证：
+
+- 五个定向 JVM 测试类合计 `39/39`，零失败、零错误、零跳过；`:app:compileDebugKotlin` 通过
+- formal readiness 与 architecture boundaries `phase=m03` 通过，`git diff --check` 无错误
+- 串行 `:app:assembleDebug` 为 `BUILD SUCCESSFUL in 1m 35s`，`232` 个任务中
+  `23 executed / 209 up-to-date`
+- `app/build/outputs/apk/debug/app-debug.apk` 为 `472553854` bytes，写入于
+  `2026-08-20 00:47:25 +08:00`，SHA-256
+  `75384DABE734B26DCF5E22AA55DBF1A2D7D7A290AB8E3A650444837134332206`
+- APK 为 `com.kiyori / 45 / 0.1.0 / 26 / 34 / 37 / arm64-v8a`，唯一 Launcher、
+  Android Debug V2 单 signer、16 KB ZIP 对齐及 `52/52` 个 ELF64/AArch64 的
+  `PT_LOAD >= 0x4000` 审计通过
+- 未安装 APK、未运行 ADB/模拟器/真实设备
+
 ## 2026-08-19 浏览器原生选区与图片双指缩放继续修复
 
 状态：用户现场复测证明上一轮输入框蓝色选区与“复制 / 全选 / 取消”属于 Kiyori 自绘假选中，
@@ -342,8 +414,9 @@ payload、完整性链和审计导出的唯一 owner。现有聊天消息继续�
   页面/路由栈
 - 普通网页同站、跨站、用户 `_blank` 和用户 `window.open()` 默认在当前窗口导航；自动 popup 和
   无稳定 HTTP(S) 目标的 popup 被拒绝。配置主页根上的真实用户跨站跳转是唯一自动保留主页窗口的例外
-- “网页浏览器”设置为 `4/3/3/2/4/3` 六组 19 项，新增“滑屏前进后退 / 恢复上次的搜索结果 /
-  询问是否恢复页面 / 保留多窗口”，四项默认关闭
+- “网页浏览器”设置为 `4/3/3/2/1/4/3` 七组 20 项；“滑屏前进后退 / 恢复上次的搜索结果 /
+  询问是否恢复页面 / 保留多窗口”四项默认关闭，“长按网页元素菜单”默认开启并即时同步现有
+  WebView，编辑控件继续使用 Android WebView 系统原生选区
 - 普通窗口恢复只保存最小 URL 级投影；无痕窗口、Cookie、请求头、DOM、表单、正文、截图、密码和
   网络日志不进入恢复文件。搜索窗口离开已加载结果页后立即失去搜索恢复资格
 - 2026-08-18 回归修正按入口来源恢复了设置首页底部五按钮，并把 Shell/Operit 设置的系统 Back

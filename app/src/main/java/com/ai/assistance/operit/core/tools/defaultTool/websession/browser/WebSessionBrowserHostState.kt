@@ -174,10 +174,25 @@ internal data class WebSessionWebElementActionState(
     val text: String,
     val linkUrl: String?,
     val resourceUrl: String?,
+    val resourceKind: BrowserWebElementResourceKind,
     val selector: String,
     val html: String,
     val clientX: Double,
     val clientY: Double,
+)
+
+internal enum class BrowserQrCodeUiStatus {
+    LOADING,
+    SUCCESS,
+    IMAGE_LOAD_FAILED,
+    NOT_RECOGNIZED,
+}
+
+@Immutable
+internal data class WebSessionQrCodeState(
+    val sourceUrl: String,
+    val status: BrowserQrCodeUiStatus = BrowserQrCodeUiStatus.LOADING,
+    val content: String = "",
 )
 
 internal enum class BrowserAdMarkingMove {
@@ -428,6 +443,8 @@ internal data class WebSessionBrowserHostState(
     val pageSource: WebSessionPageSourceState = WebSessionPageSourceState(),
     val textSelectionActions: WebSessionTextSelectionActionsState? = null,
     val webElementAction: WebSessionWebElementActionState? = null,
+    val imageViewer: BrowserImageViewerSnapshot? = null,
+    val qrCode: WebSessionQrCodeState? = null,
     val adMarking: WebSessionAdMarkingState = WebSessionAdMarkingState(),
     val adMarkingOverlay: WebSessionAdMarkingOverlay = WebSessionAdMarkingOverlay.NONE,
     val adMarkingNavigationRequest: WebSessionAdMarkingNavigationRequest? = null,
@@ -441,6 +458,8 @@ internal data class WebSessionBrowserHostState(
 )
 
 internal enum class WebSessionBrowserBackAction {
+    DISMISS_IMAGE_VIEWER,
+    DISMISS_QR_CODE,
     DISMISS_AD_MARKING_NAVIGATION_REQUEST,
     DISMISS_AD_MARKING_OVERLAY,
     EXIT_AD_MARKING,
@@ -463,6 +482,10 @@ internal fun resolveWebSessionBrowserBackAction(
     state: WebSessionBrowserHostState,
 ): WebSessionBrowserBackAction =
     when {
+        state.imageViewer != null ->
+            WebSessionBrowserBackAction.DISMISS_IMAGE_VIEWER
+        state.qrCode != null ->
+            WebSessionBrowserBackAction.DISMISS_QR_CODE
         state.adMarkingNavigationRequest != null ->
             WebSessionBrowserBackAction.DISMISS_AD_MARKING_NAVIGATION_REQUEST
         state.pageSource.exitPromptVisible ->

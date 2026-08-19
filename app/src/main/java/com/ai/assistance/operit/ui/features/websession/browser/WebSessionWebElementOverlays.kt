@@ -30,13 +30,20 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -64,10 +71,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingMove
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserAdMarkingNavigationPolicy
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserQrCodeUiStatus
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWebElementAction
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.BrowserWebElementTargetKind
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionAdMarkingState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionAdMarkingNavigationRequest
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionQrCodeState
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebElementActionState
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.blockableUrl
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserAdMarkingSelectablePolicies
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserNetworkHost
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.browserOpenUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.buildBrowserWebElementActionPlan
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.externalOpenUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.imageUrl
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.isHttpBrowserNetworkUrl
 import com.ai.assistance.operit.ui.features.websession.browser.chrome.WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP
 
 internal const val WEB_SESSION_AD_MARKING_WORKBENCH_HEIGHT_DP = 300
@@ -76,208 +94,574 @@ internal const val WEB_SESSION_AD_MARKING_FOOTER_VERTICAL_PADDING_DP =
     (WEB_SESSION_BROWSER_BOTTOM_CONTENT_HEIGHT_DP -
         WEB_SESSION_AD_MARKING_FOOTER_BUTTON_HEIGHT_DP) / 2
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WebSessionWebElementActionDialog(
     state: WebSessionWebElementActionState,
     onDismiss: () -> Unit,
     onOpenInNewTab: (String, Boolean) -> Unit,
-    onCopyUrl: () -> Unit,
+    onCopyUrl: (String) -> Unit,
     onCopyText: () -> Unit,
     onOpenExternal: (String) -> Unit,
     onSelectText: (Double, Double) -> Unit,
-    onBlockElement: () -> Unit,
+    onOpenImage: () -> Unit,
+    onOpenImageMode: () -> Unit,
+    onSaveImage: () -> Unit,
+    onRecognizeQrCode: () -> Unit,
+    onBlockElementQuick: () -> Unit,
+    onBlockElementAdvanced: () -> Unit,
     onBlockUrl: (String) -> Unit,
 ) {
-    val openableUrl = state.linkUrl ?: state.resourceUrl
-    val blockableUrl = state.resourceUrl ?: state.linkUrl
-    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
-        WebSessionBrowserDialogSurface(
-            icon = Icons.Filled.TouchApp,
-            tone = WebSessionBrowserMenuTone.AD_MARKING,
-            title = "网页元素操作",
-            modifier = Modifier.fillMaxWidth().widthIn(max = 460.dp),
-        ) {
-            WebElementSummary(state)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
-            openableUrl?.let { url ->
-                WebElementActionRow(
-                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                    title = "新窗口打开",
-                    description = "在新的前台浏览器窗口中打开",
-                    onClick = {
-                        onDismiss()
-                        onOpenInNewTab(url, true)
-                    },
-                )
-                WebElementActionRow(
-                    icon = Icons.Filled.AddBox,
-                    title = "后台打开",
-                    description = "创建新窗口并保留当前网页",
-                    onClick = {
-                        onDismiss()
-                        onOpenInNewTab(url, false)
-                    },
-                )
-                WebElementActionRow(
-                    icon = Icons.Filled.ContentCopy,
-                    title = "复制链接",
-                    description = "复制此元素关联的网址或资源地址",
-                    onClick = onCopyUrl,
-                )
-                WebElementActionRow(
-                    icon = Icons.Filled.Language,
-                    title = "外部打开",
-                    description = "交给系统中的其他应用处理",
-                    onClick = {
-                        onDismiss()
-                        onOpenExternal(url)
-                    },
-                )
-            }
-            if (state.text.isNotBlank()) {
-                WebElementActionRow(
-                    icon = Icons.Filled.TextFields,
-                    title = "复制文本",
-                    description = "复制此元素当前显示的文本",
-                    onClick = onCopyText,
-                )
-                WebElementActionRow(
-                    icon = Icons.Filled.SelectAll,
-                    title = "选择文本",
-                    description = "在网页中进入可调整的文本选择状态",
-                    onClick = {
-                        onDismiss()
-                        onSelectText(state.clientX, state.clientY)
-                    },
-                )
-            }
-            WebElementActionRow(
-                icon = Icons.Filled.Block,
-                title = "拦截网页元素",
-                description = "进入标记工作台，生成当前站点的元素隐藏规则",
-                onClick = onBlockElement,
-                emphasized = true,
-            )
-            blockableUrl?.let { url ->
-                WebElementActionRow(
-                    icon = Icons.Filled.LinkOff,
-                    title = "拦截过滤网址",
-                    description = "根据此元素的真实请求地址创建网络规则",
-                    onClick = {
-                        onDismiss()
-                        onBlockUrl(url)
-                    },
-                    emphasized = true,
-                )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-        }
-    }
-}
-
-@Composable
-private fun WebElementSummary(state: WebSessionWebElementActionState) {
-    val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "<${state.tagName}>",
-                style = MaterialTheme.typography.labelLarge,
-                fontFamily = FontFamily.Monospace,
-                color = toneColors.icon,
+    val actionPlan = remember(state) { buildBrowserWebElementActionPlan(state) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = {
+            Box(
                 modifier =
                     Modifier
-                        .background(toneColors.container, RoundedCornerShape(7.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f),
+                            RoundedCornerShape(2.dp),
+                        ),
             )
-            Text(
-                text = state.text.ifBlank { "当前元素没有可见文本" },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+        },
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 680.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            WebElementSummary(state = state, targetKind = actionPlan.targetKind)
+            WebElementActionSection(
+                title = "快捷操作",
+                actions =
+                    actionPlan.quickActions.map { action ->
+                        webElementActionUi(
+                            action = action,
+                            state = state,
+                            onDismiss = onDismiss,
+                            onOpenInNewTab = onOpenInNewTab,
+                            onCopyUrl = onCopyUrl,
+                            onCopyText = onCopyText,
+                            onOpenExternal = onOpenExternal,
+                            onSelectText = onSelectText,
+                            onOpenImage = onOpenImage,
+                            onOpenImageMode = onOpenImageMode,
+                            onSaveImage = onSaveImage,
+                            onRecognizeQrCode = onRecognizeQrCode,
+                            onBlockElementQuick = onBlockElementQuick,
+                            onBlockElementAdvanced = onBlockElementAdvanced,
+                            onBlockUrl = onBlockUrl,
+                        )
+                    },
+            )
+            if (actionPlan.contentActions.isNotEmpty()) {
+                WebElementActionSection(
+                    title = "文本与识别",
+                    actions =
+                        actionPlan.contentActions.map { action ->
+                            webElementActionUi(
+                                action = action,
+                                state = state,
+                                onDismiss = onDismiss,
+                                onOpenInNewTab = onOpenInNewTab,
+                                onCopyUrl = onCopyUrl,
+                                onCopyText = onCopyText,
+                                onOpenExternal = onOpenExternal,
+                                onSelectText = onSelectText,
+                                onOpenImage = onOpenImage,
+                                onOpenImageMode = onOpenImageMode,
+                                onSaveImage = onSaveImage,
+                                onRecognizeQrCode = onRecognizeQrCode,
+                                onBlockElementQuick = onBlockElementQuick,
+                                onBlockElementAdvanced = onBlockElementAdvanced,
+                                onBlockUrl = onBlockUrl,
+                            )
+                        },
+                )
+            }
+            WebElementActionSection(
+                title = "网页拦截",
+                actions =
+                    actionPlan.blockingActions.map { action ->
+                        webElementActionUi(
+                            action = action,
+                            state = state,
+                            onDismiss = onDismiss,
+                            onOpenInNewTab = onOpenInNewTab,
+                            onCopyUrl = onCopyUrl,
+                            onCopyText = onCopyText,
+                            onOpenExternal = onOpenExternal,
+                            onSelectText = onSelectText,
+                            onOpenImage = onOpenImage,
+                            onOpenImageMode = onOpenImageMode,
+                            onSaveImage = onSaveImage,
+                            onRecognizeQrCode = onRecognizeQrCode,
+                            onBlockElementQuick = onBlockElementQuick,
+                            onBlockElementAdvanced = onBlockElementAdvanced,
+                            onBlockUrl = onBlockUrl,
+                        )
+                    },
             )
         }
-        Text(
-            text = state.selector,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
+private data class WebElementActionUi(
+    val icon: ImageVector,
+    val title: String,
+    val description: String,
+    val tone: WebElementActionTone,
+    val onClick: () -> Unit,
+)
+
+private enum class WebElementActionTone {
+    PRIMARY,
+    IMAGE,
+    COPY,
+    BLOCK,
+}
+
 @Composable
-private fun WebElementActionRow(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    onClick: () -> Unit,
-    emphasized: Boolean = false,
+private fun WebElementSummary(
+    state: WebSessionWebElementActionState,
+    targetKind: BrowserWebElementTargetKind,
 ) {
     val toneColors = WebSessionBrowserMenuTone.AD_MARKING.resolveColors()
+    val host = browserNetworkHost(state.pageUrl).ifBlank { state.pageUrl }
+    val summary =
+        state.text.ifBlank {
+            state.linkUrl ?: state.resourceUrl ?: "当前元素没有可见文本"
+        }
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 54.dp)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(34.dp)
-                    .background(
-                        if (emphasized) {
-                            toneColors.container
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        RoundedCornerShape(10.dp),
-                    ),
+                    .size(44.dp)
+                    .background(toneColors.container, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint =
-                    if (emphasized) {
-                        toneColors.icon
+                imageVector =
+                    if (
+                        targetKind == BrowserWebElementTargetKind.IMAGE ||
+                            targetKind == BrowserWebElementTargetKind.IMAGE_LINK
+                    ) {
+                        Icons.Filled.Image
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        Icons.Filled.TouchApp
                     },
-                modifier = Modifier.size(18.dp),
+                contentDescription = null,
+                tint = toneColors.icon,
+                modifier = Modifier.size(22.dp),
             )
         }
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = webElementTargetLabel(targetKind),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "<${state.tagName}>",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = toneColors.icon,
+                    modifier =
+                        Modifier
+                            .background(toneColors.container, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
             Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
+                text = host,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
+
+@Composable
+private fun WebElementActionSection(
+    title: String,
+    actions: List<WebElementActionUi>,
+) {
+    if (actions.isEmpty()) {
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 2.dp),
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border =
+                BorderStroke(
+                    0.5.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+                ),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                actions.chunked(4).forEach { rowActions ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        rowActions.forEach { action ->
+                            WebElementActionCard(
+                                action = action,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        repeat(4 - rowActions.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WebElementActionCard(
+    action: WebElementActionUi,
+    modifier: Modifier = Modifier,
+) {
+    val colors =
+        when (action.tone) {
+            WebElementActionTone.PRIMARY ->
+                MaterialTheme.colorScheme.primaryContainer to
+                    MaterialTheme.colorScheme.onPrimaryContainer
+            WebElementActionTone.IMAGE ->
+                MaterialTheme.colorScheme.tertiaryContainer to
+                    MaterialTheme.colorScheme.onTertiaryContainer
+            WebElementActionTone.COPY ->
+                MaterialTheme.colorScheme.secondaryContainer to
+                    MaterialTheme.colorScheme.onSecondaryContainer
+            WebElementActionTone.BLOCK ->
+                MaterialTheme.colorScheme.errorContainer to
+                    MaterialTheme.colorScheme.onErrorContainer
+        }
+    Column(
+        modifier =
+            modifier
+                .heightIn(min = 82.dp)
+                .clickable(onClick = action.onClick)
+                .padding(horizontal = 2.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(36.dp).background(colors.first, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = action.icon,
+                contentDescription = null,
+                tint = colors.second,
+                modifier = Modifier.size(19.dp),
+            )
+        }
+        Text(
+            text = action.title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+private fun webElementActionUi(
+    action: BrowserWebElementAction,
+    state: WebSessionWebElementActionState,
+    onDismiss: () -> Unit,
+    onOpenInNewTab: (String, Boolean) -> Unit,
+    onCopyUrl: (String) -> Unit,
+    onCopyText: () -> Unit,
+    onOpenExternal: (String) -> Unit,
+    onSelectText: (Double, Double) -> Unit,
+    onOpenImage: () -> Unit,
+    onOpenImageMode: () -> Unit,
+    onSaveImage: () -> Unit,
+    onRecognizeQrCode: () -> Unit,
+    onBlockElementQuick: () -> Unit,
+    onBlockElementAdvanced: () -> Unit,
+    onBlockUrl: (String) -> Unit,
+): WebElementActionUi =
+    when (action) {
+        BrowserWebElementAction.OPEN_NEW_WINDOW ->
+            WebElementActionUi(
+                Icons.AutoMirrored.Filled.OpenInNew,
+                "新窗口打开",
+                "在前台新窗口打开链接",
+                WebElementActionTone.PRIMARY,
+            ) {
+                state.browserOpenUrl()?.let { url ->
+                    onDismiss()
+                    onOpenInNewTab(url, true)
+                }
+            }
+        BrowserWebElementAction.OPEN_BACKGROUND ->
+            WebElementActionUi(
+                Icons.Filled.AddBox,
+                "后台打开",
+                "保留当前网页并创建窗口",
+                WebElementActionTone.PRIMARY,
+            ) {
+                state.browserOpenUrl()?.let { url ->
+                    onDismiss()
+                    onOpenInNewTab(url, false)
+                }
+            }
+        BrowserWebElementAction.VIEW_IMAGE ->
+            WebElementActionUi(
+                Icons.Filled.Fullscreen,
+                "全屏查看",
+                "完整显示当前图片",
+                WebElementActionTone.IMAGE,
+                onOpenImage,
+            )
+        BrowserWebElementAction.SAVE_IMAGE ->
+            WebElementActionUi(
+                Icons.Filled.Download,
+                "保存图片",
+                "进入浏览器下载流程",
+                WebElementActionTone.IMAGE,
+                onSaveImage,
+            )
+        BrowserWebElementAction.IMAGE_MODE ->
+            WebElementActionUi(
+                Icons.Filled.Collections,
+                "看图模式",
+                "浏览当前网页中的图片",
+                WebElementActionTone.IMAGE,
+                onOpenImageMode,
+            )
+        BrowserWebElementAction.COPY_LINK ->
+            WebElementActionUi(
+                Icons.Filled.Link,
+                "复制链接",
+                "复制元素跳转链接",
+                WebElementActionTone.COPY,
+            ) {
+                state.linkUrl?.let(onCopyUrl)
+            }
+        BrowserWebElementAction.COPY_IMAGE_LINK ->
+            WebElementActionUi(
+                Icons.Filled.Image,
+                "复制图片链接",
+                "复制当前图片资源地址",
+                WebElementActionTone.COPY,
+            ) {
+                state.imageUrl()?.let(onCopyUrl)
+            }
+        BrowserWebElementAction.COPY_RESOURCE_LINK ->
+            WebElementActionUi(
+                Icons.Filled.Link,
+                "复制资源链接",
+                "复制当前资源地址",
+                WebElementActionTone.COPY,
+            ) {
+                state.resourceUrl?.let(onCopyUrl)
+            }
+        BrowserWebElementAction.OPEN_EXTERNAL ->
+            WebElementActionUi(
+                Icons.Filled.Language,
+                "外部打开",
+                "交给其他应用处理",
+                WebElementActionTone.PRIMARY,
+            ) {
+                state.externalOpenUrl()?.let { url ->
+                    onDismiss()
+                    onOpenExternal(url)
+                }
+            }
+        BrowserWebElementAction.COPY_TEXT ->
+            WebElementActionUi(
+                Icons.Filled.ContentCopy,
+                "复制文本",
+                "复制当前元素文本",
+                WebElementActionTone.COPY,
+                onCopyText,
+            )
+        BrowserWebElementAction.SELECT_TEXT ->
+            WebElementActionUi(
+                Icons.Filled.SelectAll,
+                "选择文本",
+                "调整普通网页正文选区",
+                WebElementActionTone.COPY,
+            ) {
+                onDismiss()
+                onSelectText(state.clientX, state.clientY)
+            }
+        BrowserWebElementAction.RECOGNIZE_QR ->
+            WebElementActionUi(
+                Icons.Filled.QrCodeScanner,
+                "识别二维码",
+                "读取图片中的二维码内容",
+                WebElementActionTone.IMAGE,
+                onRecognizeQrCode,
+            )
+        BrowserWebElementAction.BLOCK_ELEMENT_QUICK ->
+            WebElementActionUi(
+                Icons.Filled.Block,
+                "拦截元素",
+                "立即保存当前元素规则",
+                WebElementActionTone.BLOCK,
+                onBlockElementQuick,
+            )
+        BrowserWebElementAction.BLOCK_ELEMENT_ADVANCED ->
+            WebElementActionUi(
+                Icons.Filled.TouchApp,
+                "拦截网页元素",
+                "进入标记工作台精细调整",
+                WebElementActionTone.BLOCK,
+                onBlockElementAdvanced,
+            )
+        BrowserWebElementAction.BLOCK_URL ->
+            WebElementActionUi(
+                Icons.Filled.LinkOff,
+                "拦截过滤网址",
+                "保存当前资源或跳转网址规则",
+                WebElementActionTone.BLOCK,
+            ) {
+                state.blockableUrl()?.let { url ->
+                    onDismiss()
+                    onBlockUrl(url)
+                }
+            }
+    }
+
+@Composable
+internal fun WebSessionQrCodeDialog(
+    state: WebSessionQrCodeState,
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit,
+    onOpen: () -> Unit,
+) {
+    WebSessionBrowserModalDialog(onDismissRequest = onDismiss) {
+        WebSessionBrowserDialogSurface(
+            icon = Icons.Filled.QrCodeScanner,
+            tone = WebSessionBrowserMenuTone.NETWORK_LOG,
+            title = "识别二维码",
+            modifier = Modifier.fillMaxWidth().widthIn(max = 460.dp),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                when (state.status) {
+                    BrowserQrCodeUiStatus.LOADING -> {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        Text(
+                            text = "正在读取图片并识别二维码",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    BrowserQrCodeUiStatus.SUCCESS -> {
+                        SelectionContainer {
+                            Text(
+                                text = state.content,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceContainerLow,
+                                            RoundedCornerShape(14.dp),
+                                        )
+                                        .padding(14.dp),
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(onClick = onDismiss) { Text("关闭") }
+                            TextButton(onClick = onCopy) { Text("复制内容") }
+                            if (isHttpBrowserNetworkUrl(state.content)) {
+                                TextButton(onClick = onOpen) { Text("打开网页") }
+                            }
+                        }
+                    }
+                    BrowserQrCodeUiStatus.IMAGE_LOAD_FAILED ->
+                        Text(
+                            text = "图片加载失败，无法识别二维码",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    BrowserQrCodeUiStatus.NOT_RECOGNIZED ->
+                        Text(
+                            text = "当前图片中没有识别到二维码",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                }
+                if (state.status != BrowserQrCodeUiStatus.SUCCESS) {
+                    TextButton(onClick = onDismiss) { Text("关闭") }
+                }
+            }
+        }
+    }
+}
+
+private fun webElementTargetLabel(targetKind: BrowserWebElementTargetKind): String =
+    when (targetKind) {
+        BrowserWebElementTargetKind.IMAGE_LINK -> "图片链接"
+        BrowserWebElementTargetKind.IMAGE -> "图片"
+        BrowserWebElementTargetKind.LINK -> "网页链接"
+        BrowserWebElementTargetKind.MEDIA_LINK -> "媒体链接"
+        BrowserWebElementTargetKind.MEDIA -> "媒体资源"
+        BrowserWebElementTargetKind.TEXT -> "网页文本"
+        BrowserWebElementTargetKind.ELEMENT -> "网页元素"
+    }
 
 @Composable
 internal fun WebSessionAdMarkingWorkbench(

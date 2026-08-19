@@ -166,7 +166,7 @@ class BrowserNetworkLogPolicyTest {
                 "https://img.example.com/first.jpg",
                 "https://img.example.com/selected.png",
             ),
-            requireNotNull(snapshot).entries.map(WebSessionBrowserNetworkEntry::url),
+            requireNotNull(snapshot).items.map(BrowserImageViewerItem::url),
         )
         assertEquals(1, snapshot.initialPage)
         assertEquals(
@@ -221,33 +221,33 @@ class BrowserNetworkLogPolicyTest {
 
     @Test
     fun `image viewer drag alpha is symmetric monotonic and dismisses beyond touch slop`() {
-        assertEquals(1f, browserNetworkImageViewerBackgroundAlpha(0f, 1_000f))
-        val shortDrag = browserNetworkImageViewerBackgroundAlpha(100f, 1_000f)
-        val longDrag = browserNetworkImageViewerBackgroundAlpha(300f, 1_000f)
-        assertEquals(shortDrag, browserNetworkImageViewerBackgroundAlpha(-100f, 1_000f))
+        assertEquals(1f, browserImageViewerBackgroundAlpha(0f, 1_000f))
+        val shortDrag = browserImageViewerBackgroundAlpha(100f, 1_000f)
+        val longDrag = browserImageViewerBackgroundAlpha(300f, 1_000f)
+        assertEquals(shortDrag, browserImageViewerBackgroundAlpha(-100f, 1_000f))
         assertTrue(shortDrag < 1f)
         assertTrue(longDrag < shortDrag)
         assertTrue(longDrag >= 0f)
-        assertEquals(1f, browserNetworkImageViewerBackgroundAlpha(100f, 0f))
+        assertEquals(1f, browserImageViewerBackgroundAlpha(100f, 0f))
 
-        assertFalse(shouldDismissBrowserNetworkImageViewer(verticalOffsetPx = 8f, touchSlopPx = 8f))
-        assertTrue(shouldDismissBrowserNetworkImageViewer(verticalOffsetPx = 9f, touchSlopPx = 8f))
-        assertTrue(shouldDismissBrowserNetworkImageViewer(verticalOffsetPx = -9f, touchSlopPx = 8f))
+        assertFalse(shouldDismissBrowserImageViewer(verticalOffsetPx = 8f, touchSlopPx = 8f))
+        assertTrue(shouldDismissBrowserImageViewer(verticalOffsetPx = 9f, touchSlopPx = 8f))
+        assertTrue(shouldDismissBrowserImageViewer(verticalOffsetPx = -9f, touchSlopPx = 8f))
     }
 
     @Test
     fun `image viewer pinch scale is bounded and starts at fit scale`() {
-        assertEquals(1f, BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE)
-        assertEquals(5f, BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE)
+        assertEquals(1f, BROWSER_IMAGE_VIEWER_MIN_SCALE)
+        assertEquals(5f, BROWSER_IMAGE_VIEWER_MAX_SCALE)
         assertEquals(
-            BROWSER_NETWORK_IMAGE_VIEWER_MIN_SCALE,
-            clampBrowserNetworkImageViewerScale(0.25f),
+            BROWSER_IMAGE_VIEWER_MIN_SCALE,
+            clampBrowserImageViewerScale(0.25f),
         )
         assertEquals(
-            BROWSER_NETWORK_IMAGE_VIEWER_MAX_SCALE,
-            clampBrowserNetworkImageViewerScale(8f),
+            BROWSER_IMAGE_VIEWER_MAX_SCALE,
+            clampBrowserImageViewerScale(8f),
         )
-        assertEquals(2.5f, clampBrowserNetworkImageViewerScale(2.5f))
+        assertEquals(2.5f, clampBrowserImageViewerScale(2.5f))
     }
 
     @Test

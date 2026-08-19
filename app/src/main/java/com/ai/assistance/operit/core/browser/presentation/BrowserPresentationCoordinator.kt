@@ -22,6 +22,7 @@ import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.schedu
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.WebSessionWebViewHost
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.activateSessionOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.applyBrowserDisplaySettingsOnMain
+import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.applyBrowserWebElementLongPressMenuSettingOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.applyWebsitePasswordSavingSettingOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.createSessionTabOnMain
 import com.ai.assistance.operit.core.tools.defaultTool.websession.browser.ensureBrowserPresentationOnMain
@@ -274,6 +275,13 @@ internal class BrowserPresentationCoordinator private constructor(context: Conte
 
     fun setAutomaticFloatingMinimumDurationMillis(durationMillis: Long) {
         tools.browserSettingsStore.setAutomaticFloatingMinimumDurationMillis(durationMillis)
+    }
+
+    fun setWebElementLongPressMenuEnabled(enabled: Boolean) {
+        tools.runOnMainSync<Unit> {
+            tools.browserSettingsStore.setWebElementLongPressMenuEnabled(enabled)
+            tools.applyBrowserWebElementLongPressMenuSettingOnMain()
+        }
     }
 
     fun setSwipeHistoryNavigationEnabled(enabled: Boolean) {

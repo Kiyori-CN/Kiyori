@@ -66,6 +66,7 @@ internal enum class KiyoriBrowserSettingsAction {
     TOGGLE_ASK_BEFORE_RESTORING_PAGES,
     TOGGLE_RETAIN_MULTIPLE_WINDOWS,
     TOGGLE_FORCE_PAGE_ZOOM,
+    TOGGLE_WEB_ELEMENT_LONG_PRESS_MENU,
     OPEN_WEB_TEXT_SIZE,
     TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
     TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
@@ -182,6 +183,20 @@ internal val kiyoriBrowserSettingsGroups =
                         title = "网页文字大小",
                         description = "调整所有网页正文的文字缩放比例并实时预览",
                         action = KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE,
+                    ),
+                ),
+        ),
+        KiyoriBrowserSettingsGroupSpec(
+            title = "网页交互",
+            description = "管理网页内容长按、元素操作与系统原生文字选择的边界",
+            entries =
+                listOf(
+                    browserToggle(
+                        title = "长按网页元素菜单",
+                        description = "长按链接、图片和普通元素时显示适配菜单；输入框仍使用系统原生选区",
+                        action =
+                            KiyoriBrowserSettingsAction
+                                .TOGGLE_WEB_ELEMENT_LONG_PRESS_MENU,
                     ),
                 ),
         ),
@@ -332,6 +347,8 @@ internal fun KiyoriBrowserSettingsPage(
                 onSetRetainMultipleWindowsEnabled =
                     coordinator::setRetainMultipleWindowsEnabled,
                 onSetForcePageZoomEnabled = coordinator::setForcePageZoomEnabled,
+                onSetWebElementLongPressMenuEnabled =
+                    coordinator::setWebElementLongPressMenuEnabled,
                 onOpenWebTextSize = {
                     onNavigate(KiyoriSettingsRoute.BROWSER_TEXT_SIZE)
                 },
@@ -551,6 +568,7 @@ private fun KiyoriBrowserSettingsDetailPage(
     onSetAskBeforeRestoringPagesEnabled: (Boolean) -> Unit,
     onSetRetainMultipleWindowsEnabled: (Boolean) -> Unit,
     onSetForcePageZoomEnabled: (Boolean) -> Unit,
+    onSetWebElementLongPressMenuEnabled: (Boolean) -> Unit,
     onOpenWebTextSize: () -> Unit,
     onSetShowMediaCandidateBadge: (Boolean) -> Unit,
     onSetAutomaticFloatingPlaybackEnabled: (Boolean) -> Unit,
@@ -623,6 +641,9 @@ private fun KiyoriBrowserSettingsDetailPage(
                                     onSetRetainMultipleWindowsEnabled(!checked)
                                 KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM ->
                                     onSetForcePageZoomEnabled(!checked)
+                                KiyoriBrowserSettingsAction
+                                    .TOGGLE_WEB_ELEMENT_LONG_PRESS_MENU ->
+                                    onSetWebElementLongPressMenuEnabled(!checked)
                                 KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE ->
                                     onOpenWebTextSize()
                                 KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
@@ -708,6 +729,7 @@ internal fun browserSettingValue(
             KiyoriBrowserSettingsAction.TOGGLE_ASK_BEFORE_RESTORING_PAGES,
             KiyoriBrowserSettingsAction.TOGGLE_RETAIN_MULTIPLE_WINDOWS,
             KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
+            KiyoriBrowserSettingsAction.TOGGLE_WEB_ELEMENT_LONG_PRESS_MENU,
             KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY,
             KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK,
             KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
@@ -735,6 +757,8 @@ internal fun browserSettingToggleValue(
             settings.retainMultipleWindowsEnabled
         KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM ->
             settings.forcePageZoomEnabled
+        KiyoriBrowserSettingsAction.TOGGLE_WEB_ELEMENT_LONG_PRESS_MENU ->
+            settings.webElementLongPressMenuEnabled
         KiyoriBrowserSettingsAction.TOGGLE_SEARCH_BAR_SNIFFER_ENTRY ->
             settings.showMediaCandidateBadge
         KiyoriBrowserSettingsAction.TOGGLE_AUTOMATIC_FLOATING_PLAYBACK ->

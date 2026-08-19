@@ -19,6 +19,7 @@ internal data class WebSessionBrowserSettings(
     val automaticFloatingPlaybackEnabled: Boolean = true,
     val automaticFloatingMinimumDurationMillis: Long =
         DEFAULT_AUTOMATIC_FLOATING_MINIMUM_DURATION_MILLIS,
+    val webElementLongPressMenuEnabled: Boolean = true,
     val swipeHistoryNavigationEnabled: Boolean = false,
     val restoreLastSearchResultEnabled: Boolean = false,
     val askBeforeRestoringPagesEnabled: Boolean = false,
@@ -106,6 +107,11 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         }
         _state.value =
             _state.value.copy(automaticFloatingMinimumDurationMillis = durationMillis)
+    }
+
+    fun setWebElementLongPressMenuEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_WEB_ELEMENT_LONG_PRESS_MENU, enabled) }
+        _state.value = _state.value.copy(webElementLongPressMenuEnabled = enabled)
     }
 
     fun setSwipeHistoryNavigationEnabled(enabled: Boolean) {
@@ -241,6 +247,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
                             "Invalid automatic floating minimum duration: $durationMillis"
                         }
                     },
+            webElementLongPressMenuEnabled =
+                preferences.getBoolean(KEY_WEB_ELEMENT_LONG_PRESS_MENU, true),
             swipeHistoryNavigationEnabled =
                 preferences.getBoolean(KEY_SWIPE_HISTORY_NAVIGATION, false),
             restoreLastSearchResultEnabled =
@@ -302,6 +310,8 @@ internal class WebSessionBrowserSettingsStore private constructor(context: Conte
         private const val KEY_AUTOMATIC_FLOATING_PLAYBACK = "automatic_floating_playback"
         private const val KEY_AUTOMATIC_FLOATING_MINIMUM_DURATION =
             "automatic_floating_minimum_duration"
+        private const val KEY_WEB_ELEMENT_LONG_PRESS_MENU =
+            "web_element_long_press_menu"
         private const val KEY_SWIPE_HISTORY_NAVIGATION = "swipe_history_navigation"
         private const val KEY_RESTORE_LAST_SEARCH_RESULT = "restore_last_search_result"
         private const val KEY_ASK_BEFORE_RESTORING_PAGES = "ask_before_restoring_pages"

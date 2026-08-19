@@ -653,7 +653,7 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `browser settings expose only verified capabilities`() {
         assertEquals(
-            listOf(4, 3, 3, 2, 4, 3),
+            listOf(4, 3, 3, 2, 1, 4, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
         )
         assertEquals(
@@ -670,6 +670,7 @@ class KiyoriSettingsPagesTest {
                 "保留多窗口",
                 "强制页面缩放",
                 "网页文字大小",
+                "长按网页元素菜单",
                 "允许网页打开应用",
                 "允许网页获取位置",
                 "网站密码管理",
@@ -708,6 +709,8 @@ class KiyoriSettingsPagesTest {
                     KiyoriBrowserSettingsAction.TOGGLE_FORCE_PAGE_ZOOM,
                 "网页文字大小" to
                     KiyoriBrowserSettingsAction.OPEN_WEB_TEXT_SIZE,
+                "长按网页元素菜单" to
+                    KiyoriBrowserSettingsAction.TOGGLE_WEB_ELEMENT_LONG_PRESS_MENU,
                 "允许网页打开应用" to
                     KiyoriBrowserSettingsAction.TOGGLE_WEB_PAGE_OPEN_APP,
                 "允许网页获取位置" to
@@ -734,6 +737,7 @@ class KiyoriSettingsPagesTest {
                 "主页与导航",
                 "启动与窗口",
                 "网页显示",
+                "网页交互",
                 "网站权限与数据",
                 "音视频嗅探",
             ),
@@ -750,6 +754,7 @@ class KiyoriSettingsPagesTest {
         assertTrue(initialBrowserSettings.returnWithoutReloadEnabled)
         assertTrue(initialBrowserSettings.forcePageZoomEnabled)
         assertTrue(initialBrowserSettings.websitePasswordSavingEnabled)
+        assertTrue(initialBrowserSettings.webElementLongPressMenuEnabled)
         assertFalse(initialBrowserSettings.swipeHistoryNavigationEnabled)
         assertFalse(initialBrowserSettings.restoreLastSearchResultEnabled)
         assertFalse(initialBrowserSettings.askBeforeRestoringPagesEnabled)
@@ -757,10 +762,17 @@ class KiyoriSettingsPagesTest {
         val browserSettings = WebSessionBrowserSettings(homeUrl = "https://example.com/home")
         val entries =
             kiyoriBrowserSettingsGroups.flatMap(KiyoriBrowserSettingsGroupSpec::entries)
-        assertEquals(19, entries.size)
+        assertEquals(20, entries.size)
         assertEquals(
-            listOf(4, 3, 3, 2, 4, 3),
+            listOf(4, 3, 3, 2, 1, 4, 3),
             kiyoriBrowserSettingsGroups.map { group -> group.entries.size },
+        )
+        assertTrue(
+            browserSettingToggleValue(
+                entry = entries.single { entry -> entry.title == "长按网页元素菜单" },
+                settings = browserSettings,
+                userscriptState = WebSessionUserscriptUiState(),
+            ),
         )
         listOf(
             "滑屏前进后退",
